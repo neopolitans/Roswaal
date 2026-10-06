@@ -13,6 +13,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import type { ShownLine } from "../core/lineDiff.js";
 import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
 import { LAYER } from "./layers.js";
@@ -37,6 +38,8 @@ export type DialogRequest =
 			items?: string[];
 			/** Sentences under the message, as plain bullets rather than names. */
 			points?: string[];
+			/** What the action changes in a file, line by line. */
+			diff?: ShownLine[];
 			confirmLabel?: string;
 			danger?: boolean;
 			icon?: IconName;
@@ -56,6 +59,8 @@ export type DialogRequest =
 			kind: "form";
 			title: string;
 			message: string;
+			/** Sentences under the message and above the fields, as plain bullets. */
+			points?: string[];
 			fields: FormField[];
 			confirmLabel?: string;
 			icon?: IconName;
@@ -216,6 +221,13 @@ export function Dialog({ request, resolve }: PendingDialog) {
 					) : request.kind === "form" ? (
 						<>
 							<p>{request.message}</p>
+							{request.points && request.points.length > 0 && (
+								<ul className="dialog-points">
+									{request.points.map((point) => (
+										<li key={point}>{point}</li>
+									))}
+								</ul>
+							)}
 							{request.fields.map((field) => {
 								if (field.kind === "text") {
 									return (
@@ -293,6 +305,21 @@ export function Dialog({ request, resolve }: PendingDialog) {
 						</>
 					) : (
 						<p>{request.message}</p>
+					)}
+					{request.kind === "confirm" && request.diff && request.diff.length > 0 && (
+						<pre className="dialog-diff">
+							{request.diff.map((line, i) =>
+								line.kind === "gap" ? (
+									<span key={i} className="diff-gap">
+										{`… ${line.count} unchanged line${line.count === 1 ? "" : "s"}\n`}
+									</span>
+								) : (
+									<span key={i} className={`diff-${line.kind}`}>
+										{`${line.kind === "add" ? "+" : line.kind === "del" ? "-" : " "} ${line.text}\n`}
+									</span>
+								),
+							)}
+						</pre>
 					)}
 					{request.kind === "confirm" && request.points && request.points.length > 0 && (
 						<ul className="dialog-points">

@@ -8,7 +8,8 @@ import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toBase64 } from "../core/base64.js";
 import { errorMessage } from "../core/errorMessage.js";
-import type { NodeScript } from "../core/schema.js";
+import { detectTarget } from "../core/import/modes.js";
+import type { NodeScript, Target } from "../core/schema.js";
 import { api, type ProjectInfo, type TreeEntry, type WallyOutcome } from "./api.js";
 import type { FormAnswers, FormField } from "./Dialog.jsx";
 import {
@@ -749,9 +750,18 @@ export function useProjectActions(context: ProjectActionsContext) {
 	const importLuauFile = useCallback(
 		async (entry: TreeEntry) => {
 			// The risks are the developer's to take on, so they are named before
-			// anything is written, every time.
-			const go = await ask({
-				kind: "confirm",
+			// anything is written, every time, beside the settings that narrow them.
+			let detected: Target | undefined;
+			try {
+				detected = detectTarget((await api.readSource(entry.path)).text);
+			} catch {
+				detected = undefined;
+			}
+			const projectTarget = project?.config.target ?? "roblox";
+			// Asked only when the file and the project disagree.
+			const conflict = detected !== undefined && detected !== projectTarget;
+			const answer = await ask({
+				kind: "form",
 				title: `Import ${entry.name} as a graph?`,
 				message:
 					"Turning Luau into a graph can be made safer but never certain. Test the graph before you rely on it.",
@@ -760,26 +770,74 @@ export function useProjectActions(context: ProjectActionsContext) {
 					"Comments, blank lines and formatting are not kept.",
 					"What has no node stays as Luau text, which the graph does not check.",
 				],
+				fields: [
+					{
+						id: "locals",
+						kind: "choice",
+						label: "File-level locals become",
+						value: "variable",
+						options: [
+							{ value: "variable", label: "Script variables" },
+							{ value: "local", label: "Declare Locals" },
+						],
+					},
+					{
+						id: "mode",
+						kind: "choice",
+						label: "Reads as (every mode behaves the same)",
+						value: "tidy",
+						options: [
+							{ value: "tidy", label: "Tidy" },
+							{ value: "verbatim", label: "Verbatim" },
+							{ value: "modern", label: "Modern" },
+						],
+					},
+					...(conflict
+						? [
+								{
+									id: "target",
+									kind: "choice" as const,
+									label: `Runtime (the file requires @lune/, the project is ${projectTarget === "roblox" ? "Roblox" : "Lune"})`,
+									value: "lune",
+									options: [
+										{ value: "lune", label: "Lune" },
+										{ value: "roblox", label: "Roblox" },
+									],
+								},
+							]
+						: []),
+				],
 				confirmLabel: "Import",
 				icon: "graph",
 			});
-			if (go !== true) return;
+			if (typeof answer !== "string") return;
+			const chosen = JSON.parse(answer) as FormAnswers;
 			try {
-				const out = await api.importScript(entry.path);
+				const out = await api.importScript(entry.path, {
+					locals: chosen.locals === "local" ? "local" : "variable",
+					mode: chosen.mode === "verbatim" || chosen.mode === "modern" ? chosen.mode : "tidy",
+					target: conflict
+						? chosen.target === "roblox"
+							? "roblox"
+							: "lune"
+						: (detected ?? undefined),
+				});
 				await refreshTree();
 				store.open(out.path, out.script);
-				const { statements, asNodes, asCode } = out.report;
+				const { statements, asNodes, asCode, findings, rewrites } = out.report;
 				const kept = asCode.map((c) => `${c.construct} ×${c.count}`).join(", ");
-				notify(
-					`${entry.name} imported`,
-					`${asNodes} of ${statements} statements are nodes.${kept ? ` Kept as code: ${kept}.` : ""} ` +
-						`${entry.name} is unchanged; compiling over it asks for force.`,
-				);
+				const lines = [
+					`${asNodes} of ${statements} statements are nodes.${kept ? ` Kept as code: ${kept}.` : ""}`,
+					...(rewrites > 0 ? [`Written in newer syntax: ${rewrites}.`] : []),
+					...findings.map((f) => `Line ${f.line}: ${f.message}`),
+					`${entry.name} is unchanged; compiling over it asks for force.`,
+				];
+				notify(`${entry.name} imported`, lines.join(" "));
 			} catch (err) {
 				notify(`Could not import ${entry.name}`, errorMessage(err));
 			}
 		},
-		[ask, notify, refreshTree],
+		[ask, notify, refreshTree, project],
 	);
 
 	const onTreeNewFolder = useCallback(

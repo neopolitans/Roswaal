@@ -13,6 +13,7 @@ import { compile, type Diagnostic } from "../core/compiler/index.js";
 import { offTargetNames, offTargetNodes } from "../core/compiler/validate.js";
 import { buildSearchIndex, buildSite } from "../core/docs/site.js";
 import { errorMessage } from "../core/errorMessage.js";
+import { diffLines, shownLines } from "../core/lineDiff.js";
 import type { InstanceLocation } from "../core/nodemap.js";
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import { BUILTIN_NODES, createRegistry } from "../core/nodes/index.js";
@@ -856,6 +857,42 @@ export function App() {
 	);
 
 	/**
+	 * Overwriting a file Roswaal did not write, after showing what changes.
+	 *
+	 * The file is somebody's own work until this point, and an imported graph
+	 * is the usual way here, so what the graph would write is put beside what
+	 * is there first. A file that cannot be read has nothing to show, and is
+	 * still asked about.
+	 */
+	const overwriteWith = useCallback(
+		async (outcome: CompileOutcome) => {
+			let current: string | undefined;
+			try {
+				current = (await api.readSource(outcome.outputPath)).text;
+			} catch {
+				current = undefined;
+			}
+			const diff = current === undefined ? [] : diffLines(current, outcome.code);
+			const changed = diff.filter((d) => d.kind !== "same").length;
+			const ok = await ask({
+				kind: "confirm",
+				title: `Overwrite ${outcome.outputPath}?`,
+				message:
+					current === undefined
+						? "Roswaal did not write this file. Compiling replaces it with the graph's output."
+						: changed === 0
+							? "Roswaal did not write this file, but the graph writes the same lines. Overwriting takes it over."
+							: `Roswaal did not write this file. ${changed} line${changed === 1 ? "" : "s"} change:`,
+				diff: shownLines(diff),
+				confirmLabel: "Overwrite",
+				danger: true,
+			});
+			if (ok === true) await runCompile(outcome.scriptPath, true, true);
+		},
+		[ask, runCompile],
+	);
+
+	/**
 	 * Writes `roswaal.json` and takes the daemon's answer as the truth.
 	 *
 	 * A rejection used to be an unhandled promise, which was survivable while
@@ -1374,7 +1411,7 @@ export function App() {
 								await refreshTree();
 							}}
 							packErrors={project.packErrors}
-							onForce={(path) => void runCompile(path, true, true)}
+							onForce={(outcome) => void overwriteWith(outcome)}
 						/>
 					),
 				}}

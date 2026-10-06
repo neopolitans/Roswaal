@@ -25,7 +25,8 @@ export interface StatusPanelProps {
 	/** Graphs whose Luau goes to a folder no node map syncs, so Rojo never sees it. */
 	unsynced: { graph: string; folder: string }[];
 	packErrors: string[];
-	onForce: (path: string) => void;
+	/** Overwrite the file this outcome skipped, once its changes have been shown. */
+	onForce: (outcome: CompileOutcome) => void;
 }
 
 export function StatusPanel(props: StatusPanelProps) {
@@ -165,7 +166,7 @@ export function StatusPanel(props: StatusPanelProps) {
 										<span
 											className="where"
 											style={{ cursor: "pointer", textDecoration: "underline" }}
-											onClick={() => props.onForce(outcome.scriptPath)}
+											onClick={() => props.onForce(outcome)}
 										>
 											overwrite
 										</span>

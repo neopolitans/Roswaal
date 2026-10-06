@@ -28,6 +28,7 @@ export interface RequiredModule {
 import type { Diagnostic } from "../core/compiler/index.js";
 import type { FunctionInfo } from "../core/functionGraph.js";
 import type { ImportReport } from "../core/import/fromLuau.js";
+import type { ImportMode, TopLevelLocals } from "../core/import/modes.js";
 import type { LuaurcSource } from "../core/luaurc.js";
 import type { InstanceLocation, MapDiagnostic, NodeMap } from "../core/nodemap.js";
 import type { NodeDef, NodeScript, RoswaalConfig, ScriptClass, Target } from "../core/schema.js";
@@ -358,9 +359,13 @@ export const api = {
 	createScript: (dir: string, name: string, scriptClass: ScriptClass) =>
 		post<{ path: string; script: NodeScript }>("/api/script/create", { dir, name, scriptClass }),
 	/** A `.luau` file read into a new graph; the file itself is left alone. */
-	importScript: (path: string) =>
+	importScript: (
+		path: string,
+		settings: { locals?: TopLevelLocals; mode?: ImportMode; target?: Target } = {},
+	) =>
 		post<{ path: string; script: NodeScript; report: ImportReport }>("/api/script/import", {
 			path,
+			...settings,
 		}),
 	moveScript: (from: string, toDir: string) =>
 		post<{ path: string }>("/api/script/move", { from, toDir }),

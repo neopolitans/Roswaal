@@ -25,6 +25,7 @@
 import { VERSION } from "../cli/version.js";
 import { fromBase64, toBase64 } from "../core/base64.js";
 import { graphNameOf, importLuau } from "../core/import/fromLuau.js";
+import type { ImportMode, TopLevelLocals } from "../core/import/modes.js";
 import { emptyFilesystemMap, emptyMap, type NodeMap } from "../core/nodemap.js";
 import {
 	describeInstance,
@@ -647,7 +648,13 @@ export class ApiSession {
 			 */
 			"POST /script/import": async (req) => {
 				const project = this.project();
-				const luauPath = need(fields<{ path: string }>(req).path, "path");
+				const body = fields<{
+					path: string;
+					locals?: TopLevelLocals;
+					mode?: ImportMode;
+					target?: Target;
+				}>(req);
+				const luauPath = need(body.path, "path");
 				const fileName = path.posix.basename(luauPath);
 				const { name, scriptClass } = graphNameOf(fileName);
 				const outDir = toPosix(project.config.outDir);
@@ -667,7 +674,9 @@ export class ApiSession {
 				const result = importLuau(await readText(project, luauPath), {
 					name,
 					scriptClass,
-					target: project.config.target,
+					target: body.target ?? project.config.target,
+					locals: body.locals,
+					mode: body.mode,
 					idPrefix: newId().slice(0, 8),
 				});
 				if (!result.ok)

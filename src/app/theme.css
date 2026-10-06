@@ -6557,6 +6557,46 @@ button.tb.icon-only.on {
 
 /* What a confirmation is about, listed under its message. Capped, so a graph
    with forty of something scrolls rather than pushing the buttons off screen. */
+/* What an overwrite changes: the file's lines going, the graph's arriving,
+   and the unchanged runs between them folded to a count. */
+.dialog-diff {
+	margin: 0 0 14px;
+	max-height: 320px;
+	overflow: auto;
+	padding: 6px 0;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	background: var(--bg-input);
+	font-family: var(--mono, ui-monospace, monospace);
+	font-size: var(--text-xs);
+	line-height: 1.5;
+	white-space: pre;
+}
+
+.dialog-diff > span {
+	display: block;
+	padding: 0 10px;
+}
+
+.dialog-diff .diff-add {
+	background: color-mix(in srgb, var(--ok) 14%, transparent);
+	color: var(--fg);
+}
+
+.dialog-diff .diff-del {
+	background: color-mix(in srgb, var(--danger) 14%, transparent);
+	color: var(--fg-muted);
+}
+
+.dialog-diff .diff-same {
+	color: var(--fg-faint);
+}
+
+.dialog-diff .diff-gap {
+	color: var(--fg-faint);
+	font-style: italic;
+}
+
 /* Sentences under a confirmation's message, where items would be names. */
 .dialog-points {
 	margin: 0 0 14px;

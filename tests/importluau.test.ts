@@ -17,7 +17,8 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { compile } from "../src/core/compiler/index.js";
-import { graphNameOf, importLuau } from "../src/core/import/fromLuau.js";
+import { graphNameOf, type ImportOptions, importLuau } from "../src/core/import/fromLuau.js";
+import { detectTarget } from "../src/core/import/modes.js";
 import { createRegistry } from "../src/core/nodes/index.js";
 import type { NodeScript } from "../src/core/schema.js";
 import { ApiSession } from "../src/server/routes.js";
@@ -33,9 +34,19 @@ function luauFiles(dir: string): string[] {
 	});
 }
 
-function imported(src: string, file = "Test.server.luau"): NodeScript {
+function imported(
+	src: string,
+	file = "Test.server.luau",
+	settings: Pick<ImportOptions, "locals" | "mode"> = {},
+): NodeScript {
 	const { name, scriptClass } = graphNameOf(file);
-	const result = importLuau(src, { name, scriptClass, target: "roblox", idPrefix: "t" });
+	const result = importLuau(src, {
+		name,
+		scriptClass,
+		target: "roblox",
+		idPrefix: "t",
+		...settings,
+	});
 	if (!result.ok) throw new Error(result.error);
 	return result.script;
 }
@@ -62,8 +73,12 @@ function lines(code: string): string[] {
  * Annotations are written only when the mode line asks for them, as for any
  * graph, so the cases here are strict files like the sample's.
  */
-const roundTrip = (src: string, file?: string) => {
-	const { code, errors } = compiled(imported(src, file));
+const roundTrip = (
+	src: string,
+	file?: string,
+	settings?: Pick<ImportOptions, "locals" | "mode">,
+) => {
+	const { code, errors } = compiled(imported(src, file, settings));
 	expect(errors).toEqual([]);
 	return lines(code);
 };
@@ -114,12 +129,38 @@ describe("the M103 sample", () => {
 });
 
 describe("what becomes a node", () => {
-	it("a local is a Declare Local, and reading it is a Get Local", () => {
-		const src = "--!strict\nlocal speed: number = 16\nprint(speed)\n";
+	it("a file-level local is a script variable, declared where it was", () => {
+		const src = "--!strict\nlocal speed: number = 16\nprint(speed)\nspeed = 20\n";
 		const script = imported(src);
+		expect(script.variables.map((v) => [v.name, v.type])).toEqual([["speed", "number"]]);
+		expect(defsOf(script)).toEqual(
+			expect.arrayContaining(["variable.init", "variable.get", "variable.set"]),
+		);
+		expect(roundTrip(src)).toEqual(lines(src));
+	});
+
+	it("a file-level local is a Declare Local when the import asks for that", () => {
+		const src = "--!strict\nlocal speed: number = 16\nprint(speed)\n";
+		const script = imported(src, undefined, { locals: "local" });
+		expect(script.variables).toEqual([]);
+		expect(defsOf(script)).toEqual(expect.arrayContaining(["local.declare", "local.get"]));
+		expect(roundTrip(src, undefined, { locals: "local" })).toEqual(lines(src));
+	});
+
+	it("a local inside a function stays a local", () => {
+		const src = "--!strict\nlocal function f(): ()\n\tlocal n = 1\n\tprint(n)\nend\n";
+		const script = imported(src);
+		expect(script.variables).toEqual([]);
 		expect(defsOf(script)).toContain("local.declare");
-		expect(defsOf(script)).toContain("local.get");
-		expect(roundTrip(src)).toEqual(["--!strict", "local speed: number = 16", "print(speed)"]);
+	});
+
+	it("a name declared twice at file level is a variable, then a local", () => {
+		const src = "local a = 1\nprint(a)\nlocal a = 2\nprint(a)\n";
+		const script = imported(src);
+		expect(script.variables.map((v) => v.name)).toEqual(["a"]);
+		// The compiler names the second `a2`, as it names any shadowing local,
+		// and every read of it follows: the same program.
+		expect(roundTrip(src)).toEqual(["local a = 1", "print(a)", "local a2 = 2", "print(a2)"]);
 	});
 
 	/**
@@ -155,7 +196,7 @@ describe("what becomes a node", () => {
 		].join("\n");
 		const script = imported(src);
 		expect(defsOf(script)).toEqual(
-			expect.arrayContaining(["flow.forRange", "flow.forIndex", "flow.while", "local.set"]),
+			expect.arrayContaining(["flow.forRange", "flow.forIndex", "flow.while", "variable.set"]),
 		);
 		expect(roundTrip(src)).toEqual(lines(src));
 	});
@@ -216,6 +257,52 @@ describe("what becomes a node", () => {
 		expect(script.scriptClass).toBe("ModuleScript");
 		expect(defsOf(script)).toContain("module.exports");
 		expect(roundTrip(src, "M.luau")).toEqual(lines(src));
+	});
+});
+
+describe("the modes", () => {
+	const src =
+		'--!strict\nlocal ready = true\nlocal label = ready and "go" or "wait"\nprint(label)\n';
+
+	it("leave a and b or c alone in Verbatim and Tidy", () => {
+		for (const mode of ["verbatim", "tidy"] as const) {
+			expect(roundTrip(src, undefined, { mode })).toContain(
+				'local label = ready and "go" or "wait"',
+			);
+		}
+	});
+
+	it("write it as an if-expression in Modern, when the middle is surely truthy", () => {
+		expect(roundTrip(src, undefined, { mode: "modern" })).toContain(
+			'local label = if ready then "go" else "wait"',
+		);
+	});
+
+	it("never rewrite one whose middle could be false or nil", () => {
+		const risky = "local a, b, c = true, nil, 1\nprint(a and b or c)\n";
+		expect(roundTrip(risky, undefined, { mode: "modern" })).toContain("print(a and b or c)");
+	});
+
+	it("report a likely bug in every mode, and leave it as written", () => {
+		const buggy = "local x = true\nprint(x and false or 1)\n";
+		for (const mode of ["verbatim", "tidy", "modern"] as const) {
+			const result = importLuau(buggy, {
+				name: "T",
+				scriptClass: "Script",
+				target: "roblox",
+				mode,
+			});
+			if (!result.ok) throw new Error(result.error);
+			expect(result.report.findings).toEqual([
+				{ line: 2, message: expect.stringContaining("never gives false") },
+			]);
+			expect(roundTrip(buggy, undefined, { mode })).toContain("print(x and false or 1)");
+		}
+	});
+
+	it("say which runtime a file is for from its requires", () => {
+		expect(detectTarget('local fs = require("@lune/fs")\n')).toBe("lune");
+		expect(detectTarget('local Players = game:GetService("Players")\n')).toBeUndefined();
 	});
 });
 
@@ -309,6 +396,16 @@ describe("importing from the project tree", () => {
 		expect(await readFile(path.join(root, "src/Shared/Greeter.luau"), "utf8")).toBe(
 			"local G = {}\nreturn G\n",
 		);
+	});
+
+	it("takes the import's settings", async () => {
+		const api = await session();
+		const out = (await api.handle("POST", "/script/import", {
+			body: { path: "src/Shared/Greeter.luau", locals: "local", mode: "verbatim", target: "lune" },
+		})) as { script: NodeScript };
+		expect(out.script.variables).toEqual([]);
+		expect(out.script.target).toBe("lune");
+		expect(out.script.nodes.some((n) => n.def === "local.declare")).toBe(true);
 	});
 
 	it("never replaces a graph already there", async () => {

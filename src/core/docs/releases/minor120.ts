@@ -9,6 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.143.0",
+		date: "2026-10-06",
+		headline: "Import as graph has settings, and an overwrite shows what changes first.",
+		affects: ["editor", "docs"],
+		added: [
+			"The import prompt asks what file-level locals become: script variables, declared where they were by Initialize Variable, or Declare Locals.",
+			"It asks how the graph reads: Tidy, Verbatim or Modern. Every mode behaves the same. Modern writes `a and b or c` as an if-expression where the middle can never be false or nil.",
+			"The report lists likely bugs in the original, such as `x and false or y`, which never gives false. They are left as written.",
+			"A file that requires `@lune/` modules is imported for Lune. When the project is for Roblox, the prompt asks which.",
+			"Overwriting a file Roswaal did not write shows the lines that change, and asks before writing.",
+		],
+		changed: ["File-level locals become script variables unless the import says otherwise."],
+	},
+	{
 		version: "0.142.1",
 		date: "2026-10-06",
 		headline: "Cast result reads as optional until it is set.",

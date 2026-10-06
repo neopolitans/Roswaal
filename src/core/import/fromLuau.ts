@@ -26,8 +26,18 @@ import {
 	type Literal,
 	type NodeScript,
 	type ScriptClass,
+	type ScriptVariable,
 	type Target,
 } from "../schema.js";
+import {
+	applyEdits,
+	type Edit,
+	type Finding,
+	findLikelyBugs,
+	type ImportMode,
+	modernEdits,
+	type TopLevelLocals,
+} from "./modes.js";
 
 export interface ImportOptions {
 	/** The graph's name: the file's, without `.server`, `.client` or `.luau`. */
@@ -36,6 +46,10 @@ export interface ImportOptions {
 	target: Target;
 	/** Prefix for node ids, so two imports never share one. Random when absent. */
 	idPrefix?: string;
+	/** What a file-level `local` becomes: a script variable unless asked otherwise. */
+	locals?: TopLevelLocals;
+	/** How the graph reads; every mode behaves the same. See `modes.ts`. */
+	mode?: ImportMode;
 }
 
 export interface ImportReport {
@@ -45,6 +59,10 @@ export interface ImportReport {
 	asNodes: number;
 	/** What became code, by the construct that did, most first. */
 	asCode: { construct: string; count: number }[];
+	/** Likely bugs in the original, left as they are. */
+	findings: Finding[];
+	/** How many places Modern wrote in newer syntax. */
+	rewrites: number;
 }
 
 export type ImportResult =
@@ -57,6 +75,7 @@ type Ref =
 	| { kind: "param"; fn: string; name: string; type?: string }
 	| { kind: "pin"; node: string; pin: string }
 	| { kind: "function"; node: string; name: string; params: Sig[]; returns: Sig[] }
+	| { kind: "variable"; id: string; name: string; type?: string }
 	/** Declared by a statement kept as code: read back as its text. */
 	| { kind: "text" };
 
@@ -113,10 +132,14 @@ class Importer {
 	private codeKinds = new Map<string, number>();
 	/** Columns used per graph, so each statement goes to the right of the last. */
 	private column = new Map<string, number>();
+	/** The script variables file-level locals became. */
+	readonly variables: ScriptVariable[] = [];
 
 	constructor(
 		private readonly src: string,
 		private readonly prefix: string,
+		private readonly locals: TopLevelLocals = "variable",
+		private readonly edits: readonly Edit[] = [],
 	) {}
 
 	private id(): string {
@@ -136,7 +159,7 @@ class Importer {
 	private kept(span: { start: number; end: number }): string {
 		const lineStart = this.src.lastIndexOf("\n", span.start - 1) + 1;
 		const indent = /^[ \t]*/.exec(this.src.slice(lineStart, span.start))?.[0] ?? "";
-		const text = this.text(span);
+		const text = applyEdits(this.src, span, this.edits);
 		if (!indent) return text;
 		return text
 			.split("\n")
@@ -187,7 +210,7 @@ class Importer {
 		this.codeKinds.set(kind, (this.codeKinds.get(kind) ?? 0) + 1);
 	}
 
-	report(): ImportReport {
+	report(): Omit<ImportReport, "findings" | "rewrites"> {
 		return {
 			statements: this.stats,
 			asNodes: this.asNodes,
@@ -255,6 +278,12 @@ class Importer {
 				if (ref?.kind === "local") {
 					const id = this.node("local.get", graph, below(0), {
 						config: { local: ref.node, name: ref.name, ...(ref.type ? { type: ref.type } : {}) },
+					});
+					return { kind: "wire", node: id, pin: "value" };
+				}
+				if (ref?.kind === "variable") {
+					const id = this.node("variable.get", graph, below(0), {
+						config: { variable: ref.id, name: ref.name, ...(ref.type ? { type: ref.type } : {}) },
 					});
 					return { kind: "wire", node: id, pin: "value" };
 				}
@@ -399,6 +428,31 @@ class Importer {
 				const binding = stat.names[0];
 				const at = this.place(graph, row);
 				const type = this.typeText(binding);
+				// A file-level local is a script variable, declared where it was by
+				// Initialize Variable. A name declared twice at that level is two
+				// locals, which one variable cannot be, so the second stays local.
+				const fileLevel = !scope.parent && this.locals === "variable";
+				if (fileLevel && !this.variables.some((v) => v.name === binding.name)) {
+					const variable = `${this.prefix}-var${this.variables.length + 1}`;
+					this.variables.push({
+						id: variable,
+						name: binding.name,
+						type: type ?? "any",
+						default: { t: "nil" },
+					});
+					const id = this.node("variable.init", graph, at, {
+						config: { variable, name: binding.name, ...(type ? { type } : {}) },
+					});
+					this.feed(
+						stat.values[0]
+							? this.expr(stat.values[0], scope, graph, at)
+							: { kind: "literal", literal: { t: "nil" } },
+						{ node: id, pin: "value" },
+					);
+					this.chain(tail, id);
+					scope.set(binding.name, { kind: "variable", id: variable, name: binding.name, type });
+					return counted({ node: id, pin: "then" });
+				}
 				const id = this.node("local.declare", graph, at, type ? { config: { type } } : {});
 				this.literal(id, "name", { t: "string", v: binding.name });
 				if (stat.values[0])
@@ -423,6 +477,15 @@ class Importer {
 					return counted(this.setField(target, stat.values[0], tail, scope, graph, row));
 				}
 				const ref = target.kind === "name" ? scope.get(target.name) : undefined;
+				if (ref?.kind === "variable") {
+					const at = this.place(graph, row);
+					const id = this.node("variable.set", graph, at, {
+						config: { variable: ref.id, name: ref.name, ...(ref.type ? { type: ref.type } : {}) },
+					});
+					this.feed(this.expr(stat.values[0], scope, graph, at), { node: id, pin: "value" });
+					this.chain(tail, id);
+					return counted({ node: id, pin: "then" });
+				}
 				if (ref?.kind !== "local") {
 					return this.custom(stat, tail, graph, row, "assignment");
 				}
@@ -775,7 +838,9 @@ export function importLuau(file: string, options: ImportOptions): ImportResult {
 		return { ok: false, error: `Line ${line}: ${first.message}` };
 	}
 	const prefix = options.idPrefix ?? `imp${Math.random().toString(36).slice(2, 8)}`;
-	const importer = new Importer(src, prefix);
+	const mode = options.mode ?? "tidy";
+	const edits = mode === "modern" ? modernEdits(parsed.value, src) : [];
+	const importer = new Importer(src, prefix, options.locals ?? "variable", edits);
 	const script: NodeScript = {
 		...emptyScript(options.name, `${prefix}-graph`),
 		scriptClass: options.scriptClass,
@@ -796,7 +861,11 @@ export function importLuau(file: string, options: ImportOptions): ImportResult {
 	const { nodes, links } = importer.result();
 	return {
 		ok: true,
-		script: { ...script, nodes: [begin, ...nodes], links },
-		report: importer.report(),
+		script: { ...script, variables: importer.variables, nodes: [begin, ...nodes], links },
+		report: {
+			...importer.report(),
+			findings: findLikelyBugs(parsed.value, src),
+			rewrites: edits.length,
+		},
 	};
 }
