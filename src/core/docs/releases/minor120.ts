@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.143.5",
+		date: "2026-10-06",
+		headline: "Luau typed into a node not wired in yet is offered its graph's locals.",
+		affects: ["editor"],
+		fixed: [
+			"A Custom Code or Luau Expression not yet wired in offered no locals. It offers its function's parameters, then every other local in its graph, marked in scope once wired. Once it is wired, scope is worked out exactly again.",
+		],
+	},
+	{
 		version: "0.143.4",
 		date: "2026-10-06",
 		headline: "The website's links into the docs open the page they name.",

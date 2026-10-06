@@ -246,9 +246,15 @@ describe("completion inside a function declared after a local", () => {
 		expect(written).toContain("hull.Position.Y - leftTrack.Position.Y");
 	});
 
-	it("offers nothing for an expression nothing reads", () => {
+	/**
+	 * It has no place in the flow yet, so nothing is surely in scope; what its
+	 * graph declares is offered all the same, each marked as needing the wire.
+	 */
+	it("offers its graph's locals to an expression nothing reads, as needing the wire", () => {
 		const { b } = occupancy();
 		const expr = b.node("value.expression");
-		expect(precedingLocals(b.build(), registry, expr)).toEqual([]);
+		const offered = precedingLocals(b.build(), registry, expr);
+		expect(offered.length).toBeGreaterThan(0);
+		expect(offered.every((c) => String(c.detail).includes("in scope once wired"))).toBe(true);
 	});
 });

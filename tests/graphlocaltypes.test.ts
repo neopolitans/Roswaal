@@ -211,3 +211,61 @@ describe("a path through the place", () => {
 		expect(result?.options.map((o) => o.label)).toEqual(expect.arrayContaining(["X", "Y", "Z"]));
 	});
 });
+
+/**
+ * A node not wired in yet has no place in the flow to work out scope from,
+ * and offered nothing. It now offers what its graph makes visible anywhere,
+ * then the graph's other locals marked as needing the wire.
+ */
+describe("a node not wired in yet", () => {
+	/** `local function f(target: Vector3)`, holding a Declare Local and a loose Luau Expression. */
+	function loose(wired: boolean) {
+		const b = new Builder();
+		const begin = b.node("script.begin");
+		const fn = b.node("function.declareHere", {
+			config: {
+				name: "f",
+				method: false,
+				params: [{ name: "target", type: "Vector3" }],
+				returns: [],
+			},
+		});
+		const speed = b.node("local.declare", { graph: fn, config: { type: "number" } });
+		b.lit(speed, "name", { t: "string", v: "speed" }).lit(speed, "value", { t: "number", v: 1 });
+		const expr = b.node("value.expression", { graph: fn });
+		b.lit(expr, "code", { t: "raw", v: "speed" });
+		b.link(begin, "then", fn, "in").link(fn, "body", speed, "in");
+		const outside = b.node("local.declare");
+		b.lit(outside, "name", { t: "string", v: "elsewhere" });
+		b.link(fn, "then", outside, "in");
+		if (wired) {
+			const print = b.node("debug.print", { graph: fn });
+			b.link(speed, "then", print, "in").link(expr, "result", print, "value");
+		}
+		return { script: b.build(), expr };
+	}
+
+	it("offers its function's parameters as sure, and the graph's locals as needing the wire", () => {
+		const { script, expr } = loose(false);
+		const offered = precedingLocals(script, registry, expr);
+		expect(offered.find((c) => c.label === "target")?.detail).toBe("parameter");
+		const speed = offered.find((c) => c.label === "speed");
+		expect(speed?.detail).toContain("in scope once wired");
+		expect(speed?.boost).toBe(-1);
+		// Drawn in another graph: never offered.
+		expect(offered.map((c) => c.label)).not.toContain("elsewhere");
+	});
+
+	it("knows the types of what it offers", () => {
+		const { script, expr } = loose(false);
+		const types = graphLocalTypes(script, registry, expr);
+		expect(types.get("target")?.type).toBe("Vector3");
+		expect(types.get("speed")?.type).toBe("number");
+	});
+
+	it("works scope out exactly once it is wired", () => {
+		const { script, expr } = loose(true);
+		const speed = precedingLocals(script, registry, expr).find((c) => c.label === "speed");
+		expect(speed?.detail).not.toContain("once wired");
+	});
+});

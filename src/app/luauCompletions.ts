@@ -543,9 +543,7 @@ export function luauCompletionSource(
 			);
 			if (type !== undefined) {
 				const options =
-					separator === "."
-						? typedDotMembers({ type }, roblox)
-						: typedColonMembers({ type });
+					separator === "." ? typedDotMembers({ type }, roblox) : typedColonMembers({ type });
 				if (options.length > 0) {
 					return { from: pathed.to - typed.length, options, validFor: /^\w*$/ };
 				}
@@ -723,11 +721,11 @@ export function precedingLocals(
 	registry: Registry,
 	nodeId: string | null,
 ): Completion[] {
-	return collectPreceding(script, registry, nodeId).map(({ name, detail }) => ({
-		label: name,
-		type: "variable",
-		detail,
-	}));
+	return collectPreceding(script, registry, nodeId).map(({ name, detail, provisional }) =>
+		provisional
+			? { label: name, type: "variable", detail: `${detail} · in scope once wired`, boost: -1 }
+			: { label: name, type: "variable", detail },
+	);
 }
 
 /**
@@ -783,6 +781,12 @@ interface GraphLocal {
 	name: string;
 	detail: string;
 	type?: string;
+	/**
+	 * Offered from a node not wired in yet, which has no place in the flow to
+	 * be in scope at: a local somewhere in its graph, which it will see only if
+	 * it is wired in after it.
+	 */
+	provisional?: boolean;
 }
 
 function collectPreceding(
@@ -879,9 +883,37 @@ function collectPreceding(
 	// that statement is where it runs and where its scope is.
 	let current: string | null = nodeId;
 	const self = script.nodes.find((n) => n.id === nodeId);
-	if (self && registry.get(self.def)?.pure) {
+	const pure = self !== undefined && registry.get(self.def)?.pure === true;
+	if (pure) {
 		current = [...surfacesIn(script, registry, nodeId)][0] ?? null;
 	}
+
+	// Not wired in yet: no statement reads it, or nothing runs into it. There
+	// is no place in the flow to work out scope from, so what its graph makes
+	// visible anywhere comes first, and every other local drawn in that graph
+	// after it, marked as needing the wire. Writing the expression first and
+	// wiring it after is the usual order, and an empty list punished it.
+	const placed = pure ? current !== null : (execInputs.get(nodeId)?.length ?? 0) > 0;
+	if (self && !placed) {
+		const owner = self.graph ? script.nodes.find((n) => n.id === self.graph) : undefined;
+		if (owner && FUNCTION_NODES.has(owner.def)) {
+			if (owner.def === "function.declareHere" && isMethod(owner.config)) {
+				add(RECEIVER, "parameter · the method's table");
+			}
+			const params = (owner.config as Signature | undefined)?.params ?? [];
+			params.forEach((param, i) => {
+				add(toIdentifier(param.name || `arg${i + 1}`, `arg${i + 1}`), "parameter", param.type);
+			});
+		}
+		const sure = out.length;
+		for (const node of script.nodes) {
+			if (node.id === nodeId || node.graph !== self.graph) continue;
+			collectFrom(node.id);
+			for (const loop of loopVariables(node)) add(loop.name, "loop variable", loop.type);
+		}
+		return out.map((local, i) => (i < sure ? local : { ...local, provisional: true }));
+	}
+
 	const guard = new Set<string>();
 
 	while (current && !guard.has(current)) {
