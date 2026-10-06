@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.143.6",
+		date: "2026-10-06",
+		headline: "The project tree's menu opens over the graph, all of it on screen.",
+		affects: ["editor"],
+		fixed: [
+			"Right-clicking anything under Graph Content or Compile Content opened a menu clipped by the Project card: cut off at its edge, and Delete out of sight below it. The menu opens over everything now, and near the bottom or the right of the window it opens on the other side of the pointer, as a native menu does.",
+			"Show in file manager fits on one line of that menu.",
+		],
+	},
+	{
 		version: "0.143.5",
 		date: "2026-10-06",
 		headline: "Luau typed into a node not wired in yet is offered its graph's locals.",

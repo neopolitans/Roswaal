@@ -4064,8 +4064,10 @@ button.start-tile:disabled {
 	color: var(--warning);
 }
 
+/* As wide as its longest item, so "Show in file manager" stays on one line. */
 .tree-menu {
-	width: 170px;
+	width: max-content;
+	min-width: 170px;
 	max-height: none;
 }
 
