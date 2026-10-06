@@ -44,9 +44,11 @@ import {
 	useState,
 } from "react";
 
-import { CardMenu, type CardMenuItem, CardView, HEADLESS, PanelBody } from "./Cards.jsx";
+import { CardView, HEADLESS, PanelBody } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import { Icon } from "./icons.jsx";
+import { Menu } from "./Menu.jsx";
+import type { MenuEntry } from "./menuModel.js";
 import {
 	type Card,
 	type CardDrop,
@@ -198,10 +200,7 @@ export function Workspace({
 	// row, or two with a line under it, or a list when there are problems.
 	const [pill, setPill] = useState(0);
 	// A card's menu, open by its button.
-	const [menu, setMenu] = useState<{
-		panel: PanelId;
-		at: { x: number; y: number; up: boolean };
-	} | null>(null);
+	const [menu, setMenu] = useState<{ panel: PanelId; button: HTMLElement } | null>(null);
 	// A panel with nothing to draw is not open.
 	//
 	// The inspector only has content while exactly one node is selected, and
@@ -248,19 +247,6 @@ export function Workspace({
 		element.addEventListener("dragstart", onStart);
 		return () => element.removeEventListener("dragstart", onStart);
 	}, [compact]);
-
-	// A card's menu closes on a press anywhere else, and on Escape.
-	useEffect(() => {
-		if (!menu) return;
-		const close = () => setMenu(null);
-		const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
-		window.addEventListener("pointerdown", close);
-		window.addEventListener("keydown", onKey);
-		return () => {
-			window.removeEventListener("pointerdown", close);
-			window.removeEventListener("keydown", onKey);
-		};
-	}, [menu]);
 
 	// The panels a side's drawers offer, in the order the dock stacks them.
 	//
@@ -437,10 +423,13 @@ export function Workspace({
 				{dragging?.target && <DropPreview target={dragging.target} />}
 
 				{menu && openMenuItems && (
-					<CardMenu
-						at={menu.at}
-						items={openMenuItems.items}
-						closed={openMenuItems.closed}
+					<Menu
+						at={{ element: menu.button, align: "end" }}
+						label={`${PANEL_TITLES[menu.panel]}: move, separate or close`}
+						sections={[
+							{ entries: openMenuItems.items },
+							{ label: "Closed", entries: openMenuItems.closed },
+						]}
 						onClose={() => setMenu(null)}
 					/>
 				)}
@@ -639,26 +628,23 @@ export function Workspace({
 		};
 	}
 
-	/** The card's menu: where it can go, its tabs, folding and closing, and what is closed. */
-	function openMenu(panel: PanelId, anchor: HTMLElement) {
-		const box = surface.current?.getBoundingClientRect();
-		if (!box || !onLayout) return;
-		const r = anchor.getBoundingClientRect();
-		const up = r.bottom > box.bottom - 260;
-		setMenu({
-			panel,
-			at: { x: box.right - r.right, y: up ? box.bottom - r.top + 4 : r.bottom - box.top + 4, up },
-		});
+	/**
+	 * The card's menu: where it can go, its tabs, folding and closing, and what
+	 * is closed. Its button again closes it.
+	 */
+	function openMenu(panel: PanelId, button: HTMLElement) {
+		if (!onLayout) return;
+		setMenu((open) => (open?.button === button ? null : { panel, button }));
 	}
 
-	function menuItems(panel: PanelId): { items: CardMenuItem[]; closed: CardMenuItem[] } {
+	function menuItems(panel: PanelId): { items: MenuEntry[]; closed: MenuEntry[] } {
 		if (!onLayout) return { items: [], closed: [] };
 		const head = cardOf(layout, panel);
 		const state = layout.panels[head];
 		const members = membersOf(layout, head).filter((id) => layout.panels[id].open);
 		const title = PANEL_TITLES[panel];
 		const to = (drop: CardDrop) => () => onLayout((l) => dropCard(l, panel, drop));
-		const items: CardMenuItem[] = [];
+		const items: MenuEntry[] = [];
 		if (!state.floating) {
 			const frame = state.frame;
 			items.push({ label: "Float over the graph", run: to({ kind: "float", frame }) });
@@ -679,7 +665,7 @@ export function Workspace({
 		const closed = PANEL_IDS.filter(
 			(id) => !layout.panels[id].open && contents[id] !== undefined,
 		).map(
-			(id): CardMenuItem => ({
+			(id): MenuEntry => ({
 				label: `Show ${PANEL_TITLES[id]}`,
 				icon: id === "inspector" || id === "properties" ? "panelRight" : "panelLeft",
 				run: () => onLayout((l) => reopenPanel(l, id)),

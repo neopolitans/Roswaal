@@ -25,7 +25,8 @@ import { PackView } from "./designer/PackView.jsx";
 import { FloatingTools, ToolGroup } from "./FloatingTools.jsx";
 import { IntroPanel } from "./IntroPanel.jsx";
 import { Icon } from "./icons.jsx";
-import { Popout, usePhone } from "./Popout.jsx";
+import { MenuButton } from "./Menu.jsx";
+import { usePhone } from "./Popout.jsx";
 import { guardLeave, openPage, pageHref, pagesShareTab, pageTarget } from "./pages.js";
 import { usePreferenceSync } from "./preferenceSync.js";
 import { type Preferences, readPreferences, writePreferences } from "./preferences.js";
@@ -153,44 +154,43 @@ export function DesignerPage() {
 					    row has the mark and the node's own actions to hold. */}
 					<ToolGroup>
 						{phone ? (
-							<Popout label={<Icon name="more" size={16} />} title="More" end closeOnPick>
-								<a
-									className="tb with-icon"
-									href={pageHref("docs", "creating-custom-nodes")}
-									target={pageTarget("docs")}
-									onClick={guardLeave}
-								>
-									<Icon name="help" size={15} />
-									How custom nodes work
-								</a>
-								<a
-									className="tb with-icon"
-									href={pageHref("docs")}
-									target={pageTarget("docs")}
-									onClick={guardLeave}
-								>
-									<Icon name="document" size={15} />
-									Docs
-								</a>
-								<a
-									className="tb with-icon"
-									href={pageHref("editor")}
-									target={pagesShareTab() ? "_self" : "_blank"}
-									rel="noreferrer"
-									onClick={guardLeave}
-								>
-									<Icon name="graph" size={15} />
-									Open Editor
-								</a>
-								<button
-									type="button"
-									className="tb with-icon"
-									onClick={() => setSettingsOpen(true)}
-								>
-									<Icon name="settings" size={15} />
-									Settings
-								</button>
-							</Popout>
+							<MenuButton
+								label={<Icon name="more" size={16} />}
+								title="More"
+								align="end"
+								sections={[
+									{
+										entries: [
+											{
+												label: "How custom nodes work",
+												icon: "help",
+												link: {
+													href: pageHref("docs", "creating-custom-nodes"),
+													target: pageTarget("docs"),
+												},
+												run: guardLeave,
+											},
+											{
+												label: "Docs",
+												icon: "document",
+												link: { href: pageHref("docs"), target: pageTarget("docs") },
+												run: guardLeave,
+											},
+											{
+												label: "Open Editor",
+												icon: "graph",
+												link: {
+													href: pageHref("editor"),
+													target: pagesShareTab() ? "_self" : "_blank",
+													rel: "noreferrer",
+												},
+												run: guardLeave,
+											},
+											{ label: "Settings", icon: "settings", run: () => setSettingsOpen(true) },
+										],
+									},
+								]}
+							/>
 						) : (
 							<>
 								<a

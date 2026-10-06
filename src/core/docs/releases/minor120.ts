@@ -17,7 +17,8 @@ export const RELEASES_0_120: Release[] = [
 			"Menus work from the keyboard: Up and Down move through what can be chosen, Home and End jump to either end, Enter chooses, and Escape or Tab closes the menu and puts focus back where it was.",
 		],
 		changed: [
-			"The project tree's menus are drawn by the editor's one menu, which opens over everything and stays on screen.",
+			"Every context menu and dropdown is drawn by one menu, which opens over everything and stays on screen: the project tree's, a pin's, the node palette, a card's ⋯, the open documents, More, Project, and a pack's ⋯ in Node Design.",
+			"More's dividers show. They were there, and drawn as nothing.",
 		],
 	},
 	{

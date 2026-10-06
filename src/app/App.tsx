@@ -49,8 +49,8 @@ import {
 } from "./host.js";
 import { Inspector } from "./Inspector.jsx";
 import { IntroPanel } from "./IntroPanel.jsx";
-import { Icon } from "./icons.jsx";
 import { MapEditor } from "./MapEditor.jsx";
+import { MenuButton } from "./Menu.jsx";
 import type { WireFrom } from "./menuSearch.js";
 import type { MenuAnchor } from "./NodeMenu.jsx";
 import { NodePicker } from "./NodePicker.jsx";
@@ -58,7 +58,6 @@ import { functionNameOf } from "./nodeConfig.js";
 import { type CodeEditState, Overlays } from "./Overlays.jsx";
 import type { PinMenuTarget } from "./PinMenu.jsx";
 import { PlaceBrowser, PlaceProperties, type PlaceTarget } from "./PlaceBrowser.jsx";
-import { Popout } from "./Popout.jsx";
 import { ProjectPicker } from "./ProjectPicker.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
 import { IS_STATIC_HOST, openHome, openPage } from "./pages.js";
@@ -74,7 +73,7 @@ import { StatusPanel } from "./StatusPanel.jsx";
 import { SaveQueue } from "./saveQueue.js";
 import { sideKey, store, useDocuments, useEditor, useOutline } from "./store.js";
 import { showToast, Toasts } from "./Toast.jsx";
-import { DocumentAction, DocumentBar, ProjectBar } from "./Toolbar.jsx";
+import { DocumentAction, DocumentBar, graphMenuEntries, ProjectBar } from "./Toolbar.jsx";
 import { liveSelection, TouchBar } from "./TouchBar.jsx";
 import { useAutosave } from "./useAutosave.js";
 import { useDialogs } from "./useDialogs.js";
@@ -1050,47 +1049,48 @@ export function App() {
 						<>
 							{/* One button for what can be done to the project, so the
 						    footer is Home, Project, and the other two windows. */}
-							<Popout label="Project" title="Open, export or start again" up closeOnPick>
-								{hostCanBrowse && (
-									<button className="tb with-icon" onClick={() => void browseForProject()}>
-										<Icon name="folderOpen" size={15} />
-										Browse&hellip;
-									</button>
-								)}
-								{hostCanOpenFolder && (
-									<button className="tb with-icon" onClick={() => void openFolder()}>
-										<Icon name="folder" size={15} />
-										Open folder&hellip;
-									</button>
-								)}
-								{hostCanImportZip && (
-									<button className="tb with-icon" onClick={() => zipInput.current?.click()}>
-										<Icon name="folderOpen" size={15} />
-										Open .zip&hellip;
-									</button>
-								)}
-								{hostCanImportPlace && (
-									<button className="tb with-icon" onClick={() => placeInput.current?.click()}>
-										<Icon name="folderOpen" size={15} />
-										Open place&hellip;
-									</button>
-								)}
-								<button className="tb with-icon" onClick={() => void importRojo()}>
-									<Icon name="map" size={15} />
-									Import Rojo project&hellip;
-								</button>
-								<button className="tb with-icon" onClick={() => setExportOpen(true)}>
-									<Icon name="copy" size={15} />
-									Export&hellip;
-								</button>
-								{hostCanReset && <span className="tool-popout-rule" />}
-								{hostCanReset && (
-									<button className="tb with-icon" onClick={() => void resetProject()}>
-										<Icon name="refresh" size={15} />
-										Start again
-									</button>
-								)}
-							</Popout>
+							<MenuButton
+								label="Project"
+								title="Open, export or start again"
+								side="above"
+								sections={[
+									{
+										entries: [
+											hostCanBrowse && {
+												label: "Browse…",
+												icon: "folderOpen",
+												run: () => void browseForProject(),
+											},
+											hostCanOpenFolder && {
+												label: "Open folder…",
+												icon: "folder",
+												run: () => void openFolder(),
+											},
+											hostCanImportZip && {
+												label: "Open .zip…",
+												icon: "folderOpen",
+												run: () => zipInput.current?.click(),
+											},
+											hostCanImportPlace && {
+												label: "Open place…",
+												icon: "folderOpen",
+												run: () => placeInput.current?.click(),
+											},
+											{ label: "Import Rojo project…", icon: "map", run: () => void importRojo() },
+											{ label: "Export…", icon: "copy", run: () => setExportOpen(true) },
+										],
+									},
+									{
+										entries: [
+											hostCanReset && {
+												label: "Start again",
+												icon: "refresh",
+												run: () => void resetProject(),
+											},
+										],
+									},
+								]}
+							/>
 							{/* Outside the menu, which closes on the tap that opens
 						    the picker; the input has to outlast it. */}
 							{hostCanImportPlace && (
@@ -1180,20 +1180,16 @@ export function App() {
 							) : undefined
 						}
 						phoneMenu={
-							graphOpen ? (
-								<DocumentBar
-									kind="graph"
-									asMenu
-									locked={locked}
-									alignExec={alignExec}
-									selected={editor.selection.size}
-									inFunction={editor.graph !== null}
-									onAddNode={addNodeAtCentre}
-									onRealign={realign}
-									onToggleAlignExec={toggleAlignExec}
-									onPreview={() => setPreviewOpen(true)}
-								/>
-							) : undefined
+							graphOpen
+								? graphMenuEntries({
+										locked,
+										alignExec,
+										onAddNode: addNodeAtCentre,
+										onRealign: realign,
+										onToggleAlignExec: toggleAlignExec,
+										onPreview: () => setPreviewOpen(true),
+									})
+								: undefined
 						}
 						onRefresh={() => void refreshTree()}
 						onNewGraph={() => void createGraphIn(inDir(targetDir))}

@@ -12,15 +12,14 @@
  * know, and "Promote to Variable" is not a phrase to improve on.
  */
 
-import { useRef } from "react";
 import type { Registry } from "../core/nodes/index.js";
 import { literalOnlyPins } from "../core/nodes/index.js";
 import { pinTypeText } from "../core/nodes/variables.js";
 import type { NodeScript, PinDef } from "../core/schema.js";
 import { cx } from "./cx.js";
-import { useDismiss } from "./dismiss.js";
 import { canPromoteToVariable, pinLinkCount, splitModesFor } from "./edits.js";
-import { LAYER } from "./layers.js";
+import { Menu } from "./Menu.jsx";
+import type { MenuEntry } from "./menuModel.js";
 import { pinColor } from "./palette.js";
 
 export interface PinMenuTarget {
@@ -44,13 +43,6 @@ export interface PinMenuProps {
 	onClose: () => void;
 }
 
-interface Entry {
-	key: string;
-	label: string;
-	hint?: string;
-	onPick: () => void;
-}
-
 export function PinMenu({
 	target,
 	script,
@@ -61,23 +53,12 @@ export function PinMenu({
 	onRecombine,
 	onClose,
 }: PinMenuProps) {
-	const root = useRef<HTMLDivElement>(null);
-
-	useDismiss(root, onClose, { escape: true });
-
 	const links = pinLinkCount(script, target.nodeId, target.pin.id, target.side);
 
-	const entries: Entry[] = [];
+	const entries: MenuEntry[] = [];
 
 	if (canPromoteToVariable(script, registry, target.nodeId, target.pin, target.side)) {
-		entries.push({
-			key: "promote",
-			label: "Promote to Variable",
-			onPick: () => {
-				onPromote();
-				onClose();
-			},
-		});
+		entries.push({ label: "Promote to Variable", run: onPromote });
 	}
 
 	// Split and Recombine, in the familiar wording. A pin is only ever one
@@ -92,34 +73,20 @@ export function PinMenu({
 				label: "Split Struct Pin",
 				// Only worth naming the mode when there is a choice to make.
 				hint: splitModesFor(target.pin).length > 1 ? mode.name : undefined,
-				onPick: () => {
-					onSplit(mode.id);
-					onClose();
-				},
+				run: () => onSplit(mode.id),
 			});
 		}
 	}
 
 	if (node && parent !== undefined) {
-		entries.push({
-			key: "recombine",
-			label: "Recombine Struct Pin",
-			onPick: () => {
-				onRecombine(parent);
-				onClose();
-			},
-		});
+		entries.push({ label: "Recombine Struct Pin", run: () => onRecombine(parent) });
 	}
 
 	if (links > 0) {
 		entries.push({
-			key: "break",
 			label: links === 1 ? "Break Link" : `Break ${links} Links`,
 			hint: "Shift-click",
-			onPick: () => {
-				onBreakLinks();
-				onClose();
-			},
+			run: onBreakLinks,
 		});
 	}
 
@@ -138,34 +105,26 @@ export function PinMenu({
 		return "Nothing to do to this pin yet.";
 	}
 
-	// Keep the menu on screen when a pin near an edge is the one clicked.
-	const style = {
-		zIndex: LAYER.menu,
-		left: Math.min(target.screen.x, window.innerWidth - 240),
-		top: Math.min(target.screen.y, window.innerHeight - 160),
-	};
-
 	const typeLabel = target.pin.kind === "exec" ? "execution" : pinTypeText(target.pin);
 
 	return (
-		<div className="menu pin-menu" ref={root} style={style}>
-			<div className="pin-head">
-				<span
-					className={cx("swatch", target.pin.kind)}
-					style={{ background: pinColor(target.pin.type, target.pin.kind) }}
-				/>
-				<span className="name">{target.pin.name || target.pin.id}</span>
-				<span className="type">{typeLabel}</span>
-			</div>
-			<div className="items">
-				{entries.map((entry) => (
-					<div key={entry.key} className="item" onClick={entry.onPick}>
-						<span>{entry.label}</span>
-						{entry.hint && <span className="hint">{entry.hint}</span>}
-					</div>
-				))}
-				{entries.length === 0 && <div className="empty">{emptyReason()}</div>}
-			</div>
-		</div>
+		<Menu
+			at={target.screen}
+			label={`${target.pin.name || target.pin.id}, ${typeLabel}`}
+			className="pin-menu"
+			head={
+				<div className="pin-head">
+					<span
+						className={cx("swatch", target.pin.kind)}
+						style={{ background: pinColor(target.pin.type, target.pin.kind) }}
+					/>
+					<span className="name">{target.pin.name || target.pin.id}</span>
+					<span className="type">{typeLabel}</span>
+				</div>
+			}
+			sections={[{ entries }]}
+			empty={emptyReason()}
+			onClose={onClose}
+		/>
 	);
 }

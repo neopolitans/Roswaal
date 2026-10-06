@@ -30,7 +30,6 @@
  * a project switching, a document closing, a compile starting.
  */
 
-import { useRef } from "react";
 import type { LuauFragment } from "../core/luau/check.js";
 import type { InstanceLocation } from "../core/nodemap.js";
 import type { Registry } from "../core/nodes/index.js";
@@ -44,8 +43,7 @@ import type {
 } from "../core/schema.js";
 import { CodeEditor } from "./CodeEditor.jsx";
 import { Dialog, type PendingDialog } from "./Dialog.jsx";
-import { useDismiss } from "./dismiss.js";
-import { LAYER } from "./layers.js";
+import { Menu } from "./Menu.jsx";
 import { type MenuAnchor, NodeMenu, type Preset } from "./NodeMenu.jsx";
 import { PinMenu, type PinMenuTarget } from "./PinMenu.jsx";
 import type { Preferences } from "./preferences.js";
@@ -229,49 +227,48 @@ interface DropMenuProps {
  * have to type either.
  */
 function DropMenu({ screen, name, location, onPick, onClose }: DropMenuProps) {
-	const root = useRef<HTMLDivElement>(null);
 	const config = { root: location.root, path: location.path };
 	const full = location.path ? `${location.root}.${location.path}` : location.root;
 
-	useDismiss(root, onClose, { escape: true });
-
 	return (
-		<div
-			className="menu drop-menu"
-			ref={root}
-			style={{ zIndex: LAYER.menu, left: screen.x, top: screen.y + 40 }}
-		>
-			<div className="drop-head">
-				<strong>{name}</strong>
-				<code>{full}</code>
-			</div>
-			<div className="items">
-				{location.isModule && (
-					<div
-						className="item"
-						title="A hoisted require, with the path already filled in"
-						onClick={() => onPick("module.requirePath", { ...config, as: "" })}
-					>
-						<span className="swatch" style={{ background: "#6f4f9b" }} />
-						<span>Require Module</span>
-						<span className="hint">pure</span>
-					</div>
-				)}
-				<div
-					className="item"
-					title="A reference to the instance itself"
-					onClick={() => onPick("roblox.instancePath", config)}
-				>
-					<span className="swatch" style={{ background: "#2c7676" }} />
-					<span>Instance</span>
-					<span className="hint">pure</span>
+		<Menu
+			at={{ x: screen.x, y: screen.y + 40 }}
+			label={name}
+			className="drop-menu"
+			head={
+				<div className="drop-head">
+					<strong>{name}</strong>
+					<code>{full}</code>
 				</div>
-				{!location.isModule && (
+			}
+			foot={
+				!location.isModule && (
 					<p className="drop-note">
 						This compiles to a Script rather than a ModuleScript, so there is nothing to require.
 					</p>
-				)}
-			</div>
-		</div>
+				)
+			}
+			sections={[
+				{
+					entries: [
+						location.isModule && {
+							label: "Require Module",
+							swatch: "#6f4f9b",
+							hint: "pure",
+							title: "A hoisted require, with the path already filled in",
+							run: () => onPick("module.requirePath", { ...config, as: "" }),
+						},
+						{
+							label: "Instance",
+							swatch: "#2c7676",
+							hint: "pure",
+							title: "A reference to the instance itself",
+							run: () => onPick("roblox.instancePath", config),
+						},
+					],
+				},
+			]}
+			onClose={onClose}
+		/>
 	);
 }

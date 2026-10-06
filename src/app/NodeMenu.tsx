@@ -12,13 +12,12 @@
  * draws it and is driven by the keyboard and the pointer.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { categoryLabel } from "../core/categories.js";
 import type { Registry } from "../core/nodes/index.js";
 import type { Literal, NodeConfig, NodeDef } from "../core/schema.js";
 import { cx } from "./cx.js";
-import { useDismiss } from "./dismiss.js";
-import { LAYER } from "./layers.js";
+import { MenuSurface } from "./Menu.jsx";
 import {
 	buildPresets,
 	draggedServiceItems,
@@ -81,7 +80,6 @@ export function NodeMenu({
 	const projectTypes = useProjectTypes();
 	const [query, setQuery] = useState("");
 	const [active, setActive] = useState(0);
-	const root = useRef<HTMLDivElement>(null);
 	const from = anchor.from;
 
 	const allItems = useMemo(
@@ -157,18 +155,9 @@ export function NodeMenu({
 
 	useEffect(() => setActive(0), [query]);
 
-	// Escape is the search field's own, which also steps out of a category.
-	useDismiss(root, onClose);
-
-	// Keep the menu on screen when it is opened near an edge.
-	const style = {
-		zIndex: LAYER.menu,
-		left: Math.min(anchor.screen.x, window.innerWidth - 300),
-		top: Math.min(anchor.screen.y, window.innerHeight - 360),
-	};
-
 	return (
-		<div className="menu" ref={root} style={style}>
+		// Escape is the search field's own, which also steps out of a category.
+		<MenuSurface at={anchor.screen} label="Add a node" escape={false} onClose={onClose}>
 			{anchor.from && (
 				/* The list is narrowed to what the wire can reach, and that is a
 				   surprising thing for a search box to do without saying so. It
@@ -288,6 +277,6 @@ export function NodeMenu({
 				})}
 				{flat.length === 0 && <div className="empty">Nothing matches “{query}”.</div>}
 			</div>
-		</div>
+		</MenuSurface>
 	);
 }

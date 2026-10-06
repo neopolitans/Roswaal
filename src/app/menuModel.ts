@@ -27,6 +27,8 @@ export interface MenuEntry {
 	icon?: IconName;
 	/** A colour dot in the icon's place: a node's category, a comment's colour. */
 	swatch?: string;
+	/** Something else in the icon's place: an open tab's own icon, coloured by its kind. */
+	glyph?: ReactNode;
 	/** Quiet words at the right: a shortcut, a mode, `pure`. */
 	hint?: ReactNode;
 	/** Its tooltip: what it makes, or why it cannot be done here. */
@@ -37,6 +39,8 @@ export interface MenuEntry {
 	disabled?: boolean;
 	/** A setting the entry turns on and off, and whether it is on. */
 	checked?: boolean;
+	/** The one that is in use now: the document on screen, in a list of them. */
+	current?: boolean;
 	/** Opens a page. Drawn as a link, so a middle-click still opens a tab. */
 	link?: { href: string; target?: string; rel?: string };
 	/** What choosing it does. The menu closes afterwards either way. */

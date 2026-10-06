@@ -35,7 +35,9 @@ import type { RoswaalConfig } from "../core/schema.js";
 import { cx } from "./cx.js";
 import { FloatingTools, ToolGroup } from "./FloatingTools.jsx";
 import { Icon } from "./icons.jsx";
-import { Popout, useNarrowBar, usePhone } from "./Popout.jsx";
+import { MenuButton } from "./Menu.jsx";
+import type { MenuEntry } from "./menuModel.js";
+import { useNarrowBar, usePhone } from "./Popout.jsx";
 import { IS_STATIC_HOST } from "./pages.js";
 import { WindowMark } from "./WindowMark.jsx";
 import { useWorkspaceControls } from "./Workspace.jsx";
@@ -48,8 +50,8 @@ export interface ProjectBarProps {
 	document?: ReactNode;
 	/** The open document's primary action, at the end of the compile group. */
 	action?: ReactNode;
-	/** The document's tools as rows of the More menu, on a phone. */
-	phoneMenu?: ReactNode;
+	/** The document's tools as entries of the More menu, on a phone: `graphMenuEntries`. */
+	phoneMenu?: MenuEntry[];
 	onRefresh: () => void;
 	onNewGraph: () => void;
 	onNewMap: () => void;
@@ -169,44 +171,39 @@ export function ProjectBar(props: ProjectBarProps) {
 								<Icon name="panelRight" size={16} />
 							</button>
 						)}
-						<Popout label={<Icon name="more" size={16} />} title="More" end closeOnPick>
-							{mode}
-							<button
-								className="tb with-icon"
-								disabled={props.busy !== null}
-								onClick={props.onCompileProject}
-							>
-								<Icon name="build" size={15} />
-								Compile project
-							</button>
-							{phone && props.phoneMenu}
-							<span className="tool-popout-rule" />
-							<button className="tb with-icon" onClick={props.onRefresh}>
-								<Icon name="refresh" size={15} />
-								Refresh
-							</button>
-							<button className="tb with-icon" onClick={props.onNewGraph}>
-								<Icon name="newFile" size={15} />
-								New graph
-							</button>
-							<button className="tb with-icon" onClick={props.onNewMap}>
-								<Icon name="map" size={15} />
-								New node map
-							</button>
-							<span className="tool-popout-rule" />
-							<button className="tb with-icon" onClick={props.onOpenDocs}>
-								<Icon name="document" size={15} />
-								Docs
-							</button>
-							<button className="tb with-icon" onClick={props.onOpenDesigner}>
-								<Icon name="palette" size={15} />
-								Node Design
-							</button>
-							<button className="tb with-icon" onClick={props.onOpenSettings}>
-								<Icon name="settings" size={15} />
-								Settings
-							</button>
-						</Popout>
+						<MenuButton
+							label={<Icon name="more" size={16} />}
+							title="More"
+							align="end"
+							sections={[
+								{
+									content: mode,
+									entries: [
+										{
+											label: "Compile project",
+											icon: "build",
+											disabled: props.busy !== null,
+											run: props.onCompileProject,
+										},
+										...(phone ? (props.phoneMenu ?? []) : []),
+									],
+								},
+								{
+									entries: [
+										{ label: "Refresh", icon: "refresh", run: props.onRefresh },
+										{ label: "New graph", icon: "newFile", run: props.onNewGraph },
+										{ label: "New node map", icon: "map", run: props.onNewMap },
+									],
+								},
+								{
+									entries: [
+										{ label: "Docs", icon: "document", run: props.onOpenDocs },
+										{ label: "Node Design", icon: "palette", run: props.onOpenDesigner },
+										{ label: "Settings", icon: "settings", run: props.onOpenSettings },
+									],
+								},
+							]}
+						/>
 					</ToolGroup>
 				</>
 			) : (
@@ -295,13 +292,34 @@ export type DocumentBarProps =
 			selected: number;
 			/** A function's graph is on screen, so an empty selection previews it. */
 			inFunction: boolean;
-			/** Rows of the More menu, on a phone, rather than a group of buttons. */
-			asMenu?: boolean;
 			onAddNode: () => void;
 			onRealign: () => void;
 			onToggleAlignExec: () => void;
 			onPreview: () => void;
 	  };
+
+/**
+ * The graph's tools as entries of the More menu, on a phone, where the row has
+ * no room for them as buttons.
+ */
+export function graphMenuEntries(
+	props: Pick<
+		Extract<DocumentBarProps, { kind: "graph" }>,
+		"locked" | "alignExec" | "onAddNode" | "onRealign" | "onToggleAlignExec" | "onPreview"
+	>,
+): MenuEntry[] {
+	return [
+		{ label: "Add node", icon: "search", disabled: props.locked, run: props.onAddNode },
+		{ label: "Realign", icon: "layout", disabled: props.locked, run: props.onRealign },
+		{
+			label: "Straighten",
+			icon: "straighten",
+			checked: props.alignExec,
+			run: props.onToggleAlignExec,
+		},
+		{ label: "Preview", icon: "terminal", run: props.onPreview },
+	];
+}
 
 export function DocumentBar(props: DocumentBarProps) {
 	// On a phone the graph's tools are rows of the More menu instead.
@@ -322,33 +340,7 @@ export function DocumentBar(props: DocumentBarProps) {
 				? "Preview — this function's Luau (P)"
 				: "Preview — the whole script's Luau (P)";
 
-	if (phone && !props.asMenu) return null;
-	if (props.asMenu) {
-		return (
-			<>
-				<button className="tb with-icon" disabled={props.locked} onClick={props.onAddNode}>
-					<Icon name="search" size={15} />
-					Add node
-				</button>
-				<button className="tb with-icon" disabled={props.locked} onClick={props.onRealign}>
-					<Icon name="layout" size={15} />
-					Realign
-				</button>
-				<button
-					className={cx("tb with-icon", props.alignExec && "on")}
-					aria-pressed={props.alignExec}
-					onClick={props.onToggleAlignExec}
-				>
-					<Icon name="straighten" size={15} />
-					Straighten
-				</button>
-				<button className="tb with-icon" onClick={props.onPreview}>
-					<Icon name="terminal" size={15} />
-					Preview
-				</button>
-			</>
-		);
-	}
+	if (phone) return null;
 
 	return (
 		<ToolGroup>

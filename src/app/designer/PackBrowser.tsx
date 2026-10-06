@@ -35,6 +35,7 @@ import { api, type PackFile } from "../api.js";
 import { cx } from "../cx.js";
 import { NOT_HERE, useHostCan } from "../host.js";
 import { Icon } from "../icons.jsx";
+import { Menu } from "../Menu.jsx";
 import { useMedia } from "../Popout.jsx";
 import { nodeColor } from "../palette.js";
 
@@ -152,7 +153,7 @@ export function PackBrowser({
 			.filter((s): s is Section => s === "project" || s === "builtin"),
 	);
 	const [selected, setSelected] = useState<string | null>(null);
-	const [menu, setMenu] = useState<{ key: string; x: number; y: number } | null>(null);
+	const [menu, setMenu] = useState<{ key: string; button: HTMLElement } | null>(null);
 	const [confirming, setConfirming] = useState<{
 		pack: PackFile;
 		usage: { graph: string; count: number }[];
@@ -226,20 +227,10 @@ export function PackBrowser({
 				e.preventDefault();
 				search.current?.focus();
 			}
-			if (e.key === "Escape") setMenu(null);
 		};
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
 	}, []);
-
-	useEffect(() => {
-		if (!menu) return;
-		const close = (e: PointerEvent) => {
-			if (!(e.target as HTMLElement).closest(".packs-menu, .packs-more")) setMenu(null);
-		};
-		window.addEventListener("pointerdown", close);
-		return () => window.removeEventListener("pointerdown", close);
-	}, [menu]);
 
 	const chooseLayout = (next: "grid" | "list") => {
 		setLayout(next);
@@ -290,9 +281,8 @@ export function PackBrowser({
 		void fn().catch((err: Error) => notify(err.message, "failed"));
 	};
 
-	const openMenu = (key: string, anchor: HTMLElement) => {
-		const r = anchor.getBoundingClientRect();
-		setMenu((m) => (m?.key === key ? null : { key, x: r.right, y: r.bottom + 4 }));
+	const openMenu = (key: string, button: HTMLElement) => {
+		setMenu((m) => (m?.button === button ? null : { key, button }));
 	};
 
 	const bar = (
@@ -654,85 +644,71 @@ export function PackBrowser({
 			)}
 
 			{menu && menuPack && (
-				<div
-					className="packs-menu"
-					role="menu"
-					style={{
-						left: Math.max(8, Math.min(menu.x - 220, window.innerWidth - 228)),
-						top: Math.min(menu.y, window.innerHeight - 220),
-					}}
-				>
-					<button
-						type="button"
-						className="tb with-icon"
-						role="menuitem"
-						onClick={act(async () => {
-							const { pack: copy } = await api.duplicatePack(menuPack.path);
-							await onChanged();
-							notify(`${copy.name} is a copy of ${menuPack.name}.`);
-						})}
-					>
-						<Icon name="duplicate" size={14} />
-						{menuPack.format === "luau" ? "Save as JSON pack" : "Duplicate"}
-					</button>
-					{canUseOtherProjects && (
-						<button
-							type="button"
-							className="tb with-icon"
-							role="menuitem"
-							onClick={act(async () => {
-								const { path: root } = await api.browseForProject();
-								if (!root) return;
-								await api.exportPack(menuPack.path, root);
-								notify(`${menuPack.name} was copied to ${root}.`);
-							})}
-						>
-							<Icon name="external" size={14} />
-							Copy to another project…
-						</button>
-					)}
-					<button
-						type="button"
-						className="tb with-icon"
-						role="menuitem"
-						onClick={act(async () => {
-							const { nodes } = await api.readPack(menuPack.path);
-							const document =
-								menuPack.requires.length > 0 ? { requires: menuPack.requires, nodes } : { nodes };
-							await navigator.clipboard.writeText(JSON.stringify(document, null, 2));
-							notify(`${menuPack.name} was copied as JSON.`);
-						})}
-					>
-						<Icon name="copy" size={14} />
-						Copy JSON
-					</button>
-					<button
-						type="button"
-						className="tb with-icon"
-						role="menuitem"
-						disabled={!canReveal}
-						title={canReveal ? undefined : NOT_HERE}
-						onClick={act(async () => {
-							await api.reveal(menuPack.path);
-						})}
-					>
-						<Icon name="folder" size={14} />
-						Show in file manager
-					</button>
-					<hr />
-					<button
-						type="button"
-						className="tb with-icon danger"
-						role="menuitem"
-						onClick={act(async () => {
-							const { usage } = await api.packUsage(menuPack.path);
-							setConfirming({ pack: menuPack, usage });
-						})}
-					>
-						<Icon name="remove" size={14} />
-						Delete…
-					</button>
-				</div>
+				<Menu
+					at={{ element: menu.button, align: "end" }}
+					label={menuPack.name}
+					onClose={() => setMenu(null)}
+					sections={[
+						{
+							entries: [
+								{
+									label: menuPack.format === "luau" ? "Save as JSON pack" : "Duplicate",
+									icon: "duplicate",
+									run: act(async () => {
+										const { pack: copy } = await api.duplicatePack(menuPack.path);
+										await onChanged();
+										notify(`${copy.name} is a copy of ${menuPack.name}.`);
+									}),
+								},
+								canUseOtherProjects && {
+									label: "Copy to another project…",
+									icon: "external",
+									run: act(async () => {
+										const { path: root } = await api.browseForProject();
+										if (!root) return;
+										await api.exportPack(menuPack.path, root);
+										notify(`${menuPack.name} was copied to ${root}.`);
+									}),
+								},
+								{
+									label: "Copy JSON",
+									icon: "copy",
+									run: act(async () => {
+										const { nodes } = await api.readPack(menuPack.path);
+										const document =
+											menuPack.requires.length > 0
+												? { requires: menuPack.requires, nodes }
+												: { nodes };
+										await navigator.clipboard.writeText(JSON.stringify(document, null, 2));
+										notify(`${menuPack.name} was copied as JSON.`);
+									}),
+								},
+								{
+									label: "Show in file manager",
+									icon: "folder",
+									disabled: !canReveal,
+									title: canReveal ? undefined : NOT_HERE,
+									run: act(async () => {
+										await api.reveal(menuPack.path);
+									}),
+								},
+							],
+						},
+						{
+							entries: [
+								{
+									label: "Delete…",
+									icon: "remove",
+									danger: true,
+									run: act(async () => {
+										const { usage } = await api.packUsage(menuPack.path);
+										setConfirming({ pack: menuPack, usage });
+									}),
+								},
+							],
+						},
+					]}
+				/>
 			)}
 
 			{confirming && (

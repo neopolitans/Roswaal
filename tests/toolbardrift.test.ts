@@ -107,8 +107,33 @@ function attributeStrings(element: string, name: string, consts: Map<string, str
 	return out;
 }
 
+/**
+ * Every control in a slice, in source order: the buttons and links drawn as
+ * elements, and a menu's entries, which are data handed to `<Menu>` --
+ * `{ label: "Refresh", icon: "refresh", … }` -- and drawn by it.
+ */
 function controls(source: string, consts: Map<string, string[]> = new Map()): Control[] {
-	return [...source.matchAll(/<(button|a)\b[\s\S]*?<\/\1>/g)].map(([element]) => ({
+	const entries = [...source.matchAll(/\{\s*label:\s*"([^"]+)",\s*icon:\s*"(\w+)"/g)].map((m) => ({
+		at: m.index ?? 0,
+		control: { glyphs: [m[2]], labels: [m[1]] },
+	}));
+	return [...elementControls(source, consts), ...entries]
+		.sort((a, b) => a.at - b.at)
+		.map((c) => c.control);
+}
+
+function elementControls(
+	source: string,
+	consts: Map<string, string[]>,
+): { at: number; control: Control }[] {
+	return [...source.matchAll(/<(button|a)\b[\s\S]*?<\/\1>/g)].map((m) => ({
+		at: m.index ?? 0,
+		control: elementControl(m[0], consts),
+	}));
+}
+
+function elementControl(element: string, consts: Map<string, string[]>): Control {
+	return {
 		glyphs: [...element.matchAll(/<Icon name="(\w+)"/g)].map((m) => m[1]),
 		labels: [
 			...attributeStrings(element, "title", consts),
@@ -121,7 +146,7 @@ function controls(source: string, consts: Map<string, string[]> = new Map()): Co
 			// or `{` -- and only words, so no class name or path is read as one.
 			...[...element.matchAll(/[?:({]\s*"([A-Z][\w ]*)"/g)].map((m) => m[1]),
 		],
-	}));
+	};
 }
 
 /** Every control of a bar's slices, in screen order, each read with its file's constants. */
@@ -137,6 +162,8 @@ function names(label: string, name: string): boolean {
 const TOOLBAR = "src/app/Toolbar.tsx";
 const PROJECT_BAR: Slice = { file: TOOLBAR, start: "export function ProjectBar(" };
 const DOCUMENT_BAR: Slice = { file: TOOLBAR, start: "export function DocumentBar(" };
+/** The graph's tools as the More menu's entries, on a phone. */
+const GRAPH_MENU: Slice = { file: TOOLBAR, start: "export function graphMenuEntries(" };
 const DESIGNER = "src/app/DesignerPage.tsx";
 const SLOT = '<div className="tool-slot"';
 
@@ -152,7 +179,7 @@ const BARS: [string, ToolbarSpec, Slice[]][] = [
 		[{ file: "src/app/GraphTabs.tsx", start: "export function GraphTabs(" }, DOCUMENT_BAR],
 	],
 	// The menu holds the project's rows and, on a phone, the graph's.
-	["the More menu on a phone", MORE_MENU_PHONE, [PROJECT_BAR, DOCUMENT_BAR]],
+	["the More menu on a phone", MORE_MENU_PHONE, [PROJECT_BAR, GRAPH_MENU]],
 	[
 		"the side strip",
 		CANVAS_STRIP,
@@ -227,6 +254,15 @@ function misdrawnIcons(spec: ToolbarSpec, drawn: Control[]): string[] {
 
 describe("the check itself", () => {
 	const drawn = drawnFrom([PROJECT_BAR]);
+
+	it("reads a menu's entries, which are data rather than elements, in order", () => {
+		expect(drawnFrom([GRAPH_MENU])).toEqual([
+			{ glyphs: ["search"], labels: ["Add node"] },
+			{ glyphs: ["layout"], labels: ["Realign"] },
+			{ glyphs: ["straighten"], labels: ["Straighten"] },
+			{ glyphs: ["terminal"], labels: ["Preview"] },
+		]);
+	});
 	const one = (items: ToolbarSpec["groups"][number]["items"]): ToolbarSpec => ({
 		...EDITOR_BAR,
 		groups: [{ items }],

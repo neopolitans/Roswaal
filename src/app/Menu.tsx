@@ -81,18 +81,22 @@ export function MenuSurface({
 	useDismiss(root, onClose, { escape, also });
 	const place = usePlacement(root, at);
 
-	// Focus comes in so the keyboard reaches the menu, and goes back where it
-	// was when the menu goes -- unless something else has taken it since.
+	// Where focus was before the menu: read on the first render, ahead of
+	// anything inside taking it -- the palette's search box is `autoFocus`.
+	const [before] = useState(() => document.activeElement);
+	// Focus comes in so the keyboard reaches the menu, unless something in it
+	// took focus first, and goes back where it was when the menu goes --
+	// unless something else has taken it since.
 	useEffect(() => {
-		const before = document.activeElement;
-		root.current?.focus({ preventScroll: true });
+		if (!root.current?.contains(document.activeElement))
+			root.current?.focus({ preventScroll: true });
 		return () => {
 			const now = document.activeElement;
 			if (before instanceof HTMLElement && (now === null || now === document.body)) {
 				before.focus({ preventScroll: true });
 			}
 		};
-	}, []);
+	}, [before]);
 
 	return createPortal(
 		<div
@@ -139,6 +143,9 @@ export function Menu({
 	onClose,
 }: MenuProps) {
 	const shown = shownSections(sections);
+	// An icon column only when something in the menu has an icon, and then for
+	// every entry, so the words line up whichever entries have one.
+	const gutter = shown.some((s) => s.entries.some((e) => e.icon || e.swatch || e.glyph));
 	const body = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
@@ -181,7 +188,12 @@ export function Menu({
 							{section.label && <div className="menu-label">{section.label}</div>}
 							{section.content}
 							{section.entries.map((entry) => (
-								<Entry key={entry.key ?? entry.label} entry={entry} onClose={onClose} />
+								<Entry
+									key={entry.key ?? entry.label}
+									entry={entry}
+									gutter={gutter}
+									onClose={onClose}
+								/>
 							))}
 						</div>
 					</Fragment>
@@ -207,21 +219,31 @@ function isChoosable(element: HTMLElement): boolean {
 	return element.getAttribute("aria-disabled") !== "true";
 }
 
-function Entry({ entry, onClose }: { entry: MenuEntry; onClose: () => void }) {
+interface EntryProps {
+	entry: MenuEntry;
+	/** Keep the icon's space when this entry has none. */
+	gutter: boolean;
+	onClose: () => void;
+}
+
+function Entry({ entry, gutter, onClose }: EntryProps) {
 	const glyph = entry.icon ? (
 		<Icon name={entry.icon} size={15} className="menu-icon" />
 	) : entry.swatch ? (
 		<span className="menu-swatch" style={{ background: entry.swatch }} />
-	) : null;
+	) : (
+		(entry.glyph ?? (gutter ? <span className="menu-icon-space" /> : null))
+	);
 	const props = {
 		className: cx(
 			"menu-item",
 			entry.danger && "menu-item--danger",
 			entry.checked && "menu-item--checked",
-			!glyph && "menu-item--bare",
+			entry.current && "menu-item--current",
 		),
 		role: entry.checked === undefined ? "menuitem" : "menuitemcheckbox",
 		"aria-checked": entry.checked,
+		"aria-current": entry.current || undefined,
 		"aria-disabled": entry.disabled || undefined,
 		title: entry.title,
 		tabIndex: -1,

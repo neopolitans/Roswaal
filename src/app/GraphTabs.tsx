@@ -35,12 +35,10 @@
  */
 
 import { type PointerEvent as ReactPointerEvent, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 
 import { cx } from "./cx.js";
-import { useDismiss } from "./dismiss.js";
 import { Icon, type IconName } from "./icons.jsx";
-import { LAYER } from "./layers.js";
+import { Menu } from "./Menu.jsx";
 import { trackPointer } from "./pointer.js";
 import type { FunctionTabs } from "./preferences.js";
 import type { OpenDocument, TabKind } from "./store.js";
@@ -246,61 +244,40 @@ interface TabListProps {
  * and it is where a torn-off window would otherwise have been reached for.
  */
 function TabList({ documents, functionTabs, open, onOpen, onActivate }: TabListProps) {
-	const root = useRef<HTMLDivElement>(null);
-	const button = useRef<HTMLButtonElement>(null);
-	// Where the menu is drawn, in viewport coordinates.
-	//
-	// The tab row scrolls sideways, which means it clips its children -- an
-	// absolutely-placed menu inside it is cut off at the row's bottom edge and
-	// cannot be shown at all. So the menu is `position: fixed` and told where
-	// the button ended up, the same way the node palette is.
-	const [at, setAt] = useState<{ x: number; y: number } | null>(null);
-	const menu = useRef<HTMLDivElement>(null);
-
-	useDismiss(root, () => onOpen(false), { enabled: open, escape: true, also: menu });
-
+	const [button, setButton] = useState<HTMLButtonElement | null>(null);
 	return (
-		<div className="tab-list" ref={root}>
+		<div className="tab-list">
 			<button
 				className="tb"
-				ref={button}
+				ref={setButton}
 				title={`${documents.length} open`}
 				aria-label="Open documents"
+				aria-haspopup="menu"
 				aria-expanded={open}
-				onClick={() => {
-					const box = button.current?.getBoundingClientRect();
-					if (box) setAt({ x: box.left, y: box.bottom + 2 });
-					onOpen(!open);
-				}}
+				onClick={() => onOpen(!open)}
 			>
 				<Icon name="chevron" size={13} />
 			</button>
-			{/* At the body, through a portal. Fixed inside the row it was laid out
-			    against the row wherever a cluster has a backdrop filter -- iPadOS
-			    and iOS, where the clusters are glass -- and clipped out of sight. */}
-			{open &&
-				at &&
-				createPortal(
-					<div
-						className="tab-list-menu"
-						ref={menu}
-						style={{ zIndex: LAYER.menu, left: at.x, top: at.y }}
-					>
-						{documents.map((doc) => (
-							<button
-								key={doc.key}
-								className={cx("tab-list-item", doc.active && "on")}
-								title={doc.path}
-								onClick={() => onActivate(doc.key)}
-							>
-								<TabIcon doc={doc} size={12} />
-								<span className="name">{tabLabel(doc, functionTabs)}</span>
-								{doc.dirty && <span className="dot" aria-hidden />}
-							</button>
-						))}
-					</div>,
-					document.body,
-				)}
+			{open && button && (
+				<Menu
+					at={{ element: button }}
+					label="Open documents"
+					onClose={() => onOpen(false)}
+					sections={[
+						{
+							entries: documents.map((doc) => ({
+								key: doc.key,
+								label: tabLabel(doc, functionTabs),
+								glyph: <TabIcon doc={doc} size={15} />,
+								title: doc.path,
+								current: doc.active,
+								hint: doc.dirty ? <span className="menu-dot" aria-label="Not saved" /> : undefined,
+								run: () => onActivate(doc.key),
+							})),
+						},
+					]}
+				/>
+			)}
 		</div>
 	);
 }
