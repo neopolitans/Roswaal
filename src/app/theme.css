@@ -2023,6 +2023,26 @@ button.tb.primary:hover:not(:disabled) {
 	text-overflow: ellipsis;
 }
 
+/* A call's result cast where it is made: the Cast pill's `::` and the type, in
+   the type's colour, beside the pin it changes. */
+.node .cast-mark {
+	flex: 0 1 auto;
+	min-width: 0;
+	max-width: 110px;
+	margin: 0 2px 0 4px;
+	padding: 0 5px;
+	border: 1px solid color-mix(in srgb, var(--pin) 55%, transparent);
+	border-radius: var(--radius-xs);
+	background: color-mix(in srgb, var(--pin) 12%, transparent);
+	color: var(--fg);
+	font-family: var(--mono, ui-monospace, monospace);
+	font-size: var(--text-xs);
+	line-height: 16px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
 /* A component of a split struct pin. The rule is the tell: without something
    joining them, X, Y and Z read as three unrelated inputs rather than one
    Vector taken apart. */

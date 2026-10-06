@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.143.3",
+		date: "2026-10-06",
+		headline: "A call's cast result shows on its pin.",
+		affects: ["editor", "docs"],
+		changed: [
+			"A call whose result is cast shows `:: BasePart` beside its result pin, in the type's colour, so the cast reads on the canvas as a Cast pill does.",
+		],
+	},
+	{
 		version: "0.143.2",
 		date: "2026-10-06",
 		headline: "Code completion follows a path of members.",

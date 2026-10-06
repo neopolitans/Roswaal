@@ -8,7 +8,8 @@ import {
 	useState,
 } from "react";
 import { nodeTitle } from "../core/nodes/index.js";
-import { pinTypeText } from "../core/nodes/variables.js";
+import { castsResult, resultCastOf } from "../core/nodes/resultCast.js";
+import { pinTypeOf, pinTypeText } from "../core/nodes/variables.js";
 import { operatorSymbol } from "../core/operatorLayout.js";
 import { CLASS_OPTIONS, classGroup, TYPE_OPTIONS, typeGroup } from "../core/roblox.js";
 import type { GraphNode, Literal, NodeDef, PinDef } from "../core/schema.js";
@@ -469,6 +470,22 @@ function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out") {
 			? renderLiteral(props, pin)
 			: null;
 
+	// A call's result cast where it is made shows the claim on the pin, in the
+	// Cast pill's own spelling, so a cast reads the same wherever it is written.
+	const cast =
+		side === "out" && pin.id === "result" && props.def && castsResult(props.def)
+			? resultCastOf(node.config)
+			: undefined;
+	const castMark = cast ? (
+		<span
+			className="cast-mark"
+			style={{ "--pin": pinColor(pinTypeOf(cast), "data") } as React.CSSProperties}
+			title={`Cast result: written as \`:: ${cast}\`. No runtime check. Set it in the Inspector.`}
+		>
+			:: {cast}
+		</span>
+	) : null;
+
 	return side === "in" ? (
 		<>
 			{dot}
@@ -478,6 +495,7 @@ function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out") {
 	) : (
 		<>
 			{label}
+			{castMark}
 			{dot}
 		</>
 	);
