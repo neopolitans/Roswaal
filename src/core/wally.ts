@@ -178,9 +178,7 @@ export function withDependency(
 	}
 	let end = start + 1;
 	while (end < lines.length && !/^\s*\[/.test(lines[end])) end++;
-	const existing = lines
-		.slice(start + 1, end)
-		.findIndex((l) => new RegExp(`^\\s*["']?${alias}["']?\\s*=`).test(l));
+	const existing = lines.slice(start + 1, end).findIndex((l) => keyOf(l) === alias);
 	if (existing !== -1) {
 		lines[start + 1 + existing] = line;
 	} else {
@@ -195,16 +193,26 @@ export function withDependency(
 /** `wally.toml` without the dependency called `alias`, in whichever table it is. */
 export function withoutDependency(text: string, alias: string): string {
 	const eol = text.includes("\r\n") ? "\r\n" : "\n";
-	const pattern = new RegExp(`^\\s*["']?${alias}["']?\\s*=`);
 	let inDependencies = false;
 	return text
 		.split(/\r?\n/)
 		.filter((line) => {
 			const table = /^\s*\[([^\]]+)\]/.exec(line);
 			if (table) inDependencies = table[1].trim() in SECTIONS;
-			return !(inDependencies && pattern.test(line));
+			return !(inDependencies && keyOf(line) === alias);
 		})
 		.join(eol);
+}
+
+/**
+ * The key a `key = value` line sets, quoted or not, or undefined for any other
+ * line. Compared as text: an alias is never made into a pattern.
+ */
+function keyOf(line: string): string | undefined {
+	return /^\s*(?:"([^"]*)"|'([^']*)'|([^\s="']+))\s*=/
+		.exec(line)
+		?.slice(1)
+		.find((k) => k !== undefined);
 }
 
 /** What a Wally package's own `wally.toml` says it is, from `[package]`. */

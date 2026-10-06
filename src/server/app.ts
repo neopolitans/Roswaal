@@ -27,6 +27,7 @@ import { CSP_HEADER } from "../core/csp.js";
 import { DEMO_PROJECTS } from "../core/demoProjects.js";
 import type { Target } from "../core/schema.js";
 import { chooseDirectory, NoPickerError } from "./browse.js";
+import { githubZipball } from "./download.js";
 import { errorResponse, HttpError } from "./errors.js";
 import { broadcastCompile, broadcastProject, streamEvents } from "./events.js";
 import { collectScripts, isInitialised, readConfig } from "./project.js";
@@ -398,20 +399,7 @@ function hostCapabilities(): HostCapabilities {
 	return {
 		// GitHub's archive download, which a web page cannot make: the API
 		// redirects to codeload, and codeload refuses other sites' pages.
-		githubDownload: async (owner, repo, ref) => {
-			// No ref is the repository's default branch.
-			const at = ref ? `/${encodeURIComponent(ref)}` : "";
-			const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/zipball${at}`, {
-				headers: { "User-Agent": "Roswaal", Accept: "application/vnd.github+json" },
-			});
-			if (!response.ok) {
-				throw new HttpError(
-					502,
-					`GitHub answered ${response.status} for ${owner}/${repo}${ref ? `@${ref}` : ""}.`,
-				);
-			}
-			return new Uint8Array(await response.arrayBuffer());
-		},
+		githubDownload: githubZipball,
 		inspect: inspectFolder,
 		duplicateDemo,
 		browse: async (startIn) => {

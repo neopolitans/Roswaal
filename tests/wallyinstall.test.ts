@@ -10,7 +10,8 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { zip } from "../src/app/zip.js";
-import { pickVersion, withDependency } from "../src/core/wally.js";
+import { pickVersion, withDependency, withoutDependency } from "../src/core/wally.js";
+import { githubZipball } from "../src/server/download.js";
 import { openProject } from "../src/server/project.js";
 import { addFromWally, installGithub, installZip, removePackage } from "../src/server/wally.js";
 
@@ -41,7 +42,42 @@ describe("wally.toml and versions", () => {
 			/\[server-dependencies\]\nStore = "x\/store@1\.0\.0"\n$/,
 		);
 	});
+
+	it("finds an alias's line by the alias itself, not by a pattern made of it", () => {
+		const toml = '[dependencies]\nSignal = "x/signal@1.0.0"\n';
+		expect(withDependency(toml, "shared", "S.gnal", "x/other@1.0.0")).toContain(
+			'Signal = "x/signal@1.0.0"\nS.gnal = "x/other@1.0.0"',
+		);
+		expect(withoutDependency(toml, "S.gnal")).toBe(toml);
+		expect(withoutDependency(`[dependencies]\n"Signal" = "x/signal@1.0.0"\n`, "Signal")).toBe(
+			"[dependencies]\n",
+		);
+	});
 });
+
+/** A body of `mib` MiB, sent a MiB at a time, counting how many were read. */
+function stream(mib = Number.POSITIVE_INFINITY) {
+	const piece = new Uint8Array(1024 * 1024);
+	const sent = { count: 0 };
+	// Nothing queued ahead: a piece is made only when it is read.
+	const body = new ReadableStream<Uint8Array>(
+		{
+			pull(controller) {
+				if (sent.count === mib) return controller.close();
+				sent.count++;
+				controller.enqueue(piece);
+			},
+		},
+		{ highWaterMark: 0 },
+	);
+	return { body, sent };
+}
+
+/** Whatever `fetch` answers now, with the answer for one path replaced. */
+function answering(path: string, response: () => Response) {
+	const before = globalThis.fetch;
+	vi.stubGlobal("fetch", async (url: string) => (url.endsWith(path) ? response() : before(url)));
+}
 
 describe("adding from the registry", () => {
 	let root = "";
@@ -178,6 +214,63 @@ describe("adding from the registry", () => {
 
 	it("refuses something that is not scope/name", async () => {
 		await expect(addFromWally(await registry(), "just a name")).rejects.toThrow(/scope\/name/);
+	});
+
+	it("checks the version and the alias before writing anything", async () => {
+		const project = await registry();
+		const before = await read("wally.toml");
+		await expect(addFromWally(project, 'orchard/basket@1.2.0"')).rejects.toThrow(
+			/is not a version Roswaal can install: write it as 1\.2\.3/,
+		);
+		await expect(
+			addFromWally(project, "orchard/basket@1.2.0", "shared", "Bas ket"),
+		).rejects.toThrow(/is not a package alias/);
+		expect(await read("wally.toml")).toBe(before);
+		expect(asked).toEqual([]);
+	});
+
+	it("stops reading a package's archive once it is past 128 MiB", async () => {
+		const project = await registry();
+		const { body, sent } = stream(200);
+		answering("/package-contents/orchard/basket/1.2.0", () => new Response(body));
+		const out = await addFromWally(project, "orchard/basket@1.2.0");
+		expect(out.problem).toContain("larger than 128 MiB");
+		expect(out.installed).toEqual([]);
+		expect(sent.count).toBeLessThanOrEqual(130);
+	});
+
+	it("refuses a list of versions whose stated length is past 4 MiB, without reading it", async () => {
+		const project = await registry();
+		const { body, sent } = stream(1);
+		const stated = { "content-length": String(64 * 1024 * 1024) };
+		answering("/package-metadata/orchard/basket", () => new Response(body, { headers: stated }));
+		const out = await addFromWally(project, "orchard/basket");
+		expect(out.problem).toContain("larger than 4 MiB");
+		expect(sent.count).toBe(0);
+	});
+});
+
+describe("downloading from GitHub", () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	it("stops reading a repository's archive once it is past 128 MiB", async () => {
+		// A body that never ends.
+		const { body, sent } = stream();
+		vi.stubGlobal("fetch", async () => new Response(body));
+		await expect(githubZipball("someone", "big", "")).rejects.toThrow(
+			"The archive of someone/big is larger than 128 MiB",
+		);
+		expect(sent.count).toBeLessThanOrEqual(130);
+	});
+
+	it("refuses one whose stated length is past 128 MiB, without reading it", async () => {
+		const { body, sent } = stream();
+		const stated = { "content-length": String(1024 * 1024 * 1024) };
+		vi.stubGlobal("fetch", async () => new Response(body, { headers: stated }));
+		await expect(githubZipball("someone", "big", "main")).rejects.toThrow(
+			"The archive of someone/big@main is larger than 128 MiB",
+		);
+		expect(sent.count).toBe(0);
 	});
 });
 

@@ -30,6 +30,7 @@ import {
 	withDependency,
 	withoutDependency,
 } from "../core/wally.js";
+import { LARGEST_DOWNLOAD, LARGEST_METADATA, readLimited } from "./download.js";
 import { errorMessage, HttpError, UserError } from "./errors.js";
 import { walkFiles } from "./files.js";
 import { fs, path } from "./host.js";
@@ -57,12 +58,14 @@ export interface WallyOutcome {
  * The scope, name and version come from the registry or from a zip's own
  * `wally.toml`, and the alias from whoever typed it. All of them become
  * folder and file names, so `../` in any one of them would write, or delete,
- * somewhere else in the project.
+ * somewhere else in the project. The requirement, typed after the `@`, goes
+ * into `wally.toml` as it is, so it is held to what `pickVersion` reads.
  */
 function assertPlainNames(names: {
 	scope?: string;
 	name?: string;
 	version?: string;
+	requirement?: string;
 	alias?: string;
 }): void {
 	// Dots are fine in a folder name, as long as that is not all it is.
@@ -75,6 +78,12 @@ function assertPlainNames(names: {
 	}
 	if (names.version !== undefined && !version.test(names.version)) {
 		throw new UserError(`"${names.version}" is not a version Roswaal can install.`);
+	}
+	const requirement = names.requirement?.replace(/^[\^=]/, "");
+	if (requirement !== undefined && !version.test(requirement)) {
+		throw new UserError(
+			`"${names.requirement}" is not a version Roswaal can install: write it as 1.2.3, ^1.2.3 or =1.2.3.`,
+		);
 	}
 }
 
@@ -140,9 +149,14 @@ class Installer {
 		alias: string,
 		parent?: string,
 	): Promise<string> {
-		const metadata = (await (
-			await this.ask(`${REGISTRY}/package-metadata/${scope}/${name}`)
-		).json()) as { versions: VersionMetadata[] };
+		const listed = await readLimited(
+			await this.ask(`${REGISTRY}/package-metadata/${scope}/${name}`),
+			LARGEST_METADATA,
+			`The Wally registry's list of versions of ${scope}/${name}`,
+		);
+		const metadata = JSON.parse(new TextDecoder().decode(listed)) as {
+			versions: VersionMetadata[];
+		};
 		const version = pickVersion(
 			metadata.versions.map((v) => v.package.version),
 			requirement,
@@ -155,10 +169,10 @@ class Installer {
 		await this.write(thunk, thunkFor(index, name, parent !== undefined));
 		const home = `${folder}/_Index/${index}/${name}`;
 		if (!(await this.exists(home))) {
-			const bytes = new Uint8Array(
-				await (
-					await this.ask(`${REGISTRY}/package-contents/${scope}/${name}/${version}`)
-				).arrayBuffer(),
+			const bytes = await readLimited(
+				await this.ask(`${REGISTRY}/package-contents/${scope}/${name}/${version}`),
+				LARGEST_DOWNLOAD,
+				`The archive of ${scope}/${name}@${version}`,
 			);
 			const { files } = await unzip(bytes);
 			for (const file of files) await this.write(`${home}/${file.path}`, file.bytes);
@@ -194,6 +208,13 @@ export async function addFromWally(
 			`"${spec}" is not a package: write it as scope/name, or scope/name@version.`,
 		);
 	const name = alias?.trim() || aliasFor(parsed.name);
+	// Before anything is written: the line below goes into wally.toml as typed.
+	assertPlainNames({
+		scope: parsed.scope,
+		name: parsed.name,
+		requirement: parsed.version,
+		alias: name,
+	});
 	const installer = new Installer(project);
 	let line: WallyOutcome["line"];
 	const writeLine = async (version: string) => {
