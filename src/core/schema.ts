@@ -280,6 +280,15 @@ export interface NodeDef {
 	outputs: PinDef[];
 	compilesTo: CompileSpec;
 	/**
+	 * The node pack file this node came from, as the project names it:
+	 * `.roswaal/nodes/enemies.nodedef.luau`. Absent for Roswaal's own nodes.
+	 *
+	 * A pack is parsed, never run, but what its nodes compile to is Luau its
+	 * author wrote, and it goes into the game as written. Using a pack's node
+	 * is running that author's code, so the editor says whose it is.
+	 */
+	pack?: string;
+	/**
 	 * The pins this node has, given what it carries. For a builtin whose pins
 	 * depend on per-instance config — a function's signature, a module's
 	 * exports. A node pack's nodes never set it.

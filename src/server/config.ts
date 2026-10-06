@@ -239,7 +239,11 @@ async function loadNodePacks(
 				// stranger's code every time a project is opened.
 				const source = isLuau ? parseLuauData(text) : JSON.parse(text);
 				const parsed = parseNodePack(source, entry.name);
-				defs.push(...parsed.defs);
+				// Where each node came from, for the editor to say: the folder
+				// as `roswaal.json` names it, so the same file reads the same on
+				// every machine.
+				const pack = path.posix.join(dir.replaceAll("\\", "/"), entry.name);
+				defs.push(...parsed.defs.map((def) => ({ ...def, pack })));
 				errors.push(...parsed.errors, ...parsed.warnings);
 			} catch (err) {
 				errors.push(`${entry.name}: ${errorMessage(err)}`);

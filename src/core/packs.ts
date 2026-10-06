@@ -6,7 +6,7 @@
  * the questions the pack browser and import ask before anything is written.
  */
 
-import type { NodeDef, Target } from "./schema.js";
+import type { CompileSpec, NodeDef, Target } from "./schema.js";
 
 const TARGETS: readonly Target[] = ["roblox", "lune"];
 
@@ -71,4 +71,22 @@ export function renamespace<T extends { id: string }>(nodes: readonly T[], names
 export function clashingIds(ids: readonly string[], taken: Iterable<string>): string[] {
 	const set = new Set(taken);
 	return ids.filter((id) => set.has(id));
+}
+
+/**
+ * The Luau a pack's node writes, as its author wrote it: one template, or one
+ * per output for a pure node. `$in.speed` is where the speed pin goes.
+ */
+export function packLuau(spec: CompileSpec): string {
+	switch (spec.kind) {
+		case "expr":
+			return Object.entries(spec.outputs)
+				.map(([pin, template]) => `${pin}: ${template}`)
+				.join("\n");
+		case "call":
+		case "statement":
+			return spec.template;
+		case "builtin":
+			return "";
+	}
 }

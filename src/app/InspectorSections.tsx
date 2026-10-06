@@ -39,6 +39,7 @@ import { nodeTitle, resolveNodePins } from "../core/nodes/index.js";
 import { CAST_MODES, CAST_NODES, castModeOf } from "../core/nodes/library.js";
 import { castsResult, RESULT_CAST } from "../core/nodes/resultCast.js";
 import { isConstLocal, localNameOf, pinTypeText } from "../core/nodes/variables.js";
+import { packLuau } from "../core/packs.js";
 import {
 	eventOf,
 	eventsOf,
@@ -127,6 +128,7 @@ function ids(...list: string[]): (def: NodeDef) => boolean {
  * row leaves casts out — offering the toggle would offer a second pair.
  */
 const INSPECTOR_SECTIONS: readonly SectionRule[] = [
+	{ applies: (def) => def.pack !== undefined, Section: PackSource },
 	{ applies: namesResult, Section: ResultName },
 	{ applies: castsResult, Section: ResultCast },
 	{ applies: (def) => FUNCTION_NODES.has(def.id), Section: FunctionEditor },
@@ -1814,6 +1816,44 @@ function PinSummary({ def, node }: { def: NodeDef; node: GraphNode }) {
 						)}
 					</div>
 				))}
+		</div>
+	);
+}
+
+/**
+ * Where a node from a pack came from, and the Luau it writes.
+ *
+ * A pack is parsed, never run, but what its node compiles to is its author's
+ * Luau, and it goes into the game as they wrote it. So the node says whose it
+ * is, and the Luau is one click away: folded, because the node is yours to use
+ * and this is for when you want to know what you are using.
+ */
+function PackSource({ def }: SectionProps) {
+	const [open, toggle] = useFold(false);
+	if (!def.pack) return null;
+	return (
+		<div className="list-editor pack-source">
+			<SectionHead
+				title="From a node pack"
+				open={open}
+				onToggle={toggle}
+				hint="This node's Luau was written by whoever wrote the pack, and goes into your game as written."
+			/>
+			<p className="pack-file" title={def.pack}>
+				<Icon name="codeFile" size={13} />
+				<code>{def.pack}</code>
+			</p>
+			{open && (
+				<>
+					<p className="pack-note">
+						What it compiles to. Read it before using a pack you did not write: it runs in your
+						game.
+					</p>
+					<pre className="pack-luau">
+						<code>{packLuau(def.compilesTo)}</code>
+					</pre>
+				</>
+			)}
 		</div>
 	);
 }

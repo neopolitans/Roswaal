@@ -351,10 +351,12 @@ export async function copyPackBetween(
 export async function savePackNode(
 	project: OpenProject,
 	relPath: string,
-	def: NodeDef,
+	given: NodeDef,
 	/** The id the node had before, when the designer renamed it. */
 	replaces?: string,
 ): Promise<PackFile> {
+	// Which file a node came from is the loader's to say, not the file's.
+	const { pack: _from, ...def } = given;
 	const named = toPosix(relPath);
 	if (!named.endsWith(PACK_SUFFIX)) {
 		throw new UserError(

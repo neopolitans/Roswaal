@@ -10857,6 +10857,59 @@ a.docs-minor-row .aside {
 	border-color: color-mix(in srgb, var(--warning) 45%, transparent);
 }
 
+/* A node from a node pack: somebody's Luau, which goes into the game as they
+   wrote it. Said as plainly as where a node runs, and as quietly: a pack is
+   not a warning, it is whose code this is. */
+.hint.runtime.pack {
+	color: var(--fg-muted);
+	border-color: color-mix(in srgb, var(--fg-muted) 45%, transparent);
+	border-style: dashed;
+}
+
+.node-picker-preview .from-pack {
+	font-size: var(--text-sm);
+	color: var(--fg-muted);
+	line-height: 1.5;
+}
+
+.node-picker-preview .from-pack code,
+.pack-source .pack-file code {
+	font-family: var(--mono, ui-monospace, monospace);
+	font-size: var(--text-xs);
+	overflow-wrap: anywhere;
+}
+
+/* The Inspector's half: which file, and the Luau, folded until asked for. */
+.pack-source .pack-file {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 4px 0;
+	color: var(--fg-muted);
+}
+
+.pack-source .pack-note {
+	margin: 6px 0;
+	font-size: var(--text-sm);
+	color: var(--fg-muted);
+	line-height: 1.5;
+}
+
+.pack-source .pack-luau {
+	margin: 0 0 6px;
+	padding: 8px 10px;
+	max-height: 240px;
+	overflow: auto;
+	border-radius: var(--radius-sm);
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	font-family: var(--mono, ui-monospace, monospace);
+	font-size: var(--text-xs);
+	line-height: 1.5;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
 /* Something this graph declares rather than a node from the library -- a
    variable you named, a local, a function, one of its parameters. Quieter than
    the runtimes: it is a fact about where the entry came from, not a warning

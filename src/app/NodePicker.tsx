@@ -373,6 +373,14 @@ export function NodePicker({
 										>
 											<span className="title">{hit.title}</span>
 											{hit.def.pure && <span className="hint">pure</span>}
+											{hit.def.pack && (
+												<span
+													className="hint runtime pack"
+													title={`From ${hit.def.pack}. Its Luau is the pack author's, and goes into your game as written.`}
+												>
+													Pack
+												</span>
+											)}
 											{hit.filter !== "luau" && narrowed === null && (
 												<span
 													className={cx("hint runtime", hit.filter)}
@@ -405,6 +413,12 @@ export function NodePicker({
 								<div className="about">
 									<div className="name">{chosen.title}</div>
 									<div className="where">{categoryLabel(chosen.category)}</div>
+									{chosen.def.pack && (
+										<div className="from-pack">
+											From <code>{chosen.def.pack}</code>. A pack's nodes write its author's Luau
+											into your game; the Inspector shows it.
+										</div>
+									)}
 									{chosen.summary && <p className="summary">{chosen.summary}</p>}
 								</div>
 								<button

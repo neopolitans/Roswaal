@@ -14,7 +14,7 @@ import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { runsOn } from "../src/core/packs.js";
+import { packLuau, runsOn } from "../src/core/packs.js";
 import type { NodeDef } from "../src/core/schema.js";
 import {
 	copyPackBetween,
@@ -78,6 +78,17 @@ describe("saving a designed node", () => {
 		expect((await openProject(root)).registry.get("combat.knockback")?.title).toBe(
 			"Apply Knockback",
 		);
+	});
+
+	it("says which pack file each node came from, and never writes that into the pack", async () => {
+		root = await project();
+		await savePackNode(await openProject(root), PACK, { ...KNOCKBACK, pack: "elsewhere.json" });
+		const opened = await openProject(root);
+		expect(opened.packs.map((def) => def.pack)).toEqual([PACK]);
+		expect(opened.registry.get("combat.knockback")?.pack).toBe(PACK);
+		expect(await readFile(path.join(root, PACK), "utf8")).not.toContain('"pack"');
+		// Roswaal's own nodes come from no pack.
+		expect(opened.registry.get("flow.branch")?.pack).toBeUndefined();
 	});
 
 	it("replaces the node with the same id rather than adding a second", async () => {
@@ -297,5 +308,16 @@ describe("managing packs", () => {
 		await savePackNode(await openProject(root), PACK, KNOCKBACK);
 		const p = await openProject(root);
 		await expect(copyPackBetween(p, PACK, p)).rejects.toThrow(/this project/);
+	});
+});
+
+describe("what a pack's node writes", () => {
+	it("is its template, or one line per output for a pure node", () => {
+		expect(packLuau(KNOCKBACK.compilesTo)).toBe(
+			"$in.character.HumanoidRootPart:ApplyImpulse(Vector3.zero)",
+		);
+		expect(packLuau({ kind: "expr", outputs: { sum: "$in.a + $in.b", half: "$in.a / 2" } })).toBe(
+			"sum: $in.a + $in.b\nhalf: $in.a / 2",
+		);
 	});
 });

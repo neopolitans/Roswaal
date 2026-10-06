@@ -38,6 +38,16 @@ export function creatingCustomNodesPage(): DocPage {
 					"so loading someone's pack cannot run their code.",
 			},
 			{
+				t: "note",
+				kind: "warn",
+				text:
+					"**Using a pack's node does run its code — in your game.** What a node compiles to is " +
+					"Luau its author wrote, and it goes into your scripts as written. Treat a pack from " +
+					"somebody else the way you would a script from them: read what its nodes write before " +
+					"you use them. A node from a pack says so in the node picker, and the Inspector says " +
+					"which file it came from and shows the Luau it writes.",
+			},
+			{
 				t: "tabs",
 				label: "Definition support",
 				tabs: [
