@@ -22,12 +22,14 @@ import {
 } from "../core/functionGraph.js";
 import { keywordNodes } from "../core/keywords.js";
 import { luneMenuItems, lunePins } from "../core/luneCalls.js";
+import { LUAU_PRIMITIVES } from "../core/luneTypes.js";
 import { type MemberLookup, membersOfType } from "../core/members.js";
 import { namedResultRef } from "../core/namedResults.js";
 import { FUNCTION_NODES, signatureOf, signatureText } from "../core/nodes/flow.js";
 import { categories, type Registry, resolveNodePins, subcategories } from "../core/nodes/index.js";
 import { classify, classifyFor, runtimeLabelFor } from "../core/nodes/runtimes.js";
 import { pinTypeOf } from "../core/nodes/variables.js";
+import { TYPE_OPTIONS } from "../core/roblox.js";
 import type { GraphNode, Literal, NodeConfig, NodeDef, PinDef, PinRef } from "../core/schema.js";
 import {
 	callSignature,
@@ -359,23 +361,58 @@ export function luneItems(registry: Registry, target: "roblox" | "lune"): MenuIt
  * is not a list anybody reads.
  */
 export function namedItems(registry: Registry, target: "roblox" | "lune"): MenuItem[] {
-	if (target !== "roblox") return [];
-	return nameItems().flatMap((entry): MenuItem[] => {
-		const def = registry.get(entry.defId);
-		if (!def) return [];
-		return [
-			{
-				runtime: classify(def),
-				key: `name:${entry.defId}:${entry.name}`,
-				title: entry.name,
-				category: entry.category,
-				summary: entry.summary,
-				color: nodeColor(def),
-				pure: def.pure === true,
-				def,
-				literals: entry.literals,
-			},
-		];
+	const casts = castItems(registry, target);
+	if (target !== "roblox") return casts;
+	return [
+		...casts,
+		...nameItems().flatMap((entry): MenuItem[] => {
+			const def = registry.get(entry.defId);
+			if (!def) return [];
+			return [
+				{
+					runtime: classify(def),
+					key: `name:${entry.defId}:${entry.name}`,
+					title: entry.name,
+					category: entry.category,
+					summary: entry.summary,
+					color: nodeColor(def),
+					pure: def.pure === true,
+					def,
+					literals: entry.literals,
+				},
+			];
+		}),
+	];
+}
+
+/**
+ * A type by its own name, as a Cast to it: `Motor6D` offers **Cast to
+ * Motor6D**.
+ *
+ * Off a value, what you type when you know what it is, is the name of what it
+ * is, and the node that says so is a Cast with that name in its Type pin. With
+ * nothing to cast, a type name found nothing at all. Searched, never browsed,
+ * as the rest of this list is: there are as many as there are types. A Lune
+ * graph is offered Luau's own types, since Roblox's are not names it has.
+ */
+export function castItems(registry: Registry, target: "roblox" | "lune"): MenuItem[] {
+	const def = registry.get("cast.as");
+	if (!def) return [];
+	const names = target === "roblox" ? TYPE_OPTIONS : LUAU_PRIMITIVES;
+	return names.map((name) => {
+		const literals = { type: { t: "string" as const, v: name } };
+		return {
+			runtime: classify(def),
+			key: `cast:${name}`,
+			title: `Cast to ${name}`,
+			category: def.category,
+			summary: `Asserts the value is a ${name}.`,
+			color: nodeColor(def),
+			pure: true,
+			def,
+			literals,
+			pins: resolveNodePins(def, undefined, literals),
+		};
 	});
 }
 
@@ -600,7 +637,7 @@ export function score(item: MenuItem, query: string): number {
 	const full = item.title.toLowerCase();
 	// "Get weapon" is found by "weapon" as well as a "weapon.Name" is: the verb
 	// is the menu's, the name is what somebody types.
-	const title = full.replace(/^(get|set|call) /, "");
+	const title = full.replace(/^(get|set|call|cast to) /, "");
 	if (full === query || title === query) return 500;
 	// The library node only: a preset's title is a name somebody chose.
 	const alias = item.title === item.def.title ? aliasScore(item.def.id, query) : 0;

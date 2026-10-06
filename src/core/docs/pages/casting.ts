@@ -53,6 +53,12 @@ function castingBlocks(registry: Registry): Block[] {
 		{
 			t: "p",
 			text:
+				"Off a value, type the type's name into the node menu: `Motor6D` offers **Cast to " +
+				"Motor6D**, already wired and set.",
+		},
+		{
+			t: "p",
+			text:
 				"All three are drawn as **pills**, the shape the comparisons, the arithmetic and " +
 				"**and** / **or** use: the value and the type down the left, the symbol in the middle, the result on " +
 				"the right. A cast *is* an operator, and the shape is the point — a claim made " +

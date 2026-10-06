@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.139.3",
+		date: "2026-10-06",
+		headline: "Typing a type's name in the node menu offers a Cast to it.",
+		affects: ["editor", "docs"],
+		changed: [
+			"Type a type's name into the node menu, as `Motor6D` off a value, and it offers Cast to Motor6D, with its Type already set.",
+		],
+	},
+	{
 		version: "0.139.2",
 		date: "2026-10-06",
 		headline: "Make Dictionary's new rows follow the row above.",

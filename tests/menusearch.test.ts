@@ -159,3 +159,33 @@ describe("a wire asking for a value", async () => {
 		expect(results).toContain("weapon.Parent");
 	});
 });
+
+/** A type's name, typed off a value, offers a Cast to it. */
+describe("a type name typed off a value", async () => {
+	const { namedItems: named, searchMenu: search } = await import("../src/app/menuSearch.js");
+	const { createRegistry: makeRegistry } = await import("../src/core/nodes/index.js");
+	const registry = makeRegistry();
+	const from = {
+		ref: { node: "traverse", pin: "value" },
+		side: "out" as const,
+		pin: { id: "value", name: "", kind: "data" as const, type: "Instance" },
+	};
+	const sources = {
+		items: [],
+		services: [],
+		lune: [],
+		names: named(registry, "roblox"),
+		draggedService: [],
+		draggedMembers: [],
+	};
+
+	it("offers Cast to it first", () => {
+		const results = search("Motor6D", sources, from);
+		expect(results[0]?.title).toBe("Cast to Motor6D");
+		expect(results[0]?.literals?.type).toEqual({ t: "string", v: "Motor6D" });
+	});
+
+	it("is found by the name alone, in any case", () => {
+		expect(search("motor6d", sources, from)[0]?.title).toBe("Cast to Motor6D");
+	});
+});
