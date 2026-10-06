@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.143.2",
+		date: "2026-10-06",
+		headline: "Code completion follows a path of members.",
+		affects: ["editor"],
+		fixed: [
+			"`hull.Position.` offers a Vector3's members, and a path of any length is followed while each step's type is known, through a property, an event or a child instance the project knows. A colon at its end offers methods.",
+		],
+	},
+	{
 		version: "0.143.1",
 		date: "2026-10-06",
 		headline: "Luau typed into a graph is offered a typed local's members.",

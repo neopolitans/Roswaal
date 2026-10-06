@@ -18,6 +18,7 @@ import {
 	luauCompletionSource,
 	precedingLocals,
 } from "../src/app/luauCompletions.js";
+import type { InstanceNode } from "../src/core/luau/instances.js";
 import { createRegistry } from "../src/core/nodes/index.js";
 import type { NodeScript } from "../src/core/schema.js";
 import { Builder } from "./helpers.js";
@@ -151,5 +152,62 @@ describe("an untyped local", () => {
 	it("typed in the code still decides what its name holds", () => {
 		const types: GraphTypes = new Map([["hull", { type: "BasePart" }]]);
 		expect(offered("local hull = {}\nhull.|", types)).not.toContain("Position");
+	});
+});
+
+/**
+ * A member of a member. `hull.Position.Y` offered nothing, because only the
+ * name straight before the dot was looked up. The path is followed from its
+ * first name, each step by its member's type.
+ */
+describe("a path of members", () => {
+	const types: GraphTypes = new Map([["hull", { type: "BasePart" }]]);
+
+	it("follows a property's type", () => {
+		expect(offered("(hull.Position.|)", types)).toEqual(expect.arrayContaining(["X", "Y", "Z"]));
+		expect(offered("hull.CFrame.Look|", types)).toContain("LookVector");
+	});
+
+	it("goes as deep as the types say", () => {
+		expect(offered("hull.CFrame.Position.|", types)).toEqual(expect.arrayContaining(["X", "Y"]));
+	});
+
+	it("offers methods after a colon at its end", () => {
+		expect(offered("hull.Position:|", types)).toEqual(expect.arrayContaining(["Dot", "Cross"]));
+		expect(offered("hull.Touched:|", types)).toContain("Connect");
+	});
+
+	it("starts from a local the code declares, and from a global", () => {
+		expect(offered("local p: Part = nil\np.Size.|", new Map())).toContain("X");
+		expect(offered("workspace.CurrentCamera.CFrame.|", new Map())).toContain("LookVector");
+	});
+
+	it("offers nothing past a step it cannot follow", () => {
+		expect(offered("hull.Nonsense.|", types)).toEqual([]);
+	});
+});
+
+describe("a path through the place", () => {
+	const node = (name: string, className: string, children: InstanceNode[] = []): InstanceNode => ({
+		name,
+		className,
+		children: new Map(children.map((c) => [c.name, c])),
+	});
+	const root = node("game", "DataModel", [
+		node("Workspace", "Workspace", [node("Platforms", "Folder", [node("Lift", "Part")])]),
+	]);
+
+	it("follows children the project knows, then the last one's members", () => {
+		const pos = "workspace.Platforms.Lift.Position.".length;
+		const doc = "workspace.Platforms.Lift.Position.";
+		const context = new CompletionContext(EditorState.create({ doc }), pos, false);
+		const result = luauCompletionSource(
+			() => [],
+			() => "roblox",
+			() => new Map(),
+			() => ({ root }),
+			() => new Map(),
+		)(context);
+		expect(result?.options.map((o) => o.label)).toEqual(expect.arrayContaining(["X", "Y", "Z"]));
 	});
 });

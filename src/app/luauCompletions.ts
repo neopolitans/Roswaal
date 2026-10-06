@@ -146,6 +146,65 @@ function typedDotMembers(held: GraphType, roblox: boolean): Completion[] {
 	return (held.fields ?? []).map((name) => ({ label: name, type: "property", detail: "field" }));
 }
 
+/**
+ * The type a member of a value of `type` holds: a class's property or event,
+ * or a datatype's property. `Position` on a BasePart is a Vector3; `Touched`
+ * is an RBXScriptSignal. Undefined when the type does not say.
+ */
+function memberTypeOf(type: string, name: string): string | undefined {
+	const className = heldBy(type, undefined).className;
+	if (className) {
+		const property = propertiesOf(className).find((p) => p.name === name);
+		if (property?.type) return bareType(property.type);
+		return eventsOf(className).some((e) => e.name === name) ? "RBXScriptSignal" : undefined;
+	}
+	const datatype = datatypeOf(type);
+	const property = datatype
+		? ENGINE.datatypes[datatype].properties.find((p) => p.name === name)
+		: undefined;
+	return property?.type ? bareType(property.type) : undefined;
+}
+
+/**
+ * What a dotted path holds, followed from its first name: `hull.Position` is
+ * a Vector3 because `hull` is a BasePart. The first name is a local of the
+ * code's, then one of the graph's, then a global instance; each step after it
+ * is a member's type or, failing that, a child instance the project knows,
+ * so `workspace.Platforms.Lift.Position` reaches a Vector3 through the place.
+ * Any step that cannot be followed ends it, and nothing is offered.
+ */
+function typeOfPath(
+	path: readonly string[],
+	doc: string,
+	pos: number,
+	types: GraphTypes,
+	instances: { root: InstanceNode; self?: string[] } | null,
+): string | undefined {
+	const [root, ...rest] = path;
+	const local = localsAt(doc, pos).find((n) => n.name === root);
+	let type: string | undefined;
+	if (local) {
+		type =
+			heldBy(local.typeText, local.value).className ??
+			(local.typeText ? bareType(local.typeText) : undefined);
+	} else {
+		type =
+			types.get(root)?.type ??
+			classOfGlobal(root) ??
+			(root === "script" ? "LuaSourceContainer" : undefined);
+	}
+	for (const [i, name] of rest.entries()) {
+		if (type === undefined) return undefined;
+		type =
+			memberTypeOf(type, name) ??
+			(instances ? instanceClassOfChain(doc, pos, path.slice(0, i + 2), instances) : undefined);
+	}
+	return type;
+}
+
+/** `a.b.c.` or `a.b.c:`, then the name being typed: a path of at least two names. */
+const MEMBER_PATH = /([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+)([.:])(\w*)$/;
+
 /** What a colon reaches on a value of a graph-known type: its methods. */
 function typedColonMembers(held: GraphType): Completion[] {
 	const className = heldBy(held.type, undefined).className;
@@ -466,6 +525,29 @@ export function luauCompletionSource(
 						],
 						validFor: /^\w*$/,
 					};
+				}
+			}
+		}
+
+		// A member of a member: `hull.Position.` offers a Vector3's, however
+		// long the path, as long as each step's type is known.
+		const pathed = roblox ? context.matchBefore(MEMBER_PATH) : null;
+		if (pathed) {
+			const [, written, separator, typed] = MEMBER_PATH.exec(pathed.text)!;
+			const type = typeOfPath(
+				written.split("."),
+				context.state.doc.toString(),
+				pathed.from,
+				getTypes(),
+				instances,
+			);
+			if (type !== undefined) {
+				const options =
+					separator === "."
+						? typedDotMembers({ type }, roblox)
+						: typedColonMembers({ type });
+				if (options.length > 0) {
+					return { from: pathed.to - typed.length, options, validFor: /^\w*$/ };
 				}
 			}
 		}
