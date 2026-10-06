@@ -744,7 +744,10 @@ function typecheckOf(src: string): NodeScript["typecheck"] {
 	return mode === "strict" || mode === "nonstrict" ? mode : "default";
 }
 
-export function importLuau(src: string, options: ImportOptions): ImportResult {
+export function importLuau(file: string, options: ImportOptions): ImportResult {
+	// Code kept as text goes into the graph as written, and a checkout on
+	// Windows writes it with CRLF; the compiler writes LF.
+	const src = file.replace(/\r\n?/g, "\n");
 	const parsed = parseChunk(src);
 	if (parsed.errors.length > 0) {
 		const first = parsed.errors[0];

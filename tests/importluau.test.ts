@@ -51,6 +51,7 @@ function compiled(script: NodeScript): { code: string; errors: string[] } {
 /** The code's lines, without comments, blank lines, or the generated header. */
 function lines(code: string): string[] {
 	return code
+		.replace(/\r\n?/g, "\n")
 		.replace(/--\[(=*)\[[\s\S]*?\]\1\]/g, "")
 		.split("\n")
 		.map((l) => l.replace(/--(?!!).*$/, "").trim())
@@ -224,6 +225,13 @@ describe("what stays as code", () => {
 		const src = "local function two()\n\treturn 2\nend\nprint(two())\n";
 		expect(defsOf(imported(src))).not.toContain("function.declareHere");
 		expect(roundTrip(src)).toEqual(lines(src));
+	});
+
+	it("keeps a CRLF file's code with LF, as the compiler writes it", () => {
+		const src = "local t = {\r\n\ta = 1,\r\n}\r\nprint(t)\r\n";
+		const { code } = compiled(imported(src));
+		expect(code).toContain("local t = {\n\ta = 1,\n}");
+		expect(code).not.toContain("\r");
 	});
 
 	it("keeps its indentation inside the text, once", () => {
