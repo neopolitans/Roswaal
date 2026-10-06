@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { fitOnScreen } from "../src/app/menuPlace.js";
+import { fitOnScreen, hangFrom } from "../src/app/menuPlace.js";
 
 const view = { width: 1728, height: 1117 };
 const menu = { width: 174, height: 120 };
@@ -48,5 +48,35 @@ describe("a menu opened at the pointer", () => {
 	it("keeps the top on screen when the menu is taller than the window", () => {
 		const tall = { width: 174, height: 900 };
 		expect(fitOnScreen({ x: 140, y: 300 }, tall, { width: 1000, height: 600 }).y).toBe(8);
+	});
+});
+
+describe("a menu hanging from its button", () => {
+	// The More button at the right-hand end of the top row.
+	const button = { left: 1680, top: 12, right: 1716, bottom: 44 };
+
+	it("hangs below, lined up with the button's start", () => {
+		const left = { left: 100, top: 12, right: 136, bottom: 44 };
+		expect(hangFrom(left, menu, view)).toEqual({ x: 100, y: 48 });
+	});
+
+	it("lines up with the button's end when asked", () => {
+		expect(hangFrom(button, menu, view, { align: "end" })).toEqual({ x: 1542, y: 48 });
+	});
+
+	it("slides along to stay inside the window", () => {
+		expect(hangFrom(button, menu, view).x).toBe(1728 - 8 - 174);
+	});
+
+	it("goes above when there is no room below", () => {
+		const foot = { left: 100, top: 1060, right: 160, bottom: 1092 };
+		expect(hangFrom(foot, menu, view)).toEqual({ x: 100, y: 936 });
+	});
+
+	it("opens above when asked, and below when there is no room above", () => {
+		const foot = { left: 100, top: 1060, right: 160, bottom: 1092 };
+		expect(hangFrom(foot, menu, view, { side: "above" })).toEqual({ x: 100, y: 936 });
+		const top = { left: 100, top: 12, right: 160, bottom: 44 };
+		expect(hangFrom(top, menu, view, { side: "above" })).toEqual({ x: 100, y: 48 });
 	});
 });

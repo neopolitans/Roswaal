@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.144.0",
+		date: "2026-10-06",
+		headline: "Every context menu and dropdown is one menu, and works from the keyboard.",
+		affects: ["editor"],
+		added: [
+			"Menus work from the keyboard: Up and Down move through what can be chosen, Home and End jump to either end, Enter chooses, and Escape or Tab closes the menu and puts focus back where it was.",
+		],
+		changed: [
+			"The project tree's menus are drawn by the editor's one menu, which opens over everything and stays on screen.",
+		],
+	},
+	{
 		version: "0.143.6",
 		date: "2026-10-06",
 		headline: "The project tree's menu opens over the graph, all of it on screen.",

@@ -7,15 +7,12 @@
  */
 
 import { type DragEvent, memo, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import type { FunctionInfo } from "../core/functionGraph.js";
 import type { TreeEntry } from "./api.js";
 import { cx } from "./cx.js";
-import { useDismiss } from "./dismiss.js";
 import { NOT_HERE, useHostCan } from "./host.js";
 import { Icon, type IconName } from "./icons.jsx";
-import { LAYER } from "./layers.js";
-import { useOnScreen } from "./menuPlace.js";
+import { Menu } from "./Menu.jsx";
 import { depthStyle, SectionHead } from "./PanelParts.jsx";
 
 const KIND_ICONS: Record<Exclude<TreeEntry["kind"], "directory">, IconName> = {
@@ -107,10 +104,6 @@ export const ProjectTree = memo(function ProjectTree({
 	const canReveal = useHostCan("reveal");
 	const canGithub = useHostCan("githubDownload");
 	const [menu, setMenu] = useState<{ x: number; y: number; entry: TreeEntry } | null>(null);
-	const menuRef = useRef<HTMLDivElement>(null);
-
-	useDismiss(menuRef, () => setMenu(null), { enabled: menu !== null, escape: true });
-	const menuAt = useOnScreen(menuRef, menu);
 	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
 	// Wally's folders start shut: `_Index` holds every file of every package,
 	// and opened it is most of the tree. Once each, so shutting is not undone
@@ -440,177 +433,94 @@ export const ProjectTree = memo(function ProjectTree({
 				</div>
 			)}
 
-			{/* At the body, through a portal. Fixed inside the tree it was laid out
-			    against the tree's card, which is glass -- a backdrop filter makes
-			    it the box a fixed child is placed in -- and clipped by its edges. */}
-			{menu &&
-				menuAt &&
-				isListed(menu.entry) &&
-				onPackage &&
-				createPortal(
-					<div
-						className="menu tree-menu"
-						ref={menuRef}
-						style={{ left: menuAt.x, top: menuAt.y, zIndex: LAYER.menu }}
-					>
-						<div className="items">
-							{menu.entry.kind === "package" && menu.entry.missing && (
-								<div
-									className="item"
-									onClick={() => {
-										onPackage("zip", menu.entry);
-										setMenu(null);
-									}}
-								>
-									<Icon name="folderOpen" size={15} />
-									<span>Insert its zip…</span>
-								</div>
-							)}
-							{menu.entry.kind === "package" && (
-								<div
-									className="item danger"
-									onClick={() => {
-										onPackage("remove", menu.entry);
-										setMenu(null);
-									}}
-								>
-									<Icon name="remove" size={15} />
-									<span>Remove package…</span>
-								</div>
-							)}
-							<div
-								className="item"
-								onClick={() => {
-									onPackage("wally");
-									setMenu(null);
-								}}
-							>
-								<Icon name="instance" size={15} />
-								<span>Add from Wally…</span>
-							</div>
-							<div
-								className="item"
-								onClick={() => {
-									onPackage("zip");
-									setMenu(null);
-								}}
-							>
-								<Icon name="folderOpen" size={15} />
-								<span>Insert package zip…</span>
-							</div>
-							<div
-								className={cx("item", !canGithub && "item-unavailable")}
-								title={canGithub ? undefined : NOT_HERE}
-								onClick={() => {
-									if (!canGithub) return;
-									onPackage("github");
-									setMenu(null);
-								}}
-							>
-								<Icon name="external" size={15} />
-								<span>Insert GitHub repo…</span>
-							</div>
-						</div>
-					</div>,
-					document.body,
-				)}
+			{menu && isListed(menu.entry) && onPackage && (
+				<Menu
+					at={menu}
+					label={menu.entry.name}
+					onClose={() => setMenu(null)}
+					sections={[
+						{
+							entries: [
+								menu.entry.kind === "package" &&
+									menu.entry.missing && {
+										label: "Insert its zip…",
+										icon: "folderOpen",
+										run: () => onPackage("zip", menu.entry),
+									},
+								menu.entry.kind === "package" && {
+									label: "Remove package…",
+									icon: "remove",
+									danger: true,
+									run: () => onPackage("remove", menu.entry),
+								},
+								{ label: "Add from Wally…", icon: "instance", run: () => onPackage("wally") },
+								{ label: "Insert package zip…", icon: "folderOpen", run: () => onPackage("zip") },
+								{
+									label: "Insert GitHub repo…",
+									icon: "external",
+									disabled: !canGithub,
+									title: canGithub ? undefined : NOT_HERE,
+									run: () => onPackage("github"),
+								},
+							],
+						},
+					]}
+				/>
+			)}
 
-			{menu &&
-				menuAt &&
-				!isListed(menu.entry) &&
-				createPortal(
-					<div
-						className="menu tree-menu"
-						ref={menuRef}
-						style={{ left: menuAt.x, top: menuAt.y, zIndex: LAYER.menu }}
-					>
-						<div className="items">
-							{/* Making things first, then finding them, then destroying
-						    them. A menu opened on a folder is nearly always opened
-						    to put something in it. */}
-							{holdsGraphs(parentDirOf(menu.entry)) && (
-								<>
-									<div
-										className="item"
-										onClick={() => {
-											onNewGraph(parentDirOf(menu.entry));
-											setMenu(null);
-										}}
-									>
-										<Icon name="newFile" size={15} />
-										<span>New graph here</span>
-									</div>
-									<div
-										className="item"
-										onClick={() => {
-											onNewMap(parentDirOf(menu.entry));
-											setMenu(null);
-										}}
-									>
-										<Icon name="map" size={15} />
-										<span>New map here</span>
-									</div>
-								</>
-							)}
-							{onImport && menu.entry.kind === "luau" && !menu.entry.generatedFrom && (
-								<div
-									className="item"
-									onClick={() => {
-										onImport(menu.entry);
-										setMenu(null);
-									}}
-								>
-									<Icon name="graph" size={15} />
-									<span>Import as graph</span>
-								</div>
-							)}
-							<div
-								className="item"
-								onClick={() => {
-									onNewFolder(parentDirOf(menu.entry));
-									setMenu(null);
-								}}
-							>
-								<Icon name="newFolder" size={15} />
-								<span>New folder</span>
-							</div>
-							<div
-								className={cx("item", !canReveal && "item-unavailable")}
-								title={canReveal ? undefined : NOT_HERE}
-								onClick={() => {
-									if (!canReveal) return;
-									onReveal(menu.entry.path);
-									setMenu(null);
-								}}
-							>
-								<Icon name="external" size={15} />
-								<span>Show in file manager</span>
-							</div>
-							<div
-								className="item"
-								onClick={() => {
-									onRename(menu.entry.path);
-									setMenu(null);
-								}}
-							>
-								<Icon name="rename" size={15} />
-								<span>Rename</span>
-							</div>
-							<div
-								className="item danger"
-								onClick={() => {
-									const paths = selected.has(menu.entry.path) ? [...selected] : [menu.entry.path];
-									onDelete(paths);
-									setMenu(null);
-								}}
-							>
-								<Icon name="remove" size={15} />
-								<span>Delete</span>
-							</div>
-						</div>
-					</div>,
-					document.body,
-				)}
+			{menu && !isListed(menu.entry) && (
+				<Menu
+					at={menu}
+					label={menu.entry.name}
+					onClose={() => setMenu(null)}
+					sections={[
+						{
+							// Making things first, then finding them, then destroying
+							// them. A menu opened on a folder is nearly always opened to
+							// put something in it.
+							entries: [
+								holdsGraphs(parentDirOf(menu.entry)) && {
+									label: "New graph here",
+									icon: "newFile",
+									run: () => onNewGraph(parentDirOf(menu.entry)),
+								},
+								holdsGraphs(parentDirOf(menu.entry)) && {
+									label: "New map here",
+									icon: "map",
+									run: () => onNewMap(parentDirOf(menu.entry)),
+								},
+								onImport &&
+									menu.entry.kind === "luau" &&
+									!menu.entry.generatedFrom && {
+										label: "Import as graph",
+										icon: "graph",
+										run: () => onImport(menu.entry),
+									},
+								{
+									label: "New folder",
+									icon: "newFolder",
+									run: () => onNewFolder(parentDirOf(menu.entry)),
+								},
+								{
+									label: "Show in file manager",
+									icon: "external",
+									disabled: !canReveal,
+									title: canReveal ? undefined : NOT_HERE,
+									run: () => onReveal(menu.entry.path),
+								},
+								{ label: "Rename", icon: "rename", run: () => onRename(menu.entry.path) },
+								{
+									label: "Delete",
+									icon: "remove",
+									danger: true,
+									run: () =>
+										onDelete(selected.has(menu.entry.path) ? [...selected] : [menu.entry.path]),
+								},
+							],
+						},
+					]}
+				/>
+			)}
 		</div>
 	);
 });

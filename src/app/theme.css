@@ -2434,6 +2434,133 @@ button.tb.primary:hover:not(:disabled) {
 	text-align: center;
 }
 
+/* ------------------------------------------------------------- base menu */
+
+/* Every context menu and dropdown drawn by `Menu.tsx`: one look, one divider.
+   As wide as its longest entry, and never wider than the window. The node
+   palette keeps the fixed width above, for a list that changes as you type. */
+.menu.menu--list {
+	width: max-content;
+	min-width: 180px;
+	max-width: min(340px, calc(100vw - 16px));
+	max-height: calc(100vh - 16px);
+}
+
+/* Focus sits on the menu itself until an entry takes it; the highlight is
+   the entry's, as in a native menu, so the box needs no ring of its own. */
+.menu:focus {
+	outline: none;
+}
+
+.menu-body {
+	overflow: auto;
+	padding: 4px;
+	display: flex;
+	flex-direction: column;
+}
+
+.menu-section {
+	display: flex;
+	flex-direction: column;
+}
+
+.menu-sep {
+	flex: none;
+	height: 1px;
+	margin: 4px 6px;
+	background: var(--border);
+}
+
+.menu-label {
+	padding: 6px 8px 3px;
+	font-size: var(--text-xs);
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--fg-faint);
+}
+
+.menu-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	padding: 5px 8px;
+	border: 0;
+	border-radius: var(--radius-sm);
+	background: none;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+	text-decoration: none;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+/* The pointer moves focus as it moves (`Menu.tsx`), so hover and focus are
+   one highlight, and the keyboard's is the same as the mouse's. */
+.menu-item:hover,
+.menu-item:focus {
+	background: var(--bg-active);
+	outline: none;
+}
+
+/* Shown rather than removed: it names something Roswaal does, somewhere
+   else. Its tooltip says where. */
+.menu-item[aria-disabled="true"] {
+	opacity: 0.45;
+	cursor: default;
+}
+
+.menu-item[aria-disabled="true"]:hover,
+.menu-item[aria-disabled="true"]:focus {
+	background: none;
+}
+
+.menu-icon {
+	flex: none;
+	color: var(--fg-muted);
+}
+
+.menu-swatch {
+	flex: none;
+	width: 8px;
+	height: 8px;
+	border-radius: var(--radius-xs);
+}
+
+.menu-text {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.menu-hint {
+	margin-left: auto;
+	padding-left: 16px;
+	font-size: var(--text-xs);
+	color: var(--fg-faint);
+}
+
+.menu-item--danger,
+.menu-item--danger .menu-icon {
+	color: var(--danger);
+}
+
+.menu-item--checked,
+.menu-item--checked .menu-icon {
+	color: var(--accent);
+}
+
+.menu-empty {
+	max-width: 260px;
+	padding: 10px 12px;
+	font-size: var(--text-sm);
+	line-height: 1.5;
+	color: var(--fg-faint);
+	white-space: normal;
+}
+
 /* A field whose control has something beside it -- the variable picker and its
    "New..." button. The select takes the room and the button takes what it
    needs, so a long variable name does not push the button off the panel. */
@@ -4062,17 +4189,6 @@ button.start-tile:disabled {
 
 .map-diagnostics .entry.warning .sev {
 	color: var(--warning);
-}
-
-/* As wide as its longest item, so "Show in file manager" stays on one line. */
-.tree-menu {
-	width: max-content;
-	min-width: 170px;
-	max-height: none;
-}
-
-.tree-menu .item.danger {
-	color: var(--danger);
 }
 
 /* ------------------------------------------------------------ code editor */
