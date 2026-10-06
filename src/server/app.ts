@@ -44,6 +44,12 @@ export interface DaemonOptions {
 	root?: string;
 	/** Directory holding the built editor, served at "/" when it exists. */
 	staticDir?: string;
+	/**
+	 * Origins answered besides the daemon's own: Vite's, in development, which
+	 * serves the editor on its own port and proxies `/api` here. The CLI never
+	 * sets it, so a daemon somebody runs answers its own pages and nothing else.
+	 */
+	trustOrigins?: readonly string[];
 	onListening?: (port: number) => void;
 }
 
@@ -63,6 +69,20 @@ function hostnameOf(value: string): string {
 	return (bracketed ? bracketed[0] : withoutScheme.split(":")[0]).toLowerCase();
 }
 
+/** An origin as a browser sends it, compared without case or a trailing slash. */
+function originKey(origin: string): string {
+	return origin.trim().toLowerCase().replace(/\/+$/, "");
+}
+
+/**
+ * The origins whose pages may use the daemon: its own, however loopback is
+ * spelled, and any it is told to trust besides.
+ */
+export function trustedOrigins(port: number, extra: readonly string[] = []): Set<string> {
+	const own = ["127.0.0.1", "localhost", "[::1]"].map((host) => `http://${host}:${port}`);
+	return new Set([...own, ...extra].map(originKey));
+}
+
 /**
  * Whether to refuse a request outright, and why. `null` means let it through.
  *
@@ -80,35 +100,75 @@ function hostnameOf(value: string): string {
  * `init` writes a `roswaal.json` wherever it is pointed. Roswaal is a local
  * tool; nothing needs cross-origin access, so nothing gets it.
  *
- * Two checks, because they stop different things:
+ * Three checks, because they stop different things:
  *
  *  - **Host**, against DNS rebinding. A page on `evil.com` whose DNS is made to
  *    answer 127.0.0.1 is *same-origin* with the daemon as far as the browser is
  *    concerned, so it sends no `Origin` at all and an origin check never fires.
  *    What it cannot forge is `Host`, which still says `evil.com`.
- *  - **Origin**, against the ordinary cross-origin case. A browser always sends
- *    it on a cross-origin request and a page cannot suppress or spoof it.
+ *  - **Origin**, exactly: the daemon's own pages, and Vite's in development.
+ *    Not any loopback origin — a page served by some other server on this
+ *    machine (a notebook, a dev server, a folder of downloaded HTML behind a
+ *    static server) is somebody else's page, however local it is.
+ *  - **Sec-Fetch-Site**, for the API, against the request that sends no
+ *    `Origin`: an `<img>` or `<script>` on another site pointed at `/api/...`.
+ *    The browser says where every request came from, and a page cannot change
+ *    what it says. A navigation to the editor itself is not refused: following
+ *    a link to it is how it is opened.
  *
- * A request with no `Origin` is allowed: that is curl, the CLI, and anything
- * else that is not a browser, none of which a hostile page can impersonate.
- *
- * Residual, and deliberate: any *loopback* origin is accepted, so a different
- * server on the developer's own machine is trusted. Pinning the port would
- * break Vite on 4470 talking to the daemon on 4471, and a hostile server
- * already running locally is a threat this cannot answer anyway.
+ * A request with neither header is allowed: that is curl, the CLI, and
+ * anything else that is not a browser, none of which a page can impersonate.
  */
 export function refusesConnection(
-	host: string | undefined,
-	origin: string | undefined,
+	request: { host?: string; origin?: string; fetchSite?: string; api?: boolean },
+	trusted: ReadonlySet<string>,
 ): string | null {
+	const { host, origin, fetchSite, api = false } = request;
 	if (host !== undefined && !LOOPBACK.has(hostnameOf(host))) {
 		return `Roswaal only answers on localhost. This request asked for "${host}".`;
 	}
-	if (origin !== undefined && origin !== "" && !LOOPBACK.has(hostnameOf(origin))) {
+	if (origin !== undefined && origin !== "" && !trusted.has(originKey(origin))) {
 		return `Roswaal does not serve other origins. This request came from "${origin}".`;
+	}
+	if (api && fetchSite !== undefined && fetchSite !== "same-origin" && fetchSite !== "none") {
+		return "Roswaal answers its own pages. This request came from another site.";
 	}
 	return null;
 }
+
+/**
+ * Headers on every answer, which keep the daemon's pages its own.
+ *
+ * - **Not framed by anybody else.** A page that put the editor in a frame
+ *   could steer clicks onto Delete; the frame's requests would come from the
+ *   editor itself and pass every check above. `SAMEORIGIN` rather than `DENY`:
+ *   the editor's own windows are the daemon's pages too.
+ * - **Scripts from the daemon only.** The editor has no inline script and
+ *   fetches nothing elsewhere, so a script that got into a page some other way
+ *   has nowhere to load from and nothing to send to. Styles are allowed inline:
+ *   CodeMirror writes its own, and the docs' pictures carry theirs.
+ * - **Not embedded or sniffed.** Another site cannot load an answer as an
+ *   image or a script, and a file is read as the type it is served as.
+ */
+export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
+	"Content-Security-Policy": [
+		"default-src 'self'",
+		"script-src 'self'",
+		"style-src 'self' 'unsafe-inline'",
+		"img-src 'self' data: blob:",
+		"font-src 'self' data:",
+		"connect-src 'self'",
+		"worker-src 'self' blob:",
+		"object-src 'none'",
+		"base-uri 'self'",
+		"form-action 'self'",
+		"frame-ancestors 'self'",
+	].join("; "),
+	"X-Frame-Options": "SAMEORIGIN",
+	"Cross-Origin-Resource-Policy": "same-origin",
+	"X-Content-Type-Options": "nosniff",
+	"Referrer-Policy": "no-referrer",
+};
 
 /**
  * The project a request believes it is talking to.
@@ -196,7 +256,9 @@ export function createDaemon(): Daemon {
 		demos: installedDemos,
 	});
 
-	guardConnections(app);
+	// The default port's until `start` says otherwise.
+	let trusted = trustedOrigins(DEFAULT_PORT);
+	guardConnections(app, () => trusted);
 	app.use(express.json({ limit: "32mb" }));
 	guardProject(app, session);
 	mountRoutes(app, session);
@@ -206,6 +268,7 @@ export function createDaemon(): Daemon {
 		app,
 		session,
 		async start(options = {}) {
+			trusted = trustedOrigins(options.port ?? DEFAULT_PORT, options.trustOrigins);
 			if (options.root) await session.openAt(options.root);
 			mountEditor(app, options.staticDir);
 			await listen(app, options);
@@ -219,10 +282,22 @@ export function createDaemon(): Daemon {
  * There is no `cors()`, and none is needed: in development Vite proxies `/api`
  * to the daemon server-side, and in production the daemon serves the editor
  * itself. The browser never makes a cross-origin request to it.
+ *
+ * `trusted` is read on every request, because the port is only known once the
+ * daemon starts.
  */
-function guardConnections(app: express.Express): void {
+function guardConnections(app: express.Express, trusted: () => ReadonlySet<string>): void {
 	app.use((req, res, next) => {
-		const refusal = refusesConnection(req.headers.host, req.headers.origin);
+		for (const [name, value] of Object.entries(SECURITY_HEADERS)) res.setHeader(name, value);
+		const refusal = refusesConnection(
+			{
+				host: req.headers.host,
+				origin: req.headers.origin,
+				fetchSite: req.header("sec-fetch-site"),
+				api: req.path === "/api" || req.path.startsWith("/api/"),
+			},
+			trusted(),
+		);
 		if (refusal) {
 			res.status(403).json({ error: refusal });
 			return;

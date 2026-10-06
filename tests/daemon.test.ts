@@ -20,7 +20,13 @@ import { Socket } from "node:net";
 import type { Request, Response } from "express";
 import { describe, expect, it } from "vitest";
 
-import { createDaemon, refusesConnection, refusesRequest } from "../src/server/app.js";
+import {
+	createDaemon,
+	refusesConnection,
+	refusesRequest,
+	SECURITY_HEADERS,
+	trustedOrigins,
+} from "../src/server/app.js";
 import { streamCount, streamEvents } from "../src/server/events.js";
 import { type CompileOutcome, describeOutcome } from "../src/server/project.js";
 import type { DynamicCompiler } from "../src/server/watcher.js";
@@ -211,18 +217,39 @@ describe("the event stream", () => {
  */
 describe("who the daemon answers", () => {
 	const DAEMON = "127.0.0.1:4471";
+	const own = trustedOrigins(4471);
+	// The development runner's: Vite's port as well.
+	const dev = trustedOrigins(4471, ["http://localhost:4470", "http://127.0.0.1:4470"]);
+	const ask = (host: string | undefined, origin?: string, fetchSite?: string, api = true) =>
+		refusesConnection({ host, origin, fetchSite, api }, own);
 
 	it("serves the editor, however it is addressed locally", () => {
-		expect(refusesConnection(DAEMON, undefined)).toBeNull();
-		expect(refusesConnection("localhost:4471", "http://localhost:4470")).toBeNull();
-		expect(refusesConnection("[::1]:4471", "http://[::1]:4470")).toBeNull();
-		// Vite in development, proxying from its own port to the daemon's.
-		expect(refusesConnection(DAEMON, "http://127.0.0.1:4470")).toBeNull();
+		expect(ask(DAEMON)).toBeNull();
+		expect(ask("localhost:4471", "http://localhost:4471", "same-origin")).toBeNull();
+		expect(ask("[::1]:4471", "http://[::1]:4471")).toBeNull();
+		expect(ask(DAEMON, "http://127.0.0.1:4471", "same-origin")).toBeNull();
+	});
+
+	it("answers Vite only when it is told to, as the development runner does", () => {
+		expect(ask(DAEMON, "http://127.0.0.1:4470")).not.toBeNull();
+		expect(refusesConnection({ host: DAEMON, origin: "http://127.0.0.1:4470" }, dev)).toBeNull();
+		expect(refusesConnection({ host: DAEMON, origin: "http://localhost:4470" }, dev)).toBeNull();
+	});
+
+	/**
+	 * Some other server on this machine -- a notebook, a dev server, a static
+	 * server over a downloaded folder -- serves somebody else's pages, however
+	 * local they are.
+	 */
+	it("refuses a page from another server on this machine", () => {
+		expect(ask(DAEMON, "http://127.0.0.1:8000")).not.toBeNull();
+		expect(ask(DAEMON, "http://localhost:8888")).not.toBeNull();
+		expect(ask(DAEMON, "http://127.0.0.1")).not.toBeNull();
 	});
 
 	it("refuses a page on the open web", () => {
-		expect(refusesConnection(DAEMON, "https://evil.example")).not.toBeNull();
-		expect(refusesConnection(DAEMON, "http://evil.example:4471")).not.toBeNull();
+		expect(ask(DAEMON, "https://evil.example")).not.toBeNull();
+		expect(ask(DAEMON, "http://evil.example:4471")).not.toBeNull();
 	});
 
 	/**
@@ -232,8 +259,8 @@ describe("who the daemon answers", () => {
 	 * for, and it is not something a page can forge.
 	 */
 	it("refuses a host that is not loopback, even with no origin", () => {
-		expect(refusesConnection("evil.example:4471", undefined)).not.toBeNull();
-		expect(refusesConnection("192.168.1.20:4471", undefined)).not.toBeNull();
+		expect(ask("evil.example:4471")).not.toBeNull();
+		expect(ask("192.168.1.20:4471")).not.toBeNull();
 	});
 
 	/**
@@ -241,25 +268,57 @@ describe("who the daemon answers", () => {
 	 * not loopback and must not be read as "no origin".
 	 */
 	it("refuses an opaque origin", () => {
-		expect(refusesConnection(DAEMON, "null")).not.toBeNull();
+		expect(ask(DAEMON, "null")).not.toBeNull();
 	});
 
 	/**
-	 * curl, the CLI, and anything else that is not a browser. They send no
-	 * `Origin`, and a hostile page cannot suppress its own — so allowing this
+	 * An `<img>` or a `<script>` on another site sends no `Origin`, but the
+	 * browser still says where the request came from -- and another port on
+	 * this machine is `same-site`, not `same-origin`.
+	 */
+	it("refuses the API to a request from another site that sends no origin", () => {
+		expect(ask(DAEMON, undefined, "cross-site")).not.toBeNull();
+		expect(ask(DAEMON, undefined, "same-site")).not.toBeNull();
+		expect(ask(DAEMON, undefined, "same-origin")).toBeNull();
+		// Typed into the address bar.
+		expect(ask(DAEMON, undefined, "none")).toBeNull();
+	});
+
+	/** A link to the editor from anywhere is how it is opened. */
+	it("lets a page be opened from a link on another site", () => {
+		expect(ask(DAEMON, undefined, "cross-site", false)).toBeNull();
+	});
+
+	/**
+	 * curl, the CLI, and anything else that is not a browser. They send neither
+	 * header, and a hostile page cannot suppress its own — so allowing this
 	 * costs nothing and keeps `roswaal check` and scripting working.
 	 */
 	it("allows a client that is not a browser", () => {
-		expect(refusesConnection(DAEMON, undefined)).toBeNull();
-		expect(refusesConnection(DAEMON, "")).toBeNull();
+		expect(ask(DAEMON)).toBeNull();
+		expect(ask(DAEMON, "")).toBeNull();
 	});
 
-	/** A hostname is compared without its port or scheme, and case-insensitively. */
-	it("reads the hostname out of whatever form it arrives in", () => {
-		expect(refusesConnection("LOCALHOST:4471", "HTTP://LOCALHOST:4470")).toBeNull();
-		expect(refusesConnection("127.0.0.1", "http://127.0.0.1")).toBeNull();
+	/** Compared without case or a trailing slash, as browsers and proxies vary. */
+	it("reads the host and the origin in whatever form they arrive", () => {
+		expect(ask("LOCALHOST:4471", "HTTP://LOCALHOST:4471/")).toBeNull();
+		expect(ask("127.0.0.1", undefined)).toBeNull();
 		// Not loopback merely because it starts with it.
-		expect(refusesConnection("127.0.0.1.evil.example:4471", undefined)).not.toBeNull();
+		expect(ask("127.0.0.1.evil.example:4471")).not.toBeNull();
+	});
+});
+
+describe("what every answer says about itself", () => {
+	it("keeps the daemon's pages out of anybody else's frames", () => {
+		expect(SECURITY_HEADERS["X-Frame-Options"]).toBe("SAMEORIGIN");
+		expect(SECURITY_HEADERS["Content-Security-Policy"]).toContain("frame-ancestors 'self'");
+	});
+
+	it("runs scripts from the daemon only", () => {
+		const csp = SECURITY_HEADERS["Content-Security-Policy"];
+		expect(csp).toContain("script-src 'self';");
+		expect(csp).not.toMatch(/script-src[^;]*'unsafe-(inline|eval)'/);
+		expect(csp).toContain("object-src 'none'");
 	});
 });
 

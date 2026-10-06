@@ -9,9 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.144.2",
+		date: "2026-10-06",
+		headline: "The local editor answers its own pages, and only shows in its own windows.",
+		affects: ["editor"],
+		changed: [
+			"`roswaal serve` answers requests from the pages it serves itself and no others. A page served by another program on this machine -- a notebook, a dev server -- is treated like any other website. In development, the daemon run by `npm run dev` also answers Vite's port.",
+			"The local editor cannot be shown inside another site's frame, and loads scripts only from itself.",
+		],
+	},
+	{
 		version: "0.144.1",
 		date: "2026-10-06",
-		headline: "Text from a graph lands in the generated Luau as the text it is, and Luau nested too deeply is an error.",
+		headline:
+			"Text from a graph lands in the generated Luau as the text it is, and Luau nested too deeply is an error.",
 		affects: ["editor"],
 		fixed: [
 			"A variable's description that runs to more than one line is written as a block comment, as a comment on the graph is, and the graph's name and id stay on their own lines of the file's header.",
