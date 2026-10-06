@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.142.0",
+		date: "2026-10-06",
+		headline: "A node can go into a data wire, and a call can cast its result.",
+		affects: ["editor", "docs"],
+		added: [
+			"Pick up a wire off a data input, drop it on empty space and choose a node: it goes in between, the value feeding it and it feeding the input. Nodes that fit both ends come first, and a step also joins the reader's chain when there is one way in.",
+			"Cast result, in the Inspector of a call with one result, writes `call(...) :: Type`. The result pin and its named local take that type, including on Script Function calls to local functions.",
+			"Import as graph reads a cast on a call to a known function, `need(...) :: BasePart`, as that call with Cast result set.",
+		],
+	},
+	{
 		version: "0.141.2",
 		date: "2026-10-06",
 		headline: "Import as graph names its risks before it starts.",

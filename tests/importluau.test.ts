@@ -192,9 +192,11 @@ describe("what becomes a node", () => {
 		const call = script.nodes.find((n) => n.def === "function.callValue");
 		expect(call?.config).toMatchObject({ resultCast: "BasePart" });
 		const kept = script.nodes.filter((n) => n.def === "value.expression");
-		expect(kept.map((n) => String(n.literals?.code?.v ?? ""))).not.toContainEqual(
-			expect.stringContaining("need("),
-		);
+		const text = (n: (typeof kept)[number]) => {
+			const code = n.literals?.code;
+			return code && "v" in code ? String(code.v) : "";
+		};
+		expect(kept.map(text)).not.toContainEqual(expect.stringContaining("need("));
 		expect(roundTrip(src)).toEqual(lines(src));
 	});
 
