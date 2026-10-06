@@ -6,6 +6,7 @@
  * Functions of the `Emitter` they write through; see `emitter.ts`.
  */
 
+import { commentLines } from "../comments.js";
 import { bodyPinOf } from "../functionBody.js";
 import { checkLuau } from "../luau/check.js";
 import { checkSpecifier } from "../modules.js";
@@ -16,7 +17,7 @@ import {
 	typeDeclarationOf,
 } from "../nodes/flow.js";
 import { isClassNameType, variableRefOf } from "../nodes/variables.js";
-import { isService as isRobloxService } from "../roblox.js";
+import { isService as isRobloxService, PATH_GLOBALS, renderPath } from "../roblox.js";
 import { isModuleScript } from "../schema.js";
 import { Scope } from "./emitScope.js";
 import type { Emitter } from "./emitter.js";
@@ -282,10 +283,19 @@ export function flushPreamble(e: Emitter): void {
 
 /**
  * The Luau expression a path node starts from, registering the service if
- * the root names one. `game`, `script` and `workspace` need no declaration.
+ * the root names one. `game`, `script`, `workspace` and `shared` need no
+ * declaration, and a path from one of them -- `script.Parent` -- is written
+ * as a path.
+ *
+ * Anything else is a service by name, and goes through `GetService` quoted. A
+ * root is text from the graph file; written out as it stands, it would be
+ * code nobody can see in the node.
  */
 export function resolveRoot(e: Emitter, root: string): string {
-	if (!isRobloxService(root)) return root;
+	const [head, ...rest] = root.split(".");
+	if (!isRobloxService(root) && (PATH_GLOBALS as readonly string[]).includes(head.trim())) {
+		return renderPath(head.trim(), rest.join("."));
+	}
 	// A template has no top of the file to hoist a service to.
 	if (e.options.inline) return `game:GetService(${quoteString(root)})`;
 	const existing = e.services.get(root);
@@ -435,7 +445,11 @@ export function emitVariables(e: Emitter): void {
 		const ident = e.variableNames.get(variable.id)!;
 		const annotation =
 			e.annotates && variable.type && variable.type !== "any" ? `: ${luauType(variable.type)}` : "";
-		if (variable.description) e.push(`-- ${variable.description}`);
+		// As a comment header is written: a description is the graph file's
+		// text, and a line break in it must not start a line of code.
+		if (variable.description) {
+			for (const line of commentLines(variable.description)) e.push(line);
+		}
 		const keyword = variable.const === true ? "const" : "local";
 		e.push(`${keyword} ${ident}${annotation} = ${literalToLuau(variable.default)}`);
 		e.declaredSoFar.add(variable.id);

@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.144.1",
+		date: "2026-10-06",
+		headline: "Text from a graph lands in the generated Luau as the text it is.",
+		affects: ["editor"],
+		fixed: [
+			"A variable's description that runs to more than one line is written as a block comment, as a comment on the graph is, and the graph's name and id stay on their own lines of the file's header.",
+			"A path's starting point that is not `game`, `script`, `workspace` or `shared` is looked up as a service by name, so `Workspace` works. A path from one of those four, such as `script.Parent`, is written as before.",
+			"A Lune Function whose call is not a function's name is an error rather than being written as it stands.",
+			"A comment holding every long-bracket closer up to sixteen `=` gets one more, so it still closes.",
+		],
+	},
+	{
 		version: "0.144.0",
 		date: "2026-10-06",
 		headline: "Every context menu and dropdown is one menu, and works from the keyboard.",

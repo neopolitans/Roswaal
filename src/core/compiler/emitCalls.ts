@@ -19,7 +19,7 @@ import { type Scope, VARIADIC_PIN } from "./emitScope.js";
 import { callArguments, renderTemplate } from "./emitTemplates.js";
 import type { Emitter } from "./emitter.js";
 import type { ResolvedNode } from "./graph.js";
-import { isCallExpression, parenPrefix, toIdentifier } from "./luau.js";
+import { isCallExpression, isIdentifier, parenPrefix, toIdentifier } from "./luau.js";
 
 /** Statements that name the value on their `value` pin. See `foldsInto`. */
 export const STATEMENT_READERS = new Set([
@@ -47,6 +47,11 @@ export function luneCall(e: Emitter, src: ResolvedNode, scope: Scope): string {
 	const call = callOf(src.node.config);
 	if (call === undefined) {
 		e.error("This Lune Function has no call chosen.", src.node.id);
+		return "nil";
+	}
+	// Written after the module's name as it stands, so it has to be a name.
+	if (!isIdentifier(call)) {
+		e.error(`"${call}" is not the name of a Lune function.`, src.node.id);
 		return "nil";
 	}
 

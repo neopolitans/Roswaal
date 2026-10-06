@@ -113,10 +113,22 @@ export function headersByNode(script: NodeScript, registry: Registry): Map<strin
  * a file that does not parse, from a comment somebody wrote in good faith.
  */
 export function bracketLevel(text: string): number {
-	for (let level = 0; level < 16; level++) {
+	// No ceiling: a text holding every closer up to some level is answered by
+	// the next one, and a text cannot hold more closers than it has characters.
+	for (let level = 0; ; level++) {
 		if (!text.includes(`]${"=".repeat(level)}]`)) return level;
 	}
-	return 16;
+}
+
+/**
+ * Text for the rest of a `--` line: whatever would end the line is a space.
+ *
+ * For text that has to stay on one line -- the generated file's header names
+ * its graph -- where a line break would start a line of code. Comment text
+ * that may run to several lines goes through `commentLines` instead.
+ */
+export function oneLine(text: string): string {
+	return text.replace(/[\r\n]+/g, " ");
 }
 
 /**
