@@ -58,6 +58,8 @@ export interface ProjectTreeProps {
 	onRename: (path: string) => void;
 	onDelete: (paths: string[]) => void;
 	onReveal: (path: string) => void;
+	/** A hand-written `.luau` file, read into a new graph. */
+	onImport?: (entry: TreeEntry) => void;
 	/**
 	 * Adding a package, from the menu on wally.toml or on a package: from the
 	 * Wally registry, from a zip, or from a GitHub repository. `entry` is the
@@ -96,6 +98,7 @@ export const ProjectTree = memo(function ProjectTree({
 	onRename,
 	onDelete,
 	onReveal,
+	onImport,
 	onPackage,
 }: ProjectTreeProps) {
 	// A file manager to show a file in is something only a machine has.
@@ -534,6 +537,18 @@ export const ProjectTree = memo(function ProjectTree({
 									<span>New map here</span>
 								</div>
 							</>
+						)}
+						{onImport && menu.entry.kind === "luau" && !menu.entry.generatedFrom && (
+							<div
+								className="item"
+								onClick={() => {
+									onImport(menu.entry);
+									setMenu(null);
+								}}
+							>
+								<Icon name="graph" size={15} />
+								<span>Import as graph</span>
+							</div>
 						)}
 						<div
 							className="item"

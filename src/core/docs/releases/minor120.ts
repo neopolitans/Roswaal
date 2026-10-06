@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.140.0",
+		date: "2026-10-06",
+		headline: "A .luau file can be imported as a graph.",
+		affects: ["editor", "docs"],
+		added: [
+			"Right-click a `.luau` you wrote in the Project panel for **Import as graph**. It opens a new graph that compiles back to that file, and says how many statements became nodes.",
+			"Locals, `if`, the three loops, functions with their parameters and returns, calls, field writes and a module's `return` become their nodes. What has no node yet, such as a type, stays as its own code in a Custom Code or Luau Expression node.",
+			"The `.luau` file is not changed. Compiling over it asks for force, as for any file Roswaal did not write, and a graph already at the import's path is never replaced.",
+		],
+		changed: ["A loop variable named `_` keeps that name in the generated Luau."],
+	},
+	{
 		version: "0.139.3",
 		date: "2026-10-06",
 		headline: "Typing a type's name in the node menu offers a Cast to it.",

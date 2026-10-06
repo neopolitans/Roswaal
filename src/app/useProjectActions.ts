@@ -746,6 +746,26 @@ export function useProjectActions(context: ProjectActionsContext) {
 		[ask, notify, refreshTree],
 	);
 
+	const importLuauFile = useCallback(
+		async (entry: TreeEntry) => {
+			try {
+				const out = await api.importScript(entry.path);
+				await refreshTree();
+				store.open(out.path, out.script);
+				const { statements, asNodes, asCode } = out.report;
+				const kept = asCode.map((c) => `${c.construct} ×${c.count}`).join(", ");
+				notify(
+					`${entry.name} imported`,
+					`${asNodes} of ${statements} statements are nodes.${kept ? ` Kept as code: ${kept}.` : ""} ` +
+						`${entry.name} is unchanged; compiling over it asks for force.`,
+				);
+			} catch (err) {
+				notify(`Could not import ${entry.name}`, errorMessage(err));
+			}
+		},
+		[notify, refreshTree],
+	);
+
 	const onTreeNewFolder = useCallback(
 		async (parentDir: string) => {
 			const name = await ask({
@@ -829,6 +849,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 	return {
 		createGraphIn,
 		createMapIn,
+		importLuauFile,
 		exportOpen,
 		importPlace,
 		importRojo,

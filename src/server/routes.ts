@@ -24,6 +24,7 @@
 
 import { VERSION } from "../cli/version.js";
 import { fromBase64, toBase64 } from "../core/base64.js";
+import { graphNameOf, importLuau } from "../core/import/fromLuau.js";
 import { emptyFilesystemMap, emptyMap, type NodeMap } from "../core/nodemap.js";
 import {
 	describeInstance,
@@ -633,6 +634,46 @@ export class ApiSession {
 
 				await writeScript(project, relPath, script);
 				return { path: relPath, script };
+			},
+
+			/**
+			 * A `.luau` file as a new graph, beside the graphs, where compiling it
+			 * would write that same file back.
+			 *
+			 * The file itself is left alone, and compiling over it is refused
+			 * until it is taken over with force, as with any file Roswaal did not
+			 * write. A graph already at the path is never replaced: it may be the
+			 * one you built by hand.
+			 */
+			"POST /script/import": async (req) => {
+				const project = this.project();
+				const luauPath = need(fields<{ path: string }>(req).path, "path");
+				const fileName = path.posix.basename(luauPath);
+				const { name, scriptClass } = graphNameOf(fileName);
+				const outDir = toPosix(project.config.outDir);
+				const dir = path.posix.dirname(luauPath);
+				const within = dir.startsWith(`${outDir}/`) ? dir.slice(outDir.length + 1) : "";
+				const relPath = path.posix.join(project.config.sourceDir, within, `${name}.nodescript`);
+				const taken = await readText(project, relPath).then(
+					() => true,
+					() => false,
+				);
+				if (taken)
+					throw new HttpError(
+						409,
+						`${relPath} already exists. Move or rename it to import ${fileName}.`,
+					);
+
+				const result = importLuau(await readText(project, luauPath), {
+					name,
+					scriptClass,
+					target: project.config.target,
+					idPrefix: newId().slice(0, 8),
+				});
+				if (!result.ok)
+					throw new HttpError(422, `${fileName} could not be read as Luau. ${result.error}`);
+				await writeScript(project, relPath, result.script);
+				return { path: relPath, script: result.script, report: result.report };
 			},
 
 			"POST /script/move": async (req) => {

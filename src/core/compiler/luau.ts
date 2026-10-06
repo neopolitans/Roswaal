@@ -123,6 +123,9 @@ export class NameScope {
 
 	/** A stable, readable name derived from `hint`, uniquified if taken. */
 	unique(hint: string, fallback = "value"): string {
+		// `_` says the value is not used. It is never read, so it never
+		// collides, and Luau accepts it as many times as it is written.
+		if (hint.trim() === "_") return "_";
 		const base = toIdentifier(hint, fallback);
 		const frame = this.frames[this.frames.length - 1];
 		if (!this.isTaken(base)) {

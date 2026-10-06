@@ -67,6 +67,10 @@ export function projectPanelPage(): DocPage {
 						"**New graph here** and **New map here** under `.roswaal/`, **New folder**, **Show in file manager**, **Rename** and **Delete**",
 					],
 					[
+						"A `.luau` you wrote",
+						"**Import as graph** as well: a new graph that compiles back to that file. The file stays as it is until you compile over it with force",
+					],
+					[
 						"`wally.toml`, or a package under it",
 						"Adding and removing packages. See [Wally packages](wally-packages)",
 					],
