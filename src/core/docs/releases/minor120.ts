@@ -9,6 +9,23 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.144.4",
+		date: "2026-10-06",
+		headline: "Roswaal keeps to the project it has open.",
+		affects: ["editor", "designer"],
+		fixed: [
+			"On macOS, Show in file manager selects a folder in Finder, as it does a file, rather than opening it.",
+		],
+		changed: [
+			"A symbolic link in a project that leads outside it is not read, written or removed through, and says so. A link that stays inside the project works as before, and so does a project that is itself reached through a link.",
+			"`sourceDir`, `outDir` and `nodePaths` in `roswaal.json` must be folders inside the project.",
+			"Removing a Wally package only ever removes folders in its `_Index`.",
+		],
+		watch: [
+			"A project whose `roswaal.json` names a folder outside it, or that keeps its graphs or its output behind a link to somewhere else, no longer opens or compiles that way. Move the folder into the project.",
+		],
+	},
+	{
 		version: "0.144.3",
 		date: "2026-10-06",
 		headline: "The website runs scripts from itself only.",

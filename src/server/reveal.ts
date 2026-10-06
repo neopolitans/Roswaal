@@ -19,7 +19,8 @@ export async function revealInFileManager(absolutePath: string): Promise<void> {
 	if (!stat) throw new HttpError(404, `${path.basename(absolutePath)} is not on disk.`);
 
 	// Selecting the file itself is nicer than opening its folder, where
-	// supported; a directory is opened rather than selected in its parent.
+	// supported. A directory is opened on Windows and Linux; on macOS it is
+	// selected too, because opening one can launch it (see below).
 	const isDirectory = stat.isDirectory();
 
 	switch (process.platform) {
@@ -29,7 +30,9 @@ export async function revealInFileManager(absolutePath: string): Promise<void> {
 			detach("explorer.exe", isDirectory ? [absolutePath] : ["/select,", absolutePath]);
 			return;
 		case "darwin":
-			detach("open", isDirectory ? [absolutePath] : ["-R", absolutePath]);
+			// `-R` for a folder too, which selects it in Finder. Plain `open` on a
+			// folder named `Something.app` -- or any bundle -- launches it.
+			detach("open", ["-R", absolutePath]);
 			return;
 		default:
 			// Freedesktop has no "select this file", so open the containing folder.
