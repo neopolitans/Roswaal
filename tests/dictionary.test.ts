@@ -159,6 +159,39 @@ describe("placing and growing one", () => {
 		expect(pinIds(node.config!)).toEqual(["p0.key", "p0.value", "p1"]);
 		expect(grown.pin).toBe("p1");
 	});
+
+	/**
+	 * A row arrives as the row above it is. Recombining the first row says the
+	 * dictionary is built from Key Value Pairs, and the rows after it were
+	 * arriving split all the same, each to be recombined by hand.
+	 */
+	it("leaves a row whole after a recombined one", () => {
+		const placed = place();
+		const recombined: NodeScript = {
+			...placed.script,
+			nodes: placed.script.nodes.map((n) =>
+				n.id === placed.id ? { ...n, config: { ...n.config, split: {} } } : n,
+			),
+		};
+		const grown = growNode(recombined, registry, placed.id, 1);
+		const node = grown.script.nodes.find((n) => n.id === placed.id)!;
+		expect(pinIds(node.config!)).toEqual(["p0", "p1"]);
+		expect(grown.pin).toBe("p1");
+	});
+
+	it("still splits a row for a value dropped after a recombined one", () => {
+		const placed = place();
+		const recombined: NodeScript = {
+			...placed.script,
+			nodes: placed.script.nodes.map((n) =>
+				n.id === placed.id ? { ...n, config: { ...n.config, split: {} } } : n,
+			),
+		};
+		const grown = growNode(recombined, registry, placed.id, 1, { type: "number" });
+		const node = grown.script.nodes.find((n) => n.id === placed.id)!;
+		expect(pinIds(node.config!)).toEqual(["p0", "p1.key", "p1.value"]);
+		expect(grown.pin).toBe("p1.value");
+	});
 });
 
 describe("a dictionary from an earlier build", () => {

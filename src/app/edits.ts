@@ -1024,11 +1024,15 @@ export function growNode(
 	if (next === count) return { script };
 
 	let updated: NodeScript;
-	// A dictionary's new row arrives split, for the reason a placed one does.
-	// The exception is a Key Value Pair being dropped on the node: that wire
+	// A dictionary's new row arrives as the row above it is: split into Key and
+	// Value, as a placed one does, unless that row was recombined to take a
+	// whole Key Value Pair, when the next one is meant to take one too. The
+	// other exception is a Key Value Pair being dropped on the node: that wire
 	// wants the whole row, so the row stays whole and takes it — which is how
 	// the drop gesture keeps working without the canvas knowing about pairs.
-	const wholePair = def.id === "table.dictionary" && hint?.type === PAIR;
+	const above = count > 0 ? splitsOf(node.config)[splitKey("in", `p${count - 1}`)] : "keyValue";
+	const wholePair =
+		def.id === "table.dictionary" && (hint?.type === PAIR || (!hint && above === undefined));
 	const splitRow = def.id === "table.dictionary" && delta > 0 && !wholePair;
 
 	if (rule.kind === "count") {

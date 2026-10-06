@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.139.2",
+		date: "2026-10-06",
+		headline: "Make Dictionary's new rows follow the row above.",
+		affects: ["editor"],
+		changed: [
+			"A row added to Make Dictionary arrives as the row above it is: whole, taking a Key Value Pair, after a recombined row, and split into Key and Value otherwise.",
+		],
+	},
+	{
 		version: "0.139.1",
 		date: "2026-10-06",
 		headline: "Key Value Pair's Value picker and field are one height.",
