@@ -170,6 +170,34 @@ const binary = join(out, `roswaal${exe}`);
 copyFileSync(process.execPath, binary);
 
 /**
+ * macOS needs two things the other platforms do not.
+ *
+ * The copied `node` carries Node's own signature, which the injection breaks —
+ * and Apple Silicon kills an executable whose signature does not match before
+ * it runs a single instruction. So the old signature comes off first and an
+ * ad-hoc one goes on after: enough for the kernel, and for anybody who built it
+ * themselves. A download still meets Gatekeeper, which wants a Developer ID and
+ * notarisation, and that is a release workflow's business rather than this
+ * script's.
+ *
+ * And Node looks for the blob in a Mach-O segment of its own name, not the
+ * `__POSTJECT` one postject writes by default; injected there, the binary
+ * starts as a plain `node`.
+ */
+const macos = process.platform === "darwin";
+
+function codesign(...args) {
+	const signed = spawnSync("codesign", [...args, binary], { stdio: "inherit" });
+	if (signed.status !== 0) {
+		console.error("roswaal: codesign failed; it comes with Xcode's command line tools.");
+		console.error("  Run:  xcode-select --install");
+		process.exit(signed.status ?? 1);
+	}
+}
+
+if (macos) codesign("--remove-signature");
+
+/**
  * The fuse is Node's own sentinel, and has to match the runtime that is being
  * injected into. It is a published constant rather than a secret.
  */
@@ -182,6 +210,7 @@ const inject = spawnSync(
 		join(out, "roswaal.blob"),
 		"--sentinel-fuse",
 		"NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2",
+		...(macos ? ["--macho-segment-name", "NODE_SEA"] : []),
 	],
 	{ stdio: "inherit" },
 );
@@ -190,6 +219,8 @@ if (inject.status !== 0) {
 	console.error("  Run:  npm install --no-save postject");
 	process.exit(inject.status ?? 1);
 }
+
+if (macos) codesign("--sign", "-");
 
 const megabytes = (statSync(binary).size / 1024 / 1024).toFixed(0);
 console.log(
