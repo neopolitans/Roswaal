@@ -80,6 +80,13 @@ export function functionsPage({ registry }: PageContext): DocPage {
 					"**On Table** must resolve to a variable or a local; Luau cannot attach a function to " +
 					"an expression. Left unwired, it is a plain `local function`.",
 			},
+			{
+				t: "p",
+				text:
+					"Set **On Table as** to `T:name` for a method: `function Tank:aim(target)`. Its " +
+					"graph gains a **self** output, Get Parameter offers `self`, and Script Function " +
+					"calls it with a colon.",
+			},
 
 			{ t: "h", level: 2, text: "The signature" },
 			{
@@ -155,7 +162,7 @@ export function functionsPage({ registry }: PageContext): DocPage {
 						"The flow it is declared in",
 						"In, Then, On Table, and Function — the function as a value",
 					],
-					["Its own graph", "Body, and one output per parameter"],
+					["Its own graph", "Body, self for a method, and one output per parameter"],
 				],
 			},
 			{

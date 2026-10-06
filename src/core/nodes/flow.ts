@@ -42,6 +42,20 @@ export function signatureOf(config: NodeConfig | undefined): Signature {
 	};
 }
 
+/**
+ * Whether a Declare Function is a method: `function T:name()`, called with
+ * `T:name()`, its receiver read as `self`.
+ *
+ * Only a function on a table can be one, so the flag means nothing until On
+ * Table is wired, and the compiler says so rather than dropping it.
+ */
+export function isMethod(config: NodeConfig | undefined): boolean {
+	return config?.method === true;
+}
+
+/** A method's receiver, read like a parameter by Get Parameter and the pin. */
+export const RECEIVER = "self";
+
 const exec = (id: string, name: string): PinDef => ({ id, name, kind: "exec" });
 const data = (id: string, name: string, type: string, def?: PinDef["default"]): PinDef => ({
 	id,
@@ -291,7 +305,8 @@ export const FLOW_NODES: NodeDef[] = [
 		category: "Flow",
 		summary:
 			"Declares a function where the node sits, instead of at the top. Wire a table into " +
-			"On Table for `function Table.name(...)`. Double-click it to open the function's graph, " +
+			"On Table for `function Table.name(...)`, or make it a method for `function Table:name(...)` " +
+			"with `self`. Double-click it to open the function's graph, " +
 			"where it is the entry node with Body and the parameters.",
 		role: "flow",
 		inputs: [exec("in", ""), data("owner", "On Table", "table", undefined)],
@@ -299,9 +314,12 @@ export const FLOW_NODES: NodeDef[] = [
 		compilesTo: { kind: "builtin", handler: "function.declareHere" },
 		derivePins(config: NodeConfig) {
 			const sig = signatureOf(config);
-			const params = (sig.params ?? []).map((p, i) =>
-				data(`p${i}`, p.name || `arg${i + 1}`, pinTypeOf(p.type)),
-			);
+			const params = [
+				...(isMethod(config) ? [data("receiver", RECEIVER, "any")] : []),
+				...(sig.params ?? []).map((p, i) =>
+					data(`p${i}`, p.name || `arg${i + 1}`, pinTypeOf(p.type)),
+				),
+			];
 			// Drawn in two graphs, with each one's half. See `functionGraph.ts`.
 			if (config.presence === "outer") {
 				return {

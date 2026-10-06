@@ -13,7 +13,7 @@ import { checkLuau } from "../luau/check.js";
 import { LUNE_ROBLOX_DATATYPES } from "../luneApi.js";
 import { callOf, moduleOf, specifierFor } from "../luneCalls.js";
 import { typeInto } from "../members.js";
-import { FUNCTION_NODES, signatureOf } from "../nodes/flow.js";
+import { FUNCTION_NODES, isMethod, RECEIVER, signatureOf } from "../nodes/flow.js";
 import { nodeTitle, REMOVED_NODES, type Registry } from "../nodes/index.js";
 import { memberNameOf } from "../nodes/library.js";
 import { isLuneCall } from "../nodes/lune.js";
@@ -473,7 +473,9 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 				});
 			} else {
 				const signature = signatureOf(owner.config);
-				const named = (signature.params ?? []).some((p) => p.name === ref.param);
+				const named =
+					(signature.params ?? []).some((p) => p.name === ref.param) ||
+					(ref.param === RECEIVER && isMethod(owner.config));
 				if (!named) {
 					const owning = signature.name || owner.label || "that function";
 					out.push({

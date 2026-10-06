@@ -767,7 +767,7 @@ export function buildPresets(
 export interface CallableModule {
 	node: string;
 	local: string;
-	functions: { name: string; params: NamedType[]; returns: NamedType[] }[];
+	functions: { name: string; params: NamedType[]; returns: NamedType[]; method?: true }[];
 }
 
 /**
@@ -824,8 +824,13 @@ export function callPresets(
 			const signature = { name: fn.name, params: fn.params, returns: fn.returns };
 			add(
 				`${module.node}:${fn.name}`,
-				`${module.local}.${fn.name}`,
-				{ module: module.node, moduleName: module.local, ...signature },
+				`${module.local}${fn.method ? ":" : "."}${fn.name}`,
+				{
+					module: module.node,
+					moduleName: module.local,
+					...signature,
+					...(fn.method ? { method: true } : {}),
+				},
 				signature,
 			);
 		}

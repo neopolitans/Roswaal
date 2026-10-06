@@ -658,16 +658,13 @@ class Importer {
 		if (stat.kind === "localFunction") {
 			name = stat.name.name;
 		} else {
-			if (stat.method || stat.path.length > 2 || stat.attributes.length > 0) return undefined;
-			name = stat.path[stat.path.length - 1].name;
-			if (stat.path.length === 2) {
+			// `function T.f()` and `function T:m()`: one table, then the name.
+			const tables = stat.method ? stat.path : stat.path.slice(0, -1);
+			if (tables.length > 1 || stat.attributes.length > 0) return undefined;
+			name = stat.method ? stat.method.name : stat.path[stat.path.length - 1].name;
+			if (tables.length === 1) {
 				owner = this.expr(
-					{
-						kind: "name",
-						name: stat.path[0].name,
-						start: stat.path[0].start,
-						end: stat.path[0].end,
-					},
+					{ kind: "name", name: tables[0].name, start: tables[0].start, end: tables[0].end },
 					scope,
 					graph,
 					at,
@@ -679,8 +676,14 @@ class Importer {
 			}
 		}
 		if (!IDENT.test(name)) return undefined;
+		const method = stat.kind === "functionStat" && stat.method !== undefined;
 		const id = this.node("function.declareHere", graph, at, {
-			config: { name, params: sig.params, returns: sig.returns },
+			config: {
+				name,
+				params: sig.params,
+				returns: sig.returns,
+				...(method ? { method: true } : {}),
+			},
 		});
 		if (owner) this.feed(owner, { node: id, pin: "owner" });
 		this.chain(tail, id);
@@ -689,6 +692,7 @@ class Importer {
 		if (stat.kind === "localFunction") scope.set(name, ref);
 
 		const inner = new Scope(scope);
+		if (method) inner.set("self", { kind: "param", fn: id, name: "self" });
 		for (const p of sig.params)
 			inner.set(p.name, { kind: "param", fn: id, name: p.name, type: p.type });
 		this.block(

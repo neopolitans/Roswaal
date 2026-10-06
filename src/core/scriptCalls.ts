@@ -38,7 +38,13 @@
  */
 
 import { argumentPin, execPin } from "./callNodes.js";
-import { FUNCTION_NODES, type Signature, signatureOf, signatureText } from "./nodes/flow.js";
+import {
+	FUNCTION_NODES,
+	isMethod,
+	type Signature,
+	signatureOf,
+	signatureText,
+} from "./nodes/flow.js";
 import { isClassNameType, pinTypeOf } from "./nodes/variables.js";
 import { CLASS_OPTIONS } from "./roblox.js";
 import type { GraphNode, Link, Literal, NodeConfig, NodeScript, PinDef } from "./schema.js";
@@ -68,6 +74,8 @@ export interface ScriptCallRef {
 	name?: string;
 	params: NamedType[];
 	returns: NamedType[];
+	/** A module's method, called `Module:name(...)`. */
+	method?: true;
 }
 
 function text(config: NodeConfig | undefined, key: string): string | undefined {
@@ -84,6 +92,7 @@ export function scriptCallOf(config: NodeConfig | undefined): ScriptCallRef {
 		name: sig.name?.trim() || undefined,
 		params: sig.params ?? [],
 		returns: sig.returns ?? [],
+		...(config?.method === true ? { method: true as const } : {}),
 	};
 }
 
@@ -91,7 +100,9 @@ export function scriptCallOf(config: NodeConfig | undefined): ScriptCallRef {
 export function scriptCallLabel(config: NodeConfig | undefined): string | undefined {
 	const ref = scriptCallOf(config);
 	if (!ref.name) return undefined;
-	return ref.module ? `${ref.moduleName ?? "module"}.${ref.name}` : ref.name;
+	return ref.module
+		? `${ref.moduleName ?? "module"}${ref.method ? ":" : "."}${ref.name}`
+		: ref.name;
 }
 
 /** The signature under the header: `(parent: Instance, name: string) → Instance`. */
@@ -291,7 +302,9 @@ const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.str
  */
 function syncCalls(
 	script: NodeScript,
-	lookup: (ref: ScriptCallRef) => Pick<ScriptCallRef, "name" | "params" | "returns"> | undefined,
+	lookup: (
+		ref: ScriptCallRef,
+	) => Pick<ScriptCallRef, "name" | "params" | "returns" | "method"> | undefined,
 ): NodeScript {
 	let links = script.links;
 	let changed = false;
@@ -300,7 +313,12 @@ function syncCalls(
 		const ref = scriptCallOf(node.config);
 		const now = lookup(ref);
 		if (!now) return node;
-		const was = { name: ref.name ?? "function", params: ref.params, returns: ref.returns };
+		const was = {
+			name: ref.name ?? "function",
+			params: ref.params,
+			returns: ref.returns,
+			...(ref.method ? { method: ref.method } : {}),
+		};
 		if (same(was, now)) return node;
 		changed = true;
 		const moved = moveArguments(node, links, paramMoves(ref.params, now.params), {
@@ -437,6 +455,8 @@ export interface ExportedFunction {
 	name: string;
 	params: NamedType[];
 	returns: NamedType[];
+	/** Declared `function Module:name()`, so called with a colon. */
+	method?: true;
 }
 
 /**
@@ -454,7 +474,14 @@ export function syncModuleCalls(
 	return syncCalls(script, (ref) => {
 		if (!ref.module || !ref.name) return undefined;
 		const fn = exportsOf(ref.module)?.find((f) => f.name === ref.name);
-		return fn ? { name: fn.name, params: fn.params, returns: fn.returns } : undefined;
+		return fn
+			? {
+					name: fn.name,
+					params: fn.params,
+					returns: fn.returns,
+					...(fn.method ? { method: fn.method } : {}),
+				}
+			: undefined;
 	});
 }
 
@@ -509,7 +536,13 @@ export function exportedFunctions(
 	};
 	const entry = (name: string, fn: GraphNode): ExportedFunction => {
 		const sig = callSignature(signatureOf(fn.config));
-		return { graph, name, params: sig.params, returns: sig.returns };
+		return {
+			graph,
+			name,
+			params: sig.params,
+			returns: sig.returns,
+			...(isMethod(fn.config) ? { method: true as const } : {}),
+		};
 	};
 
 	const out: ExportedFunction[] = [];

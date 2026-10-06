@@ -96,6 +96,11 @@ export class NameScope {
 		this.frames[0].add(name);
 	}
 
+	/** Claims a name in the innermost block, as Luau itself does with a method's `self`. */
+	take(name: string): void {
+		this.frames[this.frames.length - 1].add(name);
+	}
+
 	/** Opens a block. Every name taken inside it is released by `pop`. */
 	push(): void {
 		this.frames.push(new Set());

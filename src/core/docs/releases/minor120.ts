@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.141.0",
+		date: "2026-10-06",
+		headline: "Declare Function can declare a method.",
+		affects: ["editor", "docs"],
+		added: [
+			"Declare Function's **On Table as** sets `T:name` for a method, written `function Tank:aim(target)`. Its graph gains a self output, and Get Parameter offers self.",
+			"Script Function calls a method with a colon, in its own script and through a required module.",
+			"Import as graph reads `function T:m()` as a method instead of keeping it as code.",
+		],
+	},
+	{
 		version: "0.140.0",
 		date: "2026-10-06",
 		headline: "A .luau file can be imported as a graph.",

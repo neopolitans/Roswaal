@@ -6,7 +6,14 @@
  */
 
 import { LUAU_PRIMITIVES } from "../luneTypes.js";
-import { loopNamesOf, loopTypes, signatureOf, typeDeclarationOf } from "../nodes/flow.js";
+import {
+	isMethod,
+	loopNamesOf,
+	loopTypes,
+	RECEIVER,
+	signatureOf,
+	typeDeclarationOf,
+} from "../nodes/flow.js";
 import { isConstLocal, localTypeOf, variableRefOf } from "../nodes/variables.js";
 import { scriptCallOf } from "../scriptCalls.js";
 import { isRobloxTypeName, luneCall, resultNameOf, serviceCall, writeCall } from "./emitCalls.js";
@@ -363,9 +370,21 @@ function declareFunction(e: Emitter, r: ResolvedNode, scope: Scope): string | un
 		e.error(notAName(name, "a local function"), id);
 		return e.index.execTarget(id, "then");
 	}
+	const method = isMethod(r.node.config);
+	if (method && (owner === undefined || !isIdentifier(name))) {
+		e.error(
+			owner === undefined
+				? "A method belongs to a table. Wire one into On Table, or turn Method off."
+				: notAName(name, "a method"),
+			id,
+		);
+		return e.index.execTarget(id, "then");
+	}
 
 	// An owned function is a field, not a local, so it takes no name of
-	// its own and cannot collide with one.
+	// its own and cannot collide with one. A method is still reached as a
+	// field when it is read as a value; only its declaration and its calls
+	// write the colon.
 	const ident = owner ? `${owner}.${name}` : e.names.unique(name, "fn");
 	// Set before the body is walked, so the function can call itself and
 	// so a Get Function inside it resolves.
@@ -375,6 +394,12 @@ function declareFunction(e: Emitter, r: ResolvedNode, scope: Scope): string | un
 	// As for a hoisted function: the parameters and the body's locals
 	// are this function's, and go out of scope with its `end`.
 	e.names.push();
+	// Luau names a method's receiver, so it is taken before the parameters
+	// are named: one called `self` as well becomes `self2`.
+	if (method) {
+		e.names.take(RECEIVER);
+		body.bindings.set(`${id}/receiver`, RECEIVER);
+	}
 	const { params, returns } = luauSignature(e, sig, id, body);
 
 	// A blank line either side, the same as a hoisted function gets. A
@@ -382,7 +407,8 @@ function declareFunction(e: Emitter, r: ResolvedNode, scope: Scope): string | un
 	// as one long block with an `end` somewhere in the middle of it.
 	// `blank` will not double up, so a run of them gets one line each.
 	e.blank();
-	e.push(`${owner ? "" : "local "}function ${ident}(${params})${returns}`, id);
+	const header = method ? `${owner}:${name}` : ident;
+	e.push(`${owner ? "" : "local "}function ${header}(${params})${returns}`, id);
 	e.indent++;
 	e.walk(bodyOf(e, r), body);
 	e.indent--;

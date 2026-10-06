@@ -470,6 +470,7 @@ function FunctionEditor({ node }: { node: GraphNode }) {
 					{...typing.field}
 				/>
 			</Field>
+			{node.def === "function.declareHere" && <MethodToggle node={node} />}
 			<ListEditor node={node} field="params" title="Parameters" />
 			<ListEditor
 				node={node}
@@ -478,6 +479,29 @@ function FunctionEditor({ node }: { node: GraphNode }) {
 				hint="Return nodes inside this function follow along automatically."
 			/>
 		</>
+	);
+}
+
+/** Declare Function on a table: a field, `T.name`, or a method, `T:name` with `self`. */
+function MethodToggle({ node }: { node: GraphNode }) {
+	const method = configFlag(node, "method");
+	return (
+		<Field label="On Table as" hint="A method is called with a colon and reads the table as self.">
+			<div className="segmented">
+				<button
+					className={!method ? "on" : ""}
+					onClick={() => store.edit((s) => setConfig(s, node.id, { method: undefined }))}
+				>
+					T.name
+				</button>
+				<button
+					className={method ? "on" : ""}
+					onClick={() => store.edit((s) => setConfig(s, node.id, { method: true }))}
+				>
+					T:name
+				</button>
+			</div>
+		</Field>
 	);
 }
 

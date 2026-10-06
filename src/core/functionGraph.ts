@@ -112,7 +112,7 @@ export function paramsVisibleFrom(
 function isEntryPin(defId: string, pinId: string): boolean {
 	if (defId === "function.entry") return true;
 	if (defId === "function.declareHere")
-		return pinId === bodyPinOf(defId) || /^p\d+(\.|$)/.test(pinId);
+		return pinId === bodyPinOf(defId) || pinId === "receiver" || /^p\d+(\.|$)/.test(pinId);
 	return false;
 }
 

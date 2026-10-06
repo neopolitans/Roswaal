@@ -7,7 +7,7 @@
 
 import { argPinId } from "../callNodes.js";
 import { checkSpecifier } from "../modules.js";
-import { signatureOf } from "../nodes/flow.js";
+import { isMethod, RECEIVER, signatureOf } from "../nodes/flow.js";
 import {
 	functionRefOf,
 	localRefOf,
@@ -125,10 +125,11 @@ function readParameter(e: Emitter, src: ResolvedNode, scope: Scope): string {
 	if (!ref.function || !owner) return "nil";
 
 	const signature = signatureOf(owner.node.config);
+	const receiver = ref.param === RECEIVER && isMethod(owner.node.config);
 	const index = (signature.params ?? []).findIndex((p) => p.name === ref.param);
-	if (index === -1) return "nil";
+	if (index === -1 && !receiver) return "nil";
 
-	const bound = scope.lookup(`${ref.function}/p${index}`);
+	const bound = scope.lookup(receiver ? `${ref.function}/receiver` : `${ref.function}/p${index}`);
 	if (bound) return bound;
 	const owning = signature.name || owner.node.label || "that function";
 	e.error(
@@ -427,11 +428,15 @@ export function scriptCall(e: Emitter, src: ResolvedNode, scope: Scope): string 
 			);
 			return "nil";
 		}
-		callee = `${parenPrefix(requireModulePath(e, through))}.${ref.name}`;
+		callee = `${parenPrefix(requireModulePath(e, through))}${ref.method ? ":" : "."}${ref.name}`;
 	} else {
 		const fn = getFunction(e, src);
 		if (fn === "nil") return "nil";
-		callee = parenPrefix(fn);
+		// A method is called as it is declared, so `T:name(...)` passes `T`
+		// as its `self`.
+		const target = e.index.get(ref.function ?? "");
+		const method = target?.def.id === "function.declareHere" && isMethod(target.node.config);
+		callee = method ? fn.replace(/\.([^.]+)$/, ":$1") : parenPrefix(fn);
 	}
 
 	const pins = ref.params.map((_param, i) => e.pin(src, argPinId(i), "in"));

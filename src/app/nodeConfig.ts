@@ -45,7 +45,10 @@ export function configEntries(node: Configured, key: string): NamedEntry[] {
 
 /** A function's or handler's parameters. */
 export function paramsOf(node: Configured): NamedEntry[] {
-	return configEntries(node, "params");
+	const params = configEntries(node, "params");
+	// A method's receiver is read like a parameter, and listed first, where
+	// Luau puts it.
+	return configFlag(node, "method") ? [{ name: "self" }, ...params] : params;
 }
 
 /**
