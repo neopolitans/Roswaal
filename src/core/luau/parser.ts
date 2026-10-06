@@ -86,11 +86,26 @@ function spanOf(token: Token): Span {
 /** Thrown inside the parser only, and caught at the statement it belongs to. */
 class Stop extends Error {}
 
+/**
+ * How deep blocks, expressions and types may sit inside one another.
+ *
+ * The parser is recursive, so text nested deeply enough would run the stack
+ * out -- a crash in the middle of checking a file, rather than an error in it.
+ * Luau itself gives up at about a thousand; half that is past anything written
+ * by hand or generated, and leaves room on the smaller stacks a browser gives
+ * a worker.
+ */
+export const MAX_DEPTH = 500;
+
 class Parser {
 	private readonly tokens: Token[];
 	private pos = 0;
 	/** How many loops enclose the statement being read, within its own function. */
 	private loops = 0;
+	/** How many blocks, expressions and types the one being read is inside. */
+	private depth = 0;
+	/** Reported once: each spot past the limit is skipped, but one error says why. */
+	private tooDeep = false;
 	readonly errors: Diagnostic[] = [];
 
 	/** `all` is every token of the source, as `tokenize` gives them; it is not changed. */
@@ -193,7 +208,31 @@ class Parser {
 		return block;
 	}
 
+	/**
+	 * `read`, one level deeper. Past `MAX_DEPTH` it stops as any error does,
+	 * and the block it is in carries on from the next statement.
+	 */
+	private nested<T>(read: () => T): T {
+		if (this.depth >= MAX_DEPTH) {
+			if (!this.tooDeep) {
+				this.tooDeep = true;
+				this.fail(`This is nested more than ${MAX_DEPTH} deep, which is too deep to read.`);
+			}
+			throw new Stop();
+		}
+		this.depth++;
+		try {
+			return read();
+		} finally {
+			this.depth--;
+		}
+	}
+
 	private block(): Block {
+		return this.nested(() => this.statements());
+	}
+
+	private statements(): Block {
 		const out: Block = [];
 		for (;;) {
 			const token = this.peek();
@@ -214,7 +253,7 @@ class Parser {
 							end: after.end,
 							message: `Nothing can follow a ${stat.kind} in the same block.`,
 						});
-						out.push(...this.block());
+						out.push(...this.statements());
 					}
 					return out;
 				}
@@ -631,6 +670,10 @@ class Parser {
 	}
 
 	expr(limit = 0): Expr {
+		return this.nested(() => this.exprAt(limit));
+	}
+
+	private exprAt(limit: number): Expr {
 		const start = this.peek().start;
 		let left: Expr;
 		const token = this.peek();
@@ -851,6 +894,10 @@ class Parser {
 
 	/** A type: unions and intersections of simple types, each maybe `?`. */
 	type(): TypeNode {
+		return this.nested(() => this.typeAt());
+	}
+
+	private typeAt(): TypeNode {
 		const start = this.peek().start;
 		// A leading `|` or `&` is allowed, for a type laid out one member a line.
 		const leading = this.accept("|") ?? this.accept("&");
