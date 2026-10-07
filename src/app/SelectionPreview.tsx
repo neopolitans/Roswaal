@@ -29,6 +29,11 @@
  * being told "nothing" would be a bug report rather than an answer, so the
  * walk below follows their wires forward to whatever *did* emit a line, and
  * says so.
+ *
+ * Only a pure node. Script Start has no line either, but not because its
+ * value went into someone else's: it is where the script starts. Followed
+ * forward, it reached what it runs and was called pure for it. An entry says
+ * what it is instead, and nothing else with no line is followed.
  */
 
 import { useMemo, useState } from "react";
@@ -89,7 +94,7 @@ export interface Row {
 export function SelectionPreview(props: SelectionPreviewProps) {
 	const [showAll, setShowAll] = useState(false);
 
-	const { rows, direct, inlined } = useMemo(() => analyse(props), [props]);
+	const { rows, direct, inlined, entries } = useMemo(() => analyse(props), [props]);
 
 	// Nothing selected is a question about the whole script, so there is nothing
 	// to pick out and nothing to fold away.
@@ -151,7 +156,16 @@ export function SelectionPreview(props: SelectionPreviewProps) {
 				</div>
 
 				<div className="preview-body">
-					{!anything && !whole && (
+					{entries.length > 0 && (
+						<p className="preview-note">
+							<strong>{entries.join(", ")}</strong> {entries.length === 1 ? "writes" : "write"} no
+							line of {entries.length === 1 ? "its" : "their"} own:{" "}
+							{entries.length === 1 ? "it is" : "each is"} where code starts running, and what is
+							wired to {entries.length === 1 ? "it" : "them"} is what runs.
+						</p>
+					)}
+
+					{!anything && !whole && entries.length < props.selection.size && (
 						<p className="preview-note">
 							These nodes produced no lines of their own, and nothing they feed into did either.
 							That usually means they are not reachable from Script Start or a function — a node
@@ -212,7 +226,10 @@ export function SelectionPreview(props: SelectionPreviewProps) {
 export function analyse(props: SelectionPreviewProps): {
 	rows: Row[];
 	direct: number;
+	/** Pure nodes selected, whose values went into the lines marked downstream. */
 	inlined: string[];
+	/** Entry nodes selected, such as Script Start: where code starts, with no line. */
+	entries: string[];
 } {
 	const selected = props.selection;
 	const highlighted = highlightLuau(props.code);
@@ -228,19 +245,26 @@ export function analyse(props: SelectionPreviewProps): {
 		emitted.add(node);
 	}
 
-	// The pure ones: selected, and nowhere in the map.
-	const inlinedIds = [...selected].filter((id) => !emitted.has(id));
+	// Selected, and nowhere in the map: a pure node whose value went into
+	// somebody else's line, an entry that starts the code, or a node nothing runs.
+	const silentIds = [...selected].filter((id) => !emitted.has(id));
 	const downstreamLines = new Set<number>();
 	const inlined: string[] = [];
+	const entries: string[] = [];
 
-	for (const id of inlinedIds) {
-		const reached = surfacesIn(props.script, props.registry, id);
-		const lines = [...byLine].filter(([, node]) => reached.has(node)).map(([line]) => line);
-		if (lines.length === 0) continue;
-		for (const line of lines) if (!mineLines.has(line)) downstreamLines.add(line);
-
+	for (const id of silentIds) {
 		const node = props.script.nodes.find((n) => n.id === id);
 		const def = node && props.registry.get(node.def);
+		if (node && def?.role === "entry") {
+			entries.push(nodeTitle(def, node));
+			continue;
+		}
+		if (!def?.pure) continue;
+
+		const reached = surfacesIn(props.script, props.registry, id);
+		const lines = [...byLine].filter(([, n]) => reached.has(n)).map(([line]) => line);
+		if (lines.length === 0) continue;
+		for (const line of lines) if (!mineLines.has(line)) downstreamLines.add(line);
 		inlined.push(node ? nodeTitle(def, node) : id);
 	}
 
@@ -251,7 +275,7 @@ export function analyse(props: SelectionPreviewProps): {
 		downstream: downstreamLines.has(i + 1),
 	}));
 
-	return { rows, direct: mineLines.size, inlined };
+	return { rows, direct: mineLines.size, inlined, entries };
 }
 
 /**

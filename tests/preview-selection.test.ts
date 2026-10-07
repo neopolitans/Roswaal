@@ -177,6 +177,32 @@ describe("attributing lines to nodes", () => {
 		expect(out.rows.filter((r) => r.downstream)).toHaveLength(0);
 	});
 
+	/**
+	 * Script Start has no line either, and was followed forward like a pure
+	 * node: it reached the code it runs, and the panel called it pure. It is
+	 * where the script starts, and says that instead.
+	 */
+	it("does not call Script Start pure", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const print = b.node("debug.print");
+		b.link(start, "then", print, "in");
+
+		const script = b.build();
+		const result = compile(script, registry);
+		const out = analyse({
+			script,
+			registry,
+			selection: new Set([start]),
+			code: result.code,
+			sourceMap: result.sourceMap,
+			onClose: () => {},
+		});
+		expect(out.inlined).toEqual([]);
+		expect(out.entries).toEqual(["Script Start"]);
+		expect(out.rows.some((r) => r.mine || r.downstream)).toBe(false);
+	});
+
 	it("finds nothing for a node no execution reaches", () => {
 		const b = new Builder();
 		const start = b.node("script.begin");
