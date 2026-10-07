@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.154.0",
+		date: "2026-10-07",
+		headline: "Instance.new offers only the classes it can make.",
+		affects: ["editor"],
+		changed: [
+			"New Instance's Class Name lists only the classes `Instance.new` can make. Abstract classes such as `BasePart`, `GuiObject` and `Instance`, and the services, are left out, going by the engine data's NotCreatable and Service tags. Is A, Find First Child Of Class and the other class pins still list every class.",
+			'In Custom Code, completion after `Instance.new("` offers the same, and after `:IsA("` every class.',
+		],
+		fixed: [
+			"A New Instance given a class it cannot make, typed in by hand, is an error on its Class Name pin naming what can be made instead (`Instance.new cannot make a BasePart … Make a MeshPart, a Part, a Seat instead`), or pointing a service at Get Service. It failed only when the script ran. A class newer than this build's data is still taken.",
+		],
+	},
+	{
 		version: "0.153.0",
 		date: "2026-10-07",
 		headline: "Promote a node to the Variables panel, and drop a module's graph onto Modules.",

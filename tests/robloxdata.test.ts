@@ -12,6 +12,7 @@ import { describe, expect, it } from "vitest";
 import { type DraftPin, defOf, draftOf, newDraft } from "../src/app/designer/draft.js";
 import { searchTypes } from "../src/app/TypePicker.jsx";
 import { typesCompatible } from "../src/core/compiler/validate.js";
+import { CREATABLE_CLASS_OPTIONS } from "../src/core/creatable.js";
 import { createRegistry, resolveNodePins } from "../src/core/nodes/index.js";
 import {
 	CLASS_OPTIONS,
@@ -117,7 +118,10 @@ describe("every node that names a class", () => {
 			expect(def, id).toBeDefined();
 			const pin = resolveNodePins(def!, {}).inputs.find((p) => p.id === "className");
 			expect(pin, `${id} has a className pin`).toBeDefined();
-			expect(pin!.options).toBe(CLASS_OPTIONS);
+			// Instance.new offers only what it can make; see tests/creatable.test.ts.
+			expect(pin!.options).toBe(
+				id === "roblox.instanceNew" ? CREATABLE_CLASS_OPTIONS : CLASS_OPTIONS,
+			);
 			// Still a string underneath: the list is what you pick from, not what
 			// you are held to.
 			expect(pin!.type).toBe("string");

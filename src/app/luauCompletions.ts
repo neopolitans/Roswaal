@@ -11,6 +11,7 @@
 
 import type { Completion, CompletionContext, CompletionResult } from "@codemirror/autocomplete";
 import { toIdentifier } from "../core/compiler/luau.js";
+import { isCreatable } from "../core/creatable.js";
 import {
 	classCallBefore,
 	classOfGlobal,
@@ -419,7 +420,12 @@ export function luauCompletionSource(
 				)
 			: undefined;
 		if (quoted && named) {
-			const names = named === "service" ? ROBLOX_SERVICES : ROBLOX_CLASSES;
+			const names =
+				named === "service"
+					? ROBLOX_SERVICES
+					: named === "creatable"
+						? ROBLOX_CLASSES.filter(isCreatable)
+						: ROBLOX_CLASSES;
 			return {
 				from: quoted.from + 1,
 				options: names.map((label) => ({ label, type: "class" })),

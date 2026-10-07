@@ -7,6 +7,7 @@
  * context.
  */
 
+import { creatableInstead, isCreatable } from "../creatable.js";
 import { bindsParameters } from "../functionBody.js";
 import { crossingLinks, graphExists } from "../functionGraph.js";
 import { checkLuau } from "../luau/check.js";
@@ -24,7 +25,7 @@ import {
 	paramRefOf,
 	variableRefOf,
 } from "../nodes/variables.js";
-import { isSubclassOf } from "../roblox.js";
+import { isService, isSubclassOf } from "../roblox.js";
 import {
 	ENGINE_TYPES,
 	type GraphNode,
@@ -204,6 +205,34 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 				node: node.id,
 			});
 		}
+	}
+
+	// -- classes Instance.new cannot make ------------------------------------
+	//
+	// `Instance.new("BasePart")` fails when it runs: an abstract class or a
+	// service is not something it makes. The node's list leaves them out, and a
+	// name typed in anyway is said here, with what can be made instead.
+	for (const node of script.nodes) {
+		if (
+			node.def !== "roblox.instanceNew" ||
+			script.links.some((l) => l.to.node === node.id && l.to.pin === "className")
+		)
+			continue;
+		const literal = node.literals?.className;
+		const name = literal && (literal.t === "string" || literal.t === "raw") ? literal.v.trim() : "";
+		if (name === "" || isCreatable(name)) continue;
+		const instead = creatableInstead(name);
+		out.push({
+			severity: "error",
+			message:
+				`Instance.new cannot make a ${name}: ` +
+				(isService(name)
+					? `it is a service. Get it with Get Service instead.`
+					: `it is a class others derive from, not one Studio can insert.`) +
+				(instead.length > 0 ? ` Make a ${instead.join(", a ")} instead.` : ""),
+			node: node.id,
+			pin: "className",
+		});
 	}
 
 	// -- constants ---------------------------------------------------------

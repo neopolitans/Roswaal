@@ -12,6 +12,7 @@
  * node does, and everything else belongs on the page.
  */
 
+import { CREATABLE_CLASS_OPTIONS } from "../creatable.js";
 import { LUAU_PRIMITIVES } from "../luneTypes.js";
 import {
 	CLASS_OPTIONS,
@@ -1295,7 +1296,8 @@ export const LIBRARY_NODES: NodeDef[] = [
 			"New Instance",
 			"Engine",
 			"Instance.new($in.className)",
-			[cls("className", "Class Name", "Part")],
+			// Only what it can make: no abstract classes, no services. See `creatable.ts`.
+			[{ ...cls("className", "Class Name", "Part"), options: CREATABLE_CLASS_OPTIONS }],
 			"Instance",
 			"Instance",
 			{ targets: ["roblox"] },

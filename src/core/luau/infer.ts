@@ -155,15 +155,18 @@ export function takesClassName(call: Expr): boolean {
 /**
  * What the string being typed after `tokens` names, when they end with the
  * opening bracket of a call that takes a class: `"service"` after
- * `:GetService(`, `"class"` after `Instance.new(` or `:IsA(`. Read from the
- * lexer's tokens, since a call being typed does not parse yet.
+ * `:GetService(`, `"creatable"` after `Instance.new(` -- which makes only some
+ * classes -- and `"class"` after `:IsA(` and the rest. Read from the lexer's
+ * tokens, since a call being typed does not parse yet.
  */
-export function classCallBefore(tokens: readonly Token[]): "class" | "service" | undefined {
+export function classCallBefore(
+	tokens: readonly Token[],
+): "class" | "creatable" | "service" | undefined {
 	const at = (back: number) => tokens[tokens.length - back]?.text;
 	if (at(1) !== "(") return undefined;
 	if (at(3) === ":" && CLASS_ARGUMENT_METHODS.has(at(2) ?? ""))
 		return at(2) === "GetService" ? "service" : "class";
-	return at(2) === "new" && at(3) === "." && at(4) === "Instance" ? "class" : undefined;
+	return at(2) === "new" && at(3) === "." && at(4) === "Instance" ? "creatable" : undefined;
 }
 
 /** The class a call names, when it is one of the calls that name one. */
