@@ -27,6 +27,17 @@ export interface CliOption {
 
 export const CLI_COMMANDS: CliCommand[] = [
 	{
+		name: "new",
+		blurb: "Make a new project in an empty folder: roswaal new <folder>.",
+		detail:
+			"Writes `roswaal.json`, a node map that writes `default.project.json` with Rojo's three " +
+			"folders (Server in ServerScriptService, Client in StarterPlayerScripts, Shared in " +
+			"ReplicatedStorage), a Main graph that prints Hello world, and `place.rbxlx`: a baseplate, a " +
+			"spawn and the usual services, for `roswaal export` to write scripts into. Then compiles it. " +
+			"`--lune` makes a Lune project instead, with one main graph and no place. A folder that " +
+			"already has files in it is refused: `roswaal init` sets one of those up.",
+	},
+	{
 		name: "init",
 		blurb: "Create roswaal.json and .roswaal/ in this project. Like `rojo init`.",
 		detail:
@@ -125,6 +136,8 @@ export const CLI_OPTIONS: CliOption[] = [
 		blurb: "For import: only scripts Rojo can sync (default), or all of them.",
 	},
 	{ flag: "--no-merge", blurb: "For import: keep identical scripts as separate files." },
+	{ flag: "--lune", blurb: "For new: a Lune project rather than a Roblox one." },
+	{ flag: "--no-place", blurb: "For new: leave out place.rbxlx." },
 	{ flag: "--help, -h", blurb: "Describe the command it follows, without running it." },
 	{ flag: "--version", blurb: "Print the version and exit." },
 ];

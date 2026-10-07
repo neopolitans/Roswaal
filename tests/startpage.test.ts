@@ -3,6 +3,8 @@
  * path, and how long ago a recent one was opened.
  */
 
+import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -32,7 +34,22 @@ describe("inspecting a path", () => {
 			exists: true,
 			directory: true,
 			initialised: false,
+			empty: false,
 		});
+	});
+
+	/** Empty is where the start page offers Create, since 0.148.0. */
+	it("says when a folder is empty, for a new project to go in", async () => {
+		const empty = await fs.mkdtemp(path.join(os.tmpdir(), "roswaal-empty-"));
+		try {
+			expect(await inspectFolder(empty)).toMatchObject({
+				directory: true,
+				initialised: false,
+				empty: true,
+			});
+		} finally {
+			await fs.rm(empty, { recursive: true, force: true });
+		}
 	});
 
 	it("tells a missing path from a file", async () => {

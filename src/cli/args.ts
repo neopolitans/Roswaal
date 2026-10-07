@@ -16,7 +16,17 @@ export interface Args {
  * the path as what `--force` was set to. `--help` and `--version` are here so
  * `roswaal --help serve` asks about serve rather than setting help to "serve".
  */
-const BOOLEAN_FLAGS = new Set(["force", "merge", "no-open", "yes", "no-merge", "help", "version"]);
+const BOOLEAN_FLAGS = new Set([
+	"force",
+	"merge",
+	"no-open",
+	"yes",
+	"no-merge",
+	"lune",
+	"no-place",
+	"help",
+	"version",
+]);
 
 /**
  * Hand-rolled, about twenty lines, and supports the three forms anyone

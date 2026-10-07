@@ -36,8 +36,9 @@ import {
 import { type RbxDocument, RbxError, type RbxInstance, readRbx } from "../core/rbx/index.js";
 import { type PlaceReport, planPlaceUpdate } from "../core/rbx/placeExport.js";
 import { emptyScript, type NodeDef, type NodeScript, type Target } from "../core/schema.js";
-import { errorMessage, HttpError } from "./errors.js";
+import { errorMessage, HttpError, UserError } from "./errors.js";
 import { path } from "./host.js";
+import { createProject } from "./newProject.js";
 import { toPosix } from "./paths.js";
 import {
 	buildTree,
@@ -116,6 +117,8 @@ export interface HostCapabilities {
 		exists: boolean;
 		directory: boolean;
 		initialised: boolean;
+		/** A folder with nothing in it, where a new project can go. */
+		empty?: boolean;
 		/** What it compiles for, when it is a project whose roswaal.json reads. */
 		target?: Target;
 		/** How many graphs it has, likewise. */
@@ -365,6 +368,26 @@ export class ApiSession {
 				const root = need(fields<{ root: string }>(req).root, "root", "Provide a project root.");
 				await initProject(root);
 				return this.described(await this.open(root, true));
+			},
+
+			/**
+			 * A project from nothing, in a folder that is empty or not there yet,
+			 * named after the folder. Refused anywhere with files in it: that is
+			 * what Initialise is for.
+			 */
+			"POST /project/new": async (req) => {
+				const body = fields<{ root: string; target: string; place: boolean }>(req);
+				const root = need(body.root, "root", "Provide a folder for the new project.");
+				if (body.target !== "roblox" && body.target !== "lune") {
+					throw new UserError('A new project is for "roblox" or "lune".');
+				}
+				const resolved = path.resolve(root);
+				await createProject(resolved, {
+					name: path.basename(resolved),
+					target: body.target,
+					place: body.target === "roblox" && body.place === true,
+				});
+				return this.described(await this.open(resolved, true));
 			},
 
 			"PUT /project/config": async (req) => {

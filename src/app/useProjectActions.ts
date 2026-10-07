@@ -9,11 +9,21 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toBase64 } from "../core/base64.js";
 import { errorMessage } from "../core/errorMessage.js";
 import { detectTarget } from "../core/import/modes.js";
+import { projectNameProblem } from "../core/newProject.js";
 import type { NodeScript, Target } from "../core/schema.js";
-import { api, type ProjectInfo, type TreeEntry, type WallyOutcome } from "./api.js";
+import {
+	api,
+	type NewProjectChoice,
+	type ProjectInfo,
+	type TreeEntry,
+	type WallyOutcome,
+} from "./api.js";
 import type { FormAnswers, FormField } from "./Dialog.jsx";
 import {
+	canMakeProject,
+	canOpenDirectory,
 	forgetRememberedFolder,
+	makeProject,
 	openDirectory,
 	type RememberedFolder,
 	readPlace,
@@ -32,7 +42,11 @@ export interface ProjectActionsContext {
 	notify: Dialogs["notify"];
 	saves: SaveQueue;
 	writeGraph: (path: string, script: NodeScript) => Promise<void>;
-	loadProject: (root: string, init?: boolean, quiet?: boolean) => Promise<boolean>;
+	loadProject: (
+		root: string,
+		init?: boolean | NewProjectChoice,
+		quiet?: boolean,
+	) => Promise<boolean>;
 	refreshTree: () => Promise<void>;
 	openEntry: (entry: TreeEntry) => Promise<void>;
 	setIntroOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -612,6 +626,85 @@ export function useProjectActions(context: ProjectActionsContext) {
 	);
 
 	/**
+	 * A project from nothing: a Rojo project with a first graph, and a place
+	 * when asked for. What it holds is `core/newProject.ts`'s.
+	 *
+	 * The web build makes it in place of the browser's project, or in an empty
+	 * folder it asks for; the daemon makes it at a path, which it is given here
+	 * because that is the one thing a browser cannot produce for it.
+	 */
+	const newProject = useCallback(async () => {
+		const inBrowser = canMakeProject();
+		const fields: FormField[] = [
+			inBrowser
+				? { id: "name", kind: "text", label: "Project name", value: "My Game" }
+				: { id: "folder", kind: "text", label: "Folder, empty or not there yet", value: "" },
+			{
+				id: "target",
+				kind: "choice",
+				label: "For",
+				value: "roblox",
+				options: [
+					{ value: "roblox", label: "Roblox, with Rojo" },
+					{ value: "lune", label: "Lune" },
+				],
+			},
+			{
+				id: "place",
+				kind: "check",
+				label: "Include a place: place.rbxlx, with a baseplate and a spawn",
+				value: true,
+				when: { id: "target", value: "roblox" },
+			},
+		];
+		if (inBrowser && canOpenDirectory()) {
+			fields.push({
+				id: "where",
+				kind: "choice",
+				label: "Where",
+				value: "browser",
+				options: [
+					{ value: "browser", label: "In this browser, in place of its project" },
+					{ value: "folder", label: "In an empty folder on this computer…" },
+				],
+			});
+		}
+		const answer = await ask({
+			kind: "form",
+			title: "New project",
+			message:
+				"Rojo's three folders and a Main graph that prints Hello world, compiled and ready. " +
+				(inBrowser
+					? "In this browser it replaces the project kept here; export that one first to keep it."
+					: "The folder is made if it is not there, and refused if it has files in it."),
+			fields,
+			confirmLabel: "Make it",
+		});
+		if (typeof answer !== "string") return;
+		const chosen = JSON.parse(answer) as FormAnswers;
+		const target: Target = chosen.target === "lune" ? "lune" : "roblox";
+		const place = target === "roblox" && chosen.place === true;
+		try {
+			if (!inBrowser) {
+				const folder = String(chosen.folder ?? "").trim();
+				if (folder === "") throw new Error("Name the folder the project goes in.");
+				if (await loadProject(folder, { target, place })) setIntroOpen(false);
+				return;
+			}
+			const where = chosen.where === "folder" ? "folder" : "browser";
+			const name = String(chosen.name ?? "").trim();
+			const problem = where === "browser" ? projectNameProblem(name) : null;
+			if (problem) throw new Error(problem);
+			const made = await makeProject({ name, target, place, where });
+			if (!made) return;
+			await loadProject(made.root);
+			setIntroOpen(false);
+		} catch (err) {
+			notify("The project could not be made", errorMessage(err));
+		}
+	}, [ask, loadProject, notify, setIntroOpen]);
+
+	/**
 	 * The folder from last time, reopened.
 	 *
 	 * Separate from the picker because there is nothing to pick: the browser
@@ -929,6 +1022,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 		importRojo,
 		importZip,
 		inDir,
+		newProject,
 		onPackageZip,
 		onPlaceOpenFile,
 		onTreeDelete,

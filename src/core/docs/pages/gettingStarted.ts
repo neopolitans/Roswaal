@@ -184,9 +184,12 @@ export function gettingStartedPage(): DocPage {
 							{
 								t: "ol",
 								items: [
-									"In a terminal, go to your project and set it up once: `roswaal init` writes a " +
-										"`roswaal.json` and a `.roswaal/` folder, and nothing else.",
-									"Run `roswaal serve`, and open the editor address it prints — " +
+									"For a new project, `roswaal new my-game` makes one in a new folder: Rojo's three " +
+										"folders, a Main graph that prints Hello world, and `place.rbxlx` with a baseplate " +
+										"and a spawn. `--lune` makes a Lune project, and `--no-place` leaves the place out.",
+									"For a project you already have, go to it and set it up once: `roswaal init` writes " +
+										"a `roswaal.json` and a `.roswaal/` folder, and nothing else.",
+									"Run `roswaal serve` in the project, and open the editor address it prints — " +
 										"`http://127.0.0.1:4471`. It opens on that project.",
 								],
 							},
@@ -194,9 +197,9 @@ export function gettingStartedPage(): DocPage {
 								t: "code",
 								lang: "sh",
 								text: code`
+									roswaal new my-game   # a new project, in a new folder
 									cd my-game
-									roswaal init      # once: roswaal.json and .roswaal/
-									roswaal serve     # the editor, on 127.0.0.1:4471
+									roswaal serve         # the editor, on 127.0.0.1:4471
 									`,
 							},
 							{
@@ -228,8 +231,10 @@ export function gettingStartedPage(): DocPage {
 									},
 									{
 										text:
-											"Press **Open**. For a folder that is not a Roswaal project yet it says " +
-											"**Initialise**, which writes a `roswaal.json` and nothing else.",
+											"Press **Open**. For an empty folder, or one that is not there yet, it says " +
+											"**Create**: choose Roblox or Lune, and whether to include a place, and it makes " +
+											"a new project there. For a folder with files that is not a Roswaal project yet " +
+											"it says **Initialise**, which writes a `roswaal.json` and nothing else.",
 										window: WALK_START,
 										point: "Open",
 									},
@@ -261,6 +266,15 @@ export function gettingStartedPage(): DocPage {
 										text: "Press **Project** at the bottom of the panel.",
 										window: WALK_PROJECTS_WEB,
 										point: "Project",
+									},
+									{
+										text:
+											"**New project…** starts one from nothing: Rojo's three folders, a Main graph " +
+											"that prints Hello world, and a place with a baseplate and a spawn if you want " +
+											"one. It goes in place of the project kept in this browser, or into an empty " +
+											"folder in Chrome and Edge.",
+										window: WALK_PROJECT_MENU_WEB,
+										point: "New project…",
 									},
 									{
 										text:

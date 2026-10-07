@@ -8,18 +8,18 @@
 
 import { describe, expect, it } from "vitest";
 
-import { stepState } from "../src/app/docsWalk.js";
+import { ringSelectors, stepState } from "../src/app/docsWalk.js";
 import { ICONS } from "../src/app/icons.js";
 import { pageSource } from "../src/app/PageEditor.jsx";
 import { renderPage } from "../src/core/docs/html.js";
 import * as layouts from "../src/core/docs/layouts.js";
-import { mapFigure, mapParts } from "../src/core/docs/mapFigure.js";
 import {
 	layoutConstant,
 	layoutControls,
 	layoutIcons,
 	WALK_WINDOWS,
 } from "../src/core/docs/layouts.js";
+import { mapFigure, mapParts } from "../src/core/docs/mapFigure.js";
 import { type Block, buildSite, type WalkStep } from "../src/core/docs/site.js";
 import * as toolbars from "../src/core/docs/toolbars.js";
 import { iconsOf, legendOf, toolbarConstant, WALK_BARS } from "../src/core/docs/toolbars.js";
@@ -111,6 +111,35 @@ describe("walkthroughs", () => {
 
 	it("light the steps before, at and after the reader", () => {
 		expect([0, 1, 2].map((i) => stepState(i, 1))).toEqual(["done", "current", "next"]);
+	});
+});
+
+describe("the control a step rings", () => {
+	/**
+	 * "Press Project" names the projects panel's Project button, and the
+	 * drawing behind it has a Project panel too. The button is what is
+	 * pressed, so it is what is ringed; a region only when nothing else has
+	 * the name.
+	 */
+	it("is a control before a region of the same name", () => {
+		const [first, then] = ringSelectors("project");
+		expect(first).toBe('[data-control="project"]:not(.docs-layout-region)');
+		expect(then).toBe('[data-control="project"]');
+	});
+
+	it("finds a button on Getting started, where a panel had the same name", () => {
+		const page = pages.find((one) => one.slug === "getting-started");
+		const html = renderPage(site, page!, {
+			version: "test",
+			toolbars: { viewBox: "0 -960 960 960", paths: ICONS, mark: "<svg></svg>" },
+		});
+		const frames = html
+			.split('<div class="docs-walk-frame')
+			.filter((f) => f.includes('data-point="project"'));
+		const region = /class="docs-layout-region[^"]*"[^>]*data-control="project"/;
+		// The web app's drawing has both; every one has the button to press.
+		expect(frames.some((frame) => region.test(frame))).toBe(true);
+		for (const frame of frames) expect(frame).toMatch(/<button[^>]*data-control="project"/);
 	});
 });
 

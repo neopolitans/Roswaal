@@ -1611,7 +1611,7 @@ export const LAYOUTS: LayoutSpec[] = [
 // ---------------------------------------------------------------------------
 
 /** The window as the web app draws it: the mark blue, for a project kept in the browser. */
-function inBrowser(spec: LayoutSpec, id: string): LayoutSpec {
+export function inBrowser(spec: LayoutSpec, id: string): LayoutSpec {
 	return {
 		...spec,
 		id,
@@ -1669,6 +1669,13 @@ const PROJECTS_WEB: Extract<LayoutCard, { t: "intro" }> = {
 
 /** The Project menu in the web app, as `App.tsx` fills it there. */
 const PROJECT_MENU_WEB: ToolbarItem[] = [
+	{
+		t: "button",
+		text: "New project…",
+		icon: "newFile",
+		name: "New project…",
+		what: "A Rojo project with a first graph and a place, from nothing.",
+	},
 	{
 		t: "button",
 		text: "Open folder…",
@@ -1735,7 +1742,7 @@ export const WALK_START: LayoutSpec = {
 						text: "Open",
 						primary: true,
 						name: "Open",
-						what: "Opens it, or Initialise for a folder that is not a project yet.",
+						what: "Opens it; Create for an empty folder or one not there yet, Initialise for one with files that is not a project yet.",
 					},
 				],
 				recent: [

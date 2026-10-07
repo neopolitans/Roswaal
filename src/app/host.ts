@@ -21,6 +21,7 @@
 
 import { useSyncExternalStore } from "react";
 import { errorMessage } from "../core/errorMessage.js";
+import type { Target } from "../core/schema.js";
 import { api } from "./api.js";
 
 /**
@@ -317,6 +318,42 @@ export function useCanImportPlace(): boolean {
 		() => placeImporter !== null,
 		() => false,
 	);
+}
+
+/**
+ * A project from nothing, in the browser.
+ *
+ * Installed by the hosted editor, as the importers are: the worker holds the
+ * project, so making one is `src/web`'s. `browser` replaces the project the
+ * browser holds; `folder` asks for an empty folder on the computer and makes
+ * it there, named after the folder. A daemon has none of this -- it is given a
+ * path -- so a build without a maker sends `api.newProject` instead.
+ */
+export interface NewProjectRequest {
+	name: string;
+	target: Target;
+	place: boolean;
+	where: "browser" | "folder";
+}
+
+/** Resolves with the new project's root, or null when the folder pick was cancelled. */
+export type ProjectMaker = (request: NewProjectRequest) => Promise<{ root: string } | null>;
+
+let projectMaker: ProjectMaker | null = null;
+
+export function useProjectMaker(next: ProjectMaker): void {
+	projectMaker = next;
+	announce();
+}
+
+/** Whether this build makes projects itself, rather than at a path the daemon is given. */
+export function canMakeProject(): boolean {
+	return projectMaker !== null;
+}
+
+export async function makeProject(request: NewProjectRequest): Promise<{ root: string } | null> {
+	if (!projectMaker) throw new Error("This copy of Roswaal makes projects at a path.");
+	return projectMaker(request);
 }
 
 /** `canOpenDirectory`, for a component that should redraw when it is installed. */

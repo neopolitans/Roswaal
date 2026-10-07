@@ -429,14 +429,18 @@ export async function inspectFolder(root: string): Promise<{
 	exists: boolean;
 	directory: boolean;
 	initialised: boolean;
+	empty?: boolean;
 	target?: Target;
 	graphs?: number;
 }> {
 	const stat = await fs.promises.stat(root).catch(() => null);
 	if (!stat) return { root, exists: false, directory: false, initialised: false };
 	if (!stat.isDirectory()) return { root, exists: true, directory: false, initialised: false };
-	if (!(await isInitialised(root)))
-		return { root, exists: true, directory: true, initialised: false };
+	if (!(await isInitialised(root))) {
+		// Empty is where a new project can go; anything else is Initialise's.
+		const empty = (await fs.promises.readdir(root).catch(() => ["?"])).length === 0;
+		return { root, exists: true, directory: true, initialised: false, empty };
+	}
 	const config = await readConfig(root).catch(() => null);
 	if (!config) return { root, exists: true, directory: true, initialised: true };
 	const graphs = (await collectScripts({ root, config })).length;

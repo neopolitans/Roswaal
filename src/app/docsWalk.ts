@@ -27,6 +27,18 @@ export function stepState(step: number, at: number): "done" | "current" | "next"
 	return step < at ? "done" : step === at ? "current" : "next";
 }
 
+/**
+ * Where to look for the thing a step names, best first.
+ *
+ * A control before a region of the drawing with the same name. A projects
+ * panel drawn over the editor has both a **Project** button at its foot and
+ * the Project panel itself, and the step that says "Press Project" rang the
+ * panel -- the first in the page -- so pressing the button did nothing.
+ */
+export function ringSelectors(point: string): string[] {
+	return [`[data-control="${point}"]:not(.docs-layout-region)`, `[data-control="${point}"]`];
+}
+
 /** Wire one walkthrough. Returns the undo, for a panel that unmounts. */
 export function attachWalkthrough(figure: HTMLElement): () => void {
 	const frames = Array.from(figure.querySelectorAll<HTMLElement>(".docs-walk-frame"));
@@ -93,7 +105,9 @@ export function attachWalkthrough(figure: HTMLElement): () => void {
 			? Array.from(frames[at]!.querySelectorAll<HTMLElement>(`[data-part="${point}"]`))
 			: [];
 		here = point
-			? (frames[at]!.querySelector<HTMLElement>(`[data-control="${point}"]`) ??
+			? (ringSelectors(point)
+					.map((selector) => frames[at]!.querySelector<HTMLElement>(selector))
+					.find((found) => found !== null) ??
 				parts.at(-1) ??
 				null)
 			: null;

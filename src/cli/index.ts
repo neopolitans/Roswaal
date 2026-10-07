@@ -1,6 +1,7 @@
 /**
  * The roswaal command line.
  *
+ *     roswaal new <folder>      make a new project in an empty folder
  *     roswaal init              create roswaal.json and .roswaal/ in this project
  *     roswaal serve             start the daemon and the editor for this project
  *     roswaal stop              stop a running daemon
@@ -22,11 +23,13 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
+import { NEW_PLACE_FILE } from "../core/newProject.js";
 import { readRbx } from "../core/rbx/index.js";
 import { describePlaceReport } from "../core/rbx/placeExport.js";
 import { planImport, surveyPlace } from "../core/rbx/placeImport.js";
 import { createDaemon, DEFAULT_PORT, hasBundledEditor } from "../server/app.js";
 import { errorMessage } from "../server/errors.js";
+import { createProject } from "../server/newProject.js";
 import {
 	type CompileOutcome,
 	collectMaps,
@@ -166,6 +169,46 @@ function exitOnInterrupt(message: string): void {
 // ---------------------------------------------------------------------------
 // Commands
 // ---------------------------------------------------------------------------
+
+/**
+ * `roswaal new <folder>`: a project from nothing, in a folder that is empty or
+ * not there yet. What it holds is `core/newProject.ts`'s to say.
+ */
+async function commandNew(args: Args): Promise<number> {
+	const launchedFrom = process.env.ROSWAAL_CWD ?? process.cwd();
+	const given = args.positional[1];
+	if (!given) {
+		console.log(red("roswaal new needs a folder to make the project in: roswaal new <folder>"));
+		return 2;
+	}
+	const root = path.resolve(launchedFrom, given);
+	const target = args.flags.lune === true ? "lune" : "roblox";
+	const place = target === "roblox" && args.flags["no-place"] !== true;
+	console.log(`${bold("roswaal new")} ${dim(root)}`);
+	try {
+		const project = await createProject(root, { name: path.basename(root), target, place });
+		console.log(
+			`  ${green("project ")} roswaal.json, ${target === "lune" ? "for Lune" : "for Roblox"}`,
+		);
+		if (target === "roblox") {
+			console.log(
+				`  ${green("rojo    ")} default.project.json, from .roswaal/scripts/Game.nodemap`,
+			);
+			console.log(
+				`  ${green("graph   ")} Main, compiled to ${project.config.outDir}/ServerScriptService/Server`,
+			);
+			if (place) console.log(`  ${green("place   ")} ${NEW_PLACE_FILE}`);
+		} else {
+			console.log(`  ${green("graph   ")} main, compiled to ${project.config.outDir}/main.luau`);
+		}
+		console.log("");
+		console.log(dim(`  Next: cd ${JSON.stringify(given)} and roswaal serve`));
+		return 0;
+	} catch (err) {
+		console.log(red(`  ${errorMessage(err)}`));
+		return 1;
+	}
+}
 
 async function commandInit(args: Args): Promise<number> {
 	const root = resolveRoot(args);
@@ -625,6 +668,8 @@ async function main(): Promise<number> {
 	const { command, topic, args } = parseInvocation(process.argv.slice(2));
 
 	switch (command) {
+		case "new":
+			return commandNew(args);
 		case "init":
 			return commandInit(args);
 		case "import":

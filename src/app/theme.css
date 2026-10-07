@@ -3111,6 +3111,34 @@ button.tb.primary:hover:not(:disabled) {
 	background: var(--danger);
 }
 
+/* What Create makes, under the verdict while Create is offered: the runtime,
+   and whether the project starts with a place. */
+.start-new {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 16px;
+	margin: 10px 2px 0;
+	font-size: var(--text-md);
+	color: var(--fg-muted);
+}
+
+.start-new-place {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	cursor: pointer;
+}
+
+.start-new-place.off {
+	opacity: 0.5;
+	cursor: default;
+}
+
+.start-new-place code {
+	font-size: var(--text-sm);
+}
+
 /* The host never answered. This is the screen instead of the folder picker,
    because a picker is an answer to a question nobody asked when the thing that
    would open the folder is the thing that is down. */

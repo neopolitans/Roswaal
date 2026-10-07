@@ -15,7 +15,7 @@
  * draws what this returns.
  */
 
-import { CLASSES, DATATYPES } from "../robloxData.js";
+import { CLASSES, DATATYPES, LIBRARIES, LUAU_GLOBALS, ROBLOX_GLOBALS } from "../robloxData.js";
 import { ENGINE, signatureText } from "../robloxEngine.js";
 import { nilableProperty } from "../robloxNilable.js";
 import { propertiesOf } from "../robloxProperties.js";
@@ -61,6 +61,11 @@ export interface Hover {
 	role?: string;
 	summary?: string;
 	link?: { label: string; href: string };
+	/**
+	 * A second place to read about it: a global that is an instance links its
+	 * class first and its own entry among the globals second.
+	 */
+	also?: { label: string; href: string };
 	/** The code's own documentation comment for it, when it has one. */
 	doc?: DocComment;
 }
@@ -88,6 +93,69 @@ function datatypeLink(name: string): Hover["link"] {
 
 function enumLink(name: string): Hover["link"] {
 	return { label: `${name} - Roblox Creator Docs`, href: `${DOCS}/enums/${name}` };
+}
+
+/** A global's own entry, on Roblox's page of them or Luau's. */
+function globalLink(page: "RobloxGlobals" | "LuaGlobals", name: string): Hover["link"] {
+	return { label: `${name} - Roblox Creator Docs`, href: `${DOCS}/globals/${page}#${name}` };
+}
+
+/** A library's page, or one of its members' entries on it. */
+function libraryLink(library: string, member?: string): Hover["link"] {
+	return member
+		? {
+				label: `${library}.${member} - Roblox Creator Docs`,
+				href: `${DOCS}/libraries/${library}#${member}`,
+			}
+		: { label: `${library} - Roblox Creator Docs`, href: `${DOCS}/libraries/${library}` };
+}
+
+const ROBLOX_GLOBAL_SET = new Set(ROBLOX_GLOBALS);
+const LUAU_GLOBAL_SET = new Set(LUAU_GLOBALS);
+const LIBRARY_SET = new Set(LIBRARIES);
+
+/**
+ * The globals that are instances, and what class each is. `script` is
+ * whichever script it is written in, so it is the class all three share.
+ */
+const GLOBAL_CLASSES: Readonly<Record<string, string>> = {
+	game: "DataModel",
+	workspace: "Workspace",
+	script: "LuaSourceContainer",
+	plugin: "Plugin",
+};
+
+/**
+ * A global nobody declared: Roblox's, Luau's, or a library. Asked only once
+ * the name is not a local or anything the file declares, so a local called
+ * `game` is still described as the local it is.
+ *
+ * The links are to the Creator Docs, which document the Roblox engine's
+ * Luau; a Lune script has its own globals, so it is not told about these.
+ */
+function aboutGlobal(word: string, from: number, to: number): Hover | null {
+	const cls = GLOBAL_CLASSES[word];
+	if (cls) {
+		return {
+			from,
+			to,
+			code: `${word}: ${cls}`,
+			role: "Roblox global",
+			summary: CLASS_SUMMARIES[cls],
+			link: classLink(cls),
+			also: globalLink("RobloxGlobals", word),
+		};
+	}
+	if (ROBLOX_GLOBAL_SET.has(word)) {
+		return { from, to, code: word, role: "Roblox global", link: globalLink("RobloxGlobals", word) };
+	}
+	// `_G` and `_VERSION` are Luau's too; the list is of what can be called.
+	if (LUAU_GLOBAL_SET.has(word) || word === "_G" || word === "_VERSION") {
+		return { from, to, code: word, role: "Luau global", link: globalLink("LuaGlobals", word) };
+	}
+	if (LIBRARY_SET.has(word))
+		return { from, to, code: word, role: "library", link: libraryLink(word) };
+	return null;
 }
 
 function aboutClass(name: string, from: number, to: number, code = name, role = "class"): Hover {
@@ -402,6 +470,13 @@ function afterDot(ask: Ask, place: Extract<Place, { kind: "field" }>): Hover | n
 		const about = memberOfClass(heldBy(local.typeText, local.value).className, word, from, to);
 		if (about) return about;
 	}
+	// Off a global that is an instance: `workspace.Gravity` is Workspace's
+	// property even where the file sets it, which would otherwise read as a
+	// field of a table.
+	if (!local && roblox && owner && place.chain === owner && GLOBAL_CLASSES[owner]) {
+		const about = memberOfClass(GLOBAL_CLASSES[owner], word, from, to);
+		if (about) return about;
+	}
 
 	// A function or field put on the table: `function Occupancy.value(…)`
 	// in the file, or a Declare Function the graph wires onto it. The
@@ -421,6 +496,19 @@ function afterDot(ask: Ask, place: Extract<Place, { kind: "field" }>): Hover | n
 		}
 	}
 	if (local || !owner) return null;
+
+	// Out of a library, `math.floor`: written straight off it, not off a local.
+	if (roblox && place.chain === owner) {
+		if (LIBRARY_SET.has(owner)) {
+			return {
+				from,
+				to,
+				code: `${owner}.${word}`,
+				role: `in the ${owner} library`,
+				link: libraryLink(owner, word),
+			};
+		}
+	}
 
 	const item = roblox ? DATATYPE_STATICS[owner]?.find((s) => s.name === word) : undefined;
 	if (!item) return null;
@@ -489,7 +577,7 @@ function afterColon(ask: Ask, place: Extract<Place, { kind: "method" }>): Hover 
 	const className = local
 		? heldBy(local.typeText, local.value).className
 		: owner
-			? classOfGlobal(owner)
+			? (classOfGlobal(owner) ?? GLOBAL_CLASSES[owner])
 			: undefined;
 	const method = className ? methodsOf(className).find((m) => m.name === word) : undefined;
 	if (!method) return null;
@@ -580,7 +668,7 @@ function bareName(ask: Ask): Hover | null {
 			link: datatypeLink(word),
 		};
 	}
-	return null;
+	return roblox ? aboutGlobal(word, from, to) : null;
 }
 
 /** A local of the code's own: what it was declared as, and the comment that says what it is. */

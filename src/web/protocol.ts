@@ -8,6 +8,8 @@
  * whole cost of the hosted editor speaking to a worker instead of a daemon.
  */
 
+import type { Target } from "../core/schema.js";
+
 export interface ApiRequestMessage {
 	kind: "request";
 	/** Matches a reply to its caller; the worker answers out of order freely. */
@@ -76,6 +78,20 @@ export interface MountMessage {
 	 * always something they said yes to, never something that happened.
 	 */
 	initialise?: boolean;
+	/**
+	 * Make a new project in it, named after the folder. Refused unless the
+	 * folder is empty: `createProject` writes nothing over somebody's files.
+	 */
+	create?: { target: Target; place: boolean };
+}
+
+/** A project from nothing, replacing the one the browser holds. */
+export interface NewProjectMessage {
+	kind: "newProject";
+	id: number;
+	name: string;
+	target: Target;
+	place: boolean;
 }
 
 /**
@@ -121,5 +137,6 @@ export type ToWorker =
 	| FlushMessage
 	| MountMessage
 	| ImportMessage
-	| ImportPlaceMessage;
+	| ImportPlaceMessage
+	| NewProjectMessage;
 export type FromWorker = ApiResponseMessage | ApiEventMessage;

@@ -22,6 +22,7 @@
 
 import { VERSION } from "../cli/version.js";
 import { errorMessage } from "../server/errors.js";
+import { createProject } from "../server/newProject.js";
 import {
 	initProject,
 	isInitialised,
@@ -38,6 +39,7 @@ import type {
 	ImportMessage,
 	ImportPlaceMessage,
 	MountMessage,
+	NewProjectMessage,
 	ToWorker,
 } from "./protocol.js";
 import { PLAYGROUND_ROOT, playgroundFiles } from "./seed.js";
@@ -229,6 +231,12 @@ async function mountFolder(message: MountMessage): Promise<Reply> {
 	const mount = mountFor(message.handle);
 	try {
 		useFilesystem(new DirectoryFs(message.handle, mount));
+		// A new project, named after the folder: refused there unless it is empty.
+		if (message.create) {
+			await createProject(mount, { name: message.handle.name, ...message.create });
+			await store.flush();
+			return opened(await session.openAt(mount));
+		}
 		const initialised = await isInitialised(mount);
 		if (!initialised && !message.initialise) {
 			useFilesystem(volume);
@@ -337,6 +345,23 @@ async function importPlace(message: ImportPlaceMessage): Promise<Reply> {
 	}
 }
 
+/** A project from nothing, in place of the one the browser holds. */
+async function newProject(message: NewProjectMessage): Promise<Reply> {
+	await ready;
+	try {
+		const project = await replaceProject(message.name, async (root) => {
+			await createProject(root, {
+				name: message.name,
+				target: message.target,
+				place: message.place,
+			});
+		});
+		return { status: 200, payload: { root: project.root } };
+	} catch (err) {
+		return answer(err);
+	}
+}
+
 /** One message, handled. Requests answer themselves; the rest answer here. */
 async function receive(message: ToWorker): Promise<void> {
 	switch (message.kind) {
@@ -348,6 +373,8 @@ async function receive(message: ToWorker): Promise<void> {
 			return post({ kind: "response", id: message.id, ...(await importZip(message)) });
 		case "importPlace":
 			return post({ kind: "response", id: message.id, ...(await importPlace(message)) });
+		case "newProject":
+			return post({ kind: "response", id: message.id, ...(await newProject(message)) });
 		case "flush":
 			return store.flush();
 	}

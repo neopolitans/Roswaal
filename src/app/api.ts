@@ -73,11 +73,19 @@ export type PlaceTree =
 
 /** A node pack on disk. The daemon's copy is in `src/server/project.ts`. */
 /** What is at a path: whether it is a project, and if so what kind. */
+/** What a new project is for, and whether it starts with a place. */
+export interface NewProjectChoice {
+	target: Target;
+	place: boolean;
+}
+
 export interface ProjectLook {
 	root: string;
 	exists: boolean;
 	directory: boolean;
 	initialised: boolean;
+	/** A folder with nothing in it, where a new project can go. */
+	empty?: boolean;
 	target?: Target;
 	graphs?: number;
 }
@@ -291,6 +299,9 @@ export const api = {
 		post<{ path: string | null }>("/api/project/browse", { startIn }),
 	openProject: (root: string) => post<ProjectInfo>("/api/project/open", { root }),
 	initProject: (root: string) => post<ProjectInfo>("/api/project/init", { root }),
+	/** A project from nothing, in a folder that is empty or not there yet. */
+	newProject: (root: string, choice: NewProjectChoice) =>
+		post<ProjectInfo>("/api/project/new", { root, ...choice }),
 	saveConfig: (config: RoswaalConfig) =>
 		request<{ config: RoswaalConfig }>("/api/project/config", {
 			method: "PUT",

@@ -7,7 +7,7 @@ import { VERSION } from "../cli/version.js";
 import { DEMO_PROJECTS, type DemoProject } from "../core/demoProjects.js";
 import { errorMessage } from "../core/errorMessage.js";
 import type { Target } from "../core/schema.js";
-import { api, type ProjectLook } from "./api.js";
+import { api, type NewProjectChoice, type ProjectLook } from "./api.js";
 import { cx } from "./cx.js";
 import { FloatingTools, ToolGroup } from "./FloatingTools.jsx";
 import { useHostCan, useHostFailure } from "./host.js";
@@ -57,10 +57,14 @@ export function ProjectPicker({
 	onOpen,
 	busy,
 }: {
-	onOpen: (root: string, init?: boolean) => void;
+	/** `true` initialises the folder; a choice makes a new project in it. */
+	onOpen: (root: string, how?: boolean | NewProjectChoice) => void;
 	busy: string | null;
 }) {
 	const [root, setRoot] = useState("");
+	// What Create makes, chosen beside the button while it is offered.
+	const [newTarget, setNewTarget] = useState<Target>("roblox");
+	const [newPlace, setNewPlace] = useState(true);
 	const [recent, setRecent] = useState<string[]>(() => recentProjects());
 	const [look, setLook] = useState<ProjectLook | null>(null);
 	// What each recent project is, asked once. Absent until the host answers.
@@ -145,10 +149,10 @@ export function ProjectPicker({
 				? { can: false, label: "Open", tone: "", note: "" }
 				: !look.exists
 					? {
-							can: false,
-							label: "Open",
-							tone: "start-verdict-bad",
-							note: "There is nothing at that path.",
+							can: true,
+							label: "Create",
+							tone: "start-verdict-new",
+							note: "Nothing is there yet. Create makes a new project in a folder of that name.",
 						}
 					: !look.directory
 						? {
@@ -164,15 +168,25 @@ export function ProjectPicker({
 									tone: "start-verdict-ok",
 									note: describe(look) ?? "A Roswaal project. Opens where you left it.",
 								}
-							: {
-									can: true,
-									label: "Initialise",
-									tone: "start-verdict-new",
-									note: "Not a Roswaal project yet. Initialising writes a roswaal.json and nothing else.",
-								};
+							: look.empty
+								? {
+										can: true,
+										label: "Create",
+										tone: "start-verdict-new",
+										note: "An empty folder. Create makes a new project in it.",
+									}
+								: {
+										can: true,
+										label: "Initialise",
+										tone: "start-verdict-new",
+										note: "Not a Roswaal project yet. Initialising writes a roswaal.json and nothing else.",
+									};
 
 	const go = () => {
-		if (verdict?.can) onOpen(typed, verdict.label === "Initialise");
+		if (!verdict?.can) return;
+		if (verdict.label === "Create") {
+			onOpen(typed, { target: newTarget, place: newTarget === "roblox" && newPlace });
+		} else onOpen(typed, verdict.label === "Initialise");
 	};
 
 	/**
@@ -390,6 +404,32 @@ export function ProjectPicker({
 										? "Type a folder's path, or Browse… for your computer's own dialog."
 										: "Type a folder's path."))}
 						</p>
+						{verdict?.label === "Create" && (
+							<div className="start-new">
+								<span className="segmented" role="group" aria-label="The new project is for">
+									{(["roblox", "lune"] as const).map((target) => (
+										<button
+											key={target}
+											type="button"
+											className={cx(newTarget === target && "on")}
+											aria-pressed={newTarget === target}
+											onClick={() => setNewTarget(target)}
+										>
+											{target === "roblox" ? "Roblox" : "Lune"}
+										</button>
+									))}
+								</span>
+								<label className={cx("start-new-place", newTarget !== "roblox" && "off")}>
+									<input
+										type="checkbox"
+										checked={newTarget === "roblox" && newPlace}
+										disabled={newTarget !== "roblox"}
+										onChange={(e) => setNewPlace(e.target.checked)}
+									/>
+									Include a place: <code>place.rbxlx</code>, a baseplate and a spawn
+								</label>
+							</div>
+						)}
 					</div>
 
 					{recent.length > 0 && (
@@ -491,7 +531,7 @@ export function ProjectPicker({
 						</a>
 						<span className="spacer" />
 						<span>
-							New project in a terminal: <code>roswaal init</code>
+							In a terminal: <code>roswaal new &lt;folder&gt;</code>
 						</span>
 					</footer>
 				</div>

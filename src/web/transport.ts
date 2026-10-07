@@ -12,6 +12,7 @@
 
 import type { EventStream, Transport } from "../app/api.js";
 
+import type { Target } from "../core/schema.js";
 import type { ErrorBody } from "../server/errors.js";
 
 import type {
@@ -20,6 +21,7 @@ import type {
 	ImportMessage,
 	ImportPlaceMessage,
 	MountMessage,
+	NewProjectMessage,
 	ToWorker,
 } from "./protocol.js";
 
@@ -36,7 +38,10 @@ export interface WorkerTransport {
 	mount: (
 		handle: FileSystemDirectoryHandle,
 		initialise?: boolean,
+		create?: { target: Target; place: boolean },
 	) => Promise<{ root: string } | { notAProject: string }>;
+	/** A project from nothing, replacing the browser's own. */
+	newProject: (name: string, target: Target, place: boolean) => Promise<{ root: string }>;
 	/** A project out of a zip, replacing the browser's own. Answers as `mount` does. */
 	importProject: (
 		name: string,
@@ -149,8 +154,18 @@ export function workerTransport(worker: Worker): WorkerTransport {
 	// it, so the worker gets the real thing rather than a copy of the files. The
 	// picker cannot be called from a worker — it needs a window and a gesture —
 	// which is the whole reason this crosses the boundary in this direction.
-	const mount = (handle: FileSystemDirectoryHandle, initialise?: boolean) =>
-		call({ kind: "mount", handle, initialise });
+	const mount = (
+		handle: FileSystemDirectoryHandle,
+		initialise?: boolean,
+		create?: { target: Target; place: boolean },
+	) => call({ kind: "mount", handle, initialise, ...(create ? { create } : {}) });
+
+	// A project from nothing, replacing the browser's. Always one: it has a config.
+	const newProject = async (name: string, target: Target, place: boolean) => {
+		const made = await call({ kind: "newProject", name, target, place });
+		if (!("root" in made)) throw new Error("It could not be made.");
+		return made;
+	};
 
 	// A project out of a zip, replacing the browser's. See `importZip.ts`.
 	const importProject = (
@@ -184,11 +199,11 @@ export function workerTransport(worker: Worker): WorkerTransport {
 	});
 	window.addEventListener("pagehide", flush);
 
-	return { request, events, mount, importProject, importPlace };
+	return { request, events, mount, importProject, importPlace, newProject };
 }
 
 /** The messages that hand the worker a project, answered like a request. */
-type ProjectMessage = MountMessage | ImportMessage | ImportPlaceMessage;
+type ProjectMessage = MountMessage | ImportMessage | ImportPlaceMessage | NewProjectMessage;
 
 /** A message before `call` gives it an id; distributed, so each kind keeps its own fields. */
 type WithoutId<T> = T extends unknown ? Omit<T, "id"> : never;

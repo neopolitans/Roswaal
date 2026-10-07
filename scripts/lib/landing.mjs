@@ -780,7 +780,7 @@ export function landingPage(
 	const IS_CANARY = canary;
 	const shown = examples();
 	const hero = heroGraph();
-	const tour = tourSection({ graph: hero, tryHref: "try.html" });
+	const tour = tourSection({ tryHref: "try.html" });
 	const tagline = taglineFor(version);
 	const mark = IS_CANARY ? "canary" : "preview";
 	const flag = escapeHtml(IS_CANARY ? MARK_LABEL.canary : PREVIEW_LABEL);

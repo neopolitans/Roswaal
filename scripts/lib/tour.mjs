@@ -31,6 +31,13 @@ import { NODE_ALIASES } from "../../src/core/aliases.ts";
 import { categoryLabel } from "../../src/core/categories.ts";
 import { compile } from "../../src/core/compiler/index.ts";
 import { escapeHtml } from "../../src/core/docs/html.ts";
+import {
+	EDITOR_LAYOUT_PHONE,
+	EDITOR_LAYOUT_TOUCH,
+	inBrowser,
+	layoutHtml,
+	WALK_EDITOR_WEB,
+} from "../../src/core/docs/layouts.ts";
 import { graphSvg, placeGraph, straighten } from "../../src/core/docs/preview.ts";
 import { RELEASES } from "../../src/core/docs/releases.ts";
 import { releasePageSlug } from "../../src/core/docs/site.ts";
@@ -534,8 +541,9 @@ export function hoverHtml(hover) {
 		}
 		out += `<div class="luau-hover-doc">${box}</div>`;
 	}
-	if (hover.link) {
-		out += `<a href="${escapeHtml(hover.link.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(hover.link.label)}</a>`;
+	for (const to of [hover.link, hover.also]) {
+		if (to)
+			out += `<a href="${escapeHtml(to.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(to.label)}</a>`;
 	}
 	return out;
 }
@@ -622,56 +630,38 @@ function hoverDemo(source, open, label) {
 
 // ------------------------------------------------------------ the windows
 
-/** A pin's row in the Inspector, as 0.130.0 draws one: wire colour, then type. */
-function pinRow(name, type, kind, out) {
-	const colour = pinColor(type, kind);
-	const swatch = out
-		? `border: 2px solid ${colour}; background: transparent`
-		: `background: ${colour}; border: 2px solid ${colour}`;
-	return `<li><span class="tour-pin" style="${swatch}"></span><span class="tour-pin-name">${escapeHtml(name)}</span><span class="tour-type">${escapeHtml(type ?? "exec")}</span></li>`;
-}
+/**
+ * The editor on each kind of screen, as the documentation draws it: the same
+ * `layoutHtml` and the same layouts as [The interface](the-interface), which a
+ * test holds against the editor's own chrome. So the slide shows the floating
+ * groups, the cards and the sheets where each form factor really puts them,
+ * rather than a sketch of them that could only agree by luck.
+ */
+/** @type {[string, string, import("../../src/core/docs/layouts.ts").LayoutSpec][]} */
+const DEVICE_LAYOUTS = [
+	["computer", "Computer", WALK_EDITOR_WEB],
+	// With its card open: the walkthroughs' tablet has them closed, which is
+	// right for "press the mark" and shows nothing of how a tablet lays out.
+	["tablet", "Tablet", inBrowser(EDITOR_LAYOUT_TOUCH, "tour-tablet")],
+	["phone", "Phone", inBrowser(EDITOR_LAYOUT_PHONE, "tour-phone")],
+];
 
-function section(title, rows, open = true) {
-	return `<details class="tour-sec"${open ? " open" : ""}><summary><span class="tour-sec-name">${escapeHtml(title)}</span><span class="tour-sec-count">${rows.length}</span><span class="tour-sec-rule"></span></summary><ul>${rows.join("")}</ul></details>`;
-}
-
-function windowsDemo(graph) {
-	const connect = BUILTIN_NODES.find((node) => node.id === "event.connect");
-	if (!connect) throw new Error("The tour's Inspector shows a node that is gone: event.connect");
-	const devices = [
-		["computer", "Computer"],
-		["tablet", "Tablet"],
-		["phone", "Phone"],
-	];
+function windowsDemo() {
+	const registry = createRegistry();
+	const preview = {
+		geometry: NODE,
+		nodeColor,
+		pinColor,
+		wirePath,
+		growth: (pin) => growthState(registry.get(pin.id), pin.config),
+	};
 	return `<div class="tour-pane tour-windows-demo">
-          ${devices.map(([id], i) => `<input class="tour-pick" type="radio" name="tour-device" id="tour-device-${id}"${i === 0 ? " checked" : ""} />`).join("")}
-          <div class="tour-device-switch segmented" role="group" aria-label="Show it on">${devices.map(([id, name]) => `<label for="tour-device-${id}">${name}</label>`).join("")}</div>
-          <div class="tour-window" aria-label="The editor, drawn">
-            <div class="tour-window-graph" aria-hidden="true">${graph}</div>
-            <div class="tour-float-row">
-              <div class="tool-group"><span class="logo window-mark">${logoMarkup(15)}<span class="window-name">Roswaal</span></span><span class="tour-doc-name">Touched.server</span></div>
-              <div class="tool-group tour-on-touch"><button type="button" class="tb icon-only" tabindex="-1" title="Project">${icon("folderOpen", 15)}</button><button type="button" class="tb icon-only on" tabindex="-1" title="Inspector">${icon("settings", 15)}</button></div>
-              <span class="spacer"></span>
-              <div class="tool-group"><button type="button" class="tb primary" tabindex="-1">Compile</button><button type="button" class="tb icon-only tour-wide" tabindex="-1" title="Docs">${icon("help", 15)}</button><button type="button" class="tb icon-only" tabindex="-1" title="More">${icon("more", 15)}</button></div>
-            </div>
-            <aside class="tour-card tour-card-project">
-              <div class="tour-card-head">Project</div>
-              <ul class="tour-tree">
-                <li class="tour-tree-folder">${icon("folderOpen", 13)}ServerScriptService</li>
-                <li class="tour-tree-file on">${icon("graph", 13)}Touched.server</li>
-                <li class="tour-tree-file">${icon("graph", 13)}Coins.server</li>
-                <li class="tour-tree-folder">${icon("folderOpen", 13)}Packages</li>
-              </ul>
-            </aside>
-            <aside class="tour-card tour-card-inspector">
-              <div class="tour-card-head">Inspector</div>
-              <div class="tour-ident"><span class="tour-badge" style="background: ${nodeColor(connect)}"></span><span><strong>${escapeHtml(connect.title)}</strong><span class="tour-kind">${escapeHtml(categoryLabel(connect.category))}</span></span></div>
-              ${section("Parameters", [pinRow("hit", "BasePart", "data", true)])}
-              ${section("Pins", [pinRow("In", undefined, "exec", false), pinRow("Signal", "RBXScriptSignal", "data", false), pinRow("Body", undefined, "exec", true)])}
-            </aside>
-            <div class="tool-group tour-strip" aria-hidden="true">${["plus", "minus", "undo", "redo", "fit"].map((n) => `<span class="tb icon-only">${icon(n, 14)}</span>`).join("")}</div>
-            <div class="tour-sheetbar" aria-hidden="true"><span>${icon("folderOpen", 14)}Project</span><span>${icon("function", 14)}Variables</span><span class="on">${icon("settings", 14)}Inspector</span></div>
-          </div>
+          ${DEVICE_LAYOUTS.map(([id], i) => `<input class="tour-pick" type="radio" name="tour-device" id="tour-device-${id}"${i === 0 ? " checked" : ""} />`).join("")}
+          <div class="tour-device-switch segmented" role="group" aria-label="Show it on">${DEVICE_LAYOUTS.map(([id, name]) => `<label for="tour-device-${id}">${name}</label>`).join("")}</div>
+          ${DEVICE_LAYOUTS.map(
+						([id, , spec]) =>
+							`<div class="tour-device tour-device-${id}">${layoutHtml(spec, { ...ART, version: "" }, { preview, numbered: false })}</div>`,
+					).join("\n          ")}
         </div>`;
 }
 
@@ -779,9 +769,10 @@ export const SLIDES = [
 			["0.130.0", "the panels redrawn"],
 		],
 		doc: "docs/the-interface.html",
-		body: "Controls float over the graph in groups. Project and the Inspector are cards that dock, fold and take tabs on a computer, open from the top groups on a tablet, and become sheets on a phone. The panels show each pin in its wire colour.",
+		body: "Controls float over the graph in groups. On a computer the panels are cards that dock, fold and take tabs; on a tablet they open from the groups along the top; on a phone they are sheets from a bar along the bottom.",
 		keys: "The same editor on any screen",
-		tryThis: "Switch between Computer, Tablet and Phone, and fold a section of the Inspector.",
+		tryThis:
+			"Switch between Computer, Tablet and Phone. Each is drawn as <a href='docs/the-interface.html'>The interface</a> draws it.",
 	},
 	{
 		key: "menu",
@@ -797,10 +788,10 @@ export const SLIDES = [
 ];
 
 /**
- * The tour as markup, and the CSS rules that switch it. `graph` is the
- * banner's graph, drawn once by the page and laid under the window slide.
+ * The tour as markup, and the CSS rules that switch it. `tryHref` is where
+ * the last slide's way on goes: the editor.
  */
-export function tourSection({ graph, tryHref }) {
+export function tourSection({ tryHref }) {
 	const nodes = pickerNodes();
 	const demos = {
 		preview: () => previewDemo(),
@@ -808,7 +799,7 @@ export function tourSection({ graph, tryHref }) {
 		visual: () => visualDemo(nodes),
 		hover: () => hoverDemo(HOVER_SOURCE, "stats", "Coins.server.luau"),
 		moonwave: () => hoverDemo(MOONWAVE_SOURCE, "add", "Inventory.luau"),
-		windows: () => windowsDemo(graph),
+		windows: () => windowsDemo(),
 		menu: () => menuDemo(),
 	};
 	const last = SLIDES.length - 1;
@@ -1001,8 +992,10 @@ export const TOUR_STYLE = `
 .tour-hover a { display: block; margin: 7px 10px 8px; font-size: 13px; color: var(--accent); }
 .tour-hover .luau-hover-doc { max-height: 170px; }
 
-/* 5. The editor drawn small, in the shape each screen gives it. */
-.tour-windows-demo { padding: 16px; gap: 12px; align-items: center; background: color-mix(in srgb, var(--bg-canvas) 60%, var(--landing-card)); }
+/* 5. The editor on each kind of screen, as the documentation draws it. The
+   drawings scale themselves to the column (the docs' --z); a phone, being
+   tall, is held smaller so it fits the slide's height. One at a time. */
+.tour-windows-demo { padding: 16px; gap: 10px; align-items: center; background: color-mix(in srgb, var(--bg-canvas) 60%, var(--landing-card)); }
 .tour-device-switch label { padding: 3px 12px; border-radius: var(--radius-xs, 4px); font-size: 13px; cursor: pointer; color: var(--fg-muted, var(--fg-faint)); }
 #tour-device-computer:checked ~ .tour-device-switch label[for="tour-device-computer"],
 #tour-device-tablet:checked ~ .tour-device-switch label[for="tour-device-tablet"],
@@ -1010,91 +1003,16 @@ export const TOUR_STYLE = `
 #tour-device-computer:focus-visible ~ .tour-device-switch label[for="tour-device-computer"],
 #tour-device-tablet:focus-visible ~ .tour-device-switch label[for="tour-device-tablet"],
 #tour-device-phone:focus-visible ~ .tour-device-switch label[for="tour-device-phone"] { outline: 2px solid var(--accent); outline-offset: 1px; }
-.tour-window {
-  position: relative; overflow: hidden; width: 100%; height: 380px; border-radius: 10px;
-  border: 1px solid var(--border-strong, var(--border));
-  background-color: var(--bg-canvas);
-  background-image: radial-gradient(circle, color-mix(in srgb, var(--fg) 9%, transparent) 1.2px, transparent 1.4px);
-  background-size: 22px 22px;
-  transition: width 0.25s ease, height 0.25s ease;
-  font-size: 12px;
-}
-@media (prefers-reduced-motion: reduce) { .tour-window { transition: none; } }
-#tour-device-tablet:checked ~ .tour-window { width: min(100%, 480px); height: 360px; border-radius: 18px; }
-#tour-device-phone:checked ~ .tour-window { width: 210px; height: 380px; border-radius: 26px; }
-.tour-window-graph { position: absolute; inset: 70px 18px 50px 200px; display: flex; align-items: center; }
-.tour-window-graph svg { width: 100%; height: auto; max-height: 100%; }
-#tour-device-tablet:checked ~ .tour-window .tour-window-graph { inset: 60px 16px 40px 50px; }
-#tour-device-phone:checked ~ .tour-window .tour-window-graph { inset: 60px 10px 170px 40px; }
-.tour-float-row { position: absolute; top: 8px; left: 8px; right: 8px; display: flex; gap: 6px; align-items: center; }
-.tour-float-row .spacer { flex: 1; }
-.tour-window .tool-group { flex-wrap: nowrap; }
-.tour-window .tool-group .tb { pointer-events: none; }
-.tour-window .window-mark { display: inline-flex; align-items: center; gap: 6px; padding: 0 6px; color: var(--fg); }
-.tour-window .window-mark .logo-mark { width: 15px; height: 15px; }
-.tour-doc-name { padding: 0 8px 0 2px; color: var(--fg-muted, var(--fg-faint)); white-space: nowrap; }
-.tour-on-touch { display: none !important; }
-#tour-device-tablet:checked ~ .tour-window .tour-on-touch { display: flex !important; }
-#tour-device-phone:checked ~ .tour-window :is(.window-name, .tour-doc-name, .tour-wide) { display: none; }
-.tour-card {
-  position: absolute; background: var(--bg-panel); border: 1px solid var(--border);
-  border-radius: var(--radius-md, 8px); box-shadow: var(--shadow-raised); overflow: hidden;
-}
-.tour-card-head, .tour-tree-card .tour-card-head {
-  padding: 6px 10px; font-weight: 600; font-size: 12px; border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--bg-canvas) 40%, var(--bg-panel));
-}
-.tour-card-project { top: 52px; left: 8px; width: 178px; }
-.tour-card-inspector { top: 52px; right: 8px; width: 214px; }
-#tour-device-computer:checked ~ .tour-window .tour-window-graph { right: 236px; }
-#tour-device-tablet:checked ~ .tour-window .tour-card-project { display: none; }
-#tour-device-tablet:checked ~ .tour-window .tour-card-inspector { left: 112px; right: auto; top: 46px; }
-#tour-device-phone:checked ~ .tour-window .tour-card-project { display: none; }
-#tour-device-phone:checked ~ .tour-window .tour-card-inspector {
-  left: 0; right: 0; top: auto; bottom: 36px; width: auto; border-radius: 14px 14px 0 0; max-height: 150px; overflow: auto;
-}
-.tour-tree { list-style: none; margin: 0; padding: 4px; }
-.tour-tree li { display: flex; align-items: center; gap: 6px; padding: 3px 6px; border-radius: 4px; white-space: nowrap; color: var(--fg-muted, var(--fg)); }
-.tour-tree li svg { flex: none; opacity: 0.8; }
-.tour-tree-file { padding-left: 18px !important; }
-.tour-tree li.on { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--fg); font-weight: 600; }
-.tour-ident { display: flex; align-items: center; gap: 8px; padding: 8px 10px 4px; }
-.tour-badge { width: 12px; height: 12px; border-radius: 3px; flex: none; }
-.tour-kind { display: block; font-size: 11px; color: var(--fg-faint); }
-.tour-sec summary {
-  display: flex; align-items: center; gap: 6px; padding: 6px 10px 2px; cursor: pointer; list-style: none;
-}
-.tour-sec summary::-webkit-details-marker { display: none; }
-.tour-sec summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.tour-sec-name { color: var(--accent); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
-.tour-sec-count { font-size: 11px; color: var(--fg-faint); }
-.tour-sec-rule { flex: 1; height: 1px; background: var(--border); }
-.tour-sec ul { list-style: none; margin: 0; padding: 2px 10px 6px; }
-.tour-sec li { display: flex; align-items: center; gap: 7px; padding: 2px 0; }
-.tour-pin { width: 9px; height: 9px; border-radius: 50%; flex: none; box-sizing: border-box; }
-.tour-pin-name { flex: 1; }
-.tour-type {
-  font: 11px/1.4 ui-monospace, "Cascadia Mono", Consolas, monospace; padding: 0 5px; border-radius: 3px;
-  background: var(--bg-input, var(--bg-app)); color: var(--fg-muted, var(--fg));
-}
-.tour-strip { position: absolute; left: 8px; bottom: 8px; }
-.tour-strip .tb { display: inline-flex; padding: 3px; }
-#tour-device-tablet:checked ~ .tour-window .tour-strip,
-#tour-device-phone:checked ~ .tour-window .tour-strip { flex-direction: column; bottom: auto; top: 52px; }
-#tour-device-phone:checked ~ .tour-window .tour-strip { top: 48px; }
-.tour-sheetbar {
-  display: none; position: absolute; left: 0; right: 0; bottom: 0; height: 36px;
-  align-items: center; justify-content: space-around; border-top: 1px solid var(--border);
-  background: var(--glass, var(--bg-panel)); font-size: 10px;
-}
-.tour-sheetbar span { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; color: var(--fg-faint); }
-.tour-sheetbar span.on { color: var(--accent); }
-#tour-device-phone:checked ~ .tour-window .tour-sheetbar { display: flex; }
-@media (max-width: 640px) {
-  .tour-window { height: 340px; }
-  #tour-device-computer:checked ~ .tour-window .tour-card-project { display: none; }
-  #tour-device-computer:checked ~ .tour-window .tour-window-graph { left: 10px; }
-}
+.tour-device { display: none; width: 100%; min-width: 0; }
+#tour-device-computer:checked ~ .tour-device-computer,
+#tour-device-tablet:checked ~ .tour-device-tablet,
+#tour-device-phone:checked ~ .tour-device-phone { display: block; }
+.tour-device .docs-layout-fit { overflow: hidden; margin: 0 auto; }
+/* Held to about one height, so switching does not move the page under it. */
+.tour-device-computer .docs-layout-fit { max-width: 680px; }
+.tour-device-tablet .docs-layout-fit { max-width: 600px; }
+.tour-device .docs-layout-frame { margin: 0 auto !important; }
+.tour .docs-layout-screen.dev-phone { --z: 0.41; }
 
 /* 6. The one menu, open on the package it was asked about. */
 .tour-menu-demo { flex-direction: row; flex-wrap: wrap; align-items: flex-start; align-content: center; gap: 14px 6px; }

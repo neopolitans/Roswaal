@@ -161,3 +161,53 @@ describe("functions put on a table", () => {
 		});
 	});
 });
+
+/**
+ * Globals nobody declared, since 0.148.0: each says what it is and links its
+ * entry in the Creator Docs, and a global that is an instance says its class.
+ */
+describe("globals and libraries", () => {
+	const DOCS = "https://create.roblox.com/docs/reference/engine";
+	const src = [
+		'local Players = game:GetService("Players")',
+		"workspace.Gravity = 10",
+		"print(math.floor(2.5), typeof(script), _G)",
+		"task.wait(1)",
+	].join("\n");
+
+	it("gives game its class, and links both the class and game's own entry", () => {
+		const hover = over("game", 0, src)!;
+		expect(hover.code).toBe("game: DataModel");
+		expect(hover.role).toBe("Roblox global");
+		expect(hover.link?.href).toBe(`${DOCS}/classes/DataModel`);
+		expect(hover.also?.href).toBe(`${DOCS}/globals/RobloxGlobals#game`);
+	});
+
+	it("reads a member of a global by its class, even where the file sets it", () => {
+		const hover = over("Gravity", 0, src)!;
+		expect(hover.code).toBe("Workspace.Gravity: number");
+		expect(hover.role).toBe("property");
+	});
+
+	it("links Roblox's globals and Luau's to their own pages", () => {
+		expect(over("typeof", 0, src)?.link?.href).toBe(`${DOCS}/globals/RobloxGlobals#typeof`);
+		expect(over("print", 0, src)?.link?.href).toBe(`${DOCS}/globals/LuaGlobals#print`);
+		expect(over("_G", 0, src)?.link?.href).toBe(`${DOCS}/globals/LuaGlobals#_G`);
+		expect(over("script", 0, src)?.code).toBe("script: LuaSourceContainer");
+	});
+
+	it("links a library, and a member to its entry on the library's page", () => {
+		expect(over("math", 0, src)?.link?.href).toBe(`${DOCS}/libraries/math`);
+		expect(over("floor", 0, src)?.link?.href).toBe(`${DOCS}/libraries/math#floor`);
+		expect(over("wait", 0, src)?.code).toBe("task.wait");
+	});
+
+	it("still describes a local by the global's name as the local", () => {
+		const shadow = "local game = 5\nprint(game)";
+		expect(over("game", 1, shadow)?.role).toBe("local");
+	});
+
+	it("tells a Lune script nothing about Roblox's globals", () => {
+		expect(over("game", 0, src, false)).toBeNull();
+	});
+});

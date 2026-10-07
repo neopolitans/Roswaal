@@ -24,6 +24,7 @@ import {
 	type CompileOutcome,
 	type CompileStep,
 	type MapOutcome,
+	type NewProjectChoice,
 	openEventStream,
 	ProjectChangedError,
 	type ProjectInfo,
@@ -380,10 +381,19 @@ export function App() {
 	 * off rather than closing over a dialog that says only what went wrong.
 	 */
 	const loadProject = useCallback(
-		async (root: string, init = false, quiet = false): Promise<boolean> => {
-			setBusy("Opening project…");
+		async (
+			root: string,
+			init: boolean | NewProjectChoice = false,
+			quiet = false,
+		): Promise<boolean> => {
+			setBusy(typeof init === "object" ? "Making the project…" : "Opening project…");
 			try {
-				const info = init ? await api.initProject(root) : await api.openProject(root);
+				const info =
+					typeof init === "object"
+						? await api.newProject(root, init)
+						: init
+							? await api.initProject(root)
+							: await api.openProject(root);
 				api.setProjectRoot(info.root);
 				setProject(info);
 				/**
@@ -970,6 +980,7 @@ export function App() {
 		importRojo,
 		importZip,
 		inDir,
+		newProject,
 		onPackageZip,
 		onPlaceOpenFile,
 		onTreeDelete,
@@ -1051,11 +1062,12 @@ export function App() {
 						    footer is Home, Project, and the other two windows. */}
 							<MenuButton
 								label="Project"
-								title="Open, export or start again"
+								title="Make, open, export or start again"
 								side="above"
 								sections={[
 									{
 										entries: [
+											{ label: "New project…", icon: "newFile", run: () => void newProject() },
 											hostCanBrowse && {
 												label: "Browse…",
 												icon: "folderOpen",

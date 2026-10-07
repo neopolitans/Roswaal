@@ -9,6 +9,27 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.148.0",
+		date: "2026-10-07",
+		headline: "A new project from nothing, with a place to start in.",
+		affects: ["editor", "docs"],
+		added: [
+			"**New projects.** `roswaal new <folder>`, **Create** on the start page and **New project…** in the Project menu make a project from nothing: a node map that writes `default.project.json` with Rojo's three folders (Server in ServerScriptService, Client in StarterPlayerScripts, Shared in ReplicatedStorage) and a Main graph that prints Hello world, compiled and ready. `--lune`, or choosing Lune, makes a Lune project with one main graph.",
+			"**A place to start in.** A new Roblox project has `place.rbxlx` unless you say not to: the usual services, a 512-stud BasePlate with its top at height 0, and a 12-stud SpawnLocation at the centre. Roswaal writes it rather than copying Studio's template, and `roswaal export` writes the project's scripts into it.",
+			"In the web app, **New project…** replaces the project kept in the browser, or, in Chrome and Edge, goes into an empty folder you pick.",
+			"**Hover knows the globals.** `game`, `workspace`, `script` and `plugin` show their class and link both the class and their own entry in the Creator Docs; Roblox's other globals and Luau's link their entries, and a library and its members (`math.floor`, `task.wait`) link the library's page. `game:GetService` and `workspace.Gravity` read as the class's own.",
+		],
+		changed: [
+			"The start page offers **Create** for an empty folder or a path with nothing at it yet, where it said there was nothing there. A folder with files keeps **Initialise**.",
+			"A new project goes only into an empty folder, or one that is not there yet. One with files in it is refused, and left as it was.",
+			"[Getting started](getting-started), [Command line](command-line) and [Places and Rojo projects](places-and-rojo) say how to start a new project.",
+		],
+		fixed: [
+			"The web app walkthrough on Getting started moves on when **Project** is pressed. It had ringed the Project panel behind it instead.",
+			"The front page tour's computer, tablet and phone are drawn as [The interface](the-interface) draws the editor on each, where they were a sketch that put the cards in the wrong places.",
+		],
+	},
+	{
 		version: "0.147.0",
 		date: "2026-10-07",
 		headline: "The front page has a tour of the editor, and its versions open their notes.",

@@ -18,12 +18,14 @@ import { useTransport } from "../app/api.js";
 import { bootEditor } from "../app/boot.jsx";
 import {
 	type DirectoryPick,
+	type NewProjectRequest,
 	type PlacePreview,
 	type RememberedFolder,
 	setRememberedFolders,
 	useDirectoryOpener,
 	useFolderForgetter,
 	usePlaceImporter,
+	useProjectMaker,
 	useZipImporter,
 	type ZipPreview,
 } from "../app/host.js";
@@ -156,9 +158,36 @@ async function readProjectPlace(file: File): Promise<PlacePreview> {
 	};
 }
 
+/**
+ * A project from nothing: in place of the browser's, or in an empty folder
+ * picked here -- the picker needs this window and the click that asked.
+ */
+async function makeNewProject(request: NewProjectRequest): Promise<{ root: string } | null> {
+	if (request.where === "browser") {
+		return transport.newProject(projectName(request.name), request.target, request.place);
+	}
+	if (IS_BACKUP || !canOpenDirectory())
+		throw new Error("This copy of Roswaal does not open folders.");
+	let handle: FileSystemDirectoryHandle;
+	try {
+		handle = await window.showDirectoryPicker({ mode: "readwrite" });
+	} catch (err) {
+		if ((err as DOMException)?.name === "AbortError") return null;
+		throw err;
+	}
+	const made = await transport.mount(handle, false, {
+		target: request.target,
+		place: request.place,
+	});
+	if (!("root" in made)) throw new Error("It could not be made.");
+	await rememberFolder(handle);
+	return made;
+}
+
 async function start(): Promise<void> {
 	useZipImporter(readProjectZip);
 	usePlaceImporter(readProjectPlace);
+	useProjectMaker(makeNewProject);
 	// The backup copy lives on neopolitans.github.io, and browser storage
 	// belongs to the origin, not the path: every other Pages site on that
 	// account could open the folders it remembered, and write to any still

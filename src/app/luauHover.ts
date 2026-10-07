@@ -80,12 +80,14 @@ export function luauHover(
 						dom.append(summary);
 					}
 					if (hover.doc) dom.append(renderDoc(hover.doc));
-					if (hover.link) {
+					// The class first, and for a global its own entry second.
+					for (const to of [hover.link, hover.also]) {
+						if (!to) continue;
 						const link = document.createElement("a");
-						link.href = hover.link.href;
+						link.href = to.href;
 						link.target = "_blank";
 						link.rel = "noopener noreferrer";
-						link.textContent = hover.link.label;
+						link.textContent = to.label;
 						dom.append(link);
 					}
 					return { dom };

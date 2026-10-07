@@ -31,9 +31,9 @@ export function commandLinePage(): DocPage {
 				t: "code",
 				lang: "sh",
 				text: code`
-					cd path/to/your/roblox/project
-					roswaal init      # once per project
-					roswaal serve     # editor on http://127.0.0.1:4471, docs at /docs
+					roswaal new my-game   # a new project, in a new folder
+					cd my-game            # or, in a project you have: roswaal init, once
+					roswaal serve         # editor on http://127.0.0.1:4471, docs at /docs
 					`,
 			},
 			{ t: "h", level: 2, text: "Commands" },
