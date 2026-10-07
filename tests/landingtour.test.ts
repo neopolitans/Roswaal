@@ -238,10 +238,12 @@ describe("the slides added in 0.149.0", () => {
 	it("writes a whole local on a blank line, and the path alone in a line", () => {
 		const slide = slideOf("drag");
 		expect(slide).toContain('aria-label="Drag Workspace.House.Door"');
-		expect(slide).toContain(
-			'data-whole="local Door = game:GetService(&quot;Workspace&quot;).House.Door"',
-		);
-		expect(slide).toContain('data-inline="game:GetService(&quot;Workspace&quot;).House.Door"');
+		expect(slide).toContain('data-whole="local Door = workspace.House.Door"');
+		expect(slide).toContain('data-inline="workspace.House.Door"');
+		// From the local the code declares, since 0.151.0: Config under Shared,
+		// and Shared itself by the name that already holds it.
+		expect(slide).toContain('data-whole="local Config = Shared.Config"');
+		expect(slide).toContain('aria-label="Drag ReplicatedStorage.Shared" data-whole="Shared"');
 		expect((slide.match(/data-whole="/g) ?? []).length).toBe(9);
 	});
 

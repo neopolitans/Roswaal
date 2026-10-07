@@ -55,6 +55,7 @@ import {
 } from "../../src/core/docs/toolbars.ts";
 import { importLuau } from "../../src/core/import/fromLuau.ts";
 import { hoverAt } from "../../src/core/luau/hover.ts";
+import { instanceLocalsAt } from "../../src/core/luau/instances.ts";
 import { growthState } from "../../src/core/nodes/growth.ts";
 import { BUILTIN_NODES, createRegistry, nodeTitle } from "../../src/core/nodes/index.ts";
 import { emptyScript } from "../../src/core/schema.ts";
@@ -802,6 +803,9 @@ function dataModelPaths() {
 	});
 }
 
+/** The Custom Code's first line: a local the drops can start from. */
+const DRAG_PRELUDE = 'local Shared = game:GetService("ReplicatedStorage").Shared';
+
 /**
  * The DataModel browser as the docs draw it, each row draggable into a piece
  * of Custom Code. What a drop writes is `droppedText`'s: a whole local on a
@@ -810,14 +814,22 @@ function dataModelPaths() {
  */
 function dragDemo() {
 	const paths = dataModelPaths();
+	// The Custom Code the rows drop into, with a local that already holds
+	// Shared: what is in scope at each drop is read off this text, as the
+	// editor reads it off the code being edited.
+	const head = `${DRAG_PRELUDE}\n\nlocal function openDoor()\n\t`;
+	const scope = instanceLocalsAt(`${head}\n\tprint()\nend`, head.length);
+	const drop = (path) => ({
+		whole: droppedText({ path }, "block", { from: 0, to: 1, text: "\t" }, 1, scope).insert,
+		inline: droppedText({ path }, "block", { from: 0, to: 7, text: "print()" }, 6, scope).insert,
+	});
 	let row = 0;
 	const tree = toolbarHtml(DATAMODEL_BROWSER, { ...ART, version: "" })
 		.replace(' aria-hidden="true"', "")
 		.replace(/<div class="tree-row place-row[^"]*"/g, (open) => {
 			const path = paths[row++];
 			if (!path) return open;
-			const whole = droppedText({ path }, "block", { from: 0, to: 1, text: "\t" }, 1).insert;
-			const inline = droppedText({ path }, "block", { from: 0, to: 7, text: "print()" }, 6).insert;
+			const { whole, inline } = drop(path);
 			return `${open} tabindex="0" role="button" aria-label="Drag ${escapeHtml(path.join("."))}" data-whole="${escapeHtml(whole)}" data-inline="${escapeHtml(inline)}"`;
 		});
 	if (row !== paths.length)
@@ -825,25 +837,15 @@ function dragDemo() {
 	const config = paths.find((path) => path.at(-1) === "Config");
 	const door = paths.find((path) => path.at(-1) === "Door");
 	if (!config || !door) throw new Error("The DataModel drawing no longer has Config and Door.");
-	const firstWhole = droppedText(
-		{ path: config },
-		"block",
-		{ from: 0, to: 1, text: "\t" },
-		1,
-	).insert;
-	const firstInline = droppedText(
-		{ path: door },
-		"block",
-		{ from: 0, to: 7, text: "print()" },
-		6,
-	).insert;
 	return `<div class="tour-pane tour-canvas grid-surface tour-drag-demo" data-tour="drag">
           <div class="tour-drag-tree">${tree}</div>
           <div class="tour-drag-code code-body">
             <div class="tour-card-head">Custom Code</div>
-            <pre class="landing-code"><code>${tokensHtml("local function openDoor()")}
-	<span class="tour-drop" data-drop="whole" tabindex="0" aria-label="A blank line">${tokensHtml(firstWhole)}</span>
-	${tokensHtml("print(")}<span class="tour-drop" data-drop="inline" tabindex="0" aria-label="Inside print()">${tokensHtml(firstInline)}</span>${tokensHtml(")")}
+            <pre class="landing-code"><code>${tokensHtml(DRAG_PRELUDE)}
+
+${tokensHtml("local function openDoor()")}
+	<span class="tour-drop" data-drop="whole" tabindex="0" aria-label="A blank line">${tokensHtml(drop(config).whole)}</span>
+	${tokensHtml("print(")}<span class="tour-drop" data-drop="inline" tabindex="0" aria-label="Inside print()">${tokensHtml(drop(door).inline)}</span>${tokensHtml(")")}
 ${tokensHtml("end")}</code></pre>
           </div>
           <p class="tour-readout tour-drag-readout" aria-live="polite">Drag a row onto the blank line or into <code>print()</code>.</p>
@@ -1055,11 +1057,15 @@ export const SLIDES = [
 		tab: "Drag in",
 		title: "From the DataModel into your code",
 		since: "0.103.0",
-		steps: [["0.128.0", "dragged into Custom Code"]],
+		steps: [
+			["0.128.0", "dragged into Custom Code"],
+			["0.151.0", "from the locals in scope"],
+		],
 		doc: "docs/project-panel.html",
-		body: "The Project panel's DataModel tab lists your place as Studio's Explorer does. Drag an instance into Custom Code: on a blank line it becomes a whole local, anywhere else the path alone, so a path is never typed by hand.",
+		body: "The Project panel's DataModel tab lists your place as Studio's Explorer does. Drag an instance into Custom Code: on a blank line it becomes a whole local, anywhere else the path alone, starting from a local that already holds part of the way.",
 		keys: "Drag a row, or <kbd>Enter</kbd> on it and then on where it goes",
-		tryThis: "Drag Door onto the blank line, or Config into <code>print()</code>.",
+		tryThis:
+			"Drag Config onto the blank line: it starts from <code>Shared</code>. Then try Shared itself, or Door into <code>print()</code>.",
 	},
 	{
 		key: "wally",
@@ -1348,6 +1354,12 @@ export const TOUR_STYLE = `
 .tour-device .docs-layout-frame { margin: 0 auto !important; }
 .tour .docs-layout-screen.dev-phone { --z: 0.41; }
 
+/* The header of a drawn editor card: Custom Code, or a file's name. */
+.tour-card-head {
+  padding: 6px 10px; font-size: 12px; font-weight: 600; color: var(--fg);
+  border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--bg-canvas) 40%, var(--bg-panel));
+}
+
 /* A part still being finished says so, beside the version it arrived in. */
 .tour-status {
   padding: 1px 7px; border-radius: 4px; font: 600 11px/1.4 ui-monospace, "Cascadia Mono", Consolas, monospace;
@@ -1378,9 +1390,9 @@ export const TOUR_STYLE = `
 .tour-drag-tree .place-row.picked { background: color-mix(in srgb, var(--accent) 22%, transparent); }
 .tour-drag-code { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
 /* A dropped path is long: the line wraps rather than running off the card. */
-.tour-drag-code pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+.tour-drag-code pre { margin: 0; white-space: pre; overflow-x: auto; font-size: 12px; }
 .tour-drop {
-  display: inline; min-width: 8ch; padding: 0 4px; border-radius: 4px;
+  display: inline-block; min-width: 8ch; padding: 0 4px; border-radius: 4px;
   border: 1px dashed color-mix(in srgb, var(--accent) 60%, var(--border)); outline: none;
 }
 .tour-drop.over, .tour-drop:focus-visible { border-style: solid; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, transparent); }

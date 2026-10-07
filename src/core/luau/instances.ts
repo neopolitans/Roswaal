@@ -183,6 +183,35 @@ export function instanceProblems(
 	return out;
 }
 
+/** A local that holds an instance, and that instance's path from the DataModel. */
+export interface InstanceLocal {
+	name: string;
+	path: string[];
+}
+
+/**
+ * The locals in scope at `pos` that hold an instance the code itself names:
+ * `local Shared = RS.Shared` holds ReplicatedStorage › Shared when `RS` was
+ * declared with `game:GetService("ReplicatedStorage")`. A local holding
+ * anything else -- a call's result, a parameter -- is left out, because what
+ * it holds is not written down. Nearest first, so a later local that shadows
+ * an earlier one is the one a reference would use.
+ */
+export function instanceLocalsAt(
+	src: string,
+	pos: number,
+	self?: readonly string[],
+): InstanceLocal[] {
+	const block = luauFile(src).block;
+	const out: InstanceLocal[] = [];
+	for (const local of localsAt(src, pos)) {
+		if (!local.value) continue;
+		const path = pathOf(local.value, src, block, self);
+		if (path && path.length > 0) out.push({ name: local.name, path });
+	}
+	return out.reverse();
+}
+
 /** The instance a name in code stands for, at `pos`: for hover. */
 export function instanceAt(
 	src: string,

@@ -16,7 +16,12 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { checkLuau, type LuauFragment } from "../core/luau/check.js";
 import type { ModuleInfo } from "../core/luau/hover.js";
 import type { TableMember } from "../core/luau/infer.js";
-import { type InstanceNode, indexFromOutline, instanceProblems } from "../core/luau/instances.js";
+import {
+	type InstanceNode,
+	indexFromOutline,
+	instanceLocalsAt,
+	instanceProblems,
+} from "../core/luau/instances.js";
 import type { Registry } from "../core/nodes/index.js";
 import type { NodeScript } from "../core/schema.js";
 import { api } from "./api.js";
@@ -24,6 +29,7 @@ import { cx } from "./cx.js";
 import { instanceDrop } from "./instanceDrop.js";
 import { LAYER } from "./layers.js";
 import {
+	graphInstanceLocals,
 	graphLocalTypes,
 	graphTableMembers,
 	luauCompletionSource,
@@ -92,6 +98,13 @@ export function CodeEditor({
 	);
 	const typesRef = useRef(types);
 	typesRef.current = types;
+	// The graph's names that hold an instance, for a drop to start from.
+	const instanceNames = useMemo(
+		() => graphInstanceLocals(script, registry, nodeId),
+		[script, registry, nodeId],
+	);
+	const instanceNamesRef = useRef(instanceNames);
+	instanceNamesRef.current = instanceNames;
 	// Roblox classes and datatypes are offered only in a graph that compiles
 	// for Roblox. Read through a ref for the same reason as the scope.
 	const targetRef = useRef(script?.target ?? "roblox");
@@ -187,8 +200,16 @@ export function CodeEditor({
 							: [],
 					onChange: setText,
 				}),
-				// An instance dragged in from the DataModel or Properties.
-				instanceDrop(() => kind),
+				// An instance dragged in from the DataModel or Properties, written
+				// from the nearest name that already holds part of its path: the
+				// code's own locals before the drop, then the graph's.
+				instanceDrop(
+					() => kind,
+					(src, at) => [
+						...instanceLocalsAt(src, at, instancesRef.current?.self),
+						...instanceNamesRef.current,
+					],
+				),
 			],
 		});
 

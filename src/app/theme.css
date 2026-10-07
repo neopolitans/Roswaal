@@ -5449,15 +5449,56 @@ button.tb.icon-only.on {
 	color: var(--fg);
 }
 
-.code-body .cm-tooltip-autocomplete > ul > li {
-	padding: 3px 8px;
-	font-family: "Cascadia Mono", Consolas, monospace;
-	font-size: var(--text-sm);
+/* Completion, as the front page tour draws it: a list hung from the line being
+   typed on, its edge the accent the word being completed is underlined in, so
+   the two read as one field and its answers. CodeMirror lays its own list out
+   under `.cm-tooltip.cm-tooltip-autocomplete`, so these go one class deeper. */
+.code-body .cm-completing {
+	background: color-mix(in srgb, var(--accent) 12%, transparent);
+	box-shadow: inset 0 -2px 0 var(--accent);
 }
 
-.code-body .cm-tooltip-autocomplete > ul > li[aria-selected] {
+.code-body .cm-editor .cm-tooltip.cm-tooltip-autocomplete {
+	border-top: 2px solid var(--accent);
+	border-radius: 0 0 8px 8px;
+}
+
+/* Near the bottom of the editor the list opens upwards, and hangs the other way. */
+.code-body .cm-editor .cm-tooltip.cm-tooltip-autocomplete.cm-tooltip-above {
+	border-top: 1px solid var(--border-strong);
+	border-bottom: 2px solid var(--accent);
+	border-radius: 8px 8px 0 0;
+}
+
+.code-body .cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul {
+	padding: 4px 0;
+	border-radius: inherit;
+	font-family: "Cascadia Mono", Consolas, monospace;
+	font-size: var(--text-sm);
+	/* Ten rows, then it scrolls. */
+	max-height: calc(10 * (1.6em + 6px) + 8px);
+}
+
+.code-body .cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul > li {
+	padding: 3px 10px;
+	line-height: 1.6;
+}
+
+.code-body .cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected] {
 	background: var(--accent);
 	color: #fff;
+}
+
+/* What matched what was typed: in the accent, not underlined, so a row reads
+   as the name it offers. */
+.code-body .cm-editor .cm-completionMatchedText {
+	text-decoration: none;
+	font-weight: 600;
+	color: var(--accent);
+}
+
+.code-body .cm-editor li[aria-selected] .cm-completionMatchedText {
+	color: inherit;
 }
 
 .code-body .cm-completionDetail {

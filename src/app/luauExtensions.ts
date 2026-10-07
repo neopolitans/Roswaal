@@ -18,12 +18,22 @@ import {
 	closeBrackets,
 	closeBracketsKeymap,
 	completionKeymap,
+	completionStatus,
 } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { syntaxHighlighting } from "@codemirror/language";
 import { lintGutter } from "@codemirror/lint";
 import { EditorState, type Extension } from "@codemirror/state";
-import { EditorView, highlightActiveLine, keymap, lineNumbers } from "@codemirror/view";
+import {
+	Decoration,
+	type DecorationSet,
+	EditorView,
+	highlightActiveLine,
+	keymap,
+	lineNumbers,
+	ViewPlugin,
+	type ViewUpdate,
+} from "@codemirror/view";
 import type { ModuleInfo } from "../core/luau/hover.js";
 import type { TableMember } from "../core/luau/infer.js";
 import type { InstanceNode } from "../core/luau/instances.js";
@@ -76,6 +86,36 @@ export interface LuauExtensionOptions {
 	extra?: Extension[];
 }
 
+const completing = Decoration.mark({ class: "cm-completing" });
+
+/** The word before the cursor while completion is open: what an answer replaces. */
+function completingMark(state: EditorState): DecorationSet {
+	if (completionStatus(state) !== "active") return Decoration.none;
+	const { head, empty } = state.selection.main;
+	if (!empty) return Decoration.none;
+	const line = state.doc.lineAt(head);
+	const word = /\w+$/.exec(line.text.slice(0, head - line.from));
+	if (!word) return Decoration.none;
+	return Decoration.set([completing.range(head - word[0].length, head)]);
+}
+
+/**
+ * The word being completed, marked as a field to type into, so the list that
+ * hangs below it reads as that field's answers (see `.cm-completing`).
+ */
+const completingWord = ViewPlugin.fromClass(
+	class {
+		decorations: DecorationSet;
+		constructor(view: EditorView) {
+			this.decorations = completingMark(view.state);
+		}
+		update(update: ViewUpdate) {
+			this.decorations = completingMark(update.state);
+		}
+	},
+	{ decorations: (plugin) => plugin.decorations },
+);
+
 /** The extensions for one Luau editor. */
 export function luauExtensions(options: LuauExtensionOptions = {}): Extension[] {
 	const { readOnly = false, completion, lint, warnings, hover, signature, onChange } = options;
@@ -91,7 +131,8 @@ export function luauExtensions(options: LuauExtensionOptions = {}): Extension[] 
 		);
 	} else {
 		extensions.push(history(), closeBrackets());
-		if (completion) extensions.push(autocompletion({ override: [completion], icons: false }));
+		if (completion)
+			extensions.push(autocompletion({ override: [completion], icons: false }), completingWord);
 		// Completion and bracket keymaps first: they only claim keys while
 		// they are actually active, and indentWithTab must not shadow them.
 		extensions.push(

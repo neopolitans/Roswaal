@@ -9,6 +9,23 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.151.0",
+		date: "2026-10-07",
+		headline:
+			"Dragging from the DataModel starts from the locals you have, and completion reads like a form.",
+		affects: ["editor", "docs"],
+		changed: [
+			"An instance dragged into Custom Code starts from the nearest local that already holds part of its path: `Shared.Config` where `local Shared` holds ReplicatedStorage.Shared, `ReplicatedStorage.Remotes` where Get Service fetched ReplicatedStorage earlier in the graph. The locals come from the code itself, then from the Custom Code and Get Service before it in the graph.",
+			"Dragging an instance a local already holds onto a blank line writes that local's name, not a second local for the same thing.",
+			'Instances in Workspace start from `workspace`, where they started from `game:GetService("Workspace")`.',
+			"Completion in Custom Code is a list hung from the line you are typing on, the word you are completing underlined in the accent colour, with long entries shortened to fit and the list scrolling past ten.",
+			"The front page tour's drag slide shows it: a script that has `Shared` already, and Config dragged in as `Shared.Config`.",
+		],
+		fixed: [
+			"The front page tour's drag slide draws its code as code again, with the script's name above it, where the name lost its heading and long lines wrapped.",
+		],
+	},
+	{
 		version: "0.150.0",
 		date: "2026-10-07",
 		headline: "A dot grid behind graphs, as strong as you need it, and a quieter corner label.",

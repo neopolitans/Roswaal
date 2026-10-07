@@ -23,7 +23,8 @@ import {
 	methodsOf,
 	type TableMember,
 } from "../core/luau/infer.js";
-import { childrenOfChain, type InstanceNode } from "../core/luau/instances.js";
+import type { KnownInstance } from "../core/luau/instanceReference.js";
+import { childrenOfChain, type InstanceNode, instanceLocalsAt } from "../core/luau/instances.js";
 import { CONTEXTUAL_WORDS, RESERVED_WORDS, significant, tokenize } from "../core/luau/lexer.js";
 import { type LocalKind, localsAt, topLevelLocals } from "../core/luau/scope.js";
 import { namedResultRef } from "../core/namedResults.js";
@@ -35,7 +36,7 @@ import {
 	type Signature,
 } from "../core/nodes/index.js";
 import { localNameOf } from "../core/nodes/variables.js";
-import { lastSegment, ROBLOX_SERVICES } from "../core/roblox.js";
+import { isService, lastSegment, ROBLOX_SERVICES } from "../core/roblox.js";
 import {
 	DATATYPES as ENGINE_DATATYPES,
 	LIBRARIES,
@@ -787,6 +788,34 @@ interface GraphLocal {
 	 * it is wired in after it.
 	 */
 	provisional?: boolean;
+	/** The instance it holds, where the code that declared it says. */
+	path?: string[];
+}
+
+/**
+ * The names in scope at a node that hold an instance, for an instance dropped
+ * into its code to start from: the top-level locals of the Custom Code blocks
+ * before it, and the services the graph's Get Service nodes hoist -- the
+ * same names completion offers there. The code's own locals are the editor's
+ * to add, nearest of all.
+ */
+export function graphInstanceLocals(
+	script: NodeScript | null,
+	registry: Registry,
+	nodeId: string | null,
+): KnownInstance[] {
+	if (!script) return [];
+	const out: KnownInstance[] = collectPreceding(script, registry, nodeId)
+		.filter((local) => local.path !== undefined && !local.provisional)
+		.map((local) => ({ name: local.name, path: local.path! }));
+	for (const node of script.nodes) {
+		if (node.def !== "roblox.getService") continue;
+		const service = node.literals?.service;
+		if (!service || (service.t !== "string" && service.t !== "raw") || !isService(service.v))
+			continue;
+		out.push({ name: toIdentifier(service.v, "value"), path: [service.v] });
+	}
+	return out;
 }
 
 function collectPreceding(
@@ -809,10 +838,10 @@ function collectPreceding(
 	const seen = new Set<string>();
 	const visited = new Set<string>();
 
-	const add = (name: string, detail: string, type?: string) => {
+	const add = (name: string, detail: string, type?: string, path?: string[]) => {
 		if (name === "" || seen.has(name)) return;
 		seen.add(name);
-		out.push(type ? { name, detail, type } : { name, detail });
+		out.push({ name, detail, ...(type ? { type } : {}), ...(path ? { path } : {}) });
 	};
 
 	const collectFrom = (id: string) => {
@@ -844,8 +873,17 @@ function collectPreceding(
 
 		// Only what the block leaves in scope: its top-level locals. One declared
 		// inside its `if` or loop is gone by the time the next block runs.
+		// And which of them hold an instance the block names, for a drop.
+		const held = new Map(
+			instanceLocalsAt(literal.v, literal.v.length).map((local) => [local.name, local.path]),
+		);
 		for (const name of topLevelLocals(literal.v)) {
-			add(name, `local from ${node.label || "an earlier Custom Code block"}`);
+			add(
+				name,
+				`local from ${node.label || "an earlier Custom Code block"}`,
+				undefined,
+				held.get(name),
+			);
 		}
 	};
 
