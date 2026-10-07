@@ -31,6 +31,7 @@ import {
 	highlightActiveLine,
 	keymap,
 	lineNumbers,
+	tooltips,
 	ViewPlugin,
 	type ViewUpdate,
 } from "@codemirror/view";
@@ -121,6 +122,11 @@ export function luauExtensions(options: LuauExtensionOptions = {}): Extension[] 
 	const { readOnly = false, completion, lint, warnings, hover, signature, onChange } = options;
 	const gutter = options.gutter ?? Boolean(lint || warnings);
 	const extensions: Extension[] = [lineNumbers()];
+	// Tooltips -- hover, signature, completion, lint -- in the page's body
+	// rather than the editor's box, so the edge of a box that clips (the code
+	// editor's, a panel's) cannot cut one off. Their look is the theme's, which
+	// follows them there; see `editorTheme`.
+	if (typeof document !== "undefined") extensions.push(tooltips({ parent: document.body }));
 	if (gutter) extensions.push(lintGutter());
 	extensions.push(highlightActiveLine());
 

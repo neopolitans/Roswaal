@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.154.1",
+		date: "2026-10-07",
+		headline:
+			"The canvas's grid holds still while you zoom, and code hovers are no longer cut off.",
+		affects: ["editor"],
+		fixed: [
+			"Zooming the canvas no longer makes the dot grid jitter. A browser rounds a repeating background to whole device pixels one tile at a time, so at some zooms the dots far from the canvas's corner sat up to 7px from where they belonged, and jumped back as the zoom changed. The canvas now draws its grid itself, each dot and line where it falls, within half a pixel at every zoom. Dots or Lines, Grid contrast and the theme are followed as before.",
+			"A hover, signature, lint message or completion list in the code editor is no longer cut off by the editor's edge: one shown above the first lines was clipped to its last row. The editors' tooltips are drawn over the page, the same in the code editor, the source view and Node Design.",
+		],
+	},
+	{
 		version: "0.154.0",
 		date: "2026-10-07",
 		headline: "Instance.new offers only the classes it can make.",

@@ -1670,6 +1670,10 @@ button.tb.primary:hover:not(:disabled) {
 .canvas .grid {
 	position: absolute;
 	inset: 0;
+	/* A canvas keeps its own 300 by 150 unless told to fill. */
+	display: block;
+	width: 100%;
+	height: 100%;
 	pointer-events: none;
 }
 
@@ -1690,8 +1694,11 @@ button.tb.primary:hover:not(:disabled) {
    has been left to follow it. The colours for each strength are the theme's,
    from `derivedTokens`.
 
-   A surface sets `--grid-step` to change its spacing, and the editor's canvas
-   sets `--grid-x` and `--grid-y` to pan it. */
+   A surface sets `--grid-step` to change its spacing. The editor's canvas,
+   which zooms, draws its grid itself from these same properties rather than
+   painting this background: a repeating background is rounded to whole
+   device pixels a tile at a time, and zooming made the dots jitter. See
+   `GridLayer.tsx`. */
 :root {
 	--grid-step: 24px;
 	--grid-x: 0px;
@@ -1774,16 +1781,6 @@ button.tb.primary:hover:not(:disabled) {
 		var(--grid-step) var(--grid-step),
 		var(--grid-step) var(--grid-step);
 	background-position: var(--grid-x) var(--grid-y);
-}
-
-/* Zoomed far out the fine grid would be a wash, so the canvas sets
-   `data-far` and its step to the coarse spacing: one dot in five stays, or
-   only the heavier lines. */
-:root[data-grid="lines"] :where(.grid-surface[data-far]) {
-	background-image:
-		linear-gradient(to right, var(--grid-coarse) 1px, transparent 1px),
-		linear-gradient(to bottom, var(--grid-coarse) 1px, transparent 1px);
-	background-size: var(--grid-step) var(--grid-step);
 }
 
 .canvas .world {
@@ -5435,85 +5432,18 @@ button.tb.icon-only.on {
 	}
 }
 
-/* Lint squiggles and the completion popup, themed with the rest of the app. */
+/* Lint squiggles, themed with the rest of the app. */
 .code-body .cm-lintRange-error {
 	background: none;
 	border-bottom: 2px wavy var(--danger);
 }
 
-.code-body .cm-diagnostic {
-	border-left-color: var(--danger);
-	background: var(--bg-panel);
-	color: var(--fg);
-	font-family: inherit;
-}
-
-.code-body .cm-tooltip,
-.source-body .cm-tooltip {
-	background: var(--bg-panel);
-	border: 1px solid var(--border-strong);
-	border-radius: var(--radius-sm);
-	box-shadow: var(--shadow-popover);
-	color: var(--fg);
-}
-
-/* Completion, as the front page tour draws it: a list hung from the line being
-   typed on, its edge the accent the word being completed is underlined in, so
-   the two read as one field and its answers. CodeMirror lays its own list out
-   under `.cm-tooltip.cm-tooltip-autocomplete`, so these go one class deeper. */
+/* The word completion is replacing, marked as a field to type into. The list
+   that hangs from it is styled with the editor's theme, in luauTheme.ts:
+   tooltips are rendered into the body, out of reach of rules scoped here. */
 .code-body .cm-completing {
 	background: color-mix(in srgb, var(--accent) 12%, transparent);
 	box-shadow: inset 0 -2px 0 var(--accent);
-}
-
-.code-body .cm-editor .cm-tooltip.cm-tooltip-autocomplete {
-	border-top: 2px solid var(--accent);
-	border-radius: 0 0 8px 8px;
-}
-
-/* Near the bottom of the editor the list opens upwards, and hangs the other way. */
-.code-body .cm-editor .cm-tooltip.cm-tooltip-autocomplete.cm-tooltip-above {
-	border-top: 1px solid var(--border-strong);
-	border-bottom: 2px solid var(--accent);
-	border-radius: 8px 8px 0 0;
-}
-
-.code-body .cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul {
-	padding: 4px 0;
-	border-radius: inherit;
-	font-family: "Cascadia Mono", Consolas, monospace;
-	font-size: var(--text-sm);
-	/* Ten rows, then it scrolls. */
-	max-height: calc(10 * (1.6em + 6px) + 8px);
-}
-
-.code-body .cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul > li {
-	padding: 3px 10px;
-	line-height: 1.6;
-}
-
-.code-body .cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected] {
-	background: var(--accent);
-	color: #fff;
-}
-
-/* What matched what was typed: in the accent, not underlined, so a row reads
-   as the name it offers. */
-.code-body .cm-editor .cm-completionMatchedText {
-	text-decoration: none;
-	font-weight: 600;
-	color: var(--accent);
-}
-
-.code-body .cm-editor li[aria-selected] .cm-completionMatchedText {
-	color: inherit;
-}
-
-.code-body .cm-completionDetail {
-	margin-left: 10px;
-	font-style: normal;
-	opacity: 0.7;
-	font-size: var(--text-xs);
 }
 
 .code-body .cm-lint-marker-error {

@@ -16,6 +16,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { landingPage } from "../scripts/lib/landing.mjs";
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import * as tourModule from "../scripts/lib/tour.mjs";
+import { gridMarks, gridSpacing } from "../src/app/GridLayer.jsx";
 import {
 	DEFAULTS,
 	GRID_CONTRASTS,
@@ -130,5 +131,45 @@ describe("the grid is drawn in one place", () => {
 		const canvases = html.match(/class="[^"]*\btour-canvas\b[^"]*"/g) ?? [];
 		expect(canvases.length).toBeGreaterThan(5);
 		for (const one of canvases) expect(one).toContain("grid-surface");
+	});
+});
+
+/**
+ * The editor canvas's grid, drawn since 0.154.1 rather than painted: a
+ * repeating background is rounded to whole device pixels a tile at a time,
+ * and zooming walked the error across the screen as jitter.
+ */
+describe("the canvas's grid", () => {
+	it("puts every mark on its own place, however far along and at any zoom", () => {
+		for (const zoom of [0.6, 1, 1.013, 1.027, 1.055, 2.37]) {
+			const { step } = gridSpacing(zoom);
+			const origin = 13.7;
+			const marks = gridMarks(origin, step, 4000);
+			for (const { at, k } of marks) expect(Math.abs(at - (origin + k * step))).toBeLessThan(1e-9);
+			// Consecutive marks are one step apart all the way, never rounded.
+			for (let i = 1; i < marks.length; i++)
+				expect(marks[i]!.at - marks[i - 1]!.at).toBeCloseTo(step, 9);
+		}
+	});
+
+	it("covers the whole length, a step beyond each edge", () => {
+		const marks = gridMarks(-500.25, 24, 1440);
+		expect(marks[0]!.at).toBeLessThanOrEqual(-0);
+		expect(marks.at(-1)!.at).toBeGreaterThanOrEqual(1440);
+		expect(marks.every((m) => m.at >= -24 && m.at <= 1464)).toBe(true);
+	});
+
+	/** The index counts from the world origin, so the heavier lines stay put as the view pans. */
+	it("counts marks from the world's origin, wherever the view is", () => {
+		for (const origin of [0, -48, 37.5, -1000.3]) {
+			for (const { at, k } of gridMarks(origin, 24, 1440)) {
+				expect((at - origin) / 24).toBeCloseTo(k, 9);
+			}
+		}
+	});
+
+	it("goes to the coarse spacing when the fine would be a wash", () => {
+		expect(gridSpacing(1)).toEqual({ step: 24, far: false });
+		expect(gridSpacing(0.5)).toEqual({ step: 60, far: true });
 	});
 });

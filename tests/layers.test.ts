@@ -25,7 +25,10 @@ import { describe, expect, it } from "vitest";
 
 import { LAYER } from "../src/app/layers.js";
 
-const canvas = readFileSync(new URL("../src/app/Canvas.tsx", import.meta.url), "utf8");
+// The canvas and the layers drawn in files of their own: the grid, since 0.154.1.
+const canvas = ["Canvas.tsx", "GridLayer.tsx"]
+	.map((file) => readFileSync(new URL(`../src/app/${file}`, import.meta.url), "utf8"))
+	.join("\n");
 const css = readFileSync(new URL("../src/app/theme.css", import.meta.url), "utf8");
 
 describe("the canvas stacking order", () => {

@@ -52,6 +52,7 @@ import {
 	updateComment,
 	wireLanding,
 } from "./edits.js";
+import { GridLayer } from "./GridLayer.jsx";
 import {
 	isReroute,
 	nodeBounds,
@@ -1518,29 +1519,6 @@ export function Canvas({
 }
 
 // ---------------------------------------------------------------------------
-
-/**
- * The grid, painted as a repeating background rather than drawn.
- *
- * What it looks like -- dots or lines, and how strong -- is the stylesheet's,
- * in one place for every surface that draws a grid (see "The grid" in
- * theme.css). The canvas only says where: the spacing at this zoom, and the
- * pan, so the grid moves with the graph. Zoomed far enough out that the fine
- * spacing would be a wash, it hands over the coarse spacing and says so, and
- * the stylesheet keeps one dot in five, or only the heavier lines.
- */
-function GridLayer({ view }: { view: View }) {
-	const fine = GRID.fine * view.zoom;
-	const far = view.zoom < GRID.fineFadeBelow;
-	const step = far ? fine * GRID.coarseMultiple : fine;
-	const style = {
-		zIndex: LAYER.grid,
-		"--grid-step": `${step}px`,
-		"--grid-x": `${view.x}px`,
-		"--grid-y": `${view.y}px`,
-	} as React.CSSProperties;
-	return <div className="grid grid-surface" data-far={far ? "" : undefined} style={style} />;
-}
 
 interface CommentViewProps {
 	comment: Comment;

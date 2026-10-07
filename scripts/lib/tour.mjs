@@ -29,6 +29,7 @@ import { droppedText } from "../../src/app/instanceDrop.ts";
 import { NODE } from "../../src/app/layers.ts";
 import { logoMarkup } from "../../src/app/logo.tsx";
 import { luauCompletionSource } from "../../src/app/luauCompletions.ts";
+import { TOOLTIP_STYLE, themeCss } from "../../src/app/luauTheme.ts";
 import { nodeColor, pinColor } from "../../src/app/palette.ts";
 import { analyse, fold } from "../../src/app/SelectionPreview.tsx";
 import { NODE_ALIASES } from "../../src/core/aliases.ts";
@@ -1189,6 +1190,9 @@ ${SLIDES.map(
 }
 
 export const TOUR_STYLE = `
+/* The editors' tooltip rules, for slide 5's completion list. */
+${themeCss(".tour-complete-box", TOOLTIP_STYLE)}
+
 /* The tour: one slide at a time, the words on the left and the thing itself
    on the right, the same height whichever is showing so the page under it
    does not jump. Switched by radio buttons, like the examples. */
@@ -1376,9 +1380,12 @@ export const TOUR_STYLE = `
   font: inherit; color: var(--fg); background: color-mix(in srgb, var(--accent) 12%, transparent);
   border: 0; border-bottom: 2px solid var(--accent); padding: 0 2px; outline: none; min-width: 4ch;
 }
-.tour .cm-tooltip-autocomplete { position: relative; border-top: 0; border-radius: 0 0 8px 8px; }
+/* The list is drawn with the editors' own tooltip rules (TOOLTIP_STYLE, below),
+   then hung from the line here: it sits in the page rather than floating, and
+   the line above it carries the accent, so it needs no edge of its own. */
+.tour .tour-complete-box .cm-tooltip.cm-tooltip-autocomplete { position: relative; border-top: 0; border-radius: 0 0 8px 8px; }
 .tour .cm-tooltip-autocomplete[hidden] { display: none; }
-.tour .cm-tooltip-autocomplete ul { list-style: none; margin: 0; padding: 4px 0; max-height: 230px; overflow: auto; }
+.tour .tour-complete-box .cm-tooltip.cm-tooltip-autocomplete > ul { list-style: none; margin: 0; max-height: 230px; overflow: auto; }
 .tour .cm-tooltip-autocomplete li { cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tour-complete-readout { text-align: left; width: min(520px, 100%); margin: 0; }
 
