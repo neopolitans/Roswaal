@@ -66,7 +66,10 @@ export interface NamedType {
 export interface ScriptCallRef {
 	/** The Function or Declare Function it calls, by node id. */
 	function?: string;
-	/** Or the Require Module it calls through, by node id, for a module's function. */
+	/**
+	 * Or, for a module's function, what it calls through: a Require Module, by
+	 * node id, or a module the script declares, by the declaration's id.
+	 */
 	module?: string;
 	/** What the module is required as, cached for the header: `Config`. */
 	moduleName?: string;
@@ -463,8 +466,8 @@ export interface ExportedFunction {
  * Every call to a required module's function, brought up to date with what the
  * project says the module exports now.
  *
- * `exportsOf` maps a Require Module node to that module's functions, or
- * undefined when the project cannot say which module it is.
+ * `exportsOf` maps a Require Module node, or a declared module's id, to that
+ * module's functions, or undefined when the project cannot say which module it is.
  */
 export function syncModuleCalls(
 	script: NodeScript,

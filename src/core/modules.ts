@@ -26,6 +26,7 @@
  * | `@game/` — top-level services | yes | no |
  * | `@lune/*` — the standard library | no | yes, built in |
  * | any other `@alias/` from `.luaurc` | **not yet** | yes |
+ * | an instance, `ReplicatedStorage.Shared.Greeter` | yes | no |
  *
  * That last row is the one that is a warning rather than an error. Roblox's own
  * announcement, [Introducing Require-by-String][announce], answers "custom
@@ -44,7 +45,10 @@
  * [amended]: https://rfcs.luau.org/amended-require-resolution.html
  */
 
+import { quoteString } from "./compiler/quote.js";
+import { RESERVED_WORDS } from "./luau/lexer.js";
 import { aliasesOf, type LuaurcChain } from "./luaurc.js";
+import { isService } from "./roblox.js";
 import type { Target } from "./schema.js";
 
 export interface SpecifierProblem {
@@ -115,13 +119,32 @@ export function checkSpecifier(
 
 	if (text.startsWith("./") || text.startsWith("../")) return null;
 
+	// Where the module sits, rather than a string: Roblox's older and still
+	// commoner way, and one Lune cannot follow, having no DataModel.
+	const place = parseInstancePath(text);
+	if (place !== null) {
+		if ("problem" in place) return { severity: "error", message: place.problem };
+		if (target === "lune") {
+			return {
+				severity: "error",
+				message:
+					`"${text}" is a place in Roblox's DataModel, and Lune has none to require from. ` +
+					"Use a path, or an alias from your `.luaurc`.",
+			};
+		}
+		return null;
+	}
+
 	if (!text.startsWith("@")) {
 		return {
 			severity: "error",
 			message:
 				`"${text}" needs a prefix. A require starts with \`./\` or \`../\` for a path, or ` +
 				"`@` for an alias — an unprefixed one is an error in Luau itself now, not a " +
-				"fallback to something else.",
+				"fallback to something else." +
+				(target === "roblox"
+					? " Or name where it sits, from a service: `ReplicatedStorage.Shared.Greeter`."
+					: ""),
 		};
 	}
 
@@ -202,4 +225,92 @@ function undefinedAlias(alias: string, context: SpecifierContext): SpecifierProb
 			`No \`.luaurc\` above this script defines \`@${alias}\`. Check the spelling, or add ` +
 			"the alias in Settings.",
 	};
+}
+
+/**
+ * A require by where the module sits in the DataModel, rather than by string:
+ * `ReplicatedStorage.Shared.Greeter`, `game.ReplicatedStorage.Shared.Greeter`,
+ * `script.Parent.Util`. The way Roblox code required modules before
+ * require-by-string, and still the way most of it does.
+ *
+ * Read as written, but only as far as a path goes: names after dots, names in
+ * brackets, and `:WaitForChild("Name")`. A field in the Variables panel is not
+ * somewhere to hide a call, so anything else is refused rather than written.
+ */
+export interface InstancePath {
+	/** A service, or `script` or `workspace`; `game` when what follows is not a service. */
+	root: string;
+	/** Each step down from the root, and whether it waits for the child. */
+	steps: { name: string; wait: boolean }[];
+}
+
+const NAME = /^[A-Za-z_][A-Za-z0-9_]*/;
+const PATH_HEADS = new Set(["game", "script", "workspace"]);
+
+/**
+ * The instance path a specifier names, a problem with one that starts like a
+ * path and goes wrong, or `null` for one that does not start like a path at all
+ * -- `@lune/fs`, `./util` -- which is a string and checked as one.
+ */
+export function parseInstancePath(
+	specifier: string,
+): { path: InstancePath } | { problem: string } | null {
+	const text = specifier.trim();
+	const head = NAME.exec(text)?.[0];
+	if (!head || (!PATH_HEADS.has(head) && !isService(head))) return null;
+
+	const steps: InstancePath["steps"] = [];
+	let rest = text.slice(head.length);
+	let root = head;
+	const wrong = (what: string) => ({
+		problem:
+			`"${text}" reads as a place in the DataModel, but ${what}. A path is names after ` +
+			'dots, names in brackets (`["Main Menu"]`) and `:WaitForChild("Name")`.',
+	});
+
+	while (rest !== "") {
+		let match: RegExpExecArray | null;
+		if ((match = /^\s*\.\s*([A-Za-z_][A-Za-z0-9_]*)/.exec(rest))) {
+			steps.push({ name: match[1]!, wait: false });
+		} else if ((match = /^\s*\[\s*(["'])([^"'\\\n]*)\1\s*\]/.exec(rest))) {
+			steps.push({ name: match[2]!, wait: false });
+		} else if ((match = /^\s*:\s*WaitForChild\s*\(\s*(["'])([^"'\\\n]*)\1\s*\)/.exec(rest))) {
+			steps.push({ name: match[2]!, wait: true });
+		} else if (
+			root === "game" &&
+			steps.length === 0 &&
+			(match = /^\s*:\s*GetService\s*\(\s*(["'])([^"'\\\n]*)\1\s*\)/.exec(rest))
+		) {
+			root = match[2]!;
+		} else {
+			return wrong(`\`${rest.trim().slice(0, 24)}\` is not part of one`);
+		}
+		rest = rest.slice(match[0].length);
+	}
+
+	// `game.ReplicatedStorage` is the service, and is hoisted as one.
+	if (root === "game" && steps[0] && !steps[0].wait && isService(steps[0].name)) {
+		root = steps.shift()!.name;
+	}
+	if (steps.length === 0) return wrong("it stops before reaching a ModuleScript");
+	return { path: { root, steps } };
+}
+
+/** An instance path's steps written after `base`, the way Luau needs each name. */
+export function renderInstancePath(base: string, steps: InstancePath["steps"]): string {
+	return steps.reduce((acc, step) => {
+		if (step.wait) return `${acc}:WaitForChild(${quoteString(step.name)})`;
+		return NAME.exec(step.name)?.[0] === step.name && !RESERVED_WORDS.has(step.name)
+			? `${acc}.${step.name}`
+			: `${acc}[${quoteString(step.name)}]`;
+	}, base);
+}
+
+/** How a DataModel path is written in the Modules list: `ReplicatedStorage.Shared.Greeter`. */
+export function instanceSpecifier(path: readonly string[]): string {
+	const [root = "", ...rest] = path;
+	return renderInstancePath(
+		root,
+		rest.map((name) => ({ name, wait: false })),
+	);
 }

@@ -9,6 +9,25 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.152.0",
+		date: "2026-10-07",
+		headline: "Require a module by where it sits, and declare the services a script fetches.",
+		affects: ["editor", "docs"],
+		added: [
+			'**Modules by where they sit.** On Roblox, a module in the Variables panel can be `ReplicatedStorage.Shared.Greeter`, `game.ReplicatedStorage.Shared.Greeter`, `script.Parent.Util` or a path with `:WaitForChild("Name")`, and compiles to `require(ReplicatedStorage.Shared.Greeter)` through the hoisted service. Left unnamed, it is named after the ModuleScript. Only a path is accepted: another call or an operator in the field is an error.',
+			"**Services**, in the Variables panel of a Roblox graph: the services the script fetches at the top of the file, in the order you list them. Drag one onto the canvas for a Get Service that reads the same local; Custom Code can use it by name, and completion and DataModel drops in Custom Code start from it.",
+			"A declared service nothing uses is a warning, so the top of the file lists what the script depends on. On Lune a declared service is an error.",
+			"Drag a ModuleScript from the DataModel browser onto Modules to declare it by where it sits, or a service onto Services to declare it.",
+			"**Call a declared module's functions.** A module declared by where it sits offers its exported functions in the node search, `Call Greeter.greet`, as a Require Module node's do, and the call goes through the declaration's one `require`.",
+		],
+		changed: [
+			"Exported types of a module declared by where it sits are offered as `Greeter.Type`, as a Require Module node's are.",
+			"Custom Code completion offers the script's declared modules by name.",
+			"An empty section of the Variables panel is one short line, what goes there or how to add one; hover it for the longer account.",
+			"[Modules](modules) explains requiring by where a module sits, and declaring services.",
+		],
+	},
+	{
 		version: "0.151.0",
 		date: "2026-10-07",
 		headline:

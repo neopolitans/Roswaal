@@ -27,6 +27,7 @@
  */
 
 import { DEMO_PROJECTS } from "../demoProjects.js";
+import { EMPTY_SERVICES, EMPTY_VARIABLES, emptyModules } from "../panelHints.js";
 import type { Target } from "../schema.js";
 import {
 	type NodePreview,
@@ -351,12 +352,11 @@ function cardHtml(card: LayoutCard, art: ToolbarArt, preview?: PreviewOptions): 
 					art,
 				),
 				`<div class="variables">` +
-					`<div class="variable-list"><p class="hint">None yet. A variable is a value the whole ` +
-					`script can read and write, as opposed to a local, which only exists inside the block ` +
-					`that declared it.</p>` +
+					`<div class="variable-list"><p class="hint">${EMPTY_VARIABLES.text}</p>` +
+					`<h3 class="variables-sub"><span>Services</span><button type="button" class="tb"${INERT}>Add</button></h3>` +
+					`<p class="hint">${EMPTY_SERVICES.text}</p>` +
 					`<h3 class="variables-sub"><span>Modules</span><button type="button" class="tb"${INERT}>Add</button></h3>` +
-					`<p class="hint">None. A module is required once at the top of the generated file and ` +
-					`read wherever you drag it — so four uses write one <code>require</code>.</p></div></div>`,
+					`<p class="hint">${emptyModules("roblox").text}</p></div></div>`,
 				true,
 			);
 		case "graphSettings":

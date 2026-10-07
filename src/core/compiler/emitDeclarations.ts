@@ -9,7 +9,7 @@
 import { commentLines } from "../comments.js";
 import { bodyPinOf } from "../functionBody.js";
 import { checkLuau } from "../luau/check.js";
-import { checkSpecifier } from "../modules.js";
+import { checkSpecifier, parseInstancePath, renderInstancePath } from "../modules.js";
 import {
 	type Signature,
 	signatureOf,
@@ -176,7 +176,15 @@ export function declareModules(e: Emitter): void {
 		// `./inventory/util` is a shape real projects have — and the answer
 		// to that is for the author to rename one, which they can only do
 		// if we tell them.
-		const wanted = toIdentifier(module.name.trim() || specifierName(specifier) || "module");
+		// Where it sits, on Roblox: `require(ReplicatedStorage.Shared.Greeter)`,
+		// from the same hoisted service a Get Service would read.
+		const parsed = e.script.target === "roblox" ? parseInstancePath(specifier) : null;
+		const place = parsed && "path" in parsed ? parsed.path : null;
+		const wanted = toIdentifier(
+			module.name.trim() ||
+				(place ? (place.steps.at(-1)?.name ?? "") : specifierName(specifier)) ||
+				"module",
+		);
 		if (!claimModuleName(e, wanted, specifier)) continue;
 		if (PROVIDED_GLOBALS.includes(wanted)) {
 			e.warn(
@@ -195,7 +203,9 @@ export function declareModules(e: Emitter): void {
 		}
 		e.requires.set(`module:${module.id}`, {
 			ident,
-			expression: quoteString(specifier),
+			expression: place
+				? renderInstancePath(resolveRoot(e, place.root), place.steps)
+				: quoteString(specifier),
 			// A member takes the name it asks for, verbatim.
 			//
 			// `uniqueForFile` would not give it one: the emitter reserves the
@@ -215,6 +225,63 @@ export function declareModules(e: Emitter): void {
 					return { member, ident };
 				}),
 		});
+	}
+}
+
+/**
+ * The services this script declares, hoisted first and in the order listed.
+ *
+ * Ahead of the modules, whose paths usually start at one, and of the walk, so
+ * a declared service gets its plain name and a Get Service for it later reads
+ * the same local rather than making a second.
+ */
+export function declareServices(e: Emitter): void {
+	const declared = (e.script.services ?? []).map((name) => name.trim()).filter(Boolean);
+	if (declared.length === 0 || e.options.inline) return;
+	if (e.script.target !== "roblox") {
+		e.error(
+			`This script declares ${declared.length === 1 ? "a service" : "services"} ` +
+				`(${declared.join(", ")}), and services are Roblox's: Lune has no DataModel to get ` +
+				"them from. Remove them from the Variables panel.",
+		);
+		return;
+	}
+	for (const name of declared) {
+		if (e.services.has(name)) {
+			e.warn(`${name} is declared twice in Services. It is fetched once.`);
+			continue;
+		}
+		if (!isRobloxService(name)) {
+			e.warn(
+				`"${name}" is not a service Roblox lists. It is still written, and GetService ` +
+					"will say at run time whether it exists.",
+			);
+		}
+		e.services.set(name, e.names.uniqueForFile(name, "service"));
+	}
+}
+
+/**
+ * A declared service nothing reads: said, so that what is declared is what is
+ * used. Read off what was written -- the flow, every function, the Custom Code
+ * and the module paths -- because a service is read by name wherever code
+ * mentions it, not only through a node that asked for it.
+ */
+export function checkDeclaredServices(e: Emitter): void {
+	const declared = new Set((e.script.services ?? []).map((name) => name.trim()));
+	if (declared.size === 0 || e.options.inline || e.script.target !== "roblox") return;
+	const written = [
+		...e.out.map((line) => line.text),
+		...[...e.requires.values()].map((required) => required.expression),
+	].join("\n");
+	for (const [service, ident] of e.services) {
+		if (!declared.has(service)) continue;
+		// The name on its own: not `x.Players`, not `:Players`, not inside "Players".
+		if (new RegExp(`(^|[^\\w.:"'])${ident}(?![\\w])`).test(written)) continue;
+		e.warn(
+			`${service} is declared in Services and nothing uses it. Use it, or remove it from ` +
+				"the Variables panel.",
+		);
 	}
 }
 

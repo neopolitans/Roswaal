@@ -1992,7 +1992,7 @@ export const VARIABLES_PANEL: ToolbarSpec = {
 	id: "variables-panel",
 	title: "The Variables panel",
 	summary:
-		"Everything this script declares: its variables, its modules, its locals and its functions.",
+		"Everything this script declares: its variables, its services, its modules, its locals and its functions.",
 	chrome: "panel",
 	groups: [
 		{
@@ -2016,6 +2016,18 @@ export const VARIABLES_PANEL: ToolbarSpec = {
 				{ t: "row", label: "MaxTanks", trailing: "number", swatch: "number", badge: "const" },
 				{
 					t: "heading",
+					text: "Services",
+					action: "Add",
+					name: "Services",
+					what:
+						"The services this script fetches at the top of the file, in this order. Roblox " +
+						"graphs only. Drag one onto the canvas for a Get Service, or use it by name in " +
+						"Custom Code; one nothing uses is a warning.",
+				},
+				{ t: "row", label: "ReplicatedStorage", trailing: "service", swatch: "Instance" },
+				{ t: "row", label: "Players", trailing: "service", swatch: "Instance" },
+				{
+					t: "heading",
 					text: "Modules",
 					action: "Add",
 					name: "Modules",
@@ -2026,8 +2038,13 @@ export const VARIABLES_PANEL: ToolbarSpec = {
 				},
 				// `outline` rather than a colour: a variable's swatch is its type's,
 				// and a module has no type.
-				{ t: "row", label: "roblox", trailing: "@lune/roblox", swatch: "outline" },
-				{ t: "row", label: "Config", trailing: "./Config", swatch: "outline" },
+				{
+					t: "row",
+					label: "Greeter",
+					trailing: "ReplicatedStorage.Shared.Greeter",
+					swatch: "outline",
+				},
+				{ t: "row", label: "Config", trailing: "@self/Config", swatch: "outline" },
 				{
 					t: "heading",
 					text: "Locals",
@@ -2094,6 +2111,7 @@ export function pointingElsewhere(
 const POINTERS = {
 	variables:
 		"Values the whole script reads and writes. See [Variables and locals](variables-and-locals).",
+	services: "The services this script fetches at the top. See [Modules](modules).",
 	modules: "What this script requires, one `require` each. See [Modules](modules).",
 	locals: "Values that exist inside one block. See [Variables and locals](variables-and-locals).",
 	functions: "Every function this script declares. See [Functions](functions).",
@@ -2114,6 +2132,7 @@ export const MODULES_PANEL: ToolbarSpec = pointingElsewhere(VARIABLES_PANEL, {
  * with modules and functions pointing at the pages about them.
  */
 export const VARIABLES_PAGE_PANEL: ToolbarSpec = pointingElsewhere(VARIABLES_PANEL, {
+	services: POINTERS.services,
 	modules: POINTERS.modules,
 	functions: POINTERS.functions,
 });
@@ -2121,6 +2140,7 @@ export const VARIABLES_PAGE_PANEL: ToolbarSpec = pointingElsewhere(VARIABLES_PAN
 /** The Variables panel as the Functions page draws it. */
 export const FUNCTIONS_PANEL: ToolbarSpec = pointingElsewhere(VARIABLES_PANEL, {
 	variables: POINTERS.variables,
+	services: POINTERS.services,
 	modules: POINTERS.modules,
 	locals: POINTERS.locals,
 });
@@ -3467,6 +3487,14 @@ export const BROWSER_TOOLBARS: ToolbarSpec[] = [
  */
 export function declarationsPanel(script: NodeScript): ToolbarSpec | undefined {
 	const items: ToolbarItem[] = [];
+
+	const services = script.services ?? [];
+	if (services.length > 0) {
+		items.push({ t: "heading", text: "Services", level: 3, action: "Add" });
+		for (const service of services) {
+			items.push({ t: "row", label: service, trailing: "service", swatch: "Instance" });
+		}
+	}
 
 	const modules = script.modules ?? [];
 	if (modules.length > 0) {

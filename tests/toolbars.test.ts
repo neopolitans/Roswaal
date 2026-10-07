@@ -533,11 +533,11 @@ describe("drawing a panel", () => {
 	 */
 	it("lists the sections and not the example rows", () => {
 		const listed = legendOf(VARIABLES_PANEL).map((item) => item.name);
-		expect(listed).toEqual(["Variables", "Modules", "Locals", "Functions"]);
+		expect(listed).toEqual(["Variables", "Services", "Modules", "Locals", "Functions"]);
 		// The rows are still drawn.
 		const html = toolbarHtml(VARIABLES_PANEL, art);
 		expect(html).toContain("Accumulator");
-		expect(html).toContain("@lune/roblox");
+		expect(html).toContain("ReplicatedStorage.Shared.Greeter");
 	});
 
 	/** The pointing is the shared part, and needs nothing panel-specific. */
@@ -553,6 +553,7 @@ describe("drawing a panel", () => {
 		const html = toolbarHtml(VARIABLES_PANEL, art);
 		const sections = html.split("variables-sub");
 		expect(sections.find((part) => part.includes("Modules"))).toContain("Add");
+		expect(sections.find((part) => part.includes("Services"))).toContain("Add");
 		expect(sections.find((part) => part.includes("Locals"))).not.toContain("Add");
 	});
 });
@@ -572,7 +573,7 @@ describe("pointing a section at its own page", () => {
 
 	/** Each variant, and the sections that page is the page for. */
 	const VARIANTS: [string, ToolbarSpec, string[]][] = [
-		["modules", MODULES_PANEL, ["Modules"]],
+		["modules", MODULES_PANEL, ["Services", "Modules"]],
 		["variables-and-locals", VARIABLES_PAGE_PANEL, ["Variables", "Locals"]],
 		["functions", FUNCTIONS_PANEL, ["Functions"]],
 	];

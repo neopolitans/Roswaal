@@ -187,6 +187,9 @@ function semanticJson(script: NodeScript, layout: { headers?: Map<string, Commen
 			members: m.members ?? null,
 			description: m.description ?? null,
 		})),
+		// Only when there are some, so a graph that declares none hashes as it
+		// did before services could be declared and is not rewritten for it.
+		...((script.services ?? []).length > 0 ? { services: script.services } : {}),
 		nodes,
 		links,
 		...headerProjection(layout.headers),
@@ -245,6 +248,8 @@ export function serialiseScript(script: NodeScript): string {
 					})),
 				}
 			: {}),
+		// The author's order, which is the order they are written at the top.
+		...((script.services ?? []).length > 0 ? { services: script.services } : {}),
 		nodes: [...script.nodes]
 			.sort((a, b) => a.id.localeCompare(b.id))
 			.map((n) => ({

@@ -86,6 +86,7 @@ export const DROPPABLE = [
 	"application/x-roswaal-local",
 	"application/x-roswaal-function",
 	"application/x-roswaal-module",
+	"application/x-roswaal-service",
 	"application/x-roswaal-type",
 	"application/x-roswaal-node",
 	"application/x-roswaal-property",
@@ -1218,6 +1219,23 @@ export function Canvas({
 							module: id,
 							name: declared?.name ?? "",
 						});
+					});
+					return;
+				}
+
+				// A service from the Services list: a Get Service for it, which
+				// reads the local the declaration hoists rather than making one.
+				const service = e.dataTransfer.getData("application/x-roswaal-service");
+				if (service) {
+					e.preventDefault();
+					const { service: name } = JSON.parse(service) as { service: string };
+					const def = registry.get("roblox.getService");
+					if (!def) return;
+					const world = toWorld(e.clientX, e.clientY);
+					store.edit((s) => {
+						const added = addNode(s, def, world.x - NODE.width / 2, world.y - 20);
+						queueMicrotask(() => store.select([added.id]));
+						return setLiteral(added.script, added.id, "service", { t: "string", v: name });
 					});
 					return;
 				}

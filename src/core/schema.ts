@@ -535,6 +535,16 @@ export interface NodeScript {
 	 * is why every reader defaults it rather than assuming an array.
 	 */
 	modules?: ScriptModule[];
+	/**
+	 * The services this script declares, by name, in the order they are
+	 * written at the top of the file. Roblox only.
+	 *
+	 * A Get Service node or a path hoists its service anyway; declaring one
+	 * puts it first and in your order, and makes it a name Custom Code can
+	 * read without a node asking for it. Absent on a graph written before
+	 * 0.152.0, and on any that declares none.
+	 */
+	services?: string[];
 	nodes: GraphNode[];
 	links: Link[];
 	comments: Comment[];

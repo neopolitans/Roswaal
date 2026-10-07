@@ -1419,6 +1419,29 @@ export function deleteModule(script: NodeScript, id: string): NodeScript {
 	return { ...script, modules: (script.modules ?? []).filter((m) => m.id !== id) };
 }
 
+/**
+ * Declares a service, at the end of the list: the order is the author's, and
+ * the order the file fetches them in. One already declared is left where it is.
+ */
+export function addService(script: NodeScript, name: string): NodeScript {
+	const service = name.trim();
+	const declared = script.services ?? [];
+	if (service === "" || declared.includes(service)) return script;
+	return { ...script, services: [...declared, service] };
+}
+
+/**
+ * Removes a declared service. Nothing refers to the declaration itself: a Get
+ * Service for it goes on working and hoists it on its own, so there is nothing
+ * left pointing at a declaration that has gone.
+ */
+export function deleteService(script: NodeScript, name: string): NodeScript {
+	const services = (script.services ?? []).filter((s) => s !== name);
+	if (services.length > 0) return { ...script, services };
+	const { services: _gone, ...rest } = script;
+	return rest;
+}
+
 // ---------------------------------------------------------------------------
 // Splitting struct pins
 // ---------------------------------------------------------------------------

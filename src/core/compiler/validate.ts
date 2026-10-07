@@ -428,7 +428,7 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 			}
 		}
 		// A Script Function's own function. A module's is checked where it is
-		// emitted, since its Require Module is a node like any other.
+		// emitted, which knows both its Require Module and the declarations.
 		if (SCRIPT_CALLS.has(node.def)) {
 			const ref = scriptCallOf(node.config);
 			if (!ref.function && !ref.module) {

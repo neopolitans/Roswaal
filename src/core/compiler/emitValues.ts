@@ -407,8 +407,8 @@ function getFunction(e: Emitter, src: ResolvedNode): string {
  * Shared by both nodes, as `luneCall` is: the value node returns it and the
  * step binds it. The function is reached the way Get Function reaches it, so
  * a Declare Function read above itself is the same error here; a module's is
- * reached through its Require Module, which hoists the one `require` the
- * script already asked for and never adds one.
+ * reached through its Require Module or its declaration, which hoist the one
+ * `require` the script already asked for, and never adds one.
  */
 export function scriptCall(e: Emitter, src: ResolvedNode, scope: Scope): string {
 	const ref = scriptCallOf(src.node.config);
@@ -419,16 +419,22 @@ export function scriptCall(e: Emitter, src: ResolvedNode, scope: Scope): string 
 
 	let callee: string;
 	if (ref.module) {
+		// Through a Require Module on the canvas, or a module the Variables
+		// panel declares: either way the one local its require is hoisted to.
 		const through = e.index.get(ref.module);
-		if (!through || through.def.id !== "module.requirePath") {
+		const local =
+			through?.def.id === "module.requirePath"
+				? requireModulePath(e, through)
+				: e.moduleIdents.get(ref.module);
+		if (local === undefined) {
 			e.error(
-				`This calls \`${scriptCallLabel(src.node.config)}\`, and the Require Module it goes ` +
-					"through is no longer in the graph.",
+				`This calls \`${scriptCallLabel(src.node.config)}\`, and the module it goes through ` +
+					"is no longer in the graph or declared in the Variables panel.",
 				src.node.id,
 			);
 			return "nil";
 		}
-		callee = `${parenPrefix(requireModulePath(e, through))}${ref.method ? ":" : "."}${ref.name}`;
+		callee = `${parenPrefix(local)}${ref.method ? ":" : "."}${ref.name}`;
 	} else {
 		const fn = getFunction(e, src);
 		if (fn === "nil") return "nil";

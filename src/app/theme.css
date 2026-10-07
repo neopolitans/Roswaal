@@ -3927,7 +3927,11 @@ button.start-tile:disabled {
 	flex: none;
 }
 
+/* The name is what a row is found by, so it keeps its width, up to most of
+   the row; a long trailing path or type is what gives way. */
 .variable-head .name {
+	flex: 0 0 auto;
+	max-width: 65%;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
@@ -3940,6 +3944,10 @@ button.start-tile:disabled {
 }
 
 .variable-head .type {
+	flex: 0 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
 	margin-left: auto;
 	font-size: var(--text-xs);
 	color: var(--fg-faint);
@@ -10941,6 +10949,27 @@ a.docs-minor-row .aside {
 .variables .swatch.module {
 	background: none;
 	border: 1px solid var(--fg-faint);
+}
+
+/* Services and Modules take a row dragged out of the DataModel browser, and
+   say so while one is held over them. */
+.variables-drop {
+	border-radius: var(--radius-sm);
+}
+
+.variables-drop.over {
+	outline: 1px dashed var(--accent);
+	outline-offset: -1px;
+	background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+/* Where a service is typed when Add is pressed: in line with the rows. */
+.variables .variable-add {
+	padding: 3px 6px 3px 22px;
+}
+
+.variables .variable-add input {
+	width: 100%;
 }
 
 /* The Modules heading carries an Add button, which the other subheadings do

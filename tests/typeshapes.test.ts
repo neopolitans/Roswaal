@@ -183,6 +183,21 @@ describe("types a required module brings", () => {
 		expect(requiredTypes(script, exported).map((t) => t.type)).toEqual(["TankConfig.Tuning"]);
 	});
 
+	/** Since 0.152.0 a module declared by where it sits is a require like any other. */
+	it("finds them through a module declared by where it sits", () => {
+		const declared = (specifier: string, name = "") =>
+			new Builder().build({ modules: [{ id: "m", name, specifier }] });
+		expect(
+			requiredTypes(declared("game.ReplicatedStorage.Tank.Config"), exported).map((t) => t.type),
+		).toEqual(["Config.Tuning"]);
+		expect(
+			requiredTypes(
+				declared('ReplicatedStorage:WaitForChild("Tank").Config', "Tuning"),
+				exported,
+			).map((t) => t.type),
+		).toEqual(["Tuning.Tuning"]);
+	});
+
 	it("offers nothing from a module the graph does not require", () => {
 		expect(
 			requiredTypes(requiring({ root: "ReplicatedStorage", path: "Tank.Other" }), exported),

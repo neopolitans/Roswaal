@@ -38,7 +38,9 @@ import {
 import type { Diagnostic, EmitOptions, EmitResult, LogicEmit, LogicEnds } from "./emit.js";
 import { emitCall, resultHint, resultNameOf, STATEMENT_READERS } from "./emitCalls.js";
 import {
+	checkDeclaredServices,
 	declareModules,
+	declareServices,
 	emitFunctions,
 	emitModuleReturn,
 	emitTypes,
@@ -153,6 +155,7 @@ export class Emitter {
 
 		// Before anything walks the graph, so a declared module gets the plain
 		// name its author chose and a later collision is the one that renames.
+		declareServices(this);
 		declareModules(this);
 
 		emitTypes(this);
@@ -160,6 +163,7 @@ export class Emitter {
 		emitFunctions(this, root);
 		this.emitMainFlow(root);
 		emitModuleReturn(this, root);
+		checkDeclaredServices(this);
 
 		// Services were collected during the walk above; they belong at the top,
 		// below the flags, the way a hand-written Roblox file has them.

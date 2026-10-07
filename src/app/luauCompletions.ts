@@ -265,6 +265,12 @@ export function scopeCompletions(script: NodeScript | null): Completion[] {
 		out.push({ label: name, type, detail });
 	};
 
+	// Declared first in the file, so first here: the services, then the modules.
+	for (const service of script.services ?? []) add(service, "class", "declared service");
+	for (const module of script.modules ?? []) {
+		if (module.specifier.trim() !== "" && module.name.trim() !== "")
+			add(module.name, "namespace", "declared module");
+	}
 	for (const variable of script.variables ?? []) {
 		add(variable.name, "variable", `${variable.type} · script variable`);
 	}
@@ -795,7 +801,7 @@ interface GraphLocal {
 /**
  * The names in scope at a node that hold an instance, for an instance dropped
  * into its code to start from: the top-level locals of the Custom Code blocks
- * before it, and the services the graph's Get Service nodes hoist -- the
+ * before it, and the services the graph declares or its Get Service nodes hoist -- the
  * same names completion offers there. The code's own locals are the editor's
  * to add, nearest of all.
  */
@@ -808,13 +814,15 @@ export function graphInstanceLocals(
 	const out: KnownInstance[] = collectPreceding(script, registry, nodeId)
 		.filter((local) => local.path !== undefined && !local.provisional)
 		.map((local) => ({ name: local.name, path: local.path! }));
+	const services = new Set((script.services ?? []).filter(isService));
 	for (const node of script.nodes) {
 		if (node.def !== "roblox.getService") continue;
 		const service = node.literals?.service;
-		if (!service || (service.t !== "string" && service.t !== "raw") || !isService(service.v))
-			continue;
-		out.push({ name: toIdentifier(service.v, "value"), path: [service.v] });
+		if (service && (service.t === "string" || service.t === "raw") && isService(service.v))
+			services.add(service.v);
 	}
+	for (const service of services)
+		out.push({ name: toIdentifier(service, "value"), path: [service] });
 	return out;
 }
 

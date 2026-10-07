@@ -10,6 +10,7 @@
 import { useSyncExternalStore } from "react";
 
 import { toIdentifier } from "../core/compiler/luau.js";
+import { parseInstancePath } from "../core/modules.js";
 import { createRegistry } from "../core/nodes/index.js";
 import { lastSegment } from "../core/roblox.js";
 import type { GraphNode, NodeScript } from "../core/schema.js";
@@ -58,8 +59,9 @@ function textOf(node: Pick<GraphNode, "def" | "literals">, pin: string): string 
 }
 
 /**
- * The exported types this graph reaches through its Require Module nodes, the
- * way it would write them: `Config.Tuning`.
+ * The exported types this graph reaches through its Require Module nodes and
+ * the modules it declares by where they sit, the way it would write them:
+ * `Config.Tuning`.
  *
  * Matched on where a module lands — the root and dotted path Require Module is
  * given against the location a node map puts the graph at — and named after the
@@ -68,19 +70,29 @@ function textOf(node: Pick<GraphNode, "def" | "literals">, pin: string): string 
  * types would need the require first.
  */
 export function requiredTypes(
-	script: Pick<NodeScript, "nodes">,
+	script: Pick<NodeScript, "nodes" | "modules">,
 	types: ExportedType[],
 ): { type: string; graph: string; fields?: TypeField[] }[] {
 	const out: { type: string; graph: string; fields?: TypeField[] }[] = [];
 	const seen = new Set<string>();
 
+	// Where each require lands, and the local it lands in: the Require Module
+	// nodes, and the modules declared by where they sit.
+	const requires: { root: string; path: string; local: string }[] = [];
 	for (const node of script.nodes) {
 		if (node.def !== "module.requirePath") continue;
 		const root = textOf(node, "root");
 		const path = normalise(textOf(node, "path"));
 		if (root === "" || path === "") continue;
-		const local = toIdentifier(textOf(node, "as") || lastSegment(path), "module");
+		requires.push({
+			root,
+			path,
+			local: toIdentifier(textOf(node, "as") || lastSegment(path), "module"),
+		});
+	}
+	requires.push(...declaredByPlace(script));
 
+	for (const { root, path, local } of requires) {
 		for (const exported of types) {
 			const at = exported.location;
 			if (!at || at.root !== root || normalise(at.path) !== path) continue;
@@ -115,7 +127,7 @@ export function useProjectFunctions(): ExportedModuleFunction[] {
 
 /** A module this graph requires, the local it is required as, and what it exports. */
 export interface RequiredModule {
-	/** The Require Module node. */
+	/** The Require Module node, or the declared module's id. */
 	node: string;
 	/** `Config`: the local the require is hoisted to. */
 	local: string;
@@ -123,30 +135,56 @@ export interface RequiredModule {
 }
 
 /**
- * The functions this graph can call through its Require Module nodes.
+ * The functions this graph can call through its Require Module nodes and the
+ * modules it declares by where they sit.
  *
  * Matched exactly as `requiredTypes` matches types — the root and dotted path
  * against where a node map puts the module — so a module is offered only once
  * it is required, and only under the name it is required as.
  */
 export function requiredModules(
-	script: Pick<NodeScript, "nodes">,
+	script: Pick<NodeScript, "nodes" | "modules">,
 	exported: readonly ExportedModuleFunction[] = functions,
 ): RequiredModule[] {
 	const out: RequiredModule[] = [];
+	const offer = (id: string, root: string, path: string, local: string) => {
+		const found = exported.filter((fn) => {
+			const at = fn.location;
+			return at !== null && at.root === root && normalise(at.path) === path;
+		});
+		if (found.length > 0) out.push({ node: id, local, functions: found });
+	};
 	for (const node of script.nodes) {
 		if (node.def !== "module.requirePath") continue;
 		const root = textOf(node, "root");
 		const path = normalise(textOf(node, "path"));
 		if (root === "" || path === "") continue;
-		const local = toIdentifier(textOf(node, "as") || lastSegment(path), "module");
-		const found = exported.filter((fn) => {
-			const at = fn.location;
-			return at !== null && at.root === root && normalise(at.path) === path;
-		});
-		if (found.length > 0) out.push({ node: node.id, local, functions: found });
+		offer(node.id, root, path, toIdentifier(textOf(node, "as") || lastSegment(path), "module"));
 	}
+	for (const { id, root, path, local } of declaredByPlace(script)) offer(id, root, path, local);
 	return out;
+}
+
+/**
+ * The modules a script declares by where they sit: where each lands, and the
+ * local it is bound to -- its name, or the ModuleScript's when it has none.
+ */
+function declaredByPlace(
+	script: Pick<NodeScript, "modules">,
+): { id: string; root: string; path: string; local: string }[] {
+	return (script.modules ?? []).flatMap((module) => {
+		const parsed = parseInstancePath(module.specifier);
+		if (!parsed || !("path" in parsed)) return [];
+		const names = parsed.path.steps.map((step) => step.name);
+		return [
+			{
+				id: module.id,
+				root: parsed.path.root,
+				path: names.join("."),
+				local: toIdentifier(module.name.trim() || (names.at(-1) ?? ""), "module"),
+			},
+		];
+	});
 }
 
 /**

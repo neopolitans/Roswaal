@@ -7,17 +7,20 @@
  * one.
  */
 
-import { type DragEvent, useMemo, useState } from "react";
+import { type DragEvent, type ReactNode, useMemo, useState } from "react";
 import {
 	type GraphId,
 	hoistedFunctions,
 	visibleFrom,
 	withFunctionGraphs,
 } from "../core/functionGraph.js";
+import { instanceSpecifier } from "../core/modules.js";
 import { namedResultRef } from "../core/namedResults.js";
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import type { Registry } from "../core/nodes/index.js";
 import { isConstLocal } from "../core/nodes/variables.js";
+import { EMPTY_SERVICES, EMPTY_VARIABLES, emptyModules } from "../core/panelHints.js";
+import { isService, ROBLOX_SERVICES } from "../core/roblox.js";
 import type {
 	GraphNode,
 	Literal,
@@ -31,10 +34,12 @@ import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import {
 	addModule,
+	addService,
 	addVariable,
 	defaultLiteralFor,
 	deleteModule,
 	deleteSelection,
+	deleteService,
 	deleteVariable,
 	localRefFor,
 	moduleUsageCount,
@@ -43,6 +48,7 @@ import {
 	variableUsageCount,
 } from "./edits.js";
 import { configText } from "./nodeConfig.js";
+import { PROPERTY_DRAG, type PropertyDrag } from "./PlaceBrowser.jsx";
 import { pinColor } from "./palette.js";
 import { specifierSuggestions, useProjectLuaurc } from "./projectAliases.js";
 import { requiredTypes, useProjectTypes } from "./projectTypes.js";
@@ -99,6 +105,8 @@ export function VariablesPanel({ script, graph, registry, confirm, locked }: Var
 	};
 
 	const [open, setOpen] = useState<string | null>(null);
+	const [addingService, setAddingService] = useState(false);
+	const services = script.services ?? [];
 	// Double-click or Ctrl+click a local: its node, brought into view.
 	const goTo = (id: string) => {
 		store.reveal(id);
@@ -159,10 +167,53 @@ export function VariablesPanel({ script, graph, registry, confirm, locked }: Var
 					/>
 				))}
 				{script.variables.length === 0 && (
-					<p className="hint">
-						None yet. A variable is a value the whole script can read and write, as opposed to a
-						local, which only exists inside the block that declared it.
+					<p className="hint" title={EMPTY_VARIABLES.more}>
+						{EMPTY_VARIABLES.text}
 					</p>
+				)}
+
+				{/* The services this script fetches at the top, in this order.
+				    
+				    Roblox's, so shown on a Roblox graph -- and on a Lune one only
+				    while it still has some, so they can be seen and removed. A
+				    service dragged in from the DataModel browser is declared. */}
+				{(script.target === "roblox" || services.length > 0) && (
+					<DataModelDrop
+						accepts={(drag) => drag.path.length === 1 && isService(drag.path[0] ?? "")}
+						onDrop={(drag) => store.edit((s) => addService(s, drag.path[0] ?? ""))}
+					>
+						<h3 className="variables-sub">
+							<span>Services</span>
+							<button
+								className="tb"
+								title="Declare a service"
+								onClick={() => setAddingService(true)}
+							>
+								Add
+							</button>
+						</h3>
+						{services.map((name) => (
+							<ServiceRow
+								key={name}
+								name={name}
+								onDelete={() => store.edit((s) => deleteService(s, name))}
+							/>
+						))}
+						{addingService && (
+							<ServicePicker
+								declared={services}
+								onDone={(name) => {
+									setAddingService(false);
+									if (name) store.edit((s) => addService(s, name));
+								}}
+							/>
+						)}
+						{services.length === 0 && !addingService && (
+							<p className="hint" title={EMPTY_SERVICES.more}>
+								{EMPTY_SERVICES.text}
+							</p>
+						)}
+					</DataModelDrop>
 				)}
 
 				{/* What this script requires.
@@ -172,38 +223,47 @@ export function VariablesPanel({ script, graph, registry, confirm, locked }: Var
 				    to hand -- and because a require is a dependency, which is
 				    exactly the kind of thing that should be somewhere you can see
 				    it rather than somewhere you have to go looking. */}
-				<h3 className="variables-sub">
-					<span>Modules</span>
-					<button
-						className="tb"
-						title="Require a module"
-						onClick={() =>
-							store.edit((s) => {
-								const { script: next, id } = addModule(s);
-								queueMicrotask(() => setOpen(id));
-								return next;
-							})
-						}
-					>
-						Add
-					</button>
-				</h3>
-				{(script.modules ?? []).map((module) => (
-					<ModuleRow
-						key={module.id}
-						script={script}
-						module={module}
-						confirm={confirm}
-						expanded={open === module.id}
-						onToggle={() => setOpen((id) => (id === module.id ? null : module.id))}
-					/>
-				))}
-				{(script.modules ?? []).length === 0 && (
-					<p className="hint">
-						None. A module is required once at the top of the generated file and read wherever you
-						drag it — so four uses write one <code>require</code>.
-					</p>
-				)}
+				<DataModelDrop
+					accepts={(drag) => drag.className === "ModuleScript"}
+					onDrop={(drag) =>
+						store.edit(
+							(s) =>
+								addModule(s, drag.path.at(-1) ?? "module", instanceSpecifier(drag.path)).script,
+						)
+					}
+				>
+					<h3 className="variables-sub">
+						<span>Modules</span>
+						<button
+							className="tb"
+							title="Require a module"
+							onClick={() =>
+								store.edit((s) => {
+									const { script: next, id } = addModule(s);
+									queueMicrotask(() => setOpen(id));
+									return next;
+								})
+							}
+						>
+							Add
+						</button>
+					</h3>
+					{(script.modules ?? []).map((module) => (
+						<ModuleRow
+							key={module.id}
+							script={script}
+							module={module}
+							confirm={confirm}
+							expanded={open === module.id}
+							onToggle={() => setOpen((id) => (id === module.id ? null : module.id))}
+						/>
+					))}
+					{(script.modules ?? []).length === 0 && (
+						<p className="hint" title={emptyModules(script.target).more}>
+							{emptyModules(script.target).text}
+						</p>
+					)}
+				</DataModelDrop>
 
 				{/* The graph's Declare Locals, so one can be dragged out as a Get
 				    Local instead of wired from where it was made. */}
@@ -348,7 +408,9 @@ function ModuleRow({
 			>
 				<span className="swatch module" />
 				<span className="name">{module.name}</span>
-				<span className="type">{module.specifier || "not set"}</span>
+				<span className="type" title={module.specifier || undefined}>
+					{module.specifier || "not set"}
+				</span>
 			</div>
 
 			{expanded && (
@@ -372,9 +434,16 @@ function ModuleRow({
 						<input
 							className="tb"
 							value={module.specifier}
-							placeholder="@lune/fs"
+							placeholder={
+								script.target === "roblox" ? "ReplicatedStorage.Shared.Greeter" : "@lune/fs"
+							}
 							list="roswaal-specifier-hints"
-							title="What goes inside require(...). A prefix is required: @ for an alias, ./ or ../ for a path."
+							title={
+								"What goes inside require(...): @ for an alias, ./ or ../ for a path" +
+								(script.target === "roblox"
+									? ", or where the ModuleScript sits, from a service or script: ReplicatedStorage.Shared.Greeter."
+									: ".")
+							}
 							onChange={(e) =>
 								store.edit((s) => updateModule(s, module.id, { specifier: e.target.value }))
 							}
@@ -426,6 +495,118 @@ function ModuleRow({
 					</div>
 				</div>
 			)}
+		</div>
+	);
+}
+
+/**
+ * A section that takes a row dragged out of the DataModel browser, when it is
+ * the kind of thing the section lists: a service for Services, a ModuleScript
+ * for Modules. Anything else dropped on it is left alone.
+ */
+function DataModelDrop({
+	accepts,
+	onDrop,
+	children,
+}: {
+	accepts: (drag: PropertyDrag) => boolean;
+	onDrop: (drag: PropertyDrag) => void;
+	children: ReactNode;
+}) {
+	const [over, setOver] = useState(false);
+	return (
+		<div
+			className={cx("variables-drop", over && "over")}
+			onDragOver={(e) => {
+				// Only the types are readable until the drop, so any DataModel row
+				// is let in here and `accepts` decides when it lands.
+				if (!e.dataTransfer.types.includes(PROPERTY_DRAG)) return;
+				e.preventDefault();
+				e.dataTransfer.dropEffect = "copy";
+				setOver(true);
+			}}
+			onDragLeave={(e) => {
+				if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOver(false);
+			}}
+			onDrop={(e) => {
+				setOver(false);
+				const raw = e.dataTransfer.getData(PROPERTY_DRAG);
+				if (!raw) return;
+				e.preventDefault();
+				let drag: PropertyDrag;
+				try {
+					drag = JSON.parse(raw) as PropertyDrag;
+				} catch {
+					return;
+				}
+				if (!Array.isArray(drag.path) || drag.property || drag.attribute) return;
+				if (accepts(drag)) onDrop(drag);
+			}}
+		>
+			{children}
+		</div>
+	);
+}
+
+/** One declared service: drag it for a Get Service, or remove it. */
+function ServiceRow({ name, onDelete }: { name: string; onDelete: () => void }) {
+	function onDragStart(e: DragEvent) {
+		e.dataTransfer.setData("application/x-roswaal-service", JSON.stringify({ service: name }));
+		e.dataTransfer.effectAllowed = "copy";
+	}
+
+	return (
+		<div className="variable">
+			<div
+				className="variable-head"
+				draggable
+				title="Drag onto the canvas for a Get Service. It reads the local declared here."
+				onDragStart={onDragStart}
+			>
+				<span className="swatch" style={{ background: pinColor(name, "data") }} />
+				<span className="name">{name}</span>
+				<span className="type">{isService(name) ? "service" : "not a listed service"}</span>
+				<RowDelete name={name} onDelete={onDelete} />
+			</div>
+		</div>
+	);
+}
+
+/**
+ * Where a service is typed or picked when declaring one. Enter or leaving the
+ * field declares it; Escape does not.
+ */
+function ServicePicker({
+	declared,
+	onDone,
+}: {
+	declared: readonly string[];
+	onDone: (name: string | null) => void;
+}) {
+	const [value, setValue] = useState("");
+	const offered = ROBLOX_SERVICES.filter((service) => !declared.includes(service));
+	return (
+		<div className="variable-add">
+			<input
+				className="tb"
+				// biome-ignore lint/a11y/noAutofocus: opened by Add, to type into straight away.
+				autoFocus
+				value={value}
+				placeholder="ReplicatedStorage"
+				list="roswaal-service-hints"
+				aria-label="Service to declare"
+				onChange={(e) => setValue(e.target.value)}
+				onKeyDown={(e) => {
+					if (e.key === "Enter") onDone(value.trim() || null);
+					else if (e.key === "Escape") onDone(null);
+				}}
+				onBlur={() => onDone(value.trim() || null)}
+			/>
+			<datalist id="roswaal-service-hints">
+				{offered.map((service) => (
+					<option key={service} value={service} />
+				))}
+			</datalist>
 		</div>
 	);
 }
