@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.148.1",
+		date: "2026-10-07",
+		headline: "A new project's spawn stands on its baseplate.",
+		affects: ["editor", "docs"],
+		fixed: [
+			"The SpawnLocation in a new project's `place.rbxlx` stands on the baseplate, at height 0.5, where it floated half a stud above it.",
+		],
+	},
+	{
 		version: "0.148.0",
 		date: "2026-10-07",
 		headline: "A new project from nothing, with a place to start in.",

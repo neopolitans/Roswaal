@@ -119,7 +119,7 @@ describe("the place a new project starts with", () => {
 		]);
 	});
 
-	/** A 512-stud baseplate with its top at 0, and a 12-stud spawn at the centre. */
+	/** A 512-stud baseplate with its top at 0, and a 12-stud spawn standing on it. */
 	it("has a baseplate and a spawn, where and as big as they are meant to be", () => {
 		const workspace = doc.roots.find((root) => root.className === "Workspace")!;
 		const [ground, spawn] = workspace.children;
@@ -133,7 +133,7 @@ describe("the place a new project starts with", () => {
 		expect(spawn!.className).toBe("SpawnLocation");
 		expect(spawn!.props.get("size")?.value).toEqual([...SPAWN.size]);
 		expect((spawn!.props.get("CFrame")?.value as { position: number[] }).position).toEqual([
-			0, 1, 0,
+			0, 0.5, 0,
 		]);
 	});
 
@@ -201,5 +201,14 @@ describe("making a project on disk", () => {
 		} finally {
 			await fs.rm(base, { recursive: true, force: true });
 		}
+	});
+});
+
+describe("the spawn, since 0.148.1", () => {
+	/** Its bottom face is the baseplate's top face: standing on it, not floating. */
+	it("stands on the baseplate", () => {
+		const top = BASEPLATE.position[1] + BASEPLATE.size[1] / 2;
+		const bottom = SPAWN.position[1] - SPAWN.size[1] / 2;
+		expect(bottom).toBe(top);
 	});
 });

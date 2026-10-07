@@ -32,11 +32,14 @@ export const BASEPLATE: PlacedPart = {
 	size: [512, 16, 512],
 };
 
-/** Where players appear: a 12 by 12 pad at the centre, on the baseplate. */
+/**
+ * Where players appear: a 12 by 12 pad at the centre, standing on the
+ * baseplate -- half its height above the top face, so its bottom is on it.
+ */
 export const SPAWN: PlacedPart = {
 	className: "SpawnLocation",
 	name: "SpawnLocation",
-	position: [0, 1, 0],
+	position: [0, 0.5, 0],
 	size: [12, 1, 12],
 };
 

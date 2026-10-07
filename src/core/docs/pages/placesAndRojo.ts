@@ -102,7 +102,7 @@ export function placesAndRojoPage(): DocPage {
 				text:
 					"`roswaal new`, **Create** on the start page and **New project…** in the editor make a " +
 					"project with `place.rbxlx` unless you say not to: the usual services, a 512-stud " +
-					"`BasePlate` with its top at height 0, and a 12-stud `SpawnLocation` at the centre. " +
+					"`BasePlate` with its top at height 0, and a 12-stud `SpawnLocation` standing on it at the centre. " +
 					"Roswaal writes it itself rather than copying Studio's Baseplate template, and Studio " +
 					"fills in whatever it leaves out when the file is opened. `roswaal export` writes the " +
 					"project's scripts into it, with the folders they need.",
