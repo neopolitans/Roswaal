@@ -36,6 +36,7 @@ import {
 	addModule,
 	addService,
 	addVariable,
+	declareModule,
 	defaultLiteralFor,
 	deleteModule,
 	deleteSelection,
@@ -70,9 +71,21 @@ export interface VariablesPanelProps {
 	registry: Registry;
 	/** Asks for confirmation; resolves true when the developer agrees. */
 	confirm: (title: string, message: string, confirmLabel: string) => Promise<boolean>;
+	/**
+	 * A file from Graph Content or Compile Content dropped on Modules. Where it
+	 * lands in the DataModel is the project's to say, so the caller resolves it.
+	 */
+	onModuleFile?: (path: string) => void;
 }
 
-export function VariablesPanel({ script, graph, registry, confirm, locked }: VariablesPanelProps) {
+export function VariablesPanel({
+	script,
+	graph,
+	registry,
+	confirm,
+	locked,
+	onModuleFile,
+}: VariablesPanelProps) {
 	// Deletes the node that declares a local or a function, as the canvas would.
 	//
 	// The nodes that refer to it stay, as a variable's Get and Set do, and
@@ -225,10 +238,11 @@ export function VariablesPanel({ script, graph, registry, confirm, locked }: Var
 				    it rather than somewhere you have to go looking. */}
 				<DataModelDrop
 					accepts={(drag) => drag.className === "ModuleScript"}
+					onFile={script.target === "roblox" ? onModuleFile : undefined}
 					onDrop={(drag) =>
 						store.edit(
 							(s) =>
-								addModule(s, drag.path.at(-1) ?? "module", instanceSpecifier(drag.path)).script,
+								declareModule(s, drag.path.at(-1) ?? "module", instanceSpecifier(drag.path)).script,
 						)
 					}
 				>
@@ -499,6 +513,9 @@ function ModuleRow({
 	);
 }
 
+/** What a row of the project tree carries when dragged: its file paths. */
+const TREE_DRAG = "application/x-roswaal";
+
 /**
  * A section that takes a row dragged out of the DataModel browser, when it is
  * the kind of thing the section lists: a service for Services, a ModuleScript
@@ -507,20 +524,25 @@ function ModuleRow({
 function DataModelDrop({
 	accepts,
 	onDrop,
+	onFile,
 	children,
 }: {
 	accepts: (drag: PropertyDrag) => boolean;
 	onDrop: (drag: PropertyDrag) => void;
+	/** A file from the project tree, when the section takes one. */
+	onFile?: (path: string) => void;
 	children: ReactNode;
 }) {
 	const [over, setOver] = useState(false);
+	const takes = (types: readonly string[]) =>
+		types.includes(PROPERTY_DRAG) || (onFile !== undefined && types.includes(TREE_DRAG));
 	return (
 		<div
 			className={cx("variables-drop", over && "over")}
 			onDragOver={(e) => {
 				// Only the types are readable until the drop, so any DataModel row
 				// is let in here and `accepts` decides when it lands.
-				if (!e.dataTransfer.types.includes(PROPERTY_DRAG)) return;
+				if (!takes(e.dataTransfer.types)) return;
 				e.preventDefault();
 				e.dataTransfer.dropEffect = "copy";
 				setOver(true);
@@ -530,6 +552,17 @@ function DataModelDrop({
 			}}
 			onDrop={(e) => {
 				setOver(false);
+				const files = onFile ? e.dataTransfer.getData(TREE_DRAG) : "";
+				if (files) {
+					e.preventDefault();
+					try {
+						const [first] = JSON.parse(files) as string[];
+						if (first) onFile?.(first);
+					} catch {
+						// Not the tree's own payload; nothing of ours to drop.
+					}
+					return;
+				}
 				const raw = e.dataTransfer.getData(PROPERTY_DRAG);
 				if (!raw) return;
 				e.preventDefault();
@@ -589,7 +622,7 @@ function ServicePicker({
 		<div className="variable-add">
 			<input
 				className="tb"
-				// biome-ignore lint/a11y/noAutofocus: opened by Add, to type into straight away.
+				// Opened by Add, to type into straight away.
 				autoFocus
 				value={value}
 				placeholder="ReplicatedStorage"

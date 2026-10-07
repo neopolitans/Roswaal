@@ -42,6 +42,11 @@ export function variablesAndLocalsPage(): DocPage {
 						"variable takes the pin's type and whatever value was already typed into it, and " +
 						"a Get is wired in where the literal was — so promoting never loses the value you " +
 						"had.",
+					"Right-click a **Declare Local** and choose **Promote to Variable** to make it a " +
+						"script variable with its name, type and value. Its Get Locals become Gets and its " +
+						"Set Locals Sets. Offered only for a local in the script's own flow with a value " +
+						"typed in, where declaring it at the top means the same thing — not inside a " +
+						"function, a loop or a handler, where it is a fresh local each time.",
 					"Renaming a variable in the panel renames every Get and Set of it at once. They " +
 						"carry its id, not its name.",
 					"The panel also lists this graph's **Locals**, **Functions** and **Types**. Click a " +
@@ -169,6 +174,13 @@ export function variablesAndLocalsPage(): DocPage {
 					"**A step's named result is a local like any other.** It is listed under Locals in " +
 					"the Variables panel, the node search offers **Get turretModel**, and Get Local " +
 					"reads it wherever it is in scope, with no wire back to the call.",
+			},
+			{
+				t: "p",
+				text:
+					"Right-click the step and choose **Promote to Declare Local** to give the result its " +
+					"own Declare Local after it, under the same name — so it can be set later. The " +
+					"Get Locals that read it read the declaration, and the generated file is the same.",
 			},
 			{
 				t: "note",

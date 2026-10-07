@@ -69,6 +69,7 @@ import { GRID, LAYER, NODE, ZOOM } from "./layers.js";
 import { NodeView, type PinDragState } from "./NodeView.jsx";
 import { configText, functionNameOf } from "./nodeConfig.js";
 import { commentColor, pinColor } from "./palette.js";
+import { promotionsFor } from "./promote.js";
 import { store, useEditor, useView } from "./store.js";
 import { showToast } from "./Toast.jsx";
 
@@ -141,6 +142,11 @@ export interface CanvasProps {
 		member?: { name: string; type?: string },
 	) => void;
 	onRequestPinMenu: (screen: Vec, nodeId: string, pin: PinDef, side: "in" | "out") => void;
+	/**
+	 * A node with something to promote: its own small menu, as a pin has.
+	 * Absent, or for any other node, a right-click opens the palette.
+	 */
+	onRequestNodeMenu?: (screen: Vec, world: Vec, nodeId: string) => void;
 	onEditCode: (nodeId: string, pin: PinDef, value: string) => void;
 	/**
 	 * Where the pointer is over the canvas, in world coordinates, and `null`
@@ -247,6 +253,7 @@ export function Canvas({
 	onRequestNodePicker,
 	onDropNode,
 	onRequestPinMenu,
+	onRequestNodeMenu,
 	onEditCode,
 	onPointerAt,
 	onDropFile,
@@ -1464,7 +1471,14 @@ export function Canvas({
 						onOpen={configText(node, "presence") === "outer" ? openFunction : undefined}
 						onContextMenu={(e, id) => {
 							if (!selection.has(id)) store.select([id]);
-							onRequestMenu({ x: e.clientX, y: e.clientY }, toWorld(e.clientX, e.clientY));
+							const screen = { x: e.clientX, y: e.clientY };
+							const world = toWorld(e.clientX, e.clientY);
+							if (onRequestNodeMenu && promotionsFor(whole, registry, id).length > 0) {
+								// Stopped here, as a pin's is, or the canvas opens the palette on top.
+								e.preventDefault();
+								e.stopPropagation();
+								onRequestNodeMenu(screen, world, id);
+							} else onRequestMenu(screen, world);
 						}}
 					/>
 				))}

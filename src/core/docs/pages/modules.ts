@@ -75,8 +75,18 @@ export function modulesPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"Or drag a ModuleScript from the **DataModel** browser onto the Modules heading: it " +
-					"is declared under its own name, by where it sits.",
+					"Or drag a ModuleScript from the **DataModel** browser onto the Modules heading, or " +
+					"its graph from **Graph Content** or its file from **Compile Content**: it is " +
+					"declared under its own name, by where the project's node map puts it. Dropping one " +
+					"that is already declared changes nothing.",
+			},
+			{
+				t: "p",
+				text:
+					"A **Require Module** or **Require at Top** already on the canvas can be moved here: " +
+					"right-click it and choose **Promote to Modules**. It becomes a Get Module pill for " +
+					"the declaration, keeping its wires, and any module function called through it is " +
+					"called through the declaration.",
 			},
 			{ t: "h", level: 2, text: "What goes in the box" },
 			{
@@ -197,7 +207,8 @@ export function modulesPage(): DocPage {
 					"**Add** takes a service by name, or drag one from the **DataModel** browser onto the " +
 					"heading. Drag a declared service onto the canvas for a **Get Service**, which reads " +
 					"the same local. A Get Service for a service you have not declared still works, and " +
-					"fetches it after the declared ones.",
+					"fetches it after the declared ones; right-click it and choose **Promote to " +
+					"Services** to declare it.",
 			},
 			{
 				t: "note",

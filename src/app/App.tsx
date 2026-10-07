@@ -14,6 +14,7 @@ import { offTargetNames, offTargetNodes } from "../core/compiler/validate.js";
 import { buildSearchIndex, buildSite } from "../core/docs/site.js";
 import { errorMessage } from "../core/errorMessage.js";
 import { diffLines, shownLines } from "../core/lineDiff.js";
+import { instanceSpecifier } from "../core/modules.js";
 import type { InstanceLocation } from "../core/nodemap.js";
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import { BUILTIN_NODES, createRegistry } from "../core/nodes/index.js";
@@ -38,7 +39,13 @@ import { onCodeEditRequest } from "./codeEditRequests.js";
 import { previewFor } from "./DocsPanel.jsx";
 import { DocsSearch } from "./DocsSearch.jsx";
 import { ExportMenu } from "./ExportMenu.jsx";
-import { type Clipping, disconnectPin, setLiteral, setConfig as setNodeConfig } from "./edits.js";
+import {
+	type Clipping,
+	declareModule,
+	disconnectPin,
+	setLiteral,
+	setConfig as setNodeConfig,
+} from "./edits.js";
 import { GraphSettings } from "./GraphSettings.jsx";
 import { GraphTabs } from "./GraphTabs.jsx";
 import {
@@ -53,6 +60,7 @@ import { IntroPanel } from "./IntroPanel.jsx";
 import { MapEditor } from "./MapEditor.jsx";
 import { MenuButton } from "./Menu.jsx";
 import type { WireFrom } from "./menuSearch.js";
+import type { NodeMenuTarget } from "./NodeActionMenu.jsx";
 import type { MenuAnchor } from "./NodeMenu.jsx";
 import { NodePicker } from "./NodePicker.jsx";
 import { functionNameOf } from "./nodeConfig.js";
@@ -154,6 +162,7 @@ export function App() {
 	/** The docs page the editor's Ctrl+K jumped to, opened in the docs window. */
 	const [docsJump, setDocsJump] = useState(false);
 	const [pinMenu, setPinMenu] = useState<PinMenuTarget | null>(null);
+	const [nodeMenu, setNodeMenu] = useState<NodeMenuTarget | null>(null);
 	const [outcomes, setOutcomes] = useState<CompileOutcome[]>([]);
 	// The walk of the current project compile, one entry per file. Empty
 	// between compiles, and it holds the last walk until the next one starts.
@@ -1342,6 +1351,35 @@ export function App() {
 									(await ask({ kind: "confirm", title, message, confirmLabel, danger: true })) ===
 									true
 								}
+								onModuleFile={async (dropped) => {
+									// Where the file lands, from the node maps, as a canvas drop asks.
+									const name = dropped.split("/").pop() ?? dropped;
+									try {
+										const { location } = await api.resolve(dropped);
+										if (!location) {
+											notify(
+												"Nowhere to require it from",
+												`No node map says where ${name} ends up in the DataModel. Add one, ` +
+													"or point an existing map at the folder it is in.",
+											);
+											return;
+										}
+										if (!location.isModule) {
+											notify(
+												"Not a module",
+												`${name} ends up as a script, not a ModuleScript, so there is nothing to require.`,
+											);
+											return;
+										}
+										const path = [location.root, ...location.path.split(".").filter(Boolean)];
+										store.edit(
+											(s) =>
+												declareModule(s, path.at(-1) ?? "module", instanceSpecifier(path)).script,
+										);
+									} catch (err) {
+										notify("Could not resolve that file", errorMessage(err));
+									}
+								}}
 							/>
 						) : undefined,
 					inspector:
@@ -1500,6 +1538,9 @@ export function App() {
 											if (def) spawn(def, world, config, undefined, member);
 											setNodePicker(null);
 										}}
+										onRequestNodeMenu={(screen, world, nodeId) =>
+											setNodeMenu({ screen, world, nodeId })
+										}
 										onRequestPinMenu={(screen, nodeId, pin, side) =>
 											setPinMenu({ screen, nodeId, pin, side })
 										}
@@ -1607,6 +1648,11 @@ export function App() {
 				onSplit={(mode) => pinMenu && void splitOrRecombine(pinMenu, undefined, mode)}
 				onRecombine={(parent) => pinMenu && void splitOrRecombine(pinMenu, parent, undefined)}
 				onPinMenuClose={() => setPinMenu(null)}
+				nodeMenu={nodeMenu}
+				onNodeMenuAddNode={() =>
+					nodeMenu && setMenu({ screen: nodeMenu.screen, world: nodeMenu.world })
+				}
+				onNodeMenuClose={() => setNodeMenu(null)}
 				preview={previewOpen && compiled ? compiled : null}
 				onPreviewClose={() => setPreviewOpen(false)}
 				settings={settingsOpen ? { root: project.root, config: project.config, prefs } : null}

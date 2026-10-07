@@ -9,6 +9,21 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.153.0",
+		date: "2026-10-07",
+		headline: "Promote a node to the Variables panel, and drop a module's graph onto Modules.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Right-click a node to promote it**, as you would a pin. **Promote to Services** on a Get Service declares the service. **Promote to Modules** on a Require Module or Require at Top declares the module and puts a Get Module in its place, its wires and module function calls kept. **Promote to Variable** on a Declare Local in the script's own flow, with a value typed in, makes it a script variable, its Get and Set Locals becoming Gets and Sets; inside a function, a loop or a handler it stays a local, since there it is a fresh value each time. **Promote to Declare Local** on a step with a Result name gives the result its own Declare Local after it. Each leaves the generated file meaning the same.",
+			"A node with nothing to promote opens the node palette on right-click as before. One that has something opens a small menu with **Add Node Here…** at the foot.",
+			"**Graph Content and Compile Content onto Modules.** Drag a module's `.nodescript` or its compiled `.luau` from the project tree onto Modules to declare it by where the project's node map puts it.",
+		],
+		changed: [
+			"Dropping or promoting a module that is already declared reuses that declaration, rather than adding `Greeter2`.",
+			"[Modules](modules) and [Variables and locals](variables-and-locals) say how to promote each kind of node.",
+		],
+	},
+	{
 		version: "0.152.0",
 		date: "2026-10-07",
 		headline: "Require a module by where it sits, and declare the services a script fetches.",

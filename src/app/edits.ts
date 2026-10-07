@@ -1377,6 +1377,25 @@ export function addModule(
 }
 
 /**
+ * Declares a module unless one with the same specifier already is, and says
+ * which declaration holds it either way. For a drop or a promotion, which name
+ * something to require rather than start a blank row: the same module dropped
+ * twice is one declaration, not `Greeter` and `Greeter2`.
+ */
+export function declareModule(
+	script: NodeScript,
+	name: string,
+	specifier: string,
+): { script: NodeScript; id: string; name: string } {
+	const wanted = specifier.trim();
+	const existing = (script.modules ?? []).find((m) => m.specifier.trim() === wanted);
+	if (existing) return { script, id: existing.id, name: existing.name };
+	const added = addModule(script, name, wanted);
+	const declared = added.script.modules?.find((m) => m.id === added.id);
+	return { ...added, name: declared?.name ?? name };
+}
+
+/**
  * Updates a module, and refreshes the name cached on every Get Module pointing
  * at it.
  *

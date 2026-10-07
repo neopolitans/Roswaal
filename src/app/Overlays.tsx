@@ -44,6 +44,7 @@ import type {
 import { CodeEditor } from "./CodeEditor.jsx";
 import { Dialog, type PendingDialog } from "./Dialog.jsx";
 import { Menu } from "./Menu.jsx";
+import { NodeActionMenu, type NodeMenuTarget } from "./NodeActionMenu.jsx";
 import { type MenuAnchor, NodeMenu, type Preset } from "./NodeMenu.jsx";
 import { PinMenu, type PinMenuTarget } from "./PinMenu.jsx";
 import type { Preferences } from "./preferences.js";
@@ -104,6 +105,11 @@ export interface OverlaysProps {
 	onSplit: (mode: string) => void;
 	onRecombine: (parent: string) => void;
 	onPinMenuClose: () => void;
+
+	nodeMenu: NodeMenuTarget | null;
+	/** Add Node Here, from the node menu: the palette where it was. */
+	onNodeMenuAddNode: () => void;
+	onNodeMenuClose: () => void;
 
 	// -- windows -----------------------------------------------------------
 	preview: { code: string; sourceMap: { line: number; node: string }[] } | null;
@@ -190,6 +196,16 @@ export function Overlays(props: OverlaysProps) {
 					onPick={props.onMenuPick}
 					onAddComment={props.onAddComment}
 					onClose={props.onMenuClose}
+				/>
+			)}
+
+			{props.nodeMenu && props.script && (
+				<NodeActionMenu
+					target={props.nodeMenu}
+					script={props.script}
+					registry={props.registry}
+					onAddNode={props.onNodeMenuAddNode}
+					onClose={props.onNodeMenuClose}
 				/>
 			)}
 
