@@ -260,12 +260,15 @@ body.roswaal-landing {
 .landing-banner {
   position: relative; overflow: hidden;
   background-color: var(--bg-canvas);
-  background-image:
-    linear-gradient(to right, var(--bg-canvas) 20%, transparent 75%),
-    radial-gradient(circle, color-mix(in srgb, var(--fg) 9%, transparent) 1.2px, transparent 1.4px);
-  background-size: 100% 100%, 22px 22px;
   border-bottom: 5px solid var(--accent);
 }
+/* The grid is the editor's own ("The grid" in theme.css, by the
+   grid-surface class); the fade from the left, under the name, lies over it. */
+.landing-banner::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(to right, var(--bg-canvas) 20%, transparent 75%);
+}
+.banner-inner { position: relative; }
 /* On the canary the divider is a strip: what this build is, and the way out. */
 .landing-banner.canary { border-bottom: 0; }
 .landing-strip { background: var(--warning); color: #14161a; }
@@ -844,7 +847,7 @@ ${
     </div>
   </div>
 </nav>
-<header class="landing-banner${IS_CANARY ? " canary" : ""}">
+<header class="landing-banner grid-surface${IS_CANARY ? " canary" : ""}">
   <div class="banner-inner">
     <div class="banner-mark">${logoMarkup(96)}</div>
     <div class="banner-copy">

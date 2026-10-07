@@ -33,6 +33,8 @@ import {
 	AUTOSAVE_CHOICES,
 	DOCS_FONTS,
 	FUNCTION_TAB_CHOICES,
+	GRID_CONTRASTS,
+	GRID_PATTERNS,
 	PREVIEW_SCALE,
 	type Preferences,
 	previewScaleOf,
@@ -359,6 +361,39 @@ function EditorSettings({ prefs, onPrefs }: SettingsPanelProps) {
 					>
 						Square
 					</button>
+				</div>
+			</Row>
+
+			<Row label="Grid" help={GRID_PATTERNS.find((g) => g.value === prefs.gridPattern)?.what ?? ""}>
+				<div className="segmented">
+					{GRID_PATTERNS.map((g) => (
+						<button
+							key={g.value}
+							className={prefs.gridPattern === g.value ? "on" : ""}
+							title={g.what}
+							onClick={() => onPrefs({ gridPattern: g.value })}
+						>
+							{g.label}
+						</button>
+					))}
+				</div>
+			</Row>
+
+			<Row
+				label="Grid contrast"
+				help={GRID_CONTRASTS.find((g) => g.value === prefs.gridContrast)?.what ?? ""}
+			>
+				<div className="segmented">
+					{GRID_CONTRASTS.map((g) => (
+						<button
+							key={g.value}
+							className={prefs.gridContrast === g.value ? "on" : ""}
+							title={g.what}
+							onClick={() => onPrefs({ gridContrast: g.value })}
+						>
+							{g.label}
+						</button>
+					))}
 				</div>
 			</Row>
 

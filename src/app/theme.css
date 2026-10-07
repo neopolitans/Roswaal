@@ -18,9 +18,18 @@
 	--border: #c6cad2;
 	--border-strong: #a8aeb9;
 
-	--grid-fine: rgba(0, 0, 0, 0.07);
-	--grid-coarse: rgba(0, 0, 0, 0.14);
-	--watermark: rgba(0, 0, 0, 0.16);
+	/* The grid behind graphs, at each strength the Grid contrast setting
+	   offers. Which one draws is chosen in "The grid", below. */
+	--grid-dot-light: rgba(0, 0, 0, 0.13);
+	--grid-dot-standard: rgba(0, 0, 0, 0.2);
+	--grid-dot-strong: rgba(0, 0, 0, 0.34);
+	--grid-fine-light: rgba(0, 0, 0, 0.05);
+	--grid-fine-standard: rgba(0, 0, 0, 0.07);
+	--grid-fine-strong: rgba(0, 0, 0, 0.12);
+	--grid-coarse-light: rgba(0, 0, 0, 0.1);
+	--grid-coarse-standard: rgba(0, 0, 0, 0.14);
+	--grid-coarse-strong: rgba(0, 0, 0, 0.24);
+	--watermark: rgba(0, 0, 0, 0.26);
 
 	--node-body: #fbfbfd;
 	--node-border: #b3b9c4;
@@ -157,9 +166,16 @@
 		--border: #2d323b;
 		--border-strong: #414855;
 
-		--grid-fine: rgba(255, 255, 255, 0.05);
-		--grid-coarse: rgba(255, 255, 255, 0.1);
-		--watermark: rgba(255, 255, 255, 0.14);
+		--grid-dot-light: rgba(255, 255, 255, 0.1);
+		--grid-dot-standard: rgba(255, 255, 255, 0.15);
+		--grid-dot-strong: rgba(255, 255, 255, 0.28);
+		--grid-fine-light: rgba(255, 255, 255, 0.04);
+		--grid-fine-standard: rgba(255, 255, 255, 0.05);
+		--grid-fine-strong: rgba(255, 255, 255, 0.09);
+		--grid-coarse-light: rgba(255, 255, 255, 0.08);
+		--grid-coarse-standard: rgba(255, 255, 255, 0.1);
+		--grid-coarse-strong: rgba(255, 255, 255, 0.18);
+		--watermark: rgba(255, 255, 255, 0.22);
 
 		--node-body: #262a32;
 		--node-border: #3a404b;
@@ -1657,6 +1673,119 @@ button.tb.primary:hover:not(:disabled) {
 	pointer-events: none;
 }
 
+/* ------------------------------------------------------------- the grid */
+
+/* The grid behind graphs, and the one place it is drawn: the canvas, Node
+   Design, the start page, the node packs page, the sheets a map or a source
+   opens in, and the docs' drawings of all of them. The front page and its
+   tour use it too.
+
+   Dots by default, one at every point Shift-drag snaps to, so the grid marks
+   where a node can land without ruling the page into cells. Lines, the grid
+   before 0.150.0, for anyone who would rather have them: `data-grid` on the
+   root, from the Grid pattern setting.
+
+   How strong it draws is `data-grid-contrast`, from Grid contrast: light by
+   default, and strong when the system asks for more contrast and the setting
+   has been left to follow it. The colours for each strength are the theme's,
+   from `derivedTokens`.
+
+   A surface sets `--grid-step` to change its spacing, and the editor's canvas
+   sets `--grid-x` and `--grid-y` to pan it. */
+:root {
+	--grid-step: 24px;
+	--grid-x: 0px;
+	--grid-y: 0px;
+	--grid-dot: var(--grid-dot-light);
+	--grid-fine: var(--grid-fine-light);
+	--grid-coarse: var(--grid-coarse-light);
+	--grid-dot-size: 1.1px;
+}
+
+:root[data-grid-contrast="standard"] {
+	--grid-dot: var(--grid-dot-standard);
+	--grid-fine: var(--grid-fine-standard);
+	--grid-coarse: var(--grid-coarse-standard);
+}
+
+:root[data-grid-contrast="strong"] {
+	--grid-dot: var(--grid-dot-strong);
+	--grid-fine: var(--grid-fine-strong);
+	--grid-coarse: var(--grid-coarse-strong);
+	--grid-dot-size: 1.4px;
+}
+
+@media (prefers-contrast: more) {
+	:root:not([data-grid-contrast]),
+	:root[data-grid-contrast="auto"] {
+		--grid-dot: var(--grid-dot-strong);
+		--grid-fine: var(--grid-fine-strong);
+		--grid-coarse: var(--grid-coarse-strong);
+		--grid-dot-size: 1.4px;
+	}
+}
+
+/* Every surface that draws the grid. `:where` so it adds no weight: each
+   surface's own rule keeps its colour, padding and the rest, and sets
+   `background-color` rather than the `background` shorthand, which would
+   take the grid away again. */
+:where(
+	.grid-surface,
+	.start-page,
+	.pack-browser,
+	.node-editor-stage,
+	.node-editor:not(.split) > .node-logic,
+	.centre-body:has(> .map-editor, > .source, > .alias-doc),
+	.docs-preview,
+	.docs-bar-frame.float,
+	.docs-layout-region.kind-canvas
+) {
+	background-image: radial-gradient(
+		circle,
+		var(--grid-dot) var(--grid-dot-size),
+		transparent calc(var(--grid-dot-size) + 0.6px)
+	);
+	background-size: var(--grid-step) var(--grid-step);
+	background-position: calc(var(--grid-x) - var(--grid-step) / 2)
+		calc(var(--grid-y) - var(--grid-step) / 2);
+}
+
+/* Lines: the fine grid, and every fifth line heavier. */
+:root[data-grid="lines"]
+	:where(
+		.grid-surface,
+		.start-page,
+		.pack-browser,
+		.node-editor-stage,
+		.node-editor:not(.split) > .node-logic,
+		.centre-body:has(> .map-editor, > .source, > .alias-doc),
+		.docs-preview,
+		.docs-bar-frame.float,
+		.docs-layout-region.kind-canvas
+	) {
+	background-image:
+		linear-gradient(to right, var(--grid-coarse) 1px, transparent 1px),
+		linear-gradient(to bottom, var(--grid-coarse) 1px, transparent 1px),
+		linear-gradient(to right, var(--grid-fine) 1px, transparent 1px),
+		linear-gradient(to bottom, var(--grid-fine) 1px, transparent 1px);
+	background-size:
+		calc(var(--grid-step) * 5) calc(var(--grid-step) * 5),
+		calc(var(--grid-step) * 5) calc(var(--grid-step) * 5),
+		var(--grid-step) var(--grid-step),
+		var(--grid-step) var(--grid-step);
+	background-position: var(--grid-x) var(--grid-y);
+}
+
+/* Zoomed far out the fine grid would be a wash, so the canvas sets
+   `data-far` and its step to the coarse spacing: one dot in five stays, or
+   only the heavier lines. */
+:root[data-grid="lines"] :where(.grid-surface[data-far]) {
+	background-image:
+		linear-gradient(to right, var(--grid-coarse) 1px, transparent 1px),
+		linear-gradient(to bottom, var(--grid-coarse) 1px, transparent 1px);
+	background-size: var(--grid-step) var(--grid-step);
+}
+
 .canvas .world {
 	position: absolute;
 	top: 0;
@@ -1666,24 +1795,29 @@ button.tb.primary:hover:not(:disabled) {
 	height: 0;
 }
 
+/* What the canvas is showing, in its corner: the script's class and name, or
+   the script and the function. One quiet line rather than a title across the
+   work -- it is there to be found, not read -- with ink a little stronger
+   than a bigger word would need, so the smaller text still reads. */
 .canvas .watermark {
 	position: absolute;
 	right: 18px;
-	bottom: 14px;
-	font-size: var(--text-display);
+	bottom: 18px;
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	font-size: var(--text-xl);
 	font-weight: 700;
-	letter-spacing: 0.02em;
 	color: var(--watermark);
 	pointer-events: none;
 	user-select: none;
-	text-align: right;
-	line-height: 1.1;
+	white-space: nowrap;
+	line-height: 1.2;
 }
 
 .canvas .watermark small {
-	display: block;
-	font-size: var(--text-md);
-	font-weight: 500;
+	font-size: var(--text-sm);
+	font-weight: 600;
 	letter-spacing: 0.12em;
 	text-transform: uppercase;
 }
@@ -2972,10 +3106,6 @@ button.tb.primary:hover:not(:disabled) {
 	height: 100%;
 	overflow: hidden;
 	background-color: var(--bg-canvas);
-	background-image:
-		linear-gradient(to right, var(--grid-fine) 1px, transparent 1px),
-		linear-gradient(to bottom, var(--grid-fine) 1px, transparent 1px);
-	background-size: 16px 16px;
 }
 
 .start-page .window-mark {
@@ -6280,11 +6410,7 @@ button.tb.icon-only.on {
 	padding: 18px 16px;
 	border: 1px solid var(--border);
 	border-radius: var(--radius-sm);
-	background: var(--bg-canvas);
-	background-image:
-		linear-gradient(var(--grid-fine) 1px, transparent 1px),
-		linear-gradient(90deg, var(--grid-fine) 1px, transparent 1px);
-	background-size: 24px 24px;
+	background-color: var(--bg-canvas);
 }
 
 /* Wraps, so two nodes sit side by side on a wide page and stack on a narrow
@@ -7016,10 +7142,6 @@ select.doc-target.lune {
 	padding: var(--chrome-top) var(--edge) 0;
 	overflow: hidden;
 	background-color: var(--bg-canvas);
-	background-image:
-		linear-gradient(to right, var(--grid-fine) 1px, transparent 1px),
-		linear-gradient(to bottom, var(--grid-fine) 1px, transparent 1px);
-	background-size: 16px 16px;
 }
 
 .pack-browser-peeking {
@@ -7873,10 +7995,8 @@ button.tb.danger {
 	min-height: 0;
 	overflow: hidden;
 	background-color: var(--bg-canvas);
-	background-image:
-		linear-gradient(to right, var(--grid-fine) 1px, transparent 1px),
-		linear-gradient(to bottom, var(--grid-fine) 1px, transparent 1px);
-	background-size: 38px 38px;
+	/* The node is shown larger here than on a canvas, and so is its grid. */
+	--grid-step: 38px;
 }
 
 .node-editor-world {
@@ -8209,7 +8329,7 @@ button.tb.danger {
 	display: flex;
 	flex-direction: column;
 	min-height: 0;
-	background: var(--bg-panel);
+	background-color: var(--bg-panel);
 }
 
 .logic-head {
@@ -10200,7 +10320,7 @@ a.docs-minor-row .aside {
 	user-select: none;
 	min-width: min-content;
 	padding: 12px;
-	background: var(--bg-app);
+	background-color: var(--bg-app);
 }
 
 /* The drawn chrome, as a thing with edges. In the tool these bars run the full
@@ -10554,10 +10674,6 @@ a.docs-minor-row .aside {
 	   thing that paints the canvas. */
 	padding: 20px 14px;
 	background-color: var(--bg-canvas);
-	background-image:
-		linear-gradient(var(--grid-fine) 1px, transparent 1px),
-		linear-gradient(90deg, var(--grid-fine) 1px, transparent 1px);
-	background-size: 24px 24px;
 }
 
 /* Which is also why the real hover paint is off in here. A drawn button lights
@@ -12414,7 +12530,7 @@ select:not(.literal):not([multiple]) {
 	overflow: hidden;
 	border: 1px solid var(--border);
 	border-radius: var(--radius-sm);
-	background: var(--bg-panel);
+	background-color: var(--bg-panel);
 	color: var(--fg-muted);
 }
 
@@ -12426,10 +12542,8 @@ select:not(.literal):not([multiple]) {
 /* The graph, drawn as the graph's own grid so it reads as the canvas. */
 .docs-layout-region.kind-canvas {
 	background-color: var(--bg-canvas);
-	background-image:
-		linear-gradient(to right, var(--grid-fine) 1px, transparent 1px),
-		linear-gradient(to bottom, var(--grid-fine) 1px, transparent 1px);
-	background-size: 14px 14px;
+	/* A window drawn small: its grid is drawn at the drawing's scale. */
+	--grid-step: 14px;
 	align-content: flex-end;
 }
 
@@ -13330,13 +13444,6 @@ select:not(.literal):not([multiple]) {
 	overflow: hidden;
 }
 
-/* The canvas's grid behind a sheet, so it reads as on the canvas. */
-.centre-body:has(> .map-editor, > .source, > .alias-doc) {
-	background-image:
-		linear-gradient(var(--grid-fine) 1px, transparent 1px),
-		linear-gradient(90deg, var(--grid-fine) 1px, transparent 1px);
-	background-size: 24px 24px;
-}
 
 .centre-body > .placeholder {
 	margin-top: var(--chrome-top);
@@ -13470,10 +13577,6 @@ select:not(.literal):not([multiple]) {
 	position: absolute;
 	inset: 0;
 	background-color: var(--bg-canvas);
-	background-image:
-		linear-gradient(to right, var(--grid-fine) 1px, transparent 1px),
-		linear-gradient(to bottom, var(--grid-fine) 1px, transparent 1px);
-	background-size: 16px 16px;
 }
 
 .node-editor:not(.split) .logic-split {

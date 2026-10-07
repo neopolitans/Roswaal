@@ -209,9 +209,18 @@ export function derivedTokens(dark: boolean): Record<string, string> {
 		"color-scheme": dark ? "dark" : "light",
 		"--bg-hover": `rgba(${ink}, ${dark ? 0.07 : 0.06})`,
 		"--bg-active": `rgba(${ink}, ${dark ? 0.13 : 0.12})`,
-		"--grid-fine": `rgba(${ink}, ${dark ? 0.05 : 0.07})`,
-		"--grid-coarse": `rgba(${ink}, ${dark ? 0.1 : 0.14})`,
-		"--watermark": `rgba(${ink}, ${dark ? 0.14 : 0.16})`,
+		// The grid at each strength Grid contrast offers. The stylesheet picks
+		// one; a scheme only says how its ink reads at each.
+		"--grid-dot-light": `rgba(${ink}, ${dark ? 0.1 : 0.13})`,
+		"--grid-dot-standard": `rgba(${ink}, ${dark ? 0.15 : 0.2})`,
+		"--grid-dot-strong": `rgba(${ink}, ${dark ? 0.28 : 0.34})`,
+		"--grid-fine-light": `rgba(${ink}, ${dark ? 0.04 : 0.05})`,
+		"--grid-fine-standard": `rgba(${ink}, ${dark ? 0.05 : 0.07})`,
+		"--grid-fine-strong": `rgba(${ink}, ${dark ? 0.09 : 0.12})`,
+		"--grid-coarse-light": `rgba(${ink}, ${dark ? 0.08 : 0.1})`,
+		"--grid-coarse-standard": `rgba(${ink}, ${dark ? 0.1 : 0.14})`,
+		"--grid-coarse-strong": `rgba(${ink}, ${dark ? 0.18 : 0.24})`,
+		"--watermark": `rgba(${ink}, ${dark ? 0.22 : 0.26})`,
 		"--node-shadow": dark ? "0 3px 10px rgba(0, 0, 0, 0.45)" : "0 2px 6px rgba(0, 0, 0, 0.14)",
 		"--comment-fill": dark ? "0.14" : "0.1",
 		// The project tree's script and folder colours. Fixed hues -- they say

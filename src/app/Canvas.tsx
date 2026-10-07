@@ -1490,42 +1490,24 @@ export function Canvas({
 /**
  * The grid, painted as a repeating background rather than drawn.
  *
- * Two densities are layered: the fine grid fades out when zoomed far enough
- * that it would turn into a flat wash, leaving the coarse grid to carry the
- * sense of scale.
+ * What it looks like -- dots or lines, and how strong -- is the stylesheet's,
+ * in one place for every surface that draws a grid (see "The grid" in
+ * theme.css). The canvas only says where: the spacing at this zoom, and the
+ * pan, so the grid moves with the graph. Zoomed far enough out that the fine
+ * spacing would be a wash, it hands over the coarse spacing and says so, and
+ * the stylesheet keeps one dot in five, or only the heavier lines.
  */
 function GridLayer({ view }: { view: View }) {
 	const fine = GRID.fine * view.zoom;
-	const coarse = fine * GRID.coarseMultiple;
-	const showFine = view.zoom >= GRID.fineFadeBelow;
-
-	const layers: string[] = [];
-	const sizes: string[] = [];
-	const positions: string[] = [];
-
-	const add = (color: string, size: number) => {
-		layers.push(
-			`linear-gradient(to right, ${color} 1px, transparent 1px)`,
-			`linear-gradient(to bottom, ${color} 1px, transparent 1px)`,
-		);
-		sizes.push(`${size}px ${size}px`, `${size}px ${size}px`);
-		positions.push(`${view.x}px ${view.y}px`, `${view.x}px ${view.y}px`);
-	};
-
-	if (showFine) add("var(--grid-fine)", fine);
-	add("var(--grid-coarse)", coarse);
-
-	return (
-		<div
-			className="grid"
-			style={{
-				zIndex: LAYER.grid,
-				backgroundImage: layers.join(","),
-				backgroundSize: sizes.join(","),
-				backgroundPosition: positions.join(","),
-			}}
-		/>
-	);
+	const far = view.zoom < GRID.fineFadeBelow;
+	const step = far ? fine * GRID.coarseMultiple : fine;
+	const style = {
+		zIndex: LAYER.grid,
+		"--grid-step": `${step}px`,
+		"--grid-x": `${view.x}px`,
+		"--grid-y": `${view.y}px`,
+	} as React.CSSProperties;
+	return <div className="grid grid-surface" data-far={far ? "" : undefined} style={style} />;
 }
 
 interface CommentViewProps {

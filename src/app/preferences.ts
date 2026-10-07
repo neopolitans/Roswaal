@@ -127,6 +127,21 @@ export interface Preferences {
 	 */
 	roundedNodes: boolean;
 	/**
+	 * The grid behind graphs: a dot at every point Shift-drag snaps to, or the
+	 * ruled lines Roswaal drew before 0.150.0.
+	 *
+	 * Dots by default, because they mark where a node can land without ruling
+	 * the canvas into cells, and leave the nodes and wires the strongest thing
+	 * on it. Lines stay for anyone who judges alignment by them.
+	 */
+	gridPattern: GridPattern;
+	/**
+	 * How strongly the grid draws. `auto` is light, and strong when the system
+	 * asks for more contrast -- decided by the stylesheet, so it follows the
+	 * system as it changes. The other three are a choice that stays put.
+	 */
+	gridContrast: GridContrast;
+	/**
 	 * What scrolling over the graph does, with nothing held.
 	 *
 	 * A mouse wheel has one axis and is how Windows users have always zoomed a
@@ -268,6 +283,42 @@ export const WIRE_STYLES: { style: WireStyle; label: string; what: string }[] = 
 	},
 ];
 
+export type GridPattern = "dots" | "lines";
+
+export const GRID_PATTERNS: { value: GridPattern; label: string; what: string }[] = [
+	{
+		value: "dots",
+		label: "Dots",
+		what: "A dot at every point Shift-drag snaps to, and the nodes left the strongest thing on the canvas. The default.",
+	},
+	{
+		value: "lines",
+		label: "Lines",
+		what: "Ruled lines, every fifth one heavier, as Roswaal drew them before 0.150.0.",
+	},
+];
+
+export type GridContrast = "auto" | "light" | "standard" | "strong";
+
+export const GRID_CONTRASTS: { value: GridContrast; label: string; what: string }[] = [
+	{
+		value: "auto",
+		label: "Auto",
+		what: "Light, and Strong when your system asks for more contrast. The default.",
+	},
+	{ value: "light", label: "Light", what: "Faint: there when you look for it." },
+	{
+		value: "standard",
+		label: "Standard",
+		what: "Easier to see on a bright screen or in daylight.",
+	},
+	{
+		value: "strong",
+		label: "Strong",
+		what: "Clearly visible, with larger dots, for low vision or a washed-out display.",
+	},
+];
+
 export type ActionLabels = "icons" | "text";
 
 export const ACTION_LABEL_CHOICES: { value: ActionLabels; label: string; what: string }[] = [
@@ -344,6 +395,8 @@ export const DEFAULTS: Preferences = {
 	reopenLastProject: true,
 	wireStyle: "curved",
 	roundedNodes: true,
+	gridPattern: "dots",
+	gridContrast: "auto",
 	wheel: "auto",
 	actionLabels: "icons",
 	actionRow: "separate",
@@ -406,6 +459,12 @@ export function readPreferences(): Preferences {
 			: DEFAULTS.wireStyle,
 		roundedNodes:
 			typeof stored.roundedNodes === "boolean" ? stored.roundedNodes : DEFAULTS.roundedNodes,
+		gridPattern: GRID_PATTERNS.some((g) => g.value === stored.gridPattern)
+			? (stored.gridPattern as GridPattern)
+			: DEFAULTS.gridPattern,
+		gridContrast: GRID_CONTRASTS.some((g) => g.value === stored.gridContrast)
+			? (stored.gridContrast as GridContrast)
+			: DEFAULTS.gridContrast,
 		actionLabels: ACTION_LABEL_CHOICES.some((c) => c.value === stored.actionLabels)
 			? (stored.actionLabels as ActionLabels)
 			: DEFAULTS.actionLabels,

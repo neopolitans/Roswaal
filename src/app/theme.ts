@@ -115,6 +115,10 @@ export function applyChrome(prefs: Preferences): void {
 	// The docs' reading face, as an attribute the stylesheet keys its font
 	// stacks on. Every window sets it; only the docs have text that reads it.
 	document.documentElement.dataset.docsFont = prefs.docsFont;
+	// The grid's pattern and strength, for "The grid" in theme.css: every
+	// surface that draws one reads these, so a window has nothing else to do.
+	document.documentElement.dataset.grid = prefs.gridPattern;
+	document.documentElement.dataset.gridContrast = prefs.gridContrast;
 }
 
 /**

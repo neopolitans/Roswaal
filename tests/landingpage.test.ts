@@ -286,9 +286,11 @@ describe("the mark on the front page", () => {
 	 * about the same build, so it follows the channel too.
 	 */
 	it("is yellow on the canary and the page's own colour otherwise", () => {
-		expect(landingPage("9.9.9", { canary: true })).toContain('class="landing-banner canary"');
-		expect(landingPage("9.9.9", { canary: false })).toContain('class="landing-banner"');
-		expect(landingPage("9.9.9", { canary: false })).not.toContain('class="landing-banner canary"');
+		const banner = (html: string) =>
+			/<header class="(landing-banner[^"]*)"/.exec(html)?.[1].split(" ") ?? [];
+		expect(banner(landingPage("9.9.9", { canary: true }))).toContain("canary");
+		expect(banner(landingPage("9.9.9", { canary: false }))).toContain("landing-banner");
+		expect(banner(landingPage("9.9.9", { canary: false }))).not.toContain("canary");
 	});
 });
 

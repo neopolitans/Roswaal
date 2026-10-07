@@ -9,6 +9,21 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.150.0",
+		date: "2026-10-07",
+		headline: "A dot grid behind graphs, as strong as you need it, and a quieter corner label.",
+		affects: ["editor", "designer", "docs"],
+		added: [
+			"**Grid**, in Settings: **Dots**, a dot at every point Shift-drag snaps a node to, or **Lines**, the ruled grid with every fifth line heavier.",
+			"**Grid contrast**, in Settings: **Auto**, **Light**, **Standard** or **Strong**. Auto is light, and strong when your system asks for more contrast. Strong draws larger dots.",
+		],
+		changed: [
+			"The grid is dots by default, everywhere a graph sits: the canvas, Node Design, the start page, the node packs page, the sheets a map or a source opens in, the docs' drawings, and the front page.",
+			"Every grid is drawn by one rule, 24 apart wherever it stands at full size, and follows the same two settings.",
+			"What the canvas is showing — the script's class and name, or the script and the function — is one quiet line in its corner, where it was a large title across the work.",
+		],
+	},
+	{
 		version: "0.149.0",
 		date: "2026-10-07",
 		headline: "The front page tour shows completion, the DataModel, Wally and importing.",

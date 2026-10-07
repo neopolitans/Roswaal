@@ -197,7 +197,7 @@ function listDemo(nodes) {
 					.join(""),
 		)
 		.join("");
-	return `<div class="tour-pane tour-canvas tour-list-demo">
+	return `<div class="tour-pane tour-canvas grid-surface tour-list-demo">
           <span class="tour-cursor" aria-hidden="true"></span>
           <div class="menu tour-menu-list" data-tour="list">
             <input class="search" type="search" placeholder="Search nodes…" aria-label="Search nodes" autocomplete="off" spellcheck="false" />
@@ -236,7 +236,7 @@ function visualDemo(nodes) {
 				`${node.def.summary ? `<p class="summary">${escapeHtml(node.def.summary)}</p>` : ""}</div></div>`,
 		)
 		.join("");
-	return `<div class="tour-pane tour-canvas tour-visual-demo">
+	return `<div class="tour-pane tour-canvas grid-surface tour-visual-demo">
           <div class="node-picker" data-tour="visual">
             <div class="node-picker-field">
               ${icon("search", 18)}
@@ -410,7 +410,7 @@ function previewDemo() {
 	const opened = analyse(question(new Set([PREVIEW_OPEN])));
 	const lit = opened.rows.filter((row) => row.mine).length;
 	return `<div class="tour-pane tour-preview-demo" data-tour="preview">
-          <div class="tour-preview-graph tour-canvas">
+          <div class="tour-preview-graph tour-canvas grid-surface">
             <div class="tour-preview-frame">${svg}${buttons}</div>
           </div>
           <div class="docs preview-luau tour-preview-panel">
@@ -684,7 +684,7 @@ function menuDemo() {
 		/<button type="button" tabindex="-1"/g,
 		'<button type="button" tabindex="-1" role="menuitem"',
 	);
-	return `<div class="tour-pane tour-canvas tour-menu-demo" data-tour="menu">
+	return `<div class="tour-pane tour-canvas grid-surface tour-menu-demo" data-tour="menu">
           <div class="tour-tree-card">
             <div class="tour-card-head">Project</div>
             <ul class="tour-tree">
@@ -763,7 +763,7 @@ function completeDemo() {
 		return { ...one, list: keys.get(key), options };
 	});
 	const first = asked[0];
-	return `<div class="tour-pane tour-canvas tour-complete-demo" data-tour="complete">
+	return `<div class="tour-pane tour-canvas grid-surface tour-complete-demo" data-tour="complete">
           <div class="segmented tour-complete-tabs" role="group" aria-label="Where completion is asked">${asked
 						.map(
 							(one, i) =>
@@ -837,7 +837,7 @@ function dragDemo() {
 		{ from: 0, to: 7, text: "print()" },
 		6,
 	).insert;
-	return `<div class="tour-pane tour-canvas tour-drag-demo" data-tour="drag">
+	return `<div class="tour-pane tour-canvas grid-surface tour-drag-demo" data-tour="drag">
           <div class="tour-drag-tree">${tree}</div>
           <div class="tour-drag-code code-body">
             <div class="tour-card-head">Custom Code</div>
@@ -863,7 +863,7 @@ function wallyDemo() {
 		["before", "Before", PROJECT_TREE_WALLY],
 		["after", "After Add from Wally… Flux", PROJECT_TREE_WALLY_ADDED],
 	];
-	return `<div class="tour-pane tour-canvas tour-wally-demo">
+	return `<div class="tour-pane tour-canvas grid-surface tour-wally-demo">
           ${states.map(([id], i) => `<input class="tour-pick" type="radio" name="tour-wally" id="tour-wally-${id}"${i === 0 ? " checked" : ""} />`).join("")}
           <div class="tour-device-switch segmented" role="group" aria-label="Show">${states.map(([id, name]) => `<label for="tour-wally-${id}">${escapeHtml(name)}</label>`).join("")}</div>
           ${states.map(([id, , spec]) => `<div class="tour-wally tour-wally-${id}">${toolbarHtml(spec, { ...ART, version: "" })}</div>`).join("\n          ")}
@@ -954,7 +954,7 @@ function importDemo() {
           ${modes
 						.map(
 							({ mode, svg, body, report }) => `<div class="tour-import tour-import-${mode}">
-            <figure class="tour-import-graph tour-canvas">${svg}</figure>
+            <figure class="tour-import-graph tour-canvas grid-surface">${svg}</figure>
             <div class="tour-import-code">
               <div><div class="tour-card-head">Coins.server.luau</div><pre class="landing-code"><code>${tokensHtml(IMPORT_SOURCE.trim())}</code></pre></div>
               <div><div class="tour-card-head">What the graph writes</div><pre class="landing-code"><code>${tokensHtml(body)}</code></pre></div>
@@ -1241,12 +1241,11 @@ export const TOUR_STYLE = `
 .tour-doc { margin-left: auto; font-size: 13px; color: var(--accent); }
 .tour-demo { position: relative; min-width: 0; display: flex; }
 .tour-pane { flex: 1; min-width: 0; position: relative; display: flex; flex-direction: column; }
-/* The canvas the demonstrations sit on: the editor's grid. */
+/* The canvas the demonstrations sit on. Its grid is the editor's own, from
+   "The grid" in theme.css, by the grid-surface class each one carries. */
 .tour-canvas {
   align-items: center; justify-content: center; padding: 24px;
   background-color: var(--bg-canvas);
-  background-image: radial-gradient(circle, color-mix(in srgb, var(--fg) 9%, transparent) 1.2px, transparent 1.4px);
-  background-size: 22px 22px;
 }
 @media (max-width: 1000px) {
   .tour-slide { grid-template-columns: minmax(0, 1fr); min-height: 0; }

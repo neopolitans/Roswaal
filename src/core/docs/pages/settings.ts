@@ -147,6 +147,14 @@ export function settingsPage(): DocPage {
 						"Rounded or square. Capsule getters and reroute knots keep their shapes either way — a pill and a circle are what say *this is a value* and *this is a bend in the wire*, and neither has a title to say it instead.",
 					],
 					[
+						"Grid",
+						"The pattern behind a graph, on the canvas, in Node Design and on the start page. **Dots**, the default, puts a dot at every point Shift-drag snaps a node to, and leaves the nodes and wires the strongest thing on the canvas. **Lines** rules the canvas as Roswaal did before 0.150.0, every fifth line heavier, for anyone who lines nodes up by eye. Zoomed far out either keeps only every fifth.",
+					],
+					[
+						"Grid contrast",
+						"How strongly the grid draws. **Auto**, the default, is light, and strong when your system asks for more contrast. **Light** is faint, there when you look for it; **Standard** is easier to see on a bright screen; **Strong** is clearly visible, with larger dots, for low vision or a washed-out display. The grid only decorates: nothing about a graph is shown by it alone.",
+					],
+					[
 						"Long names",
 						"**Truncate** cuts a header too long for its node short, with the whole of it in the tooltip — what nodes have always done. **Widen** draws the node wide enough for its header instead. It is the one of these looks that moves *pins*, so the wire router and the pictures on these pages are computed from the same width: a node and its own picture are never two different sizes.",
 					],
@@ -181,7 +189,7 @@ export function settingsPage(): DocPage {
 			{
 				t: "note",
 				kind: "info",
-				text: "**Wires and node corners change how a graph looks, never what it compiles to.**",
+				text: "**Wires, node corners and the grid change how a graph looks, never what it compiles to.**",
 			},
 
 			{ t: "h", level: 2, text: "Themes" },
