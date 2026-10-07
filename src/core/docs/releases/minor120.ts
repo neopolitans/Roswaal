@@ -9,6 +9,26 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.147.0",
+		date: "2026-10-07",
+		headline: "The front page has a tour of the editor, and its versions open their notes.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Take the tour**: seven slides on the front page, each a part of the editor to try. Select nodes to see which lines of the generated file they wrote, search for a node by name, walk the node picker as it draws each node, hover the names in a script and a Moonwave-documented module, see the editor on a computer, a tablet and a phone, and work a menu from the keyboard.",
+			"Under the example of what Roswaal writes, a line leads on to the tour and scrolls all of it into view.",
+			"Search literally, or visually; Preview anything, any time; and Panels that float and dock each link up to the slide where they can be tried.",
+			"Each slide names the release its part first shipped in and the ones that built on it.",
+		],
+		changed: [
+			"A version on the front page opens the release notes it first shipped in: the cards under Inside the editor, the slides, and Lately.",
+			"Custom nodes, made your way is dated 0.34.0, when a node's logic could first be built from nodes.",
+		],
+		fixed: [
+			"The selection preview no longer calls Script Start a pure node. It says Script Start is where code starts running, and lights no lines for it.",
+			"What is planned no longer lists importing Luau, which shipped in 0.140.0.",
+		],
+	},
+	{
 		version: "0.146.0",
 		security: true,
 		date: "2026-10-06",

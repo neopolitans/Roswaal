@@ -34,6 +34,7 @@ import { withCspMeta } from "../src/core/csp.ts";
 import { buildGraphViewer } from "./lib/graphViewer.mjs";
 import { LANDING_SCRIPT, landingPage } from "./lib/landing.mjs";
 import { notFoundPage } from "./lib/notFound.mjs";
+import { TOUR_SCRIPT } from "./lib/tour.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const out = join(root, "dist-pages");
@@ -104,10 +105,11 @@ async function main() {
 
 	await writeFile(join(out, "index.html"), landingPage(version), "utf8");
 	// The docs' graph viewer, so the landing page's graph pans and zooms with
-	// the editor's own code, then the bar between the graph and its Luau.
+	// the editor's own code, then the bar between the graph and its Luau, then
+	// what makes the tour's demonstrations answer.
 	await writeFile(
 		join(out, "landing.js"),
-		[await buildGraphViewer(), LANDING_SCRIPT].join("\n"),
+		[await buildGraphViewer(), LANDING_SCRIPT, TOUR_SCRIPT].join("\n"),
 		"utf8",
 	);
 	await writeFile(join(out, "404.html"), notFoundPage(base, version), "utf8");

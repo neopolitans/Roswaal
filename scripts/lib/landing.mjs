@@ -18,6 +18,10 @@
  * and CSS, so the page is whole as markup and cannot break the way `docs.js`
  * broke. `landing.js` makes the graphs pan and zoom and the bars around them
  * draggable; without it they stay as drawn.
+ *
+ * The tour (`tour.mjs`) holds to the same rule: its slides switch by radio
+ * button, and each demonstration is drawn in a state worth looking at before
+ * any script makes it answer.
  */
 
 import { wirePath } from "../../src/app/geometry.ts";
@@ -37,7 +41,7 @@ import { escapeHtml } from "../../src/core/docs/html.ts";
 import { SOURCE_REPOSITORY, STABLE_SITE } from "../../src/core/docs/links.ts";
 import { graphSvg } from "../../src/core/docs/preview.ts";
 import { RELEASES, taglineFor } from "../../src/core/docs/releases.ts";
-import { buildSite, releasePageSlug } from "../../src/core/docs/site.ts";
+import { buildSite } from "../../src/core/docs/site.ts";
 import { growthState } from "../../src/core/nodes/growth.ts";
 import {
 	BUILTIN_NODES as ALL_NODES,
@@ -45,6 +49,7 @@ import {
 	createRegistry,
 } from "../../src/core/nodes/index.ts";
 import { emptyScript } from "../../src/core/schema.ts";
+import { releaseHref, SLIDES, sinceBadge, TOUR_STYLE, tourSection } from "./tour.mjs";
 
 /**
  * The canary's word on its front page. The windows say it with their yellow
@@ -491,6 +496,11 @@ body.roswaal-landing {
    two-level function body look like an accident. */
 .landing-code { flex: 1; margin: 0; padding: 14px; overflow-x: auto; font-size: 13px; line-height: 1.55; tab-size: 2; background: var(--bg-input); }
 .landing-caption { color: var(--fg-faint); font-size: 13px; margin: 0; }
+/* From the output to the tour: the one joins the other. */
+.landing-bridge { margin: 18px 0 0; font-size: 15px; color: var(--fg-muted, var(--fg-faint)); }
+.landing-bridge a { color: var(--accent); font-weight: 600; text-decoration: none; }
+.landing-bridge a::after { content: " \\2193"; }
+.landing-bridge a:hover { text-decoration: underline; }
 
 /* The cards are drawn as Roswaal's own nodes: a header in the colour
    nodeColor() gives the canvas, with the execution pins every step has, over a
@@ -520,13 +530,24 @@ body.roswaal-landing {
 }
 .landing-card h3::before { left: 9px; }
 .landing-card h3::after { right: 9px; }
-/* Which version it arrived in, in the header's own ink. */
+/* Which version it arrived in, in the header's own ink, opening the release
+   notes it arrived with. */
 .landing-card .since {
   margin-left: auto; padding: 0 6px; border-radius: 3px; background: rgb(0 0 0 / 24%);
   font: 600 11px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace; font-variant-numeric: tabular-nums;
+  color: inherit; text-decoration: none; transition: background 0.12s;
 }
+.landing-card .since:hover { background: rgb(0 0 0 / 40%); text-decoration: underline; }
+.landing-card .since:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
 .landing-card p { margin: 0; padding: 12px 14px 14px; color: var(--fg-muted, var(--fg-faint)); font-size: 14px; line-height: 1.55; }
 .landing-card p a { color: var(--accent); }
+/* Back up to the slide where the card's part can be tried. */
+.landing-card-tour {
+  margin: auto 14px 12px; align-self: flex-start; font-size: 13px; font-weight: 600;
+  color: var(--accent); text-decoration: none;
+}
+.landing-card-tour::after { content: " \\2191"; }
+.landing-card-tour:hover { text-decoration: underline; }
 .landing-card code { font-size: 12px; }
 /* A key, not a phrase. Borrowed from the shape the docs give one, so a reader
    who has seen the shortcuts written down once recognises them here. */
@@ -599,7 +620,7 @@ body.roswaal-landing {
 }
 @media (max-width: 640px) { .landing-sec { margin-bottom: 44px; } }
 @media (prefers-reduced-motion: reduce) { .landing-card { transition: none; } }
-`;
+${TOUR_STYLE}`;
 
 /**
  * The landing page's own script: the handles around each example.
@@ -722,18 +743,25 @@ function lately() {
 		.map(
 			(release, i) =>
 				// Straight to the version's own page, the release lit on it.
-				`<li${i >= 6 ? ' class="lately-more"' : ""}><a href="docs/${escapeHtml(releasePageSlug(release.version))}.html#v${escapeHtml(release.version)}">` +
+				`<li${i >= 6 ? ' class="lately-more"' : ""}><a href="${escapeHtml(releaseHref(release.version))}">` +
 				`<span class="lately-version">${escapeHtml(release.version)}</span>` +
 				`<span class="lately-line">${escapeHtml(release.headline)}</span></a></li>`,
 		)
 		.join("\n      ");
 }
 
-/** A feature card, drawn as a node. `since` is the version it arrived in. */
-function card(node, glyph, title, body, since) {
+/**
+ * A feature card, drawn as a node. `since` is the version it arrived in, and
+ * its badge opens that version's release notes. `slide` names the tour's slide
+ * that shows the same part working, for a link back up to it.
+ */
+function card(node, glyph, title, body, since, slide) {
+	if (slide !== undefined && !SLIDES.some((one) => one.key === slide)) {
+		throw new Error(`A card points at a tour slide that is gone: ${slide}`);
+	}
 	return `<div class="landing-card" style="--edge: ${colourOf(node)}">
-        <h3>${icon(glyph)}${title}${since ? `<span class="since" title="Since ${since}">${since}</span>` : ""}</h3>
-        <p>${body}</p>
+        <h3>${icon(glyph)}${title}${since ? sinceBadge(since, "since") : ""}</h3>
+        <p>${body}</p>${slide ? `\n        <a class="landing-card-tour" href="#tour" data-tour-slide="${slide}">See it in the tour</a>` : ""}
       </div>`;
 }
 
@@ -751,6 +779,8 @@ export function landingPage(
 ) {
 	const IS_CANARY = canary;
 	const shown = examples();
+	const hero = heroGraph();
+	const tour = tourSection({ graph: hero, tryHref: "try.html" });
 	const tagline = taglineFor(version);
 	const mark = IS_CANARY ? "canary" : "preview";
 	const flag = escapeHtml(IS_CANARY ? MARK_LABEL.canary : PREVIEW_LABEL);
@@ -782,7 +812,8 @@ ${
 <link rel="stylesheet" href="docs/theme.css?v=${encodeURIComponent(version)}" />
 <script src="docs/theme.js?v=${encodeURIComponent(version)}"></script>
 <style>${STYLE}
-${pickRules}</style>
+${pickRules}
+${tour.rules}</style>
 <script src="landing.js?v=${encodeURIComponent(version)}" defer></script>
 </head>
 <body class="roswaal-landing">
@@ -834,7 +865,7 @@ ${
         <li>Computer, tablet or phone</li>
       </ul>
     </div>
-    <div class="banner-graph" aria-hidden="true">${heroGraph()}</div>
+    <div class="banner-graph" aria-hidden="true">${hero}</div>
   </div>
 </header>
 ${
@@ -902,7 +933,13 @@ ${shown
       Both halves come from the same graph, by the same compiler the editor runs, so
       the picture cannot show a wiring the code does not have.
     </p>
+    <p class="landing-bridge">
+      That is what it writes. <a href="#tour">Take the tour of the editor that writes it</a>,
+      starting with the lines each node wrote.
+    </p>
   </section>
+
+  ${tour.markup}
 
   <section class="landing-sec">
     <div class="landing-sec-head"><h2 class="landing-h2">Why it holds up</h2></div>
@@ -937,6 +974,7 @@ ${shown
 				"Search literally, or visually",
 				"<kbd>Right-click</kbd> the canvas to search nodes by name. <kbd>Ctrl</kbd> + <kbd>Right-click</kbd> opens a picker that draws each node as you walk the list, since 0.50.0.",
 				"0.1.0",
+				"list",
 			)}
       ${card(
 				"event.connect",
@@ -957,7 +995,7 @@ ${shown
 				"palette",
 				"Custom nodes, made your way",
 				"In Node Design, wire a node's logic from nodes and watch the Luau appear, or write the template by hand. Or write a pack yourself, in JSON or Luau.",
-				"0.31.0",
+				"0.34.0",
 			)}
       ${card(
 				"roblox.getService",
@@ -972,6 +1010,7 @@ ${shown
 				"Preview anything, any time",
 				"<kbd>P</kbd> shows what the graph in front of you compiles to: a whole script, one function, or only the nodes you have selected, read from the real output.",
 				"0.17.0",
+				"preview",
 			)}
       ${card(
 				"table.insert",
@@ -979,6 +1018,7 @@ ${shown
 				"Panels that float and dock",
 				"Every window floats its controls over the work. Cards dock to an edge, share it, take tabs and fold away on a computer or an iPad, and become sheets on a phone.",
 				"0.121.0",
+				"windows",
 			)}
       ${card(
 				"debug.print",
@@ -1022,11 +1062,6 @@ ${shown
       it is in the version you can try today.
     </p>
     <div class="landing-points">
-      ${planned(
-				"newFile",
-				"Import Luau you already have",
-				"Statements become the flow, expressions become nodes, and anything that will not lower cleanly arrives as a Custom Code node holding the original text, so an import is useful before it is perfect.",
-			)}
       ${planned(
 				"warning",
 				"Runtime errors that point at a node",

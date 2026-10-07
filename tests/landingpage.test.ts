@@ -350,14 +350,19 @@ describe("what it shows since 0.125.0", () => {
 		expect(text).toContain('require("@lune/fs")');
 	});
 
-	/** Every card in the editor's section says which version it arrived in. */
+	/**
+	 * Every card in the editor's section says which version it arrived in, and
+	 * since 0.147.0 the badge opens that version's release notes.
+	 */
 	it("dates every card inside the editor", () => {
 		const editor = html.slice(
 			html.indexOf("Inside the editor"),
 			html.indexOf("Works with what you have"),
 		);
 		const cards = editor.match(/<div class="landing-card"/g) ?? [];
-		const since = editor.match(/<span class="since" title="Since \d+\.\d+\.\d+">/g) ?? [];
+		const since =
+			editor.match(/<a class="since" href="docs\/release-notes\/\d+\.\d+\.html#v\d+\.\d+\.\d+"/g) ??
+			[];
 		expect(cards.length).toBe(8);
 		expect(since.length).toBe(cards.length);
 	});
