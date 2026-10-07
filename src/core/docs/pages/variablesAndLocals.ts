@@ -195,7 +195,7 @@ export function variablesAndLocalsPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"Open a **Custom Code** or **Luau Expression** pin and the completion list is not " +
+					"Open a **Code Block** or **Luau Expression** pin and the completion list is not " +
 					"just Luau's globals. It is what the *generated file* will actually have in scope at " +
 					"that point, worked out from the graph:",
 			},
@@ -207,7 +207,7 @@ export function variablesAndLocalsPage(): DocPage {
 					["Your functions", "a named local, visible after it is declared"],
 					["Get Service and Require Module results", "hoisted to the top of the file"],
 					[
-						"Locals declared by **earlier Custom Code**",
+						"Locals declared by **earlier Code Block**",
 						"real `local` statements in the same block, still alive when this one runs",
 					],
 				],
@@ -234,7 +234,7 @@ export function variablesAndLocalsPage(): DocPage {
 				kind: "good",
 				text:
 					"**The list follows Luau's scope**: a local declared inside an `if` or a loop in " +
-					"Custom Code is offered inside it, and not after it closes.",
+					"Code Block is offered inside it, and not after it closes.",
 			},
 			{
 				t: "p",
@@ -245,7 +245,7 @@ export function variablesAndLocalsPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"Custom Code has no output pin, so it cannot hand a value onward by wire. To get " +
+					"Code Block has no output pin, so it cannot hand a value onward by wire. To get " +
 					"one out, write to a variable — or put **Declare Local** before it and assign to " +
 					"that local in the code, which the completion list will offer by name. See " +
 					"[Hand-written Luau](hand-written-luau) for what each of the two code nodes emits.",

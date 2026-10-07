@@ -62,6 +62,8 @@ import {
 	dropZone,
 	floatingCards,
 	foldCard,
+	fullFootLayout,
+	isFoot,
 	type Layout,
 	MIN_FLOAT,
 	membersOf,
@@ -137,6 +139,11 @@ export interface WorkspaceProps {
 	chrome?: ReactNode;
 	/** The side strip, down the left edge, when the centre is a canvas. */
 	strip?: ReactNode;
+	/**
+	 * Code's full view: the Code panel along the foot, grown up over the graph
+	 * to the top bar, the side columns kept. See `fullFootLayout`.
+	 */
+	fullFoot?: boolean;
 }
 
 /** What the chrome's dock buttons need: whether a side is out, and a way to put it out. */
@@ -183,6 +190,7 @@ export function Workspace({
 	showDrawer,
 	chrome,
 	strip,
+	fullFoot = false,
 }: WorkspaceProps) {
 	const surface = useRef<HTMLDivElement>(null);
 	// The centre, which a window's coordinates are measured from.
@@ -208,12 +216,13 @@ export function Workspace({
 	// in `panels.ts` because it is a fact about rendering, not about the
 	// layout: the developer did not close the inspector, and it must come back
 	// the moment it has something to say.
+	const arranged = fullFoot && contents.code !== undefined ? fullFootLayout(layout) : layout;
 	const effective: Layout = {
-		...layout,
+		...arranged,
 		panels: Object.fromEntries(
 			PANEL_IDS.map((id) => [
 				id,
-				contents[id] === undefined ? { ...layout.panels[id], open: false } : layout.panels[id],
+				contents[id] === undefined ? { ...arranged.panels[id], open: false } : arranged.panels[id],
 			]),
 		) as Layout["panels"],
 	};
@@ -400,6 +409,7 @@ export function Workspace({
 							onLayoutEnd={onResizeEnd}
 							onMenu={menuFor}
 							onHeight={side === "bottom" ? setPill : undefined}
+							only={side === "bottom" ? (card) => !isFoot(effective, card.head) : undefined}
 							splitter={
 								!compact && side !== "bottom" && onResize && onToggle ? (
 									<Splitter
@@ -413,6 +423,29 @@ export function Workspace({
 							}
 						/>
 					) : null,
+				)}
+
+				{dockVisible(effective, "bottom") && (
+					<FootDock
+						layout={effective}
+						contents={contents}
+						focus={focus}
+						full={fullFoot}
+						onGrab={grabber}
+						onLayout={onLayout}
+						onMenu={menuFor}
+						splitter={
+							onResize && onToggle && !fullFoot ? (
+								<Splitter
+									side="bottom"
+									size={effective.docks.bottom.size}
+									onResize={(size) => onResize("bottom", size)}
+									onResizeEnd={onResizeEnd}
+									onToggle={() => onToggle("bottom")}
+								/>
+							) : undefined
+						}
+					/>
 				)}
 
 				{chrome && <div className="workspace-chrome">{chrome}</div>}
@@ -531,8 +564,8 @@ export function Workspace({
 			width: r.width,
 			height: r.height,
 		});
-		// Script analysis is the status pill: no tabs either way, and only it
-		// goes along the bottom.
+		// Script analysis is the status pill: no tabs either way. Anything else
+		// docked at the bottom is the strip along the foot.
 		const analysis =
 			panel === "analysis" || (!alone && membersOf(layout, self).includes("analysis"));
 
@@ -574,21 +607,17 @@ export function Workspace({
 			return x >= r.left && x <= r.right && y >= r.top && y <= box.bottom - pill;
 		};
 		const edge = dropZone(box, x, y);
-		const side = column("left")
-			? "left"
-			: column("right")
-				? "right"
-				: edge === "bottom" && !analysis
-					? null
-					: edge;
-		if (side && (side !== "bottom" || analysis)) {
+		const side = column("left") ? "left" : column("right") ? "right" : edge;
+		if (side) {
 			const label =
 				side === "left"
 					? "Dock on the left"
 					: side === "right"
 						? "Dock on the right"
-						: "Back to the foot";
-			return { drop: { kind: "dock", side }, rect: dockRect(side, box), label };
+						: analysis
+							? "Back to the foot"
+							: "Along the foot";
+			return { drop: { kind: "dock", side }, rect: dockRect(side, box, !analysis), label };
 		}
 		const centre = centreBox.current?.getBoundingClientRect();
 		if (!centre || x < centre.x || x > centre.right || y < centre.y || y > centre.bottom)
@@ -606,10 +635,25 @@ export function Workspace({
 	 * Where a dock would be: its column under the top row, the left one
 	 * stopping above the status pill, or the pill itself at the foot.
 	 */
-	function dockRect(side: DockSide, box: DOMRect) {
+	function dockRect(side: DockSide, box: DOMRect, foot = false) {
 		const edge = 10;
 		const row = surface.current?.querySelector<HTMLElement>(".workspace-chrome .tool-group");
 		const top = row ? row.getBoundingClientRect().bottom - box.top + edge : 58;
+		if (side === "bottom" && foot) {
+			// The strip between the side columns, at its height, above the pill's row.
+			const left =
+				dockVisible(effective, "left") && !compact ? effective.docks.left.size + edge : 0;
+			const right =
+				dockVisible(effective, "right") && !compact ? effective.docks.right.size + edge : 0;
+			const above = edge * 2 + 36;
+			const height = Math.min(layout.docks.bottom.size, box.height - top - above);
+			return {
+				left: edge + left,
+				top: box.height - above - height,
+				width: Math.max(160, box.width - edge * 2 - left - right),
+				height,
+			};
+		}
 		if (side === "bottom") {
 			const height = Math.max(pill, 40);
 			return {
@@ -662,6 +706,8 @@ export function Workspace({
 			moves.push({ label: "Dock on the right", run: to({ kind: "dock", side: "right" }) });
 		if (head === "analysis" && (state.floating || state.dock !== "bottom"))
 			moves.push({ label: "Back to the foot", run: to({ kind: "dock", side: "bottom" }) });
+		if (head !== "analysis" && (state.floating || state.dock !== "bottom"))
+			moves.push({ label: "Along the foot", run: to({ kind: "dock", side: "bottom" }) });
 		if (members.length > 1)
 			card.push({ label: `Separate ${title}`, run: () => onLayout((l) => separate(l, panel)) });
 		card.push({
@@ -733,6 +779,7 @@ function DockCards({
 	onLayoutEnd,
 	onMenu,
 	onHeight,
+	only,
 	splitter,
 }: {
 	side: DockSide;
@@ -745,10 +792,14 @@ function DockCards({
 	onMenu?: (panel: PanelId, anchor: HTMLElement) => void;
 	/** Told the dock's height as it changes: the status pill's, for the column above it. */
 	onHeight?: (height: number) => void;
+	/** Which of the dock's cards this column draws: at the bottom, the pill's and not the foot's. */
+	only?: (card: Card) => boolean;
 	splitter?: ReactNode;
 }) {
 	const column = useRef<HTMLDivElement>(null);
-	const cards = cardsIn(layout, side, (id) => contents[id] !== undefined);
+	const cards = cardsIn(layout, side, (id) => contents[id] !== undefined).filter(
+		(card) => !only || only(card),
+	);
 	const drawn = cards.length > 0;
 	useEffect(() => {
 		const element = column.current;
@@ -841,6 +892,60 @@ function DockCards({
 					</Fragment>
 				);
 			})}
+		</div>
+	);
+}
+
+/**
+ * The strip along the foot of the graph: the bottom dock's cards other than
+ * the status pill -- the Code panel, unless it has been moved.
+ *
+ * Between the side columns rather than under them, so the tree, Variables and
+ * the Inspector stay where they are while code is open below the graph, and
+ * as tall as the dock's size, which its top edge drags. Two cards here sit
+ * side by side. In full view it grows to the top bar.
+ */
+function FootDock({
+	layout,
+	contents,
+	focus,
+	full,
+	onGrab,
+	onLayout,
+	onMenu,
+	splitter,
+}: {
+	layout: Layout;
+	contents: Partial<Record<PanelId, ReactNode>>;
+	focus: PanelId | null;
+	full: boolean;
+	onGrab?: (panel: PanelId, alone: boolean, event: ReactPointerEvent<HTMLElement>) => void;
+	onLayout?: (change: (layout: Layout) => Layout, persist?: boolean) => void;
+	onMenu?: (panel: PanelId, anchor: HTMLElement) => void;
+	splitter?: ReactNode;
+}) {
+	const cards = cardsIn(layout, "bottom", (id) => contents[id] !== undefined).filter((card) =>
+		isFoot(layout, card.head),
+	);
+	if (cards.length === 0) return null;
+	return (
+		<div
+			className={cx("dock", "foot", full && "full")}
+			style={full ? undefined : { height: layout.docks.bottom.size }}
+		>
+			{splitter}
+			{cards.map((card) => (
+				<CardView
+					key={card.head}
+					card={card}
+					contents={contents}
+					focus={focus !== null && card.tabs.includes(focus)}
+					onGrab={onGrab}
+					onShow={(id) => onLayout?.((l) => showTab(l, id))}
+					onFold={(folded) => onLayout?.((l) => foldCard(l, card.head, folded))}
+					onMenu={onMenu}
+				/>
+			))}
 		</div>
 	);
 }

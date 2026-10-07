@@ -263,7 +263,7 @@ export function declareServices(e: Emitter): void {
 
 /**
  * A declared service nothing reads: said, so that what is declared is what is
- * used. Read off what was written -- the flow, every function, the Custom Code
+ * used. Read off what was written -- the flow, every function, the Code Block
  * and the module paths -- because a service is read by name wherever code
  * mentions it, not only through a node that asked for it.
  */
@@ -386,7 +386,7 @@ export function resolveRoot(e: Emitter, root: string): string {
  */
 export function typeDefinition(e: Emitter, declaration: TypeDeclaration, nodeId: string): string {
 	// Written out is pasted in as it stands, so an unclosed brace here breaks
-	// the file somewhere after it. Said against the node, like Custom Code.
+	// the file somewhere after it. Said against the node, like Code Block.
 	if (declaration.shape === "written") {
 		const problem = checkLuau(declaration.definition, "type")[0];
 		if (problem) {
@@ -455,7 +455,7 @@ export function claimTypeName(e: Emitter, name: string): void {
  *
  * The definition is written as Luau. A type is not built out of values, so
  * there is nothing for a node to be: `{ speed: number }` has no runtime
- * meaning to wire up. This is the same escape hatch Custom Code is, and it
+ * meaning to wire up. This is the same escape hatch Code Block is, and it
  * is the honest one here rather than a shortcut.
  */
 export function emitTypes(e: Emitter): void {

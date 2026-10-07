@@ -524,7 +524,7 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 	// the node that holds it is the difference between a useful error and a
 	// baffling one.
 	//
-	// Parsed as what each one is: Custom Code is statements, and everything
+	// Parsed as what each one is: Code Block is statements, and everything
 	// else — a Luau Expression, code typed into a pin — is one value, which is
 	// what makes `local x = 1` in a Luau Expression the error it always was.
 	for (const node of script.nodes) {

@@ -7,7 +7,7 @@
  * the last of those survives being glanced at from across a screen, which is
  * why the other two exist.
  *
- * Each editor passes the check it wants. Custom Code and Luau Expression use
+ * Each editor passes the check it wants. Code Block and Luau Expression use
  * `checkLuau`, the parse the compiler runs, so the editor cannot disagree
  * with the build. Node Design's logic field uses `checkTemplate`, the same
  * parse with each `$in.name` placeholder read as a name of its own length, so

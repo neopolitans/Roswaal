@@ -42,7 +42,7 @@ function offered(source: string, types: GraphTypes): string[] {
 
 /**
  * `local function need(): Instance`, then `hull = need()` as a named result,
- * then a Custom Code. `cast` sets the call's Cast result.
+ * then a Code Block. `cast` sets the call's Cast result.
  */
 function needThenCode(returns: string, cast?: string): { script: NodeScript; code: string } {
 	const b = new Builder();

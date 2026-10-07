@@ -213,7 +213,7 @@ function castingBlocks(registry: Registry): Block[] {
 			t: "p",
 			text:
 				"A call node's **Cast result**, in the Inspector, writes the cast after the call: " +
-				"`local hull = need(model, \"Hull\", \"BasePart\") :: BasePart`. Its result pin and " +
+				'`local hull = need(model, "Hull", "BasePart") :: BasePart`. Its result pin and ' +
 				"its named local take that type, so nothing after it needs a Cast node. It is offered " +
 				"on any call with one result: click **No cast** to pick a type, and × to remove it. " +
 				"The result pin shows the cast as `:: BasePart`.",
@@ -244,7 +244,7 @@ function castingBlocks(registry: Registry): Block[] {
 				],
 				[
 					"**Custom Luau**",
-					"What you write in the code editor, checked as a type",
+					"What you write in the Code panel, checked as a type",
 					"A union, a function type, a generic — everything the row editor cannot say.",
 				],
 				[

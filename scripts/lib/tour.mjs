@@ -804,18 +804,18 @@ function dataModelPaths() {
 	});
 }
 
-/** The Custom Code's first line: a local the drops can start from. */
+/** The Code Block's first line: a local the drops can start from. */
 const DRAG_PRELUDE = 'local Shared = game:GetService("ReplicatedStorage").Shared';
 
 /**
  * The DataModel browser as the docs draw it, each row draggable into a piece
- * of Custom Code. What a drop writes is `droppedText`'s: a whole local on a
+ * of Code Block. What a drop writes is `droppedText`'s: a whole local on a
  * blank line, the path alone anywhere else -- worked out here for every row
  * and both places, so the page only has to show it.
  */
 function dragDemo() {
 	const paths = dataModelPaths();
-	// The Custom Code the rows drop into, with a local that already holds
+	// The Code Block the rows drop into, with a local that already holds
 	// Shared: what is in scope at each drop is read off this text, as the
 	// editor reads it off the code being edited.
 	const head = `${DRAG_PRELUDE}\n\nlocal function openDoor()\n\t`;
@@ -841,7 +841,7 @@ function dragDemo() {
 	return `<div class="tour-pane tour-canvas grid-surface tour-drag-demo" data-tour="drag">
           <div class="tour-drag-tree">${tree}</div>
           <div class="tour-drag-code code-body">
-            <div class="tour-card-head">Custom Code</div>
+            <div class="tour-card-head">Code Block</div>
             <pre class="landing-code"><code>${tokensHtml(DRAG_PRELUDE)}
 
 ${tokensHtml("local function openDoor()")}
@@ -1026,7 +1026,7 @@ export const SLIDES = [
 			["0.94.0", "types and methods"],
 		],
 		doc: "docs/reading-luau.html",
-		body: "Rest on a name in Custom Code or a Luau file and the editor says what it is: a local and its type, a parameter, a method with its signature and a link to where Roblox documents it.",
+		body: "Rest on a name in Code Block or a Luau file and the editor says what it is: a local and its type, a parameter, a method with its signature and a link to where Roblox documents it.",
 		keys: "Hover, or move the caret onto a name",
 		tryThis:
 			"Hover <code>stats</code>, <code>IsA</code> or <code>award</code>. Tab steps through the names.",
@@ -1059,11 +1059,11 @@ export const SLIDES = [
 		title: "From the DataModel into your code",
 		since: "0.103.0",
 		steps: [
-			["0.128.0", "dragged into Custom Code"],
+			["0.128.0", "dragged into Code Block"],
 			["0.151.0", "from the locals in scope"],
 		],
 		doc: "docs/project-panel.html",
-		body: "The Project panel's DataModel tab lists your place as Studio's Explorer does. Drag an instance into Custom Code: on a blank line it becomes a whole local, anywhere else the path alone, starting from a local that already holds part of the way.",
+		body: "The Project panel's DataModel tab lists your place as Studio's Explorer does. Drag an instance into Code Block: on a blank line it becomes a whole local, anywhere else the path alone, starting from a local that already holds part of the way.",
 		keys: "Drag a row, or <kbd>Enter</kbd> on it and then on where it goes",
 		tryThis:
 			"Drag Config onto the blank line: it starts from <code>Shared</code>. Then try Shared itself, or Door into <code>print()</code>.",
@@ -1358,7 +1358,7 @@ ${themeCss(".tour-complete-box", TOOLTIP_STYLE)}
 .tour-device .docs-layout-frame { margin: 0 auto !important; }
 .tour .docs-layout-screen.dev-phone { --z: 0.41; }
 
-/* The header of a drawn editor card: Custom Code, or a file's name. */
+/* The header of a drawn editor card: Code Block, or a file's name. */
 .tour-card-head {
   padding: 6px 10px; font-size: 12px; font-weight: 600; color: var(--fg);
   border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--bg-canvas) 40%, var(--bg-panel));
@@ -1389,7 +1389,7 @@ ${themeCss(".tour-complete-box", TOOLTIP_STYLE)}
 .tour .cm-tooltip-autocomplete li { cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tour-complete-readout { text-align: left; width: min(520px, 100%); margin: 0; }
 
-/* The DataModel, dragged into code: the browser beside a piece of Custom Code. */
+/* The DataModel, dragged into code: the browser beside a piece of Code Block. */
 .tour-drag-demo { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); align-items: start; align-content: center; gap: 14px; }
 .tour-drag-tree .docs-tree-shot { max-width: 100%; }
 .tour-drag-tree .place-row[data-whole] { cursor: grab; touch-action: none; user-select: none; }

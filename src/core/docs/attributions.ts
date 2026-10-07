@@ -205,7 +205,7 @@ export const ATTRIBUTIONS: Attribution[] = [
 		licence: "MIT",
 		where: "A runtime dependency; see `package.json`.",
 		note:
-			"The pop-out Luau editor, the read-only source view, and the syntax " +
+			"The Code panel's Luau editor, the read-only source view, and the syntax " +
 			"highlighting shared between the editor and this documentation.",
 		url: "https://codemirror.net/",
 	},

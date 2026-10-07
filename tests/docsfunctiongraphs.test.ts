@@ -117,7 +117,7 @@ describe("the documentation's graphs", () => {
 	});
 });
 
-describe("a Custom Code node in a drawn graph", () => {
+describe("a Code Block node in a drawn graph", () => {
 	const registry = createRegistry();
 	const main = (ROBLOX_DEMO_GRAPHS as Record<string, NodeScript>).main;
 	const custom = main.nodes.find((n) => n.def === "code.custom")!;

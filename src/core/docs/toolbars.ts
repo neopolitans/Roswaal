@@ -2022,7 +2022,7 @@ export const VARIABLES_PANEL: ToolbarSpec = {
 					what:
 						"The services this script fetches at the top of the file, in this order. Roblox " +
 						"graphs only. Drag one onto the canvas for a Get Service, or use it by name in " +
-						"Custom Code; one nothing uses is a warning.",
+						"Code Block; one nothing uses is a warning.",
 				},
 				{ t: "row", label: "ReplicatedStorage", trailing: "service", swatch: "Instance" },
 				{ t: "row", label: "Players", trailing: "service", swatch: "Instance" },

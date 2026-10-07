@@ -5,7 +5,7 @@
  * Sequence and read inside a function declared in the next. The compiler
  * already had it in scope — a wire from Declare Local's output compiled — but
  * nothing in the editor offered it. There was no Get node for a local, no entry
- * in the palette, and no completion inside Custom Code.
+ * in the palette, and no completion inside Code Block.
  */
 
 import { describe, expect, it } from "vitest";
@@ -166,7 +166,7 @@ describe("Get Local", () => {
 });
 
 describe("completion inside a function declared after a local", () => {
-	it("offers the local and the function's parameters in Custom Code", () => {
+	it("offers the local and the function's parameters in Code Block", () => {
 		const { b, fn, print } = occupancy();
 		const custom = b.node("code.custom");
 		b.link(print, "then", custom, "in");

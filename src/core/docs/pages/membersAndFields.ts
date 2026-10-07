@@ -158,7 +158,7 @@ export function membersAndFieldsPage({ registry }: PageContext): DocPage {
 							{
 								t: "p",
 								text:
-									"A type written as **Custom Luau** — click its Definition to open the code editor — behaves as the rows do, as long " +
+									"A type written as **Custom Luau** — click its Definition to open it in the Code panel — behaves as the rows do, as long " +
 									"as what you wrote is a table of named fields. This is the shape to reach for " +
 									"when a field's own type is more than a name — `{ Player }`, `Model?`.",
 							},

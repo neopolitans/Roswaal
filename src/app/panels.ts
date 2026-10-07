@@ -37,9 +37,16 @@ export const DOCK_SIDES: DockSide[] = ["left", "right", "bottom"];
  * "drop it" and "render nothing, silently" is whether the type says which
  * names are real.
  */
-export type PanelId = "tree" | "variables" | "inspector" | "properties" | "analysis";
+export type PanelId = "tree" | "variables" | "inspector" | "properties" | "analysis" | "code";
 
-export const PANEL_IDS: PanelId[] = ["tree", "variables", "inspector", "properties", "analysis"];
+export const PANEL_IDS: PanelId[] = [
+	"tree",
+	"variables",
+	"inspector",
+	"properties",
+	"analysis",
+	"code",
+];
 
 export interface PanelState {
 	dock: DockSide;
@@ -158,13 +165,33 @@ export const DEFAULT_LAYOUT: Layout = {
 			weight: 2,
 		},
 		analysis: { dock: "bottom", open: true, order: 0, floating: false, frame: DEFAULT_FRAME },
+		// The code of a Code Block, a Luau Expression or a type, a tab per
+		// field, along the foot of the graph between the side columns. Shut
+		// until a field is opened, which opens it; see `isFoot`.
+		code: {
+			dock: "bottom",
+			open: false,
+			order: 1,
+			floating: false,
+			frame: { x: 28, y: 64, w: 560, h: 360 },
+			// An even share of a side column, if it is moved to one.
+			weight: 3,
+		},
 	},
 	docks: {
 		left: { size: 260, open: true },
 		right: { size: 290, open: true },
-		bottom: { size: 190, open: true },
+		// The strip along the foot: the Code panel's height, which its top edge drags.
+		bottom: { size: 300, open: true },
 	},
 };
+
+/**
+ * The foot's height before 0.155.0, which nothing drew: the bottom dock was
+ * the status pill alone, sized by what it said. A stored layout carries it
+ * untouched, and it is too short for code, so it is read as no choice made.
+ */
+const UNCHOSEN_FOOT = 190;
 
 export const PANEL_TITLES: Record<PanelId, string> = {
 	tree: "Project",
@@ -172,6 +199,7 @@ export const PANEL_TITLES: Record<PanelId, string> = {
 	inspector: "Inspector",
 	properties: "Properties",
 	analysis: "Script analysis",
+	code: "Code",
 };
 
 /**
@@ -387,8 +415,12 @@ export function readLayout(stored: unknown): Layout {
 	for (const side of DOCK_SIDES) {
 		const fallback = DEFAULT_LAYOUT.docks[side];
 		const value = raw.docks?.[side];
+		const unchosen = side === "bottom" && value?.size === UNCHOSEN_FOOT;
 		docks[side] = {
-			size: typeof value?.size === "number" && value.size >= MIN_DOCK ? value.size : fallback.size,
+			size:
+				typeof value?.size === "number" && value.size >= MIN_DOCK && !unchosen
+					? value.size
+					: fallback.size,
 			open: typeof value?.open === "boolean" ? value.open : fallback.open,
 		};
 	}
@@ -758,4 +790,46 @@ export function reopenPanel(layout: Layout, panel: PanelId): Layout {
 	if (!state.floating)
 		next = renumber(next, [...headsIn(next, state.dock).filter((id) => id !== panel), panel]);
 	return openDock(next, state.floating ? null : state.dock);
+}
+
+// ---------------------------------------------------------------------------
+// The foot
+
+/**
+ * Whether a card docked at the bottom is drawn along the foot of the graph.
+ *
+ * The bottom dock holds two kinds of card. Script analysis is the status
+ * pill, at the bottom left, as tall as what it says. Anything else docked
+ * there -- the Code panel by default -- is a strip across the foot of the
+ * graph between the side columns, as tall as `docks.bottom.size`, which its
+ * top edge drags.
+ */
+export function isFoot(layout: Layout, head: PanelId): boolean {
+	const state = layout.panels[head];
+	return (
+		state.tabOf === undefined &&
+		!state.floating &&
+		state.dock === "bottom" &&
+		!membersOf(layout, head).includes("analysis")
+	);
+}
+
+/**
+ * The layout as Code's full view draws it: the Code panel on its own along
+ * the foot, whatever card or dock it is in, so the strip can grow over the
+ * graph and the side columns stay where they are.
+ *
+ * Not stored: full view is a moment's arrangement, and leaving it puts the
+ * panel back exactly where it was.
+ */
+export function fullFootLayout(layout: Layout): Layout {
+	const alone =
+		membersOf(layout, cardOf(layout, "code")).length > 1 ? separate(layout, "code") : layout;
+	return patch(alone, "code", {
+		dock: "bottom",
+		floating: false,
+		open: true,
+		folded: false,
+		tabOf: undefined,
+	});
 }

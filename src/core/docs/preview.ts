@@ -1459,7 +1459,7 @@ export function graphSvg(
 		}
 	}
 
-	// A Custom Code node opens its Luau when clicked, as it does in the editor:
+	// A Code Block node opens its Luau when clicked, as it does in the editor:
 	// `data-code-node` is what the graph's script looks for. See `nodeCodeHtml`.
 	const bodies = placed.map((entry) => {
 		const opens =

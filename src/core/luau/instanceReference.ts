@@ -1,7 +1,7 @@
 /**
  * The Luau that reaches an instance in the place, for code written by hand.
  *
- * Dragging an instance out of the DataModel into Custom Code writes this where
+ * Dragging an instance out of the DataModel into Code Block writes this where
  * it is dropped. It starts from the nearest name already in scope that holds
  * part of the way there -- a local the code declared, a local an earlier block
  * left, or a service the graph's Get Service hoists -- so dropping Config under

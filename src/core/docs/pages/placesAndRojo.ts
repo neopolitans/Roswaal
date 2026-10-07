@@ -243,7 +243,7 @@ export function placesAndRojoPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"Drop an instance, a property or an attribute into **Custom Code**'s editor and it " +
+					"Drop an instance, a property or an attribute into **Code Block**'s editor and it " +
 					"writes the Luau that reaches it, where you let go. The DataModel and Properties " +
 					"stay above the editor while it is open, to drag from.",
 			},
@@ -252,7 +252,7 @@ export function placesAndRojoPage(): DocPage {
 				head: ["Dropped on", "What it writes"],
 				rows: [
 					[
-						"A blank line of Custom Code",
+						"A blank line of Code Block",
 						'`local Tank = game:GetService("ReplicatedStorage").Tank`',
 					],
 					["Anywhere else, or a box that holds one value", "The path alone"],

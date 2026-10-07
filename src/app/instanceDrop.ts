@@ -4,7 +4,7 @@
  * The place browser and Properties drag out `PROPERTY_DRAG`: an instance's
  * path, and a property or attribute when that is what was picked up. Dropped
  * into Luau, it becomes the code that reaches it, written where the pointer
- * let go. In Custom Code a blank line takes a whole `local Name = ...`;
+ * let go. In Code Block a blank line takes a whole `local Name = ...`;
  * anywhere else, and in a box that holds one expression, it is the
  * expression alone.
  */

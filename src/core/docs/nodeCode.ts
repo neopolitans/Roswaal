@@ -1,7 +1,7 @@
 /**
- * A drawn graph's Custom Code, ready to open.
+ * A drawn graph's Code Block, ready to open.
  *
- * In the editor a Custom Code node opens its Luau in the code editor, and the
+ * In the editor a Code Block node opens its Luau in the code editor, and the
  * guides teach it that way; a node in a picture can only show the first line.
  * So each one's Luau goes into the page beside the graph, highlighted and
  * numbered at build time, and the graph's script (`graphView.ts`) opens it,
@@ -19,7 +19,7 @@ function escapeHtml(text: string): string {
 		.replace(/"/g, "&quot;");
 }
 
-/** What a new Custom Code node holds, for one whose Code was never typed into. */
+/** What a new Code Block node holds, for one whose Code was never typed into. */
 const UNTYPED = "-- your Luau here";
 
 /**
@@ -37,7 +37,7 @@ export function nodeCodeHtml(script: NodeScript, highlight?: (code: string) => s
 			// gutter is one strip from top to bottom as the editor's is. The
 			// rows line up because neither column wraps.
 			const numbers = lines.map((_, i) => i + 1).join("\n");
-			const title = node.label || "Custom Code";
+			const title = node.label || "Code Block";
 			return (
 				`<template data-code-for="${escapeHtml(node.id)}" data-title="${escapeHtml(title)}">` +
 				`<div class="code-view"><pre class="code-view-gutter" aria-hidden="true">${numbers}</pre>` +

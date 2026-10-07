@@ -582,33 +582,17 @@ function TypeFields({ node }: { node: GraphNode }) {
 }
 
 /**
- * A Declare Type written out in Luau: shown here, edited in the code editor.
+ * A Declare Type written out in Luau: shown here, edited in the Code panel.
  *
  * Not a plain text box, which would take a table type missing a comma and
  * let it break the file in Studio. The code editor parses it as a type while
  * you write, with the same parser the build runs, and this preview carries
  * the first mistake so it is seen without opening it.
  */
-function WrittenType({
-	node,
-	name,
-	definition,
-}: {
-	node: GraphNode;
-	name?: string;
-	definition?: string;
-}) {
+function WrittenType({ node, definition }: { node: GraphNode; definition?: string }) {
 	const text = definition ?? "";
 	const problem = text.trim() === "" ? undefined : checkLuau(text, "type")[0];
-	const open = () =>
-		requestCodeEdit({
-			nodeId: node.id,
-			field: "definition",
-			value: text,
-			kind: "type",
-			title: `type ${name || "Name"}`,
-			hint: "Written into the generated file as this type's definition",
-		});
+	const open = () => requestCodeEdit({ nodeId: node.id, field: "definition", kind: "type" });
 	return (
 		<Field label="Definition">
 			<button
@@ -692,7 +676,7 @@ function TypeEditor({ node }: { node: GraphNode }) {
 			{shape === "fields" && <TypeFields node={node} />}
 			{shape === "fields" && <TableLayout node={node} />}
 
-			{shape === "written" && <WrittenType node={node} name={name} definition={definition} />}
+			{shape === "written" && <WrittenType node={node} definition={definition} />}
 
 			{shape === "typeof" && (
 				<p className="summary">

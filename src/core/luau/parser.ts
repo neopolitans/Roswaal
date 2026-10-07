@@ -579,7 +579,7 @@ class Parser {
 
 	/**
 	 * Reports a `break` or `continue` with no loop around it, in a whole file.
-	 * Not in a fragment: Custom Code is checked on its own and may well sit
+	 * Not in a fragment: Code Block is checked on its own and may well sit
 	 * inside a loop the graph draws.
 	 */
 	private outsideLoop(word: Token, text: string): void {
@@ -1162,13 +1162,13 @@ class Parser {
 export interface ParseOptions {
 	/**
 	 * The text is a whole file, not a fragment of one: a `break` or `continue`
-	 * with no loop around it is an error. Off for Custom Code, whose loop is
+	 * with no loop around it is an error. Off for Code Block, whose loop is
 	 * in the graph.
 	 */
 	wholeFile?: boolean;
 }
 
-/** A whole file or a Custom Code body: a block of statements. */
+/** A whole file or a Code Block body: a block of statements. */
 export function parseChunk(src: string, options: ParseOptions = {}): ParseResult<Block> {
 	return parseTokens(tokenize(src), options);
 }
@@ -1206,7 +1206,7 @@ export function parseExpression(src: string): ParseResult<Expr | undefined> {
 				start,
 				end: start + word.length,
 				message:
-					`"${word}" starts a statement, and this is a value. Use Custom Code for ` +
+					`"${word}" starts a statement, and this is a value. Use Code Block for ` +
 					"statements; it sits in the execution chain instead.",
 			},
 		],

@@ -55,7 +55,8 @@ export const NODE_ALIASES: Readonly<Record<string, readonly string[]>> = {
 	"value.typeName": ["Type Name", "Type String", "typeof Name"],
 	"value.className": ["Class Name", "Class String", "ClassName"],
 	"compare.selfNeq": ["NaN", "Is NaN", "Not a Number", "Self Compare"],
-	"code.custom": ["Luau Code", "Raw Luau", "Inline Code"],
+	// Its name until 0.155.0, so the old name still finds it.
+	"code.custom": ["Custom Code", "Luau Code", "Raw Luau", "Inline Code"],
 
 	"string.concat": ["Join Strings", "Append String"],
 	"convert.tostring": ["Stringify"],

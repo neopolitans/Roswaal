@@ -400,7 +400,7 @@ export const PlaceProperties = memo(function PlaceProperties(props: PlacePropert
 				<div
 					className="place-props-head"
 					draggable
-					title="Drag onto a graph for an Instance node at this path, or into Custom Code"
+					title="Drag onto a graph for an Instance node at this path, or into Code Block"
 					onDragStart={(e) => dragOut(e, { path: target.path, className: target.className })}
 				>
 					<Ident

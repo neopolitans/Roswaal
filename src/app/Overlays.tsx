@@ -30,18 +30,9 @@
  * a project switching, a document closing, a compile starting.
  */
 
-import type { LuauFragment } from "../core/luau/check.js";
 import type { InstanceLocation } from "../core/nodemap.js";
 import type { Registry } from "../core/nodes/index.js";
-import type {
-	Literal,
-	NodeConfig,
-	NodeDef,
-	NodeScript,
-	PinDef,
-	RoswaalConfig,
-} from "../core/schema.js";
-import { CodeEditor } from "./CodeEditor.jsx";
+import type { Literal, NodeConfig, NodeDef, NodeScript, RoswaalConfig } from "../core/schema.js";
 import { Dialog, type PendingDialog } from "./Dialog.jsx";
 import { Menu } from "./Menu.jsx";
 import { NodeActionMenu, type NodeMenuTarget } from "./NodeActionMenu.jsx";
@@ -59,25 +50,7 @@ export interface DropMenuState {
 	location: InstanceLocation;
 }
 
-/**
- * Code being edited in the full editor: a pin's code, or — with `field` — a
- * Declare Type's definition written out in Luau.
- */
-export interface CodeEditState {
-	nodeId: string;
-	pin?: PinDef;
-	/** A config field to write back to, rather than a pin's literal. */
-	field?: "definition";
-	value: string;
-	/** What the text must parse as. Worked out from the node when absent. */
-	kind?: LuauFragment;
-	title?: string;
-	hint?: string;
-}
-
 export interface OverlaysProps {
-	/** The open graph's file, for the code editor's requires and `script`. */
-	graphPath?: string | null;
 	registry: Registry;
 	/** Null when a node map or a read-only source file is open. */
 	script: NodeScript | null;
@@ -125,10 +98,6 @@ export interface OverlaysProps {
 	onSettingsClose: () => void;
 
 	dialog: PendingDialog | null;
-
-	codeEdit: CodeEditState | null;
-	onCodeCommit: (value: string) => void;
-	onCodeClose: () => void;
 }
 
 export function Overlays(props: OverlaysProps) {
@@ -171,21 +140,6 @@ export function Overlays(props: OverlaysProps) {
 			    them, and an answer that opened behind the question would be a
 			    dead application. */}
 			{props.dialog && <Dialog {...props.dialog} />}
-
-			{props.codeEdit && (
-				<CodeEditor
-					title={props.codeEdit.title ?? (props.codeEdit.pin?.name || "Luau")}
-					value={props.codeEdit.value}
-					hint={props.codeEdit.hint ?? "Emitted verbatim into the generated file"}
-					kind={props.codeEdit.kind}
-					script={props.script}
-					registry={props.registry}
-					nodeId={props.codeEdit.nodeId}
-					graphPath={props.graphPath}
-					onClose={props.onCodeClose}
-					onCommit={props.onCodeCommit}
-				/>
-			)}
 
 			{props.menu && props.script && (
 				<NodeMenu

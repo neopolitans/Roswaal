@@ -1,12 +1,11 @@
 /**
  * An inline Luau field, for a node's logic.
  *
- * The pop-out `CodeEditor` is a dialog: it holds a draft and hands it back on
- * Done. The designer's logic panel is not a dialog — the node on the canvas and
+ * The editor's Code panel applies a field to the graph when typing pauses.
+ * The designer's logic panel is more direct still — the node on the canvas and
  * its template are one thing being edited, and a problem about `$in.force`
  * should update as you type it. So this is the same CodeMirror setup, the same
- * highlighting and the same parse the compiler runs, without the modal around
- * it. The template's placeholders are read as names of their own length, so a
+ * highlighting and the same parse the compiler runs, inline in the panel. The template's placeholders are read as names of their own length, so a
  * problem is still marked where it is written.
  *
  * ## A value that changes underneath it

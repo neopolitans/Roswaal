@@ -94,7 +94,7 @@ export function compile(
  * A graph that passed every other check should always produce Luau that
  * parses, so a failure here is a bug in the compiler, not in the graph. It is
  * an error all the same, so a broken file is never written; and it is only
- * asked once nothing else has failed, so a typo in Custom Code is reported
+ * asked once nothing else has failed, so a typo in Code Block is reported
  * once, by the check that knows which node it is in.
  */
 function unparsedOutput(emitted: EmitResult): Diagnostic[] {

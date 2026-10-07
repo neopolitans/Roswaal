@@ -386,8 +386,8 @@ export const FLOW_NODES: NodeDef[] = [
 		category: "Flow",
 		summary:
 			"Declares a Luau type above everything else in the generated file. Export it and other " +
-			"modules can use it with `require`. The definition is written as Luau, the way Custom " +
-			"Code is, because a type is not built from values and there are no nodes to build one " +
+			"modules can use it with `require`. The definition is written as Luau, the way a Code " +
+			"Block is, because a type is not built from values and there are no nodes to build one " +
 			'from — `{ speed: number }`, or `"a" | "b"`. For a type that has to come *after* ' +
 			"something, use Declare Type.",
 		role: "terminal",

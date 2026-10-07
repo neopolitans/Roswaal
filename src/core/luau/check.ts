@@ -1,7 +1,7 @@
 /**
  * Whether hand-written Luau reads as Luau — as what it is meant to be.
  *
- * Custom Code is a block of statements, a Luau Expression or code typed into a
+ * Code Block is a block of statements, a Luau Expression or code typed into a
  * pin is one value, and a Declare Type written out is one type. The text lands
  * in the generated file as it stands, so a mistake in it breaks the file
  * somewhere the developer never wrote; said against the node, with the line

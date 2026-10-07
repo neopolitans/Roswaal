@@ -1,11 +1,11 @@
 /**
- * Autocomplete for the Custom Code editor.
+ * Autocomplete for the Code Block editor.
  *
  * Two sources, and the second is the one that matters: Luau's own globals and
  * libraries, and the names *this graph* will have put in scope by the time the
  * code runs — its variables, its functions, the services it hoists, the modules
  * it requires. Those are invisible from inside the box otherwise, and guessing
- * at them is how a Custom Code node ends up referring to something that is not
+ * at them is how a Code Block node ends up referring to something that is not
  * there.
  */
 
@@ -235,8 +235,8 @@ function typedColonMembers(held: GraphType): Completion[] {
  * What is in scope before this graph has put anything there.
  *
  * The engine's own lists, plus the datatypes — `Vector3`, `TweenInfo` — which
- * are globals in the sense that matters here: names you can type into Custom
- * Code and have work. `Enum` is among the datatypes, so it needs no mention of
+ * are globals in the sense that matters here: names you can type into a Code
+ * Block and have work. `Enum` is among the datatypes, so it needs no mention of
  * its own.
  *
  * Hand-maintaining this was fine while it was thirty-nine names and wrong in
@@ -312,7 +312,7 @@ export function scopeCompletions(script: NodeScript | null): Completion[] {
  * The functions a graph declares on its tables, by table name.
  *
  * A Declare Function whose On Table is wired from a variable becomes
- * `function Occupancy.show(…)` in the file; Custom Code in that graph can
+ * `function Occupancy.show(…)` in the file; Code Block in that graph can
  * call it, so `Occupancy.` offers it, with the parameters the node declares.
  */
 export function graphTableMembers(script: NodeScript | null): Map<string, TableMember[]> {
@@ -717,7 +717,7 @@ export function luauCompletionSource(
 const RAW_STATEMENT_NODES = new Set(["code.custom"]);
 
 /**
- * Locals declared by Custom Code blocks that run before this one.
+ * Locals declared by Code Blocks that run before this one.
  *
  * They are real locals in the generated file and genuinely in scope here, so
  * not offering them was the completion list lying by omission.
@@ -806,7 +806,7 @@ interface GraphLocal {
 
 /**
  * The names in scope at a node that hold an instance, for an instance dropped
- * into its code to start from: the top-level locals of the Custom Code blocks
+ * into its code to start from: the top-level locals of the Code Blocks
  * before it, and the services the graph declares or its Get Service nodes hoist -- the
  * same names completion offers there. The code's own locals are the editor's
  * to add, nearest of all.
@@ -861,7 +861,7 @@ function collectPreceding(
 	const collectFrom = (id: string) => {
 		const node = script.nodes.find((n) => n.id === id);
 		if (!node) return;
-		// A Declare Local makes a local exactly as one typed into Custom Code
+		// A Declare Local makes a local exactly as one typed into Code Block
 		// does. Leaving it out is what made `restores` unreachable from a
 		// function declared after it.
 		if (node.def === "local.declare") {
@@ -892,12 +892,7 @@ function collectPreceding(
 			instanceLocalsAt(literal.v, literal.v.length).map((local) => [local.name, local.path]),
 		);
 		for (const name of topLevelLocals(literal.v)) {
-			add(
-				name,
-				`local from ${node.label || "an earlier Custom Code block"}`,
-				undefined,
-				held.get(name),
-			);
+			add(name, `local from ${node.label || "an earlier Code Block"}`, undefined, held.get(name));
 		}
 	};
 

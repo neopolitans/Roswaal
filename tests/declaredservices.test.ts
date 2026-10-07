@@ -24,7 +24,7 @@ import { Builder, body } from "./helpers.js";
 
 const registry = createRegistry();
 
-/** A Roblox script whose one step is this Custom Code. */
+/** A Roblox script whose one step is this Code Block. */
 function script(
 	patch: Partial<NodeScript> = {},
 	code = "print(1)",

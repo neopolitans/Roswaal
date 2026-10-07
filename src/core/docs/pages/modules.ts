@@ -198,7 +198,7 @@ export function modulesPage(): DocPage {
 				text:
 					"A Roblox graph's Variables panel has a **Services** heading above Modules. A service " +
 					"declared there is fetched at the very top of the file, in the order you list them, " +
-					"whether or not a node asks for it — so Custom Code can read `Players` by name, and " +
+					"whether or not a node asks for it — so Code Block can read `Players` by name, and " +
 					"the top of the file reads the way you would write it.",
 			},
 			{

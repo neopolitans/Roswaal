@@ -1,5 +1,5 @@
 /**
- * Hand-written Luau is parsed as what it is: Custom Code as statements, a Luau
+ * Hand-written Luau is parsed as what it is: Code Block as statements, a Luau
  * Expression or code typed into a pin as one value, a written type as a type.
  *
  * This replaced a bracket-and-keyword balance check, which could not tell a
@@ -30,9 +30,9 @@ describe("checkLuau", () => {
 		expect(problem.line).toBe(4);
 	});
 
-	it("refuses a statement where a value goes, and names Custom Code", () => {
+	it("refuses a statement where a value goes, and names Code Block", () => {
 		expect(messages("local x = 1", "expression")[0]).toBe(
-			'"local" starts a statement, and this is a value. Use Custom Code for statements; it sits in the execution chain instead.',
+			'"local" starts a statement, and this is a value. Use Code Block for statements; it sits in the execution chain instead.',
 		);
 		expect(messages("  return 1", "expression")[0]).toContain('"return" starts a statement');
 	});
@@ -139,7 +139,7 @@ describe("in the compiler", () => {
 		return compile(b.build(), registry);
 	}
 
-	it("reports a Custom Code mistake against the node, with its line", () => {
+	it("reports a Code Block mistake against the node, with its line", () => {
 		const out = compiled("code.custom", "for i = 1, 3 do\n  print(i)\n");
 		const error = out.diagnostics.find((d) => d.severity === "error")!;
 		expect(error.message).toContain('Expected "end" to close the for loop');
@@ -147,7 +147,7 @@ describe("in the compiler", () => {
 		expect(error.pin).toBe("code");
 	});
 
-	it("compiles Custom Code that the balance check would have refused", () => {
+	it("compiles Code Block that the balance check would have refused", () => {
 		const out = compiled("code.custom", "print(`total: {#{1, 2}}`)");
 		expect(out.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
 	});

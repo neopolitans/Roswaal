@@ -6,7 +6,7 @@
  * declared inside the code being typed was offered at all. The tree knows
  * where each block starts and stops, so both questions have exact answers:
  *
- * - `topLevelLocals`: what a Custom Code block leaves behind for the blocks
+ * - `topLevelLocals`: what a Code Block leaves behind for the blocks
  *   that run after it — its top-level locals, and nothing nested.
  * - `localsAt`: what is in scope at a point inside the code — enclosing
  *   blocks, function parameters, loop variables — for completing as you type.
@@ -58,7 +58,7 @@ function declared(stat: Stat, src: string): ScopedName[] {
 
 /**
  * The locals a block of code declares at its top level: what is still in
- * scope after it, for a Custom Code block that runs later. In order, once each.
+ * scope after it, for a Code Block that runs later. In order, once each.
  */
 export function topLevelLocals(src: string): string[] {
 	const seen = new Set<string>();

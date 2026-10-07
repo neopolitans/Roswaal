@@ -222,7 +222,7 @@ export function writeCall(
 	// still runs exactly where it did — nothing else happens in between.
 	const reader = consumed ? e.foldsInto(r.node.id, resultPin) : undefined;
 	// Never a named one: the name is a local that a Get Local, or Luau typed
-	// into Custom Code, may read later, and folded it would not exist.
+	// into Code Block, may read later, and folded it would not exist.
 	if (!named && reader && reader.node.id === next && STATEMENT_READERS.has(reader.def.id)) {
 		scope.bindings.set(`${r.node.id}/${resultPin}`, rendered);
 		return next;

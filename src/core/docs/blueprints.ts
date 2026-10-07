@@ -482,7 +482,7 @@ export const BLUEPRINT_MAP: MappingSection[] = [
 			},
 			{
 				unreal: "Inline C++ (there is none)",
-				roswaal: "Custom Code, Luau Expression",
+				roswaal: "Code Block, Luau Expression",
 				nodes: ["code.custom", "value.expression"],
 				note:
 					"The only two places hand-written Luau can enter a graph. Every other pin that " +

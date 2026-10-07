@@ -102,7 +102,7 @@ export function nodePage(doc: NodeDoc): DocPage {
 	}
 
 	// A code pin is literal-only too, but its type already says so and the node
-	// is named for it — warning about Custom Code's Code pin would be noise.
+	// is named for it — warning about Code Block's Code pin would be noise.
 	const pasted = [...doc.inputs].filter((p) => p.literalOnly && !p.code);
 	if (pasted.length > 0) {
 		blocks.push({

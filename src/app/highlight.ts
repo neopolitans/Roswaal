@@ -2,8 +2,8 @@
  * Syntax highlighting for code shown outside the editor.
  *
  * The documentation shows the Luau a node compiles to, and plain grey text
- * there is a worse answer than the same code three panels away in the Custom
- * Code editor — the reader is comparing the two, and they should look like the
+ * there is a worse answer than the same code three panels away in the Code
+ * panel — the reader is comparing the two, and they should look like the
  * same language.
  *
  * **It drives the editor's own tokeniser**, `luauParser`, rather than a second

@@ -37,8 +37,21 @@ const HeadSlot = createContext<HTMLElement | null>(null);
  * What a panel puts in its card's header: a word beside the title, such as
  * the project's name, and its own controls. Rendered into the header, which
  * is drawn by whoever holds the panel; nothing where there is no header.
+ *
+ * `lead` is what runs on from the title and takes the room between it and
+ * the controls: the Code panel's tabs, one per open field. Its buttons are
+ * controls like any other, so pressing one neither drags the card nor folds
+ * it, and the strip's empty end is still the card's handle.
  */
-export function PanelHead({ sub, children }: { sub?: string; children?: ReactNode }) {
+export function PanelHead({
+	sub,
+	lead,
+	children,
+}: {
+	sub?: string;
+	lead?: ReactNode;
+	children?: ReactNode;
+}) {
 	const slot = useContext(HeadSlot);
 	if (!slot) return null;
 	return createPortal(
@@ -48,6 +61,7 @@ export function PanelHead({ sub, children }: { sub?: string; children?: ReactNod
 					{sub}
 				</span>
 			)}
+			{lead && <span className="card-lead">{lead}</span>}
 			{children && <span className="card-tools">{children}</span>}
 		</>,
 		slot,

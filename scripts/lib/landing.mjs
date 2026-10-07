@@ -989,7 +989,7 @@ ${shown
       ${card(
 				"code.custom",
 				"function",
-				"Custom Code, and Luau Expression",
+				"Code Block, and Luau Expression",
 				"Write Luau where writing Luau is simpler, and wrap code you already have instead of rebuilding it as nodes. The text is emitted verbatim.",
 				"0.1.0",
 			)}

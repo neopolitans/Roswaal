@@ -30,7 +30,7 @@ export const EMPTY_SERVICES: PanelHint = {
 	text: "Add, or drag in a service.",
 	more:
 		"A service declared here is fetched once at the top of the generated file, in this order, " +
-		"and read by name anywhere: drag it out for a Get Service, or use it in Custom Code.",
+		"and read by name anywhere: drag it out for a Get Service, or use it in Code Block.",
 };
 
 const MODULES_MORE =

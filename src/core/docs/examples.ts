@@ -999,7 +999,7 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 	/**
 	 * Why a local declared in one branch arm is not visible in the other.
 	 *
-	 * The two Custom Code nodes are siblings: each is inside its own `if` arm,
+	 * The two Code Block nodes are siblings: each is inside its own `if` arm,
 	 * so the `local` the first declares has died at the `end` before the second
 	 * one runs. Completion knows this — see `precedingLocals` — and offers the
 	 * name in neither.
@@ -1139,7 +1139,7 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 		return g.out();
 	},
 
-	/** Custom Code as a step: three statements, then whatever is wired after. */
+	/** Code Block as a step: three statements, then whatever is wired after. */
 	customCode: () => {
 		const g = new G({}, TIGHT);
 		const begin = g.node("script.begin", { column: 0 });

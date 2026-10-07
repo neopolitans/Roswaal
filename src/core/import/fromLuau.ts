@@ -4,7 +4,7 @@
  * Statements become the execution chain, a function becomes a Declare Function
  * with its own graph, and the flow that has a node becomes that node: locals,
  * `if`, the three loops, `return`, `break`, `continue`, and calls. Anything
- * else is kept as its own text, in a Custom Code node for a statement or a Luau
+ * else is kept as its own text, in a Code Block node for a statement or a Luau
  * Expression for a value, so every file that parses imports and compiles.
  * Matching the library's template nodes, scopes beyond the obvious, layout and
  * comments come in the phases after this one; see the importer proposal.

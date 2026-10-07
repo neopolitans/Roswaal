@@ -16,7 +16,7 @@
  *
  * ## Never throws
  *
- * Code half-typed into a Custom Code node is the normal case, not an
+ * Code half-typed into a Code Block node is the normal case, not an
  * exception. Something that cannot be read becomes an `error` token carrying
  * the reason, and lexing carries on after it.
  *

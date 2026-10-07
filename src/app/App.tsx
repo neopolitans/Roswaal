@@ -32,10 +32,11 @@ import {
 	type TreeEntry,
 } from "./api.js";
 import { Canvas } from "./Canvas.jsx";
-import { CanvasStrip } from "./CanvasStrip.jsx";
+import { CanvasStrip, frameNode } from "./CanvasStrip.jsx";
 import { PanelHead } from "./Cards.jsx";
+import { CodePanel, type CodeTab, codeTabKey, codeValue } from "./CodePanel.jsx";
 import { CompileToast } from "./CompileToast.jsx";
-import { onCodeEditRequest } from "./codeEditRequests.js";
+import { type CodeOpenRequest, onCodeEditRequest } from "./codeEditRequests.js";
 import { previewFor } from "./DocsPanel.jsx";
 import { DocsSearch } from "./DocsSearch.jsx";
 import { ExportMenu } from "./ExportMenu.jsx";
@@ -64,13 +65,13 @@ import type { NodeMenuTarget } from "./NodeActionMenu.jsx";
 import type { MenuAnchor } from "./NodeMenu.jsx";
 import { NodePicker } from "./NodePicker.jsx";
 import { functionNameOf } from "./nodeConfig.js";
-import { type CodeEditState, Overlays } from "./Overlays.jsx";
+import { Overlays } from "./Overlays.jsx";
 import type { PinMenuTarget } from "./PinMenu.jsx";
 import { PlaceBrowser, PlaceProperties, type PlaceTarget } from "./PlaceBrowser.jsx";
 import { ProjectPicker } from "./ProjectPicker.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
 import { IS_STATIC_HOST, openHome, openPage } from "./pages.js";
-import type { PanelId } from "./panels.js";
+import { type PanelId, reopenPanel, showTab } from "./panels.js";
 import { readPreferences, wheelAction } from "./preferences.js";
 import { SiteBanner } from "./previewBuild.jsx";
 import { setProjectAliases } from "./projectAliases.js";
@@ -208,9 +209,16 @@ export function App() {
 	// stale, so it syncs them, and the same module turns up twice.
 	const [orphans, setOrphans] = useState<string[]>([]);
 	const [unsynced, setUnsynced] = useState<{ graph: string; folder: string }[]>([]);
-	const [codeEdit, setCodeEdit] = useState<CodeEditState | null>(null);
-	// The Inspector asks for the editor this way; see `codeEditRequests.ts`.
-	useEffect(() => onCodeEditRequest(setCodeEdit), []);
+	/**
+	 * The Code panel's tabs, for each open graph: the fields of its nodes
+	 * open as code, and the one in front. A graph's tabs come back when it
+	 * does; see `CodePanel.tsx`.
+	 */
+	const [codeTabs, setCodeTabs] = useState<
+		Record<string, { tabs: CodeTab[]; active: string | null }>
+	>({});
+	// Full view: the Code panel grown up over the graph, the side panels kept.
+	const [codeFull, setCodeFull] = useState(false);
 	/**
 	 * The folder a new graph or map goes into.
 	 *
@@ -319,6 +327,78 @@ export function App() {
 	const pointerAt = useRef<{ x: number; y: number } | null>(null);
 
 	const registry = useMemo(() => createRegistry(customNodes), [customNodes]);
+
+	// -- the Code panel ------------------------------------------------------
+
+	// The open graph's tabs, less any whose node has gone -- kept, so an undo
+	// that brings the node back brings its tab back too.
+	const codeHere = editor.path ? codeTabs[editor.path] : undefined;
+	const shownCodeTabs = useMemo(
+		() =>
+			(codeHere?.tabs ?? []).filter((tab) => codeValue(editor.script, registry, tab) !== undefined),
+		[codeHere, editor.script, registry],
+	);
+	const codeShown = shownCodeTabs.length > 0;
+	// The graph each edit is for, read when it lands: an edit typed into one
+	// graph's tab must never be written into another that has since opened.
+	const openPath = useRef(editor.path);
+	openPath.current = editor.path;
+
+	/** A field into the Code panel: its tab added or brought forward, the panel shown. */
+	const openCode = useCallback(
+		(request: CodeOpenRequest) => {
+			const path = openPath.current;
+			if (!path) return;
+			const key = codeTabKey(request.nodeId, request.pin, request.field);
+			setCodeTabs((all) => {
+				const here = all[path] ?? { tabs: [], active: null };
+				const tab: CodeTab = {
+					key,
+					nodeId: request.nodeId,
+					...(request.pin ? { pin: request.pin } : {}),
+					...(request.field ? { field: request.field } : {}),
+					...(request.kind ? { kind: request.kind } : {}),
+				};
+				const tabs = here.tabs.some((t) => t.key === key) ? here.tabs : [...here.tabs, tab];
+				return { ...all, [path]: { tabs, active: key } };
+			});
+			onLayout((l) => (l.panels.code.open ? showTab(l, "code") : reopenPanel(l, "code")));
+		},
+		[onLayout],
+	);
+	// The Inspector asks for a field this way; see `codeEditRequests.ts`.
+	useEffect(() => onCodeEditRequest(openCode), [openCode]);
+
+	const closeCode = (key: string) => {
+		const path = openPath.current;
+		if (!path) return;
+		setCodeTabs((all) => {
+			const here = all[path];
+			if (!here) return all;
+			const index = here.tabs.findIndex((t) => t.key === key);
+			const tabs = here.tabs.filter((t) => t.key !== key);
+			const active =
+				here.active === key ? ((tabs[index] ?? tabs[index - 1])?.key ?? null) : here.active;
+			return { ...all, [path]: { tabs, active } };
+		});
+	};
+	// With nothing left open, full view has nothing to show.
+	useEffect(() => {
+		if (!codeShown) setCodeFull(false);
+	}, [codeShown]);
+	// Ctrl+Shift+Enter: full view in and out, wherever the focus is.
+	useEffect(() => {
+		if (!codeShown) return;
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key === "Enter" && e.shiftKey && (e.ctrlKey || e.metaKey)) {
+				e.preventDefault();
+				setCodeFull((full) => !full);
+			}
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	}, [codeShown]);
+
 	/** How the node picker draws: the same settings the docs pictures follow. */
 	const nodePreview = useMemo(() => previewFor(prefs, registry), [prefs, registry]);
 	/**
@@ -1262,6 +1342,7 @@ export function App() {
 				onLayout={onLayout}
 				onFramePanel={onFramePanel}
 				onFramePanelEnd={onFramePanelEnd}
+				fullFoot={codeFull && codeShown}
 				contents={{
 					tree: (
 						<>
@@ -1433,6 +1514,40 @@ export function App() {
 								onClose={onPlaceClose}
 							/>
 						) : undefined,
+					code:
+						codeShown && editor.path ? (
+							<CodePanel
+								script={editor.script}
+								registry={registry}
+								graphPath={editor.path}
+								locked={locked}
+								tabs={shownCodeTabs}
+								active={codeHere?.active ?? null}
+								onSelect={(key) =>
+									setCodeTabs((all) => {
+										const path = openPath.current;
+										if (!path || !all[path]) return all;
+										return { ...all, [path]: { ...all[path], active: key } };
+									})
+								}
+								onClose={closeCode}
+								onApply={(path, tab, text) => {
+									// Only into the graph it was typed for.
+									if (path !== openPath.current) return;
+									if (tab.field)
+										store.edit((s) => setNodeConfig(s, tab.nodeId, { [tab.field!]: text }));
+									else if (tab.pin)
+										store.edit((s) => setLiteral(s, tab.nodeId, tab.pin!, { t: "raw", v: text }));
+								}}
+								onGoTo={(nodeId) => {
+									setCodeFull(false);
+									store.reveal(nodeId);
+									requestAnimationFrame(() => frameNode(nodeId, registry));
+								}}
+								full={codeFull}
+								onToggleFull={() => setCodeFull((full) => !full)}
+							/>
+						) : undefined,
 					analysis: (
 						<StatusPanel
 							open={statusOpen}
@@ -1544,7 +1659,7 @@ export function App() {
 										onRequestPinMenu={(screen, nodeId, pin, side) =>
 											setPinMenu({ screen, nodeId, pin, side })
 										}
-										onEditCode={(nodeId, pin, value) => setCodeEdit({ nodeId, pin, value })}
+										onEditCode={(nodeId, pin) => openCode({ nodeId, pin: pin.id })}
 										onDropFile={async (dropped, screen, world) => {
 											const name = dropped.split("/").pop() ?? dropped;
 											try {
@@ -1619,7 +1734,6 @@ export function App() {
 			<Overlays
 				registry={registry}
 				script={editor.script}
-				graphPath={editor.path}
 				selection={editor.selection}
 				previewSelection={previewScope.selection}
 				previewFunction={previewScope.functionName}
@@ -1660,15 +1774,6 @@ export function App() {
 				onPrefs={updatePrefs}
 				onSettingsClose={() => setSettingsOpen(false)}
 				dialog={dialog}
-				codeEdit={codeEdit}
-				onCodeCommit={(next) => {
-					if (!codeEdit) return;
-					const { nodeId, pin, field } = codeEdit;
-					if (field) store.edit((s) => setNodeConfig(s, nodeId, { [field]: next }));
-					else if (pin) store.edit((s) => setLiteral(s, nodeId, pin.id, { t: "raw", v: next }));
-					setCodeEdit(null);
-				}}
-				onCodeClose={() => setCodeEdit(null)}
 			/>
 		</div>
 	);

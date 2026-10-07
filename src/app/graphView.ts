@@ -231,7 +231,7 @@ export function attachGraphView(
 	};
 
 	const onUp = (event: PointerEvent) => {
-		// A click on a Custom Code node opens its Luau, as the editor does.
+		// A click on a Code Block node opens its Luau, as the editor does.
 		// Taken from where the press began: the viewport has the pointer
 		// captured, so this event's own target is the viewport.
 		const pressed = press;
@@ -330,7 +330,7 @@ export function attachGraphView(
 }
 
 /**
- * A Custom Code node's Luau, read-only, in the code editor's frame.
+ * A Code Block node's Luau, read-only, in the code editor's frame.
  *
  * The Luau is in the page already, highlighted at build time in a
  * `<template>` beside the graph (`nodeCodeHtml`), so this is the same on the
@@ -353,8 +353,8 @@ function openNodeCode(viewport: HTMLElement, id: string): void {
 	head.className = "code-head";
 	const title = document.createElement("span");
 	title.className = "title";
-	title.textContent = template.getAttribute("data-title") ?? "Custom Code";
-	modal.setAttribute("aria-label", title.textContent ?? "Custom Code");
+	title.textContent = template.getAttribute("data-title") ?? "Code Block";
+	modal.setAttribute("aria-label", title.textContent ?? "Code Block");
 	const hint = document.createElement("span");
 	hint.className = "hint";
 	hint.textContent = "Read-only";

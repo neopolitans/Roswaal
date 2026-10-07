@@ -57,7 +57,7 @@ export function typesPage(): DocPage {
 					],
 					["`RBXScriptSignal`", "A Roblox event", "Wires into Connect Event."],
 					["`RBXScriptConnection`", "A live connection", "What Connect Event hands back."],
-					["`luau`", "Hand-written Luau", "Only on Custom Code and Luau Expression. See below."],
+					["`luau`", "Hand-written Luau", "Only on Code Block and Luau Expression. See below."],
 					["`any`", "Anything", "Connects both ways. What a node returns when it cannot say more."],
 					[
 						"`wildcard`",
@@ -88,7 +88,7 @@ export function typesPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"**Custom Code** and **Luau Expression** have a pin typed `luau`. It holds code you " +
+					"**Code Block** and **Luau Expression** have a pin typed `luau`. It holds code you " +
 					"write, and clicking it opens a proper editor with highlighting and completion.",
 			},
 			{

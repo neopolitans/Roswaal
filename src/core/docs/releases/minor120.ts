@@ -9,6 +9,27 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.155.0",
+		date: "2026-10-07",
+		headline:
+			"Code opens in a panel along the foot of the graph, a tab per field, applied as you type.",
+		affects: ["editor", "docs"],
+		added: [
+			"**The Code panel.** A Code Block, a Luau Expression or a type written out opens in a panel along the foot of the graph, between the side panels, rather than in a dialog that shut the rest of the editor away. The tree, Variables and the Inspector stay usable while you write.",
+			"**A tab per field**, in the panel's header after its title. Open several and switch between them; each keeps its own place and undo. A tab is marked with what it edits (**{ }** a Code Block, **ƒx** a Luau Expression, **<T>** a type) and named after its node's label if it has one, then the graph it is in, or its first line of code when two would read the same; it closes with × or a middle-click, and a graph's tabs come back when you return to it.",
+			"**Applied as you type.** There is no Done: a pause in typing applies the text to the node as one step of the graph's undo, and clicking away applies it at once. A graph that is compiling takes the change when it finishes rather than dropping it.",
+			"**Full view.** The button at the top right of the panel, or Ctrl+Shift+Enter, grows it over the graph with the side panels kept, as the dialog was. Esc or the same keys go back.",
+			"**Drag names in from Variables**: a variable, service, module, local, function or type dragged into the code writes its name, as the DataModel writes a path.",
+			"**Go to node** selects the node a tab edits and brings it into view.",
+		],
+		changed: [
+			"**Custom Code is now Code Block**: a block of code written by hand, which is what it is. Searching for Custom Code still finds it, and graphs that use it are unchanged.",
+			"The panel moves like any other: to a side, onto another card's header as a tab, or over the graph as a window. Any card can now be docked along the foot, and its menu has **Along the foot**.",
+			"The status pill keeps its place at the bottom left, and lies over the strip's corner when it opens to list problems, rather than moving the strip while code is being typed.",
+			"[Hand-written Luau](hand-written-luau) describes the panel.",
+		],
+	},
+	{
 		version: "0.154.1",
 		date: "2026-10-07",
 		headline:

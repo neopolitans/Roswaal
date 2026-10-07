@@ -1667,7 +1667,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 	// Roblox's Instance surface, minus what needs an execution wire. The line
 	// drawn here is **side effects, not method-versus-property**: `:IsA()` is a
 	// question about the value in front of you, and making you thread an
-	// execution wire through a question is what pushes people into Custom Code.
+	// execution wire through a question is what pushes people into Code Block.
 	// Anything that allocates or mutates stays impure.
 	pure(
 		"instance.getName",
@@ -3283,7 +3283,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 		"coroutine.resume($in.thread$more(, ))",
 		[d("thread", "Thread", "thread")],
 		"Succeeded",
-		"Runs a coroutine until it yields or finishes. Returns whether it survived — an error inside comes back as false rather than being raised here. **Only the first return value is captured**; for the rest, use Custom Code.",
+		"Runs a coroutine until it yields or finishes. Returns whether it survived — an error inside comes back as false rather than being raised here. **Only the first return value is captured**; for the rest, use Code Block.",
 		{ latent: true },
 	),
 	variadicStmt(
@@ -3292,7 +3292,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 		"Threads",
 		"coroutine.yield($args(, ))",
 		[],
-		"Hands control back to whoever resumed this coroutine, passing values out. What comes back in on the next resume needs Custom Code to catch.",
+		"Hands control back to whoever resumed this coroutine, passing values out. What comes back in on the next resume needs Code Block to catch.",
 	),
 	pure(
 		"coroutine.status",
@@ -3372,7 +3372,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 	),
 	{
 		id: "code.custom",
-		title: "Custom Code",
+		title: "Code Block",
 		category: "Debug",
 		summary:
 			"Escape hatch. The text is emitted verbatim as statements, so existing Luau can be wrapped rather than rebuilt.",

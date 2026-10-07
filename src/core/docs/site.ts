@@ -233,7 +233,7 @@ export type Block =
 	 * One or more nodes drawn as they appear on the canvas.
 	 *
 	 * A list rather than a single node because the useful case is nearly always
-	 * a comparison — Custom Code beside Luau Expression, a getter beside a
+	 * a comparison — Code Block beside Luau Expression, a getter beside a
 	 * setter — and two pictures side by side answer "which one do I want" in a
 	 * way that two pictures a paragraph apart do not.
 	 */

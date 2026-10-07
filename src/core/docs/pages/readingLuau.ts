@@ -21,7 +21,7 @@ export function readingLuauPage(): DocPage {
 				t: "p",
 				text:
 					"Roswaal reads your Luau as well as writing it. In a Luau file opened from the " +
-					"project tree, and in **Custom Code** and **Luau Expression**, hover, completion and " +
+					"project tree, and in **Code Block** and **Luau Expression**, hover, completion and " +
 					"warnings use what it finds.",
 			},
 
@@ -57,7 +57,7 @@ export function readingLuauPage(): DocPage {
 				text:
 					"A local that holds a required module knows what the module gives back: hover " +
 					"`Flux.state` for its signature and comment, or `Flux` for where the module is. In " +
-					"the code editor, a dot after it offers the module's members.",
+					"the Code panel, a dot after it offers the module's members.",
 			},
 			{
 				t: "table",
@@ -81,7 +81,7 @@ export function readingLuauPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"In Custom Code, `script` is the file the graph compiles to, so `script.Parent` means " +
+					"In Code Block, `script` is the file the graph compiles to, so `script.Parent` means " +
 					"what it will in Studio.",
 			},
 

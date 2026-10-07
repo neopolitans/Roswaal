@@ -714,7 +714,7 @@ function CodeBlock({ lang, text }: { lang: string; text: string }) {
 }
 
 /**
- * Luau, coloured by the same tokeniser the Custom Code editor uses.
+ * Luau, coloured by the same tokeniser the Code Block editor uses.
  *
  * Rendered line by line rather than as one blob so the newlines survive as
  * text: a reader selecting the block and copying it should get the code, not
@@ -1392,7 +1392,7 @@ function GraphFigure({
 				style={{ height: GRAPH_FRAME_HEIGHT * scale }}
 				dangerouslySetInnerHTML={html}
 			/>
-			{/* Each Custom Code node's Luau, for the graph's script to open. */}
+			{/* Each Code Block node's Luau, for the graph's script to open. */}
 			{codes !== "" && <div hidden dangerouslySetInnerHTML={{ __html: codes }} />}
 			{caption && (
 				<figcaption>

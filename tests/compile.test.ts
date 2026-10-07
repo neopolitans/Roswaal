@@ -54,10 +54,10 @@ describe("emitter", () => {
 
 	/**
 	 * The difference between the two escape hatches, asserted rather than
-	 * described: Custom Code lands where a statement goes, Luau Expression where
+	 * described: Code Block lands where a statement goes, Luau Expression where
 	 * a value goes. Everything confusing about them follows from that.
 	 */
-	it("puts Custom Code in the flow and a Luau Expression at a use site", () => {
+	it("puts Code Block in the flow and a Luau Expression at a use site", () => {
 		const b = new Builder();
 		const start = b.node("script.begin");
 		const custom = b.node("code.custom");
@@ -79,7 +79,7 @@ describe("emitter", () => {
 	 * raw, so nothing rewrites it — the only defence is saying so, and this is
 	 * the mistake the two nodes exist to keep apart.
 	 */
-	it("refuses a statement in a Luau Expression, and names Custom Code", () => {
+	it("refuses a statement in a Luau Expression, and names Code Block", () => {
 		const b = new Builder();
 		const start = b.node("script.begin");
 		const expr = b.node("value.expression");
@@ -91,7 +91,7 @@ describe("emitter", () => {
 		const out = compile(b.build(), registry);
 		const errors = out.diagnostics.filter((d) => d.severity === "error");
 		expect(errors.map((w) => w.message).join(" ")).toContain('"local" starts a statement');
-		expect(errors.map((w) => w.message).join(" ")).toContain("Custom Code");
+		expect(errors.map((w) => w.message).join(" ")).toContain("Code Block");
 		expect(out.ok).toBe(false);
 	});
 

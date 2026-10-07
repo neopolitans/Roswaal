@@ -79,7 +79,7 @@ describe("New Instance", () => {
 	});
 });
 
-describe("completing a class name in Custom Code", () => {
+describe("completing a class name in Code Block", () => {
 	function offered(source: string): string[] {
 		const pos = source.indexOf("|");
 		const doc = source.replace("|", "");

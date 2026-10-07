@@ -130,7 +130,7 @@ describe("a step's result", () => {
 
 	/**
 	 * A name asks for the local. Folded, `copy` would not exist, and Luau
-	 * typed into a Custom Code further down that reads it would read a nil
+	 * typed into a Code Block further down that reads it would read a nil
 	 * global instead.
 	 */
 	it("keeps its local when it has a name, even with the Declare Local next", () => {

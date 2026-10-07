@@ -168,11 +168,11 @@ export interface PinDef {
 	 * form — a `Vector3` input defaults to `Vector3.zero` because `nil` would be
 	 * wrong. If that alone opened a code editor, every vector pin in the library
 	 * would be a place to hide arbitrary code inside a node that looks like a
-	 * constructor, and a reviewer scanning a shared graph for Custom Code nodes
+	 * constructor, and a reviewer scanning a shared graph for Code Block nodes
 	 * would never find it.
 	 *
 	 * So this is opt-in, and only the two deliberate escape hatches set it:
-	 * Custom Code and Luau Expression. Their node titles say what they are.
+	 * Code Block and Luau Expression. Their node titles say what they are.
 	 * Everywhere else a raw default is displayed and not editable — author the
 	 * value by wiring a node, or by splitting the pin.
 	 */
@@ -540,7 +540,7 @@ export interface NodeScript {
 	 * written at the top of the file. Roblox only.
 	 *
 	 * A Get Service node or a path hoists its service anyway; declaring one
-	 * puts it first and in your order, and makes it a name Custom Code can
+	 * puts it first and in your order, and makes it a name Code Block can
 	 * read without a node asking for it. Absent on a graph written before
 	 * 0.152.0, and on any that declares none.
 	 */

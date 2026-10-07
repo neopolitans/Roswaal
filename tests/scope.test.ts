@@ -5,7 +5,7 @@ import { Builder } from "./helpers.js";
 
 const registry = createRegistry();
 
-/** A Custom Code node declaring one local. */
+/** A Code Block node declaring one local. */
 function block(b: Builder, name: string): string {
 	const id = b.node("code.custom");
 	b.lit(id, "code", { t: "raw", v: `local ${name} = 1` });
@@ -16,7 +16,7 @@ function offered(script: Parameters<typeof precedingLocals>[0], nodeId: string):
 	return precedingLocals(script, registry, nodeId).map((c) => c.label);
 }
 
-describe("which locals a Custom Code block can see", () => {
+describe("which locals a Code Block can see", () => {
 	it("sees one declared earlier in the same chain", () => {
 		const b = new Builder();
 		const start = b.node("script.begin");

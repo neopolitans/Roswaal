@@ -6,7 +6,7 @@
  * and leave everything around it as it was.
  *
  * Deliberately close to the grammar rather than to any one use: the checks
- * on Custom Code, the scope walk for completions and the precedence rules the
+ * on Code Block, the scope walk for completions and the precedence rules the
  * emitter needs all read the same tree.
  */
 

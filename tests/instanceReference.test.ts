@@ -1,5 +1,5 @@
 /**
- * An instance dragged out of the DataModel into Custom Code, as the Luau that
+ * An instance dragged out of the DataModel into Code Block, as the Luau that
  * reaches it.
  *
  * With no name in scope to start from, a reference starts from
@@ -56,7 +56,7 @@ describe("the Luau for a dragged instance", () => {
 describe("where a drop lands", () => {
 	const ref = { path: ["ReplicatedStorage", "Tank"] };
 
-	it("writes a whole local on a blank line of Custom Code, after its indent", () => {
+	it("writes a whole local on a blank line of Code Block, after its indent", () => {
 		const line = { from: 10, to: 12, text: "\t\t" };
 		expect(droppedText(ref, "block", line, 11)).toEqual({
 			from: 12,

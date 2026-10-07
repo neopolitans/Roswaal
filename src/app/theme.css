@@ -339,6 +339,62 @@ select optgroup {
 	max-height: 45%;
 }
 
+/* The strip along the foot: the bottom dock's cards other than the pill -- the
+   Code panel. Between the side columns and above the pill's row, so neither
+   moves; as tall as the dock's size, set inline. The pill is where it was, and
+   when it opens to list problems it lies over the strip's corner rather than
+   pushing it about while code is being typed. In full view the strip grows
+   to the top bar. See `FootDock`. */
+.dock.foot {
+	flex-direction: row;
+	left: calc(var(--edge) * 2 + var(--strip-w) + var(--left-w, 0px));
+	right: calc(var(--edge) * 2 + var(--right-w, 0px));
+	bottom: calc(var(--edge) * 2 + var(--hit) + 6px);
+	max-height: calc(100% - var(--chrome-top) - var(--edge) * 3 - var(--hit) - 6px);
+}
+
+.dock.foot.full {
+	top: var(--chrome-top);
+	max-height: none;
+	z-index: 4;
+}
+
+/* The pill over the strip's corner, open or shut. */
+.dock.bottom {
+	z-index: 5;
+}
+
+.dock.foot > .card {
+	flex: 1 1 0;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.dock.foot > .card.folded {
+	align-self: flex-end;
+}
+
+/* The top edge drags the strip's height. */
+.dock.foot > .splitter {
+	left: 0;
+	right: 0;
+	top: -9px;
+	bottom: auto;
+	width: auto;
+	height: 12px;
+	cursor: row-resize;
+}
+
+.dock.foot > .splitter::after {
+	top: 5px;
+	bottom: auto;
+	left: 12px;
+	right: 12px;
+	width: auto;
+	height: 2px;
+}
+
 .panel {
 	display: flex;
 	flex-direction: column;
@@ -4305,14 +4361,6 @@ button.start-tile:disabled {
 	padding: 40px;
 }
 
-/* While the code editor is open, the cards showing the DataModel and
-   Properties stay above its backdrop, so an instance can be dragged from them
-   into the code. Must match LIFTED in CodeEditor.tsx; 71 is LAYER.menu + 1. */
-.app:has(.code-backdrop)
-	:is(.dock, .float-panel):has(.project-view:not([hidden]) .place-browser, .panel-properties) {
-	z-index: 71;
-}
-
 .code-modal {
 	background: var(--bg-panel);
 	border: 1px solid var(--border-strong);
@@ -4351,7 +4399,7 @@ button.start-tile:disabled {
 	height: 100%;
 }
 
-/* A Custom Code node's Luau, opened from a graph in the docs: the code
+/* A Code Block node's Luau, opened from a graph in the docs: the code
    editor's frame and look, read-only, and as tall as the code up to the
    editor's own height. The gutter and face are `luauTheme.ts`'s. */
 .docs-code-backdrop {
@@ -4427,6 +4475,227 @@ button.start-tile:disabled {
 
 .code-body .cm-scroller {
 	overflow: auto;
+}
+
+/* ------------------------------------------------------------- the Code panel */
+
+/* A tab per open field, the editor, and its status line, filling the card.
+   See `CodePanel.tsx`. */
+.card-body.panel-code {
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.code-panel {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+/* The tabs, in the card's header after its title: one per open field, the one
+   in front underlined along the header's foot. The strip scrolls sideways when
+   there are more than fit. */
+.card-lead {
+	flex: 1 1 auto;
+	min-width: 0;
+	align-self: stretch;
+	display: flex;
+}
+
+.code-tabs {
+	display: flex;
+	align-items: stretch;
+	gap: 2px;
+	min-width: 0;
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+
+.code-tabs::-webkit-scrollbar {
+	display: none;
+}
+
+/* A tab is the header's full height, and the one in front is filled with the
+   accent tint the menus use for the row under the pointer, × and all. The
+   title and the × share a size and a line height and are each centred in the
+   full height, so they sit on one baseline; the graph's name beside the title
+   shares the title's baseline inside it. */
+.code-tab {
+	display: flex;
+	align-items: stretch;
+	flex: none;
+	max-width: 260px;
+	color: var(--fg-muted);
+}
+
+.code-tab:hover {
+	background: var(--bg-hover);
+	color: var(--fg);
+}
+
+.code-tab.on {
+	color: var(--fg);
+	background: color-mix(in srgb, var(--accent) 28%, var(--card-head));
+}
+
+.code-tab-pick,
+.code-tab-close {
+	display: flex;
+	align-items: center;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	font-size: var(--text-md);
+	line-height: 16px;
+	cursor: pointer;
+}
+
+.code-tab-pick {
+	min-width: 0;
+	padding: 0 4px 0 10px;
+}
+
+.code-tab-label {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	min-width: 0;
+}
+
+.code-tab.on .code-tab-title {
+	font-weight: 600;
+}
+
+/* What the tab edits, before its name, in the colour code gives the same
+   idea: braces for a Code Block, ƒx for a Luau Expression, <T> for a type --
+   its brackets grey, its T a light blue taken from the theme's accent. */
+.code-mark {
+	flex: none;
+	min-width: 18px;
+	font-family: "Cascadia Mono", Consolas, monospace;
+	font-size: var(--text-sm);
+	font-weight: 700;
+	text-align: center;
+	white-space: nowrap;
+}
+
+.code-mark-block {
+	color: var(--code-keyword);
+}
+
+.code-mark-expression {
+	color: var(--code-function);
+}
+
+.code-mark-type {
+	color: color-mix(in srgb, var(--accent) 72%, #ffffff);
+}
+
+.code-mark-angle {
+	color: var(--fg-faint);
+	font-weight: 400;
+}
+
+/* The node's name keeps its width; what tells it apart gives way. */
+.code-tab-title {
+	flex: none;
+	white-space: nowrap;
+}
+
+.code-tab-where {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--fg-faint);
+	font-size: var(--text-sm);
+}
+
+.code-tab-close {
+	flex: none;
+	justify-content: center;
+	width: 22px;
+	padding: 0 4px 0 0;
+	color: var(--fg-faint);
+}
+
+.code-tab-close:hover,
+.code-tab-close:focus-visible {
+	color: var(--fg);
+}
+
+.code-tab-pick:focus-visible,
+.code-tab-close:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: -2px;
+}
+
+/* One editor per tab, each kept while it is open; only the one in front shows. */
+.code-field {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.code-field[hidden] {
+	display: none;
+}
+
+/* Tall enough to write in wherever the card is: a lone card in a side column
+   is as tall as what it holds. Along the foot the strip's height decides, and
+   the status line stays in view however short it is dragged. */
+.code-field .code-body {
+	flex: 1 1 auto;
+	min-height: 160px;
+}
+
+.dock.foot .code-field .code-body {
+	min-height: 0;
+}
+
+.card-tools .code-full {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	white-space: nowrap;
+}
+
+.code-field .code-status {
+	padding: 4px 12px;
+	flex: none;
+}
+
+.code-status .code-ok {
+	display: inline-block;
+	width: 7px;
+	height: 7px;
+	margin-right: 4px;
+	border-radius: 50%;
+	background: var(--ok, #2e7d47);
+	vertical-align: 1px;
+}
+
+.code-status .code-note {
+	color: var(--fg-faint);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	min-width: 0;
+}
+
+.code-status .code-verdict {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.code-status .keys {
+	flex: none;
 }
 
 .code-status {
@@ -6570,7 +6839,7 @@ button.tb.icon-only.on {
  * and it is `:is()` rather than eight comma-separated pairs so that adding one
  * is a single edit rather than eight.
  *
- * The variables are the ones the Custom Code editor's HighlightStyle uses, so a
+ * The variables are the ones the Code Block editor's HighlightStyle uses, so a
  * snippet in the docs, the same code in the editor and the same code in the
  * preview are one opinion about Luau rather than four. */
 :is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-keyword { color: var(--code-keyword); }
@@ -15850,6 +16119,9 @@ html {
 .card-slot {
 	flex: 1;
 	min-width: 0;
+	/* The header's full height, so what runs on from the title -- the Code
+	   panel's tabs -- can fill it; the rest is centred in it as before. */
+	align-self: stretch;
 	display: flex;
 	align-items: center;
 	gap: 6px;

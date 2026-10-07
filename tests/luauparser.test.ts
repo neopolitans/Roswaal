@@ -353,7 +353,7 @@ describe("a break with no loop around it", () => {
 		expect(errorsOf("repeat if done then break end until false")).toEqual([]);
 	});
 
-	/** Custom Code is checked on its own, and the loop it sits in is drawn in the graph. */
+	/** Code Block is checked on its own, and the loop it sits in is drawn in the graph. */
 	it("is fine in a fragment", () => {
 		expect(parseChunk("if done then break end").errors).toEqual([]);
 	});
