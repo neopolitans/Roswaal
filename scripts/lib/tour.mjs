@@ -20,11 +20,15 @@
  * answer: it filters, walks, hovers and opens. Without it they stay as drawn.
  */
 
+import { CompletionContext } from "@codemirror/autocomplete";
+import { EditorState } from "@codemirror/state";
 import { wirePath } from "../../src/app/geometry.ts";
 import { highlightLuau } from "../../src/app/highlight.ts";
 import { EVEN_ODD, ICONS, STROKED } from "../../src/app/icons.tsx";
+import { droppedText } from "../../src/app/instanceDrop.ts";
 import { NODE } from "../../src/app/layers.ts";
 import { logoMarkup } from "../../src/app/logo.tsx";
+import { luauCompletionSource } from "../../src/app/luauCompletions.ts";
 import { nodeColor, pinColor } from "../../src/app/palette.ts";
 import { analyse, fold } from "../../src/app/SelectionPreview.tsx";
 import { NODE_ALIASES } from "../../src/core/aliases.ts";
@@ -41,7 +45,15 @@ import {
 import { graphSvg, placeGraph, straighten } from "../../src/core/docs/preview.ts";
 import { RELEASES } from "../../src/core/docs/releases.ts";
 import { releasePageSlug } from "../../src/core/docs/site.ts";
-import { menuHtml, WALLY_MENU } from "../../src/core/docs/toolbars.ts";
+import {
+	DATAMODEL_BROWSER,
+	menuHtml,
+	PROJECT_TREE_WALLY,
+	PROJECT_TREE_WALLY_ADDED,
+	toolbarHtml,
+	WALLY_MENU,
+} from "../../src/core/docs/toolbars.ts";
+import { importLuau } from "../../src/core/import/fromLuau.ts";
 import { hoverAt } from "../../src/core/luau/hover.ts";
 import { growthState } from "../../src/core/nodes/growth.ts";
 import { BUILTIN_NODES, createRegistry, nodeTitle } from "../../src/core/nodes/index.ts";
@@ -686,6 +698,274 @@ function menuDemo() {
         </div>`;
 }
 
+// ------------------------------------------------------------- completion
+
+/**
+ * Where completion is asked: a line typed up to the cursor, what is typed of
+ * the name so far, and what follows the cursor. The options are the editor's
+ * own -- `luauCompletionSource` asked at the cursor, as CodeMirror asks it.
+ */
+const COMPLETIONS = [
+	{ tab: 'Instance.new("', before: 'local part = Instance.new("', typed: "Pa", after: '")' },
+	{ tab: 'GetService("', before: 'local storage = game:GetService("', typed: "Rep", after: '")' },
+	{ tab: ':IsA("', before: 'if hit:IsA("', typed: "Bas", after: '") then' },
+	{ tab: "Vector3.", before: "local up = Vector3.", typed: "", after: "" },
+];
+
+/** How many options the list shows at once, as a popup would. */
+const COMPLETION_SHOWN = 8;
+
+/** What the editor offers at the end of `text`, in the order it offers it. */
+function completionsAt(text) {
+	const source = luauCompletionSource(
+		() => [],
+		() => "roblox",
+	);
+	const result = source(
+		new CompletionContext(EditorState.create({ doc: text }), text.length, false),
+	);
+	if (!result || result.options.length === 0) {
+		throw new Error(`The tour asks for completion after ${text}, and the editor offers nothing.`);
+	}
+	return result.options.map((option) => ({ label: option.label, detail: option.detail ?? "" }));
+}
+
+/**
+ * Narrowed to what is typed. CodeMirror ranks fuzzily as well; a prefix is
+ * the part of that a reader can predict, and every option is the editor's.
+ */
+function narrowed(options, typed) {
+	const prefix = typed.toLowerCase();
+	return options.filter((option) => option.label.toLowerCase().startsWith(prefix));
+}
+
+function completionItems(options) {
+	return options
+		.slice(0, COMPLETION_SHOWN)
+		.map(
+			(option, i) =>
+				`<li role="option"${i === 0 ? ' aria-selected="true"' : ""}><span class="cm-completionLabel">${escapeHtml(option.label)}</span>` +
+				`${option.detail ? `<span class="cm-completionDetail">${escapeHtml(option.detail)}</span>` : ""}</li>`,
+		)
+		.join("");
+}
+
+function completeDemo() {
+	const lists = [];
+	const keys = new Map();
+	const asked = COMPLETIONS.map((one) => {
+		const options = completionsAt(one.before + one.typed);
+		const key = JSON.stringify(options);
+		if (!keys.has(key)) {
+			keys.set(key, lists.length);
+			lists.push(options);
+		}
+		return { ...one, list: keys.get(key), options };
+	});
+	const first = asked[0];
+	return `<div class="tour-pane tour-canvas tour-complete-demo" data-tour="complete">
+          <div class="segmented tour-complete-tabs" role="group" aria-label="Where completion is asked">${asked
+						.map(
+							(one, i) =>
+								`<button type="button" data-ask="${i}"${i === 0 ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"'}><code>${escapeHtml(one.tab)}</code></button>`,
+						)
+						.join("")}</div>
+          <div class="code-body tour-complete-box">
+            ${asked
+							.map(
+								(one, i) =>
+									`<pre class="landing-code tour-complete-line" data-ask="${i}" data-list="${one.list}" data-count="${one.options.length}"${i === 0 ? "" : " hidden"}><code>${tokensHtml(one.before)}<input class="tour-complete-input" value="${escapeHtml(one.typed)}" size="${Math.max(4, one.typed.length + 2)}" aria-label="Keep typing" autocomplete="off" spellcheck="false" />${tokensHtml(one.after)}</code></pre>`,
+							)
+							.join("\n            ")}
+            <div class="cm-tooltip cm-tooltip-autocomplete"><ul role="listbox" aria-label="What the editor offers">${completionItems(narrowed(first.options, first.typed))}</ul></div>
+          </div>
+          <p class="tour-readout tour-complete-readout" aria-live="polite">The editor offers ${first.options.length} here, narrowed as you type.</p>
+          <template class="tour-complete-lists">${escapeHtml(JSON.stringify(lists))}</template>
+        </div>`;
+}
+
+// ----------------------------------------------------- the DataModel, dragged
+
+/**
+ * Each drawn row's place in the DataModel, read off the drawing's own rows:
+ * a row's depth says which of the rows above it is its parent.
+ */
+function dataModelPaths() {
+	const rows = DATAMODEL_BROWSER.groups
+		.flatMap((group) => group.items)
+		.filter((item) => item.t === "treeRow");
+	const stack = [];
+	return rows.map((row) => {
+		stack.length = row.depth;
+		stack.push(row.label);
+		return [...stack];
+	});
+}
+
+/**
+ * The DataModel browser as the docs draw it, each row draggable into a piece
+ * of Custom Code. What a drop writes is `droppedText`'s: a whole local on a
+ * blank line, the path alone anywhere else -- worked out here for every row
+ * and both places, so the page only has to show it.
+ */
+function dragDemo() {
+	const paths = dataModelPaths();
+	let row = 0;
+	const tree = toolbarHtml(DATAMODEL_BROWSER, { ...ART, version: "" })
+		.replace(' aria-hidden="true"', "")
+		.replace(/<div class="tree-row place-row[^"]*"/g, (open) => {
+			const path = paths[row++];
+			if (!path) return open;
+			const whole = droppedText({ path }, "block", { from: 0, to: 1, text: "\t" }, 1).insert;
+			const inline = droppedText({ path }, "block", { from: 0, to: 7, text: "print()" }, 6).insert;
+			return `${open} tabindex="0" role="button" aria-label="Drag ${escapeHtml(path.join("."))}" data-whole="${escapeHtml(whole)}" data-inline="${escapeHtml(inline)}"`;
+		});
+	if (row !== paths.length)
+		throw new Error("The DataModel drawing's rows no longer match its spec.");
+	const config = paths.find((path) => path.at(-1) === "Config");
+	const door = paths.find((path) => path.at(-1) === "Door");
+	if (!config || !door) throw new Error("The DataModel drawing no longer has Config and Door.");
+	const firstWhole = droppedText(
+		{ path: config },
+		"block",
+		{ from: 0, to: 1, text: "\t" },
+		1,
+	).insert;
+	const firstInline = droppedText(
+		{ path: door },
+		"block",
+		{ from: 0, to: 7, text: "print()" },
+		6,
+	).insert;
+	return `<div class="tour-pane tour-canvas tour-drag-demo" data-tour="drag">
+          <div class="tour-drag-tree">${tree}</div>
+          <div class="tour-drag-code code-body">
+            <div class="tour-card-head">Custom Code</div>
+            <pre class="landing-code"><code>${tokensHtml("local function openDoor()")}
+	<span class="tour-drop" data-drop="whole" tabindex="0" aria-label="A blank line">${tokensHtml(firstWhole)}</span>
+	${tokensHtml("print(")}<span class="tour-drop" data-drop="inline" tabindex="0" aria-label="Inside print()">${tokensHtml(firstInline)}</span>${tokensHtml(")")}
+${tokensHtml("end")}</code></pre>
+          </div>
+          <p class="tour-readout tour-drag-readout" aria-live="polite">Drag a row onto the blank line or into <code>print()</code>.</p>
+        </div>`;
+}
+
+// ------------------------------------------------------------------ Wally
+
+/**
+ * wally.toml in the project tree, before and after Add from Wally…: the
+ * docs' own two drawings, so each package and its version is shown as the
+ * tree shows it. Switched by radio buttons, as the slides are.
+ */
+function wallyDemo() {
+	/** @type {[string, string, import("../../src/core/docs/toolbars.ts").ToolbarSpec][]} */
+	const states = [
+		["before", "Before", PROJECT_TREE_WALLY],
+		["after", "After Add from Wally… Flux", PROJECT_TREE_WALLY_ADDED],
+	];
+	return `<div class="tour-pane tour-canvas tour-wally-demo">
+          ${states.map(([id], i) => `<input class="tour-pick" type="radio" name="tour-wally" id="tour-wally-${id}"${i === 0 ? " checked" : ""} />`).join("")}
+          <div class="tour-device-switch segmented" role="group" aria-label="Show">${states.map(([id, name]) => `<label for="tour-wally-${id}">${escapeHtml(name)}</label>`).join("")}</div>
+          ${states.map(([id, , spec]) => `<div class="tour-wally tour-wally-${id}">${toolbarHtml(spec, { ...ART, version: "" })}</div>`).join("\n          ")}
+        </div>`;
+}
+
+// ----------------------------------------------------------------- import
+
+/** A file to import: a loop, a branch and calls, and one line that stays Luau. */
+const IMPORT_SOURCE = `local coins = 0
+local bonus = true
+
+for i = 1, 5 do
+	coins += i
+end
+
+local label = bonus and "Bonus round" or "Round"
+if coins > 10 then
+	print(label, coins)
+else
+	warn("Not enough coins")
+end
+`;
+
+/**
+ * The modes import offers, as its settings name them.
+ * @type {[import("../../src/core/import/modes.ts").ImportMode, string][]}
+ */
+const IMPORT_MODES = [
+	["verbatim", "Verbatim"],
+	["tidy", "Tidy"],
+	["modern", "Modern"],
+];
+
+/** The report the editor shows when an import finishes, in its words. */
+function importReport(report) {
+	const kept = report.asCode.map((c) => `${c.construct} ×${c.count}`).join(", ");
+	return [
+		`${report.asNodes} of ${report.statements} statements are nodes.${kept ? ` Kept as code: ${kept}.` : ""}`,
+		...(report.rewrites > 0 ? [`Written in newer syntax: ${report.rewrites}.`] : []),
+		...report.findings.map((f) => `Line ${f.line}: ${f.message}`),
+	].join(" ");
+}
+
+/**
+ * The same file imported in each mode by `importLuau`, drawn, and compiled
+ * back to Luau: so the reader sees what became nodes, what stayed as Luau
+ * text, and what Modern rewrote.
+ */
+function importDemo() {
+	const registry = createRegistry();
+	const options = {
+		geometry: NODE,
+		nodeColor,
+		pinColor,
+		wirePath,
+		growth: (pin) => growthState(registry.get(pin.id), pin.config),
+	};
+	const modes = IMPORT_MODES.map(([mode, name]) => {
+		const result = importLuau(IMPORT_SOURCE, {
+			name: "Coins",
+			scriptClass: "Script",
+			target: "roblox",
+			idPrefix: "tour",
+			mode,
+		});
+		if (!result.ok) throw new Error(`The tour's import no longer imports: ${result.error}`);
+		const compiled = compile(result.script, registry);
+		if (!compiled.ok) throw new Error("The tour's imported graph no longer compiles.");
+		// The generated header says where the file came from; the body is the point.
+		const body = compiled.code
+			.split("\n")
+			.filter((line) => !line.startsWith("--"))
+			.join("\n")
+			.trim();
+		const main = { ...result.script, nodes: result.script.nodes.filter((node) => !node.graph) };
+		return {
+			mode,
+			name,
+			svg: graphSvg(main, registry, options),
+			body,
+			report: importReport(result.report),
+		};
+	});
+	return `<div class="tour-pane tour-import-demo">
+          ${modes.map(({ mode }, i) => `<input class="tour-pick" type="radio" name="tour-import" id="tour-import-${mode}"${i === 0 ? " checked" : ""} />`).join("")}
+          <div class="tour-device-switch segmented" role="group" aria-label="Import mode">${modes.map(({ mode, name }) => `<label for="tour-import-${mode}">${name}</label>`).join("")}</div>
+          ${modes
+						.map(
+							({ mode, svg, body, report }) => `<div class="tour-import tour-import-${mode}">
+            <figure class="tour-import-graph tour-canvas">${svg}</figure>
+            <div class="tour-import-code">
+              <div><div class="tour-card-head">Coins.server.luau</div><pre class="landing-code"><code>${tokensHtml(IMPORT_SOURCE.trim())}</code></pre></div>
+              <div><div class="tour-card-head">What the graph writes</div><pre class="landing-code"><code>${tokensHtml(body)}</code></pre></div>
+            </div>
+            <p class="tour-readout">${escapeHtml(report)}</p>
+          </div>`,
+						)
+						.join("\n          ")}
+        </div>`;
+}
+
 // ------------------------------------------------------------- the slides
 
 /**
@@ -749,6 +1029,17 @@ export const SLIDES = [
 			"Hover <code>stats</code>, <code>IsA</code> or <code>award</code>. Tab steps through the names.",
 	},
 	{
+		key: "complete",
+		tab: "Complete",
+		title: "Completion that knows Roblox",
+		since: "0.89.0",
+		doc: "docs/hand-written-luau.html",
+		body: "As you type Luau, the editor offers what fits where the cursor is: Roblox's classes in <code>Instance.new</code> and <code>:IsA</code>, its services in <code>:GetService</code>, and a datatype's constructors and constants after its dot.",
+		keys: "Type, then <kbd>↑</kbd> <kbd>↓</kbd> and <kbd>Enter</kbd> or <kbd>Tab</kbd>",
+		tryThis:
+			"Pick where to ask, then keep typing in the box. <kbd>Enter</kbd> takes the option that is lit.",
+	},
+	{
 		key: "moonwave",
 		tab: "Moonwave",
 		title: "Your own docs, as you write them",
@@ -758,6 +1049,44 @@ export const SLIDES = [
 		body: "Doc comments above a function show in its hover: prose, examples, parameters and returns. Moonwave's <code>@class</code>, <code>@prop</code> and <code>@interface</code> are read too, and the tags are coloured where you write them.",
 		keys: "<code>--[=[ ]=]</code> or <code>---</code> above a declaration",
 		tryThis: "Hover <code>Inventory</code>, <code>capacity</code> and <code>add</code>.",
+	},
+	{
+		key: "drag",
+		tab: "Drag in",
+		title: "From the DataModel into your code",
+		since: "0.103.0",
+		steps: [["0.128.0", "dragged into Custom Code"]],
+		doc: "docs/project-panel.html",
+		body: "The Project panel's DataModel tab lists your place as Studio's Explorer does. Drag an instance into Custom Code: on a blank line it becomes a whole local, anywhere else the path alone, so a path is never typed by hand.",
+		keys: "Drag a row, or <kbd>Enter</kbd> on it and then on where it goes",
+		tryThis: "Drag Door onto the blank line, or Config into <code>print()</code>.",
+	},
+	{
+		key: "wally",
+		tab: "Wally",
+		title: "Wally packages, in the tree",
+		since: "0.107.0",
+		steps: [
+			["0.112.0", "Add from Wally"],
+			["0.113.0", "Remove a package"],
+		],
+		doc: "docs/wally-packages.html",
+		body: "<code>wally.toml</code> sits in Graph content with each package it lists and the version installed, and Packages shows under Compile content. <strong>Add from Wally…</strong> on its menu installs a package with what it depends on.",
+		keys: "<kbd>Right-click</kbd> <code>wally.toml</code>",
+		tryThis: "Switch to after Add from Wally… and Flux arrives with its version.",
+	},
+	{
+		key: "import",
+		tab: "Import",
+		title: "Luau in, graph out",
+		status: "In progress",
+		since: "0.140.0",
+		steps: [["0.143.0", "Verbatim, Tidy and Modern"]],
+		doc: "docs/project-panel.html",
+		body: "<strong>Import as graph</strong> turns a <code>.luau</code> file's statements into nodes; what has no node yet stays as Luau text. Still in progress: Tidy reads as Verbatim for now, comments and formatting are not kept, and a graph can behave differently from its source, so test it.",
+		keys: "<kbd>Right-click</kbd> a <code>.luau</code> file",
+		tryThis:
+			"Switch between Verbatim, Tidy and Modern. Modern writes the <code>and … or</code> line as an if-expression.",
 	},
 	{
 		key: "windows",
@@ -799,6 +1128,10 @@ export function tourSection({ tryHref }) {
 		visual: () => visualDemo(nodes),
 		hover: () => hoverDemo(HOVER_SOURCE, "stats", "Coins.server.luau"),
 		moonwave: () => hoverDemo(MOONWAVE_SOURCE, "add", "Inventory.luau"),
+		complete: () => completeDemo(),
+		drag: () => dragDemo(),
+		wally: () => wallyDemo(),
+		import: () => importDemo(),
 		windows: () => windowsDemo(),
 		menu: () => menuDemo(),
 	};
@@ -827,7 +1160,7 @@ ${SLIDES.map(
 		i,
 	) => `      <article class="tour-slide" data-slide="${i}" data-key="${slide.key}" aria-roledescription="slide" aria-label="${i + 1} of ${SLIDES.length}: ${escapeHtml(slide.title)}">
         <div class="tour-copy">
-          <p class="tour-kicker"><span>${i + 1} / ${SLIDES.length}</span>${sinceBadge(slide.since, "tour-since")}</p>
+          <p class="tour-kicker"><span>${i + 1} / ${SLIDES.length}</span>${sinceBadge(slide.since, "tour-since")}${slide.status ? `<span class="tour-status">${escapeHtml(slide.status)}</span>` : ""}</p>
           <h3 class="tour-title">${escapeHtml(slide.title)}</h3>
           <p class="tour-body">${slide.body}</p>
           ${slide.steps?.length ? `<p class="tour-steps">Then ${slide.steps.map(([version, what]) => `${sinceBadge(version, "tour-since small")} ${escapeHtml(what)}`).join(", ")}.</p>` : ""}
@@ -859,6 +1192,8 @@ export const TOUR_STYLE = `
 .tour-tabs label { display: inline-flex; align-items: center; gap: 6px; }
 .tour-tab-n { font: 600 11px/1 ui-monospace, "Cascadia Mono", Consolas, monospace; opacity: 0.7; }
 @media (max-width: 900px) { .tour-tab-name { display: none; } .tour-tab-n { font-size: 13px; opacity: 1; } }
+/* Eleven numbers are wider than a phone: they wrap rather than push the page. */
+.tour-tabs { display: inline-flex; flex-wrap: wrap; max-width: 100%; }
 .tour-progress { height: 3px; border-radius: 2px; background: var(--border); margin: 0 0 12px; overflow: hidden; }
 .tour-progress > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.25s ease; }
 .tour-stage {
@@ -1013,6 +1348,83 @@ export const TOUR_STYLE = `
 .tour-device-tablet .docs-layout-fit { max-width: 600px; }
 .tour-device .docs-layout-frame { margin: 0 auto !important; }
 .tour .docs-layout-screen.dev-phone { --z: 0.41; }
+
+/* A part still being finished says so, beside the version it arrived in. */
+.tour-status {
+  padding: 1px 7px; border-radius: 4px; font: 600 11px/1.4 ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color: var(--warning); border: 1px solid color-mix(in srgb, var(--warning) 55%, var(--border));
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+}
+
+/* Completion: the line being typed, and the editor's popup under it. */
+.tour-complete-demo { flex-direction: column; gap: 14px; justify-content: flex-start; padding-top: 28px; }
+.tour-complete-tabs code { font-size: 12px; }
+.tour-complete-box { width: min(520px, 100%); overflow: visible; }
+.tour-complete-line { margin: 0; border-radius: 8px 8px 0 0; border: 1px solid var(--border); white-space: pre; overflow-x: auto; }
+.tour-complete-input {
+  font: inherit; color: var(--fg); background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 0; border-bottom: 2px solid var(--accent); padding: 0 2px; outline: none; min-width: 4ch;
+}
+.tour .cm-tooltip-autocomplete { position: relative; border-top: 0; border-radius: 0 0 8px 8px; }
+.tour .cm-tooltip-autocomplete[hidden] { display: none; }
+.tour .cm-tooltip-autocomplete ul { list-style: none; margin: 0; padding: 4px 0; max-height: 230px; overflow: auto; }
+.tour .cm-tooltip-autocomplete li { cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tour-complete-readout { text-align: left; width: min(520px, 100%); margin: 0; }
+
+/* The DataModel, dragged into code: the browser beside a piece of Custom Code. */
+.tour-drag-demo { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); align-items: start; align-content: center; gap: 14px; }
+.tour-drag-tree .docs-tree-shot { max-width: 100%; }
+.tour-drag-tree .place-row[data-whole] { cursor: grab; touch-action: none; user-select: none; }
+.tour-drag-tree .place-row[data-whole]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tour-drag-tree .place-row.picked { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.tour-drag-code { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+/* A dropped path is long: the line wraps rather than running off the card. */
+.tour-drag-code pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+.tour-drop {
+  display: inline; min-width: 8ch; padding: 0 4px; border-radius: 4px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 60%, var(--border)); outline: none;
+}
+.tour-drop.over, .tour-drop:focus-visible { border-style: solid; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.tour-drop.filled { animation: tour-dropped 0.5s ease; }
+@keyframes tour-dropped { from { background: color-mix(in srgb, var(--accent) 35%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .tour-drop.filled { animation: none; } }
+.tour-drag-readout { grid-column: 1 / -1; }
+.tour-drag-ghost {
+  position: fixed; z-index: 100; pointer-events: none; padding: 3px 9px; border-radius: 6px;
+  background: var(--accent); color: #fff; font: 600 12px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace;
+  box-shadow: var(--shadow-popover); transform: translate(10px, 10px);
+}
+@media (max-width: 640px) { .tour-drag-demo { grid-template-columns: minmax(0, 1fr); } }
+
+/* Wally: the project tree before and after a package is added. */
+.tour-wally-demo { flex-direction: column; gap: 12px; }
+.tour-wally { display: none; width: min(340px, 100%); }
+#tour-wally-before:checked ~ .tour-wally-before,
+#tour-wally-after:checked ~ .tour-wally-after { display: block; }
+#tour-wally-before:checked ~ .tour-device-switch label[for="tour-wally-before"],
+#tour-wally-after:checked ~ .tour-device-switch label[for="tour-wally-after"] { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent); }
+#tour-wally-before:focus-visible ~ .tour-device-switch label[for="tour-wally-before"],
+#tour-wally-after:focus-visible ~ .tour-device-switch label[for="tour-wally-after"] { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Import: the graph a file became, and the file beside what the graph writes. */
+.tour-import-demo { padding: 12px 14px; gap: 8px; align-items: center; background: color-mix(in srgb, var(--bg-canvas) 60%, var(--landing-card)); }
+.tour-import { display: none; width: 100%; }
+#tour-import-verbatim:checked ~ .tour-import-verbatim,
+#tour-import-tidy:checked ~ .tour-import-tidy,
+#tour-import-modern:checked ~ .tour-import-modern { display: block; }
+#tour-import-verbatim:checked ~ .tour-device-switch label[for="tour-import-verbatim"],
+#tour-import-tidy:checked ~ .tour-device-switch label[for="tour-import-tidy"],
+#tour-import-modern:checked ~ .tour-device-switch label[for="tour-import-modern"] { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent); }
+/* Drawn whole and fitted to its frame: laying an import out well is part of
+   what is still in progress, and the shape of it is what this shows. */
+.tour-import-graph { margin: 0 0 8px; border: 1px solid var(--border); border-radius: 8px; padding: 8px; }
+.tour-import-graph svg { display: block; width: 100%; height: 108px; }
+.tour-import-code { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.tour-import-code > div { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--bg-input); min-width: 0; }
+.tour-import-code pre { margin: 0; padding: 6px 10px; font-size: 11px; line-height: 1.4; white-space: pre; overflow: auto; max-height: 168px; }
+.tour-import-code .tour-card-head { padding: 4px 10px; font-size: 11px; }
+.tour-import .tour-readout { margin: 6px 0 0; font-size: 12px; }
+@media (max-width: 640px) { .tour-import-code { grid-template-columns: minmax(0, 1fr); } }
 
 /* 6. The one menu, open on the package it was asked about. */
 .tour-menu-demo { flex-direction: row; flex-wrap: wrap; align-items: flex-start; align-content: center; gap: 14px 6px; }
@@ -1237,6 +1649,152 @@ export const TOUR_SCRIPT = `(() => {
     preview.querySelector(".tour-preview-graph").addEventListener("click", () => { selected.clear(); render(); });
     whole.addEventListener("change", render);
     render();
+  }
+
+  // Completion: the editor's options for each place it is asked, narrowed as
+  // the reader types, walked with the arrows, and taken with Enter or Tab.
+  const complete = tour.querySelector('[data-tour="complete"]');
+  if (complete) {
+    let lists = [];
+    try { lists = JSON.parse(complete.querySelector(".tour-complete-lists").content.textContent || "[]"); } catch {}
+    const tabs = [...complete.querySelectorAll(".tour-complete-tabs button")];
+    const lines = [...complete.querySelectorAll(".tour-complete-line")];
+    const popup = complete.querySelector(".cm-tooltip-autocomplete");
+    const listbox = popup.querySelector("ul");
+    const readout = complete.querySelector(".tour-complete-readout");
+    let line = lines[0];
+    let lit = 0;
+    let shown = [];
+    const offered = () => "The editor offers " + line.dataset.count + " here, narrowed as you type.";
+    const draw = () => {
+      const input = line.querySelector("input");
+      const typed = input.value.toLowerCase();
+      shown = (lists[Number(line.dataset.list)] || []).filter((o) => o.label.toLowerCase().startsWith(typed)).slice(0, 8);
+      lit = Math.max(0, Math.min(lit, shown.length - 1));
+      listbox.replaceChildren(...shown.map((option, i) => {
+        const item = document.createElement("li");
+        item.setAttribute("role", "option");
+        if (i === lit) item.setAttribute("aria-selected", "true");
+        const label = document.createElement("span");
+        label.className = "cm-completionLabel";
+        label.textContent = option.label;
+        item.append(label);
+        if (option.detail) {
+          const detail = document.createElement("span");
+          detail.className = "cm-completionDetail";
+          detail.textContent = option.detail;
+          item.append(detail);
+        }
+        item.addEventListener("pointerdown", (event) => { event.preventDefault(); take(i); });
+        return item;
+      }));
+      popup.hidden = shown.length === 0;
+      input.size = Math.max(4, input.value.length + 2);
+    };
+    const take = (i) => {
+      const option = shown[i];
+      if (!option) return;
+      const input = line.querySelector("input");
+      input.value = option.label;
+      input.size = Math.max(4, input.value.length + 2);
+      popup.hidden = true;
+      readout.textContent = "Took " + option.label + ". " + offered();
+    };
+    tabs.forEach((tab, i) => tab.addEventListener("click", () => {
+      for (const other of tabs) { other.classList.toggle("on", other === tab); other.setAttribute("aria-pressed", String(other === tab)); }
+      lines.forEach((one, j) => { one.hidden = j !== i; });
+      line = lines[i];
+      lit = 0;
+      draw();
+      readout.textContent = offered();
+    }));
+    for (const one of lines) {
+      const input = one.querySelector("input");
+      input.addEventListener("input", () => { lit = 0; draw(); readout.textContent = offered(); });
+      input.addEventListener("focus", draw);
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowDown") lit = Math.min(shown.length - 1, lit + 1);
+        else if (event.key === "ArrowUp") lit = Math.max(0, lit - 1);
+        else if ((event.key === "Enter" || event.key === "Tab") && !popup.hidden && shown.length) { event.preventDefault(); take(lit); return; }
+        else if (event.key === "Escape") { popup.hidden = true; return; }
+        else return;
+        event.preventDefault();
+        draw();
+      });
+    }
+  }
+
+  // The DataModel into code: a row dragged onto a place in the code, or
+  // picked with Enter and put with Enter. What lands is what the editor
+  // writes there, worked out when the page was built.
+  const drag = tour.querySelector('[data-tour="drag"]');
+  if (drag) {
+    const rows = [...drag.querySelectorAll(".place-row[data-whole]")];
+    const zones = [...drag.querySelectorAll(".tour-drop")];
+    const readout = drag.querySelector(".tour-drag-readout");
+    let picked = null;
+    const nameOf = (row) => (row.querySelector(".label") || row).textContent.trim();
+    const pick = (row) => {
+      picked = row;
+      for (const other of rows) other.classList.toggle("picked", other === row);
+      readout.textContent = "Picked " + nameOf(row) + ". Now Enter on the blank line, or inside print().";
+    };
+    const put = (row, zone) => {
+      const whole = zone.dataset.drop === "whole";
+      zone.textContent = whole ? row.dataset.whole : row.dataset.inline;
+      zone.classList.remove("filled");
+      void zone.offsetWidth;
+      zone.classList.add("filled");
+      readout.textContent = nameOf(row) + (whole ? " on a blank line: a whole local." : " inside a line: the path alone.");
+      picked = null;
+      for (const other of rows) other.classList.remove("picked");
+    };
+    const zoneAt = (x, y) => document.elementFromPoint(x, y)?.closest(".tour-drop") || null;
+    for (const row of rows) {
+      let start = null;
+      let ghost = null;
+      row.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0) return;
+        start = { x: event.clientX, y: event.clientY };
+        row.setPointerCapture(event.pointerId);
+      });
+      row.addEventListener("pointermove", (event) => {
+        if (!start) return;
+        if (!ghost && Math.hypot(event.clientX - start.x, event.clientY - start.y) > 4) {
+          ghost = document.createElement("div");
+          ghost.className = "tour-drag-ghost";
+          ghost.textContent = nameOf(row);
+          document.body.append(ghost);
+        }
+        if (!ghost) return;
+        ghost.style.left = event.clientX + "px";
+        ghost.style.top = event.clientY + "px";
+        const over = zoneAt(event.clientX, event.clientY);
+        for (const zone of zones) zone.classList.toggle("over", zone === over);
+      });
+      const end = (event) => {
+        if (!start) return;
+        if (ghost) {
+          const zone = event.type === "pointerup" ? zoneAt(event.clientX, event.clientY) : null;
+          if (zone) put(row, zone);
+          ghost.remove();
+          ghost = null;
+        } else if (event.type === "pointerup") pick(row);
+        for (const zone of zones) zone.classList.remove("over");
+        start = null;
+      };
+      row.addEventListener("pointerup", end);
+      row.addEventListener("pointercancel", end);
+      row.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); pick(row); }
+      });
+    }
+    for (const zone of zones) {
+      zone.addEventListener("click", () => { if (picked) put(picked, zone); });
+      zone.addEventListener("keydown", (event) => {
+        if ((event.key === "Enter" || event.key === " ") && picked) { event.preventDefault(); put(picked, zone); }
+      });
+    }
   }
 
   const list = tour.querySelector('[data-tour="list"]');

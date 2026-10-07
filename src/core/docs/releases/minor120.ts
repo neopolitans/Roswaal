@@ -9,6 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.149.0",
+		date: "2026-10-07",
+		headline: "The front page tour shows completion, the DataModel, Wally and importing.",
+		affects: ["docs"],
+		added: [
+			'**Completion that knows Roblox**: type after `Instance.new("`, `:GetService("`, `:IsA("` or `Vector3.` and take what the editor offers.',
+			"**From the DataModel into your code**: drag an instance from the DataModel browser into Custom Code, a whole local on a blank line and the path alone inside one.",
+			"**Wally packages, in the tree**: wally.toml with each package and its version, before and after Add from Wally….",
+			"**Luau in, graph out**: a file imported in Verbatim, Tidy and Modern, its graph beside the Luau it writes, and the report the editor gives. Marked **In progress**, with what it does not do yet.",
+			"A slide that is still being finished says **In progress** beside its version.",
+		],
+		changed: ["The tour has eleven slides, and on a phone its numbers wrap to a second row."],
+	},
+	{
 		version: "0.148.1",
 		date: "2026-10-07",
 		headline: "A new project's spawn stands on its baseplate.",

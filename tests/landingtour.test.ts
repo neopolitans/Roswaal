@@ -28,7 +28,7 @@ const tourOnly = tour.slice(0, tour.indexOf("</section>\n\n  <section"));
 describe("the tour", () => {
 	it("switches between its slides without a script", () => {
 		const picks = [
-			...tourOnly.matchAll(/<input class="landing-pick" type="radio" name="tour" id="(tour-\d)"/g),
+			...tourOnly.matchAll(/<input class="landing-pick" type="radio" name="tour" id="(tour-\d+)"/g),
 		];
 		expect(picks.length).toBe(SLIDES.length);
 		for (const [, id] of picks) expect(tourOnly).toContain(`<label for="${id}">`);
@@ -206,5 +206,71 @@ describe("version badges, since 0.147.0", () => {
 
 	it("cannot name a release that has no notes", () => {
 		expect(() => releaseHref("0.0.999")).toThrow(/no notes/);
+	});
+});
+
+/**
+ * The four slides added in 0.149.0, each made by the code it shows: so none
+ * can offer a completion, write a drop, draw a tree or import a file the way
+ * the editor would not.
+ */
+describe("the slides added in 0.149.0", () => {
+	const slideOf = (key: string) => {
+		const at = tourOnly.indexOf(`data-key="${key}"`);
+		const next = tourOnly.indexOf('<article class="tour-slide"', at + 1);
+		return tourOnly.slice(at, next === -1 ? undefined : next);
+	};
+
+	it("offers what the editor's completion offers, where it is asked", () => {
+		const slide = slideOf("complete");
+		const data =
+			/<template class="tour-complete-lists">([^<]*)<\/template>/.exec(slide)?.[1] ?? "[]";
+		const lists = JSON.parse(data.replace(/&quot;/g, '"').replace(/&amp;/g, "&")) as {
+			label: string;
+		}[][];
+		const all = lists.flat().map((option) => option.label);
+		expect(all).toContain("Part");
+		expect(all).toContain("ReplicatedStorage");
+		expect(all).toContain("zero");
+		expect(slide).toContain('<span class="cm-completionLabel">Part</span>');
+	});
+
+	it("writes a whole local on a blank line, and the path alone in a line", () => {
+		const slide = slideOf("drag");
+		expect(slide).toContain('aria-label="Drag Workspace.House.Door"');
+		expect(slide).toContain(
+			'data-whole="local Door = game:GetService(&quot;Workspace&quot;).House.Door"',
+		);
+		expect(slide).toContain('data-inline="game:GetService(&quot;Workspace&quot;).House.Door"');
+		expect((slide.match(/data-whole="/g) ?? []).length).toBe(9);
+	});
+
+	it("draws the tree before and after Flux is added", () => {
+		const slide = slideOf("wally");
+		const before = slide.slice(
+			slide.indexOf('tour-wally-before">'),
+			slide.indexOf('tour-wally-after">'),
+		);
+		const after = slide.slice(slide.indexOf('tour-wally-after">'));
+		expect(before).not.toContain(">Flux<");
+		expect(after).toContain("Flux");
+	});
+
+	it("imports the same file in each mode, and only Modern rewrites", () => {
+		const slide = slideOf("import");
+		const verbatim = slide.slice(
+			slide.indexOf('class="tour-import tour-import-verbatim"'),
+			slide.indexOf('class="tour-import tour-import-tidy"'),
+		);
+		const modern = slide.slice(slide.indexOf('class="tour-import tour-import-modern"'));
+		expect(verbatim.replace(/<[^>]+>/g, "")).toContain("bonus and &quot;Bonus round&quot; or");
+		expect(modern.replace(/<[^>]+>/g, "")).toContain("if bonus then &quot;Bonus round&quot; else");
+		expect(slide).toContain("Kept as code: compound assignment ×1.");
+	});
+
+	/** A part still being finished says so beside its version, and nowhere is it presented as done. */
+	it("marks the import as in progress", () => {
+		expect(slideOf("import")).toContain('<span class="tour-status">In progress</span>');
+		expect(slideOf("complete")).not.toContain("tour-status");
 	});
 });
