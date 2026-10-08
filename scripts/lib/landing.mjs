@@ -49,7 +49,13 @@ import {
 	createRegistry,
 } from "../../src/core/nodes/index.ts";
 import { emptyScript } from "../../src/core/schema.ts";
+import { metaTags, SITE_DESCRIPTION, softwareJsonLd } from "../../src/core/siteMeta.ts";
 import { releaseHref, SLIDES, sinceBadge, TOUR_STYLE, tourSection } from "./tour.mjs";
+
+/** The front page's line on the canary, which is not the build to start from. */
+const CANARY_DESCRIPTION =
+	"Roswaal's next build, ahead of its release: node graphs that compile to clean, " +
+	"readable Luau for Roblox and Lune. Try it in your browser.";
 
 /**
  * The canary's word on its front page. The windows say it with their yellow
@@ -137,7 +143,7 @@ function highlight(code) {
  * whatever that becomes, and it follows the theme. Get Event fades into the
  * banner's left edge, which is what says the graph carries on past it.
  */
-function heroGraph() {
+export function heroGraph() {
 	const registry = createRegistry();
 	/** @type {import("../../src/core/schema.ts").NodeScript} */
 	const script = {
@@ -809,8 +815,17 @@ ${
 		? `<meta name="robots" content="noindex" />
 `
 		: ""
-}<title>Roswaal${IS_CANARY ? " canary" : ""} - Visual Scripting for Luau</title>
-<meta name="description" content="Visual scripting for Roblox Luau and Lune Luau. Graphs live on disk and compile to plain Luau that Rojo syncs. Try it in your browser, with nothing installed." />
+}<title>Roswaal${IS_CANARY ? " canary" : ""} — Visual scripting for Luau</title>
+${metaTags(
+	{
+		title: `Roswaal${IS_CANARY ? " canary" : ""} — Visual scripting for Luau, reimagined`,
+		description: IS_CANARY ? CANARY_DESCRIPTION : SITE_DESCRIPTION,
+		path: "",
+		large: true,
+	},
+	{ canary: IS_CANARY, backup },
+)}
+${softwareJsonLd({ canary: IS_CANARY, backup })}
 <link rel="icon" href="${faviconHref()}" />
 <link rel="stylesheet" href="docs/theme.css?v=${encodeURIComponent(version)}" />
 <script src="docs/theme.js?v=${encodeURIComponent(version)}"></script>

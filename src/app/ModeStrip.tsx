@@ -17,7 +17,7 @@ import { type MouseEvent, useLayoutEffect, useRef, useState } from "react";
 import { Icon, type IconName } from "./icons.jsx";
 import { Menu } from "./Menu.jsx";
 import { usePhone } from "./Popout.jsx";
-import { MODES, previousMode, switchMode, usePageShowing } from "./pageHost.jsx";
+import { loadSlide, MODES, SLIDE_MS, switchMode } from "./pageHost.jsx";
 import { type Page, pageHref } from "./pages.js";
 
 export const MODE_GLYPH: Record<Page, IconName> = {
@@ -51,29 +51,30 @@ export function isPlainClick(e: {
 
 export function ModeStrip({ current }: { current: Page }) {
 	const phone = usePhone();
-	const showing = usePageShowing();
 	const strip = useRef<HTMLDivElement>(null);
 	const [menu, setMenu] = useState<{ page: Page; x: number; y: number } | null>(null);
 
-	// The box slides from the mode before, each time this page comes to the
-	// front. It is drawn where it belongs and animated from where it was, so a
-	// browser without the animation still has it in the right place.
+	// Arriving by a page load from the static docs, the box slides over from
+	// the docs. Drawn where it belongs and animated from where it was, so a
+	// browser without the animation still has it in the right place; a strip
+	// drawn while the slide is under way joins it where it has got to. A
+	// switch in place is the page host's: see `Flight` in `pageHost.tsx`.
 	useLayoutEffect(() => {
-		if (!showing) return;
-		const from = previousMode();
+		const slide = loadSlide(current);
 		const box = strip.current?.querySelector<HTMLElement>(".mode-box");
-		const was = strip.current?.querySelector<HTMLElement>(`[data-mode="${from}"]`);
+		const was = strip.current?.querySelector<HTMLElement>(`[data-mode="${slide?.from}"]`);
 		const is = strip.current?.querySelector<HTMLElement>(`[data-mode="${current}"]`);
-		if (!from || from === current || !box || !was || !is || typeof box.animate !== "function") {
-			return;
-		}
+		if (!slide || !box || !was || !is || typeof box.animate !== "function") return;
 		if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+		const elapsed = performance.now() - slide.at;
+		if (elapsed >= SLIDE_MS) return;
 		const shift = was.offsetLeft - is.offsetLeft;
-		box.animate([{ transform: `translateX(${shift}px)` }, { transform: "translateX(0)" }], {
-			duration: 320,
-			easing: "cubic-bezier(0.32, 0.72, 0, 1)",
-		});
-	}, [showing, current]);
+		const motion = box.animate(
+			[{ transform: `translateX(${shift}px)` }, { transform: "translateX(0)" }],
+			{ duration: SLIDE_MS, easing: "cubic-bezier(0.32, 0.72, 0, 1)" },
+		);
+		motion.currentTime = elapsed;
+	}, [current]);
 
 	if (phone) return null;
 

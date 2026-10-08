@@ -10,8 +10,11 @@
  *     404.html        so a mistyped path goes somewhere rather than to GitHub
  *     try.html        the editor
  *     designer.html   Node Design
+ *     docs.html       the docs, in the app: the same bundle, with your packs
  *     assets/         their shared chunks
- *     docs/           the documentation, 301 pages of it
+ *     docs/           the documentation as static pages, for search and links
+ *     social-card*.png, favicon-32.png, apple-touch-icon.png
+ *                     what a link's preview is drawn with, from `site/`
  *
  * The documentation nests without being rebuilt because every link it writes is
  * relative — `attributions.html` from the root, `../attributions.html` from a
@@ -102,6 +105,9 @@ async function main() {
 
 	await cp(editor, out, { recursive: true });
 	await cp(docs, join(out, "docs"), { recursive: true });
+	// What a link's preview is drawn with, at the root where every page's tags
+	// point: `npm run build:social` makes them. See `src/core/siteMeta.ts`.
+	await cp(join(root, "site"), out, { recursive: true });
 
 	await writeFile(join(out, "index.html"), landingPage(version), "utf8");
 	// The docs' graph viewer, so the landing page's graph pans and zooms with

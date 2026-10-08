@@ -12,15 +12,16 @@
  * and the landing page and the documentation join it there.
  */
 
+import { basename } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
-
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { demoSeedPlugin } from "./scripts/demo-seed.mjs";
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { themeShellPlugin } from "./scripts/theme-shell.mjs";
+import { APP_PAGES, metaTags } from "./src/core/siteMeta.js";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const DEMO = fileURLToPath(new URL("examples/demo", import.meta.url));
@@ -85,6 +86,30 @@ function noindexOnCanary(): Plugin {
 	};
 }
 
+/**
+ * What each page says in a link's preview, written into its HTML: Discord, a
+ * forum's onebox and a search engine read the page as it arrives and run none
+ * of the app. See `src/core/siteMeta.ts`.
+ */
+function previewTags(): Plugin {
+	return {
+		name: "roswaal-preview-tags",
+		transformIndexHtml: {
+			order: "pre",
+			handler(html, context) {
+				const file = basename(context.filename);
+				const meta = APP_PAGES[file];
+				if (!meta) return html;
+				const tags = metaTags(meta, {
+					canary: process.env.ROSWAAL_CHANNEL === "canary",
+					backup: process.env.ROSWAAL_BACKUP === "1",
+				});
+				return html.replace("</head>", `${tags.replace(/^/gm, "\t\t")}\n\t</head>`);
+			},
+		},
+	};
+}
+
 export default defineConfig({
 	/**
 	 * Where the site is mounted.
@@ -96,9 +121,9 @@ export default defineConfig({
 	 */
 	base: process.env.ROSWAAL_BASE ?? "/",
 	/**
-	 * There is no server here to fall back to `index.html`, so a page is a file
-	 * and the documentation is the static site rather than the editor's own
-	 * docs window. `pages.ts` is the only thing that reads this.
+	 * There is no server here to fall back to `index.html`, so a page is a file:
+	 * `try.html`, `designer.html`, `docs.html`. `pages.ts` is the only thing
+	 * that reads this.
 	 */
 	// `static` says what serves this; `channel` says which line it came from.
 	// A canary build wears its mark on either host. See `src/app/previewMark.ts`.
@@ -109,7 +134,14 @@ export default defineConfig({
 		),
 		__ROSWAAL_BACKUP__: JSON.stringify(process.env.ROSWAAL_BACKUP === "1"),
 	},
-	plugins: [react(), roswaalWebHost(), demoSeedPlugin(DEMO), noindexOnCanary(), themeShellPlugin()],
+	plugins: [
+		react(),
+		roswaalWebHost(),
+		demoSeedPlugin(DEMO),
+		noindexOnCanary(),
+		previewTags(),
+		themeShellPlugin(),
+	],
 	// Module workers, so the worker can import the route table rather than being
 	// handed a bundled copy of it.
 	worker: { format: "es", plugins: () => [roswaalWebHost(), demoSeedPlugin(DEMO)] },
@@ -137,8 +169,10 @@ export default defineConfig({
 	build: {
 		outDir: "dist-site",
 		emptyOutDir: true,
-		// Two pages, one bundle: the editor and Node Design, which share every
-		// chunk and differ only in what `pages.ts` reports they are.
-		rollupOptions: { input: [here + "try.html", here + "designer.html"] },
+		// Three pages, one bundle: the editor, Node Design and the docs, which
+		// share every chunk and differ only in what `pages.ts` reports they are.
+		// Each is a way in; once one is open, the mode strip shows the others in
+		// place. See `pageHost.tsx`.
+		rollupOptions: { input: [here + "try.html", here + "designer.html", here + "docs.html"] },
 	},
 });

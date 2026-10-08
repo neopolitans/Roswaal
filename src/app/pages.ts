@@ -10,11 +10,11 @@
  * pages are clean routes off the root: `/`, `/docs`, `/designer`.
  *
  * **A static host** has no such fallback and no server to ask, so each page is
- * a file that exists: `try.html` and `designer.html`. The documentation is not
- * a page of the bundle there at all — it is the separate static site under
- * `docs/`, which needs no JavaScript to read and documents the built-in library
- * rather than a project's own packs. Worth knowing when following a link from
- * the hosted editor: it lands somewhere that cannot see your packs.
+ * a file that exists: `try.html`, `designer.html` and `docs.html`. The last is
+ * the bundle's own docs window, as the daemon serves it, documenting the
+ * project's packs as well as the built-in library. Beside it the site keeps the
+ * static documentation under `docs/`, a page per file that needs no JavaScript,
+ * for search engines and links from elsewhere; the app does not link to it.
  *
  * And a project site on github.io is served from `/<repo>/` rather than from
  * the root, so every one of those hand-written absolute links pointed at
@@ -82,15 +82,7 @@ export function hrefFor(base: string, staticHost: boolean, page: Page, hash?: st
 	const fragment = hash ? `#${hash}` : "";
 
 	if (staticHost) {
-		// The built docs are a page per file, and nothing there reads a hash
-		// to find one: `#node/table.dictionary` on the index stayed on the
-		// index. So a page named by the hash is linked to by its file.
-		// A heading inside it stays a hash on that file.
-		if (page === "docs") {
-			if (!hash) return `${root}docs/`;
-			const [slug, ...heading] = decodeURIComponent(hash).split("#");
-			return `${root}docs/${slug}.html${heading.length > 0 ? `#${heading.join("#")}` : ""}`;
-		}
+		if (page === "docs") return `${root}docs.html${fragment}`;
 		if (page === "designer") return `${root}designer.html${fragment}`;
 		return `${root}try.html${fragment}`;
 	}

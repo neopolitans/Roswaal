@@ -121,6 +121,10 @@ export function nodePage(doc: NodeDoc): DocPage {
 		slug: `node/${doc.id}`,
 		title: doc.title,
 		summary: doc.summary ?? `${categoryLabel(doc.category)} node.`,
+		blurb: doc.summary
+			? undefined
+			: `${/^[aeiou]/i.test(categoryLabel(doc.category)) ? "An" : "A"} ${categoryLabel(doc.category)} ` +
+				"node in Roswaal: its pins, and the Luau it compiles to.",
 		blocks,
 		nodeId: doc.id,
 		custom: doc.custom,

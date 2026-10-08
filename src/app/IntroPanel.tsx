@@ -11,9 +11,9 @@
  *
  * Not on a flag, but on what the host can actually answer. A daemon has your
  * recent projects and the demos on disk beside it. The playground has one
- * project on a volume. The published documentation has neither — so it has no
- * Recent section rather than an empty one, because a heading over nothing is
- * a promise the page cannot keep.
+ * project on a volume. Where there are none it has no Recent section rather
+ * than an empty one, because a heading over nothing is a promise the page
+ * cannot keep.
  *
  * ## Opening a project from a window that is not the editor
  *
@@ -163,11 +163,9 @@ function Carousel({ label, children }: { label: string; children: React.ReactNod
 /**
  * What to say when there is nothing to list.
  *
- * By surface, not by host. `IS_STATIC_HOST` is true for the published
- * documentation *and* for the editor running over a volume in the browser, and
- * the first version of this said "this is the published documentation" while
- * sitting in the editor — which is both wrong and unhelpful, since that window
- * is exactly where a project is opened.
+ * By surface, not by host: the editor is where a project is opened, so it says
+ * how, and Node Design and the docs say where. The web app's docs are a page
+ * of the app since 0.158.0, over the same project as its editor.
  */
 function emptyReason(surface: Page): string {
 	if (surface === "editor") {
@@ -176,10 +174,7 @@ function emptyReason(surface: Page): string {
 					"this editor keeps its project in your browser."
 			: "Nothing opened yet. Open a folder to get started.";
 	}
-	return IS_STATIC_HOST
-		? "This is the published documentation, so there are no projects here. " +
-				"The editor is where one is opened."
-		: "No projects yet. The editor is where one is opened.";
+	return "No projects yet. The editor is where one is opened.";
 }
 
 /** The chip saying which runtime a demo compiles for. */

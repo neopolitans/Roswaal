@@ -116,14 +116,14 @@ describe("the toolbar specs", () => {
 	 * controls reach something different -- and the one that matters is Docs,
 	 * which lands on a site that has no project behind it.
 	 */
-	it("does not promise a hosted reader a reference for their own packs", () => {
+	/** Since 0.158.0 the web app's Docs is the app's own docs window, packs and all. */
+	it("promises a hosted reader the same reference as the daemon's", () => {
 		const daemon = legendOf(EDITOR_BAR).find((item) => item.name === "Editor, Design and Docs")!;
 		const browser = legendOf(EDITOR_BAR_BROWSER).find(
 			(item) => item.name === "Editor, Design and Docs",
 		)!;
 
-		expect(daemon.what).not.toContain("cannot document");
-		expect(browser.what).toContain("cannot document");
+		expect(browser.what).toBe(daemon.what);
 	});
 
 	/**

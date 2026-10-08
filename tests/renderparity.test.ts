@@ -65,7 +65,13 @@ describe("the two docs renderers stay level", () => {
 	 * has no palette to send anybody to.
 	 */
 	const PANEL_ONLY = new Set(["nodeId"]);
-	const fields = pageFields(site).filter((f) => !PANEL_ONLY.has(f));
+	/**
+	 * And `blurb` the other way: it is what a link's preview says, and only the
+	 * static pages are ever fetched for one. The panel is the app, which no
+	 * crawler runs.
+	 */
+	const STATIC_ONLY = new Set(["blurb"]);
+	const fields = pageFields(site).filter((f) => !PANEL_ONLY.has(f) && !STATIC_ONLY.has(f));
 
 	it("finds the whole page shape", () => {
 		expect(fields).toContain("blocks");

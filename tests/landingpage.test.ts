@@ -71,11 +71,16 @@ describe("the landing page", () => {
 	 * documentation already ships rather than a script written for this page.
 	 */
 	it("carries the shared theme script and the split bar's, and nothing inline", () => {
-		const scripts = [...html.matchAll(/<script[^>]*>/gi)].map((m) => m[0]);
+		// The structured data for search engines is a script element that runs
+		// nothing -- a data block, which the policy does not stop either.
+		const data = /type="application\/ld\+json"/;
+		const scripts = [...html.matchAll(/<script[^>]*>/gi)]
+			.map((m) => m[0])
+			.filter((tag) => !data.test(tag));
 		expect(scripts).toHaveLength(2);
 		expect(scripts[0]).toContain("docs/theme.js");
 		expect(scripts[1]).toContain("landing.js");
-		expect(html).not.toMatch(/<script(?![^>]*\ssrc=)/i);
+		expect(html).not.toMatch(/<script(?![^>]*\ssrc=)(?![^>]*application\/ld\+json)/i);
 	});
 
 	/** The split is CSS: a page whose script did not load still shows both halves at 60/40. */
@@ -214,7 +219,7 @@ describe("what the page claims it runs on", () => {
 	/** The tab is where the name is read first, so it says what Roswaal is. */
 	it("titles the tab with what Roswaal is", () => {
 		const title = html.match(/<title>([^<]+)<\/title>/)?.[1];
-		expect(title).toBe("Roswaal - Visual Scripting for Luau");
+		expect(title).toBe("Roswaal — Visual scripting for Luau");
 	});
 });
 

@@ -74,7 +74,7 @@ import type { PinMenuTarget } from "./PinMenu.jsx";
 import { PlaceBrowser, PlaceProperties, type PlaceTarget } from "./PlaceBrowser.jsx";
 import { ProjectPicker } from "./ProjectPicker.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
-import { setEditorOpener, switchMode, useOnShown, useShowing } from "./pageHost.jsx";
+import { setEditorOpener, setPageReady, switchMode, useOnShown, useShowing } from "./pageHost.jsx";
 import { IS_STATIC_HOST, openHome, openPage } from "./pages.js";
 import { cardOf, foldCard, type PanelId, reopenPanel, showTab } from "./panels.js";
 import { readPreferences, wheelAction } from "./preferences.js";
@@ -630,6 +630,10 @@ export function App() {
 			return true;
 		});
 	}, []);
+	// A switch to the editor waits for this before the editor fades in.
+	useEffect(() => {
+		if (ready) setPageReady("editor");
+	}, [ready]);
 	useEffect(() => {
 		if (!arriving) return;
 		const done = window.setTimeout(() => setArriving(false), 400);

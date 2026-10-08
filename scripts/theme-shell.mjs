@@ -3,7 +3,7 @@
  *
  * ## The flash
  *
- * `index.html`, `try.html` and `designer.html` are a `<div id="root">` and a
+ * `index.html`, `try.html`, `designer.html` and `docs.html` are a `<div id="root">` and a
  * `<script type="module">`, and a module script is deferred *by definition* —
  * it runs after the document is parsed. Vite extracts `theme.css` into a
  * render-blocking `<link>`, so the order was:

@@ -9,6 +9,27 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.158.0",
+		date: "2026-10-08",
+		headline:
+			"The web app's docs are part of it: Docs switches in place, and documents your own packs.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Docs in the web app is a page of the app**, as it has always been under `roswaal serve`. The mode strip switches to it in place, like Node Design, so going to the docs and back loads nothing, and the editor and the page you were reading are both as you left them.",
+			"**Your project's own packs are documented there**: each node gets its page, its picture and what it compiles to, beside the built-in library, and the search finds them.",
+		],
+		changed: [
+			"Links to the docs from the web app (a node's page from the Inspector, the projects screen, Ctrl+K) open the app's docs at `docs.html` rather than the static pages.",
+			"The static documentation under `docs/` stays, for search engines and links from elsewhere. Its mode strip leads into the app, which picks up where it was in that tab.",
+			"The page about toolbars no longer warns that the web app's Docs leaves out your packs.",
+			"**A link to the site now unfurls properly** in Discord, on the DevForum and in search: a title, a fresh description, a 1200 × 630 card made from the front page's banner (yellow on the canary), the site's colour down the side of a Discord embed, and an icon a forum can show. Every docs page has its own title and summary, and the editor, Node Design and the docs carry their own.",
+		],
+		fixed: [
+			"Switching modes waits for the mode you chose: the one you are leaving stays on screen as it was until the new one has drawn its bar (for the editor, its project and graphs back), then the new one fades in over it. The editor no longer flashes its loading frame on the way.",
+			"The mode strip's box slides once, all the way, as the new mode fades in. The logo and the strip stay solid through the switch rather than fading with the page, and no second box lingers where the slide began or jumps back as the editor finishes loading.",
+		],
+	},
+	{
 		version: "0.157.0",
 		date: "2026-10-08",
 		headline: "Editor, Design and Docs in one strip, switched in the tab you are in.",

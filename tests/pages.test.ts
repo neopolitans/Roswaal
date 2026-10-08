@@ -55,18 +55,18 @@ describe("where a page is, on a static host", () => {
 	it("names a file for each page of the bundle", () => {
 		expect(href("editor")).toBe("/try.html");
 		expect(href("designer")).toBe("/designer.html");
+		expect(href("docs")).toBe("/docs.html");
 	});
 
-	/** Not a page of the bundle at all: the separate static site. */
-	it("sends the documentation to the built site", () => {
-		expect(href("docs")).toBe("/docs/");
-		// A page per file: the built docs read no hash to find a page.
-		expect(href("docs", "wires-and-pins")).toBe("/docs/wires-and-pins.html");
-		expect(href("docs", encodeURIComponent("node/table.dictionary"))).toBe(
-			"/docs/node/table.dictionary.html",
-		);
+	/**
+	 * The bundle's own docs window, as under the daemon, which finds its page
+	 * by the hash -- not the static site under `docs/`, which the app leaves to
+	 * search engines and links from elsewhere.
+	 */
+	it("sends the documentation to the app's docs page, by its hash", () => {
+		expect(href("docs", "wires-and-pins")).toBe("/docs.html#wires-and-pins");
 		expect(href("docs", "casting#casting-a-calls-result")).toBe(
-			"/docs/casting.html#casting-a-calls-result",
+			"/docs.html#casting#casting-a-calls-result",
 		);
 	});
 });
@@ -78,7 +78,7 @@ describe("where a page is, under a sub-path", () => {
 	it("keeps every link inside the site", () => {
 		expect(href("editor")).toBe("/Roswaal/try.html");
 		expect(href("designer")).toBe("/Roswaal/designer.html");
-		expect(href("docs")).toBe("/Roswaal/docs/");
+		expect(href("docs")).toBe("/Roswaal/docs.html");
 	});
 
 	it("never produces a link that climbs out of it", () => {
@@ -89,7 +89,7 @@ describe("where a page is, under a sub-path", () => {
 
 	/** A base without its trailing slash must not glue two segments together. */
 	it("tolerates a base written without a trailing slash", () => {
-		expect(hrefFor("/Roswaal", true, "docs")).toBe("/Roswaal/docs/");
+		expect(hrefFor("/Roswaal", true, "docs")).toBe("/Roswaal/docs.html");
 		expect(hrefFor("/Roswaal", false, "designer")).toBe("/Roswaal/designer");
 	});
 });
@@ -104,6 +104,7 @@ describe("which page a path is", () => {
 	it("reads a static host's files", () => {
 		expect(pageAt("/try.html")).toBe("editor");
 		expect(pageAt("/designer.html")).toBe("designer");
+		expect(pageAt("/docs.html")).toBe("docs");
 	});
 
 	it("reads them under a sub-path", () => {
@@ -123,14 +124,12 @@ describe("which page a path is", () => {
 	 * Every href the bundle produces has to be readable by the thing that reads
 	 * the address bar, or a page opens as the wrong page. Checked both ways
 	 * round rather than trusting that two regexes and three template strings
-	 * agree — except the documentation on a static host, which is not a page of
-	 * the bundle and is never read back.
+	 * agree.
 	 */
 	it("round-trips every link the bundle writes", () => {
 		for (const base of ["/", "/Roswaal/"]) {
 			for (const staticHost of [false, true]) {
 				for (const page of PAGES) {
-					if (staticHost && page === "docs") continue;
 					const href = hrefFor(base, staticHost, page);
 					expect([base, staticHost, page, pageAt(href)]).toEqual([base, staticHost, page, page]);
 				}

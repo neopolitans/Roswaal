@@ -58,9 +58,7 @@ const source = (path: string) => readFileSync(join(root, path), "utf8");
 
 /**
  * Every window the browser build serves, and the component each one must go
- * through. `try.html` and `designer.html` are the two it actually ships; the
- * docs window is in the bundle and is listed so it cannot be the exception
- * somebody discovers later.
+ * through: `try.html`, `designer.html` and `docs.html`.
  */
 const SURFACES = ["src/app/Toolbar.tsx", "src/app/DesignerPage.tsx", "src/app/DocsPage.tsx"];
 
@@ -257,7 +255,7 @@ describe("keeping the canary out of search", () => {
 
 	it("injects it into the entry pages at build time, not into the files", () => {
 		expect(source("vite.web.config.ts")).toContain("roswaal-noindex");
-		for (const file of ["try.html", "designer.html", "index.html"]) {
+		for (const file of ["try.html", "designer.html", "docs.html", "index.html"]) {
 			expect(source(file), file).not.toContain("noindex");
 		}
 	});

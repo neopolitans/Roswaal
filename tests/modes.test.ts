@@ -10,19 +10,11 @@ import { describe, expect, it } from "vitest";
 
 import { parseSession } from "../src/app/editorSession.js";
 import { isPlainClick } from "../src/app/ModeStrip.jsx";
-import { inBundle, MODES } from "../src/app/pageHost.jsx";
+import { MODES } from "../src/app/pageHost.jsx";
 
 describe("the modes", () => {
 	it("are in the strip's order", () => {
 		expect(MODES).toEqual(["editor", "designer", "docs"]);
-	});
-
-	it("show the docs in place only where they are a page of the bundle", () => {
-		expect(inBundle("editor", true)).toBe(true);
-		expect(inBundle("designer", true)).toBe(true);
-		// The hosted docs are static pages of their own.
-		expect(inBundle("docs", true)).toBe(false);
-		expect(inBundle("docs", false)).toBe(true);
 	});
 
 	it("leaves a modified click to the browser, for a tab or a window", () => {

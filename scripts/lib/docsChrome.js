@@ -48,6 +48,16 @@
 			{ duration: 320, easing: "cubic-bezier(0.32, 0.72, 0, 1)" },
 		);
 	}
+	// The page is pictured without its box as it is left for the app, whose
+	// box slides from the same spot: two boxes, one fading out where the slide
+	// began, looked like the box jumping back. Back again if this page is
+	// returned to from the history.
+	window.addEventListener("pageswap", function (e) {
+		if (e.viewTransition && box) box.style.visibility = "hidden";
+	});
+	window.addEventListener("pageshow", function () {
+		if (box) box.style.visibility = "";
+	});
 	Array.prototype.forEach.call(strip.querySelectorAll(".mode-slot"), function (slot) {
 		slot.addEventListener("click", function (e) {
 			if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;

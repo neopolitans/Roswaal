@@ -139,6 +139,7 @@ async function main() {
 		previewChip: isCanary ? markChipMarkup("canary") : previewChipMarkup(),
 		canaryBanner,
 		noindex: isCanary || isBackup,
+		site: { canary: isCanary, backup: isBackup },
 		version: VERSION,
 		assetStamp,
 	});

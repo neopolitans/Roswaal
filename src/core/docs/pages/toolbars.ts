@@ -126,14 +126,6 @@ export function toolbarsPage(): DocPage {
 					"click and drag. Left of the gap is what you work on: the project and the open graph. " +
 					"Right of it is what you work with: compiling, the Inspector and the other windows.",
 			},
-			{
-				t: "note",
-				kind: "warn",
-				text:
-					"In the browser preview, **Docs** opens the published pages, which cover the " +
-					"**built-in library only**. Your own packs are documented in the editor `roswaal " +
-					"serve` runs.",
-			},
 			{ t: "h", level: 2, text: PROJECT_PANEL_HEAD.title },
 			{ t: "toolbar", bar: PROJECT_PANEL_HEAD },
 			{

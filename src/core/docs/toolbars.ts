@@ -1191,12 +1191,6 @@ function modes(on: "editor" | "designer" | "docs", note = ""): ToolbarItem {
 	};
 }
 
-/** What Docs is, from the browser build. */
-const PUBLISHED_DOCS_NOTE =
-	" Here **Docs is the published documentation**, which covers the built-in library: a " +
-	"separate site with no editor behind it, so it **cannot document a project's own packs**. " +
-	"For those, read the reference from the editor the daemon serves.";
-
 /**
  * The editor's top row: everything that acts on the project, and the open
  * graph between.
@@ -1718,24 +1712,16 @@ export const DOCS_BAR: ToolbarSpec = {
  * The same bar, in the editor that runs in a browser tab.
  *
  * Roswaal is two editors out of one bundle, and the Toolbars page is read from
- * both — the *Try it in your browser* build on the project site opens the
- * documentation at the published copy of this very page. The buttons are the
- * same buttons and they are in the same order, so a second drawing looks
- * redundant right up until you read what three of them say: the mark carries a
- * chip, the project is in the tab rather than on disk, and **Docs lands on the
- * published site, which documents the built-in library and cannot see a
- * project's own packs**.
- *
- * That last one is the reason this exists rather than a footnote. A page that
- * promises somebody a reference for their own nodes, in the one build that
- * cannot give them one, has sent them looking for something that is not there.
+ * both. The buttons are the same buttons in the same order, and since 0.158.0
+ * Docs is the same docs in both, your packs included. What differs is the
+ * mark: blue, because the project is kept in this browser rather than on disk.
  */
 export const EDITOR_BAR_BROWSER: ToolbarSpec = {
 	id: "editor-bar-browser",
 	title: "The editor's top row, in your browser",
 	summary:
-		"The same row in the browser preview. Same buttons, in the same order — and Docs " +
-		"reaches something different.",
+		"The same row in the browser preview: the same buttons, in the same order, with the " +
+		"mark in blue.",
 	chrome: "float",
 	groups: [
 		{
@@ -1755,7 +1741,7 @@ export const EDITOR_BAR_BROWSER: ToolbarSpec = {
 				},
 			],
 		},
-		{ wrap: "mode-strip", items: [modes("editor", PUBLISHED_DOCS_NOTE)] },
+		{ wrap: "mode-strip", items: [modes("editor")] },
 		{
 			items: [
 				{ t: "icon", icon: "panelLeft", ...as(EDITOR_BAR, "Project") },
@@ -2337,8 +2323,7 @@ export const MORE_MENU_PHONE: ToolbarSpec = {
 					icon: "document",
 					name: "Docs",
 					what:
-						"**The published documentation**, which covers the built-in library and " +
-						"cannot see a project's own packs. Opens in this tab; the editor is kept as " +
+						"These docs, your project's own packs included. Opens in this tab; the editor is kept as " +
 						"you left it.",
 				},
 				{

@@ -399,6 +399,12 @@ export interface DocPage {
 	releaseNewest?: string;
 	/** One line, used in the nav and as the search result's subtitle. */
 	summary: string;
+	/**
+	 * What a link's preview says, where the summary is too thin to stand on
+	 * its own there: a node with no summary of its own is "Debug node.", which
+	 * is enough beside its picture and not in a chat. See `siteMeta.ts`.
+	 */
+	blurb?: string;
 	blocks: Block[];
 	/** Set on a generated node page, so the panel can link back to the palette. */
 	nodeId?: string;

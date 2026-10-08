@@ -13839,10 +13839,61 @@ select:not(.literal):not([multiple]) {
 }
 
 /* Every descendant too: a child that sets `visibility: visible` -- the close
-   button on the graph tab in front -- would otherwise show through. */
-.page-layer:not([data-showing]),
-.page-layer:not([data-showing]) * {
+   button on the graph tab in front -- would otherwise show through. The page
+   being left stays drawn while the next one comes in. */
+.page-layer:not([data-showing]):not([data-leaving]),
+.page-layer:not([data-showing]):not([data-leaving]) * {
 	visibility: hidden !important;
+}
+
+/* A switch: the page being left stays as it was, under the page coming, which
+   is drawn at nothing until it is ready and then fades in. See `PageHost`. */
+.page-layer[data-leaving] {
+	z-index: 1;
+}
+
+.page-layer[data-entering] {
+	z-index: 2;
+	opacity: 0;
+}
+
+.page-layer[data-entering][data-fading] {
+	opacity: 1;
+	transition: opacity 200ms ease-out;
+}
+
+/* Meanwhile the mark and the strip are a copy over both pages (`Flight`), and
+   each page's own are hidden under it. The copy's box slides as the new page
+   fades in. */
+.page-layer[data-leaving] .mark-group:not(.docs-bar-frame *),
+.page-layer[data-leaving] .mode-strip:not(.docs-bar-frame *),
+.page-layer[data-entering] .mark-group:not(.docs-bar-frame *),
+.page-layer[data-entering] .mode-strip:not(.docs-bar-frame *) {
+	visibility: hidden !important;
+}
+
+.mode-flight {
+	position: fixed;
+	inset: 0;
+	z-index: 3;
+	pointer-events: none;
+}
+
+.mode-flight > * {
+	position: absolute;
+	margin: 0;
+	box-sizing: border-box;
+}
+
+.mode-flight .mode-box {
+	transition: left 320ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.page-layer[data-entering][data-fading],
+	.mode-flight .mode-box {
+		transition: none;
+	}
 }
 
 /* The editor's first frame while it finds its project (`StartingFrame`), and
@@ -13938,13 +13989,13 @@ select:not(.literal):not([multiple]) {
 	}
 }
 
-/* Between modes, the whole page crossfades: in place in one tab, and from the
-   docs' static pages to the editor and back where the browser carries a
-   transition across a load. The mark and the strip are not named on their
-   own. A browser draws a named element as a picture by itself, and a frosted
-   cluster pictured without what is behind it is a flat, pale box. They sit
-   on the same pixels in every mode instead, so in the crossfade of the whole
-   page they hold still, and the strip's box slides on the page arriving. */
+/* Leaving the static docs for the app is a page load, and the browser
+   crossfades it where it can. The whole page, not the mark and the strip on
+   their own: a browser draws a named element as a picture by itself, and a
+   frosted cluster pictured without what is behind it is a flat, pale box.
+   They sit on the same pixels on both, so they hold still in the crossfade,
+   and the strip's box slides on the page arriving. A switch in the app is
+   not a page load and needs none of this: see `PageHost`. */
 @view-transition {
 	navigation: auto;
 }

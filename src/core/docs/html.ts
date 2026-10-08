@@ -18,6 +18,7 @@
 
 import type { Registry } from "../nodes/index.js";
 import { RUNTIME_LABEL, RUNTIME_SUMMARY } from "../nodes/runtimes.js";
+import { metaTags, type SiteBuild } from "../siteMeta.js";
 import { graphViews } from "./graphViews.js";
 import { escapeHtml, inlineHtml, pagePath } from "./inlineHtml.js";
 import { layoutHtml, listedRegions } from "./layouts.js";
@@ -108,6 +109,12 @@ export interface RenderOptions {
 	 * is a page whose `noindex` is never read.
 	 */
 	noindex?: boolean;
+	/**
+	 * Which site the pages are published on, for the tags a link's preview is
+	 * drawn from: Discord, a forum's onebox, a search result. Absent, a page
+	 * carries only its description. See `src/core/siteMeta.ts`.
+	 */
+	site?: SiteBuild;
 	/** Shown in the header, next to the name. */
 	version: string;
 	/**
@@ -818,7 +825,19 @@ ${
 `
 		: ""
 }<title>${escapeHtml(page.title)} · Roswaal docs</title>
-<meta name="description" content="${escapeHtml(stripMarkup(page.summary))}">
+${
+	options.site
+		? metaTags(
+				{
+					title: `${page.title} · Roswaal docs`,
+					description: stripMarkup(page.blurb ?? page.summary),
+					path: `docs/${pagePath(page.slug)}`,
+					type: "article",
+				},
+				options.site,
+			)
+		: `<meta name="description" content="${escapeHtml(stripMarkup(page.summary))}">`
+}
 ${options.logo ? `<link rel="icon" type="image/svg+xml" href="${escapeHtml(options.logo.icon)}">\n` : ""}<link rel="stylesheet" href="${up}theme.css${stamp(options)}">
 <script src="${up}theme.js${stamp(options)}"></script>
 </head>
