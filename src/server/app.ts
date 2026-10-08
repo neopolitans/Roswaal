@@ -584,6 +584,7 @@ const CONTENT_TYPES: Record<string, string> = {
 	".png": "image/png",
 	".ico": "image/x-icon",
 	".map": "application/json; charset=utf-8",
+	".txt": "text/plain; charset=utf-8",
 };
 
 /**
@@ -605,11 +606,13 @@ function mountEmbeddedEditor(app: express.Express): boolean {
 			const dot = wanted.lastIndexOf(".");
 			const type = dot === -1 ? undefined : CONTENT_TYPES[wanted.slice(dot).toLowerCase()];
 			if (type) res.setHeader("Content-Type", type);
-			// The asset names carry a content hash, so they can be cached hard.
-			// `index.html` cannot: it is what names the current hashes.
+			// Vite's `assets/` carry a content hash in their names, so they can be
+			// cached hard. Nothing else can: `index.html` names the current hashes,
+			// and `theme.js` and `THIRD-PARTY-NOTICES.txt` keep one name across
+			// versions, so a year's cache would outlive an upgrade.
 			res.setHeader(
 				"Cache-Control",
-				wanted.endsWith(".html") ? "no-cache" : "public, max-age=31536000, immutable",
+				wanted.startsWith("assets/") ? "public, max-age=31536000, immutable" : "no-cache",
 			);
 			res.send(asset);
 			return;

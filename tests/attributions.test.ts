@@ -23,12 +23,17 @@ import { ICONS, SHOWS_LUAU_MARK } from "../src/app/icons.jsx";
 import {
 	ATTRIBUTIONS,
 	DEPENDENCIES,
+	HOW_IT_IS_MADE,
 	INSPIRATIONS,
 	NAME_NOTICE,
+	NOT_AFFILIATED,
+	NOTHING_SHIPS,
 	TARGETS,
 	TESTED_WITH,
+	TRADEMARKS,
 } from "../src/core/docs/attributions.js";
 import { blockText, buildSite, findPage } from "../src/core/docs/site.js";
+import { CARRIED_LICENCES } from "../src/core/licenceData.js";
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 
 const NOTICE = readFileSync(
@@ -164,7 +169,8 @@ describe("what Roswaal uses, learned from, and writes for", () => {
 	it("bundles none of the libraries it was tested with", () => {
 		expect(TESTED_WITH.map((t) => t.name).sort()).toEqual(["Promise", "Roact", "Sift", "Signal"]);
 		for (const entry of TESTED_WITH) {
-			expect(entry.where, entry.name).toContain("Not bundled");
+			expect(entry.where, entry.name).toBe(NOTHING_SHIPS);
+			expect(entry.ships, entry.name).toBe(false);
 			expect(entry.licence, entry.name).not.toBeNull();
 		}
 	});
@@ -184,14 +190,22 @@ describe("what Roswaal uses, learned from, and writes for", () => {
 	 */
 	it("claims no licence over anything it only writes for", () => {
 		for (const entry of TARGETS) {
-			expect(entry.where, entry.name).toContain("Not bundled");
+			expect(entry.where.toLowerCase(), entry.name).toContain("nothing of theirs ships");
 		}
 	});
 
-	/** Affirmative non-affiliation, per target, rather than left to be inferred. */
+	/**
+	 * Affirmative non-affiliation, said once for everyone on the page and in
+	 * ATTRIBUTIONS.md, rather than left to be inferred -- and every holder whose
+	 * name is a trademark has its line in both.
+	 */
 	it("says outright that it is not affiliated with any of them", () => {
-		for (const entry of TARGETS) {
-			expect(entry.note, entry.name).toMatch(/not affiliated with/);
+		expect(pageText).toContain(NOT_AFFILIATED);
+		expect(NOTICE).toContain("not affiliated with, endorsed by, or approved by anyone listed here");
+		const flat = (text: string) => text.replace(/\s+/g, " ");
+		for (const mark of TRADEMARKS) {
+			expect(flat(pageText), mark.holder).toContain(mark.line);
+			expect(flat(NOTICE), mark.holder).toContain(mark.line);
 		}
 	});
 
@@ -203,6 +217,27 @@ describe("what Roswaal uses, learned from, and writes for", () => {
 		for (const entry of DEPENDENCIES) {
 			expect(entry.licence, `${entry.name} is listed as used but has no licence`).not.toBeNull();
 		}
+	});
+
+	/**
+	 * Where nothing of a holder's ships, the page says so in those words and
+	 * names no licence; where something does, it says where and under what.
+	 */
+	it("says whether anything of each ships, and never both ways", () => {
+		for (const entry of ATTRIBUTIONS) {
+			if (entry.ships) {
+				expect(entry.where.startsWith(NOTHING_SHIPS), entry.name).toBe(false);
+				expect(entry.licence, entry.name).not.toBeNull();
+			} else {
+				expect(entry.where.startsWith(NOTHING_SHIPS), entry.name).toBe(true);
+			}
+		}
+	});
+
+	it("keeps Affinity and Procreate on the inspiration side", () => {
+		const inspirations = INSPIRATIONS.map((a) => a.name);
+		expect(inspirations).toContain("Affinity");
+		expect(inspirations).toContain("Procreate");
 	});
 
 	it("keeps Unreal Engine on the inspiration side", () => {
@@ -243,5 +278,44 @@ describe("the Luau mark stays on the canary", () => {
 	it("is described as canary-only wherever it is described", () => {
 		expect(NOTICE).toContain("In the canary build only");
 		expect(pageText).toContain("In the canary build only");
+	});
+});
+
+/**
+ * Every licence Roswaal keeps by hand is on the page, in full, so a holder can
+ * read their notice where they find their name.
+ */
+describe("the licences on the attributions page", () => {
+	it("holds every carried licence, by name and in full", () => {
+		expect(page?.blocks.some((block) => block.t === "licences")).toBe(true);
+		for (const licence of CARRIED_LICENCES) {
+			expect(pageText, licence.name).toContain(licence.name);
+		}
+	});
+
+	it("names the notices file every build carries", () => {
+		expect(pageText).toContain("THIRD-PARTY-NOTICES.txt");
+		expect(NOTICE).toContain("THIRD-PARTY-NOTICES.txt");
+	});
+});
+
+/**
+ * How Roswaal is made: the same two sentences under the list, in
+ * ATTRIBUTIONS.md and in the README, so it reads the same wherever someone
+ * meets it.
+ */
+describe("how Roswaal is made", () => {
+	const README = readFileSync(
+		join(dirname(fileURLToPath(import.meta.url)), "..", "README.md"),
+		"utf8",
+	);
+	const flat = (text: string) => text.replace(/\s+/g, " ");
+
+	it("is said the same on the page, in ATTRIBUTIONS.md and in the README", () => {
+		for (const line of HOW_IT_IS_MADE) {
+			expect(flat(pageText)).toContain(line);
+			expect(flat(NOTICE)).toContain(line);
+			expect(flat(README)).toContain(line);
+		}
 	});
 });

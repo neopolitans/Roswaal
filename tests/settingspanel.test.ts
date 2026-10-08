@@ -19,6 +19,7 @@ describe("the pages Settings offers", () => {
 			"Workspace",
 			"Themes",
 			"Docs",
+			"How Roswaal is made",
 			"Licences",
 		]);
 	});
@@ -31,13 +32,19 @@ describe("the pages Settings offers", () => {
 			"Workspace",
 			"Themes",
 			"Docs",
+			"How Roswaal is made",
 			"Licences",
 		]);
 	});
 
 	/** The rest belongs to the editor, and the docs' sheet says so. */
 	it("in the docs, only what changes how they read", () => {
-		expect(titles(settingsPages("docs", true))).toEqual(["Themes", "Docs", "Licences"]);
+		expect(titles(settingsPages("docs", true))).toEqual([
+			"Themes",
+			"Docs",
+			"How Roswaal is made",
+			"Licences",
+		]);
 	});
 });
 

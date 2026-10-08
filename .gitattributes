@@ -15,4 +15,5 @@ src/core/robloxData.ts linguist-generated=true
 src/core/robloxEngine.json linguist-generated=true
 src/core/robloxMembers.ts linguist-generated=true
 src/core/robloxProperties.ts linguist-generated=true
+src/core/licenceData.ts linguist-generated=true
 src/core/themeData.ts linguist-generated=true

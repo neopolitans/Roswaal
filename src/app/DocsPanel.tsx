@@ -72,6 +72,7 @@ import { wirePath } from "./geometry.js";
 import { attachGraphView } from "./graphView.js";
 import { highlightLuau } from "./highlight.js";
 import { EVEN_ODD, ICONS, Icon, STROKED, VIEW_BOX } from "./icons.jsx";
+import { DocsLicences } from "./LicenceView.jsx";
 import { NODE, ZOOM } from "./layers.js";
 import { logoMarkup } from "./logo.jsx";
 import { attachMapPanel } from "./mapPanel.js";
@@ -773,6 +774,8 @@ function BlockView({ block }: { block: Block }) {
 		case "releaseVersions":
 		case "releasePager":
 			return <ReleaseBlock block={block} />;
+		case "licences":
+			return <DocsLicences />;
 		case "details":
 			return (
 				<details

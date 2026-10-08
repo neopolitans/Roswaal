@@ -321,6 +321,12 @@ export type Block =
 	  }
 	| { t: "tabs"; label?: string; tabs: DocTab[] }
 	/**
+	 * Every licence Roswaal keeps by hand, each opening to its exact text, and
+	 * where the build's own `THIRD-PARTY-NOTICES.txt` is. Read from
+	 * `src/core/licenceData.ts`, so the page cannot drift from the files.
+	 */
+	| { t: "licences" }
+	/**
 	 * A minor version's releases as one card: its releases' summaries, then
 	 * Added, Changed and Fixed, every line badged with the release it shipped
 	 * in. `link` makes the version a link to its own page, on the front page.

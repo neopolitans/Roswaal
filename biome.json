@@ -21,6 +21,7 @@
 			"!src/core/robloxMembers.ts",
 			"!src/core/robloxProperties.ts",
 			"!src/core/robloxData.ts",
+			"!src/core/licenceData.ts",
 			"!src/core/themeData.ts",
 			"!src/core/docs/robloxDemos.gen.ts",
 			"!src/core/docs/demoLayout.gen.ts"

@@ -1,157 +1,120 @@
 # Attributions
 
-Roswaal itself is licensed 0BSD; see [LICENSE](LICENSE). What follows is what
-that does not cover: the languages and platforms it writes for, work by other
-people that Roswaal ships or stands on, and names that are not ours.
+Roswaal itself is licensed 0BSD; see [LICENSE](LICENSE). What follows is everything that
+does not cover: what Roswaal uses, how, and under which licence.
 
-The same list is a page in the documentation — **Attributions**, under Learn —
-because the people who need to read it are not all reading the repository. This
-file is the short form; the page carries the reasoning behind each entry. The
-two are kept in step by hand, and `tests/attributions.test.ts` checks that
-neither has gained an entry the other is missing.
+**Roswaal is not affiliated with, endorsed by, or approved by anyone listed here.**
+Trademarks belong to their owners, and are named only to say what something is.
 
-## The names
+The same list is a page in the documentation, **Attributions**, under Learn, with each
+licence Roswaal carries shown in full. `tests/attributions.test.ts` checks that neither
+copy lists something the other does not.
 
-**Roswaal** is named after a character from *Re:Zero − Starting Life in Another
-World* — Roswaal L. Mathers — created by Tappei Nagatsuki and published by
-KADOKAWA. The name is a fan's homage.
+## The name
 
-**This project is not affiliated with, endorsed by, or approved by KADOKAWA,
-Tappei Nagatsuki, or the Re:Zero project**, and claims no rights in those names
-or in anything from that work.
+**Roswaal** is named after Roswaal L. Mathers, a character in *Re:Zero − Starting Life in
+Another World* by Tappei Nagatsuki, published by KADOKAWA. The name is a fan's homage.
 
-Nothing from Re:Zero is distributed here: no artwork, no likenesses, no text,
-and not the series title. The mark in `assets/` is original work.
+Roswaal is not affiliated with, endorsed by, or approved by KADOKAWA, Tappei Nagatsuki, or
+the Re:Zero project, and claims no rights in their names or work. No artwork, likeness or
+text from it is used, and the mark in `assets/` is original.
 
-Roswaal is released under 0BSD and is not sold by its authors. 0BSD places no
-restriction on what anyone else does with it, commercially or otherwise — those
-choices, and any obligations that follow from them, belong to whoever makes
-them.
+Roswaal is 0BSD and is not sold by its authors. What anyone else does with it, and anything
+that follows from that, is theirs.
 
 ## What Roswaal is designed for
 
-The languages and runtimes the generated code is written for. Nothing of theirs
-is bundled here and nothing of theirs is licensed to Roswaal; they are named
-because that is what the output is **for**, and because a reader seeing these
-names throughout the editor is owed the sentence saying whose they are.
+The language and runtimes the code Roswaal generates is written for.
 
-| Platform | By | Licence | Where |
-| --- | --- | --- | --- |
-| [Luau](https://luau.org/) | Roblox Corporation | MIT | Not bundled. Roswaal writes Luau; Luau runs it. In the canary build only, the `.luau` file icon is the Luau logo's two squares, from `logo.svg` in [luau-lang/site](https://github.com/luau-lang/site); its licence is `notices/upstream/luau-site.txt`. |
-| [Roblox](https://create.roblox.com/docs) | Roblox Corporation | not licensed to us | Not bundled. Roswaal compiles graphs to Luau files a Roblox place runs, and knows the engine's class and enum names so a pin can offer them. |
-| [Lune](https://lune-org.github.io/docs) | Filip Tibell and contributors | not licensed to us | Not bundled. A graph whose target is Lune compiles to a standalone `.luau` file Lune runs outside Roblox. |
+| Platform | By | Licence | What Roswaal does with it | Where |
+| --- | --- | --- | --- | --- |
+| [Luau](https://luau.org/) | Roblox Corporation | MIT (the logo) | Writes Luau code; this file is the attribution Luau asks for. | In the canary build only, the `.luau` file icon is the Luau logo, carried with its licence. |
+| [Roblox](https://create.roblox.com/docs) | Roblox Corporation | None needed | Compiles to Luau that Roblox runs, and names the engine's classes, enums and services. | Nothing of theirs ships. |
+| [Lune](https://lune-org.github.io/docs) | Filip Tibell and contributors | None needed | Compiles a graph to a `.luau` file that Lune runs. | Nothing of theirs ships. |
 
-**Roswaal is not affiliated with, endorsed by, or approved by Roblox
-Corporation, or by the Lune project.** Roblox, the Roblox logo and the names of
-the engine's classes and services belong to Roblox Corporation, and Roswaal
-claims no rights in any of them.
+Luau's README asks for this:
 
-They appear in two places. In the **generated code**, because that is what it
-refers to — a script that calls `game:GetService("Players")` has to say so. And
-in the **editor**, where the nodes that need the engine are grouped under the
-platform's name: a graph compiles for one of two runtimes now, and which one a
-node is for is the thing that label exists to say. Naming another product to
-say what this one works with is what a name is for.
-
-Lune is its own project under its own licence, and the same applies to it.
-
-Neither platform's software is bundled. Text from their documentation is, under
-their licences — see **Roblox Creator Documentation** and **Lune's type
-definitions** below.
-
-Luau's own README asks that projects integrating it carry an attribution in
-user-facing documentation, which is what this file and the Attributions page
-are:
-
-> When Luau is integrated into external projects, we ask that you honor the
-> license agreement and include Luau attribution into the user-facing product
-> documentation.
-
-**Luau is a trademark of Roblox Corporation.** That is the line
-[Luau's brand page](https://luau.org/brand/) asks every project using the name to
-carry. The logo appears only in the canary build, and only as the icon beside a
-`.luau` file, where it says which language the file is in. The stable build does
-not use it while Roblox Corporation is asked to confirm the use. It is never
-Roswaal's own mark.
+> When Luau is integrated into external projects, we ask that you honor the license
+> agreement and include Luau attribution into the user-facing product documentation.
 
 ## What Roswaal is built on
 
-Code and assets that ship inside Roswaal, or that it could not run without.
+What ships inside Roswaal, and the tools and formats it works with.
 
-| Project | By | Licence | Where |
-| --- | --- | --- | --- |
-| [Lua](https://www.lua.org/) | PUC-Rio | MIT | Not bundled. Luau is based on the Lua 5.x implementation. |
-| [Material Symbols](https://fonts.google.com/icons) | Google LLC | Apache-2.0 | `src/app/icons.tsx`, inlined as SVG path data. |
-| [CodeMirror 6](https://codemirror.net/) | Marijn Haverbeke and contributors | MIT | A runtime dependency; see `package.json`. |
-| [Tokyo Night](https://github.com/tokyo-night/tokyo-night-vscode-theme) | Enkia | MIT | `themes/tokyo-night.json`, `themes/tokyo-night-storm.json`. |
-| [Catppuccin](https://github.com/catppuccin/catppuccin) | Catppuccin | MIT | `themes/catppuccin-mocha.json`, the Mocha flavour. |
-| [Nord](https://github.com/nordtheme/nord) | Sven Greb | MIT | `themes/nord.json`. |
-| [Rojo](https://rojo.space/) | rojo-rbx and contributors | MPL-2.0 | Not bundled. Roswaal writes the files Rojo syncs. |
-| [Wally](https://github.com/UpliftGames/wally) | Uplift Games and contributors | MPL-2.0 | Not bundled. Roswaal reads `wally.toml` and the packages `wally install` lays out, and Add from Wally asks the public Wally registry. |
-| [Moonwave](https://github.com/evaera/moonwave) | Eryn L. K. and contributors | MPL-2.0 | Not bundled. Roswaal reads Moonwave's doc-comment format for hover, with its own parser. |
-| [Roblox Creator Documentation](https://github.com/Roblox/creator-docs) | Roblox Corporation | CC-BY-4.0 | `src/core/robloxEngine.json`, generated by `scripts/build-engine.mjs`, and `src/core/robloxMembers.ts`, generated by `scripts/build-members.mjs`: summaries of the engine's classes, members, events, enums and datatypes. |
-| [Lune's type definitions](https://github.com/lune-org/lune) | Filip Tibell and contributors | MPL-2.0 | `src/core/luneApi.ts`, generated by `scripts/build-lune.mjs`: function signatures and parameter descriptions. |
+| Project | By | Licence | What Roswaal does with it | Where |
+| --- | --- | --- | --- | --- |
+| [Material Symbols](https://fonts.google.com/icons) | Google LLC | Apache-2.0 | Draws every icon in the editor from it. | `src/app/icons.tsx`; licence in `notices/upstream/material-symbols.txt` |
+| [CodeMirror 6](https://codemirror.net/) | Marijn Haverbeke and contributors | MIT | Its code editor, source view and licence viewer are built on it. | The editor bundle; licence in `THIRD-PARTY-NOTICES.txt` |
+| [Node.js](https://nodejs.org/) | OpenJS Foundation and Node.js contributors | MIT | The release binaries contain the Node.js runtime. | Release binaries; its licence in `THIRD-PARTY-NOTICES.txt` in each zip |
+| Open-source packages | Their authors | MIT, ISC and BSD-3-Clause | Includes the packages it is built with, React and Express among them. | Each build's `THIRD-PARTY-NOTICES.txt`, and every release zip |
+| [Lua](https://www.lua.org/) | PUC-Rio | None needed | Luau, which Roswaal writes, is based on Lua. | Nothing of theirs ships. PUC-Rio's copyright line is in the Luau logo's licence. |
+| [Tokyo Night](https://github.com/tokyo-night/tokyo-night-vscode-theme) | Enkia | MIT | Includes two Tokyo Night colour schemes. | `themes/tokyo-night.json`, `themes/tokyo-night-storm.json` |
+| [Catppuccin](https://github.com/catppuccin/catppuccin) | Catppuccin | MIT | Includes Catppuccin Mocha as a colour scheme. | `themes/catppuccin-mocha.json` |
+| [Nord](https://github.com/nordtheme/nord) | Sven Greb | MIT | Includes Nord as a colour scheme. | `themes/nord.json` |
+| [Rojo](https://rojo.space/) | rojo-rbx and contributors | None needed | Writes the files Rojo syncs into a place. | Nothing of theirs ships. |
+| [Wally](https://github.com/UpliftGames/wally) | Uplift Games and contributors | None needed | Reads Wally packages, and searches the public Wally registry. | Nothing of theirs ships. |
+| [Moonwave](https://github.com/evaera/moonwave) | Eryn L. K. and contributors | None needed | Reads Moonwave-style doc comments for hover, with its own parser. | Nothing of theirs ships. |
+| [Roblox Creator Documentation](https://github.com/Roblox/creator-docs) | Roblox Corporation | CC-BY-4.0 | Shows one-sentence summaries of the engine's API. Changed: shortened, and markup removed. | `src/core/robloxEngine.json`, `src/core/robloxMembers.ts`; licence in `notices/upstream/creator-docs.txt` |
+| [Lune's type definitions](https://github.com/lune-org/lune) | Filip Tibell and contributors | MPL-2.0 | Shows Lune's function signatures and parameter descriptions, unchanged, from v0.10.5. | `src/core/luneApi.ts`; licence in `notices/upstream/lune.txt` |
 
-**Text that stays under its own licence.** Two generated files carry other
-people's words, and those words are **not** covered by Roswaal's 0BSD licence:
+**Text that stays under its own licence**, not Roswaal's 0BSD: the summaries from Roblox's
+Creator Documentation, © Roblox Corporation, under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); and Lune's descriptions, under
+the [Mozilla Public License 2.0](https://mozilla.org/MPL/2.0/), whose source is the
+[Lune repository](https://github.com/lune-org/lune).
 
-- The summaries in `src/core/robloxEngine.json` and `src/core/robloxMembers.ts`
-  are from Roblox's Creator Documentation, © Roblox Corporation, used under the
-  [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/)
-  licence. Changed: each is shortened to its first sentence and its markup
-  removed.
-- The parameter descriptions in `src/core/luneApi.ts` are Lune's own, taken
-  verbatim from its `types.d.luau` files and covered by the
-  [Mozilla Public License 2.0](https://mozilla.org/MPL/2.0/). Their source is
-  the [Lune repository](https://github.com/lune-org/lune).
+**The licences Roswaal carries** are copied byte for byte into `notices/upstream/` (see its
+README for where each came from) and shown in full under **Settings → Licences** and on the
+Attributions page. Every package a build bundles is listed, with its own licence file, in
+the `THIRD-PARTY-NOTICES.txt` written beside that build and zipped with every release.
 
-The three borrowed colour schemes keep their own licences, copied **byte for
-byte** into `notices/upstream/` and compiled into the editor, where each is
-shown in full under **Settings → Licences**. A palette of hex values is not
-itself a copyrightable work, so carrying them is courtesy rather than
-obligation — and saying so is not conceding a claim that has not been made.
-They are copied, never rebuilt from a template: of the three MIT files, one is
-headed `MIT License`, one `MIT License (MIT)` and one `The MIT License (MIT)`,
-and one copyright line carries an email address and a homepage.
-
-**Roswaal Light**, **Roswaal Dark** and **Aquatic** are the maintainer's own
-work, carry no third-party claim, and ship 0BSD with the rest of the
-repository.
+**Roswaal Light**, **Roswaal Dark** and **Aquatic** are the maintainer's own work, carry no
+third-party claim, and ship 0BSD with the rest of the repository.
 
 ## What Roswaal is tested with
 
-Open-source Luau libraries the documentation names, and that hover, require
-following and the Wally support were tried against. None is bundled, none is
-needed to use Roswaal, and nothing of theirs is copied into it.
+Libraries named in the documentation as examples. Nothing of theirs ships.
 
-| Library | By | Licence | Where |
-| --- | --- | --- | --- |
-| [Sift](https://github.com/cxmeel/sift) | csqrl | MIT | Not bundled. Named in the release notes; hover on its `@class` and `@prop` comments was tested on it. |
-| [Signal](https://github.com/Sleitnick/RbxUtil) | Stephen Leitnick | MIT | Not bundled. The example package in the Wally pages and tests; hover on its `@interface` comments was tested on it. |
-| [Promise](https://github.com/evaera/roblox-lua-promise) | Eryn L. K. | MIT | Not bundled. Named in the pictures of the project tree. |
-| [Roact](https://github.com/Roblox/roact) | Roblox Corporation | Apache-2.0 | Not bundled. The example `.luaurc` alias, `@roact`. |
+| Library | By | What Roswaal does with it |
+| --- | --- | --- |
+| [Sift](https://github.com/cxmeel/sift) | csqrl | Its hover was tested on Sift, and its release notes name it. |
+| [Signal](https://github.com/Sleitnick/RbxUtil) | Stephen Leitnick | Its docs and tests use Signal as the example Wally package. |
+| [Promise](https://github.com/evaera/roblox-lua-promise) | Eryn L. K. | Its pictures show Promise as a package not installed yet. |
+| [Roact](https://github.com/Roblox/roact) | Roblox Corporation | Its docs use `@roact` as the example of an alias. |
 
 ## What Roswaal is inspired by
 
-Work Roswaal learned from and does **not** use. No code, no assets, no
-dependency — only conventions a reader might recognise, named here so the
-resemblance is explained rather than left to be guessed at. None of it is
-licensed to us, and none of it needs to be.
+Conventions Roswaal learned from. No code, assets, content or dependency.
 
-| Project | By | What Roswaal took |
+| Project | By | What Roswaal does with it |
 | --- | --- | --- |
-| [Unreal Engine](https://www.unrealengine.com/) | Epic Games, Inc. | How a graph reads to someone who already knows visual scripting: execution and data wires, pins coloured by type, familiar names for common actions. Named in the documentation only on *Coming from Blueprints*, to map Epic's terms to Roswaal's. |
-| [Unity Visual Scripting (Bolt)](https://unity.com/features/unity-visual-scripting) | Unity Technologies | An execution pin drawn as a triangle hung outside the node, so a run of steps reads as a chain rather than as a row of boxes. |
-| [Blender](https://www.blender.org/) | Blender Foundation | Sockets balanced on the node's border rather than set inside it, which is what puts a pin where its wire actually ends. |
+| [Unreal Engine](https://www.unrealengine.com/) | Epic Games, Inc. | Its graphs read like Blueprints: execution and data wires, and pins coloured by type. |
+| [Unity Visual Scripting (Bolt)](https://unity.com/features/unity-visual-scripting) | Unity Technologies | Draws execution pins as triangles outside the node, as Bolt does. |
+| [Blender](https://www.blender.org/) | Blender Foundation | Sets sockets on the node's border, as Blender does. |
+| [Affinity](https://www.affinity.studio/) | Canva | Its mode strip follows Affinity's: icons beside the mark, and a box that slides. |
+| [Procreate](https://procreate.com/) | Savage Interactive Pty Ltd | Floats its tools in small clusters at the window's edge, as Procreate does. |
 
-Unreal, Unreal Engine and Blueprint are trademarks or registered trademarks of
-Epic Games, Inc. in the United States of America and elsewhere. Unity and Bolt
-are trademarks or registered trademarks of Unity Technologies. Blender is a
-registered trademark of the Blender Foundation. Roswaal is **not affiliated
-with, sponsored by, or endorsed by** any of them, was not made with any of
-them, and contains no code, assets or content from any of them.
+## Trademarks
+
+- Luau is a trademark of Roblox Corporation. Roblox, and the names of the engine's classes
+  and services, belong to Roblox Corporation.
+- Unreal, Unreal Engine and Blueprint are trademarks or registered trademarks of Epic Games,
+  Inc. in the United States of America and elsewhere.
+- Unity and Bolt are trademarks or registered trademarks of Unity Technologies.
+- Blender is a registered trademark of the Blender Foundation.
+- Affinity is a trademark of Canva, its affiliates or its licensors.
+- Procreate® is a registered trademark of Savage Interactive Pty Ltd. Roswaal is not owned
+  or endorsed by, or affiliated with, Procreate.
+
+## How Roswaal is made
+
+Roswaal is designed and directed by its maintainer, and much of its code is written with
+Claude, Anthropic's AI model. The commits Claude helped write credit it as a co-author.
+
+Nothing of Anthropic's is in Roswaal, and Roswaal is not affiliated with or endorsed by
+Anthropic.
 
 ---
 
-Everything else in this repository is Roswaal's own and is 0BSD: use it, modify
-it, ship it, train on it, no attribution required.
+Everything else in this repository is Roswaal's own and is 0BSD: use it, modify it, ship
+it, train on it, no attribution required.

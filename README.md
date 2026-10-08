@@ -84,14 +84,18 @@ Pull requests are welcome on this repository. What a change brings with it is in
 ## Licence
 
 Roswaal is **0BSD**: use it, modify it, ship it, train on it, no attribution
-required. Two bundled things keep their own terms — the icons (Material Symbols,
-Apache-2.0) and CodeMirror (MIT) — and three of the seven colour schemes are
-somebody else's design, MIT licensed and credited in full. Two generated files
-carry documentation text under its own licence and not 0BSD: summaries from
-Roblox's Creator Documentation (CC BY 4.0) in `src/core/robloxEngine.json` and
-`src/core/robloxMembers.ts`, and
-parameter descriptions from Lune's type definitions (MPL-2.0) in
-`src/core/luneApi.ts`. See [ATTRIBUTIONS.md](ATTRIBUTIONS.md).
+required. What is someone else's keeps its own terms: the icons (Material
+Symbols, Apache-2.0), three of the seven colour schemes (MIT), and the
+open-source packages each build bundles, with Node.js in the release binaries.
+Two generated files carry documentation text under its own licence and not
+0BSD: summaries from Roblox's Creator Documentation (CC BY 4.0) in
+`src/core/robloxEngine.json` and `src/core/robloxMembers.ts`, and parameter
+descriptions from Lune's type definitions (MPL-2.0) in `src/core/luneApi.ts`.
+
+Every one of those licences travels with Roswaal: in `notices/upstream/`, in
+the `THIRD-PARTY-NOTICES.txt` written beside each build and zipped with each
+release, and in full under **Settings → Licences**. Who made what is in
+[ATTRIBUTIONS.md](ATTRIBUTIONS.md).
 
 Roblox, Luau and the names of the engine's classes and services belong to
 Roblox Corporation; Lune is Filip Tibell's and its contributors'. Both are named
@@ -100,11 +104,22 @@ nodes that need one runtime or the other are grouped under its name. That is
 what a name is for: saying which product this one works with.
 
 Unreal Engine and Blueprint are trademarks of Epic Games, Inc.; Unity and Bolt
-of Unity Technologies; Blender of the Blender Foundation. They appear in the
-documentation to name someone else's product while explaining this one.
+of Unity Technologies; Blender of the Blender Foundation; Affinity of Canva, its
+affiliates or its licensors. Procreate® is a registered trademark of Savage
+Interactive Pty Ltd. They appear in the documentation to name someone else's
+product while explaining this one.
 
 **Roswaal is not affiliated with, endorsed by, or approved by any of them, and
 claims no rights in their names.**
+
+## How Roswaal is made
+
+Roswaal is designed and directed by its maintainer, and much of its code is
+written with Claude, Anthropic's AI model. The commits Claude helped write
+credit it as a co-author.
+
+Nothing of Anthropic's is in Roswaal, and Roswaal is not affiliated with or
+endorsed by Anthropic.
 
 ## For anyone picking this up
 

@@ -56,6 +56,7 @@ import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 
 import { bundleHasVersion } from "./lib/distVersion.mjs";
+import { packageDirsOf, renderNotices } from "./lib/notices.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const out = join(root, "dist-binary");
@@ -84,7 +85,7 @@ mkdirSync(out, { recursive: true });
  * "nothing". They already handle not finding anything.
  */
 const bundle = join(out, "roswaal.cjs");
-await build({
+const cli = await build({
 	entryPoints: [join(root, "src", "cli", "index.ts")],
 	outfile: bundle,
 	bundle: true,
@@ -94,7 +95,11 @@ await build({
 	// Loaded at run time only when a project asks for formatting, and it ships
 	// its own platform binaries — bundling it would defeat that.
 	external: ["esbuild"],
+	// Stripped here and carried whole beside the binary instead: see notices below.
 	legalComments: "none",
+	metafile: true,
+	// So the metafile's paths are the repository's, whatever folder ran this.
+	absWorkingDir: root,
 });
 
 /**
@@ -124,8 +129,11 @@ function editorAssets() {
 				walk(abs);
 				continue;
 			}
+			const name = relative(dist, abs).split(sep).join("/");
+			// The editor build's own records, not something a browser asks for.
+			if (name.startsWith(".vite/")) continue;
 			// Forward slashes: this is a URL path, not a path on this machine.
-			assets[relative(dist, abs).split(sep).join("/")] = abs;
+			assets[name] = abs;
 		}
 	};
 	walk(dist);
@@ -144,6 +152,63 @@ function editorAssets() {
 }
 
 const assets = editorAssets();
+
+/**
+ * Node.js's own LICENSE, which the binary carries because it is Node.
+ *
+ * Every official build puts it at the top of the install: beside `node.exe` on
+ * Windows, one folder up from `bin/node` elsewhere. A Node without it -- some
+ * package managers' -- cannot build a binary that says what it carries.
+ */
+function nodeLicence() {
+	const candidates = [
+		join(dirname(process.execPath), "LICENSE"),
+		join(dirname(process.execPath), "..", "LICENSE"),
+	];
+	const found = candidates.find((path) => existsSync(path));
+	if (!found) {
+		console.error("roswaal: this Node has no LICENSE beside it, so the binary could not carry it.");
+		console.error("  Build with an official Node from nodejs.org, as the release workflow does.");
+		process.exit(1);
+	}
+	return {
+		version: process.versions.node,
+		text: readFileSync(found, "utf8").replace(/\r\n/g, "\n"),
+	};
+}
+
+/**
+ * The binary's notices: Node.js, the CLI's packages and the editor's.
+ *
+ * Written beside the binary, where the release zips it, and served by the
+ * binary itself in place of the editor-only copy in `dist/`, so the editor's
+ * licence page shows what this build really carries.
+ */
+const editorPackagesFile = join(root, "dist", ".vite", "notices-packages.json");
+if (!existsSync(editorPackagesFile)) {
+	console.error("roswaal: dist/ has no list of the packages it bundles.");
+	console.error("  Run:  npm run build:web");
+	process.exit(1);
+}
+const editorPackages = JSON.parse(readFileSync(editorPackagesFile, "utf8")).map((dir) =>
+	join(root, ...dir.split("/")),
+);
+const notices = join(out, "THIRD-PARTY-NOTICES.txt");
+writeFileSync(
+	notices,
+	await renderNotices({
+		root,
+		packageDirs: [
+			...new Set([
+				...packageDirsOf(Object.keys(cli.metafile.inputs).map((input) => join(root, input))),
+				...editorPackages,
+			]),
+		],
+		node: nodeLicence(),
+	}),
+	"utf8",
+);
+assets["THIRD-PARTY-NOTICES.txt"] = notices;
 
 const config = join(out, "sea-config.json");
 writeFileSync(
@@ -232,3 +297,4 @@ console.log(
 		` (editor: ${Object.keys(assets).length} files)`,
 );
 console.log(`  release asset name: ${assetName(version)}.zip`);
+console.log("  notices: dist-binary/THIRD-PARTY-NOTICES.txt, zipped beside it");

@@ -9,12 +9,22 @@ is written by hand, edited, reformatted, or reconstructed from a template.
 | `catppuccin.txt` | [`catppuccin/catppuccin` · `LICENSE`](https://github.com/catppuccin/catppuccin/blob/main/LICENSE) | 2026-08-31 |
 | `nord.txt` | [`nordtheme/nord` · `license`](https://github.com/nordtheme/nord/blob/develop/license) | 2026-08-31 |
 | `luau-site.txt` | [`luau-lang/site` · `LICENSE.md`](https://github.com/luau-lang/site/blob/master/LICENSE.md) | 2026-10-05 |
+| `material-symbols.txt` | [`google/material-design-icons` · `LICENSE`](https://github.com/google/material-design-icons/blob/master/LICENSE) | 2026-10-08 |
+| `lune.txt` | [`lune-org/lune` · `LICENSE.txt` at `v0.10.5`](https://github.com/lune-org/lune/blob/v0.10.5/LICENSE.txt) | 2026-10-08 |
+| `creator-docs.txt` | [`Roblox/creator-docs` · `LICENSE`](https://github.com/Roblox/creator-docs/blob/main/LICENSE) | 2026-10-08 |
 
 `luau-site.txt` covers the Luau logo, whose two squares are the `.luau` file icon. It was fetched
 directly, and reaches a user under **Settings → Licences** as the theme licences do.
 
-The three theme licences were vendored on the date above from the upstream files linked in the
-table, and are kept exactly as they were fetched.
+`material-symbols.txt` covers the editor's icons, which `src/app/icons.tsx` inlines as path data
+rather than installing as a package, so nothing generated would find their licence. `lune.txt`
+covers the descriptions in `src/core/luneApi.ts`, taken at the tag they were generated from, and
+`creator-docs.txt` the summaries in `src/core/robloxEngine.json` and `src/core/robloxMembers.ts`.
+The upstream repository has no `NOTICE` file for the icons, so the licence is all Apache-2.0 asks
+to carry.
+
+Every file was vendored on the date above from the upstream file linked in the table, and is kept
+exactly as it was fetched.
 
 ## Why these are vendored rather than generated
 

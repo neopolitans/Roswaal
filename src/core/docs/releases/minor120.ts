@@ -9,6 +9,24 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.159.0",
+		date: "2026-10-08",
+		headline: "Every licence Roswaal carries travels with it, and opens to its exact text.",
+		affects: ["editor", "designer", "docs"],
+		added: [
+			"**A notices file beside every build.** The editor, the web app and `roswaal serve` each carry the licence of every open-source package they bundle in `THIRD-PARTY-NOTICES.txt`, copied from the package's own licence file, and the release binaries carry Node.js's too. It is read from what the build actually contains, and a bundled package with no licence file stops the build.",
+			"**Each release zip has the notices file beside the binary.**",
+			"**Licences open to their exact text.** **Settings → Licences** lists every licence Roswaal carries; each opens, read-only and with line numbers, to the text exactly as published, with where it was copied from, the day, and its SHA-256 to check against the original. The Attributions page shows the same, and this build's notices file is a row of its own.",
+			"Three licences Roswaal had not carried until now: Apache-2.0 for the icons (Material Symbols), MPL-2.0 for Lune's type definitions, and CC BY 4.0 for the summaries from Roblox's Creator Documentation, each copied unchanged from its holder's repository.",
+			"**How Roswaal is made**, in Settings, under the Attributions list and in the README: designed and directed by its maintainer, with much of the code written with Claude, Anthropic's AI model, and nothing of Anthropic's in it.",
+			"Node.js, the bundled open-source packages, Affinity and Procreate are on the Attributions page and in `ATTRIBUTIONS.md`.",
+		],
+		changed: [
+			'Every attribution says, in one sentence, what Roswaal does with it, and either where it is or that nothing of theirs ships. Where nothing ships, the licence reads **None needed** rather than "not licensed to us". Trademark lines are said once per holder, and that Roswaal is not affiliated with anyone listed, once for the page.',
+			"`roswaal serve` from a release binary no longer caches files other than the editor's hashed assets for a year, so an upgrade is seen at once.",
+		],
+	},
+	{
 		version: "0.158.1",
 		date: "2026-10-08",
 		headline:

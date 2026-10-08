@@ -7,12 +7,9 @@
  * and says where the thing actually lives, so an entry cannot rot into a name
  * with nothing behind it.
  *
- * `ATTRIBUTIONS.md` is the copy of record for anyone reading the repository,
- * and is the short form -- tables, and the statements that have to be made in
- * full. This is the copy for anyone reading the documentation, and carries the
- * reasoning behind each entry. Neither is allowed to be the only one. They are
- * kept in step by hand, deliberately: the two answer different questions and a
- * generated file would flatten that.
+ * `ATTRIBUTIONS.md` is the copy of record for anyone reading the repository.
+ * This is the copy for anyone reading the documentation. Neither is allowed to
+ * be the only one, and the test keeps them listing the same things.
  *
  * ## The rule for adding an entry
  *
@@ -21,6 +18,19 @@
  * ours, or a project we would be free-riding on if we said nothing. A build
  * tool that never reaches the user does not go here; it is not in the thing
  * being distributed.
+ *
+ * ## How an entry is written
+ *
+ * For whoever holds it, at a glance, so the same few rules everywhere:
+ *
+ * - `note` is one sentence, with Roswaal as the subject, saying what Roswaal
+ *   does with it. The reasons it is listed belong here, in comments, not on
+ *   the page.
+ * - `where` is a path, or "Nothing of theirs ships." -- nothing in between, so
+ *   no reader has to work out whether something is bundled.
+ * - Quoted text says what was changed.
+ * - Trademark lines are said once per holder, in `TRADEMARKS`, and the
+ *   non-affiliation once for the whole page. No legal conclusions of our own.
  */
 
 export interface Attribution {
@@ -29,12 +39,18 @@ export interface Attribution {
 	/** Who holds it. Omitted only when genuinely unowned. */
 	holder?: string;
 	/**
-	 * The licence, by its usual short name, or `null` where the thing is not
-	 * licensed to us at all — a name used as homage is the case that matters,
-	 * and writing `null` rather than leaving it blank forces that to be said
-	 * out loud rather than implied by a gap.
+	 * Their licence, by its usual short name, or `null` where nothing is
+	 * licensed to us at all -- a name, a convention, a platform written for.
+	 * Writing `null` rather than leaving it blank forces that to be said out
+	 * loud rather than implied by a gap.
 	 */
 	licence: string | null;
+	/**
+	 * Whether anything of theirs is in what Roswaal distributes. Where it is
+	 * not, the page says no licence is needed rather than naming one that
+	 * governs nothing here.
+	 */
+	ships: boolean;
 	/**
 	 * Whether Roswaal **uses** this, only **learned** from it, or **produces
 	 * code for** it.
@@ -47,47 +63,38 @@ export interface Attribution {
 	 * `designed-for` is the third, and it is the weakest of the three on
 	 * purpose: a language Roswaal writes and a runtime that runs the result.
 	 * Nothing of theirs is here and nothing of theirs is licensed to us — what
-	 * is being said is only "this is what the output is for", which is
-	 * referential and is a statement about Roswaal rather than about them.
+	 * is being said is only "this is what the output is for".
 	 *
 	 * `tested-with` is for libraries these pages name and Roswaal was tried
-	 * against: real Luau that hover, require following and the Wally support
-	 * were checked on. Nothing of theirs ships here or is needed to use
-	 * Roswaal; they are named so a reader seeing them in a picture or an
-	 * example knows whose they are.
+	 * against. Nothing of theirs ships here or is needed to use Roswaal; they are
+	 * named so a reader seeing them in a picture or an example knows whose they
+	 * are.
 	 */
 	relation: "uses" | "inspired-by" | "designed-for" | "tested-with";
-	/** Where it is in the repository, or how it reaches a user. */
+	/** Where it is in what ships, or "Nothing of theirs ships." */
 	where: string;
-	/** Why it is listed: what we use, and what we are not claiming. */
+	/** What Roswaal does with it, in one sentence. */
 	note: string;
 	/** Canonical home, so a reader can check any of this for themselves. */
 	url?: string;
-	/** Licence text worth quoting, kept short. */
+	/** Something the holder asks of projects like this one, quoted. */
 	quote?: string;
 }
 
-/**
- * Code and assets that ship inside Roswaal, or that it could not exist without.
- */
+/** What `where` says when nothing of a holder's is in Roswaal. */
+export const NOTHING_SHIPS = "Nothing of theirs ships.";
+
 export const ATTRIBUTIONS: Attribution[] = [
 	{
 		name: "Luau",
 		relation: "designed-for",
 		holder: "Roblox Corporation",
 		licence: "MIT",
+		ships: true,
 		where:
-			"Not bundled. Roswaal writes Luau; Luau runs it. In the canary build only, the " +
-			"`.luau` file icon is the Luau logo's two squares, from `logo.svg` in " +
-			"luau-lang/site, whose MIT licence is vendored in `notices/upstream/` and shown " +
-			"there under Settings → Licences. The stable build does not use the logo.",
-		note:
-			"The language this tool exists to produce. Luau's own README asks that " +
-			"projects integrating it carry an attribution in user-facing " +
-			"documentation, and this page is where Roswaal does that. Luau is a " +
-			"trademark of Roblox Corporation. Where the logo is used, it marks a file as " +
-			"Luau, as a code editor's file icon does, and is never Roswaal's own mark. Roswaal is not " +
-			"affiliated with or endorsed by Roblox.",
+			"In the canary build only, the `.luau` file icon is the Luau logo, carried with its " +
+			"licence. Otherwise nothing of theirs ships.",
+		note: "Roswaal writes Luau code, and this page is the attribution Luau asks for.",
 		url: "https://luau.org/",
 		quote:
 			"When Luau is integrated into external projects, we ask that you honor " +
@@ -99,22 +106,9 @@ export const ATTRIBUTIONS: Attribution[] = [
 		relation: "designed-for",
 		holder: "Roblox Corporation",
 		licence: null,
-		where:
-			"Not bundled. Roswaal compiles graphs " +
-			"to Luau files a Roblox place runs, and knows the engine's class and " +
-			"enum names so a pin can offer them. The name also labels the nodes " +
-			"that need the engine — a graph now compiles for one of two runtimes, " +
-			"and which one a node is for is the thing that label says.",
-		note:
-			"The platform most Roswaal graphs are written for. Roblox, the Roblox " +
-			"logo and the names of the engine's classes and services belong to " +
-			"Roblox Corporation. Roswaal is not affiliated with, endorsed by, or " +
-			"approved by Roblox Corporation, and claims no rights in those names. " +
-			"They appear in the generated code because that is what it refers to, " +
-			"and in the editor to say which platform a node is for — which is what " +
-			"the name is for, and is how any product says what it works with. Text " +
-			"from Roblox's documentation is used under its own licence; see Roblox " +
-			"Creator Documentation below.",
+		ships: false,
+		where: NOTHING_SHIPS,
+		note: "Roswaal compiles to Luau that Roblox runs, and names the engine's classes, enums and services.",
 		url: "https://create.roblox.com/docs",
 	},
 	{
@@ -122,16 +116,9 @@ export const ATTRIBUTIONS: Attribution[] = [
 		relation: "designed-for",
 		holder: "Filip Tibell and contributors",
 		licence: null,
-		where:
-			"Not bundled. A graph whose target is Lune compiles to a standalone " +
-			"`.luau` file Lune runs outside Roblox.",
-		note:
-			"The second runtime Roswaal can write for, and still experimental here — " +
-			"a Lune graph drops the Roblox nodes and has not yet been through an " +
-			"experienced Lune developer's hands. Lune is its own project under its " +
-			"own licence; Roswaal is not affiliated with or endorsed by it. The " +
-			"runtime is not distributed here; the descriptions of its functions " +
-			"are, under the MPL — see Lune's type definitions below.",
+		ships: false,
+		where: NOTHING_SHIPS,
+		note: "Roswaal can compile a graph to a `.luau` file that Lune runs.",
 		url: "https://lune-org.github.io/docs",
 	},
 	{
@@ -139,17 +126,11 @@ export const ATTRIBUTIONS: Attribution[] = [
 		relation: "inspired-by",
 		holder: "Epic Games, Inc.",
 		licence: null,
-		where: "Not used, and not bundled. Named only on *Coming from Blueprints*.",
+		ships: false,
+		where: NOTHING_SHIPS,
 		note:
-			"An inspiration for how Roswaal reads to someone who already knows visual " +
-			"scripting: execution and data wires, pins coloured by type, and names for " +
-			"common actions that such a person will recognise. Roswaal contains no " +
-			"code, assets or content from Unreal Engine, and was not made with it. " +
-			"*Coming from Blueprints* names Epic's terms to map each one to Roswaal's, " +
-			"and is the only page that does. Unreal, Unreal Engine and Blueprint are " +
-			"trademarks or registered trademarks of Epic Games, Inc. in the United " +
-			"States of America and elsewhere. Roswaal is not affiliated with, " +
-			"sponsored by, or endorsed by Epic Games, Inc.",
+			"Roswaal's graphs read like Blueprints: execution and data wires, and pins coloured " +
+			"by type. *Coming from Blueprints* names Epic's terms.",
 		url: "https://www.unrealengine.com/",
 	},
 	{
@@ -157,16 +138,9 @@ export const ATTRIBUTIONS: Attribution[] = [
 		relation: "inspired-by",
 		holder: "Unity Technologies",
 		licence: null,
-		where: "Not used, and not bundled. Named on this page and nowhere else.",
-		note:
-			"How an execution pin is drawn: a triangle hung on the outside of the " +
-			"node rather than an arrow set inside it, so a run of steps reads as a " +
-			"chain rather than as a row of boxes. Roswaal's pins took that shape in " +
-			"0.35.0. Roswaal contains no code, assets or content from Unity or from " +
-			"Bolt, has no dependency on either, and was not made with either. Unity " +
-			"and Bolt are trademarks or registered trademarks of Unity Technologies. " +
-			"Roswaal is not affiliated with, sponsored by, or endorsed by Unity " +
-			"Technologies.",
+		ships: false,
+		where: NOTHING_SHIPS,
+		note: "Roswaal draws execution pins as triangles outside the node, as Bolt does.",
 		url: "https://unity.com/features/unity-visual-scripting",
 	},
 	{
@@ -174,28 +148,43 @@ export const ATTRIBUTIONS: Attribution[] = [
 		relation: "inspired-by",
 		holder: "Blender Foundation",
 		licence: null,
-		where: "Not used, and not bundled. Named on this page and nowhere else.",
-		note:
-			"Sockets balanced on a node's border rather than set inside it, which is " +
-			"what puts a pin where its wire actually ends — Roswaal's used to sit " +
-			"14px in from the edge the wire stopped at. The 5.x node editor is where " +
-			"that reading came from. Blender is GPL and none of it is here: no code, " +
-			"no assets, no dependency, and nothing derived from it — a convention a " +
-			"reader might recognise is not a derivative work. Blender is a registered " +
-			"trademark of the Blender Foundation. Roswaal is not affiliated with, " +
-			"sponsored by, or endorsed by the Blender Foundation.",
+		ships: false,
+		where: NOTHING_SHIPS,
+		note: "Roswaal sets sockets on the node's border, as Blender does.",
 		url: "https://www.blender.org/",
+	},
+	{
+		name: "Affinity",
+		relation: "inspired-by",
+		holder: "Canva",
+		licence: null,
+		ships: false,
+		where: NOTHING_SHIPS,
+		note:
+			"Roswaal's mode strip follows Affinity's: icons beside the mark, and a box that slides " +
+			"to the one in use.",
+		url: "https://www.affinity.studio/",
+	},
+	{
+		name: "Procreate",
+		relation: "inspired-by",
+		holder: "Savage Interactive Pty Ltd",
+		licence: null,
+		ships: false,
+		where: NOTHING_SHIPS,
+		note:
+			"Roswaal floats its tools in small clusters at the window's edge, and keeps zoom, undo " +
+			"and redo on a strip at the side, as Procreate does.",
+		url: "https://procreate.com/",
 	},
 	{
 		name: "Material Symbols",
 		relation: "uses",
 		holder: "Google LLC",
 		licence: "Apache-2.0",
-		where: "`src/app/icons.tsx`, inlined as SVG path data.",
-		note:
-			"Every icon in the editor. Inlined rather than fetched, because the " +
-			"daemon runs on machines that are offline and a font request to Google " +
-			"would be both a dependency and a privacy surprise.",
+		ships: true,
+		where: "`src/app/icons.tsx`. Licence: `notices/upstream/material-symbols.txt`.",
+		note: "Roswaal draws every icon in the editor from Material Symbols.",
 		url: "https://fonts.google.com/icons",
 	},
 	{
@@ -203,21 +192,44 @@ export const ATTRIBUTIONS: Attribution[] = [
 		relation: "uses",
 		holder: "Marijn Haverbeke and contributors",
 		licence: "MIT",
-		where: "A runtime dependency; see `package.json`.",
-		note:
-			"The Code panel's Luau editor, the read-only source view, and the syntax " +
-			"highlighting shared between the editor and this documentation.",
+		ships: true,
+		where: "The editor bundle. Licence: `THIRD-PARTY-NOTICES.txt`.",
+		note: "Roswaal's code editor, source view and licence viewer are built on CodeMirror.",
 		url: "https://codemirror.net/",
+	},
+	{
+		name: "Node.js",
+		relation: "uses",
+		holder: "OpenJS Foundation and Node.js contributors",
+		licence: "MIT",
+		ships: true,
+		where:
+			"Inside the release binaries. Its licence, which covers what it carries, is in " +
+			"`THIRD-PARTY-NOTICES.txt` in each zip.",
+		note: "Roswaal's release binaries contain the Node.js runtime.",
+		url: "https://nodejs.org/",
+	},
+	{
+		name: "Open-source packages",
+		relation: "uses",
+		holder: "Their authors",
+		licence: "MIT, ISC and BSD-3-Clause",
+		ships: true,
+		where:
+			"The editor and the release binaries. Each licence: `THIRD-PARTY-NOTICES.txt`, beside " +
+			"every build and in every zip.",
+		note:
+			"Roswaal includes the open-source packages it is built with, React and Express among " +
+			"them, each listed with its own licence file.",
 	},
 	{
 		name: "Lua",
 		relation: "uses",
 		holder: "PUC-Rio",
 		licence: "MIT",
-		where: "Not bundled. Luau is based on the Lua 5.x implementation.",
-		note:
-			"Listed because Luau is built on it and the chain would otherwise stop " +
-			"one link short of where it started.",
+		ships: false,
+		where: `${NOTHING_SHIPS} PUC-Rio's copyright line is in the Luau logo's licence, which Roswaal carries.`,
+		note: "Luau, which Roswaal writes, is based on Lua.",
 		url: "https://www.lua.org/",
 	},
 	{
@@ -225,14 +237,9 @@ export const ATTRIBUTIONS: Attribution[] = [
 		relation: "uses",
 		holder: "Enkia",
 		licence: "MIT",
+		ships: true,
 		where: "`themes/tokyo-night.json` and `themes/tokyo-night-storm.json`.",
-		note:
-			"Two of the colour schemes. A palette of hex values is not itself a " +
-			"copyrightable work, so carrying the licence is courtesy rather than " +
-			"obligation — but these are recognisably somebody's design, and the " +
-			"cost of saying whose is nothing. The upstream licence is vendored " +
-			"byte for byte in `notices/upstream/` and shown in full under " +
-			"Settings → Licences.",
+		note: "Roswaal includes two Tokyo Night colour schemes.",
 		url: "https://github.com/tokyo-night/tokyo-night-vscode-theme",
 	},
 	{
@@ -240,11 +247,9 @@ export const ATTRIBUTIONS: Attribution[] = [
 		relation: "uses",
 		holder: "Catppuccin",
 		licence: "MIT",
+		ships: true,
 		where: "`themes/catppuccin-mocha.json`.",
-		note:
-			"The Mocha flavour, as one of the colour schemes. Same posture as the " +
-			"other borrowed palettes: the licence travels because the design is " +
-			"someone's, not because a claim has been conceded.",
+		note: "Roswaal includes Catppuccin Mocha as a colour scheme.",
 		url: "https://github.com/catppuccin/catppuccin",
 	},
 	{
@@ -252,12 +257,9 @@ export const ATTRIBUTIONS: Attribution[] = [
 		relation: "uses",
 		holder: "Sven Greb",
 		licence: "MIT",
+		ships: true,
 		where: "`themes/nord.json`.",
-		note:
-			"One of the colour schemes, including its syntax colours. Its licence " +
-			"carries an email address and a homepage that no MIT template would " +
-			"have produced, which is exactly why the file is copied rather than " +
-			"reconstructed.",
+		note: "Roswaal includes Nord as a colour scheme, syntax colours too.",
 		url: "https://github.com/nordtheme/nord",
 	},
 	{
@@ -265,11 +267,9 @@ export const ATTRIBUTIONS: Attribution[] = [
 		relation: "uses",
 		holder: "rojo-rbx and contributors",
 		licence: "MPL-2.0",
-		where: "Not bundled. Roswaal writes files Rojo syncs.",
-		note:
-			"Not a dependency, and listed anyway: the whole workflow assumes it, " +
-			"and a tool whose documentation tells you to run `rojo serve` should say " +
-			"whose work that is.",
+		ships: false,
+		where: NOTHING_SHIPS,
+		note: "Roswaal writes the files Rojo syncs into a place.",
 		url: "https://rojo.space/",
 	},
 	{
@@ -277,13 +277,9 @@ export const ATTRIBUTIONS: Attribution[] = [
 		relation: "uses",
 		holder: "Uplift Games and contributors",
 		licence: "MPL-2.0",
-		where:
-			"Not bundled. Roswaal reads `wally.toml` and the packages `wally install` " +
-			"lays out, and Add from Wally asks the public Wally registry for a package.",
-		note:
-			"Not a dependency: nothing of Wally's ships here, and Roswaal does not run " +
-			"it. Listed because the project tree, the Packages folder and the package " +
-			"menu all follow its conventions, and the registry it asks is Wally's.",
+		ships: false,
+		where: NOTHING_SHIPS,
+		note: "Roswaal reads Wally packages, and searches the public Wally registry.",
 		url: "https://github.com/UpliftGames/wally",
 	},
 	{
@@ -291,13 +287,9 @@ export const ATTRIBUTIONS: Attribution[] = [
 		relation: "uses",
 		holder: "Eryn L. K. and contributors",
 		licence: "MPL-2.0",
-		where:
-			"Not bundled. Roswaal reads Moonwave's doc-comment format -- `--[=[ ]=]`, " +
-			"`---` and tags such as `@class`, `@prop` and `@interface` -- for hover.",
-		note:
-			"No Moonwave code is used; the format is read by Roswaal's own parser, so " +
-			"that a library documented for Moonwave shows its documentation in the " +
-			"editor.",
+		ships: false,
+		where: NOTHING_SHIPS,
+		note: "Roswaal reads Moonwave-style doc comments for hover, with a parser of its own.",
 		url: "https://github.com/evaera/moonwave",
 	},
 	{
@@ -305,19 +297,13 @@ export const ATTRIBUTIONS: Attribution[] = [
 		relation: "uses",
 		holder: "Roblox Corporation",
 		licence: "CC-BY-4.0",
+		ships: true,
 		where:
-			"`src/core/robloxEngine.json`, generated by `scripts/build-engine.mjs`, " +
-			"and `src/core/robloxMembers.ts`, generated by `scripts/build-members.mjs`: " +
-			"the one-line summaries of the engine's classes, members, events, enums " +
-			"and datatypes, shown in the code editor's hover and completion, in the " +
-			"editor and on the node pages.",
+			"`src/core/robloxEngine.json` and `src/core/robloxMembers.ts`. Licence: " +
+			"`notices/upstream/creator-docs.txt`.",
 		note:
-			"Text from Roblox's Creator Documentation, © Roblox Corporation, used " +
-			"under the Creative Commons Attribution 4.0 International licence " +
-			"(https://creativecommons.org/licenses/by/4.0/). Changed: each summary " +
-			"is shortened to its first sentence and its markup removed. That text " +
-			"stays under CC BY 4.0 — it is not covered by Roswaal's 0BSD licence. " +
-			"Roswaal is not affiliated with or endorsed by Roblox Corporation.",
+			"Roswaal shows one-sentence summaries of the engine's API, © Roblox Corporation. " +
+			"Changed: shortened, and markup removed. This text stays under CC BY 4.0, not 0BSD.",
 		url: "https://github.com/Roblox/creator-docs",
 	},
 	{
@@ -325,15 +311,11 @@ export const ATTRIBUTIONS: Attribution[] = [
 		relation: "uses",
 		holder: "Filip Tibell and contributors",
 		licence: "MPL-2.0",
-		where:
-			"`src/core/luneApi.ts`, generated by `scripts/build-lune.mjs` from the " +
-			"`types.d.luau` files of `lune-org/lune` at v0.10.5: function " +
-			"signatures and the descriptions of their parameters.",
+		ships: true,
+		where: "`src/core/luneApi.ts`. Licence: `notices/upstream/lune.txt`.",
 		note:
-			"Those descriptions are Lune's own, taken verbatim from files covered " +
-			"by the Mozilla Public License 2.0 (https://mozilla.org/MPL/2.0/), and " +
-			"remain under it; their source is the Lune repository linked here. " +
-			"The rest of Roswaal is not covered by the MPL and stays 0BSD.",
+			"Roswaal shows Lune's function signatures and parameter descriptions, unchanged, from " +
+			"v0.10.5. They stay under the MPL, not 0BSD.",
 		url: "https://github.com/lune-org/lune",
 	},
 	{
@@ -341,12 +323,9 @@ export const ATTRIBUTIONS: Attribution[] = [
 		relation: "tested-with",
 		holder: "csqrl",
 		licence: "MIT",
-		where:
-			"Not bundled. Named in the release notes; hover on its `@class` and " +
-			"`@prop` comments, and on fields that hold its modules, was tested on it.",
-		note:
-			"A table utility library for Luau, used as real code to check Roswaal's " +
-			"reading of Moonwave comments and of requires between modules.",
+		ships: false,
+		where: NOTHING_SHIPS,
+		note: "Roswaal's hover was tested on Sift, and its release notes name it.",
 		url: "https://github.com/cxmeel/sift",
 	},
 	{
@@ -354,13 +333,9 @@ export const ATTRIBUTIONS: Attribution[] = [
 		relation: "tested-with",
 		holder: "Stephen Leitnick",
 		licence: "MIT",
-		where:
-			"Not bundled. Named in the pictures of the project tree and in tests as " +
-			"`sleitnick/signal` in `wally.toml`; hover on its `@interface` comments " +
-			"was tested on it.",
-		note:
-			"The Signal class from Stephen Leitnick's RbxUtil, published on Wally. " +
-			"Used as the example package in the Wally pages and as real code for hover.",
+		ships: false,
+		where: NOTHING_SHIPS,
+		note: "Roswaal's docs and tests use Signal, from RbxUtil, as the example Wally package.",
 		url: "https://github.com/Sleitnick/RbxUtil",
 	},
 	{
@@ -368,10 +343,9 @@ export const ATTRIBUTIONS: Attribution[] = [
 		relation: "tested-with",
 		holder: "Eryn L. K.",
 		licence: "MIT",
-		where:
-			"Not bundled. Named in the pictures of the project tree as a package " +
-			"that is not installed yet.",
-		note: "roblox-lua-promise, a Promise implementation for Roblox, used by name as an example package.",
+		ships: false,
+		where: NOTHING_SHIPS,
+		note: "Roswaal's pictures show Promise as a package not installed yet.",
 		url: "https://github.com/evaera/roblox-lua-promise",
 	},
 	{
@@ -379,42 +353,91 @@ export const ATTRIBUTIONS: Attribution[] = [
 		relation: "tested-with",
 		holder: "Roblox Corporation",
 		licence: "Apache-2.0",
-		where:
-			"Not bundled. The example alias on Aliases and .luaurc, `@roact`, and in " +
-			"the tests for aliases.",
-		note:
-			"Roblox's declarative UI library, now archived by Roblox. Its name is " +
-			"used as the example of a package reached through a `.luaurc` alias.",
+		ships: false,
+		where: NOTHING_SHIPS,
+		note: "Roswaal's docs use `@roact` as the example of an alias.",
 		url: "https://github.com/Roblox/roact",
 	},
 ];
 
 /**
+ * Each holder's trademark line, said once, in the holder's own words where
+ * they publish them.
+ *
+ * Luau's is the line luau.org/brand asks every project using the name to
+ * carry. Procreate's is the one on procreate.com: its guidelines suggest a
+ * longer notice ending "used with authorisation", which would not be true
+ * here. Affinity's follows Canva's own terms, which say the software belongs to
+ * "Canva, its affiliates or its licensors".
+ */
+export const TRADEMARKS: { holder: string; line: string }[] = [
+	{
+		holder: "Roblox Corporation",
+		line:
+			"Luau is a trademark of Roblox Corporation. Roblox, and the names of the engine's " +
+			"classes and services, belong to Roblox Corporation.",
+	},
+	{
+		holder: "Epic Games, Inc.",
+		line:
+			"Unreal, Unreal Engine and Blueprint are trademarks or registered trademarks of Epic " +
+			"Games, Inc. in the United States of America and elsewhere.",
+	},
+	{
+		holder: "Unity Technologies",
+		line: "Unity and Bolt are trademarks or registered trademarks of Unity Technologies.",
+	},
+	{
+		holder: "Blender Foundation",
+		line: "Blender is a registered trademark of the Blender Foundation.",
+	},
+	{
+		holder: "Canva",
+		line: "Affinity is a trademark of Canva, its affiliates or its licensors.",
+	},
+	{
+		holder: "Savage Interactive Pty Ltd",
+		line:
+			"Procreate® is a registered trademark of Savage Interactive Pty Ltd. Roswaal is not " +
+			"owned or endorsed by, or affiliated with, Procreate.",
+	},
+];
+
+/** Said once, at the top of the page and of `ATTRIBUTIONS.md`, for everyone listed. */
+export const NOT_AFFILIATED =
+	"Roswaal is not affiliated with, endorsed by, or approved by anyone on this page.";
+
+/**
  * Names Roswaal uses that belong to somebody else.
  *
- * Separated from the list above because it is a different kind of statement.
- * Everything above is licensed to us and we are honouring the terms. Nothing
- * here is licensed to us at all — it is used as homage, and the only honest
- * thing to do is say so plainly, in the documentation rather than in a file
- * nobody opens.
+ * Separated from the list above because it is a different kind of statement:
+ * nothing here is licensed to us at all. It is used as homage, and the only
+ * honest thing to do is say so plainly, where users read.
  */
 export const NAME_NOTICE = {
-	title: "The names",
+	title: "The name",
 	body: [
-		"**Roswaal** is named after a character from *Re:Zero − Starting Life in " +
-			"Another World* — Roswaal L. Mathers — created by Tappei Nagatsuki and " +
-			"published by KADOKAWA. The name is a fan's homage.",
-		"**This project is not affiliated with, endorsed by, or approved by " +
-			"KADOKAWA, Tappei Nagatsuki, or the Re:Zero project**, and claims no " +
-			"rights in those names or in anything from that work.",
-		"Nothing from Re:Zero is distributed here: no artwork, no likenesses, no " +
-			"text, and not the series title. The mark in `assets/` is original work.",
-		"Roswaal is released under 0BSD and is not sold by its authors. 0BSD places " +
-			"no restriction on what anyone else does with it, commercially or " +
-			"otherwise — those choices, and any obligations that follow from them, " +
-			"belong to whoever makes them.",
+		"**Roswaal** is named after Roswaal L. Mathers, a character in *Re:Zero − Starting Life " +
+			"in Another World* by Tappei Nagatsuki, published by KADOKAWA. The name is a fan's homage.",
+		"Roswaal is not affiliated with, endorsed by, or approved by KADOKAWA, Tappei Nagatsuki, " +
+			"or the Re:Zero project, and claims no rights in their names or work. No artwork, " +
+			"likeness or text from it is used, and the mark in `assets/` is original.",
+		"Roswaal is 0BSD and is not sold by its authors. What anyone else does with it, and " +
+			"anything that follows from that, is theirs.",
 	],
 } as const;
+
+/**
+ * How Roswaal is made: a disclosure, not an attribution. Nothing of
+ * Anthropic's is in Roswaal and no licence asks for it. The same two sentences
+ * are in Settings › How Roswaal is made and in the README.
+ */
+export const HOW_IT_IS_MADE = [
+	"Roswaal is designed and directed by its maintainer, and much of its code is written with " +
+		"Claude, Anthropic's AI model. The commits Claude helped write credit it as a co-author.",
+	"Nothing of Anthropic's is in Roswaal, and Roswaal is not affiliated with or endorsed by " +
+		"Anthropic.",
+] as const;
 
 /** The ones Roswaal actually ships or stands on. */
 export const DEPENDENCIES = ATTRIBUTIONS.filter((a) => a.relation === "uses");
@@ -430,11 +453,10 @@ export const INSPIRATIONS = ATTRIBUTIONS.filter((a) => a.relation === "inspired-
 /**
  * The languages and runtimes the generated code is for.
  *
- * Weaker than either of the others, and listed anyway: a reader seeing Roblox’s
- * class names throughout the editor is owed the sentence saying whose they are
- * and that there is no association. Luau is here rather than under "built on"
- * because no Luau ships inside Roswaal — Roswaal writes it — and its README asks
- * for the attribution in user-facing documentation, which this is.
+ * Weaker than either of the others, and listed anyway: a reader seeing Roblox's
+ * class names throughout the editor is owed the sentence saying whose they are.
+ * Luau is here rather than under "built on" because Roswaal writes it, and its
+ * README asks for the attribution in user-facing documentation, which this is.
  */
 export const TARGETS = ATTRIBUTIONS.filter((a) => a.relation === "designed-for");
 

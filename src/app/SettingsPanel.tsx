@@ -25,13 +25,12 @@ import {
 	useRef,
 	useState,
 } from "react";
-import LUAU_LOGO_LICENCE from "../../notices/upstream/luau-site.txt?raw";
-
+import { CARRIED_LICENCES } from "../core/licenceData.js";
 import { INDENT_WIDTHS, type RoswaalConfig, type Target } from "../core/schema.js";
-import { CODE_ROLES, ROLES, type Theme, themeSlug } from "../core/theme.js";
-import { LICENCE_TEXTS } from "../core/themeData.js";
+import { CODE_ROLES, ROLES, type Theme } from "../core/theme.js";
 import { cx } from "./cx.js";
-import { Icon, SHOWS_LUAU_MARK } from "./icons.jsx";
+import { Icon } from "./icons.jsx";
+import { BundledNotices, LicenceDetail } from "./LicenceView.jsx";
 import { LAYER } from "./layers.js";
 import { nodeColor, pinColor } from "./palette.js";
 import { floatPanel } from "./panels.js";
@@ -62,6 +61,7 @@ const PAGES = [
 	{ id: "workspace", title: "Workspace", keeper: "browser" },
 	{ id: "themes", title: "Themes", keeper: "browser" },
 	{ id: "docs", title: "Docs", keeper: "browser" },
+	{ id: "made", title: "How Roswaal is made", keeper: "about" },
 	{ id: "licences", title: "Licences", keeper: "about" },
 ] as const satisfies readonly { id: string; title: string; keeper: Keeper }[];
 
@@ -82,8 +82,8 @@ const KEEPERS: Record<Keeper, { title: string; sub?: string }> = {
  */
 const OFFERED: Record<SettingsScope, readonly PageId[]> = {
 	editor: PAGES.map((page) => page.id),
-	designer: ["canvas", "nodes", "workspace", "themes", "docs", "licences"],
-	docs: ["themes", "docs", "licences"],
+	designer: ["canvas", "nodes", "workspace", "themes", "docs", "made", "licences"],
+	docs: ["themes", "docs", "made", "licences"],
 };
 
 /** Which window Settings is open in. */
@@ -165,6 +165,8 @@ export function SettingsPanel(props: SettingsPanelProps) {
 				return <ThemeSettings {...props} />;
 			case "docs":
 				return <DocsSettings {...props} />;
+			case "made":
+				return <Made />;
 			case "licences":
 				return <Licences />;
 		}
@@ -1011,72 +1013,96 @@ function RoleTable({ theme }: { theme: Theme }) {
 // ---------------------------------------------------------------------------
 
 /**
- * The terms the borrowed schemes travel under, in full.
+ * Everything of other people's that Roswaal carries, each licence in full.
  *
- * MIT requires the copyright notice to travel with the work, and a link is not
- * the notice travelling. The text here is the upstream `LICENSE` file copied
- * byte for byte and compiled in — not reconstructed from a template, because
- * three MIT licences in this repository are headed three different ways and one
- * of them carries an email address no template would have produced.
+ * The licences kept by hand are compiled in (`src/core/licenceData.ts`); the
+ * packages a build bundles are in the notices file beside that build, which
+ * `BundledNotices` reads, so this page shows what this copy really carries.
+ * One open at a time: a licence is read one at a time, and the page stays a
+ * list to find yours in. The same list as the notices file and the docs, the
+ * Luau logo's included: its row says the logo is the canary's.
  */
 function Licences() {
-	const carried = BUILTIN_THEMES.filter((t) => t.licence !== undefined);
-	const seen = new Set<string>();
+	const { query, page } = useContext(Search);
+	const [open, setOpen] = useState<string | null>(null);
+	const shown = (...texts: string[]) => !query || page || matches(query, ...texts);
+	const toggle = (key: string) => setOpen((was) => (was === key ? null : key));
+
+	const row = (key: string, name: string, spdx: string, holder: string, body: ReactNode) => (
+		<div className="setting licence-row" key={key}>
+			<button
+				type="button"
+				className="licence-head"
+				aria-expanded={open === key}
+				onClick={() => toggle(key)}
+			>
+				<Icon name="chevron" size={14} rotate={open === key ? 0 : -90} />
+				<span className="licence-name">{name}</span>
+				<span className="spdx">{spdx}</span>
+				<span className="licence-holder">{holder}</span>
+			</button>
+			{open === key && body}
+		</div>
+	);
 
 	return (
 		<Page
 			id="licences"
-			note={
-				<>
-					Roswaal is 0BSD. These schemes{SHOWS_LUAU_MARK ? " and the icon" : ""} carry their own
-					terms.
-				</>
-			}
+			note="Roswaal is 0BSD. What it carries of other people's, with each licence exactly as it was published."
 		>
-			{carried.map((theme) => {
-				const licence = theme.licence!;
-				const first = !seen.has(licence.textFile);
-				seen.add(licence.textFile);
-				return (
-					<div className="licence" key={themeSlug(theme.name)}>
-						<h3>
-							{theme.name} <span className="spdx">{licence.spdx}</span>
-						</h3>
-						<p className="settings-note">{licence.holder}</p>
-						{first ? (
-							<pre className="licence-text">{LICENCE_TEXTS[licence.textFile]}</pre>
-						) : (
-							<p className="settings-note">
-								Same licence and same holder as above — one upstream project, two schemes.
-							</p>
-						)}
-					</div>
-				);
-			})}
-
-			{/*
-			 * On the canary, the `.luau` file icon is the Luau logo's two squares,
-			 * and the logo is MIT. The trademark line is the one luau.org/brand
-			 * asks for. Only where the mark is drawn: see `SHOWS_LUAU_MARK`.
-			 */}
-			{SHOWS_LUAU_MARK && (
-				<div className="licence">
-					<h3>
-						Luau logo <span className="spdx">MIT</span>
-					</h3>
-					<p className="settings-note">
-						Roblox Corporation. The <code>.luau</code> file icon. Luau is a trademark of Roblox
-						Corporation.
-					</p>
-					<pre className="licence-text">{LUAU_LOGO_LICENCE}</pre>
-				</div>
-			)}
-
+			<Group title="Kept with Roswaal">
+				{CARRIED_LICENCES.filter((licence) =>
+					shown(licence.name, licence.holder, licence.spdx, licence.covers),
+				).map((licence) =>
+					row(
+						licence.file,
+						licence.name,
+						licence.spdx,
+						licence.holder,
+						<LicenceDetail licence={licence} />,
+					),
+				)}
+			</Group>
+			<Group title="Bundled packages">
+				{shown("packages", "notices", "React", "CodeMirror", "MIT", "ISC", "BSD") &&
+					row(
+						"notices",
+						"Third-party notices",
+						"MIT · ISC · BSD",
+						"Every package in this build",
+						<BundledNotices />,
+					)}
+			</Group>
 			<p className="settings-note">
 				The schemes credited to <strong>neopolitans</strong> are the maintainer's own and carry no
-				third-party claim. Everything Roswaal ships is listed on the Attributions page in the docs,
-				and in <code>ATTRIBUTIONS.md</code>.
+				third-party claim. Who made what, and how Roswaal uses it, is on the Attributions page in
+				the docs, and in <code>ATTRIBUTIONS.md</code>.
 			</p>
+		</Page>
+	);
+}
+
+/**
+ * How Roswaal is made: a disclosure, not an attribution. Nothing of
+ * Anthropic's is in Roswaal and no licence asks for this; it is said because
+ * a reader is owed it. The same two sentences are under the attributions list
+ * in the docs and in the README.
+ */
+function Made() {
+	return (
+		<Page id="made" note="Who makes Roswaal, and with what.">
+			<Group title="How Roswaal is made">
+				<div className="setting made-note">
+					<p>
+						Roswaal is designed and directed by its maintainer, and much of its code is written with
+						Claude, Anthropic's AI model. The commits Claude helped write credit it as a co-author.
+					</p>
+					<p>
+						Nothing of Anthropic's is in Roswaal, and Roswaal is not affiliated with or endorsed by
+						Anthropic.
+					</p>
+				</div>
+			</Group>
 		</Page>
 	);
 }

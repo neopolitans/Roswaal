@@ -1,0 +1,72 @@
+[
+	{
+		"file": "material-symbols.txt",
+		"name": "Material Symbols",
+		"holder": "Google LLC",
+		"spdx": "Apache-2.0",
+		"covers": "The editor's icons, inlined as path data.",
+		"source": "google/material-design-icons · LICENSE",
+		"url": "https://github.com/google/material-design-icons/blob/master/LICENSE",
+		"retrieved": "2026-10-08"
+	},
+	{
+		"file": "tokyo-night.txt",
+		"name": "Tokyo Night",
+		"holder": "Enkia",
+		"spdx": "MIT",
+		"covers": "The Tokyo Night and Tokyo Night Storm colour schemes.",
+		"source": "tokyo-night/tokyo-night-vscode-theme · LICENSE.txt",
+		"url": "https://github.com/tokyo-night/tokyo-night-vscode-theme/blob/master/LICENSE.txt",
+		"retrieved": "2026-08-31"
+	},
+	{
+		"file": "catppuccin.txt",
+		"name": "Catppuccin",
+		"holder": "Catppuccin",
+		"spdx": "MIT",
+		"covers": "The Catppuccin Mocha colour scheme.",
+		"source": "catppuccin/catppuccin · LICENSE",
+		"url": "https://github.com/catppuccin/catppuccin/blob/main/LICENSE",
+		"retrieved": "2026-08-31"
+	},
+	{
+		"file": "nord.txt",
+		"name": "Nord",
+		"holder": "Sven Greb",
+		"spdx": "MIT",
+		"covers": "The Nord colour scheme, syntax colours included.",
+		"source": "nordtheme/nord · license",
+		"url": "https://github.com/nordtheme/nord/blob/develop/license",
+		"retrieved": "2026-08-31"
+	},
+	{
+		"file": "luau-site.txt",
+		"name": "Luau logo",
+		"holder": "Roblox Corporation",
+		"spdx": "MIT",
+		"covers": "The Luau logo, the .luau file icon in the canary build.",
+		"source": "luau-lang/site · LICENSE.md",
+		"url": "https://github.com/luau-lang/site/blob/master/LICENSE.md",
+		"retrieved": "2026-10-05"
+	},
+	{
+		"file": "creator-docs.txt",
+		"name": "Roblox Creator Documentation",
+		"holder": "Roblox Corporation",
+		"spdx": "CC-BY-4.0",
+		"covers": "The one-sentence summaries of the engine's API, shortened and with markup removed.",
+		"source": "Roblox/creator-docs · LICENSE",
+		"url": "https://github.com/Roblox/creator-docs/blob/main/LICENSE",
+		"retrieved": "2026-10-08"
+	},
+	{
+		"file": "lune.txt",
+		"name": "Lune type definitions",
+		"holder": "Filip Tibell and contributors",
+		"spdx": "MPL-2.0",
+		"covers": "Lune's function signatures and parameter descriptions, unchanged, from v0.10.5.",
+		"source": "lune-org/lune · LICENSE.txt at v0.10.5",
+		"url": "https://github.com/lune-org/lune/blob/v0.10.5/LICENSE.txt",
+		"retrieved": "2026-10-08"
+	}
+]

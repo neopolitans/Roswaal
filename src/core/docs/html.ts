@@ -16,6 +16,7 @@
  * same reason: it lives in `src/app` and depends on CodeMirror.
  */
 
+import { CARRIED_LICENCES } from "../licenceData.js";
 import type { Registry } from "../nodes/index.js";
 import { RUNTIME_LABEL, RUNTIME_SUMMARY } from "../nodes/runtimes.js";
 import { metaTags, type SiteBuild } from "../siteMeta.js";
@@ -177,6 +178,41 @@ interface PageState {
 function drawing(preview: PreviewOptions, page: PageState): PreviewOptions {
 	page.drawn += 1;
 	return { ...preview, idScope: `g${page.drawn}` };
+}
+
+/**
+ * The licences Roswaal keeps by hand, as plain `<details>`: each opens to its
+ * text, numbered by the list rather than in it, so copying the text copies the
+ * licence and nothing else. No script, which the static site would need to load
+ * an editor view; the editor's own docs show the same in one (`LicenceView.tsx`).
+ */
+function licencesHtml(up: string): string {
+	const items = CARRIED_LICENCES.map((licence) => {
+		const lines = licence.text
+			.replace(/\n$/, "")
+			.split("\n")
+			.map((line) => `<li>${escapeHtml(line)}</li>`)
+			.join("");
+		return (
+			`<details class="docs-details docs-licence" id="licence-${escapeHtml(licence.file.replace(/\.txt$/, ""))}">` +
+			`<summary><span class="docs-details-title">${escapeHtml(licence.name)} ` +
+			`<span class="spdx">${escapeHtml(licence.spdx)}</span></span>` +
+			`<span class="aside">${escapeHtml(licence.holder)}</span></summary>\n` +
+			`<p class="licence-meta">${escapeHtml(licence.covers)}<br>` +
+			`Copied unchanged from <a href="${escapeHtml(licence.url)}">${escapeHtml(licence.source)}</a>, ` +
+			`${escapeHtml(licence.retrieved)}.<br>` +
+			`<code>${escapeHtml(licence.path)}</code> · SHA-256 <code>${licence.sha256}</code></p>\n` +
+			`<ol class="licence-lines" aria-label="${escapeHtml(licence.name)} licence">${lines}</ol>\n` +
+			"</details>"
+		);
+	}).join("\n");
+	return (
+		`<div class="docs-licences">\n${items}\n` +
+		`<p class="licence-meta">Every package a build bundles is in the ` +
+		`<a href="${up}../THIRD-PARTY-NOTICES.txt">third-party notices</a> beside it, ` +
+		"each with its own licence file, copied as published. Each release zip carries the same file.</p>\n" +
+		"</div>"
+	);
 }
 
 function renderBlock(
@@ -503,6 +539,8 @@ function renderBlock(
 				`<div class="docs-tab-panels">${panels}</div></div>`
 			);
 		}
+		case "licences":
+			return licencesHtml(up);
 		case "details": {
 			// A plain `<details>`: it opens and closes with no script at all.
 			const aside = block.aside ? `<span class="aside">${escapeHtml(block.aside)}</span>` : "";

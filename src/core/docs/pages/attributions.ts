@@ -5,10 +5,13 @@
 import {
 	type Attribution,
 	DEPENDENCIES,
+	HOW_IT_IS_MADE,
 	INSPIRATIONS,
 	NAME_NOTICE,
+	NOT_AFFILIATED,
 	TARGETS,
 	TESTED_WITH,
+	TRADEMARKS,
 } from "../attributions.js";
 import type { Block, DocPage } from "../site.js";
 
@@ -16,18 +19,25 @@ import type { Block, DocPage } from "../site.js";
  * Who made what Roswaal is built on, and what it is named after.
  *
  * A page rather than only `ATTRIBUTIONS.md`, because the people who need to read it
- * are not all reading the repository — and because the naming statement is a
- * thing to say where users are, not to file where auditors are.
+ * are not all reading the repository. Written for whoever holds an entry, at a
+ * glance: one sentence each, where it is, and the licence of what Roswaal
+ * carries -- with every licence Roswaal carries at the end, in full.
  */
 export function attributionsPage(): DocPage {
 	const blocks: Block[] = [
 		{
 			t: "p",
 			text:
-				"Roswaal is 0BSD — see the end of this page — but it writes for " +
-				"languages and platforms that are not ours, it stands on work that is " +
-				"not, and it is named after characters that are not ours. All three " +
-				"are listed here.",
+				"Roswaal is 0BSD. Everything on this page belongs to someone else: what Roswaal " +
+				"uses, how, and under which licence. Every licence Roswaal carries is at the end, " +
+				"exactly as it was published.",
+		},
+		{
+			t: "note",
+			kind: "info",
+			text:
+				`**${NOT_AFFILIATED}** Trademarks belong to their owners, and are named only to say ` +
+				"what something is.",
 		},
 		{ t: "h", level: 2, text: NAME_NOTICE.title },
 	];
@@ -35,10 +45,13 @@ export function attributionsPage(): DocPage {
 	for (const line of NAME_NOTICE.body) blocks.push({ t: "p", text: line });
 
 	/**
-	 * Two headings, because they are two different claims. Everything under the
-	 * first ships inside Roswaal or is something it could not run without; the
-	 * second is work it only learned from. Listing an inspiration under "built
-	 * on" would claim a relationship that does not exist.
+	 * Four headings, because they are four different claims. Everything under
+	 * "built on" ships inside Roswaal or is something it could not run without;
+	 * "inspired by" is work it only learned from. Listing an inspiration under
+	 * "built on" would claim a relationship that does not exist.
+	 *
+	 * The licence column is the licence of what Roswaal carries: where nothing
+	 * of theirs ships, none is needed, and naming one would suggest otherwise.
 	 */
 	const group = (heading: string, lede: string, entries: Attribution[], what = "Project") => {
 		if (entries.length === 0) return;
@@ -50,7 +63,7 @@ export function attributionsPage(): DocPage {
 			rows: entries.map((a) => [
 				a.url ? `[${a.name}](${a.url})` : a.name,
 				a.holder ?? "—",
-				a.licence ?? "not licensed to us",
+				a.ships && a.licence ? a.licence : "None needed",
 			]),
 		});
 		for (const entry of entries) {
@@ -61,41 +74,40 @@ export function attributionsPage(): DocPage {
 		}
 	};
 
-	/**
-	 * First, because it is the one a reader needs before the others make sense
-	 * -- and because Roblox's class names are all over the editor, which is a
-	 * thing to explain rather than leave to be inferred.
-	 */
 	group(
 		"What Roswaal is designed for",
-		"The languages and runtimes the generated code is written for. Nothing of " +
-			"theirs is bundled here and nothing of theirs is licensed to Roswaal; " +
-			"they are named because that is what the output is **for**, and because " +
-			"a reader seeing these names throughout the editor is owed the sentence " +
-			"saying whose they are.",
+		"The language and runtimes the code Roswaal generates is written for.",
 		TARGETS,
 		"Platform",
 	);
 	group(
 		"What Roswaal is built on",
-		"Code and assets that ship inside Roswaal, or that it could not run without.",
+		"What ships inside Roswaal, and the tools and formats it works with.",
 		DEPENDENCIES,
 	);
 	group(
 		"What Roswaal is tested with",
-		"Open-source Luau libraries these pages name, and that hover, require " +
-			"following and the Wally support were tried against. None is bundled, " +
-			"none is needed to use Roswaal, and nothing of theirs is copied into it.",
+		"Libraries named in these pages as examples. Nothing of theirs ships.",
 		TESTED_WITH,
 		"Library",
 	);
 	group(
 		"What Roswaal is inspired by",
-		"Work Roswaal learned from and does **not** use. No code, no assets, no " +
-			"dependency — only conventions a reader might recognise, named here so " +
-			"the resemblance is explained rather than left to be guessed at.",
+		"Conventions Roswaal learned from. No code, assets, content or dependency.",
 		INSPIRATIONS,
 	);
+
+	blocks.push({ t: "h", level: 2, text: "Trademarks" });
+	blocks.push({ t: "ul", items: TRADEMARKS.map((mark) => mark.line) });
+
+	blocks.push({ t: "h", level: 2, text: "Licences" });
+	blocks.push({
+		t: "p",
+		text:
+			"Each licence Roswaal keeps by hand, exactly as its holder published it, with where it " +
+			"came from and its SHA-256 to check it against the original.",
+	});
+	blocks.push({ t: "licences" });
 
 	blocks.push({ t: "h", level: 2, text: "Roswaal itself" });
 	blocks.push({
@@ -107,10 +119,14 @@ export function attributionsPage(): DocPage {
 			"is what that does *not* cover.",
 	});
 
+	blocks.push({ t: "h", level: 2, text: "How Roswaal is made" });
+	for (const line of HOW_IT_IS_MADE) blocks.push({ t: "p", text: line });
+
 	return {
 		slug: "attributions",
 		title: "Attributions",
-		summary: "What Roswaal is built on, who made it, and what the names are.",
+		summary:
+			"What Roswaal is built on, who made it, under which licence, and each licence in full.",
 		narrow: true,
 		blocks,
 	};

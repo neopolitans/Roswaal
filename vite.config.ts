@@ -8,6 +8,8 @@ import { defineConfig } from "vitest/config";
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { demoSeedPlugin } from "./scripts/demo-seed.mjs";
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
+import { noticesPlugin } from "./scripts/notices-plugin.mjs";
+// @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { themeShellPlugin } from "./scripts/theme-shell.mjs";
 
 const DAEMON = process.env.ROSWAAL_PORT ?? "4471";
@@ -37,6 +39,7 @@ export default defineConfig({
 		react(),
 		demoSeedPlugin(fileURLToPath(new URL("examples/demo", import.meta.url))),
 		themeShellPlugin(),
+		noticesPlugin(),
 	],
 	server: {
 		port: 4470,
@@ -67,6 +70,9 @@ export default defineConfig({
 	},
 	build: {
 		outDir: "dist",
+		// Every browser the editor supports preloads modules itself, and the
+		// polyfill is Vite's code in the bundle, with Vite's licence to carry.
+		modulePreload: { polyfill: false },
 	},
 	/**
 	 * Tests run on the stable line, whatever line the machine is building.

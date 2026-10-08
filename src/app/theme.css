@@ -10701,31 +10701,211 @@ a.docs-minor-row .aside {
 
 /* -------------------------------------------------------------- licences */
 
-.licence h3 .spdx {
-	font-weight: 400;
-	font-size: var(--text-sm);
+/* Settings › Licences: one row per licence, opening to its text. See
+   `LicenceView.tsx`, which the Attributions page in the docs shares. */
+.settings-box > .licence-row {
+	display: block;
+	padding: 0;
+}
+
+.licence-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	min-height: 44px;
+	padding: 0 14px;
+	border: 0;
+	background: none;
+	color: var(--fg);
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+
+.licence-head:hover {
+	background: var(--bg-hover);
+}
+
+.licence-name {
+	font-weight: 600;
+}
+
+.licence-holder {
+	margin-left: auto;
 	color: var(--fg-faint);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.spdx {
+	font-size: var(--text-sm);
+	color: var(--fg-muted);
 	border: 1px solid var(--capsule-border);
 	background: var(--capsule-bg);
 	border-radius: var(--radius-xs);
-	padding: 1px 5px;
-	margin-left: 6px;
-	vertical-align: middle;
+	padding: 1px 6px;
+	white-space: nowrap;
 }
 
-.licence-text {
-	margin: 0 0 18px;
-	padding: 12px 14px;
+.licence-detail {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 4px 16px 16px;
+}
+
+.licence-meta {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	font-size: var(--text-sm);
+	line-height: 1.5;
+	color: var(--fg-muted);
+}
+
+.licence-hash code {
+	overflow-wrap: anywhere;
+}
+
+/* The text in a read-only editor view: tall enough to read a licence through,
+   and scrolling past that rather than pushing the page away. */
+.licence-view {
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	overflow: hidden;
+}
+
+.licence-view .cm-editor {
+	max-height: 360px;
+	font-size: 12px;
+}
+
+.licence-view .cm-scroller {
+	overflow: auto;
+}
+
+.licence-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.licence-actions a.tb {
+	display: inline-flex;
+	align-items: center;
 	background: var(--bg-input);
 	border: 1px solid var(--border);
 	border-radius: var(--radius-sm);
-	font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
-	font-size: var(--text-sm);
-	line-height: 1.5;
-	white-space: pre-wrap;
-	color: var(--fg-muted);
-	max-height: 260px;
+	padding: 4px 9px;
+	color: var(--fg);
+	text-decoration: none;
+}
+
+.licence-actions a.tb:hover {
+	background: var(--bg-hover);
+	border-color: var(--border-strong);
+}
+
+/* The docs' licences: a fold per licence. On the static site the text is a
+   numbered list, the numbers drawn by the list so copying takes only the
+   licence; in the editor's docs it is the same editor view as Settings. */
+.docs-licences {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin: 12px 0;
+}
+
+/* The name and its licence on one line, as in Settings. */
+.docs-content details.docs-licence > summary .docs-details-title {
+	flex-direction: row;
+	align-items: center;
+	gap: 8px;
+}
+
+.docs-licence .docs-details-title .spdx {
+	flex: none;
+	font-size: 12px;
+	font-weight: 400;
+}
+
+.licence-meta a {
+	color: var(--accent);
+}
+
+.docs-content .licence-meta code {
+	padding: 0;
+	border: 0;
+	background: none;
+	font-size: 12px;
+	overflow-wrap: anywhere;
+}
+
+.docs-licence .licence-meta,
+.docs-licences > .licence-meta {
+	display: block;
+	margin: 6px 0 10px;
+}
+
+.docs-licence .licence-detail {
+	padding: 0;
+}
+
+.licence-lines,
+.docs-content ol.licence-lines {
+	margin: 0;
+	padding: 10px 14px 10px 0;
+	list-style: none;
+	counter-reset: licence-line;
+	max-height: 360px;
 	overflow: auto;
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	font: 12px/1.6 "Cascadia Mono", ui-monospace, Consolas, monospace;
+	color: var(--fg);
+}
+
+/* The number in a column of its own, drawn rather than written, so a wrapped
+   line hangs under its text and a copy takes the licence alone. */
+.licence-lines li,
+.docs-content .licence-lines li {
+	display: grid;
+	grid-template-columns: 40px minmax(0, 1fr);
+	column-gap: 12px;
+	margin: 0;
+	padding: 0;
+	min-height: 1.6em;
+	line-height: 1.6;
+	font-size: 12px;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	counter-increment: licence-line;
+}
+
+.licence-lines li::before {
+	content: counter(licence-line);
+	text-align: right;
+	color: var(--fg-faint);
+	user-select: none;
+	-webkit-user-select: none;
+}
+
+.made-note {
+	display: block;
+	padding: 14px 16px;
+	line-height: 1.55;
+}
+
+.made-note p {
+	margin: 0;
+}
+
+.made-note p + p {
+	margin-top: 8px;
+	color: var(--fg-muted);
 }
 
 /* ------------------------------------------------- selection preview */

@@ -21,6 +21,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const GENERATED: Record<string, string> = {
 	"src/core/docs/demoLayout.gen.ts": "fold-demo-layout.mjs",
 	"src/core/docs/robloxDemos.gen.ts": "build-roblox-demos.mjs",
+	"src/core/licenceData.ts": "build-licences.mjs",
 	"src/core/luneApi.ts": "build-lune.mjs",
 	"src/core/robloxData.ts": "build-roblox.mjs",
 	"src/core/robloxMembers.ts": "build-members.mjs",

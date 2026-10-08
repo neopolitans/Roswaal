@@ -113,15 +113,19 @@ jobs:
           echo "$out"
           [ "$out" = "${TAG#v}" ] || { echo "::error::The binary says $out, not ${TAG#v}."; exit 1; }
 
+      # The binary carries Node.js and other people's packages, whose licences
+      # ask for their notices to go with every copy: THIRD-PARTY-NOTICES.txt
+      # travels in the zip beside it. build-binary.mjs writes it.
       - name: Zip it
         shell: bash
         run: |
           asset="roswaal-${TAG#v}-${{ matrix.asset }}.zip"
           echo "ASSET=$asset" >> "$GITHUB_ENV"
+          [ -s dist-binary/THIRD-PARTY-NOTICES.txt ] || { echo "::error::No THIRD-PARTY-NOTICES.txt beside the binary."; exit 1; }
           if [ "$RUNNER_OS" = "Windows" ]; then
-            pwsh -NoProfile -Command "Compress-Archive -Path dist-binary/${{ matrix.binary }} -DestinationPath $asset"
+            pwsh -NoProfile -Command "Compress-Archive -Path dist-binary/${{ matrix.binary }},dist-binary/THIRD-PARTY-NOTICES.txt -DestinationPath $asset"
           else
-            (cd dist-binary && zip -9 "../$asset" "${{ matrix.binary }}")
+            (cd dist-binary && zip -9 "../$asset" "${{ matrix.binary }}" THIRD-PARTY-NOTICES.txt)
           fi
 
       - name: Attach it to the release

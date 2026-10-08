@@ -20,6 +20,8 @@ import { defineConfig, type Plugin } from "vite";
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { demoSeedPlugin } from "./scripts/demo-seed.mjs";
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
+import { noticesPlugin, workerNoticesGuard } from "./scripts/notices-plugin.mjs";
+// @ts-expect-error -- build tooling, plain JS, no declarations to import.
 import { themeShellPlugin } from "./scripts/theme-shell.mjs";
 import { APP_PAGES, metaTags } from "./src/core/siteMeta.js";
 
@@ -141,10 +143,14 @@ export default defineConfig({
 		noindexOnCanary(),
 		previewTags(),
 		themeShellPlugin(),
+		noticesPlugin(),
 	],
 	// Module workers, so the worker can import the route table rather than being
 	// handed a bundled copy of it.
-	worker: { format: "es", plugins: () => [roswaalWebHost(), demoSeedPlugin(DEMO)] },
+	worker: {
+		format: "es",
+		plugins: () => [roswaalWebHost(), demoSeedPlugin(DEMO), workerNoticesGuard()],
+	},
 	server: {
 		port: 4472,
 		/**
@@ -169,6 +175,8 @@ export default defineConfig({
 	build: {
 		outDir: "dist-site",
 		emptyOutDir: true,
+		// As in \`vite.config.ts\`: no polyfill, so no third-party code it brings.
+		modulePreload: { polyfill: false },
 		// Three pages, one bundle: the editor, Node Design and the docs, which
 		// share every chunk and differ only in what `pages.ts` reports they are.
 		// Each is a way in; once one is open, the mode strip shows the others in
