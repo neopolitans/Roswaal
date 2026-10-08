@@ -11074,6 +11074,11 @@ p.licence-meta,
 	cursor: pointer;
 }
 
+/* In the grid a name that wraps stays centred in its cell, as one line does. */
+.attr-grid .attr-pick {
+	text-align: center;
+}
+
 .attr-pick:hover {
 	filter: brightness(0.95);
 }

@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.160.2",
+		date: "2026-10-08",
+		headline: "A name that wraps in the attributions grid stays centred.",
+		affects: ["editor", "docs"],
+		fixed: [
+			"In the Attributions page's Simple grid, a name too long for one line, such as **Creator Documentation**, centres each of its lines in the cell, as a name on one line does, rather than keeping them to the left.",
+		],
+	},
+	{
 		version: "0.160.1",
 		date: "2026-10-08",
 		headline: "The attributions grid centred, and two of the bars' details put right.",
