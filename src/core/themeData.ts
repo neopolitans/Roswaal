@@ -286,7 +286,7 @@ export const BUILTIN_THEMES: Theme[] = [
 		"order": 6,
 		"dark": true,
 		"credit": "neopolitans",
-		"source": "https://github.com/neopolitans/Beako",
+		"source": "https://github.com/neopolitans/Roswaal",
 		"colors": {
 			"app": "#161523",
 			"panel": "#0a181e",

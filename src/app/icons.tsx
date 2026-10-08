@@ -1,8 +1,8 @@
 /**
  * The icon set.
  *
- * Material Symbols, taken from the set used in beako so the two tools look
- * like siblings. Path data is inlined rather than loaded as assets: the editor
+ * Material Symbols, one set throughout so every glyph reads as part of the
+ * same tool. Path data is inlined rather than loaded as assets: the editor
  * is served from the daemon on a machine that may be offline, and a font
  * request to Google would be both a dependency and a privacy surprise.
  *

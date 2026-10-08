@@ -150,7 +150,7 @@ export function wiresAndPinsPage({ registry }: PageContext): DocPage {
 			{
 				t: "p",
 				text:
-					"Wires are drawn one of three ways, set under **Settings → Wires**: **Curved**, the " +
+					"Wires are drawn one of three ways, set under **Settings → Canvas → Wires**: **Curved**, the " +
 					"default, **Rigid**, or **Angular**. The pictures in these docs follow that setting, " +
 					"and your **Node corners** too.",
 			},

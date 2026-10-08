@@ -122,7 +122,7 @@ export function controlsPage(): DocPage {
 									],
 									[
 										"**Align**, **Copy**, **Cut**, **Duplicate**, **Delete**, **Paste**, along the bottom",
-										"What their shortcuts do, to the selection. Node Design's logic graph has the same bar. Icons or words: **Settings → Editor → Action buttons**",
+										"What their shortcuts do, to the selection. Node Design's logic graph has the same bar. Icons or words: **Settings → Workspace → Action buttons**",
 									],
 									[
 										"**Preview** and **Logic**, in Node Design on a phone",
@@ -193,7 +193,7 @@ export function controlsPage(): DocPage {
 				rows: [
 					[
 						"Scroll",
-						"Zoom towards the pointer, or pan on a Mac or iPad. **Settings → Editor → Scrolling the graph** changes it",
+						"Zoom towards the pointer, or pan on a Mac or iPad. **Settings → Canvas → Scrolling the graph** changes it",
 					],
 					["Pinch, or `Ctrl` + scroll", "Zoom, towards the pointer"],
 					["Scroll sideways", "Pan"],

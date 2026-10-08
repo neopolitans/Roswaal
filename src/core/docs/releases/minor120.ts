@@ -9,6 +9,28 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.156.0",
+		date: "2026-10-08",
+		headline:
+			"Settings, redone: pages by where they are kept, groups of rows, and a search over all of it.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Search settings**, at the top of the list: finds a setting on any page by its name or by what it does. Esc clears it, and Esc again closes Settings.",
+			'Settings in the docs says where the rest is: "The Settings for your Project and Canvas Style are in Editor Mode", with a link to the editor.',
+		],
+		fixed: [
+			"**Rojo project file** is gone from Settings. Nothing read it, and its note said nothing was written to that file, when a node map writes it: at the map's own **Output**, `default.project.json` unless it says otherwise, and only over a file Roswaal wrote or one handed over with force. A new project's `roswaal.json` no longer names one; an older one that does still loads.",
+			"Attributions, the theme docs and the Aquatic theme no longer link a repository that is not public. Aquatic's source is Roswaal's own.",
+		],
+		changed: [
+			"**Settings lists its pages under where they are kept**: this project's `roswaal.json` (**Compiling** and **Node packs**), and this browser (**Canvas**, **Nodes**, **Workspace**, **Themes** and **Docs**), with **Licences** at the foot.",
+			"The Editor page is three: **Canvas** for the grid, wires, node corners, Realign and scrolling; **Nodes** for long names and what new nodes start as; **Workspace** for writing a graph, the Variables panel, function tabs, the action row and what opens first. The Project page is **Compiling**, and its node packs have a page of their own.",
+			"A page's rows are in groups under a small heading, each a box of its own; segmented choices are pills on a track, and on-off settings are switches.",
+			"The same sheet in the editor, Node Design and the docs, and on the docs site. Node Design leaves out the project's pages, and the docs show only **Themes** and **Docs**.",
+			"[Settings and themes](settings) lists what is on each page, and the docs that sent you to **Settings → Editor** or **Settings → Project** now name the page it is on.",
+		],
+	},
+	{
 		version: "0.155.0",
 		date: "2026-10-07",
 		headline:

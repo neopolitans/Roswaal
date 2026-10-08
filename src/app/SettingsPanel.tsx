@@ -16,7 +16,15 @@
  * too many.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+	createContext,
+	type ReactNode,
+	useContext,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import LUAU_LOGO_LICENCE from "../../notices/upstream/luau-site.txt?raw";
 
 import { INDENT_WIDTHS, type RoswaalConfig, type Target } from "../core/schema.js";
@@ -43,24 +51,48 @@ import {
 } from "./preferences.js";
 import { BUILTIN_THEMES } from "./theme.js";
 
-const TABS = [
-	{ id: "project", title: "Project", sub: "roswaal.json" },
-	{ id: "editor", title: "Editor", sub: "This browser" },
-	{ id: "themes", title: "Themes", sub: "This browser" },
-	{ id: "docs", title: "Docs", sub: "This browser" },
-	{
-		id: "licences",
-		title: "Licences",
-		sub: SHOWS_LUAU_MARK ? "What themes and icons carry" : "What themes carry",
-	},
-] as const;
+/** Where a page's settings are kept, which the list is grouped by. */
+type Keeper = "project" | "browser" | "about";
 
-type TabId = (typeof TABS)[number]["id"];
+const PAGES = [
+	{ id: "compiling", title: "Compiling", keeper: "project" },
+	{ id: "packs", title: "Node packs", keeper: "project" },
+	{ id: "canvas", title: "Canvas", keeper: "browser" },
+	{ id: "nodes", title: "Nodes", keeper: "browser" },
+	{ id: "workspace", title: "Workspace", keeper: "browser" },
+	{ id: "themes", title: "Themes", keeper: "browser" },
+	{ id: "docs", title: "Docs", keeper: "browser" },
+	{ id: "licences", title: "Licences", keeper: "about" },
+] as const satisfies readonly { id: string; title: string; keeper: Keeper }[];
+
+type PageId = (typeof PAGES)[number]["id"];
+
+/** What the list of pages says over each group of them. */
+const KEEPERS: Record<Keeper, { title: string; sub?: string }> = {
+	project: { title: "This project", sub: "roswaal.json" },
+	browser: { title: "This browser" },
+	about: { title: "About" },
+};
+
+/**
+ * The pages a window offers. The editor has a project, and so has the
+ * project's pages; Node Design has none to change. The docs have only what
+ * changes how they read -- the theme and the docs' own -- and say where the
+ * rest is.
+ */
+const OFFERED: Record<SettingsScope, readonly PageId[]> = {
+	editor: PAGES.map((page) => page.id),
+	designer: ["canvas", "nodes", "workspace", "themes", "docs", "licences"],
+	docs: ["themes", "docs", "licences"],
+};
+
+/** Which window Settings is open in. */
+export type SettingsScope = "editor" | "designer" | "docs";
 
 export interface SettingsPanelProps {
 	/**
 	 * The project's root and settings. Absent where there is no project to
-	 * change — the Docs window — and then the Project tab is not offered.
+	 * change, and then its pages are not offered.
 	 */
 	root?: string;
 	config?: RoswaalConfig;
@@ -69,78 +101,213 @@ export interface SettingsPanelProps {
 	onConfig?: (patch: Partial<RoswaalConfig>) => void;
 	onPrefs: (patch: Partial<Preferences>) => void;
 	onClose: () => void;
-	/** Which tab to open on. The first one offered, otherwise. */
-	initialTab?: TabId;
+	/** Which page to open on. The first one offered, otherwise. */
+	initialTab?: PageId;
+	/** The window it is in; the editor's, unless said. */
+	scope?: SettingsScope;
+	/** The editor's address, for the docs' note saying the rest is there. */
+	editorHref?: string;
+}
+
+/**
+ * What the search box holds, and whether the page being drawn matched it by
+ * name -- in which case all of it shows, rows and all.
+ */
+const Search = createContext<{ query: string; page: boolean }>({ query: "", page: false });
+
+/** Whether every word typed is somewhere in the text, ignoring case. */
+export function matches(query: string, ...texts: string[]): boolean {
+	const text = texts.join(" ").toLowerCase();
+	return query
+		.toLowerCase()
+		.split(/\s+/)
+		.filter(Boolean)
+		.every((word) => text.includes(word));
+}
+
+/** The pages a window offers, in order: its scope's, less the project's where there is none. */
+export function settingsPages(scope: SettingsScope, hasProject: boolean) {
+	return PAGES.filter(
+		(page) => OFFERED[scope].includes(page.id) && (page.keeper !== "project" || hasProject),
+	);
 }
 
 export function SettingsPanel(props: SettingsPanelProps) {
 	const { config, onConfig } = props;
-	const tabs = TABS.filter((t) => t.id !== "project" || config !== undefined);
-	const [tab, setTab] = useState<TabId>(props.initialTab ?? tabs[0].id);
+	const scope = props.scope ?? "editor";
+	const offered = settingsPages(scope, config !== undefined);
+	const [tab, setTab] = useState<PageId>(
+		offered.some((page) => page.id === props.initialTab) ? props.initialTab! : offered[0].id,
+	);
+	const [query, setQuery] = useState("");
+	const searching = query.trim() !== "";
 	const panel = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
 		panel.current?.focus();
 	}, []);
 
+	const pageOf = (id: PageId) => {
+		switch (id) {
+			case "compiling":
+				return config && onConfig ? (
+					<CompilingSettings config={config} onConfig={onConfig} />
+				) : null;
+			case "packs":
+				return config && onConfig ? <NodePackSettings config={config} onConfig={onConfig} /> : null;
+			case "canvas":
+				return <CanvasSettings {...props} />;
+			case "nodes":
+				return <NodeSettings {...props} />;
+			case "workspace":
+				return <WorkspaceSettings {...props} />;
+			case "themes":
+				return <ThemeSettings {...props} />;
+			case "docs":
+				return <DocsSettings {...props} />;
+			case "licences":
+				return <Licences />;
+		}
+	};
+	const keepers = (["project", "browser", "about"] as const).filter((keeper) =>
+		offered.some((page) => page.keeper === keeper),
+	);
+
 	return (
 		<div className="docs-backdrop" style={{ zIndex: LAYER.menu + 1 }} onPointerDown={props.onClose}>
 			<div
-				className="docs settings"
+				className="settings-sheet"
+				role="dialog"
+				aria-modal="true"
+				aria-label="Settings"
 				ref={panel}
 				tabIndex={-1}
 				onPointerDown={(e) => e.stopPropagation()}
 				onKeyDown={(e) => {
-					if (e.key === "Escape") {
-						e.preventDefault();
-						props.onClose();
-					}
+					if (e.key !== "Escape") return;
+					e.preventDefault();
+					// Esc clears a search first, then closes.
+					if (searching) setQuery("");
+					else props.onClose();
 				}}
 			>
-				<div className="docs-head">
-					<Icon name="settings" size={16} />
-					<strong>Settings</strong>
-					<span className="sub">{props.root ?? "Preferences for this browser"}</span>
-					<span className="spacer" />
-					<button className="tb" onClick={props.onClose} title="Close (Esc)">
+				<nav className="settings-nav" aria-label="Settings pages">
+					<div className="settings-brand">
+						<Icon name="settings" size={17} />
+						<strong>Settings</strong>
+					</div>
+					<label className="settings-search">
+						<Icon name="search" size={14} />
+						<input
+							type="search"
+							value={query}
+							placeholder="Search settings"
+							aria-label="Search settings"
+							spellCheck={false}
+							onChange={(e) => setQuery(e.target.value)}
+						/>
+					</label>
+					{keepers.map((keeper) => (
+						<div key={keeper} className={cx("settings-keeper", `keeper-${keeper}`)}>
+							{keeper !== "about" && (
+								<div className="settings-keeper-head">
+									{KEEPERS[keeper].title}
+									{KEEPERS[keeper].sub && <code>{KEEPERS[keeper].sub}</code>}
+								</div>
+							)}
+							{offered
+								.filter((page) => page.keeper === keeper)
+								.map((page) => (
+									<button
+										key={page.id}
+										className={cx("settings-link", !searching && tab === page.id && "on")}
+										aria-current={!searching && tab === page.id ? "page" : undefined}
+										onClick={() => {
+											setQuery("");
+											setTab(page.id);
+										}}
+									>
+										{page.title}
+									</button>
+								))}
+						</div>
+					))}
+					{scope === "docs" && (
+						<p className="settings-elsewhere">
+							The Settings for your Project and Canvas Style are in Editor Mode.{" "}
+							{props.editorHref && <a href={props.editorHref}>Switch to Editor Mode</a>}
+						</p>
+					)}
+				</nav>
+
+				<div className="settings-main">
+					<button
+						className="tb icon-only settings-close"
+						onClick={props.onClose}
+						title="Close (Esc)"
+					>
 						<Icon name="close" size={15} />
 					</button>
-				</div>
-
-				<div className="docs-body">
-					<nav className="docs-nav">
-						{tabs.map((t) => (
-							<button
-								key={t.id}
-								className={cx("docs-link settings-tab", tab === t.id && "on")}
-								onClick={() => setTab(t.id)}
-							>
-								<span>{t.title}</span>
-								<span className="settings-tab-sub">{t.sub}</span>
-							</button>
-						))}
-					</nav>
-
-					<div className="settings-page">
-						{tab === "project" && config && onConfig && (
-							<ProjectSettings config={config} onConfig={onConfig} />
-						)}
-						{tab === "editor" && <EditorSettings {...props} />}
-						{tab === "themes" && <ThemeSettings {...props} />}
-						{tab === "docs" && <DocsSettings {...props} />}
-						{tab === "licences" && <Licences />}
-					</div>
+					{searching ? (
+						<div className="settings-results">
+							{offered
+								.filter((page) => page.id !== "licences")
+								.map((page) => (
+									<Search.Provider
+										key={page.id}
+										value={{ query, page: matches(query, page.title) }}
+									>
+										{pageOf(page.id)}
+									</Search.Provider>
+								))}
+							<p className="settings-empty">Nothing in Settings matches “{query.trim()}”.</p>
+						</div>
+					) : (
+						<div className="settings-current">{pageOf(tab)}</div>
+					)}
 				</div>
 			</div>
 		</div>
 	);
 }
 
-// ---------------------------------------------------------------------------
-// Project
-// ---------------------------------------------------------------------------
+/**
+ * One page: its title and what it is for, then its groups. While searching,
+ * one section of the results -- shown only when something in it matched.
+ */
+function Page({ id, note, children }: { id: PageId; note: ReactNode; children: ReactNode }) {
+	const { query, page } = useContext(Search);
+	const title = PAGES.find((p) => p.id === id)?.title ?? "";
+	return (
+		<section className={cx("settings-section", query && page && "matched")} data-page={id}>
+			<header className="settings-page-head">
+				<h2>{title}</h2>
+				<p className="settings-note">{note}</p>
+			</header>
+			{children}
+		</section>
+	);
+}
 
-function ProjectSettings({
+/** Rows that belong together, under a small heading, in one box. */
+function Group({ title, children }: { title: string; children: ReactNode }) {
+	return (
+		<div className="settings-group">
+			<h3>{title}</h3>
+			<div className="settings-box">{children}</div>
+		</div>
+	);
+}
+
+/** What the project's pages say they write to. */
+const PROJECT_NOTE = (
+	<>
+		Written to <code>roswaal.json</code> in the project root. This file is committed, so everyone
+		working on this repository gets these.
+	</>
+);
+
+function CompilingSettings({
 	config,
 	onConfig,
 }: {
@@ -148,148 +315,154 @@ function ProjectSettings({
 	onConfig: (patch: Partial<RoswaalConfig>) => void;
 }) {
 	return (
-		<>
-			<h2>Project</h2>
-			<p className="settings-note">
-				Written to <code>roswaal.json</code> in the project root. This file is committed, so
-				everyone working on this repository gets these.
-			</p>
-
-			<Row
-				label="Target"
-				help="Which flavour of Luau new graphs compile for. Lune is experimental and drops the Roblox nodes."
-			>
-				<select
-					className="tb"
-					value={config.target}
-					onChange={(e) => onConfig({ target: e.target.value as Target })}
+		<Page id="compiling" note={PROJECT_NOTE}>
+			<Group title="Files">
+				<Row
+					label="Target"
+					help="Which flavour of Luau new graphs compile for. Lune is experimental and drops the Roblox nodes."
 				>
-					<option value="roblox">Roblox</option>
-					<option value="lune">Lune (experimental)</option>
-				</select>
-			</Row>
-
-			<Row
-				label="Graphs live in"
-				help="Where .nodescript and .nodemap files are read from, relative to the project root."
-			>
-				<TextSetting value={config.sourceDir} onCommit={(v) => onConfig({ sourceDir: v })} />
-			</Row>
-
-			<Row
-				label="Compiled Luau goes to"
-				help="Where generated .luau is written. This is the directory Rojo syncs."
-			>
-				<TextSetting value={config.outDir} onCommit={(v) => onConfig({ outDir: v })} />
-			</Row>
-
-			<Row
-				label="Rojo project file"
-				help="Left for Rojo. Where a file lands in the DataModel comes from your node maps, and nothing is written to this file."
-			>
-				<TextSetting
-					value={config.rojoProject ?? ""}
-					placeholder="default.project.json"
-					onCommit={(v) => onConfig({ rojoProject: v === "" ? undefined : v })}
-				/>
-			</Row>
-
-			<Row
-				label="Compile"
-				help="Dynamic recompiles a graph every time it is saved, which is every edit. Manual waits to be asked. Written into roswaal.json, where Dynamic is stored as “hot”."
-			>
-				<div className="segmented">
-					<button
-						className={config.compileMode === "manual" ? "on" : ""}
-						onClick={() => onConfig({ compileMode: "manual" })}
-					>
-						Manual
-					</button>
-					<button
-						className={config.compileMode === "hot" ? "on" : ""}
-						onClick={() => onConfig({ compileMode: "hot" })}
-					>
-						Dynamic
-					</button>
-				</div>
-			</Row>
-
-			<Row
-				label="Format generated files"
-				help="Runs stylua over the output when it is on PATH. When it is not, the file is written unformatted rather than not written."
-			>
-				<Toggle
-					on={config.format}
-					onChange={(on) => onConfig({ format: on })}
-					label={config.format ? "With stylua, when available" : "Leave as emitted"}
-				/>
-			</Row>
-
-			<Row
-				label="Comment headers"
-				help="Writes each comment's header into the generated Luau, above the code of the nodes it is drawn around. Off keeps them in the editor, which is what other visual scripting tools do — turn it off if that is the habit you have."
-			>
-				<Toggle
-					on={config.comments}
-					onChange={(on) => onConfig({ comments: on })}
-					label={config.comments ? "Written into the file" : "Kept on the canvas"}
-				/>
-			</Row>
-
-			<Row
-				label="Casts proved by a subclass"
-				help="An Implicit Cast inside an Is A branch is left out when the branch proved exactly its classes. On, it is also left out when the branch proved a class derived from the one it casts to — Is A Part covering a cast to BasePart."
-			>
-				<Toggle
-					on={config.castsByHierarchy === true}
-					onChange={(on) => onConfig({ castsByHierarchy: on })}
-					label={config.castsByHierarchy ? "Left out" : "Written"}
-				/>
-			</Row>
-
-			<Row
-				label="Indent with"
-				help="One level of indentation in the generated Luau. Handed to stylua as well when formatting is on, so this decides rather than stylua.toml."
-			>
-				<div className="segmented">
-					<button
-						className={config.indentStyle !== "space" ? "on" : ""}
-						onClick={() => onConfig({ indentStyle: "tab" })}
-					>
-						Tab
-					</button>
-					<button
-						className={config.indentStyle === "space" ? "on" : ""}
-						onClick={() => onConfig({ indentStyle: "space" })}
-					>
-						Spaces
-					</button>
-				</div>
-			</Row>
-
-			{config.indentStyle === "space" && (
-				<Row label="Spaces per level" help="How wide one level is.">
 					<select
 						className="tb"
-						value={String(config.indentWidth)}
-						onChange={(e) => onConfig({ indentWidth: Number(e.target.value) })}
+						value={config.target}
+						onChange={(e) => onConfig({ target: e.target.value as Target })}
 					>
-						{INDENT_WIDTHS.map((width) => (
-							<option key={width} value={width}>
-								{width}
-							</option>
-						))}
+						<option value="roblox">Roblox</option>
+						<option value="lune">Lune (experimental)</option>
 					</select>
 				</Row>
-			)}
 
-			<h3>Node packs</h3>
-			<p className="settings-note">
-				Directories scanned for <code>.nodedef.json</code>. A pack's nodes join the palette and get
-				their own reference pages, built from the same registry the built-in ones use.
-			</p>
-			<PathList paths={config.nodePaths} onChange={(nodePaths) => onConfig({ nodePaths })} />
-		</>
+				<Row
+					label="Graphs live in"
+					help="Where .nodescript and .nodemap files are read from, relative to the project root."
+				>
+					<TextSetting value={config.sourceDir} onCommit={(v) => onConfig({ sourceDir: v })} />
+				</Row>
+
+				<Row
+					label="Compiled Luau goes to"
+					help="Where generated .luau is written. This is the directory Rojo syncs."
+				>
+					<TextSetting value={config.outDir} onCommit={(v) => onConfig({ outDir: v })} />
+				</Row>
+			</Group>
+
+			<Group title="Compiling">
+				<Row
+					label="Compile"
+					help="Dynamic recompiles a graph every time it is saved, which is every edit. Manual waits to be asked. Written into roswaal.json, where Dynamic is stored as “hot”."
+				>
+					<div className="segmented">
+						<button
+							className={config.compileMode === "manual" ? "on" : ""}
+							onClick={() => onConfig({ compileMode: "manual" })}
+						>
+							Manual
+						</button>
+						<button
+							className={config.compileMode === "hot" ? "on" : ""}
+							onClick={() => onConfig({ compileMode: "hot" })}
+						>
+							Dynamic
+						</button>
+					</div>
+				</Row>
+
+				<Row
+					label="Format generated files"
+					help="Runs stylua over the output when it is on PATH. When it is not, the file is written unformatted rather than not written."
+				>
+					<Toggle
+						on={config.format}
+						onChange={(on) => onConfig({ format: on })}
+						label={config.format ? "With stylua, when available" : "Leave as emitted"}
+					/>
+				</Row>
+
+				<Row
+					label="Comment headers"
+					help="Writes each comment's header into the generated Luau, above the code of the nodes it is drawn around. Off keeps them in the editor, which is what other visual scripting tools do — turn it off if that is the habit you have."
+				>
+					<Toggle
+						on={config.comments}
+						onChange={(on) => onConfig({ comments: on })}
+						label={config.comments ? "Written into the file" : "Kept on the canvas"}
+					/>
+				</Row>
+
+				<Row
+					label="Casts proved by a subclass"
+					help="An Implicit Cast inside an Is A branch is left out when the branch proved exactly its classes. On, it is also left out when the branch proved a class derived from the one it casts to — Is A Part covering a cast to BasePart."
+				>
+					<Toggle
+						on={config.castsByHierarchy === true}
+						onChange={(on) => onConfig({ castsByHierarchy: on })}
+						label={config.castsByHierarchy ? "Left out" : "Written"}
+					/>
+				</Row>
+			</Group>
+
+			<Group title="Indentation">
+				<Row
+					label="Indent with"
+					help="One level of indentation in the generated Luau. Handed to stylua as well when formatting is on, so this decides rather than stylua.toml."
+				>
+					<div className="segmented">
+						<button
+							className={config.indentStyle !== "space" ? "on" : ""}
+							onClick={() => onConfig({ indentStyle: "tab" })}
+						>
+							Tab
+						</button>
+						<button
+							className={config.indentStyle === "space" ? "on" : ""}
+							onClick={() => onConfig({ indentStyle: "space" })}
+						>
+							Spaces
+						</button>
+					</div>
+				</Row>
+
+				{config.indentStyle === "space" && (
+					<Row label="Spaces per level" help="How wide one level is.">
+						<select
+							className="tb"
+							value={String(config.indentWidth)}
+							onChange={(e) => onConfig({ indentWidth: Number(e.target.value) })}
+						>
+							{INDENT_WIDTHS.map((width) => (
+								<option key={width} value={width}>
+									{width}
+								</option>
+							))}
+						</select>
+					</Row>
+				)}
+			</Group>
+		</Page>
+	);
+}
+
+function NodePackSettings({
+	config,
+	onConfig,
+}: {
+	config: RoswaalConfig;
+	onConfig: (patch: Partial<RoswaalConfig>) => void;
+}) {
+	return (
+		<Page
+			id="packs"
+			note="Directories scanned for .nodedef.json. A pack's nodes join the palette and get their own reference pages, built from the same registry the built-in ones use."
+		>
+			<Group title="Scanned directories">
+				<Row
+					label="Pack directories"
+					help="Relative to the project root. Removing one stops it being scanned; the pack itself is not touched."
+				>
+					<PathList paths={config.nodePaths} onChange={(nodePaths) => onConfig({ nodePaths })} />
+				</Row>
+			</Group>
+		</Page>
 	);
 }
 
@@ -297,314 +470,350 @@ function ProjectSettings({
 // Editor
 // ---------------------------------------------------------------------------
 
-function EditorSettings({ prefs, onPrefs }: SettingsPanelProps) {
+function CanvasSettings({ prefs, onPrefs }: SettingsPanelProps) {
 	return (
-		<>
-			<h2>Editor</h2>
-			<p className="settings-note">
-				Stored in this browser and nowhere else. They do not travel with the project and they never
-				appear in a diff.
-			</p>
+		<Page
+			id="canvas"
+			note="How graphs are drawn and moved around. Kept in this browser, and never in a diff."
+		>
+			<Group title="The grid">
+				<Row
+					label="Grid"
+					help={GRID_PATTERNS.find((g) => g.value === prefs.gridPattern)?.what ?? ""}
+				>
+					<div className="segmented">
+						{GRID_PATTERNS.map((g) => (
+							<button
+								key={g.value}
+								className={prefs.gridPattern === g.value ? "on" : ""}
+								title={g.what}
+								onClick={() => onPrefs({ gridPattern: g.value })}
+							>
+								{g.label}
+							</button>
+						))}
+					</div>
+				</Row>
 
-			<Row
-				label="Realign"
-				help="Straighten places each node where the execution wire arriving at it comes out flat, so a run of nodes reads as one line. Columns is the plain grid."
-			>
-				<div className="segmented">
-					{/* The same word the toolbar button uses. One name for one thing —
+				<Row
+					label="Grid contrast"
+					help={GRID_CONTRASTS.find((g) => g.value === prefs.gridContrast)?.what ?? ""}
+				>
+					<div className="segmented">
+						{GRID_CONTRASTS.map((g) => (
+							<button
+								key={g.value}
+								className={prefs.gridContrast === g.value ? "on" : ""}
+								title={g.what}
+								onClick={() => onPrefs({ gridContrast: g.value })}
+							>
+								{g.label}
+							</button>
+						))}
+					</div>
+				</Row>
+			</Group>
+
+			<Group title="Wires and nodes">
+				<Row label="Wires" help={WIRE_STYLES.find((w) => w.style === prefs.wireStyle)?.what ?? ""}>
+					<div className="segmented">
+						{WIRE_STYLES.map((w) => (
+							<button
+								key={w.style}
+								className={prefs.wireStyle === w.style ? "on" : ""}
+								title={w.what}
+								onClick={() => onPrefs({ wireStyle: w.style })}
+							>
+								{w.label}
+							</button>
+						))}
+					</div>
+				</Row>
+
+				<Row
+					label="Realign"
+					help="Straighten places each node where the execution wire arriving at it comes out flat, so a run of nodes reads as one line. Columns is the plain grid."
+				>
+					<div className="segmented">
+						{/* The same word the toolbar button uses. One name for one thing —
 					    and it is short enough not to wrap, which a two-line half of a
 					    segmented control does at this column width. */}
-					<button
-						className={prefs.alignExec ? "on" : ""}
-						onClick={() => onPrefs({ alignExec: true })}
-					>
-						Straighten
-					</button>
-					<button
-						className={!prefs.alignExec ? "on" : ""}
-						onClick={() => onPrefs({ alignExec: false })}
-					>
-						Columns
-					</button>
-				</div>
-			</Row>
-
-			<Row label="Wires" help={WIRE_STYLES.find((w) => w.style === prefs.wireStyle)?.what ?? ""}>
-				<div className="segmented">
-					{WIRE_STYLES.map((w) => (
 						<button
-							key={w.style}
-							className={prefs.wireStyle === w.style ? "on" : ""}
-							title={w.what}
-							onClick={() => onPrefs({ wireStyle: w.style })}
+							className={prefs.alignExec ? "on" : ""}
+							onClick={() => onPrefs({ alignExec: true })}
 						>
-							{w.label}
+							Straighten
 						</button>
-					))}
-				</div>
-			</Row>
-
-			<Row
-				label="Node corners"
-				help="Capsule getters and reroute knots keep their shapes either way — a pill and a circle are what say “this is a value” and “this is a bend in the wire”, and they have no title to say it instead."
-			>
-				<div className="segmented">
-					<button
-						className={prefs.roundedNodes ? "on" : ""}
-						onClick={() => onPrefs({ roundedNodes: true })}
-					>
-						Rounded
-					</button>
-					<button
-						className={!prefs.roundedNodes ? "on" : ""}
-						onClick={() => onPrefs({ roundedNodes: false })}
-					>
-						Square
-					</button>
-				</div>
-			</Row>
-
-			<Row label="Grid" help={GRID_PATTERNS.find((g) => g.value === prefs.gridPattern)?.what ?? ""}>
-				<div className="segmented">
-					{GRID_PATTERNS.map((g) => (
 						<button
-							key={g.value}
-							className={prefs.gridPattern === g.value ? "on" : ""}
-							title={g.what}
-							onClick={() => onPrefs({ gridPattern: g.value })}
+							className={!prefs.alignExec ? "on" : ""}
+							onClick={() => onPrefs({ alignExec: false })}
 						>
-							{g.label}
+							Columns
 						</button>
-					))}
-				</div>
-			</Row>
+					</div>
+				</Row>
 
-			<Row
-				label="Grid contrast"
-				help={GRID_CONTRASTS.find((g) => g.value === prefs.gridContrast)?.what ?? ""}
-			>
-				<div className="segmented">
-					{GRID_CONTRASTS.map((g) => (
-						<button
-							key={g.value}
-							className={prefs.gridContrast === g.value ? "on" : ""}
-							title={g.what}
-							onClick={() => onPrefs({ gridContrast: g.value })}
-						>
-							{g.label}
-						</button>
-					))}
-				</div>
-			</Row>
-
-			<Row
-				label="Long names"
-				help="A node's header is fixed at one width, so a long name is cut short with the whole of it in the tooltip. Widening instead moves the node's pins, so wires and the pictures in the documentation are drawn from the same width."
-			>
-				<div className="segmented">
-					<button
-						className={!prefs.wideNodes ? "on" : ""}
-						onClick={() => onPrefs({ wideNodes: false })}
-					>
-						Truncate
-					</button>
-					<button
-						className={prefs.wideNodes ? "on" : ""}
-						onClick={() => onPrefs({ wideNodes: true })}
-					>
-						Widen
-					</button>
-				</div>
-			</Row>
-
-			<Row
-				label="New logic nodes"
-				help="What a new And, Or, Not or comparison pill starts as. Stored on the node, so it travels with the graph; this only decides where a new one begins. Precedence is handled either way."
-			>
-				<div className="segmented">
-					<button
-						className={!prefs.logicParens ? "on" : ""}
-						onClick={() => onPrefs({ logicParens: false })}
-					>
-						Bare
-					</button>
-					<button
-						className={prefs.logicParens ? "on" : ""}
-						onClick={() => onPrefs({ logicParens: true })}
-					>
-						Bracketed
-					</button>
-				</div>
-			</Row>
-
-			<Row
-				label="New cast nodes"
-				help="What a new Cast pill writes in its middle: Luau's :: , or the node's name. Stored on the node, because it sets the pill's width — this only decides where a new one begins."
-			>
-				<div className="segmented">
-					<button
-						className={!prefs.castNames ? "on" : ""}
-						onClick={() => onPrefs({ castNames: false })}
-					>
-						Symbol
-					</button>
-					<button
-						className={prefs.castNames ? "on" : ""}
-						onClick={() => onPrefs({ castNames: true })}
-					>
-						Name
-					</button>
-				</div>
-			</Row>
-
-			<Row
-				label="New concatenate nodes"
-				help="What a new Concatenate writes: a join with .. , or Luau's interpolated string with the values in braces. Stored on the node, since it is part of the generated file — this only decides where a new one begins."
-			>
-				<div className="segmented">
-					<button
-						className={!prefs.concatInterpolate ? "on" : ""}
-						onClick={() => onPrefs({ concatInterpolate: false })}
-					>
-						Join
-					</button>
-					<button
-						className={prefs.concatInterpolate ? "on" : ""}
-						onClick={() => onPrefs({ concatInterpolate: true })}
-					>
-						Interpolate
-					</button>
-				</div>
-			</Row>
-
-			<Row
-				label="Variables"
-				help="In a dock beside the graph, or in a window over it that you drag and resize. The window remembers where you put it."
-			>
-				<div className="segmented">
-					<button
-						className={!prefs.layout.panels.variables.floating ? "on" : ""}
-						onClick={() =>
-							onPrefs({
-								layout: floatPanel(prefs.layout, "variables", false),
-							})
-						}
-					>
-						Docked
-					</button>
-					<button
-						className={prefs.layout.panels.variables.floating ? "on" : ""}
-						onClick={() =>
-							onPrefs({
-								layout: floatPanel(prefs.layout, "variables", true),
-							})
-						}
-					>
-						Window
-					</button>
-				</div>
-			</Row>
-
-			<Row
-				label="Shorten function tabs"
-				help="A function's tab reads ƒ hide (Occupancy): the function, then its script. The tooltip keeps both names."
-			>
-				<div className="segmented">
-					{FUNCTION_TAB_CHOICES.map((choice) => (
-						<button
-							key={choice.value}
-							className={prefs.functionTabs === choice.value ? "on" : ""}
-							title={choice.what}
-							onClick={() => onPrefs({ functionTabs: choice.value })}
-						>
-							{choice.label}
-						</button>
-					))}
-				</div>
-			</Row>
-
-			<Row
-				label="Write a graph"
-				help="There is no unsaved copy of a graph — the file is the document — so this is how long after your last edit it is written, not whether it is."
-			>
-				<select
-					className="tb"
-					value={prefs.autosaveMs}
-					onChange={(e) => onPrefs({ autosaveMs: Number(e.target.value) })}
+				<Row
+					label="Node corners"
+					help="Capsule getters and reroute knots keep their shapes either way — a pill and a circle are what say “this is a value” and “this is a bend in the wire”, and they have no title to say it instead."
 				>
-					{AUTOSAVE_CHOICES.map((c) => (
-						<option key={c.ms} value={c.ms}>
-							{c.label}
-						</option>
-					))}
-				</select>
-			</Row>
-
-			<Row
-				label="Scrolling the graph"
-				help={WHEEL_CHOICES.find((c) => c.value === prefs.wheel)?.what ?? ""}
-			>
-				<div className="segmented">
-					{WHEEL_CHOICES.map((c) => (
+					<div className="segmented">
 						<button
-							key={c.value}
-							className={prefs.wheel === c.value ? "on" : ""}
-							title={c.what}
-							onClick={() => onPrefs({ wheel: c.value })}
+							className={prefs.roundedNodes ? "on" : ""}
+							onClick={() => onPrefs({ roundedNodes: true })}
 						>
-							{c.label}
+							Rounded
 						</button>
-					))}
-				</div>
-			</Row>
-
-			<Row
-				label="Action buttons"
-				help={`Under the graph on a phone or a tablet. ${ACTION_LABEL_CHOICES.find((c) => c.value === prefs.actionLabels)?.what ?? ""}`}
-			>
-				<div className="segmented">
-					{ACTION_LABEL_CHOICES.map((c) => (
 						<button
-							key={c.value}
-							className={prefs.actionLabels === c.value ? "on" : ""}
-							onClick={() => onPrefs({ actionLabels: c.value })}
+							className={!prefs.roundedNodes ? "on" : ""}
+							onClick={() => onPrefs({ roundedNodes: false })}
 						>
-							{c.label}
+							Square
 						</button>
-					))}
-				</div>
-			</Row>
+					</div>
+				</Row>
+			</Group>
 
-			<Row
-				label="Action row"
-				help={`Under the graph on a phone or a tablet. ${ACTION_ROW_CHOICES.find((c) => c.value === prefs.actionRow)?.what ?? ""}`}
-			>
-				<div className="segmented">
-					{ACTION_ROW_CHOICES.map((c) => (
+			<Group title="Moving around">
+				<Row
+					label="Scrolling the graph"
+					help={WHEEL_CHOICES.find((c) => c.value === prefs.wheel)?.what ?? ""}
+				>
+					<div className="segmented">
+						{WHEEL_CHOICES.map((c) => (
+							<button
+								key={c.value}
+								className={prefs.wheel === c.value ? "on" : ""}
+								title={c.what}
+								onClick={() => onPrefs({ wheel: c.value })}
+							>
+								{c.label}
+							</button>
+						))}
+					</div>
+				</Row>
+			</Group>
+		</Page>
+	);
+}
+
+function NodeSettings({ prefs, onPrefs }: SettingsPanelProps) {
+	return (
+		<Page
+			id="nodes"
+			note="How nodes are drawn, and what a new one starts as. Kept in this browser; what a node is set to travels with its graph."
+		>
+			<Group title="Names">
+				<Row
+					label="Long names"
+					help="A node's header is fixed at one width, so a long name is cut short with the whole of it in the tooltip. Widening instead moves the node's pins, so wires and the pictures in the documentation are drawn from the same width."
+				>
+					<div className="segmented">
 						<button
-							key={c.value}
-							className={prefs.actionRow === c.value ? "on" : ""}
-							onClick={() => onPrefs({ actionRow: c.value })}
+							className={!prefs.wideNodes ? "on" : ""}
+							onClick={() => onPrefs({ wideNodes: false })}
 						>
-							{c.label}
+							Truncate
 						</button>
-					))}
-				</div>
-			</Row>
+						<button
+							className={prefs.wideNodes ? "on" : ""}
+							onClick={() => onPrefs({ wideNodes: true })}
+						>
+							Widen
+						</button>
+					</div>
+				</Row>
+			</Group>
 
-			<Row
-				label="On opening Roswaal"
-				help="The daemon serves one project; this is only about which one this tab starts on."
-			>
-				<Toggle
-					on={prefs.reopenLastProject}
-					onChange={(on) => onPrefs({ reopenLastProject: on })}
-					label={
-						prefs.reopenLastProject ? "Reopen the last project" : "Start at the project picker"
-					}
-				/>
-			</Row>
-		</>
+			<Group title="New nodes">
+				<Row
+					label="New logic nodes"
+					help="What a new And, Or, Not or comparison pill starts as. Stored on the node, so it travels with the graph; this only decides where a new one begins. Precedence is handled either way."
+				>
+					<div className="segmented">
+						<button
+							className={!prefs.logicParens ? "on" : ""}
+							onClick={() => onPrefs({ logicParens: false })}
+						>
+							Bare
+						</button>
+						<button
+							className={prefs.logicParens ? "on" : ""}
+							onClick={() => onPrefs({ logicParens: true })}
+						>
+							Bracketed
+						</button>
+					</div>
+				</Row>
+
+				<Row
+					label="New cast nodes"
+					help="What a new Cast pill writes in its middle: Luau's :: , or the node's name. Stored on the node, because it sets the pill's width — this only decides where a new one begins."
+				>
+					<div className="segmented">
+						<button
+							className={!prefs.castNames ? "on" : ""}
+							onClick={() => onPrefs({ castNames: false })}
+						>
+							Symbol
+						</button>
+						<button
+							className={prefs.castNames ? "on" : ""}
+							onClick={() => onPrefs({ castNames: true })}
+						>
+							Name
+						</button>
+					</div>
+				</Row>
+
+				<Row
+					label="New concatenate nodes"
+					help="What a new Concatenate writes: a join with .. , or Luau's interpolated string with the values in braces. Stored on the node, since it is part of the generated file — this only decides where a new one begins."
+				>
+					<div className="segmented">
+						<button
+							className={!prefs.concatInterpolate ? "on" : ""}
+							onClick={() => onPrefs({ concatInterpolate: false })}
+						>
+							Join
+						</button>
+						<button
+							className={prefs.concatInterpolate ? "on" : ""}
+							onClick={() => onPrefs({ concatInterpolate: true })}
+						>
+							Interpolate
+						</button>
+					</div>
+				</Row>
+			</Group>
+		</Page>
+	);
+}
+
+function WorkspaceSettings({ prefs, onPrefs }: SettingsPanelProps) {
+	return (
+		<Page
+			id="workspace"
+			note="How the editor saves, and what sits around the graph. Kept in this browser."
+		>
+			<Group title="Saving">
+				<Row
+					label="Write a graph"
+					help="There is no unsaved copy of a graph — the file is the document — so this is how long after your last edit it is written, not whether it is."
+				>
+					<select
+						className="tb"
+						value={prefs.autosaveMs}
+						onChange={(e) => onPrefs({ autosaveMs: Number(e.target.value) })}
+					>
+						{AUTOSAVE_CHOICES.map((c) => (
+							<option key={c.ms} value={c.ms}>
+								{c.label}
+							</option>
+						))}
+					</select>
+				</Row>
+			</Group>
+
+			<Group title="Panels and tabs">
+				<Row
+					label="Variables"
+					help="In a dock beside the graph, or in a window over it that you drag and resize. The window remembers where you put it."
+				>
+					<div className="segmented">
+						<button
+							className={!prefs.layout.panels.variables.floating ? "on" : ""}
+							onClick={() =>
+								onPrefs({
+									layout: floatPanel(prefs.layout, "variables", false),
+								})
+							}
+						>
+							Docked
+						</button>
+						<button
+							className={prefs.layout.panels.variables.floating ? "on" : ""}
+							onClick={() =>
+								onPrefs({
+									layout: floatPanel(prefs.layout, "variables", true),
+								})
+							}
+						>
+							Window
+						</button>
+					</div>
+				</Row>
+
+				<Row
+					label="Shorten function tabs"
+					help="A function's tab reads ƒ hide (Occupancy): the function, then its script. The tooltip keeps both names."
+				>
+					<div className="segmented">
+						{FUNCTION_TAB_CHOICES.map((choice) => (
+							<button
+								key={choice.value}
+								className={prefs.functionTabs === choice.value ? "on" : ""}
+								title={choice.what}
+								onClick={() => onPrefs({ functionTabs: choice.value })}
+							>
+								{choice.label}
+							</button>
+						))}
+					</div>
+				</Row>
+			</Group>
+
+			<Group title="On a phone or a tablet">
+				<Row
+					label="Action buttons"
+					help={`Under the graph on a phone or a tablet. ${ACTION_LABEL_CHOICES.find((c) => c.value === prefs.actionLabels)?.what ?? ""}`}
+				>
+					<div className="segmented">
+						{ACTION_LABEL_CHOICES.map((c) => (
+							<button
+								key={c.value}
+								className={prefs.actionLabels === c.value ? "on" : ""}
+								onClick={() => onPrefs({ actionLabels: c.value })}
+							>
+								{c.label}
+							</button>
+						))}
+					</div>
+				</Row>
+
+				<Row
+					label="Action row"
+					help={`Under the graph on a phone or a tablet. ${ACTION_ROW_CHOICES.find((c) => c.value === prefs.actionRow)?.what ?? ""}`}
+				>
+					<div className="segmented">
+						{ACTION_ROW_CHOICES.map((c) => (
+							<button
+								key={c.value}
+								className={prefs.actionRow === c.value ? "on" : ""}
+								onClick={() => onPrefs({ actionRow: c.value })}
+							>
+								{c.label}
+							</button>
+						))}
+					</div>
+				</Row>
+			</Group>
+
+			<Group title="Starting">
+				<Row
+					label="On opening Roswaal"
+					help="The daemon serves one project; this is only about which one this tab starts on."
+				>
+					<Toggle
+						on={prefs.reopenLastProject}
+						onChange={(on) => onPrefs({ reopenLastProject: on })}
+						label={
+							prefs.reopenLastProject ? "Reopen the last project" : "Start at the project picker"
+						}
+					/>
+				</Row>
+			</Group>
+		</Page>
 	);
 }
 
@@ -615,47 +824,47 @@ function EditorSettings({ prefs, onPrefs }: SettingsPanelProps) {
 function DocsSettings({ prefs, onPrefs }: SettingsPanelProps) {
 	const percent = Math.round(prefs.docsPreviewScale * 100);
 	return (
-		<>
-			<h2>Docs</h2>
-			<p className="settings-note">
-				How the documentation reads. Stored in this browser, like the editor's settings.
-			</p>
+		<Page
+			id="docs"
+			note="How the documentation reads. Kept in this browser, like the editor's settings."
+		>
+			<Group title="Reading">
+				<Row label="Font" help={DOCS_FONTS.find((f) => f.font === prefs.docsFont)?.what ?? ""}>
+					<div className="segmented">
+						{DOCS_FONTS.map((f) => (
+							<button
+								key={f.font}
+								className={prefs.docsFont === f.font ? "on" : ""}
+								title={f.what}
+								onClick={() => onPrefs({ docsFont: f.font })}
+							>
+								{f.label}
+							</button>
+						))}
+					</div>
+				</Row>
 
-			<Row label="Font" help={DOCS_FONTS.find((f) => f.font === prefs.docsFont)?.what ?? ""}>
-				<div className="segmented">
-					{DOCS_FONTS.map((f) => (
-						<button
-							key={f.font}
-							className={prefs.docsFont === f.font ? "on" : ""}
-							title={f.what}
-							onClick={() => onPrefs({ docsFont: f.font })}
-						>
-							{f.label}
-						</button>
-					))}
-				</div>
-			</Row>
-
-			<Row
-				label="Preview size"
-				help="How large node and graph pictures are drawn. A graph bigger than its frame can be dragged around."
-			>
-				<div className="settings-range">
-					<input
-						type="range"
-						aria-label="Preview size"
-						min={PREVIEW_SCALE.min * 100}
-						max={PREVIEW_SCALE.max * 100}
-						step={PREVIEW_SCALE.step * 100}
-						value={percent}
-						onChange={(e) =>
-							onPrefs({ docsPreviewScale: previewScaleOf(Number(e.target.value) / 100) })
-						}
-					/>
-					<span className="value">{percent}%</span>
-				</div>
-			</Row>
-		</>
+				<Row
+					label="Preview size"
+					help="How large node and graph pictures are drawn. A graph bigger than its frame can be dragged around."
+				>
+					<div className="settings-range">
+						<input
+							type="range"
+							aria-label="Preview size"
+							min={PREVIEW_SCALE.min * 100}
+							max={PREVIEW_SCALE.max * 100}
+							step={PREVIEW_SCALE.step * 100}
+							value={percent}
+							onChange={(e) =>
+								onPrefs({ docsPreviewScale: previewScaleOf(Number(e.target.value) / 100) })
+							}
+						/>
+						<span className="value">{percent}%</span>
+					</div>
+				</Row>
+			</Group>
+		</Page>
 	);
 }
 
@@ -671,13 +880,14 @@ function ThemeSettings({ prefs, onPrefs }: SettingsPanelProps) {
 	const chosen = schemes.find((t) => t.name === prefs.theme);
 
 	return (
-		<>
-			<h2>Themes</h2>
-			<p className="settings-note">
-				One JSON file each, in <code>themes/</code>. Roswaal and Beako use the same format, so a
-				scheme written for one reads in the other.
-			</p>
-
+		<Page
+			id="themes"
+			note={
+				<>
+					One JSON file each, in <code>themes/</code>, with every colour a theme sets named in it.
+				</>
+			}
+		>
 			<div className="theme-grid">
 				<button
 					className={cx("theme-card", prefs.theme === null && "on")}
@@ -732,7 +942,7 @@ function ThemeSettings({ prefs, onPrefs }: SettingsPanelProps) {
 				scheme is dark, so a palette cannot ship a hover state that is invisible on its own
 				background.
 			</p>
-		</>
+		</Page>
 	);
 }
 
@@ -842,13 +1052,15 @@ function Licences() {
 	const seen = new Set<string>();
 
 	return (
-		<>
-			<h2>Licences</h2>
-			<p className="settings-note">
-				Roswaal is 0BSD. These are the schemes{SHOWS_LUAU_MARK ? " and the icon" : ""} that are
-				somebody else's work, and the terms they came with.
-			</p>
-
+		<Page
+			id="licences"
+			note={
+				<>
+					Roswaal is 0BSD. These are the schemes{SHOWS_LUAU_MARK ? " and the icon" : ""} that are
+					somebody else's work, and the terms they came with.
+				</>
+			}
+		>
 			{carried.map((theme) => {
 				const licence = theme.licence!;
 				const first = !seen.has(licence.textFile);
@@ -893,7 +1105,7 @@ function Licences() {
 				third-party claim. Everything Roswaal ships is listed on the Attributions page in the docs,
 				and in <code>ATTRIBUTIONS.md</code>.
 			</p>
-		</>
+		</Page>
 	);
 }
 
@@ -910,6 +1122,8 @@ function Row({
 	help: string;
 	children: React.ReactNode;
 }) {
+	const { query, page } = useContext(Search);
+	if (query && !page && !matches(query, label, help)) return null;
 	return (
 		<div className="setting">
 			<div className="setting-label">

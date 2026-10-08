@@ -19,8 +19,8 @@
  *
  * ## Why `localStorage` and not a file
  *
- * The daemon could store these, and Beako's browser does exactly that in
- * `.beako/UserPreferences.json`. The reason not to here is `/docs`: the
+ * The daemon could store these, in a preferences file in the project, as some
+ * tools do. The reason not to here is `/docs`: the
  * documentation is a second window onto the same bundle at the same origin, and
  * it is also served as a *static site* with no daemon behind it at all. Only
  * `localStorage` is readable in every one of those cases, so it is the one

@@ -12,10 +12,9 @@ neither has gained an entry the other is missing.
 
 ## The names
 
-**Roswaal** and its sibling tool **[Beako](https://github.com/neopolitans/Beako)**
-are named after characters from *Re:Zero − Starting Life in Another World* —
-Roswaal L. Mathers and Beatrice — created by Tappei Nagatsuki and published by
-KADOKAWA. The names are a fan's homage.
+**Roswaal** is named after a character from *Re:Zero − Starting Life in Another
+World* — Roswaal L. Mathers — created by Tappei Nagatsuki and published by
+KADOKAWA. The name is a fan's homage.
 
 **This project is not affiliated with, endorsed by, or approved by KADOKAWA,
 Tappei Nagatsuki, or the Re:Zero project**, and claims no rights in those names

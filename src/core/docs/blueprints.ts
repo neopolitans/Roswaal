@@ -79,10 +79,8 @@ export const BLUEPRINT_MAP: MappingSection[] = [
 			},
 			{
 				unreal: "Content Browser",
-				roswaal: "The project tree, and Beako",
-				note:
-					"The tree shows graphs and generated files side by side. Beako is the sibling tool " +
-					"for browsing the rest of a Roblox project.",
+				roswaal: "The project tree",
+				note: "The tree shows graphs and generated files side by side.",
 			},
 		],
 	},
@@ -136,7 +134,7 @@ export const BLUEPRINT_MAP: MappingSection[] = [
 					"before it surprises you: Roswaal **writes a comment's header into the generated " +
 					"Luau**, above the code of the nodes it encloses. Unreal keeps a comment entirely " +
 					"in the editor and so does every other visual scripting tool, so this is the " +
-					"habit to unlearn — or to keep, with **Settings → Project → Comment headers** " +
+					"habit to unlearn — or to keep, with **Settings → Compiling → Comment headers** " +
 					"turned off. It is on by default because a generated file here is committed and " +
 					"read beside hand-written Luau, and explaining the same block twice is the " +
 					"alternative.",

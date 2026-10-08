@@ -7,7 +7,7 @@
  * site is static and has no daemon behind it; the CLI is one esbuild bundle
  * with no `themes/` beside it. Three consumers, none of which can read the
  * source of truth at the moment it needs it — so the source of truth is
- * compiled in, exactly as Beako compiles its palettes into a plugin that cannot
+ * compiled in, the way a palette is compiled into a Studio plugin that cannot
  * open a file either.
  *
  * ## Generated *and* committed

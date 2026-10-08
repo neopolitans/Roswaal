@@ -39,9 +39,45 @@ export function settingsPage(): DocPage {
 				t: "note",
 				kind: "info",
 				text:
-					"Both are edited from **Settings**; preferences from the Docs window's too. Each " +
-					"section says where it is stored, so a personal colour scheme stays out of pull " +
-					"requests.",
+					"Both are edited from **Settings**, which lists its pages under where they are kept, " +
+					"so a personal colour scheme stays out of pull requests.",
+			},
+			{
+				t: "table",
+				head: ["Page", "Kept in", "What is on it"],
+				rows: [
+					[
+						"**Compiling**",
+						"`roswaal.json`",
+						"Where graphs and Luau live, how a graph compiles, and indentation",
+					],
+					["**Node packs**", "`roswaal.json`", "The directories scanned for node packs"],
+					[
+						"**Canvas**",
+						"This browser",
+						"The grid, wires, node corners, Realign, and what scrolling does",
+					],
+					[
+						"**Nodes**",
+						"This browser",
+						"Long names, and what a new logic, cast or concatenate node starts as",
+					],
+					[
+						"**Workspace**",
+						"This browser",
+						"Writing a graph, the Variables panel, function tabs, the action row, and what opens first",
+					],
+					["**Themes**", "This browser", "The colour scheme"],
+					["**Docs**", "This browser", "The docs' font and the size of their pictures"],
+				],
+			},
+			{
+				t: "p",
+				text:
+					"**Search settings**, at the top of the list, finds a setting on any page by its name " +
+					"or by what it does; Esc clears it, and Esc again closes Settings. Node Design has no " +
+					"project to change, so its Settings has no project pages; the docs' has only Themes " +
+					"and Docs, and says the rest is in the editor.",
 			},
 
 			{ t: "h", level: 2, text: "Project settings" },
@@ -102,8 +138,8 @@ export function settingsPage(): DocPage {
 					],
 					[
 						"`rojoProject`",
-						`\`${defaults.rojoProject ?? ""}\``,
-						"Left for Rojo. Where a file lands in the DataModel comes from your node maps, and nothing is written to this file.",
+						"unset",
+						"No longer read. An older `roswaal.json` may carry it, and it still loads. The Rojo project file is written by a node map, at the map's own **Output** — `default.project.json` unless it says otherwise — and only over a file Roswaal wrote, or one you hand over with force.",
 					],
 					[
 						"`place`",
@@ -196,9 +232,8 @@ export function settingsPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"One JSON file per scheme, in `themes/` at the repository root. Roswaal and " +
-					"[Beako](https://github.com/neopolitans/Beako) use the same format, so a theme " +
-					"written for one reads in the other.",
+					"One JSON file per scheme, in `themes/` at the repository root, naming every " +
+					"colour the scheme sets.",
 			},
 			{
 				t: "table",

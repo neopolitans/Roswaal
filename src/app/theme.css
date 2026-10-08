@@ -9305,7 +9305,7 @@ a.docs-minor-row .aside {
 	color: var(--fg-muted);
 }
 
-/* The reader's chosen face for the docs, from Settings → Docs. Headings and
+/* The reader's chosen face for the docs, from Settings → Docs → Font. Headings and
    prose follow it; code keeps its own monospace, which it sets for itself.
    Stacks of fonts an operating system already has — the docs run offline. */
 :root[data-docs-font="serif"] .docs-article {
@@ -10020,46 +10020,283 @@ a.docs-minor-row .aside {
 
 /* ------------------------------------------------------------- settings */
 
-/* Settings borrows the Docs window's frame — same backdrop, same nav down the
-   left — because a third overlay shape would be one too many. What it adds is
-   the row: a label and its explanation on the left, the control on the right,
-   at a fixed column so a column of controls lines up and can be scanned. */
-
-.settings {
-	width: min(900px, 100%);
-	height: min(720px, 100%);
+/* Settings: a sheet of its own over the window, the same in the editor, Node
+   Design, the docs window and the docs site. Down the left, the pages under
+   where they are kept -- this project's roswaal.json, or this browser -- with a
+   search over all of them; on the right, a page's groups of rows, each row a
+   label and its explanation with the control at a fixed column, so a column
+   of controls lines up and can be scanned. See `SettingsPanel.tsx`. */
+.settings-sheet {
+	display: grid;
+	grid-template-columns: 236px minmax(0, 1fr);
+	width: min(1040px, 100%);
+	height: min(760px, 100%);
+	background: var(--bg-panel);
+	border: 1px solid var(--border-strong);
+	border-radius: 14px;
+	box-shadow: var(--shadow-modal);
+	overflow: hidden;
+	outline: none;
 }
 
-.settings .docs-head .spacer {
-	flex: 1;
+/* The docs site's: two pages, so a smaller sheet. */
+.settings-compact {
+	grid-template-columns: 210px minmax(0, 1fr);
+	width: min(820px, 100%);
+	height: min(560px, 100%);
 }
 
-.settings-tab {
+.settings-nav {
 	display: flex;
 	flex-direction: column;
-	align-items: flex-start;
-	gap: 1px;
-	text-align: left;
+	gap: 2px;
+	min-height: 0;
+	padding: 16px 12px;
+	overflow: auto;
+	background: color-mix(in srgb, var(--bg-canvas) 30%, var(--bg-panel));
+	border-right: 1px solid var(--border);
 }
 
-.settings-tab-sub {
+.settings-brand {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 0 6px 12px;
+	font-size: var(--text-lg);
+}
+
+.settings-search {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 6px;
+	padding: 6px 10px;
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	color: var(--fg-faint);
+}
+
+.settings-search:focus-within {
+	border-color: var(--accent);
+}
+
+.settings-search input {
+	flex: 1;
+	min-width: 0;
+	border: 0;
+	outline: none;
+	background: transparent;
+	color: var(--fg);
+	font: inherit;
+}
+
+.settings-keeper {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin-top: 8px;
+}
+
+/* Licences, at the foot of the list. */
+.settings-keeper.keeper-about {
+	margin-top: auto;
+	padding-top: 12px;
+}
+
+.settings-keeper-head {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	padding: 6px 10px 4px;
+	font-size: var(--text-sm);
+	color: var(--fg-muted);
+}
+
+.settings-keeper-head code {
 	font-size: var(--text-xs);
 	color: var(--fg-faint);
 }
 
-.settings-page {
-	overflow: auto;
-	padding: 18px 22px 40px;
+.settings-link {
+	padding: 7px 10px;
+	border: 0;
+	border-radius: 7px;
+	background: transparent;
+	color: var(--fg);
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
 }
 
-.settings-page h2 {
+.settings-link:hover {
+	background: var(--bg-hover);
+}
+
+.settings-link.on {
+	background: color-mix(in srgb, var(--accent) 16%, transparent);
+	font-weight: 600;
+}
+
+/* The docs' note on where the rest is. */
+.settings-elsewhere {
+	margin: auto 4px 0;
+	padding: 10px;
+	border: 1px dashed var(--border);
+	border-radius: 8px;
+	font-size: var(--text-sm);
+	line-height: 1.45;
+	color: var(--fg-muted);
+}
+
+.settings-elsewhere a {
+	color: var(--accent);
+}
+
+.settings-keeper.keeper-about + .settings-elsewhere {
+	margin-top: 10px;
+}
+
+.settings-main {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+	background: color-mix(in srgb, var(--bg-canvas) 14%, var(--bg-panel));
+}
+
+.settings-close {
+	position: absolute;
+	top: 14px;
+	right: 14px;
+	z-index: 1;
+}
+
+.settings-current,
+.settings-results {
+	flex: 1;
+	min-height: 0;
+	overflow: auto;
+	padding: 20px 26px 32px;
+}
+
+.settings-page-head {
+	padding-right: 44px;
+}
+
+.settings-page-head h2 {
 	margin: 0 0 4px;
 	font-size: var(--text-xl);
 }
 
-.settings-page h3 {
-	margin: 26px 0 4px;
-	font-size: var(--text-lg);
+.settings-page-head .settings-note {
+	margin: 0;
+}
+
+.settings-group h3 {
+	margin: 22px 4px 8px;
+	font-size: var(--text-xs);
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--fg-muted);
+}
+
+.settings-box {
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+}
+
+.settings-box > .setting {
+	padding: 14px 16px;
+}
+
+.settings-box > .setting:first-child {
+	border-top: 0;
+}
+
+/* Searching: every page's matches in turn, and a page or a group with none
+   left out. A page found by its name shows whole. */
+.settings-results .settings-section + .settings-section {
+	margin-top: 30px;
+}
+
+.settings-results .settings-group:not(:has(.setting)) {
+	display: none;
+}
+
+.settings-results .settings-section:not(.matched):not(:has(.setting)) {
+	display: none;
+}
+
+.settings-empty {
+	display: none;
+	color: var(--fg-muted);
+}
+
+.settings-results:not(:has(.setting, .settings-section.matched)) .settings-empty {
+	display: block;
+}
+
+/* Segmented controls as pills on a track, the one in force raised. */
+.settings-sheet .segmented {
+	gap: 2px;
+	padding: 2px;
+	border: 0;
+	border-radius: 8px;
+	background: color-mix(in srgb, var(--bg-canvas) 70%, var(--bg-panel));
+}
+
+.settings-sheet .segmented button {
+	border-radius: 6px;
+	padding: 5px 10px;
+}
+
+.settings-sheet .segmented button.on {
+	background: var(--bg-input);
+	color: var(--fg);
+	font-weight: 600;
+	box-shadow: 0 1px 2px rgb(0 0 0 / 14%);
+}
+
+/* An on-off setting as a switch, its words beside it. The knob is part of
+   the background: Safari draws nothing in a checkbox's ::before. */
+.settings-sheet .settings-toggle {
+	justify-content: flex-end;
+	gap: 10px;
+	padding: 2px 0;
+	border: 0;
+	background: none;
+	color: var(--fg-muted);
+}
+
+.settings-sheet .settings-toggle input {
+	appearance: none;
+	-webkit-appearance: none;
+	flex: none;
+	order: 1;
+	width: 34px;
+	height: 20px;
+	margin: 0;
+	border-radius: 999px;
+	background:
+		radial-gradient(7.5px 7.5px at 10px 50%, #ffffff 92%, transparent 100%),
+		var(--border-strong);
+	cursor: pointer;
+	transition: background 150ms ease;
+}
+
+.settings-sheet .settings-toggle input:checked {
+	background:
+		radial-gradient(7.5px 7.5px at calc(100% - 10px) 50%, #ffffff 92%, transparent 100%),
+		var(--accent);
+}
+
+.settings-sheet .settings-toggle input:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
 }
 
 /* Something a node needs that the script has not got, said in the Inspector
@@ -12514,34 +12751,48 @@ a.docs-minor-row .aside {
 		padding: 8px;
 	}
 
-	/* The sections along the top rather than down the side: a 230px column of
-	   five words left the page beside it a hundred pixels wide. */
-	.settings .docs-body {
+	/* The pages along the top rather than down the side: a 236px column of
+	   short words left the page beside it a hundred pixels wide. */
+	.settings-sheet {
 		grid-template-columns: minmax(0, 1fr);
 		grid-template-rows: auto minmax(0, 1fr);
 	}
 
-	.settings .docs-nav {
+	.settings-nav {
 		flex-direction: row;
-		overflow-x: auto;
+		align-items: center;
+		gap: 4px;
+		padding: 8px;
 		border-right: 0;
 		border-bottom: 1px solid var(--border);
-		padding: 6px;
-		gap: 4px;
 	}
 
-	.settings .settings-tab {
-		flex: none;
-		width: auto;
-		white-space: nowrap;
-	}
-
-	.settings .settings-tab-sub {
+	.settings-brand,
+	.settings-keeper-head,
+	.settings-elsewhere {
 		display: none;
 	}
 
-	.settings-page {
-		padding: 14px 14px 32px;
+	.settings-search {
+		flex: none;
+		width: 150px;
+		margin: 0;
+	}
+
+	.settings-keeper,
+	.settings-keeper.keeper-about {
+		flex-direction: row;
+		margin: 0;
+		padding: 0;
+	}
+
+	.settings-link {
+		white-space: nowrap;
+	}
+
+	.settings-current,
+	.settings-results {
+		padding: 14px 14px 28px;
 	}
 
 	.setting {

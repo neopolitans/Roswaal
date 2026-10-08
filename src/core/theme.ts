@@ -10,9 +10,9 @@
  * scheme, the documentation that lists what a theme may set, and the tests. A
  * second copy of any of that is how a palette ends up half-applied.
  *
- * ## Two rules borrowed from Beako, which learned them the hard way
+ * ## Two rules, each learned the hard way
  *
- * **Nothing translates between a role and its variable.** Beako's browser spent
+ * **Nothing translates between a role and its variable.** A browser UI once spent
  * a release setting `--sub-text` while its stylesheet read `--sub`: no error,
  * because an unread custom property is legal CSS and an unset one falls back to
  * its declaration, so three colours quietly stayed on the built-in default in
@@ -200,8 +200,7 @@ export const CODE_ROLE_NAMES: CodeRole[] = CODE_ROLES.map((r) => r.role);
  * underneath — and an overlay is the one kind of token an author gets wrong
  * without seeing it, because the mistake is invisible on the surface they
  * happened to be looking at. Deriving them means a scheme cannot ship a hover
- * state that does not show, which is the failure Beako's generator has a rule
- * against and which is better removed than checked for.
+ * state that does not show, a failure better removed than checked for.
  */
 export function derivedTokens(dark: boolean): Record<string, string> {
 	const ink = dark ? "255, 255, 255" : "0, 0, 0";

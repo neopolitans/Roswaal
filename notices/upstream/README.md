@@ -13,9 +13,8 @@ is written by hand, edited, reformatted, or reconstructed from a template.
 `luau-site.txt` covers the Luau logo, whose two squares are the `.luau` file icon. It was fetched
 directly, and reaches a user under **Settings → Licences** as the theme licences do.
 
-The three theme licences arrived by way of [Beako](https://github.com/neopolitans/Beako), which vendored them on the
-date above and carries the same three colour schemes. They are copied across rather than re-fetched
-so that the two tools ship the same bytes.
+The three theme licences were vendored on the date above from the upstream files linked in the
+table, and are kept exactly as they were fetched.
 
 ## Why these are vendored rather than generated
 
@@ -24,10 +23,10 @@ and one `The MIT License (MIT)`, and Nord's copyright line carries an email addr
 that no template would have produced. Filling a template in produces something that is *nearly* each
 author's licence, and nearly is the one thing an attribution may not be.
 
-Beako learned this the expensive way — two of its three attribution lines were wrong until they were
-checked against the files themselves, both of them plausible, both written from the shape an MIT
-licence usually has rather than from the one the author wrote. Starting from the files here means
-that mistake is not available to make.
+This has gone wrong before: two of three attribution lines written for these schemes were wrong
+until they were checked against the files themselves, both of them plausible, both written from the
+shape an MIT licence usually has rather than from the one the author wrote. Starting from the files
+here means that mistake is not available to make.
 
 ## How they reach a user
 

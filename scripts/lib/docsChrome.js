@@ -84,19 +84,6 @@
 		return node;
 	}
 
-	function head(title, sub, shut) {
-		var bar = el("div", "docs-head");
-		bar.appendChild(el("strong", null, title));
-		bar.appendChild(el("span", "sub", sub));
-		bar.appendChild(el("span", "spacer"));
-		var close = el("button", "tb", "×");
-		close.type = "button";
-		close.title = "Close (Esc)";
-		close.addEventListener("click", shut);
-		bar.appendChild(close);
-		return bar;
-	}
-
 	// -------------------------------------------------------------------------
 	// Settings
 	// -------------------------------------------------------------------------
@@ -145,17 +132,21 @@
 		return row;
 	}
 
+	/**
+	 * Settings, as the docs window and the editor draw it: the pages down the
+	 * left under where they are kept, the page's groups of rows on the right.
+	 * The docs have two pages of their own -- the theme, and how the pages read
+	 * -- and say where the rest is.
+	 */
 	function settingsPanel(shut) {
 		var prefs = api.read();
-		var panel = el("div", "docs settings docs-compact");
+		var panel = el("div", "settings-sheet settings-compact");
 		panel.setAttribute("role", "dialog");
+		panel.setAttribute("aria-modal", "true");
 		panel.setAttribute("aria-label", "Settings");
 		panel.addEventListener("pointerdown", function (e) {
 			e.stopPropagation();
 		});
-		panel.appendChild(head("Settings", "Preferences for this browser", shut));
-
-		var page = el("div", "settings-page");
 
 		// Read again on every change rather than patched from the copy this panel
 		// opened with: the editor may be open in another tab and may have written
@@ -167,49 +158,139 @@
 			api.paint();
 		}
 
-		page.appendChild(
-			setting(
-				"Theme",
-				"The same preference the editor writes, so a scheme picked there is what these pages are in.",
-				// Typed, so the System row's `null` and a scheme's name share one list.
-				/** @type {{ value: string | null; label: string; what: string }[]} */
-				([
-					{ value: null, label: "System", what: "Light or dark, whichever your OS is set to." },
-				]).concat(
-					api.themes.map(function (t) {
-						return { value: t.name, label: t.name, what: t.credit || "" };
-					}),
-				),
-				prefs.theme,
-				function (value) {
-					set("theme", value);
+		function group(title, rows) {
+			var box = el("div", "settings-group");
+			box.appendChild(el("h3", null, title));
+			var inner = el("div", "settings-box");
+			rows.forEach(function (row) {
+				inner.appendChild(row);
+			});
+			box.appendChild(inner);
+			return box;
+		}
+
+		/** @type {Record<string, { title: string; note: string; body: () => HTMLElement[] }>} */
+		var pages = {
+			themes: {
+				title: "Themes",
+				note: "The same theme the editor uses, so a scheme picked there is what these pages are in.",
+				body: function () {
+					return [
+						group("Theme", [
+							setting(
+								"Theme",
+								"Light or dark with your system, or one scheme always.",
+								// Typed, so the System row's `null` and a scheme's name share one list.
+								/** @type {{ value: string | null; label: string; what: string }[]} */
+								([
+									{
+										value: null,
+										label: "System",
+										what: "Light or dark, whichever your OS is set to.",
+									},
+								]).concat(
+									api.themes.map(function (t) {
+										return { value: t.name, label: t.name, what: t.credit || "" };
+									}),
+								),
+								prefs.theme,
+								function (value) {
+									set("theme", value);
+								},
+							),
+						]),
+					];
 				},
-			),
-		);
-
-		page.appendChild(
-			setting(
-				"Font",
-				"The face these pages are set in.",
-				api.fonts.map(function (f) {
-					return { value: f.font, label: f.label, what: f.what };
-				}),
-				prefs.docsFont,
-				function (value) {
-					set("docsFont", value);
+			},
+			docs: {
+				title: "Docs",
+				note: "How the documentation reads. Kept in this browser, like the editor's settings.",
+				body: function () {
+					return [
+						group("Reading", [
+							setting(
+								"Font",
+								"The face these pages are set in.",
+								api.fonts.map(function (f) {
+									return { value: f.font, label: f.label, what: f.what };
+								}),
+								prefs.docsFont,
+								function (value) {
+									set("docsFont", value);
+								},
+							),
+						]),
+					];
 				},
-			),
+			},
+		};
+
+		var nav = el("nav", "settings-nav");
+		nav.setAttribute("aria-label", "Settings pages");
+		var brand = el("div", "settings-brand");
+		brand.appendChild(el("strong", null, "Settings"));
+		nav.appendChild(brand);
+		var keeper = el("div", "settings-keeper");
+		keeper.appendChild(el("div", "settings-keeper-head", "This browser"));
+		nav.appendChild(keeper);
+
+		var main = el("div", "settings-main");
+		var close = el("button", "tb icon-only settings-close", "×");
+		close.setAttribute("title", "Close (Esc)");
+		close.setAttribute("aria-label", "Close settings");
+		close.addEventListener("click", shut);
+		main.appendChild(close);
+		var current = el("div", "settings-current");
+		main.appendChild(current);
+
+		/** @type {HTMLButtonElement[]} */
+		var links = [];
+		function show(id) {
+			var page = pages[id];
+			current.textContent = "";
+			var section = el("section", "settings-section");
+			var headBox = el("header", "settings-page-head");
+			headBox.appendChild(el("h2", null, page.title));
+			headBox.appendChild(el("p", "settings-note", page.note));
+			section.appendChild(headBox);
+			page.body().forEach(function (part) {
+				section.appendChild(part);
+			});
+			current.appendChild(section);
+			links.forEach(function (link) {
+				var on = link.dataset.page === id;
+				link.classList.toggle("on", on);
+				if (on) link.setAttribute("aria-current", "page");
+				else link.removeAttribute("aria-current");
+			});
+		}
+		Object.keys(pages).forEach(function (id) {
+			var link = /** @type {HTMLButtonElement} */ (el("button", "settings-link", pages[id].title));
+			link.dataset.page = id;
+			link.addEventListener("click", function () {
+				show(id);
+			});
+			links.push(link);
+			keeper.appendChild(link);
+		});
+
+		// Where the rest is: the project's settings and the canvas's are the editor's.
+		var elsewhere = el(
+			"p",
+			"settings-elsewhere",
+			"The Settings for your Project and Canvas Style are in Editor Mode. ",
 		);
+		var editor = document.querySelector(".docs-try");
+		if (editor) {
+			var go = el("a", null, "Switch to Editor Mode");
+			go.setAttribute("href", editor.getAttribute("href") || "");
+			elsewhere.appendChild(go);
+		}
+		nav.appendChild(elsewhere);
 
-		var note = el("p", "settings-note");
-		note.textContent =
-			"These are this browser's, and nobody else's. The rest of the preferences — and the " +
-			"project's own settings — are in the editor, which can reach the project.";
-		page.appendChild(note);
-
-		// Straight into the panel: `.docs-body` is a two-column grid for a nav that
-		// is not here, and a lone child of it lands in the 232px nav column.
-		panel.appendChild(page);
+		panel.appendChild(nav);
+		panel.appendChild(main);
+		show("themes");
 		return panel;
 	}
 

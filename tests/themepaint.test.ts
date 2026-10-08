@@ -167,7 +167,13 @@ describe("the site's chrome script", () => {
 	});
 
 	it("draws with the app's own class names", () => {
-		for (const name of ["docs-palette-hit", "docs settings", "setting-label", "segmented"]) {
+		for (const name of [
+			"docs-palette-hit",
+			"settings-sheet",
+			"settings-group",
+			"setting-label",
+			"segmented",
+		]) {
 			expect(script, name).toContain(name);
 		}
 	});

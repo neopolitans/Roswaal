@@ -19,8 +19,8 @@
  *
  * ## Each dock is placed by style, never by position in the tree
  *
- * Beako moves a panel by `append`-ing the live node, so it keeps its scroll
- * position, its content and its listeners. React cannot: a component moved to
+ * Plain DOM can move a panel by `append`-ing the live node, so it keeps its
+ * scroll position, its content and its listeners. React cannot: a component moved to
  * a different parent unmounts and remounts, throwing all of that away. So each
  * dock is rendered once, in a fixed place, and moving a panel between docks is
  * a change to which dock lists it.

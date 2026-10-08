@@ -47,7 +47,9 @@ describe("a new Roblox project", () => {
 		);
 		expect(made.config.target).toBe("roblox");
 		expect(made.config.place).toBe(NEW_PLACE_FILE);
-		expect(made.config.rojoProject).toBe("default.project.json");
+		// The project file is the node map's to write, at its own output, so
+		// roswaal.json no longer names one.
+		expect(made.config.rojoProject).toBeUndefined();
 	});
 
 	/** The three folders `rojo init` makes, where it puts them. */

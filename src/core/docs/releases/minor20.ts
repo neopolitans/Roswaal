@@ -19,7 +19,7 @@ export const RELEASES_0_20: Release[] = [
 			"**Release notes open on the newest minor version**, with the current release inside it and marked **Latest**, instead of showing that release apart from its siblings.",
 		],
 		fixed: [
-			"**The Beako link on Attributions is a link again**, rather than its raw text.",
+			"**A link on Attributions is a link again**, rather than its raw text.",
 			"**Five older release notes print their emphasis** instead of stray asterisks.",
 		],
 		verified: ["controls"],

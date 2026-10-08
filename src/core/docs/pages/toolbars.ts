@@ -291,8 +291,9 @@ export function toolbarsPage(): DocPage {
 				t: "note",
 				kind: "warn",
 				text:
-					"Settings in Node Design and the docs has no Project tab. Project settings are " +
-					"changed from the editor, which has the project open.",
+					"Settings in Node Design and the docs has no project pages. Project settings are " +
+					"changed from the editor, which has the project open; the docs' Settings has only " +
+					"Themes and Docs.",
 			},
 			{ t: "h", level: 2, text: "Only on a touch screen" },
 			{

@@ -184,14 +184,16 @@ export function DocsPage() {
 		    panel borrows the docs' class names for its frame, so inside this
 		    window's rules it picked up the reading layout and cramped every row.
 
-		    No project here, so no Project tab: those settings are the
-		    repository's, and they are changed from the editor. */}
+		    The docs' own pages only: the project's and the canvas's are the
+		    editor's, and the sheet says so. */}
 			{settingsOpen && (
 				<SettingsPanel
 					prefs={prefs}
 					onPrefs={updatePrefs}
 					onClose={() => setSettingsOpen(false)}
 					initialTab="docs"
+					scope="docs"
+					editorHref={pageHref("editor")}
 				/>
 			)}
 		</>

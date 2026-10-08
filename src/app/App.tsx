@@ -1008,7 +1008,7 @@ export function App() {
 				// Only the settings that decide what is on disk, and where. A
 				// compile-mode toggle changes nothing the tree shows, and it is the
 				// one of these that gets pressed repeatedly.
-				const rereads = ["sourceDir", "outDir", "nodePaths", "rojoProject"];
+				const rereads = ["sourceDir", "outDir", "nodePaths"];
 				if (rereads.some((key) => key in patch)) await refreshTree();
 			} catch (err) {
 				if (err instanceof ProjectChangedError) void onProjectChanged(err);

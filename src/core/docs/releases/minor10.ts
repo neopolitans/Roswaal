@@ -273,7 +273,7 @@ export const RELEASES_0_10: Release[] = [
 		added: [
 			"**A settings panel**, from the toolbar. It covers everything in `roswaal.json` — target, where graphs live, where Luau is written, compile mode, node pack directories, formatting, the Rojo project file — none of which could previously be changed without opening the file by hand.",
 			"It **says where each setting is stored**. Project settings are committed and shared by everyone on the repository; preferences are yours, live in your browser, and never appear in a diff.",
-			"**Seven colour schemes**: Roswaal Light and Dark, Tokyo Night and Tokyo Night Storm, Catppuccin Mocha, Nord, and Aquatic. Each is one JSON file in `themes/`, in the same format [Beako](https://github.com/neopolitans/Beako) uses, so a theme written for one tool reads in the other.",
+			"**Seven colour schemes**: Roswaal Light and Dark, Tokyo Night and Tokyo Night Storm, Catppuccin Mocha, Nord, and Aquatic. Each is one JSON file in `themes/`.",
 			"**Follow the system** is still the default, and is the *absence* of a theme rather than an eighth scheme: it removes the palette, so the app goes on changing with your OS.",
 			"The theme applies to **the docs window too**, before anything renders rather than a frame later.",
 			"**Settings → Licences** shows the full text of the three borrowed schemes' licences, compiled in from files copied byte for byte out of each upstream project.",

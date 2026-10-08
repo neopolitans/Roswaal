@@ -9,9 +9,8 @@
  *
  * `panels` says which dock each panel is in and whether it is open. `docks`
  * says how big each dock is. `gridAreas()` derives everything visible from
- * those two. Beako's browser docks are the same three, and matching them is
- * deliberate — the two tools sit in one workflow and should not need learning
- * twice.
+ * those two. Left, right and bottom are the docks an editor's user already
+ * knows, and matching them is deliberate: a layout should not need learning.
  *
  * Nothing else decides where anything goes, so when the layout is wrong there
  * is one function to read rather than a trail of style mutations to

@@ -10,7 +10,7 @@
  *
  * What this cannot check is whether the grid *draws* correctly. That needs a
  * DOM, and `docs/PANELS.md` records it as the eventual job for a headless
- * browser — the failure Beako hit had entirely correct state.
+ * browser — a layout can fail with its state entirely correct.
  */
 
 import { describe, expect, it } from "vitest";
@@ -88,7 +88,7 @@ describe("what is in a dock", () => {
 
 describe("the grid tracks", () => {
 	/**
-	 * The trap this guards is Beako's: a grid item's automatic minimum size is
+	 * The trap this guards: a grid item's automatic minimum size is
 	 * its *content*, so a dock holding one long path refuses to shrink below the
 	 * width of that path and its splitter drags outwards but never back.
 	 */

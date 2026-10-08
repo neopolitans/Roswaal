@@ -202,8 +202,8 @@ describe("inline markup in the pages themselves", () => {
 	 * and `code` a flat string and matches one span at a time, so anything
 	 * inside any of them is printed as the characters it is written with.
 	 *
-	 * This was held as "no link or italics inside bold", which is how the Beako
-	 * link on Attributions shipped and how the note announcing that fix did.
+	 * This was held as "no link or italics inside bold", which is how a link on
+	 * Attributions shipped and how the note announcing that fix did.
 	 * **Code counts too**, and that was missed: four strings on the Aliases page
 	 * printed `` `.luaurc` `` with its backticks because it was written inside
 	 * bold, and the test passed the whole time. The rule is now what the parser

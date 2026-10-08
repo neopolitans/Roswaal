@@ -282,7 +282,12 @@ export function DesignerPage() {
 			)}
 
 			{settingsOpen && (
-				<SettingsPanel prefs={prefs} onPrefs={updatePrefs} onClose={() => setSettingsOpen(false)} />
+				<SettingsPanel
+					prefs={prefs}
+					onPrefs={updatePrefs}
+					onClose={() => setSettingsOpen(false)}
+					scope="designer"
+				/>
 			)}
 
 			{docsJump && (

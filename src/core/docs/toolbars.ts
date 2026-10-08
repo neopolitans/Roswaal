@@ -3322,7 +3322,7 @@ export const ACTION_ROW: ToolbarSpec = {
 	id: "action-row",
 	title: "The action row",
 	summary:
-		"Along the bottom of the graph on a phone or a tablet, and of Node Design's logic. On a phone the Project and Inspector buttons are at its two ends. Icons or words with **Settings → Editor → Action buttons**; separate buttons or one bar with **Action row**.",
+		"Along the bottom of the graph on a phone or a tablet, and of Node Design's logic. On a phone the Project and Inspector buttons are at its two ends. Icons or words with **Settings → Workspace → Action buttons**; separate buttons or one bar with **Action row**.",
 	chrome: "float",
 	groups: [
 		{

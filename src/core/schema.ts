@@ -636,7 +636,16 @@ export interface RoswaalConfig {
 	 * turns it on.
 	 */
 	castsByHierarchy?: boolean;
-	/** Rojo project file, used to resolve the tree view. */
+	/**
+	 * No longer read, and no longer written by default; accepted so a
+	 * `roswaal.json` that carries it still loads.
+	 *
+	 * It named a Rojo project file that nothing used: where the project file
+	 * goes is each DataModel node map's own `output` (`default.project.json`
+	 * unless it says otherwise), and a map writes it only when Roswaal made it
+	 * or is handed it with force. See `compileMap`. Settings showed it until
+	 * 0.156.0, saying nothing wrote that file -- which a map does.
+	 */
 	rojoProject?: string;
 	/**
 	 * The place file this project reads its instances from, relative to the
@@ -677,6 +686,5 @@ export function defaultConfig(): RoswaalConfig {
 		indentStyle: "tab",
 		indentWidth: 4,
 		comments: true,
-		rojoProject: "default.project.json",
 	};
 }

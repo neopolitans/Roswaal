@@ -7,8 +7,8 @@
  * - A token the editor sets but the stylesheet never reads is legal CSS. So is a
  *   variable the stylesheet reads that nothing ever sets — it just falls back to
  *   its declaration. Either way one colour quietly stays on the built-in default
- *   in every theme, and nothing anywhere says so. Beako shipped exactly this for
- *   a release across three colours and four roles.
+ *   in every theme, and nothing anywhere says so. It has shipped before, for
+ *   a release, across three colours and four roles.
  * - `src/core/themeData.ts` is generated and committed, so it can drift from
  *   `themes/` and still compile perfectly.
  */
@@ -315,7 +315,7 @@ describe("every token class is coloured somewhere", () => {
  * none. An ancestor is the dangerous shape, and there are few enough of them
  * for the answer to be exact.
  *
- * It does not replace looking at the page. Beako's equivalent drives a headless
+ * It does not replace looking at the page. The fuller check drives a headless
  * browser and asserts the centre fills the workspace, because no test of the
  * state could catch a layout fault while the state is correct; that is the
  * eventual answer here too. See `docs/PANELS.md`.
