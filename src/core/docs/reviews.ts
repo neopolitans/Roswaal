@@ -85,18 +85,23 @@ export const REVIEWS: Record<
 	// Both were found by looking at the page rather than at the diff.
 	// Verified again for 0.72.0, with its Desktop, Tablet and Phone tabs and
 	// the two bars only a touch screen has.
-	toolbars: { status: "verified", date: "2026-09-18", reviewers: ["neopolitans"] },
+	// Verified again for 0.160.1, once the node map's name stood as tall as the
+	// tabs beside it and the pack bar's two switches were drawn apart.
+	toolbars: { status: "verified", date: "2026-10-08", reviewers: ["neopolitans"] },
 	// Verified by the author for 0.29.1.
 	// Read again for 0.31.6, when C stopped needing a selection and the
 	// Comments table gained the two ways to make one.
-	controls: { status: "verified", date: "2026-09-18", reviewers: ["neopolitans"] },
+	// Read again on 8 Oct 2026, for 0.160.1.
+	controls: { status: "verified", date: "2026-10-08", reviewers: ["neopolitans"] },
 	// Read by the author against the editor and Node Design, both ways, for 0.72.0.
 	// Read by the author against the editor and Node Design on a computer, a
 	// tablet and a phone, for 0.72.0.
-	"the-interface": { status: "verified", date: "2026-09-18", reviewers: ["neopolitans"] },
+	// Read again on 8 Oct 2026, for 0.160.1.
+	"the-interface": { status: "verified", date: "2026-10-08", reviewers: ["neopolitans"] },
 	// Read by the author for 0.72.0, with its three ways in, and again for
 	// 0.73.1 with its walkthroughs, on an iPad Pro, an iPhone, a Mac and Windows.
-	"getting-started": { status: "verified", date: "2026-09-18", reviewers: ["neopolitans"] },
+	// Read again on 8 Oct 2026, for 0.160.1.
+	"getting-started": { status: "verified", date: "2026-10-08", reviewers: ["neopolitans"] },
 	// Verified with the author, once it had pictures for every section.
 	"wires-and-pins": { status: "verified", date: "2026-09-11", reviewers: ["neopolitans"] },
 	// Verified with the author. Settings once its rojoProject line said what
@@ -133,7 +138,9 @@ export const REVIEWS: Record<
 	settings: { status: "verified", date: "2026-09-12", reviewers: ["neopolitans"] },
 	// Verified by the author for 0.43.1, once What Roswaal is designed for named
 	// Lune, Luau and Roblox alongside the borrowed names it credits.
-	attributions: { status: "verified", date: "2026-09-15", reviewers: ["neopolitans"] },
+	// Verified again for 0.160.1, as the browser 0.160.0 made it: every holder,
+	// usage type and licence, on the website and in the editor.
+	attributions: { status: "verified", date: "2026-10-08", reviewers: ["neopolitans"] },
 	// Read by the author for 0.65.0, against the RFC and against the editor.
 	// Not verified, and deliberately: every rule on it is checked against
 	// `require-by-string-aliases.html` and against what Roswaal does with it,

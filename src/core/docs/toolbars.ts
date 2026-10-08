@@ -3346,6 +3346,8 @@ export const DESIGNER_TOUCH_BAR: ToolbarSpec = {
 	chrome: "float",
 	groups: [
 		{
+			// As `PackView` marks its slot: each switch its own box.
+			wrap: "pack-switches",
 			items: [
 				{
 					t: "button",

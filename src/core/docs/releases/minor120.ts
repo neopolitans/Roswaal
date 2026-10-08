@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.160.1",
+		date: "2026-10-08",
+		headline: "The attributions grid centred, and two of the bars' details put right.",
+		affects: ["editor", "designer", "docs"],
+		fixed: [
+			"The Attributions page's Simple grid centres every cell and heading, leaving only the rights holders down the left, clear of the border.",
+			"With a node map or a `.luau` script open, the cluster naming it on the top row is as tall as the tabs and tools beside it, rather than two pixels short.",
+			"On the Toolbars page, Node Design's pack bar draws **Preview or Logic** and **Luau or Nodes** as two switches, each in its own box, as a phone shows them, rather than one row of four.",
+			"*Getting started*, *The Interface*, *Controls*, *Toolbars* and *Attributions* are marked as read again, on 8 October 2026.",
+		],
+	},
+	{
 		version: "0.160.0",
 		date: "2026-10-08",
 		headline: "Attributions you can find yourself in: by holder, at a glance or in full.",

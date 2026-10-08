@@ -246,7 +246,7 @@ export function PackView({
 						{title}
 					</button>
 					<span className="pack-compact-current">{current?.title ?? ""}</span>
-					<span className="pack-compact-slot" ref={setSlot} />
+					<span className="pack-compact-slot pack-switches" ref={setSlot} />
 				</div>
 			)}
 			{compact && listOpen && <div className="pack-scrim" onClick={() => setListOpen(false)} />}
