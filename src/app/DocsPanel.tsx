@@ -76,6 +76,7 @@ import { NODE, ZOOM } from "./layers.js";
 import { logoMarkup } from "./logo.jsx";
 import { attachMapPanel } from "./mapPanel.js";
 import { PageEditor } from "./PageEditor.jsx";
+import { useShowing } from "./pageHost.jsx";
 import { IS_STATIC_HOST } from "./pages.js";
 import { nodeColor, pinColor } from "./palette.js";
 import { type Preferences, readPreferences, wheelAction } from "./preferences.js";
@@ -251,8 +252,10 @@ export function DocsView({
 	 * wherever you are on the page — and captured, so the browser's own "search
 	 * the page" does not take it first.
 	 */
+	const showing = useShowing();
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
+			if (!showing()) return;
 			if (e.key !== "k" && e.key !== "K") return;
 			if (!e.ctrlKey && !e.metaKey) return;
 			e.preventDefault();
@@ -260,7 +263,7 @@ export function DocsView({
 		};
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
-	}, []);
+	}, [showing]);
 
 	useEffect(() => {
 		if (searchRequest > 0) setPalette(true);

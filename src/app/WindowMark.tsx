@@ -1,12 +1,11 @@
 /**
  * The mark at the top left of every window, which opens the projects panel.
  *
- * Beside it, the window it is: on a wide screen by name ("Node Design",
- * "Docs") and the version, and on a phone, where there is no room for words,
- * by the window's glyph in grey -- a graph for the editor, the palette for
- * Node Design, a page for the docs. The same three glyphs are on the buttons
- * that open those windows, so the mark answers "where am I" in the shape
- * that took you there.
+ * On a wide screen the mode strip beside it says which window this is, and
+ * the version is in the panel the mark opens. On a phone, where there is no
+ * strip, the window's glyph sits beside the mark in grey -- a graph for the
+ * editor, the palette for Node Design, a page for the docs: the strip's
+ * glyphs, so the mark answers "where am I" in the same shapes.
  */
 
 import { VERSION } from "../cli/version.js";
@@ -27,16 +26,7 @@ const NAME: Record<WindowKind, string> = {
 	docs: "Docs",
 };
 
-export function WindowMark({
-	window,
-	named = window !== "editor",
-	onOpen,
-}: {
-	window: WindowKind;
-	/** The window's name beside the mark on a wide screen. The editor's is the graph's tab. */
-	named?: boolean;
-	onOpen: () => void;
-}) {
+export function WindowMark({ window, onOpen }: { window: WindowKind; onOpen: () => void }) {
 	return (
 		<button
 			className="logo window-mark"
@@ -48,8 +38,6 @@ export function WindowMark({
 			<span className="window-glyph" aria-hidden>
 				<Icon name={GLYPH[window]} size={16} />
 			</span>
-			{named && <span className="window-name">{NAME[window]}</span>}
-			<span className="version">{VERSION}</span>
 		</button>
 	);
 }

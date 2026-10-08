@@ -906,7 +906,13 @@ const DEMO_TREE: ToolbarItem[] = [
 	},
 ];
 
-const MARK: ToolbarItem = { t: "mark", window: true, version: true };
+const MARK: ToolbarItem = { t: "mark", window: true };
+/** The mode strip after the mark: `ModeStrip`. Not on a phone. */
+function modesCluster(on: "editor" | "designer" | "docs", what: string) {
+	return { wrap: "mode-strip", items: [{ t: "modes", on } as ToolbarItem], name: "Modes", what };
+}
+const MODES_WHAT =
+	"Editor, Design and Docs, with a box behind the one you are in. A click switches this tab and keeps the editor as you left it; `Ctrl`-click or right-click opens a new tab.";
 const PROJECT_CLUSTER: ToolbarItem[] = [
 	{ t: "icon", icon: "panelLeft", on: true },
 	{ t: "icon", icon: "refresh" },
@@ -929,8 +935,6 @@ const COMPILE_CLUSTER: ToolbarItem[] = [
 const WINDOWS_CLUSTER: ToolbarItem[] = [
 	{ t: "icon", icon: "panelRight", on: true },
 	{ t: "divider" },
-	{ t: "icon", icon: "document" },
-	{ t: "icon", icon: "palette" },
 	{ t: "icon", icon: "settings" },
 ];
 const PALETTE: ToolbarItem[] = [
@@ -1014,8 +1018,9 @@ export const EDITOR_LAYOUT: LayoutSpec = {
 					wrap: "mark-group",
 					items: [MARK],
 					name: "The mark",
-					what: "Opens your projects, the demos and the other windows. Beside it, the build.",
+					what: "Opens your projects and the demos. Its tooltip, and that panel, say which build this is.",
 				},
+				modesCluster("editor", MODES_WHAT),
 				{
 					items: PROJECT_CLUSTER,
 					name: "The project",
@@ -1040,8 +1045,8 @@ export const EDITOR_LAYOUT: LayoutSpec = {
 				},
 				{
 					items: WINDOWS_CLUSTER,
-					name: "Inspector and windows",
-					what: "The button for the Inspector's card, then Docs, Node Design and Settings. Every button is on [Toolbars](toolbars).",
+					name: "Inspector and Settings",
+					what: "The button for the Inspector's card, then Settings. Every button is on [Toolbars](toolbars).",
 				},
 			],
 		},
@@ -1116,6 +1121,7 @@ export const EDITOR_LAYOUT_TOUCH: LayoutSpec = {
 			at: [2, 3, 2, 5],
 			clusters: [
 				{ wrap: "mark-group", items: [MARK], name: "The mark", what: "As on a computer." },
+				modesCluster("editor", "As on a computer."),
 				{
 					items: PROJECT_CLUSTER.map((item) =>
 						item.t === "icon" && item.on ? { ...item, on: false } : item,
@@ -1138,8 +1144,8 @@ export const EDITOR_LAYOUT_TOUCH: LayoutSpec = {
 				},
 				{
 					items: WINDOWS_CLUSTER,
-					name: "Inspector and windows",
-					what: "The Inspector slides out from the right. Held upright, Docs, Node Design and Settings are in **More**.",
+					name: "Inspector and Settings",
+					what: "The Inspector slides out from the right. Held upright, Settings is in **More**.",
 				},
 			],
 		},
@@ -1294,10 +1300,11 @@ export const DESIGNER_LAYOUT: LayoutSpec = {
 			clusters: [
 				{
 					wrap: "mark-group",
-					items: [{ t: "mark", window: true, text: "Node Design", version: true }],
+					items: [{ t: "mark", window: true }],
 					name: "The mark",
-					what: "Which window this is. It opens your projects and the other windows.",
+					what: "Opens your projects and the demos.",
 				},
+				modesCluster("designer", MODES_WHAT),
 				{
 					apart: true,
 					wrap: "logic-mode-group",
@@ -1325,12 +1332,10 @@ export const DESIGNER_LAYOUT: LayoutSpec = {
 				{
 					items: [
 						{ t: "icon", icon: "help" },
-						{ t: "icon", icon: "document" },
-						{ t: "icon", icon: "graph" },
 						{ t: "icon", icon: "settings" },
 					],
-					name: "Other windows",
-					what: "How custom nodes work, Docs, the editor, and Settings.",
+					name: "Help and Settings",
+					what: "How custom nodes work, and Settings.",
 				},
 			],
 		},
@@ -1419,10 +1424,11 @@ export const DESIGNER_LAYOUT_TOUCH: LayoutSpec = {
 			clusters: [
 				{
 					wrap: "mark-group",
-					items: [{ t: "mark", window: true, text: "Node Design", version: true }],
+					items: [{ t: "mark", window: true }],
 					name: "The mark",
 					what: "As on a computer.",
 				},
+				modesCluster("designer", "As on a computer."),
 				{
 					apart: true,
 					wrap: "logic-mode-group",
@@ -1450,12 +1456,10 @@ export const DESIGNER_LAYOUT_TOUCH: LayoutSpec = {
 				{
 					items: [
 						{ t: "icon", icon: "help" },
-						{ t: "icon", icon: "document" },
-						{ t: "icon", icon: "graph" },
 						{ t: "icon", icon: "settings" },
 					],
-					name: "Other windows",
-					what: "As on a computer. They open in this tab, and the back button returns.",
+					name: "Help and Settings",
+					what: "As on a computer.",
 				},
 			],
 		},

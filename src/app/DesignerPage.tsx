@@ -26,8 +26,10 @@ import { FloatingTools, ToolGroup } from "./FloatingTools.jsx";
 import { IntroPanel } from "./IntroPanel.jsx";
 import { Icon } from "./icons.jsx";
 import { MenuButton } from "./Menu.jsx";
+import { ModeStrip } from "./ModeStrip.jsx";
 import { usePhone } from "./Popout.jsx";
-import { guardLeave, openPage, pageHref, pagesShareTab, pageTarget } from "./pages.js";
+import { switchMode, useOnShown, useShowing } from "./pageHost.jsx";
+import { guardLeave, openPage, pageHref, pageTarget } from "./pages.js";
 import { usePreferenceSync } from "./preferenceSync.js";
 import { type Preferences, readPreferences, writePreferences } from "./preferences.js";
 import { SiteBanner } from "./previewBuild.jsx";
@@ -86,8 +88,10 @@ export function DesignerPage() {
 		[],
 	);
 
+	const showing = useShowing();
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
+			if (!showing()) return;
 			const mod = e.ctrlKey || e.metaKey;
 			if (!mod || e.key.toLowerCase() !== "k") return;
 			e.preventDefault();
@@ -95,7 +99,7 @@ export function DesignerPage() {
 		};
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
-	}, []);
+	}, [showing]);
 
 	const refresh = useCallback(async () => {
 		try {
@@ -119,6 +123,9 @@ export function DesignerPage() {
 	useEffect(() => {
 		void refresh();
 	}, [refresh]);
+
+	// Back from the editor, which may have opened another project or a pack.
+	useOnShown(() => void refresh());
 
 	const notify = useCallback((text: string, kind: "ok" | "failed" = "ok") => {
 		if (kind === "ok") showToast({ title: text, icon: "palette", tone: "ok" });
@@ -148,6 +155,7 @@ export function DesignerPage() {
 					<ToolGroup className="mark-group">
 						<WindowMark window="designer" onOpen={() => setIntroOpen(true)} />
 					</ToolGroup>
+					<ModeStrip current="designer" />
 					<span className="spacer" />
 					<div className="tool-slot" ref={setActionsSlot} />
 					{/* On a phone the other windows fold into More, as the editor's do: the
@@ -173,22 +181,16 @@ export function DesignerPage() {
 											{
 												label: "Docs",
 												icon: "document",
-												link: { href: pageHref("docs"), target: pageTarget("docs") },
-												run: guardLeave,
+												run: () => void switchMode("docs"),
 											},
 										],
 									},
 									{
 										entries: [
 											{
-												label: "Open Editor",
+												label: "Editor",
 												icon: "graph",
-												link: {
-													href: pageHref("editor"),
-													target: pagesShareTab() ? "_self" : "_blank",
-													rel: "noreferrer",
-												},
-												run: guardLeave,
+												run: () => void switchMode("editor"),
 											},
 											{ label: "Settings", icon: "settings", run: () => setSettingsOpen(true) },
 										],
@@ -206,27 +208,6 @@ export function DesignerPage() {
 									aria-label="How custom nodes work"
 								>
 									<Icon name="help" size={16} />
-								</a>
-								<a
-									className="tb icon-only"
-									href={pageHref("docs")}
-									target={pageTarget("docs")}
-									onClick={guardLeave}
-									title="Docs — the documentation"
-									aria-label="Docs"
-								>
-									<Icon name="document" size={16} />
-								</a>
-								<a
-									className="tb icon-only"
-									href={pageHref("editor")}
-									target={pagesShareTab() ? "_self" : "_blank"}
-									rel="noreferrer"
-									onClick={guardLeave}
-									title="Open Editor — the graph editor"
-									aria-label="Open Editor"
-								>
-									<Icon name="graph" size={16} />
 								</a>
 								<button
 									type="button"

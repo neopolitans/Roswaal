@@ -679,10 +679,42 @@ function chromeIcon(name: string, options: RenderOptions): string {
 	const art = options.toolbars;
 	const path = art?.paths[name];
 	if (art === undefined || path === undefined) return "";
+	// Painted as the editor paints it: the mode strip's graph and palette are
+	// drawn in strokes, and a filled outline of them is a blot.
+	const stroke = art.strokes?.[name];
+	const paint = stroke
+		? `fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"`
+		: `fill="currentColor"${art.evenOdd?.has(name) ? ` fill-rule="evenodd"` : ""}`;
 	return (
 		`<svg class="icon" viewBox="${escapeHtml(art.viewBox)}" width="16" height="16"` +
-		` aria-hidden="true"><path d="${escapeHtml(path)}" fill="currentColor"/></svg>`
+		` aria-hidden="true"><path d="${escapeHtml(path)}" ${paint}/></svg>`
 	);
+}
+
+/**
+ * The mode strip, as the app draws it (`ModeStrip.tsx`): plain links, so the
+ * browser's own menu on them already opens a mode in a tab or a window. The
+ * docs script slides the box and keeps a plain click in this tab.
+ */
+function modeStrip(up: string, options: RenderOptions): string {
+	const modes: [string, string, string, string, string][] = [
+		["editor", "graph", `${up}../try.html`, "Editor", "the graph editor"],
+		[
+			"designer",
+			"palette",
+			`${up}../designer.html`,
+			"Design",
+			"Node Design, to make nodes of your own",
+		],
+		["docs", "document", `${up}index.html`, "Docs", "the documentation"],
+	];
+	const slots = modes
+		.map(
+			([mode, glyph, href, name, hint]) =>
+				`<a class="mode-slot" data-mode="${mode}" href="${escapeHtml(href)}"${mode === "docs" ? ` aria-current="page"` : ""} aria-label="${name} Mode" title="${name} Mode — ${hint}. Ctrl-click for a new tab.">${chromeIcon(glyph, options)}</a>`,
+		)
+		.join("");
+	return `<div class="tool-group mode-strip" role="navigation" aria-label="Mode"><div class="mode-slots" style="--mode-at:2"><span class="mode-box" aria-hidden="true"></span>${slots}</div></div>`;
 }
 
 /**
@@ -794,7 +826,8 @@ ${options.logo ? `<link rel="icon" type="image/svg+xml" href="${escapeHtml(optio
 <div class="docs-page docs-window">
 ${options.canaryBanner ?? ""}<input type="checkbox" id="docs-nav-open" class="docs-nav-check" aria-label="Show the contents">
 <header class="docs-page-head docs-clusters">
-<div class="tool-group mark-group"><a class="logo window-mark" href="${up}../try.html#picker" title="Your projects">${options.logo?.mark ?? "Roswaal "}<span class="window-glyph" aria-hidden="true">${chromeIcon("document", options)}</span><span class="window-name">Docs</span><span class="version">${escapeHtml(options.version)}</span></a></div>
+<div class="tool-group mark-group"><a class="logo window-mark" href="${up}../try.html#picker" title="Roswaal ${escapeHtml(options.version)} — your projects">${options.logo?.mark ?? "Roswaal "}<span class="window-glyph" aria-hidden="true">${chromeIcon("document", options)}</span></a></div>
+${modeStrip(up, options)}
 <div class="tool-group search-group"><button type="button" class="tb docs-search-field" id="docs-search" title="Search the docs (Ctrl+K)" aria-label="Search the docs" hidden>${chromeIcon("search", options)}<span class="docs-search-label">Search the docs</span><kbd>Ctrl K</kbd></button></div>
 <div class="tool-group contents-group"><label for="docs-nav-open" class="tb docs-nav-toggle">Contents</label></div>
 <span class="spacer"></span>

@@ -33,7 +33,9 @@ import { api } from "./api.js";
 import { cx } from "./cx.js";
 import type { RememberedFolder } from "./host.js";
 import { Icon } from "./icons.jsx";
-import { guardLeave, IS_STATIC_HOST, openPage, type Page, pageHref, pageTarget } from "./pages.js";
+import { isPlainClick } from "./ModeStrip.jsx";
+import { liveEditorOpener, switchMode } from "./pageHost.jsx";
+import { IS_STATIC_HOST, type Page, pageHref } from "./pages.js";
 import { MarkedLogo } from "./previewBuild.jsx";
 import { projectName, projectTail, recentProjects } from "./recents.js";
 
@@ -242,16 +244,24 @@ export function IntroPanel(props: IntroPanelProps) {
 			});
 			return;
 		}
+		// The editor is open behind this mode: it opens the project itself, so
+		// that what it has open is saved and closed first.
+		const editor = liveEditorOpener();
+		if (editor) {
+			onClose();
+			void switchMode("editor").then(() => editor(root));
+			return;
+		}
 		void api
 			.openProject(root)
 			.then(() => {
-				void openPage("editor");
+				void switchMode("editor");
 				onClose();
 			})
 			.catch(() => {
 				// The daemon refused or is not there. The editor can still be
 				// opened, and will say why better than a panel can.
-				void openPage("editor");
+				void switchMode("editor");
 			});
 	};
 
@@ -447,11 +457,13 @@ export function IntroPanel(props: IntroPanelProps) {
 							key={page}
 							className="tb with-icon"
 							href={pageHref(page)}
-							target={pageTarget(page)}
-							rel="noreferrer"
 							onClick={(e) => {
-								guardLeave(e);
+								// A plain click changes mode in this tab; anything else is
+								// the browser's, for a tab of its own.
+								if (!isPlainClick(e)) return;
+								e.preventDefault();
 								onClose();
+								void switchMode(page);
 							}}
 						>
 							<Icon name={SURFACE_ICON[page]} size={15} />

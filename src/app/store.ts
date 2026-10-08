@@ -506,6 +506,35 @@ class Store {
 		return true;
 	}
 
+	/**
+	 * The graph tabs, in order, with where each is looking: what a session
+	 * kept across a page load needs to put them back. See `editorSession.ts`.
+	 */
+	sessionTabs(): { path: string; graph: GraphId; view: View }[] {
+		return this.tabList
+			.filter((t) => !t.side)
+			.map((t) => ({ path: t.path, graph: t.graph, view: t.view }));
+	}
+
+	/** The key of the tab in front, if there is one. */
+	activeTabKey(): string | null {
+		return this.activeKey;
+	}
+
+	/**
+	 * Gives open tabs back the cameras a kept session had, and brings its front
+	 * tab forward. Tabs it does not name are left as they are.
+	 */
+	restoreViews(views: ReadonlyMap<string, View>, active: string | null): void {
+		this.tabList = this.tabList.map((t) => {
+			const view = views.get(t.key);
+			return view ? { ...t, view } : t;
+		});
+		if (active !== null && this.tabList.some((t) => t.key === active)) this.activeKey = active;
+		this.changed();
+		for (const listener of this.viewListeners) listener();
+	}
+
 	/** Every open file's path, in the order their first tabs appear. */
 	openPaths(): string[] {
 		return [...new Set(this.tabList.flatMap((t) => (t.side ? [] : [t.path])))];

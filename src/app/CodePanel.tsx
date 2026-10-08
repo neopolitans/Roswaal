@@ -52,6 +52,7 @@ import {
 	scopeCompletions,
 } from "./luauCompletions.js";
 import { luauExtensions } from "./luauExtensions.js";
+import { Menu } from "./Menu.jsx";
 import { nameDrop } from "./nameDrop.js";
 import { configText, functionNameOf } from "./nodeConfig.js";
 
@@ -207,6 +208,26 @@ export function codeTabLabels(
 	);
 }
 
+/**
+ * Whether the tab row has more than it can show, so the list is worth a
+ * button. Asked again when the row is resized and when a tab comes or goes.
+ */
+function useOverflow(count: number) {
+	const row = useRef<HTMLDivElement>(null);
+	const [overflowing, setOverflowing] = useState(false);
+	useEffect(() => {
+		const element = row.current;
+		if (!element) return;
+		const measure = () => setOverflowing(element.scrollWidth > element.clientWidth + 1);
+		measure();
+		if (typeof ResizeObserver === "undefined") return;
+		const watch = new ResizeObserver(measure);
+		watch.observe(element);
+		return () => watch.disconnect();
+	}, [count]);
+	return { row, overflowing };
+}
+
 /** What a tab's text must parse as: statements for Code Block, one value otherwise. */
 function kindOf(node: GraphNode | undefined, tab: CodeTab): LuauFragment {
 	return tab.kind ?? (node?.def === "code.custom" ? "block" : "expression");
@@ -234,6 +255,16 @@ export function CodePanel(props: CodePanelProps) {
 	const { script, registry, tabs, active, full, graphPath } = props;
 	const current = tabs.find((t) => t.key === active) ?? tabs[0];
 	const labels = useMemo(() => codeTabLabels(script, registry, tabs), [script, registry, tabs]);
+	const { row, overflowing } = useOverflow(tabs.length);
+	const [listAt, setListAt] = useState<HTMLButtonElement | null>(null);
+
+	// The tab in front stays in sight in a row that scrolls, chosen from the
+	// list or not.
+	useEffect(() => {
+		row.current
+			?.querySelector(".code-tab.on")
+			?.scrollIntoView({ block: "nearest", inline: "nearest" });
+	}, [row, current?.key]);
 
 	return (
 		<div
@@ -249,48 +280,87 @@ export function CodePanel(props: CodePanelProps) {
 		>
 			<PanelHead
 				lead={
-					<div className="code-tabs" role="tablist" aria-label="Open code">
-						{tabs.map((tab) => {
-							const label = labels.get(tab.key);
-							const title = label?.full ?? "";
-							const on = tab.key === current?.key;
-							return (
-								<div key={tab.key} className={cx("code-tab", on && "on")}>
-									<button
-										role="tab"
-										aria-selected={on}
-										aria-label={title}
-										className="code-tab-pick"
-										title={title}
-										onClick={() => props.onSelect(tab.key)}
-										onAuxClick={(e) => {
-											// The middle button closes a tab, as in a browser.
-											if (e.button === 1) props.onClose(tab.key);
-										}}
-									>
-										<span className="code-tab-label">
-											<CodeMark kind={label?.kind ?? "block"} />
-											<span className="code-tab-title">{label?.name}</span>
-											{label?.detail && <span className="code-tab-where">{label.detail}</span>}
-										</span>
-									</button>
-									<button
-										className="code-tab-close"
-										aria-label={`Close ${title}`}
-										title="Close"
-										onClick={() => props.onClose(tab.key)}
-									>
-										×
-									</button>
-								</div>
-							);
-						})}
-					</div>
+					<>
+						<div className="code-tabs" role="tablist" aria-label="Open code" ref={row}>
+							{tabs.map((tab) => {
+								const label = labels.get(tab.key);
+								const title = label?.full ?? "";
+								const on = tab.key === current?.key;
+								return (
+									<div key={tab.key} className={cx("code-tab", on && "on")}>
+										<button
+											role="tab"
+											aria-selected={on}
+											aria-label={title}
+											className="code-tab-pick"
+											title={title}
+											onClick={() => props.onSelect(tab.key)}
+											onAuxClick={(e) => {
+												// The middle button closes a tab, as in a browser.
+												if (e.button === 1) props.onClose(tab.key);
+											}}
+										>
+											<span className="code-tab-label">
+												<CodeMark kind={label?.kind ?? "block"} />
+												<span className="code-tab-title">{label?.name}</span>
+												{label?.detail && <span className="code-tab-where">{label.detail}</span>}
+											</span>
+										</button>
+										<button
+											className="code-tab-close"
+											aria-label={`Close ${title}`}
+											title="Close"
+											onClick={() => props.onClose(tab.key)}
+										>
+											×
+										</button>
+									</div>
+								);
+							})}
+						</div>
+						{/* Every tab at once, when the row has more than it can show: the
+					    graph tabs' list, for the same question. */}
+						{overflowing && (
+							<button
+								className="tb icon-only code-tab-list"
+								title={`${tabs.length} open`}
+								aria-label="Open code"
+								aria-haspopup="menu"
+								aria-expanded={listAt !== null}
+								onClick={(e) => {
+									const button = e.currentTarget;
+									setListAt((at) => (at ? null : button));
+								}}
+							>
+								<Icon name="chevron" size={13} />
+							</button>
+						)}
+						{listAt && (
+							<Menu
+								at={{ element: listAt }}
+								label="Open code"
+								onClose={() => setListAt(null)}
+								sections={[
+									{
+										entries: tabs.map((tab) => ({
+											key: tab.key,
+											label: labels.get(tab.key)?.full ?? tab.key,
+											glyph: <CodeMark kind={labels.get(tab.key)?.kind ?? "block"} />,
+											current: tab.key === current?.key,
+											run: () => props.onSelect(tab.key),
+										})),
+									},
+								]}
+							/>
+						)}
+					</>
 				}
 			>
+				{/* Folded, the header keeps the tabs and the card's own buttons;
+				    these two are for the code, which is not showing. */}
 				{current && (
 					<button
-						className="tb"
+						className="tb code-head-action"
 						title="Select this node on the graph, and bring it into view"
 						onClick={() => props.onGoTo(current.nodeId)}
 					>
@@ -298,7 +368,7 @@ export function CodePanel(props: CodePanelProps) {
 					</button>
 				)}
 				<button
-					className={cx("tb code-full", full && "on")}
+					className={cx("tb code-full code-head-action", full && "on")}
 					aria-pressed={full}
 					title={
 						full

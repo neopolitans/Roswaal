@@ -45,6 +45,7 @@ import { callPresets, type WireFrom } from "./menuSearch.js";
 import { buildPresets, type MenuAnchor } from "./NodeMenu.jsx";
 import { configEntries, configText } from "./nodeConfig.js";
 import type { PinMenuTarget } from "./PinMenu.jsx";
+import { useShowing } from "./pageHost.jsx";
 import type { Preferences } from "./preferences.js";
 import { requiredModules, useProjectFunctions, useProjectTypes } from "./projectTypes.js";
 import type { SourceDoc } from "./SourceView.jsx";
@@ -495,8 +496,10 @@ export function useGraphCommands(context: GraphCommandsContext) {
 
 	// -- keyboard ----------------------------------------------------------
 
+	const showing = useShowing();
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
+			if (!showing()) return;
 			// A dialog is a question about the graph; nothing changes it meanwhile.
 			if (isEditableTarget(e.target) || dialogOpen.current) return;
 			const mod = e.ctrlKey || e.metaKey;
@@ -633,6 +636,7 @@ export function useGraphCommands(context: GraphCommandsContext) {
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
 	}, [
+		showing,
 		editor.path,
 		mapDoc,
 		source,

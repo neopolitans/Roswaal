@@ -59,6 +59,7 @@ import { Icon } from "../icons.jsx";
 import { isEditableTarget } from "../keys.js";
 import { autoLayout } from "../layout.js";
 import { type MenuAnchor, NodeMenu } from "../NodeMenu.jsx";
+import { useShowing } from "../pageHost.jsx";
 import { type Preferences, wheelAction } from "../preferences.js";
 import { store, useEditor } from "../store.js";
 import { liveSelection, TouchBar } from "../TouchBar.jsx";
@@ -266,8 +267,10 @@ export function LogicCanvas({
 
 	// Keys for the canvas, while it has focus. The designer page has no editor
 	// shell to handle them, and typing in the node's fields must not reach here.
+	const showing = useShowing();
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
+			if (!showing()) return;
 			const element = container.current;
 			const target = e.target as HTMLElement;
 			if (!element || !element.contains(target)) return;
@@ -334,7 +337,7 @@ export function LogicCanvas({
 		};
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
-	}, [registry, realign, paste]);
+	}, [registry, realign, paste, showing]);
 
 	return (
 		<div className="logic-canvas" ref={container}>

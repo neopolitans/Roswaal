@@ -63,9 +63,9 @@ export function StatusPanel(props: StatusPanelProps) {
 					</>
 				)}
 				<span className="spacer" style={{ flex: 1 }} />
-				{props.busy && <span>{props.busy}</span>}
+				{props.busy && <span className="status-written">{props.busy}</span>}
 				{!props.busy && outcomes.length > 0 && (
-					<span>
+					<span className="status-written">
 						{outcomes.filter((o) => o.written).length} of {outcomes.length} written
 					</span>
 				)}

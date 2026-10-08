@@ -181,6 +181,24 @@ function mayLeave(): boolean {
 	return !pagesShareTab() || leaveWarning === null || window.confirm(leaveWarning);
 }
 
+/**
+ * Whether this tab may load another page, asking if there is something to
+ * lose. Unlike `mayLeave`, asked on every screen: a mode switch always stays
+ * in the tab, wherever it happens.
+ */
+export function mayLeaveTab(): boolean {
+	return leaveWarning === null || window.confirm(leaveWarning);
+}
+
+/** Whatever must happen before this tab loads another page. */
+export async function runBeforeLeaving(): Promise<void> {
+	try {
+		await beforeLeaving?.();
+	} catch {
+		// As in `openPage`: the failure has been reported where it happened.
+	}
+}
+
 /** For a link to another page: stays put if the reader would rather. */
 export function guardLeave(event: { preventDefault(): void }): void {
 	if (!mayLeave()) event.preventDefault();

@@ -36,9 +36,9 @@ import { cx } from "./cx.js";
 import { FloatingTools, ToolGroup } from "./FloatingTools.jsx";
 import { Icon } from "./icons.jsx";
 import { MenuButton } from "./Menu.jsx";
+import { ModeStrip } from "./ModeStrip.jsx";
 import type { MenuEntry } from "./menuModel.js";
 import { useNarrowBar, usePhone } from "./Popout.jsx";
-import { IS_STATIC_HOST } from "./pages.js";
 import { WindowMark } from "./WindowMark.jsx";
 import { useWorkspaceControls } from "./Workspace.jsx";
 
@@ -68,11 +68,6 @@ export interface ProjectBarProps {
 	 */
 	onOpenIntro: () => void;
 }
-
-/** Two builds, two destinations: see `onOpenDocs`. */
-const DOCS_TITLE = IS_STATIC_HOST
-	? "Docs — guides, and a page for every built-in node. Opens the published documentation in its own tab; a project's own packs are documented in the editor the daemon serves."
-	: "Docs — guides, and a page for every node including this project's packs. Opens in its own window.";
 
 export function ProjectBar(props: ProjectBarProps) {
 	const phone = usePhone();
@@ -107,6 +102,9 @@ export function ProjectBar(props: ProjectBarProps) {
 			<ToolGroup className="mark-group">
 				<WindowMark window="editor" onOpen={props.onOpenIntro} />
 			</ToolGroup>
+			{/* Editor, Design and Docs: which window this is, and the way to the
+			    others. Not on a phone, where More has them. */}
+			<ModeStrip current="editor" />
 
 			{!phone && (
 				<ToolGroup>
@@ -199,8 +197,9 @@ export function ProjectBar(props: ProjectBarProps) {
 								},
 								{
 									entries: [
-										{ label: "Docs", icon: "document", run: props.onOpenDocs },
-										{ label: "Node Design", icon: "palette", run: props.onOpenDesigner },
+										// The mode strip has them, where there is room for it.
+										phone && { label: "Docs", icon: "document", run: props.onOpenDocs },
+										phone && { label: "Node Design", icon: "palette", run: props.onOpenDesigner },
 										{ label: "Settings", icon: "settings", run: props.onOpenSettings },
 									],
 								},
@@ -237,22 +236,6 @@ export function ProjectBar(props: ProjectBarProps) {
 							<Icon name="panelRight" size={16} />
 						</button>
 						<span className="divider" />
-						<button
-							className="tb icon-only"
-							title={DOCS_TITLE}
-							aria-label="Open the documentation"
-							onClick={props.onOpenDocs}
-						>
-							<Icon name="document" size={16} />
-						</button>
-						<button
-							className="tb icon-only"
-							title="Node Design — make a node of your own, into one of this project's packs"
-							aria-label="Open Node Design"
-							onClick={props.onOpenDesigner}
-						>
-							<Icon name="palette" size={16} />
-						</button>
 						<button
 							className="tb icon-only"
 							title="Settings — the project's, this browser's, and themes"

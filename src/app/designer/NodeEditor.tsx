@@ -47,6 +47,7 @@ import { headerHeight, isCompact, nodeBounds, nodeWidth, pinPosition } from "../
 import { Icon } from "../icons.jsx";
 import { NodeView } from "../NodeView.jsx";
 import { Popout, useMedia, usePhone } from "../Popout.jsx";
+import { useShowing } from "../pageHost.jsx";
 import { pinColor } from "../palette.js";
 import type { Preferences } from "../preferences.js";
 import { TypePicker } from "../TypePicker.jsx";
@@ -427,8 +428,10 @@ export function NodeEditor({
 		}
 	}, [problems, saving, packPath, def, original, notify, onSaved]);
 
+	const showing = useShowing();
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
+			if (!showing()) return;
 			if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
 				e.preventDefault();
 				void save();
@@ -436,7 +439,7 @@ export function NodeEditor({
 		};
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
-	}, [save]);
+	}, [save, showing]);
 
 	// -- logic -------------------------------------------------------------
 

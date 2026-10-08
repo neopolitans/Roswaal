@@ -111,6 +111,11 @@ export interface WorkspaceProps {
 	 * written by `onResizeEnd` when it settles.
 	 */
 	onLayout?: (change: (layout: Layout) => Layout, persist?: boolean) => void;
+	/**
+	 * Panels whose own bar has folded what they show, apart from the card's
+	 * fold: Script analysis's chevron. A window of one is as tall as its bar.
+	 */
+	collapsed?: ReadonlySet<PanelId>;
 	/** A window was moved or resized over the centre. */
 	onFramePanel?: (panel: PanelId, frame: PanelFrame) => void;
 	/** The drag finished. Separate for the reason `onResizeEnd` is. */
@@ -191,6 +196,7 @@ export function Workspace({
 	chrome,
 	strip,
 	fullFoot = false,
+	collapsed,
 }: WorkspaceProps) {
 	const surface = useRef<HTMLDivElement>(null);
 	// The centre, which a window's coordinates are measured from.
@@ -306,6 +312,9 @@ export function Workspace({
 	const menuFor = onLayout && !compact ? openMenu : undefined;
 	const openMenuItems = menu ? menuItems(menu.panel) : null;
 
+	const floats = compact ? [] : floatingCards(effective, shown);
+	const floatFront = focus !== null && floats.some((card) => card.tabs.includes(focus));
+
 	return (
 		<WorkspaceControls.Provider value={controls}>
 			<div
@@ -363,23 +372,6 @@ export function Workspace({
 							)}
 						</div>
 					)}
-					{/* Over the graph rather than beside it. Inside the centre, so a
-					    window's coordinates are the graph's and a dock opening does not
-					    drag every window sideways with it. */}
-					{(compact ? [] : floatingCards(effective, shown)).map((card) => (
-						<FloatingCard
-							key={card.head}
-							card={card}
-							frame={effective.panels[card.head].frame}
-							contents={contents}
-							focus={focus !== null && card.tabs.includes(focus)}
-							onGrab={grabber}
-							onLayout={onLayout}
-							onMenu={menuFor}
-							onFrame={onFramePanel}
-							onFrameEnd={onFramePanelEnd}
-						/>
-					))}
 				</div>
 
 				{compact && openPanel && (
@@ -447,6 +439,29 @@ export function Workspace({
 						}
 					/>
 				)}
+
+				{/* The windows over the graph, in a layer of their own the size of the
+				    centre, so a window's coordinates are the graph's and a dock opening
+				    does not drag every window sideways. Under the docks, until a window
+				    is the card in use: then the whole layer comes up over them, so the
+				    one you are working in is never behind the Code panel along the foot. */}
+				<div className={cx("float-layer", floatFront && "front")}>
+					{floats.map((card) => (
+						<FloatingCard
+							key={card.head}
+							card={card}
+							frame={effective.panels[card.head].frame}
+							contents={contents}
+							focus={focus !== null && card.tabs.includes(focus)}
+							collapsed={collapsed?.has(card.head) ?? false}
+							onGrab={grabber}
+							onLayout={onLayout}
+							onMenu={menuFor}
+							onFrame={onFramePanel}
+							onFrameEnd={onFramePanelEnd}
+						/>
+					))}
+				</div>
 
 				{chrome && <div className="workspace-chrome">{chrome}</div>}
 
@@ -813,7 +828,12 @@ function DockCards({
 		return () => watch.disconnect();
 	}, [onHeight, drawn]);
 	if (!drawn) return null;
-	const shared = side !== "bottom" && cards.filter((card) => !card.folded).length >= 2;
+	// Cards that are as tall as what they show, and take no share of the
+	// column: one folded by its chevron, and Script analysis on its own. Its
+	// box holds the bar and about five problems before its list scrolls, so a
+	// short list is a short card -- and with the list put away, just its bar.
+	const shut = (card: Card) => card.folded || (card.tabs.length === 1 && HEADLESS.has(card.head));
+	const shared = side !== "bottom" && cards.filter((card) => !shut(card)).length >= 2;
 
 	// The two cards either side of a line trade height; the rest keep theirs.
 	function share(above: Card, below: Card, e: ReactPointerEvent<HTMLDivElement>) {
@@ -857,7 +877,7 @@ function DockCards({
 			{splitter}
 			{cards.map((card, i) => {
 				const above = cards[i - 1];
-				const live = shared && above !== undefined && !above.folded && !card.folded;
+				const live = shared && above !== undefined && !shut(above) && !shut(card);
 				return (
 					<Fragment key={card.head}>
 						{above && (
@@ -887,7 +907,7 @@ function DockCards({
 							onShow={(id) => onLayout?.((l) => showTab(l, id))}
 							onFold={(folded) => onLayout?.((l) => foldCard(l, card.head, folded))}
 							onMenu={onMenu}
-							style={shared && !card.folded ? { flex: `${card.weight} 1 0px` } : undefined}
+							style={shared && !shut(card) ? { flex: `${card.weight} 1 0px` } : undefined}
 						/>
 					</Fragment>
 				);
@@ -959,6 +979,7 @@ function FloatingCard({
 	frame,
 	contents,
 	focus,
+	collapsed,
 	onGrab,
 	onLayout,
 	onMenu,
@@ -969,6 +990,7 @@ function FloatingCard({
 	frame: PanelFrame;
 	contents: Partial<Record<PanelId, ReactNode>>;
 	focus: boolean;
+	collapsed: boolean;
 	onGrab?: (panel: PanelId, alone: boolean, event: ReactPointerEvent<HTMLElement>) => void;
 	onLayout?: (change: (layout: Layout) => Layout, persist?: boolean) => void;
 	onMenu?: (panel: PanelId, anchor: HTMLElement) => void;
@@ -1023,10 +1045,12 @@ function FloatingCard({
 				left: frame.x,
 				top: frame.y,
 				width: frame.w,
-				height: card.folded ? undefined : frame.h,
+				height: card.folded || collapsed ? undefined : frame.h,
+				// Its height is its bar's, folded, so nothing above it to drag.
+				minHeight: card.folded || collapsed ? 0 : undefined,
 			}}
 		>
-			{EDGES.map((edge) => (
+			{(card.folded || collapsed ? SIDE_EDGES : EDGES).map((edge) => (
 				<div
 					key={edge}
 					className={cx("card-size", edge)}
@@ -1040,6 +1064,8 @@ function FloatingCard({
 
 /** A window's edges and corners, each a handle. */
 const EDGES = ["n", "s", "e", "w", "ne", "nw", "se", "sw"];
+/** A folded window's: only its width is left to change. */
+const SIDE_EDGES = ["e", "w"];
 
 /**
  * One dock on a phone or a tablet: its panels as drawers, one out at a time,

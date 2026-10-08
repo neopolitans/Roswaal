@@ -76,8 +76,11 @@ async function main() {
 	const isCanary = process.env.ROSWAAL_CHANNEL === "canary";
 	// The mark in the site's colour, as every window of the web app wears it:
 	// the published site is the web app's, so blue, and yellow on the canary.
+	// At the app's own size (`MarkedLogo`), so the mark and the mode strip sit
+	// on the same pixels here as in the editor, and a crossfade between them
+	// moves nothing.
 	const logo = {
-		mark: logoMarkup(18).replace(
+		mark: logoMarkup(17).replace(
 			'class="logo-mark"',
 			`class="logo-mark mark-${isCanary ? "canary" : "preview"}"`,
 		),

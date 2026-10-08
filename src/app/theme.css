@@ -1078,6 +1078,24 @@ select optgroup {
 
 /* --------------------------------------------------------- floating panels */
 
+/* The windows' own layer, the centre's size: over the graph and under the
+   docks, and over the docks while one of its windows is the card in use --
+   level with the pill, and under the top clusters, which come after it. */
+.float-layer {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	pointer-events: none;
+}
+
+.float-layer.front {
+	z-index: 5;
+}
+
+.float-layer > * {
+	pointer-events: auto;
+}
+
 /* A panel out of its dock, over the graph. Positioned inside `.centre`, so its
    coordinates are the graph's own and opening a dock does not drag it sideways. */
 .float-panel {
@@ -3050,6 +3068,35 @@ button.tb.primary:hover:not(:disabled) {
 	color: var(--fg-faint);
 }
 
+/* One line however narrow the card: in a side dock No problems and "0 of 1
+   written" wrapped, and the bar grew a row. The state and the counts keep
+   their words; what was written, or the quiet counts beside No problems,
+   give way first. */
+.status .bar > * {
+	flex: none;
+	white-space: nowrap;
+}
+
+.status .bar > .spacer {
+	flex: 1 1 0;
+}
+
+.status .bar .status-state + .count.none,
+.status .bar .status-written {
+	flex: 0 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* In a side dock the card is as tall as its list (see \`DockCards\`), and a
+   problem there takes two or three lines: room for about five before the
+   list scrolls. */
+.dock.left .status,
+.dock.right .status {
+	max-height: 340px;
+}
+
 /* A severity mark: a tick, or an exclamation in a red or amber disc. */
 .sev-mark,
 .status .entry::before {
@@ -4515,6 +4562,17 @@ button.start-tile:disabled {
 
 .code-tabs::-webkit-scrollbar {
 	display: none;
+}
+
+/* Folded, the header is the title, the tabs, the list and the card's own
+   buttons: Go to node and Full view are for the code, which is put away. */
+.card.folded > .card-head .code-head-action {
+	display: none;
+}
+
+.code-tab-list {
+	flex: none;
+	align-self: center;
 }
 
 /* A tab is the header's full height, and the one in front is filled with the
@@ -7399,6 +7457,11 @@ select.doc-target.lune {
 /* The search sits beside the mark, ahead of the spacer that pushes the rest
    of the row right. */
 .window-chrome .mark-group {
+	order: -3;
+}
+
+/* The mode strip stays with the mark, as it does in every window. */
+.window-chrome .mode-strip {
 	order: -2;
 }
 
@@ -13760,6 +13823,142 @@ select:not(.literal):not([multiple]) {
 	.window-mark .window-name,
 	.window-mark .version {
 		display: none;
+	}
+}
+
+/* The modes, one tab: every page the tab has shown stays laid out at full
+   size, and the ones behind are invisible and inert. Invisible rather than
+   gone, so a canvas behind is never measured at nothing. See `pageHost.tsx`. */
+#root {
+	position: relative;
+}
+
+.page-layer {
+	position: absolute;
+	inset: 0;
+}
+
+/* Every descendant too: a child that sets `visibility: visible` -- the close
+   button on the graph tab in front -- would otherwise show through. */
+.page-layer:not([data-showing]),
+.page-layer:not([data-showing]) * {
+	visibility: hidden !important;
+}
+
+/* The editor's first frame while it finds its project (`StartingFrame`), and
+   what it fades in once it has: the canvas, the mark and the strip stay put,
+   and the panels and the graph arrive. */
+.app.starting .workspace {
+	flex: 1;
+}
+
+.app.arriving .centre-body,
+.app.arriving .dock,
+.app.arriving .float-layer {
+	animation: app-arrive 180ms ease-out both;
+}
+
+@keyframes app-arrive {
+	from {
+		opacity: 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.app.arriving .centre-body,
+	.app.arriving .dock,
+	.app.arriving .float-layer {
+		animation: none;
+	}
+}
+
+/* The mode strip: Editor, Design and Docs after the mark, and a box behind
+   the one you are in that slides over from the one you left. */
+.mode-strip {
+	flex-wrap: nowrap;
+}
+
+.mode-slots {
+	position: relative;
+	display: grid;
+	grid-template-columns: repeat(3, var(--hit));
+	gap: 2px;
+}
+
+.mode-box {
+	position: absolute;
+	top: 0;
+	left: calc(var(--mode-at, 0) * (var(--hit) + 2px));
+	width: var(--hit);
+	height: var(--hit);
+	border-radius: var(--radius-sm);
+	background: color-mix(in srgb, var(--accent) 22%, transparent);
+	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+	pointer-events: none;
+}
+
+.mode-slot {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--hit);
+	height: var(--hit);
+	border-radius: var(--radius-sm);
+	color: var(--fg-muted);
+	text-decoration: none;
+}
+
+.mode-slot:hover {
+	background: var(--bg-hover);
+	color: var(--fg);
+}
+
+.mode-slot[aria-current="page"],
+.mode-slot[aria-current="page"]:hover {
+	background: none;
+	color: var(--accent);
+}
+
+.mode-slot:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: -2px;
+}
+
+@media (max-width: 699px) {
+	.mode-strip:not(.docs-bar-frame *) {
+		display: none;
+	}
+}
+
+/* The docs' Try it is the strip's Editor where the strip is drawn. */
+@media (min-width: 700px) {
+	.docs-page-head a.tb.docs-try {
+		display: none;
+	}
+}
+
+/* Between modes, the whole page crossfades: in place in one tab, and from the
+   docs' static pages to the editor and back where the browser carries a
+   transition across a load. The mark and the strip are not named on their
+   own. A browser draws a named element as a picture by itself, and a frosted
+   cluster pictured without what is behind it is a flat, pale box. They sit
+   on the same pixels in every mode instead, so in the crossfade of the whole
+   page they hold still, and the strip's box slides on the page arriving. */
+@view-transition {
+	navigation: auto;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+	animation-duration: 200ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	::view-transition-group(*),
+	::view-transition-old(*),
+	::view-transition-new(*) {
+		animation: none !important;
 	}
 }
 

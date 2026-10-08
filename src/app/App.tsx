@@ -37,9 +37,11 @@ import { PanelHead } from "./Cards.jsx";
 import { CodePanel, type CodeTab, codeTabKey, codeValue } from "./CodePanel.jsx";
 import { CompileToast } from "./CompileToast.jsx";
 import { type CodeOpenRequest, onCodeEditRequest } from "./codeEditRequests.js";
+import { cx } from "./cx.js";
 import { previewFor } from "./DocsPanel.jsx";
 import { DocsSearch } from "./DocsSearch.jsx";
 import { ExportMenu } from "./ExportMenu.jsx";
+import { keepSession, takeSession } from "./editorSession.js";
 import {
 	type Clipping,
 	declareModule,
@@ -47,6 +49,7 @@ import {
 	setLiteral,
 	setConfig as setNodeConfig,
 } from "./edits.js";
+import { FloatingTools, ToolGroup } from "./FloatingTools.jsx";
 import { GraphSettings } from "./GraphSettings.jsx";
 import { GraphTabs } from "./GraphTabs.jsx";
 import {
@@ -60,6 +63,7 @@ import { Inspector } from "./Inspector.jsx";
 import { IntroPanel } from "./IntroPanel.jsx";
 import { MapEditor } from "./MapEditor.jsx";
 import { MenuButton } from "./Menu.jsx";
+import { ModeStrip } from "./ModeStrip.jsx";
 import type { WireFrom } from "./menuSearch.js";
 import type { NodeMenuTarget } from "./NodeActionMenu.jsx";
 import type { MenuAnchor } from "./NodeMenu.jsx";
@@ -70,8 +74,9 @@ import type { PinMenuTarget } from "./PinMenu.jsx";
 import { PlaceBrowser, PlaceProperties, type PlaceTarget } from "./PlaceBrowser.jsx";
 import { ProjectPicker } from "./ProjectPicker.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
+import { setEditorOpener, switchMode, useOnShown, useShowing } from "./pageHost.jsx";
 import { IS_STATIC_HOST, openHome, openPage } from "./pages.js";
-import { type PanelId, reopenPanel, showTab } from "./panels.js";
+import { cardOf, foldCard, type PanelId, reopenPanel, showTab } from "./panels.js";
 import { readPreferences, wheelAction } from "./preferences.js";
 import { SiteBanner } from "./previewBuild.jsx";
 import { setProjectAliases } from "./projectAliases.js";
@@ -81,7 +86,7 @@ import { previewSelection } from "./SelectionPreview.jsx";
 import { SourceView } from "./SourceView.jsx";
 import { StatusPanel } from "./StatusPanel.jsx";
 import { SaveQueue } from "./saveQueue.js";
-import { sideKey, store, useDocuments, useEditor, useOutline } from "./store.js";
+import { sideKey, store, tabKey, useDocuments, useEditor, useOutline } from "./store.js";
 import { showToast, Toasts } from "./Toast.jsx";
 import { DocumentAction, DocumentBar, graphMenuEntries, ProjectBar } from "./Toolbar.jsx";
 import { liveSelection, TouchBar } from "./TouchBar.jsx";
@@ -91,6 +96,7 @@ import { useGraphCommands } from "./useGraphCommands.js";
 import { useLayoutPrefs } from "./useLayoutPrefs.js";
 import { useProjectActions } from "./useProjectActions.js";
 import { SpecifierHints, VariablesPanel } from "./VariablesPanel.jsx";
+import { WindowMark } from "./WindowMark.jsx";
 import { Workspace } from "./Workspace.jsx";
 
 /** Written as a code unit so the escape survives the JSX attribute. */
@@ -136,6 +142,9 @@ function refreshAliases(): void {
  * Read once when the module loads. The effect that tidies the address runs
  * twice in development, and the second run would find nothing to read.
  */
+/** Script analysis with its own chevron down: a window of it is only its bar. */
+const STATUS_FOLDED: ReadonlySet<PanelId> = new Set<PanelId>(["analysis"]);
+
 const OPENED_FOR_PICKER = typeof window !== "undefined" && window.location.hash === "#picker";
 
 export function App() {
@@ -387,9 +396,11 @@ export function App() {
 		if (!codeShown) setCodeFull(false);
 	}, [codeShown]);
 	// Ctrl+Shift+Enter: full view in and out, wherever the focus is.
+	const showing = useShowing();
 	useEffect(() => {
 		if (!codeShown) return;
 		const onKey = (e: KeyboardEvent) => {
+			if (!showing()) return;
 			if (e.key === "Enter" && e.shiftKey && (e.ctrlKey || e.metaKey)) {
 				e.preventDefault();
 				setCodeFull((full) => !full);
@@ -397,7 +408,7 @@ export function App() {
 		};
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
-	}, [codeShown]);
+	}, [codeShown, showing]);
 
 	/** How the node picker draws: the same settings the docs pictures follow. */
 	const nodePreview = useMemo(() => previewFor(prefs, registry), [prefs, registry]);
@@ -603,6 +614,33 @@ export function App() {
 		await switchProject(chosen);
 	}, [ask, loadProject, notify, switchProject]);
 
+	/**
+	 * Whether the editor has found its first state: the project it reopens and
+	 * the session it puts back, or that there is none and the picker is right.
+	 *
+	 * Until then it draws an empty canvas with the mark and the mode strip,
+	 * not the picker. A mode switch crossfades into whatever the first frame
+	 * is, and a picker there was a state the editor was never in.
+	 */
+	const [ready, setReady] = useState(false);
+	const [arriving, setArriving] = useState(false);
+	const arrive = useCallback(() => {
+		setReady((was) => {
+			if (!was) setArriving(true);
+			return true;
+		});
+	}, []);
+	useEffect(() => {
+		if (!arriving) return;
+		const done = window.setTimeout(() => setArriving(false), 400);
+		return () => window.clearTimeout(done);
+	}, [arriving]);
+	// However the start went, never longer than this behind an empty canvas.
+	useEffect(() => {
+		const late = window.setTimeout(arrive, 5000);
+		return () => window.clearTimeout(late);
+	}, [arrive]);
+
 	useEffect(() => {
 		// The daemon wins over the remembered path: if it was started with
 		// `roswaal serve` in a directory, that is the project the developer meant.
@@ -634,11 +672,89 @@ export function App() {
 			// open is the one `roswaal serve` was pointed at, and starting at the
 			// picker instead would be ignoring an instruction rather than
 			// honouring a setting.
-			if (!readPreferences().reopenLastProject) return;
+			// No project to wait for: the picker is the editor's real first state.
+			if (!readPreferences().reopenLastProject) {
+				arrive();
+				return;
+			}
 			const last = lastProject();
-			if (last) void loadProject(last);
+			if (!last || !(await loadProject(last))) arrive();
 		})();
-	}, [loadProject]);
+	}, [loadProject, arrive]);
+
+	/**
+	 * Where the editor was, for the next load of this tab.
+	 *
+	 * Node Design never unloads the editor, but the hosted docs are pages of
+	 * their own and a reload is a reload: on the way out the open graphs, the
+	 * one in front, their cameras and the Code panel's tabs are written down,
+	 * and the same project opening again in this tab puts them back. See
+	 * `editorSession.ts`.
+	 */
+	const leaving = useRef({ root: null as string | null, code: codeTabs });
+	useEffect(() => {
+		leaving.current = { root: project?.root ?? null, code: codeTabs };
+	}, [project?.root, codeTabs]);
+	useEffect(() => {
+		const keep = () => {
+			const { root, code } = leaving.current;
+			if (!root) return;
+			keepSession({ root, tabs: store.sessionTabs(), active: store.activeTabKey(), code });
+		};
+		window.addEventListener("pagehide", keep);
+		return () => window.removeEventListener("pagehide", keep);
+	}, []);
+	const resumed = useRef(false);
+	useEffect(() => {
+		if (!project || resumed.current) return;
+		resumed.current = true;
+		const session = takeSession(project.root);
+		if (!session || store.sessionTabs().length > 0) {
+			arrive();
+			return;
+		}
+		void (async () => {
+			for (const path of new Set(session.tabs.map((t) => t.path))) {
+				try {
+					const { script } = await api.readScript(path);
+					store.open(path, script);
+				} catch {
+					// Moved or deleted since: the rest still come back.
+				}
+			}
+			for (const t of session.tabs) if (t.graph !== null) store.openFunction(t.path, t.graph);
+			store.restoreViews(
+				new Map(session.tabs.map((t) => [tabKey(t.path, t.graph), t.view])),
+				session.active,
+			);
+			setCodeTabs((open) => ({ ...session.code, ...open }));
+			arrive();
+		})();
+	}, [project, arrive]);
+
+	// The projects panel in Node Design and the docs opens a project through
+	// here while the editor is kept behind them. See `setEditorOpener`.
+	useEffect(() => {
+		setEditorOpener((root) => switchProject(root, true));
+		return () => setEditorOpener(null);
+	}, [switchProject]);
+
+	/**
+	 * Back from Node Design or the docs, which share this tab.
+	 *
+	 * The editor stayed as it was the whole time -- see `pageHost.tsx` -- but
+	 * Node Design may have saved a node into one of the project's packs, and
+	 * the palette should have it now rather than after a reload.
+	 */
+	useOnShown(() => {
+		if (!project) return;
+		void api.customNodes().then(
+			({ custom }) => setCustomNodes(custom),
+			() => {
+				// The packs the editor had are still right enough to go on with.
+			},
+		);
+	});
 
 	/**
 	 * The daemon's event stream.
@@ -1103,6 +1219,7 @@ export function App() {
 
 	// -- render ------------------------------------------------------------
 
+	if (!ready) return <StartingFrame />;
 	if (!project) return <ProjectPicker onOpen={loadProject} busy={busy} />;
 
 	// A graph is what the centre shows: not a node map, a source file or aliases.
@@ -1120,7 +1237,7 @@ export function App() {
 	const warningCount = diagnostics.length - errorCount;
 
 	return (
-		<div className="app">
+		<div className={cx("app", arriving && "arriving")}>
 			{/* Above everything, including the toolbar: a build that may be
 			    halfway through an idea says so before you start working in it. */}
 			<SiteBanner />
@@ -1233,6 +1350,7 @@ export function App() {
 
 			<Workspace
 				layout={layout}
+				collapsed={statusOpen ? undefined : STATUS_FOLDED}
 				chrome={
 					<ProjectBar
 						config={project.config}
@@ -1307,8 +1425,8 @@ export function App() {
 							await runCompileMap(undefined);
 							await runCompile(undefined, true);
 						}}
-						onOpenDocs={() => void openPage("docs")}
-						onOpenDesigner={() => void openPage("designer")}
+						onOpenDocs={() => void switchMode("docs")}
+						onOpenDesigner={() => void switchMode("designer")}
 						onOpenSettings={() => setSettingsOpen(true)}
 						onOpenIntro={() => setIntroOpen(true)}
 					/>
@@ -1523,13 +1641,18 @@ export function App() {
 								locked={locked}
 								tabs={shownCodeTabs}
 								active={codeHere?.active ?? null}
-								onSelect={(key) =>
+								onSelect={(key) => {
 									setCodeTabs((all) => {
 										const path = openPath.current;
 										if (!path || !all[path]) return all;
 										return { ...all, [path]: { ...all[path], active: key } };
-									})
-								}
+									});
+									// A tab picked from a folded panel is a tab you want to read.
+									onLayout((l) => {
+										const head = cardOf(l, "code");
+										return l.panels[head].folded ? foldCard(l, head, false) : l;
+									});
+								}}
 								onClose={closeCode}
 								onApply={(path, tab, text) => {
 									// Only into the graph it was typed for.
@@ -1780,3 +1903,27 @@ export function App() {
 }
 
 // ---------------------------------------------------------------------------
+
+/**
+ * The editor before it knows its project: the canvas, empty, with the mark
+ * and the mode strip where the top row puts them, so a crossfade from another
+ * mode keeps them still and shows nothing the editor is not about to be.
+ */
+function StartingFrame() {
+	return (
+		<div className="app starting" aria-busy="true">
+			<SiteBanner />
+			<div className="workspace">
+				<div className="centre" />
+				<div className="workspace-chrome">
+					<FloatingTools label="Editor">
+						<ToolGroup className="mark-group">
+							<WindowMark window="editor" onOpen={() => {}} />
+						</ToolGroup>
+						<ModeStrip current="editor" />
+					</FloatingTools>
+				</div>
+			</div>
+		</div>
+	);
+}

@@ -141,6 +141,11 @@ export type ToolbarItem = Documented &
 				 */
 				glyph?: string;
 		  }
+		/**
+		 * The mode strip, as `ModeStrip` draws it: Editor, Design and Docs, with
+		 * the box behind the one this window is.
+		 */
+		| { t: "modes"; on: "editor" | "designer" | "docs" }
 		/** An icon on its own: the shape of most of the chrome. */
 		| { t: "icon"; icon: string; on?: boolean; primary?: boolean }
 		/** A button with words, and an icon before them when it has one. */
@@ -347,6 +352,10 @@ export type ToolbarItem = Documented &
 		  }
 	);
 
+/** The mode strip's three, in its order: `MODES` and `MODE_GLYPH` in the app. */
+const MODE_ORDER = ["editor", "designer", "docs"] as const;
+const MODE_GLYPHS = ["graph", "palette", "document"] as const;
+
 /**
  * Said once per page, under the first bar drawn on it.
  *
@@ -479,11 +488,13 @@ export function iconsOf(spec: ToolbarSpec): string[] {
 				? [item.icon]
 				: item.t === "mark" && item.glyph
 					? [item.glyph]
-					: item.t === "popout"
-						? [...(item.icon ? [item.icon] : []), "chevron"]
-						: item.t === "heading" && item.level === 2
-							? ["chevron", "more"]
-							: [],
+					: item.t === "modes"
+						? [...MODE_GLYPHS]
+						: item.t === "popout"
+							? [...(item.icon ? [item.icon] : []), "chevron"]
+							: item.t === "heading" && item.level === 2
+								? ["chevron", "more"]
+								: [],
 	);
 }
 
@@ -640,6 +651,17 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 				`${item.version ? `<span class="version">${escapeXml(art.version)}</span>` : ""}` +
 				`${item.preview ? `<span class="version preview-chip">preview</span>` : ""}</span>`
 			);
+		case "modes": {
+			const at = MODE_ORDER.indexOf(item.on);
+			return (
+				`<span class="mode-slots" style="--mode-at:${at}"${tie}><span class="mode-box"></span>` +
+				MODE_GLYPHS.map(
+					(glyph, i) =>
+						`<span class="mode-slot"${i === at ? ` aria-current="page"` : ""}>${iconSvg(glyph, 16, art)}</span>`,
+				).join("") +
+				`</span>`
+			);
+		}
 		case "icon":
 			return (
 				`<button type="button" tabindex="-1"${tie} class="tb icon-only${item.on ? " on" : ""}${item.primary ? " primary" : ""}">` +
@@ -1151,6 +1173,31 @@ function openGraph(tab: Documented): ToolbarGroup[] {
 }
 
 /**
+ * The mode strip after the mark, in whichever window: `ModeStrip.tsx`. Not on
+ * a phone, whose More menu carries the other two.
+ */
+function modes(on: "editor" | "designer" | "docs", note = ""): ToolbarItem {
+	return {
+		t: "modes",
+		on,
+		name: "Editor, Design and Docs",
+		where: "beside the mark",
+		what:
+			"The three modes, with a box behind the one you are in. A click switches this tab, " +
+			"and the editor is kept just as you left it — its tabs, where you were looking, " +
+			"and the Code panel — while Node Design or the docs is in front. `Ctrl`-click, " +
+			"or right-click, opens a mode in a new tab." +
+			note,
+	};
+}
+
+/** What Docs is, from the browser build. */
+const PUBLISHED_DOCS_NOTE =
+	" Here **Docs is the published documentation**, which covers the built-in library: a " +
+	"separate site with no editor behind it, so it **cannot document a project's own packs**. " +
+	"For those, read the reference from the editor the daemon serves.";
+
+/**
  * The editor's top row: everything that acts on the project, and the open
  * graph between.
  *
@@ -1172,16 +1219,16 @@ export const EDITOR_BAR: ToolbarSpec = {
 				{
 					t: "mark",
 					window: true,
-					version: true,
 					name: "The Roswaal mark",
 					where: "far left",
 					what:
 						"Opens the projects panel: your recent projects, the demos, and the other " +
-						"windows. Beside it is the build you are on, which any bug report needs; in a " +
-						"narrow window it is in the mark's tooltip.",
+						"windows. Its tooltip and that panel say which build you are on, which any " +
+						"bug report needs.",
 				},
 			],
 		},
+		{ wrap: "mode-strip", items: [modes("editor")] },
 		{
 			items: [
 				{
@@ -1262,24 +1309,6 @@ export const EDITOR_BAR: ToolbarSpec = {
 						"graph's own with nothing selected.",
 				},
 				{ t: "divider" },
-				{
-					t: "icon",
-					icon: "document",
-					name: "Docs",
-					where: "third icon from the right",
-					what:
-						"This documentation, in its own window — guides, and a page for every " +
-						"node including your project's own packs.",
-				},
-				{
-					t: "icon",
-					icon: "palette",
-					name: "Node Design",
-					where: "second icon from the right",
-					what:
-						"Opens [Node Design](creating-custom-nodes) in its own window, for making " +
-						"nodes of your own.",
-				},
 				{
 					t: "icon",
 					icon: "settings",
@@ -1541,8 +1570,6 @@ export const DESIGNER_BAR: ToolbarSpec = {
 				{
 					t: "mark",
 					window: true,
-					text: "Node Design",
-					version: true,
 					name: "Node Design",
 					where: "far left",
 					what:
@@ -1551,6 +1578,7 @@ export const DESIGNER_BAR: ToolbarSpec = {
 				},
 			],
 		},
+		{ wrap: "mode-strip", items: [modes("designer")] },
 		{
 			apart: true,
 			wrap: "logic-mode-group",
@@ -1617,20 +1645,6 @@ export const DESIGNER_BAR: ToolbarSpec = {
 				},
 				{
 					t: "icon",
-					icon: "document",
-					name: "Docs",
-					where: "the page",
-					what: "This documentation, in its own window. `Ctrl` + `K` searches it from here.",
-				},
-				{
-					t: "icon",
-					icon: "graph",
-					name: "Open Editor",
-					where: "the graph",
-					what: "The editor, in a new tab. Node Design is a window of its own, not a panel.",
-				},
-				{
-					t: "icon",
 					icon: "settings",
 					name: "Settings",
 					where: "the gear at the end",
@@ -1658,17 +1672,16 @@ export const DOCS_BAR: ToolbarSpec = {
 				{
 					t: "mark",
 					window: true,
-					text: "Docs",
-					version: true,
 					name: "Docs",
 					where: "far left",
 					what:
-						"Says which window this is, and which build; it opens your projects and the " +
-						"other windows. A warning sits beside it when the daemon is not reachable — " +
+						"Opens your projects and the other windows; its tooltip says which build " +
+						"this is. A warning sits beside it when the daemon is not reachable — " +
 						"the built-in library is still documented, your project's own packs are not.",
 				},
 			],
 		},
+		{ wrap: "mode-strip", items: [modes("docs")] },
 		{
 			wrap: "search-group",
 			items: [
@@ -1696,13 +1709,6 @@ export const DOCS_BAR: ToolbarSpec = {
 						"the pictures on these pages. No project settings here: those are the " +
 						"repository's, and they are changed from the editor.",
 				},
-				{
-					t: "icon",
-					icon: "graph",
-					name: "Open Editor",
-					where: "the graph, at the end",
-					what: "The editor, in a new tab.",
-				},
 			],
 		},
 	],
@@ -1728,8 +1734,8 @@ export const EDITOR_BAR_BROWSER: ToolbarSpec = {
 	id: "editor-bar-browser",
 	title: "The editor's top row, in your browser",
 	summary:
-		"The same row in the browser preview. Same buttons, in the same order — three of them " +
-		"reach something different.",
+		"The same row in the browser preview. Same buttons, in the same order — and Docs " +
+		"reaches something different.",
 	chrome: "float",
 	groups: [
 		{
@@ -1738,7 +1744,6 @@ export const EDITOR_BAR_BROWSER: ToolbarSpec = {
 				{
 					t: "mark",
 					window: true,
-					version: true,
 					tint: "preview",
 					name: "The Roswaal mark",
 					where: "far left, in blue",
@@ -1750,6 +1755,7 @@ export const EDITOR_BAR_BROWSER: ToolbarSpec = {
 				},
 			],
 		},
+		{ wrap: "mode-strip", items: [modes("editor", PUBLISHED_DOCS_NOTE)] },
 		{
 			items: [
 				{ t: "icon", icon: "panelLeft", ...as(EDITOR_BAR, "Project") },
@@ -1801,27 +1807,6 @@ export const EDITOR_BAR_BROWSER: ToolbarSpec = {
 			items: [
 				{ t: "icon", icon: "panelRight", ...as(EDITOR_BAR, "Inspector") },
 				{ t: "divider" },
-				{
-					t: "icon",
-					icon: "document",
-					name: "Docs",
-					where: "third icon from the right",
-					what:
-						"**The published documentation** — these pages, which cover the built-in " +
-						"library. They are a separate site with no editor behind them, so they " +
-						"**cannot document a project's own packs**. For those, read the reference " +
-						"from the editor the daemon serves.",
-				},
-				{
-					t: "icon",
-					icon: "palette",
-					name: "Node Design",
-					where: "second icon from the right",
-					what:
-						"Opens [Node Design](creating-custom-nodes) in its own tab, on the packs of " +
-						"the project you have open here. It works the same way it does under the " +
-						"daemon.",
-				},
 				{ t: "icon", icon: "settings", ...as(EDITOR_BAR, "Settings") },
 			],
 		},
@@ -1848,29 +1833,20 @@ export const DOCS_SITE_BAR: ToolbarSpec = {
 			items: [
 				{
 					t: "mark",
+					window: true,
 					tint: "preview",
-					text: "Docs",
-					version: true,
-					name: "The mark, and Docs",
+					name: "The mark",
 					where: "far left",
 					what:
-						"Opens the editor on your projects. Beside it, the build these pages were " +
-						"generated from.",
+						"Opens the editor on your projects. Its tooltip says which build these pages " +
+						"were generated from.",
 				},
 			],
 		},
+		{ wrap: "mode-strip", items: [modes("docs")] },
 		{
 			apart: true,
 			items: [
-				{
-					t: "button",
-					text: "Try it in your browser",
-					name: "Try it in your browser",
-					what:
-						"The editor, running in a tab, on a project kept in this browser. No install " +
-						"and no daemon — and no access to a folder on your machine unless you hand " +
-						"one over.",
-				},
 				{
 					t: "button",
 					text: "Source",
@@ -1916,8 +1892,6 @@ export const DESIGNER_BAR_BROWSER: ToolbarSpec = {
 				{
 					t: "mark",
 					window: true,
-					text: "Node Design",
-					version: true,
 					tint: "preview",
 					name: "Node Design",
 					where: "far left, in blue",
@@ -1928,6 +1902,7 @@ export const DESIGNER_BAR_BROWSER: ToolbarSpec = {
 				},
 			],
 		},
+		{ wrap: "mode-strip", items: [modes("designer")] },
 		{
 			apart: true,
 			wrap: "logic-mode-group",
@@ -1954,22 +1929,6 @@ export const DESIGNER_BAR_BROWSER: ToolbarSpec = {
 					name: "How custom nodes work",
 					where: "the question mark",
 					what: "Opens [Creating custom nodes](creating-custom-nodes).",
-				},
-				{
-					t: "icon",
-					icon: "document",
-					name: "Docs",
-					where: "the page",
-					what:
-						"The published documentation — the built-in library. `Ctrl` + `K` searches " +
-						"it from here.",
-				},
-				{
-					t: "icon",
-					icon: "graph",
-					name: "Open Editor",
-					where: "the graph",
-					what: "The editor, in a new tab.",
 				},
 				{ t: "icon", icon: "settings", ...as(DESIGNER_BAR, "Settings") },
 			],
@@ -2177,7 +2136,7 @@ function as(from: ToolbarSpec, name: string, more?: string, where?: string): Doc
 const SAME_TAB = "On a tablet or a phone it opens in this tab, and the back button returns.";
 const NODE_DESIGN_HERE =
 	"Opens [Node Design](creating-custom-nodes) in this tab, on the packs of the project you " +
-	"have open here; the back button returns.";
+	"have open here, and keeps the editor as you left it; the back button returns.";
 
 /** The editor's top row on a tablet held upright, where it folds into More. */
 export const EDITOR_BAR_TABLET: ToolbarSpec = {
@@ -2196,13 +2155,13 @@ export const EDITOR_BAR_TABLET: ToolbarSpec = {
 					t: "mark",
 					window: true,
 					tint: "preview",
-					...as(
-						EDITOR_BAR_BROWSER,
-						"The Roswaal mark",
-						"Held upright, the version is in the mark's tooltip.",
-					),
+					...as(EDITOR_BAR_BROWSER, "The Roswaal mark", "The version is in the mark's tooltip."),
 				},
 			],
+		},
+		{
+			wrap: "mode-strip",
+			items: [{ t: "modes", on: "editor", ...as(EDITOR_BAR_BROWSER, "Editor, Design and Docs") }],
 		},
 		{
 			items: [
@@ -2243,7 +2202,7 @@ export const EDITOR_BAR_TABLET: ToolbarSpec = {
 					where: "the last icon on the row",
 					what:
 						"The rest of the row: **Manual | Dynamic**, **Compile project**, **Refresh**, " +
-						`**New graph**, **New node map**, **Docs**, **Node Design** and **Settings**. ${SAME_TAB}`,
+						"**New graph**, **New node map** and **Settings**.",
 				},
 			],
 		},
@@ -2376,13 +2335,17 @@ export const MORE_MENU_PHONE: ToolbarSpec = {
 					t: "button",
 					text: "Docs",
 					icon: "document",
-					...as(EDITOR_BAR_BROWSER, "Docs", SAME_TAB, ""),
+					name: "Docs",
+					what:
+						"**The published documentation**, which covers the built-in library and " +
+						"cannot see a project's own packs. Opens in this tab; the editor is kept as " +
+						"you left it.",
 				},
 				{
 					t: "button",
 					text: "Node Design",
 					icon: "palette",
-					...as(EDITOR_BAR_BROWSER, "Node Design", undefined, ""),
+					name: "Node Design",
 					what: NODE_DESIGN_HERE,
 				},
 				{
@@ -2475,10 +2438,15 @@ export const DESIGNER_BAR_TABLET: ToolbarSpec = {
 				{
 					t: "mark",
 					window: true,
-					text: "Node Design",
 					tint: "preview",
 					...as(DESIGNER_BAR_BROWSER, "Node Design"),
 				},
+			],
+		},
+		{
+			wrap: "mode-strip",
+			items: [
+				{ t: "modes", on: "designer", ...as(DESIGNER_BAR_BROWSER, "Editor, Design and Docs") },
 			],
 		},
 		{
@@ -2502,14 +2470,6 @@ export const DESIGNER_BAR_TABLET: ToolbarSpec = {
 		{
 			items: [
 				{ t: "icon", icon: "help", ...as(DESIGNER_BAR_BROWSER, "How custom nodes work") },
-				{ t: "icon", icon: "document", ...as(DESIGNER_BAR_BROWSER, "Docs", SAME_TAB) },
-				{
-					t: "icon",
-					icon: "graph",
-					name: "Open Editor",
-					where: "the graph",
-					what: `The editor. ${SAME_TAB} Leaving a node with unsaved edits asks first.`,
-				},
 				{ t: "icon", icon: "settings", ...as(DESIGNER_BAR_BROWSER, "Settings") },
 			],
 		},
@@ -2569,7 +2529,7 @@ export const DESIGNER_BAR_PHONE: ToolbarSpec = {
 					name: "More",
 					where: "the last button",
 					what:
-						"**How custom nodes work**, **Docs**, **Open Editor** and **Settings**, as rows. " +
+						"**How custom nodes work**, **Docs**, **Editor** and **Settings**, as rows. " +
 						`Each opens in this tab; leaving a node with unsaved edits asks first.`,
 				},
 			],
@@ -2591,11 +2551,11 @@ export const DOCS_SITE_BAR_TOUCH: ToolbarSpec = {
 			items: [
 				{
 					t: "mark",
-					text: "Docs",
-					version: true,
+					window: true,
 					tint: "preview",
-					...as(DOCS_SITE_BAR, "The mark, and Docs"),
+					...as(DOCS_SITE_BAR, "The mark"),
 				},
+				{ t: "modes", on: "docs", ...as(DOCS_SITE_BAR, "Editor, Design and Docs") },
 				{
 					t: "button",
 					text: "Contents",
@@ -2613,11 +2573,6 @@ export const DOCS_SITE_BAR_TOUCH: ToolbarSpec = {
 		{
 			apart: true,
 			items: [
-				{
-					t: "button",
-					text: "Try it in your browser",
-					...as(DOCS_SITE_BAR, "Try it in your browser", SAME_TAB),
-				},
 				{ t: "button", text: "Source", ...as(DOCS_SITE_BAR, "Source") },
 				{ t: "icon", icon: "settings", ...as(DOCS_SITE_BAR, "Settings") },
 			],
@@ -2637,9 +2592,14 @@ export const DOCS_SITE_BAR_PHONE: ToolbarSpec = {
 			items: [
 				{
 					t: "mark",
-					text: "Docs",
+					window: true,
+					glyph: "document",
 					tint: "preview",
-					...as(DOCS_SITE_BAR, "The mark, and Docs", "The version steps aside on a phone."),
+					...as(
+						DOCS_SITE_BAR,
+						"The mark",
+						"On a phone the page glyph beside it says this is Docs.",
+					),
 				},
 				{ t: "button", text: "Contents", ...as(DOCS_SITE_BAR_TOUCH, "Contents") },
 				{ t: "icon", icon: "search", ...as(DOCS_SITE_BAR_TOUCH, "Search") },
@@ -2651,7 +2611,12 @@ export const DOCS_SITE_BAR_PHONE: ToolbarSpec = {
 				{
 					t: "button",
 					text: "Try it in your browser",
-					...as(DOCS_SITE_BAR, "Try it in your browser", SAME_TAB, "second row"),
+					name: "Try it in your browser",
+					where: "second row",
+					what:
+						"The editor, running in a tab, on a project kept in this browser. No install " +
+						"and no daemon — and no access to a folder on your machine unless you hand " +
+						`one over. ${SAME_TAB} Wider screens have the mode strip instead.`,
 				},
 				{ t: "button", text: "Source", ...as(DOCS_SITE_BAR, "Source", undefined, "second row") },
 				{

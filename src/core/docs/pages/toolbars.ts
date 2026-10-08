@@ -58,17 +58,19 @@ export function toolbarsPage(): DocPage {
 				kind: "info",
 				text: "The three hardest to find:",
 				items: [
-					"**Docs** — the document icon, third from the right on the editor's top row.",
-					"**Node Design** — the palette icon, second from the right.",
+					"**Docs** — the page icon in the mode strip, beside the mark.",
+					"**Node Design** — the palette icon, the strip's middle one.",
 					"**Settings** — the gear icon, last on the row.",
 				],
 			},
 			{
 				t: "p",
 				text:
-					"On a computer all three open in **their own window** rather than over the canvas, " +
-					"so nothing appears to happen on the page you were on: look for a new tab. On a " +
-					"phone or a tablet they take turns in the one tab, and the back button returns.",
+					"The mode strip switches the tab you are in, and the box behind it slides to the " +
+					"mode you chose. The editor is kept as you left it — its tabs, where you were " +
+					"looking, the Code panel — so coming back is instant. `Ctrl`-click a mode, or " +
+					"right-click it, for a tab of its own. On a phone, where there is no strip, " +
+					"Docs and Node Design are in **More**, and the back button returns.",
 			},
 			{
 				t: "note",

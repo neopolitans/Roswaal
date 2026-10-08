@@ -117,12 +117,13 @@ describe("the toolbar specs", () => {
 	 * which lands on a site that has no project behind it.
 	 */
 	it("does not promise a hosted reader a reference for their own packs", () => {
-		const daemon = legendOf(EDITOR_BAR).find((item) => item.name === "Docs")!;
-		const browser = legendOf(EDITOR_BAR_BROWSER).find((item) => item.name === "Docs")!;
+		const daemon = legendOf(EDITOR_BAR).find((item) => item.name === "Editor, Design and Docs")!;
+		const browser = legendOf(EDITOR_BAR_BROWSER).find(
+			(item) => item.name === "Editor, Design and Docs",
+		)!;
 
-		expect(daemon.what).toContain("packs");
+		expect(daemon.what).not.toContain("cannot document");
 		expect(browser.what).toContain("cannot document");
-		expect(browser.what).not.toMatch(/including your project/);
 	});
 
 	/**
@@ -145,7 +146,7 @@ describe("the toolbar specs", () => {
 	 */
 	it("draws the published documentation's own header", () => {
 		const names = legendOf(DOCS_SITE_BAR).map((item) => item.name);
-		expect(names).toContain("Try it in your browser");
+		expect(names).toContain("Editor, Design and Docs");
 		expect(names).toContain("Source");
 		// No daemon behind these pages, so nothing here opens a project.
 		expect(names).not.toContain("Open Editor");
@@ -176,15 +177,13 @@ describe("the toolbar specs", () => {
 	 * right-hand end of the editor's bar, the page says something untrue about
 	 * where to look — and the wording that points at them is hand-written.
 	 */
-	it("keeps Docs, Node Design and Settings last on the editor's bar, in that order", () => {
+	it("puts the mode strip beside the mark and Settings last on the editor's bar", () => {
 		const editor = TOOLBARS.find((bar) => bar.id === "editor-bar")!;
 		const items = controlsOf(editor);
-		expect(items.slice(-3).map((item) => item.t === "icon" && item.icon)).toEqual([
-			"document",
-			"palette",
-			"settings",
-		]);
-		expect(items.slice(-3).map((item) => item.name)).toEqual(["Docs", "Node Design", "Settings"]);
+		expect(items.slice(0, 2).map((item) => item.t)).toEqual(["mark", "modes"]);
+		expect(items.at(-1)?.name).toBe("Settings");
+		// The other windows are the strip's now, not buttons at the end.
+		expect(items.some((item) => item.t === "icon" && item.icon === "palette")).toBe(false);
 	});
 });
 
@@ -221,9 +220,12 @@ describe("drawing one", () => {
 	});
 
 	it("takes the version it is given rather than holding one", () => {
-		const shown = TOOLBARS.find((bar) =>
-			bar.groups.some((g) => g.items.some((i) => i.t === "mark" && i.version)),
-		)!;
+		// No bar on the site draws one since the mode strip took its place, but
+		// the drawing still can.
+		const shown: ToolbarSpec = {
+			...TOOLBARS[0],
+			groups: [{ items: [{ t: "mark", window: true, version: true }] }],
+		};
 		expect(toolbarHtml(shown, art)).toContain(">test<");
 	});
 
@@ -306,7 +308,7 @@ describe("the Toolbars page", () => {
 		const tabs = page.blocks.find((b) => b.t === "tabs")!;
 		const text = blockText(tabs);
 		expect(text).toContain("Node Design");
-		expect(text).toContain("second icon from the right");
+		expect(text).toContain("beside the mark");
 		// Markup is stripped, the way it is for every other block.
 		expect(text).not.toContain("[");
 		expect(text).not.toContain("**");

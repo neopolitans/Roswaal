@@ -12,6 +12,54 @@
  * field that is already in the sidebar.
  */
 
+/**
+ * The mode strip (`ModeStrip.tsx` in the app). Its links work without this;
+ * here the box slides over from the mode you came from, and a plain click
+ * leaves a note saying where you were, so the page you go to can slide from
+ * here. The key is `MODE_FROM_KEY` in `pageHost.tsx`.
+ */
+(function () {
+	// A test's stand-in document has no selectors.
+	var strip =
+		typeof document.querySelector === "function" ? document.querySelector(".mode-strip") : null;
+	if (!strip) return;
+	var KEY = "roswaal-mode-from";
+	/** @type {string | null} */
+	var from = null;
+	try {
+		from = sessionStorage.getItem(KEY);
+		sessionStorage.removeItem(KEY);
+	} catch (e) {
+		// Only the slide is lost.
+	}
+	/** @type {HTMLElement | null} */
+	var box = strip.querySelector(".mode-box");
+	/** @type {HTMLElement | null} */
+	var was = from ? strip.querySelector('[data-mode="' + from + '"]') : null;
+	/** @type {HTMLElement | null} */
+	var is = strip.querySelector('[aria-current="page"]');
+	var still = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+	if (box && was && is && was !== is && !still && typeof box.animate === "function") {
+		box.animate(
+			[
+				{ transform: "translateX(" + (was.offsetLeft - is.offsetLeft) + "px)" },
+				{ transform: "translateX(0)" },
+			],
+			{ duration: 320, easing: "cubic-bezier(0.32, 0.72, 0, 1)" },
+		);
+	}
+	Array.prototype.forEach.call(strip.querySelectorAll(".mode-slot"), function (slot) {
+		slot.addEventListener("click", function (e) {
+			if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+			try {
+				sessionStorage.setItem(KEY, "docs");
+			} catch (err) {
+				// As above.
+			}
+		});
+	});
+})();
+
 (function () {
 	var published = window.__roswaal;
 	var search = window.__roswaalSearch;

@@ -26,7 +26,10 @@ import { DocsView } from "./DocsPanel.jsx";
 import { ToolGroup } from "./FloatingTools.jsx";
 import { IntroPanel } from "./IntroPanel.jsx";
 import { Icon } from "./icons.jsx";
-import { pageHref, pagesShareTab } from "./pages.js";
+import { ModeStrip } from "./ModeStrip.jsx";
+import { usePhone } from "./Popout.jsx";
+import { switchMode } from "./pageHost.jsx";
+import { pageHref } from "./pages.js";
 import { usePreferenceSync } from "./preferenceSync.js";
 import { type Preferences, readPreferences, writePreferences } from "./preferences.js";
 import { SiteBanner } from "./previewBuild.jsx";
@@ -51,6 +54,7 @@ export function DocsPage() {
 	const [navOpen, setNavOpen] = useState(false);
 	// Presses of the header's search button. See `searchRequest`.
 	const [searches, setSearches] = useState(0);
+	const phone = usePhone();
 
 	useEffect(() => {
 		void api
@@ -109,6 +113,7 @@ export function DocsPage() {
 						    window's name -- or on a phone its glyph. See WindowMark. */}
 						<WindowMark window="docs" onOpen={() => setIntroOpen(true)} />
 					</ToolGroup>
+					<ModeStrip current="docs" />
 					{/* Search, beside the mark: the first thing a reader reaches for,
 					    and the same search Ctrl+K opens. */}
 					<ToolGroup className="search-group">
@@ -152,16 +157,17 @@ export function DocsPage() {
 						>
 							<Icon name="settings" size={16} />
 						</button>
-						<a
-							className="tb icon-only"
-							href={pageHref("editor")}
-							target={pagesShareTab() ? "_self" : "_blank"}
-							rel="noreferrer"
-							title="Open Editor — the graph editor"
-							aria-label="Open Editor"
-						>
-							<Icon name="graph" size={16} />
-						</a>
+						{/* On a phone, where there is no mode strip. */}
+						{phone && (
+							<button
+								className="tb icon-only"
+								onClick={() => void switchMode("editor")}
+								title="Editor — the graph editor"
+								aria-label="Editor"
+							>
+								<Icon name="graph" size={16} />
+							</button>
+						)}
 					</ToolGroup>
 				</header>
 

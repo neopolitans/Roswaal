@@ -292,7 +292,6 @@ describe("the check itself", () => {
 		expect(
 			graph.some((c) => c.labels.some((l) => names(l, "Preview")) && c.glyphs.includes("terminal")),
 		).toBe(true);
-		expect(drawn.some((c) => c.labels.some((l) => l.startsWith("Docs — ")))).toBe(true);
 	});
 
 	/** The slices of a row are read where they sit, and a missing end is loud. */

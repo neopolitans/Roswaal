@@ -9,6 +9,30 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.157.0",
+		date: "2026-10-08",
+		headline: "Editor, Design and Docs in one strip, switched in the tab you are in.",
+		affects: ["editor", "docs"],
+		added: [
+			"**The mode strip**, beside the mark in every window: Editor, Design and Docs, with a box behind the one you are in that slides to the one you pick. A click switches the tab you are in; `Ctrl`- or `Cmd`-click, a middle click or a right-click opens a mode in a new tab. On a computer and a tablet; a phone keeps them in **More**.",
+			"**The editor is kept while you are elsewhere.** Going to Node Design and back leaves its tabs, where each was looking, its undo and the Code panel exactly as they were, with nothing reloaded; the back and forward buttons move between modes the same way. A node Node Design saved is in the palette when you come back.",
+			"On the web app the docs are the published pages, so going to them is a page load. The editor writes down its open graphs, the one in front, their cameras and the Code panel's tabs first, and puts them back when you return to the same project in that tab; a reload does the same.",
+			"Where the code panel's tabs run out of room, a list at the end of the row names every one.",
+		],
+		changed: [
+			"The version number is off the top row, to make room for the strip. It is in the projects panel the mark opens, and in the mark's tooltip.",
+			"The Docs and Node Design buttons at the right of the editor's row, Node Design's Docs and Open Editor, and the docs' Open Editor and **Try it in your browser** are the strip now.",
+			"A project opened from the projects panel in Node Design or the docs is opened by the editor kept behind them, so what it had open is saved and closed first.",
+			"A Code panel folded down keeps only its title, its tabs, the list, and its Unfold and ⋯; Go to node and Full view come back when it unfolds. Picking a tab unfolds it.",
+		],
+		fixed: [
+			"A window over the graph that you are using now comes in front of the docks, the Code panel along the foot included, rather than always sitting behind them. Clicking back into a docked card puts it behind again.",
+			"Script analysis folded by its chevron shrinks to its bar as a window over the graph, rather than keeping the unfolded window's height.",
+			"Script analysis in a side dock is as tall as its list, about five problems, and scrolls past that, rather than taking a share of the column whatever it holds; folded, it is its bar. Its bar stays on one line in a narrow dock.",
+			"The editor no longer shows the projects screen for a moment while it opens: until it has its project, and the graphs it is putting back, it shows the empty canvas with the mark and the strip, then fades the rest in. A mode switch fades into what you left, not into the picker.",
+		],
+	},
+	{
 		version: "0.156.1",
 		date: "2026-10-08",
 		headline: "Every note in Settings, said in a line.",

@@ -37,6 +37,7 @@ import { NOT_HERE, useHostCan } from "../host.js";
 import { Icon } from "../icons.jsx";
 import { Menu } from "../Menu.jsx";
 import { useMedia } from "../Popout.jsx";
+import { useShowing } from "../pageHost.jsx";
 import { nodeColor } from "../palette.js";
 
 /**
@@ -218,8 +219,10 @@ export function PackBrowser({
 	};
 
 	// `/` finds, as it does on most pages with one search; Ctrl K is the docs'.
+	const showing = useShowing();
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {
+			if (!showing()) return;
 			const typing = (e.target as HTMLElement | null)?.closest?.(
 				"input, textarea, [contenteditable]",
 			);
@@ -230,7 +233,7 @@ export function PackBrowser({
 		};
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
-	}, []);
+	}, [showing]);
 
 	const chooseLayout = (next: "grid" | "list") => {
 		setLayout(next);

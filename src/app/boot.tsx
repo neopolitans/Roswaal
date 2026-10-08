@@ -9,6 +9,7 @@
  */
 
 import { StrictMode } from "react";
+import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 
 import { App } from "./App.jsx";
@@ -17,7 +18,7 @@ import { DocsPage } from "./DocsPage.jsx";
 import { ErrorBoundary } from "./ErrorBoundary.jsx";
 import { loadCapabilities } from "./host.js";
 import { installFavicon } from "./logo.jsx";
-import { currentPage } from "./pages.js";
+import { PageHost } from "./pageHost.jsx";
 import { readPreferences } from "./preferences.js";
 import { applyChrome, applyTheme, findTheme } from "./theme.js";
 import { installTouchGestures } from "./touch.js";
@@ -29,16 +30,12 @@ export function bootEditor(): void {
 
 	// Three pages, one bundle.
 	//
-	// Decided on the pathname rather than by a router, which keeps the docs and
-	// Node Design genuinely separate windows — openable on a second monitor,
-	// readable while you wire — without a second build or a second server route.
-	// Where those paths are depends on what is serving them, which is `pages.ts`
-	// and not this file's business.
-	const page = currentPage();
-	const isDocs = page === "docs";
-	const isDesigner = page === "designer";
-
-	document.title = isDocs ? "Roswaal docs" : isDesigner ? "Node Design" : "Roswaal";
+	// Decided on the pathname rather than by a router, and switched between in
+	// place by the page host: the mode strip moves the tab from one to another
+	// without loading anything, and keeps the ones it leaves. Ctrl-click still
+	// gives a mode a window of its own, for the docs on a second monitor.
+	// Where those paths are depends on what is serving them, which is
+	// `pages.ts` and not this file's business.
 
 	// Set here rather than in `index.html` so the artwork has one home. Both
 	// entry points are the same document, so both get it.
@@ -68,11 +65,28 @@ export function bootEditor(): void {
 	applyTheme(findTheme(preferences.theme));
 	applyChrome(preferences);
 
-	createRoot(container).render(
-		<StrictMode>
-			<ErrorBoundary what={isDocs ? "The documentation" : isDesigner ? "Node Design" : "Roswaal"}>
-				{isDocs ? <DocsPage /> : isDesigner ? <DesignerPage /> : <App />}
-			</ErrorBoundary>
-		</StrictMode>,
+	// The first frame drawn whole rather than scheduled: a mode switch from the
+	// docs crossfades into it, and an empty page there is a blink.
+	const root = createRoot(container);
+	flushSync(() =>
+		root.render(
+			<StrictMode>
+				<PageHost
+					render={(page) => (
+						<ErrorBoundary
+							what={
+								page === "docs"
+									? "The documentation"
+									: page === "designer"
+										? "Node Design"
+										: "Roswaal"
+							}
+						>
+							{page === "docs" ? <DocsPage /> : page === "designer" ? <DesignerPage /> : <App />}
+						</ErrorBoundary>
+					)}
+				/>
+			</StrictMode>,
+		),
 	);
 }
