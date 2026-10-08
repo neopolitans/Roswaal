@@ -302,8 +302,7 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
 /** What the project's pages say they write to. */
 const PROJECT_NOTE = (
 	<>
-		Written to <code>roswaal.json</code> in the project root. This file is committed, so everyone
-		working on this repository gets these.
+		Saved in <code>roswaal.json</code> and committed, so everyone on the project shares them.
 	</>
 );
 
@@ -317,10 +316,7 @@ function CompilingSettings({
 	return (
 		<Page id="compiling" note={PROJECT_NOTE}>
 			<Group title="Files">
-				<Row
-					label="Target"
-					help="Which flavour of Luau new graphs compile for. Lune is experimental and drops the Roblox nodes."
-				>
+				<Row label="Target" help="The Luau new graphs compile for. Lune is experimental.">
 					<select
 						className="tb"
 						value={config.target}
@@ -333,24 +329,21 @@ function CompilingSettings({
 
 				<Row
 					label="Graphs live in"
-					help="Where .nodescript and .nodemap files are read from, relative to the project root."
+					help="Where graphs and node maps are read from, in the project."
 				>
 					<TextSetting value={config.sourceDir} onCommit={(v) => onConfig({ sourceDir: v })} />
 				</Row>
 
 				<Row
 					label="Compiled Luau goes to"
-					help="Where generated .luau is written. This is the directory Rojo syncs."
+					help="Where generated .luau is written: the folder Rojo syncs."
 				>
 					<TextSetting value={config.outDir} onCommit={(v) => onConfig({ outDir: v })} />
 				</Row>
 			</Group>
 
 			<Group title="Compiling">
-				<Row
-					label="Compile"
-					help="Dynamic recompiles a graph every time it is saved, which is every edit. Manual waits to be asked. Written into roswaal.json, where Dynamic is stored as “hot”."
-				>
+				<Row label="Compile" help="Dynamic compiles on every edit. Manual waits for you.">
 					<div className="segmented">
 						<button
 							className={config.compileMode === "manual" ? "on" : ""}
@@ -369,7 +362,7 @@ function CompilingSettings({
 
 				<Row
 					label="Format generated files"
-					help="Runs stylua over the output when it is on PATH. When it is not, the file is written unformatted rather than not written."
+					help="Runs stylua when it is installed. Without it, files are left as written."
 				>
 					<Toggle
 						on={config.format}
@@ -380,7 +373,7 @@ function CompilingSettings({
 
 				<Row
 					label="Comment headers"
-					help="Writes each comment's header into the generated Luau, above the code of the nodes it is drawn around. Off keeps them in the editor, which is what other visual scripting tools do — turn it off if that is the habit you have."
+					help="Writes each comment's header into the Luau, above its nodes."
 				>
 					<Toggle
 						on={config.comments}
@@ -391,7 +384,7 @@ function CompilingSettings({
 
 				<Row
 					label="Casts proved by a subclass"
-					help="An Implicit Cast inside an Is A branch is left out when the branch proved exactly its classes. On, it is also left out when the branch proved a class derived from the one it casts to — Is A Part covering a cast to BasePart."
+					help="Skips a cast an Is A already proved, like Is A Part for BasePart."
 				>
 					<Toggle
 						on={config.castsByHierarchy === true}
@@ -404,7 +397,7 @@ function CompilingSettings({
 			<Group title="Indentation">
 				<Row
 					label="Indent with"
-					help="One level of indentation in the generated Luau. Handed to stylua as well when formatting is on, so this decides rather than stylua.toml."
+					help="One level of indentation in the Luau. stylua follows it too."
 				>
 					<div className="segmented">
 						<button
@@ -452,12 +445,12 @@ function NodePackSettings({
 	return (
 		<Page
 			id="packs"
-			note="Directories scanned for .nodedef.json. A pack's nodes join the palette and get their own reference pages, built from the same registry the built-in ones use."
+			note="Folders scanned for .nodedef.json. Their nodes join the palette and the docs."
 		>
 			<Group title="Scanned directories">
 				<Row
 					label="Pack directories"
-					help="Relative to the project root. Removing one stops it being scanned; the pack itself is not touched."
+					help="From the project root. Removing one leaves the pack untouched."
 				>
 					<PathList paths={config.nodePaths} onChange={(nodePaths) => onConfig({ nodePaths })} />
 				</Row>
@@ -472,10 +465,7 @@ function NodePackSettings({
 
 function CanvasSettings({ prefs, onPrefs }: SettingsPanelProps) {
 	return (
-		<Page
-			id="canvas"
-			note="How graphs are drawn and moved around. Kept in this browser, and never in a diff."
-		>
+		<Page id="canvas" note="How graphs look and move. Kept in this browser.">
 			<Group title="The grid">
 				<Row
 					label="Grid"
@@ -532,7 +522,7 @@ function CanvasSettings({ prefs, onPrefs }: SettingsPanelProps) {
 
 				<Row
 					label="Realign"
-					help="Straighten places each node where the execution wire arriving at it comes out flat, so a run of nodes reads as one line. Columns is the plain grid."
+					help="Straighten lines a run of nodes up along its wire. Columns is a plain grid."
 				>
 					<div className="segmented">
 						{/* The same word the toolbar button uses. One name for one thing —
@@ -553,10 +543,7 @@ function CanvasSettings({ prefs, onPrefs }: SettingsPanelProps) {
 					</div>
 				</Row>
 
-				<Row
-					label="Node corners"
-					help="Capsule getters and reroute knots keep their shapes either way — a pill and a circle are what say “this is a value” and “this is a bend in the wire”, and they have no title to say it instead."
-				>
+				<Row label="Node corners" help="Getters and reroute knots keep their shapes either way.">
 					<div className="segmented">
 						<button
 							className={prefs.roundedNodes ? "on" : ""}
@@ -599,14 +586,11 @@ function CanvasSettings({ prefs, onPrefs }: SettingsPanelProps) {
 
 function NodeSettings({ prefs, onPrefs }: SettingsPanelProps) {
 	return (
-		<Page
-			id="nodes"
-			note="How nodes are drawn, and what a new one starts as. Kept in this browser; what a node is set to travels with its graph."
-		>
+		<Page id="nodes" note="How nodes look, and what a new one starts as. Kept in this browser.">
 			<Group title="Names">
 				<Row
 					label="Long names"
-					help="A node's header is fixed at one width, so a long name is cut short with the whole of it in the tooltip. Widening instead moves the node's pins, so wires and the pictures in the documentation are drawn from the same width."
+					help="Cut short with the full name on hover, or widen the node to fit."
 				>
 					<div className="segmented">
 						<button
@@ -628,7 +612,7 @@ function NodeSettings({ prefs, onPrefs }: SettingsPanelProps) {
 			<Group title="New nodes">
 				<Row
 					label="New logic nodes"
-					help="What a new And, Or, Not or comparison pill starts as. Stored on the node, so it travels with the graph; this only decides where a new one begins. Precedence is handled either way."
+					help="What a new And, Or, Not or comparison starts as. Each node keeps its own."
 				>
 					<div className="segmented">
 						<button
@@ -648,7 +632,7 @@ function NodeSettings({ prefs, onPrefs }: SettingsPanelProps) {
 
 				<Row
 					label="New cast nodes"
-					help="What a new Cast pill writes in its middle: Luau's :: , or the node's name. Stored on the node, because it sets the pill's width — this only decides where a new one begins."
+					help="Whether a new Cast shows :: or its name. Each node keeps its own."
 				>
 					<div className="segmented">
 						<button
@@ -668,7 +652,7 @@ function NodeSettings({ prefs, onPrefs }: SettingsPanelProps) {
 
 				<Row
 					label="New concatenate nodes"
-					help="What a new Concatenate writes: a join with .. , or Luau's interpolated string with the values in braces. Stored on the node, since it is part of the generated file — this only decides where a new one begins."
+					help="Whether a new Concatenate uses .. or an interpolated string. Each node keeps its own."
 				>
 					<div className="segmented">
 						<button
@@ -692,15 +676,9 @@ function NodeSettings({ prefs, onPrefs }: SettingsPanelProps) {
 
 function WorkspaceSettings({ prefs, onPrefs }: SettingsPanelProps) {
 	return (
-		<Page
-			id="workspace"
-			note="How the editor saves, and what sits around the graph. Kept in this browser."
-		>
+		<Page id="workspace" note="Saving, panels, and what opens first. Kept in this browser.">
 			<Group title="Saving">
-				<Row
-					label="Write a graph"
-					help="There is no unsaved copy of a graph — the file is the document — so this is how long after your last edit it is written, not whether it is."
-				>
+				<Row label="Write a graph" help="How soon after an edit the graph is saved. It always is.">
 					<select
 						className="tb"
 						value={prefs.autosaveMs}
@@ -718,7 +696,7 @@ function WorkspaceSettings({ prefs, onPrefs }: SettingsPanelProps) {
 			<Group title="Panels and tabs">
 				<Row
 					label="Variables"
-					help="In a dock beside the graph, or in a window over it that you drag and resize. The window remembers where you put it."
+					help="Docked beside the graph, or in a window you can move and resize."
 				>
 					<div className="segmented">
 						<button
@@ -746,7 +724,7 @@ function WorkspaceSettings({ prefs, onPrefs }: SettingsPanelProps) {
 
 				<Row
 					label="Shorten function tabs"
-					help="A function's tab reads ƒ hide (Occupancy): the function, then its script. The tooltip keeps both names."
+					help="Tabs read ƒ hide (Occupancy). The tooltip keeps both names."
 				>
 					<div className="segmented">
 						{FUNCTION_TAB_CHOICES.map((choice) => (
@@ -766,7 +744,7 @@ function WorkspaceSettings({ prefs, onPrefs }: SettingsPanelProps) {
 			<Group title="On a phone or a tablet">
 				<Row
 					label="Action buttons"
-					help={`Under the graph on a phone or a tablet. ${ACTION_LABEL_CHOICES.find((c) => c.value === prefs.actionLabels)?.what ?? ""}`}
+					help={ACTION_LABEL_CHOICES.find((c) => c.value === prefs.actionLabels)?.what ?? ""}
 				>
 					<div className="segmented">
 						{ACTION_LABEL_CHOICES.map((c) => (
@@ -783,7 +761,7 @@ function WorkspaceSettings({ prefs, onPrefs }: SettingsPanelProps) {
 
 				<Row
 					label="Action row"
-					help={`Under the graph on a phone or a tablet. ${ACTION_ROW_CHOICES.find((c) => c.value === prefs.actionRow)?.what ?? ""}`}
+					help={ACTION_ROW_CHOICES.find((c) => c.value === prefs.actionRow)?.what ?? ""}
 				>
 					<div className="segmented">
 						{ACTION_ROW_CHOICES.map((c) => (
@@ -800,10 +778,7 @@ function WorkspaceSettings({ prefs, onPrefs }: SettingsPanelProps) {
 			</Group>
 
 			<Group title="Starting">
-				<Row
-					label="On opening Roswaal"
-					help="The daemon serves one project; this is only about which one this tab starts on."
-				>
+				<Row label="On opening Roswaal" help="Which project this tab starts on.">
 					<Toggle
 						on={prefs.reopenLastProject}
 						onChange={(on) => onPrefs({ reopenLastProject: on })}
@@ -824,10 +799,7 @@ function WorkspaceSettings({ prefs, onPrefs }: SettingsPanelProps) {
 function DocsSettings({ prefs, onPrefs }: SettingsPanelProps) {
 	const percent = Math.round(prefs.docsPreviewScale * 100);
 	return (
-		<Page
-			id="docs"
-			note="How the documentation reads. Kept in this browser, like the editor's settings."
-		>
+		<Page id="docs" note="How the docs read. Kept in this browser.">
 			<Group title="Reading">
 				<Row label="Font" help={DOCS_FONTS.find((f) => f.font === prefs.docsFont)?.what ?? ""}>
 					<div className="segmented">
@@ -846,7 +818,7 @@ function DocsSettings({ prefs, onPrefs }: SettingsPanelProps) {
 
 				<Row
 					label="Preview size"
-					help="How large node and graph pictures are drawn. A graph bigger than its frame can be dragged around."
+					help="How large pictures are drawn. Drag a big one to look around."
 				>
 					<div className="settings-range">
 						<input
@@ -884,7 +856,7 @@ function ThemeSettings({ prefs, onPrefs }: SettingsPanelProps) {
 			id="themes"
 			note={
 				<>
-					One JSON file each, in <code>themes/</code>, with every colour a theme sets named in it.
+					One JSON file each, in <code>themes/</code>.
 				</>
 			}
 		>
@@ -1056,8 +1028,8 @@ function Licences() {
 			id="licences"
 			note={
 				<>
-					Roswaal is 0BSD. These are the schemes{SHOWS_LUAU_MARK ? " and the icon" : ""} that are
-					somebody else's work, and the terms they came with.
+					Roswaal is 0BSD. These schemes{SHOWS_LUAU_MARK ? " and the icon" : ""} carry their own
+					terms.
 				</>
 			}
 		>

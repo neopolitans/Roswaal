@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.156.1",
+		date: "2026-10-08",
+		headline: "Every note in Settings, said in a line.",
+		affects: ["editor", "docs"],
+		changed: [
+			"Each setting's note, each choice's and each page's is cut to what you need to choose: half as long in all, the longest from 223 characters to 85. **Compile** reads \"Dynamic compiles on every edit. Manual waits for you.\"",
+			"The notes under **Action buttons** and **Action row** no longer start by saying they are for a phone or a tablet; the group they are in says so.",
+			"What a note no longer says is on [Settings and themes](settings), which now lists `castsByHierarchy` with the rest of `roswaal.json`.",
+		],
+	},
+	{
 		version: "0.156.0",
 		date: "2026-10-08",
 		headline:

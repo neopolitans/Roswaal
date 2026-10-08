@@ -127,6 +127,11 @@ export function settingsPage(): DocPage {
 						"Write each comment's header into the generated Luau, above the code of the nodes it is drawn around. A header of one line is written `-- like this`, one of several as a `--[[ ]]` block. Off keeps them in the editor, which is what other visual scripting tools do — see [Coming from Blueprints](coming-from-blueprints) if that is the habit you have.",
 					],
 					[
+						"`castsByHierarchy`",
+						"`false`",
+						"An Implicit Cast inside an **Is A** branch is always left out when the branch proved exactly its classes. On, it is also left out when the branch proved a class derived from the one it casts to — **Is A** `Part` covering a cast to `BasePart`.",
+					],
+					[
 						"`indentStyle`",
 						`\`${defaults.indentStyle}\``,
 						"What one level of indentation is in the generated Luau: `tab`, or `space`. Handed to stylua as well when `format` is on, so this decides rather than whatever `stylua.toml` says.",

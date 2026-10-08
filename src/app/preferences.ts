@@ -270,16 +270,16 @@ export const AUTOSAVE_CHOICES = [
 ];
 
 export const WIRE_STYLES: { style: WireStyle; label: string; what: string }[] = [
-	{ style: "curved", label: "Curved", what: "A bezier out of each pin. The default." },
+	{ style: "curved", label: "Curved", what: "Smooth curves. The default." },
 	{
 		style: "rigid",
 		label: "Rigid",
-		what: "Right angles only — horizontal and vertical runs, square corners.",
+		what: "Right angles only.",
 	},
 	{
 		style: "angular",
 		label: "Angular",
-		what: "The same route, with each corner cut to a 45-degree slope.",
+		what: "Right angles, with corners cut at 45°.",
 	},
 ];
 
@@ -289,12 +289,12 @@ export const GRID_PATTERNS: { value: GridPattern; label: string; what: string }[
 	{
 		value: "dots",
 		label: "Dots",
-		what: "A dot at every point Shift-drag snaps to, and the nodes left the strongest thing on the canvas. The default.",
+		what: "A dot at every snap point. The default.",
 	},
 	{
 		value: "lines",
 		label: "Lines",
-		what: "Ruled lines, every fifth one heavier, as Roswaal drew them before 0.150.0.",
+		what: "Ruled lines, every fifth heavier.",
 	},
 ];
 
@@ -304,33 +304,33 @@ export const GRID_CONTRASTS: { value: GridContrast; label: string; what: string 
 	{
 		value: "auto",
 		label: "Auto",
-		what: "Light, and Strong when your system asks for more contrast. The default.",
+		what: "Light, or Strong if your system asks for more contrast. The default.",
 	},
 	{ value: "light", label: "Light", what: "Faint: there when you look for it." },
 	{
 		value: "standard",
 		label: "Standard",
-		what: "Easier to see on a bright screen or in daylight.",
+		what: "Easier to see in bright light.",
 	},
 	{
 		value: "strong",
 		label: "Strong",
-		what: "Clearly visible, with larger dots, for low vision or a washed-out display.",
+		what: "Larger, darker dots, for low vision.",
 	},
 ];
 
 export type ActionLabels = "icons" | "text";
 
 export const ACTION_LABEL_CHOICES: { value: ActionLabels; label: string; what: string }[] = [
-	{ value: "icons", label: "Icons", what: "Each action's picture. Its name is on a long press." },
-	{ value: "text", label: "Text", what: "Each action's name." },
+	{ value: "icons", label: "Icons", what: "Pictures. Long-press for names." },
+	{ value: "text", label: "Text", what: "Names." },
 ];
 
 export type ActionRowStyle = "separate" | "unified";
 
 export const ACTION_ROW_CHOICES: { value: ActionRowStyle; label: string; what: string }[] = [
-	{ value: "separate", label: "Separate", what: "Each button on its own over the graph." },
-	{ value: "unified", label: "Unified", what: "One bar holding every button." },
+	{ value: "separate", label: "Separate", what: "Each button on its own." },
+	{ value: "unified", label: "Unified", what: "One bar for every button." },
 ];
 
 export type WheelChoice = "auto" | "zoom" | "pan";
@@ -340,9 +340,9 @@ export const WHEEL_CHOICES: { value: WheelChoice; label: string; what: string }[
 	{
 		value: "pan",
 		label: "Pan",
-		what: "Scrolling moves the graph. Pinch, or hold Ctrl or ⌘, to zoom.",
+		what: "Scrolling pans. Pinch, or hold Ctrl or ⌘, to zoom.",
 	},
-	{ value: "zoom", label: "Zoom", what: "Scrolling zooms. Sideways scrolling still pans." },
+	{ value: "zoom", label: "Zoom", what: "Scrolling zooms. Scroll sideways to pan." },
 ];
 
 /**
@@ -379,10 +379,10 @@ export type DocsFont = "system" | "serif" | "wide" | "mono";
  * The stacks themselves live in `theme.css`, keyed by `data-docs-font`.
  */
 export const DOCS_FONTS: { font: DocsFont; label: string; what: string }[] = [
-	{ font: "system", label: "System", what: "Your system's interface font. The default." },
-	{ font: "serif", label: "Serif", what: "Georgia or the nearest serif, for long reading." },
-	{ font: "wide", label: "Wide", what: "Verdana or similar: wide letters and generous spacing." },
-	{ font: "mono", label: "Mono", what: "The monospace face the code blocks use." },
+	{ font: "system", label: "System", what: "Your system's font. The default." },
+	{ font: "serif", label: "Serif", what: "Georgia or similar, for long reading." },
+	{ font: "wide", label: "Wide", what: "Verdana or similar, wide and roomy." },
+	{ font: "mono", label: "Mono", what: "The code font." },
 ];
 
 /** The preview size slider's range, as a scale. */
