@@ -5744,11 +5744,13 @@ button.tb.icon-only.on {
 	color: var(--fg-faint);
 }
 
-/* Extra token colours the Luau mode distinguishes. */
+/* Extra token colours the Luau mode distinguishes, and the cream wash over
+   the word completion is replacing (`.cm-completing`, in luauTheme.ts). */
 :root {
 	--code-global: #2c6f8f;
 	--code-function: #7a5a2f;
 	--code-type: #2f7a6a;
+	--code-completing: rgb(226 196 130 / 0.38);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -5756,6 +5758,7 @@ button.tb.icon-only.on {
 		--code-global: #7fc4d6;
 		--code-function: #d9b06c;
 		--code-type: #6fc2a8;
+		--code-completing: rgb(245 228 188 / 0.16);
 	}
 }
 
@@ -5763,14 +5766,6 @@ button.tb.icon-only.on {
 .code-body .cm-lintRange-error {
 	background: none;
 	border-bottom: 2px wavy var(--danger);
-}
-
-/* The word completion is replacing, marked as a field to type into. The list
-   that hangs from it is styled with the editor's theme, in luauTheme.ts:
-   tooltips are rendered into the body, out of reach of rules scoped here. */
-.code-body .cm-completing {
-	background: color-mix(in srgb, var(--accent) 12%, transparent);
-	box-shadow: inset 0 -2px 0 var(--accent);
 }
 
 .code-body .cm-lint-marker-error {

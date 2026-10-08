@@ -38,8 +38,10 @@ import {
 	Fragment,
 	type ReactNode,
 	type PointerEvent as ReactPointerEvent,
+	type RefObject,
 	useContext,
 	useEffect,
+	useLayoutEffect,
 	useRef,
 	useState,
 } from "react";
@@ -778,11 +780,92 @@ function DropPreview({ target }: { target: Target }) {
 }
 
 /**
+ * Holds each card sharing a column to the height of what it shows, so a card
+ * with room to spare -- the Project panel with a section folded -- hands it to
+ * the cards beside it, and takes it back when a section opens again. Flex does
+ * the sharing: a card stopped at its height leaves the rest of its share to
+ * the others.
+ *
+ * Measured, rather than `max-height: max-content`, which Chromium reads as the
+ * content's height and WebKit as nothing at all, shutting every card to its
+ * header. Again whenever what a card shows changes, and when the column's
+ * width does, since narrower rows can wrap.
+ */
+function useContentHeights(column: RefObject<HTMLDivElement | null>, heads: PanelId[]) {
+	const key = heads.join(" ");
+	useLayoutEffect(() => {
+		const element = column.current;
+		if (!element) return;
+		const held = key === "" ? [] : key.split(" ");
+		const cards = [...element.querySelectorAll<HTMLElement>(":scope > .card")];
+		for (const card of cards)
+			if (!held.includes(card.dataset.card ?? "")) card.style.maxHeight = "";
+		if (held.length === 0) return;
+
+		const measure = () => {
+			const sized = held
+				.map((head) => element.querySelector<HTMLElement>(`:scope > .card[data-card="${head}"]`))
+				.filter((card) => card !== null);
+			// Every card out of the share at once, then one read: a single layout.
+			const flex = sized.map((card) => card.style.flex);
+			for (const card of sized) {
+				card.style.flex = "none";
+				card.style.maxHeight = "none";
+			}
+			const heights = sized.map((card) => Math.ceil(card.getBoundingClientRect().height));
+			sized.forEach((card, i) => {
+				card.style.flex = flex[i];
+				card.style.maxHeight = `${heights[i]}px`;
+			});
+		};
+		measure();
+
+		let frame = 0;
+		const soon = () => {
+			if (frame === 0)
+				frame = requestAnimationFrame(() => {
+					frame = 0;
+					measure();
+				});
+		};
+		// What a card shows: rows added and removed, text, a section folded, a
+		// tab switched. Not `style`, which is what measuring writes.
+		const watch = new MutationObserver(soon);
+		watch.observe(element, {
+			subtree: true,
+			childList: true,
+			characterData: true,
+			attributes: true,
+			attributeFilter: ["class", "hidden", "open"],
+		});
+		let width = element.offsetWidth;
+		const resize =
+			typeof ResizeObserver === "undefined"
+				? null
+				: new ResizeObserver(() => {
+						if (element.offsetWidth === width) return;
+						width = element.offsetWidth;
+						soon();
+					});
+		resize?.observe(element);
+		return () => {
+			watch.disconnect();
+			resize?.disconnect();
+			cancelAnimationFrame(frame);
+			for (const card of element.querySelectorAll<HTMLElement>(":scope > .card"))
+				card.style.maxHeight = "";
+		};
+	}, [column, key]);
+}
+
+/**
  * A dock's cards, top to bottom, with a line between each two.
  *
  * Two or more open cards share the column's height, each by its weight, and
  * the line between two trades height between them. A lone card, or one with
- * the rest folded, is as tall as what it shows, as a card has always been.
+ * the rest folded, is as tall as what it shows, as a card has always been. A
+ * card sharing the column is no taller than what it shows either: what it
+ * does not need goes to the others (`useContentHeights`).
  */
 function DockCards({
 	side,
@@ -816,6 +899,16 @@ function DockCards({
 		(card) => !only || only(card),
 	);
 	const drawn = cards.length > 0;
+	// Cards that are as tall as what they show, and take no share of the
+	// column: one folded by its chevron, and Script analysis on its own. Its
+	// box holds the bar and about five problems before its list scrolls, so a
+	// short list is a short card -- and with the list put away, just its bar.
+	const shut = (card: Card) => card.folded || (card.tabs.length === 1 && HEADLESS.has(card.head));
+	const shared = side !== "bottom" && cards.filter((card) => !shut(card)).length >= 2;
+	useContentHeights(
+		column,
+		shared ? cards.filter((card) => !shut(card)).map((card) => card.head) : [],
+	);
 	useEffect(() => {
 		const element = column.current;
 		if (!onHeight || !drawn || !element) return;
@@ -828,12 +921,6 @@ function DockCards({
 		return () => watch.disconnect();
 	}, [onHeight, drawn]);
 	if (!drawn) return null;
-	// Cards that are as tall as what they show, and take no share of the
-	// column: one folded by its chevron, and Script analysis on its own. Its
-	// box holds the bar and about five problems before its list scrolls, so a
-	// short list is a short card -- and with the list put away, just its bar.
-	const shut = (card: Card) => card.folded || (card.tabs.length === 1 && HEADLESS.has(card.head));
-	const shared = side !== "bottom" && cards.filter((card) => !shut(card)).length >= 2;
 
 	// The two cards either side of a line trade height; the rest keep theirs.
 	function share(above: Card, below: Card, e: ReactPointerEvent<HTMLDivElement>) {

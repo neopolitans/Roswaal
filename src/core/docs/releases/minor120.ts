@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.158.1",
+		date: "2026-10-08",
+		headline:
+			"Cards hand back the room they do not use, and the completion list follows the pointer.",
+		affects: ["editor"],
+		fixed: [
+			"Two cards sharing a dock are each no taller than what they show. Folding a section of the Project panel hands the room it leaves to the card below, Variables say, and opening it takes the room back; before, each kept its share of the column, empty or not.",
+			"The completion list hangs a few pixels clear of the line, so the accent underline under the word you are typing shows rather than merging with the list's edge. The word itself has a faint cream wash over it, in Node Design's logic field as well as the Code panel.",
+			"Moving the pointer over an answer in the completion list picks it, as the arrow keys do, so Enter or Tab takes the one you are pointing at. The arrow keys still carry on from there with the pointer resting on the list.",
+		],
+	},
+	{
 		version: "0.158.0",
 		date: "2026-10-08",
 		headline:

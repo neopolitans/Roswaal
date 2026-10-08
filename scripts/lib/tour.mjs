@@ -1377,7 +1377,7 @@ ${themeCss(".tour-complete-box", TOOLTIP_STYLE)}
 .tour-complete-box { width: min(520px, 100%); overflow: visible; }
 .tour-complete-line { margin: 0; border-radius: 8px 8px 0 0; border: 1px solid var(--border); white-space: pre; overflow-x: auto; }
 .tour-complete-input {
-  font: inherit; color: var(--fg); background: color-mix(in srgb, var(--accent) 12%, transparent);
+  font: inherit; color: var(--fg); background: var(--code-completing);
   border: 0; border-bottom: 2px solid var(--accent); padding: 0 2px; outline: none; min-width: 4ch;
 }
 /* The list is drawn with the editors' own tooltip rules (TOOLTIP_STYLE, below),

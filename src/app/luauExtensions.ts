@@ -19,6 +19,8 @@ import {
 	closeBracketsKeymap,
 	completionKeymap,
 	completionStatus,
+	selectedCompletionIndex,
+	setSelectedCompletion,
 } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { syntaxHighlighting } from "@codemirror/language";
@@ -102,7 +104,8 @@ function completingMark(state: EditorState): DecorationSet {
 
 /**
  * The word being completed, marked as a field to type into, so the list that
- * hangs below it reads as that field's answers (see `.cm-completing`).
+ * hangs below it reads as that field's answers (see `.cm-completing`, in
+ * `editorTheme`).
  */
 const completingWord = ViewPlugin.fromClass(
 	class {
@@ -115,6 +118,41 @@ const completingWord = ViewPlugin.fromClass(
 		}
 	},
 	{ decorations: (plugin) => plugin.decorations },
+);
+
+/**
+ * The answer under the pointer is the one picked, as the arrow keys pick one,
+ * so Enter or Tab takes what you are pointing at.
+ *
+ * Listened for on the document: the list is a tooltip, rendered into the
+ * page's body rather than the editor. Only a pointer that has moved counts.
+ * The arrow keys scroll the list under a still pointer, and some browsers
+ * send a mousemove when they do, which would hand the pick straight back to
+ * the row the pointer happens to be over.
+ */
+const hoverPick = ViewPlugin.fromClass(
+	class {
+		last = { x: Number.NaN, y: Number.NaN };
+		constructor(readonly view: EditorView) {
+			view.dom.ownerDocument.addEventListener("mousemove", this.move);
+		}
+		move = (e: MouseEvent) => {
+			if (e.screenX === this.last.x && e.screenY === this.last.y) return;
+			this.last = { x: e.screenX, y: e.screenY };
+			if (!(e.target instanceof Element)) return;
+			const row = e.target.closest<HTMLElement>(".cm-tooltip-autocomplete li[id]");
+			const list = row?.parentElement;
+			// This editor's list, not another editor's on the same page.
+			if (!row || !list || list.id !== this.view.contentDOM.getAttribute("aria-controls")) return;
+			const index = Number(/-(\d+)$/.exec(row.id)?.[1]);
+			const picked = selectedCompletionIndex(this.view.state);
+			if (Number.isInteger(index) && picked !== null && index !== picked)
+				this.view.dispatch({ effects: setSelectedCompletion(index) });
+		};
+		destroy() {
+			this.view.dom.ownerDocument.removeEventListener("mousemove", this.move);
+		}
+	},
 );
 
 /** The extensions for one Luau editor. */
@@ -138,7 +176,11 @@ export function luauExtensions(options: LuauExtensionOptions = {}): Extension[] 
 	} else {
 		extensions.push(history(), closeBrackets());
 		if (completion)
-			extensions.push(autocompletion({ override: [completion], icons: false }), completingWord);
+			extensions.push(
+				autocompletion({ override: [completion], icons: false }),
+				completingWord,
+				hoverPick,
+			);
 		// Completion and bracket keymaps first: they only claim keys while
 		// they are actually active, and indentWithTab must not shadow them.
 		extensions.push(

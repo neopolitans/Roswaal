@@ -150,6 +150,23 @@ export const editorTheme = EditorView.theme({
 	// `!important`.
 	".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--fg) !important" },
 	".cm-selectionBackground, ::selection": { backgroundColor: "var(--bg-active)" },
+	// The word completion is replacing, marked as a field to type into: a
+	// cream wash over it, underlined in the accent the list's edge is drawn in.
+	".cm-completing": {
+		background: "var(--code-completing)",
+		boxShadow: "inset 0 -2px 0 var(--accent)",
+	},
 
 	...TOOLTIP_STYLE,
+	// The list hangs a few pixels clear of the line, so the underline above
+	// shows rather than merging with the list's own edge. Here and not in
+	// `TOOLTIP_STYLE`: the tour hangs its drawing flush from its line.
+	".cm-tooltip.cm-tooltip-autocomplete": {
+		...TOOLTIP_STYLE[".cm-tooltip.cm-tooltip-autocomplete"],
+		marginTop: "4px",
+	},
+	".cm-tooltip.cm-tooltip-autocomplete.cm-tooltip-above": {
+		...TOOLTIP_STYLE[".cm-tooltip.cm-tooltip-autocomplete.cm-tooltip-above"],
+		marginTop: "-4px",
+	},
 });
