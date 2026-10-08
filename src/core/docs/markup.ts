@@ -8,6 +8,7 @@
  */
 
 import { CARRIED_LICENCES } from "../licenceData.js";
+import { byHolder, holderStatement, licenceShown, USAGES } from "./attributions.js";
 import { listedRegions } from "./layouts.js";
 import { mapFigure } from "./mapFigure.js";
 import { TAG_LABELS } from "./releaseTags.js";
@@ -187,6 +188,23 @@ export function blockStrings(block: Block): BlockString[] {
 		case "releaseVersions":
 		case "releasePager":
 			// Ways to other pages, which say nothing of their own.
+			break;
+		case "attributions":
+			for (const usage of USAGES) {
+				add("plain", usage.label);
+				add("plain", usage.means);
+				add("plain", usage.promise);
+			}
+			for (const { holder, entries } of byHolder()) {
+				add("plain", holder);
+				add("inline", holderStatement(holder));
+				for (const entry of entries) {
+					add("plain", entry.name);
+					add("plain", licenceShown(entry));
+					add("inline", entry.note);
+					add("inline", entry.where);
+				}
+			}
 			break;
 		case "licences":
 			for (const licence of CARRIED_LICENCES) {

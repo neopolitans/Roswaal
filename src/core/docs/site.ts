@@ -327,6 +327,12 @@ export type Block =
 	 */
 	| { t: "licences" }
 	/**
+	 * The attributions browser: every entry, in a grid of holders against usage
+	 * types and in a searchable list by holder. Drawn from
+	 * `src/core/docs/attributions.ts` by `attributionsHtml`.
+	 */
+	| { t: "attributions" }
+	/**
 	 * A minor version's releases as one card: its releases' summaries, then
 	 * Added, Changed and Fixed, every line badged with the release it shipped
 	 * in. `link` makes the version a link to its own page, on the front page.

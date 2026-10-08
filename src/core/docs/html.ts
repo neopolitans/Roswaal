@@ -20,6 +20,7 @@ import { CARRIED_LICENCES } from "../licenceData.js";
 import type { Registry } from "../nodes/index.js";
 import { RUNTIME_LABEL, RUNTIME_SUMMARY } from "../nodes/runtimes.js";
 import { metaTags, type SiteBuild } from "../siteMeta.js";
+import { attributionsHtml } from "./attributionsHtml.js";
 import { graphViews } from "./graphViews.js";
 import { escapeHtml, inlineHtml, pagePath } from "./inlineHtml.js";
 import { layoutHtml, listedRegions } from "./layouts.js";
@@ -186,6 +187,27 @@ function drawing(preview: PreviewOptions, page: PageState): PreviewOptions {
  * licence and nothing else. No script, which the static site would need to load
  * an editor view; the editor's own docs show the same in one (`LicenceView.tsx`).
  */
+const MONTHS = [
+	"January",
+	"February",
+	"March",
+	"April",
+	"May",
+	"June",
+	"July",
+	"August",
+	"September",
+	"October",
+	"November",
+	"December",
+];
+
+/** `2026-10-08` as a reader says it, 8 October 2026, as the editor's licence view does. */
+function dayAsWords(day: string): string {
+	const [year, month, date] = day.split("-").map(Number);
+	return `${date} ${MONTHS[month - 1]} ${year}`;
+}
+
 function licencesHtml(up: string): string {
 	const items = CARRIED_LICENCES.map((licence) => {
 		const lines = licence.text
@@ -200,7 +222,7 @@ function licencesHtml(up: string): string {
 			`<span class="aside">${escapeHtml(licence.holder)}</span></summary>\n` +
 			`<p class="licence-meta">${escapeHtml(licence.covers)}<br>` +
 			`Copied unchanged from <a href="${escapeHtml(licence.url)}">${escapeHtml(licence.source)}</a>, ` +
-			`${escapeHtml(licence.retrieved)}.<br>` +
+			`${escapeHtml(dayAsWords(licence.retrieved))}.<br>` +
 			`<code>${escapeHtml(licence.path)}</code> · SHA-256 <code>${licence.sha256}</code></p>\n` +
 			`<ol class="licence-lines" aria-label="${escapeHtml(licence.name)} licence">${lines}</ol>\n` +
 			"</details>"
@@ -541,6 +563,8 @@ function renderBlock(
 		}
 		case "licences":
 			return licencesHtml(up);
+		case "attributions":
+			return attributionsHtml((slug) => up + pagePath(slug), `${up}../THIRD-PARTY-NOTICES.txt`);
 		case "details": {
 			// A plain `<details>`: it opens and closes with no script at all.
 			const aside = block.aside ? `<span class="aside">${escapeHtml(block.aside)}</span>` : "";

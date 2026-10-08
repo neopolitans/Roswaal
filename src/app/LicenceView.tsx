@@ -222,3 +222,62 @@ function LicenceFold({
 		</details>
 	);
 }
+
+/**
+ * A licence in a modal, for the attributions browser in the editor's docs: the
+ * licence by its key in `notices/upstream/`, or `notices` for this build's
+ * notices file. A native dialog, so focus moves in, Escape closes it, and
+ * focus goes back to the button that opened it.
+ */
+export function LicenceDialog({
+	licenceKey,
+	returnTo,
+	onClose,
+}: {
+	licenceKey: string;
+	/**
+	 * The button that opened it, to hand focus back to. Safari does not focus a
+	 * button on a click, so the dialog's own return would land on the page.
+	 */
+	returnTo?: HTMLElement | null;
+	onClose: () => void;
+}) {
+	const dialog = useRef<HTMLDialogElement>(null);
+	const licence = CARRIED_LICENCES.find((l) => l.file === `${licenceKey}.txt`);
+	useEffect(() => {
+		const element = dialog.current;
+		if (!element) return;
+		element.showModal();
+		return () => element.close();
+	}, []);
+	return (
+		<dialog
+			ref={dialog}
+			className="attr-dialog"
+			onClose={() => {
+				returnTo?.focus();
+				onClose();
+			}}
+			onClick={(e) => {
+				// A click on the backdrop is a click on the dialog itself.
+				if (e.target === e.currentTarget) e.currentTarget.close();
+			}}
+		>
+			<div className="attr-dialog-head">
+				<h2>
+					{licence ? (
+						<>
+							{licence.name} <span className="spdx">{licence.spdx}</span>
+						</>
+					) : (
+						"Third-party notices"
+					)}
+				</h2>
+				<button type="button" className="tb" onClick={() => dialog.current?.close()}>
+					Close
+				</button>
+			</div>
+			{licence ? <LicenceDetail licence={licence} /> : <BundledNotices />}
+		</dialog>
+	);
+}

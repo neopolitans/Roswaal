@@ -19,19 +19,22 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
+import { rowMatches, summaryText } from "../src/app/attributionsBrowser.js";
 import { ICONS, SHOWS_LUAU_MARK } from "../src/app/icons.jsx";
 import {
 	ATTRIBUTIONS,
-	DEPENDENCIES,
+	byHolder,
+	entriesUsed,
 	HOW_IT_IS_MADE,
-	INSPIRATIONS,
+	holderStatement,
+	licenceShown,
 	NAME_NOTICE,
 	NOT_AFFILIATED,
 	NOTHING_SHIPS,
-	TARGETS,
-	TESTED_WITH,
 	TRADEMARKS,
+	USAGES,
 } from "../src/core/docs/attributions.js";
+import { attributionsHtml, entryAnchor, holderAnchor } from "../src/core/docs/attributionsHtml.js";
 import { blockText, buildSite, findPage } from "../src/core/docs/site.js";
 import { CARRIED_LICENCES } from "../src/core/licenceData.js";
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
@@ -146,32 +149,27 @@ describe("ATTRIBUTIONS.md and the attributions page", () => {
 });
 
 /**
- * ## Built on, inspired by, designed for
+ * ## Seven ways of using someone's work
  *
- * Three different claims, and the page makes them separately. An inspiration sat
- * under "What Roswaal is built on" for a release, which claimed a relationship
- * that did not exist — no code, no assets, no dependency, only conventions.
- * Overstating a debt is its own kind of inaccuracy, and so is understating one.
+ * Each a different claim, and the page makes them separately. An inspiration
+ * once sat under "built on", which claimed a relationship that did not exist,
+ * and "uses" covered both code that ships and tools that never do. Overstating
+ * a debt is its own kind of inaccuracy, and so is understating one.
  */
-describe("what Roswaal uses, learned from, and writes for", () => {
-	it("puts every entry in exactly one of the four", () => {
-		expect(DEPENDENCIES.length + INSPIRATIONS.length + TARGETS.length + TESTED_WITH.length).toBe(
-			ATTRIBUTIONS.length,
-		);
-		for (const entry of ATTRIBUTIONS) {
-			expect(["uses", "inspired-by", "designed-for", "tested-with"], entry.name).toContain(
-				entry.relation,
-			);
-		}
+describe("how Roswaal uses each entry", () => {
+	it("gives every entry exactly one of the seven usage types", () => {
+		const keys = USAGES.map((usage) => usage.key);
+		expect(keys).toHaveLength(7);
+		for (const entry of ATTRIBUTIONS) expect(keys, entry.name).toContain(entry.usage);
 	});
 
-	/** A library Roswaal was only tried against ships nothing here. */
-	it("bundles none of the libraries it was tested with", () => {
-		expect(TESTED_WITH.map((t) => t.name).sort()).toEqual(["Promise", "Roact", "Sift", "Signal"]);
-		for (const entry of TESTED_WITH) {
+	/** A library named as an example ships nothing here. */
+	it("bundles none of the libraries it names as examples", () => {
+		const examples = entriesUsed("example");
+		expect(examples.map((t) => t.name).sort()).toEqual(["Promise", "Roact", "Sift", "Signal"]);
+		for (const entry of examples) {
 			expect(entry.where, entry.name).toBe(NOTHING_SHIPS);
 			expect(entry.ships, entry.name).toBe(false);
-			expect(entry.licence, entry.name).not.toBeNull();
 		}
 	});
 
@@ -181,15 +179,15 @@ describe("what Roswaal uses, learned from, and writes for", () => {
 	 * Luau's own README asks for its attribution by name.
 	 */
 	it("names Luau, Roblox and Lune as what the output is for", () => {
-		expect([...TARGETS.map((t) => t.name)].sort()).toEqual(["Luau", "Lune", "Roblox"]);
+		expect(
+			entriesUsed("target")
+				.map((t) => t.name)
+				.sort(),
+		).toEqual(["Luau", "Lune", "Roblox"]);
 	});
 
-	/**
-	 * A target is not a dependency, and saying so is the whole point of the
-	 * third relation: nothing of theirs ships here.
-	 */
 	it("claims no licence over anything it only writes for", () => {
-		for (const entry of TARGETS) {
+		for (const entry of entriesUsed("target")) {
 			expect(entry.where.toLowerCase(), entry.name).toContain("nothing of theirs ships");
 		}
 	});
@@ -209,19 +207,20 @@ describe("what Roswaal uses, learned from, and writes for", () => {
 		}
 	});
 
-	/**
-	 * The specific mistake this guards. An entry with no licence granted to us
-	 * is not something we can be built on.
-	 */
-	it("never calls something a dependency that is not licensed to us", () => {
-		for (const entry of DEPENDENCIES) {
-			expect(entry.licence, `${entry.name} is listed as used but has no licence`).not.toBeNull();
+	/** What ships inside Roswaal is licensed to it, and its licence opens. */
+	it("opens a carried licence for everything included or quoted", () => {
+		const carried = new Set(CARRIED_LICENCES.map((l) => l.file.replace(/\.txt$/, "")));
+		for (const entry of [...entriesUsed("included"), ...entriesUsed("quoted")]) {
+			expect(entry.ships, entry.name).toBe(true);
+			expect(entry.licence, entry.name).not.toBeNull();
+			const file = entry.licenceFile ?? "";
+			expect(file === "notices" || carried.has(file), `${entry.name}: ${file}`).toBe(true);
 		}
 	});
 
 	/**
 	 * Where nothing of a holder's ships, the page says so in those words and
-	 * names no licence; where something does, it says where and under what.
+	 * offers no licence; where something does, it says where and under what.
 	 */
 	it("says whether anything of each ships, and never both ways", () => {
 		for (const entry of ATTRIBUTIONS) {
@@ -230,27 +229,63 @@ describe("what Roswaal uses, learned from, and writes for", () => {
 				expect(entry.licence, entry.name).not.toBeNull();
 			} else {
 				expect(entry.where.startsWith(NOTHING_SHIPS), entry.name).toBe(true);
+				expect(licenceShown(entry), entry.name).toBe("None needed");
 			}
 		}
 	});
 
-	it("keeps Affinity and Procreate on the inspiration side", () => {
-		const inspirations = INSPIRATIONS.map((a) => a.name);
-		expect(inspirations).toContain("Affinity");
-		expect(inspirations).toContain("Procreate");
+	it("keeps Unreal Engine, Affinity and Procreate on the inspiration side", () => {
+		const inspirations = entriesUsed("inspired").map((a) => a.name);
+		for (const name of ["Unreal Engine", "Affinity", "Procreate"]) {
+			expect(inspirations, name).toContain(name);
+		}
+		for (const entry of entriesUsed("inspired")) expect(entry.ships, entry.name).toBe(false);
 	});
 
-	it("keeps Unreal Engine on the inspiration side", () => {
-		expect(INSPIRATIONS.map((a) => a.name)).toContain("Unreal Engine");
-		expect(DEPENDENCIES.map((a) => a.name)).not.toContain("Unreal Engine");
+	/** The name is an entry too, so its holders can find it, with the notice above it. */
+	it("lists the name as a homage, under the name notice", () => {
+		const [name] = entriesUsed("homage");
+		expect(name.holder).toBe("KADOKAWA · Tappei Nagatsuki");
+		expect(holderStatement(name.holder ?? "")).toBe(NAME_NOTICE.body[1]);
 	});
 
-	/** Both headings have to exist in the other copy of record too. */
 	it("says the same in ATTRIBUTIONS.md", () => {
-		expect(NOTICE).toContain("What Roswaal is built on");
-		expect(NOTICE).toContain("What Roswaal is inspired by");
+		for (const usage of USAGES) expect(NOTICE, usage.label).toContain(usage.label);
 	});
 });
+
+/**
+ * The browser draws every entry once, under its holder, with an anchor to
+ * link to, and the grid gives every holder a row.
+ */
+describe("the attributions browser", () => {
+	const html = attributionsHtml((slug) => `${slug}.html`, "../THIRD-PARTY-NOTICES.txt");
+
+	it("draws each entry once, with an anchor of its own", () => {
+		const anchors = ATTRIBUTIONS.map(entryAnchor);
+		expect(new Set(anchors).size).toBe(anchors.length);
+		for (const anchor of anchors) {
+			expect(html.split(`id="${anchor}"`).length - 1, anchor).toBe(1);
+		}
+	});
+
+	it("gives every holder a row in the grid and a section in the list", () => {
+		for (const { holder } of byHolder()) {
+			expect(html, holder).toContain(`id="${holderAnchor(holder)}"`);
+		}
+		expect(html.match(/<tr><th scope="row">/g)?.length).toBe(byHolder().length);
+	});
+
+	it("switches views without script, and opens only carried licences", () => {
+		expect(html).toContain('id="attr-view-simple" class="attr-radio" checked');
+		expect(html).toContain('id="attr-view-advanced" class="attr-radio"');
+		const carried = new Set(CARRIED_LICENCES.map((l) => l.file.replace(/\.txt$/, "")));
+		for (const [, key] of html.matchAll(/data-licence="([^"]+)"/g)) {
+			expect(key === "notices" || carried.has(key), key).toBe(true);
+		}
+	});
+});
+
 /**
  * The Luau logo is the `.luau` icon on the canary only, until Roblox has
  * answered whether the use is permitted.
@@ -317,5 +352,41 @@ describe("how Roswaal is made", () => {
 			expect(flat(NOTICE)).toContain(line);
 			expect(flat(README)).toContain(line);
 		}
+	});
+});
+
+/** The browser's search and filters, as rules apart from the page they run on. */
+describe("finding an entry", () => {
+	const html = attributionsHtml((slug) => `${slug}.html`, "../THIRD-PARTY-NOTICES.txt");
+	const rows = [...html.matchAll(/data-usage="([a-z]+)" data-search="([^"]*)"/g)].map(
+		([, usage, search]) => ({
+			usage,
+			search: search.replace(/&quot;/g, '"').replace(/&amp;/g, "&"),
+		}),
+	);
+	const found = (usage: string, query: string) =>
+		rows.filter((row) => rowMatches(row, usage, query)).length;
+
+	it("shows everything with no search and no filter", () => {
+		expect(rows).toHaveLength(ATTRIBUTIONS.length);
+		expect(found("all", "")).toBe(ATTRIBUTIONS.length);
+	});
+
+	it("finds a holder by name, and narrows by every word", () => {
+		expect(found("all", "roblox corporation")).toBe(4);
+		expect(found("all", "Roblox CC")).toBe(1);
+		expect(found("all", "nord")).toBe(1);
+	});
+
+	it("filters by usage, and by usage and search together", () => {
+		expect(found("inspired", "")).toBe(entriesUsed("inspired").length);
+		expect(found("example", "roblox")).toBe(1);
+		expect(found("included", "unreal")).toBe(0);
+	});
+
+	it("says what it shows", () => {
+		expect(summaryText(26, 26, 22)).toBe("26 entries from 22 rights holders");
+		expect(summaryText(1, 26, 1)).toBe("Showing 1 of 26, from 1 holder");
+		expect(summaryText(0, 26, 0)).toBe("None of 26 match");
 	});
 });

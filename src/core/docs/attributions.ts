@@ -52,25 +52,24 @@ export interface Attribution {
 	 */
 	ships: boolean;
 	/**
-	 * Whether Roswaal **uses** this, only **learned** from it, or **produces
-	 * code for** it.
-	 *
-	 * The distinction is the point of having it. Listing something Roswaal only
-	 * learned from under "built on" claims a relationship that does not exist —
-	 * no code, no assets, no dependency, only conventions a reader might
-	 * recognise. Overstating a debt is its own kind of inaccuracy.
-	 *
-	 * `designed-for` is the third, and it is the weakest of the three on
-	 * purpose: a language Roswaal writes and a runtime that runs the result.
-	 * Nothing of theirs is here and nothing of theirs is licensed to us — what
-	 * is being said is only "this is what the output is for".
-	 *
-	 * `tested-with` is for libraries these pages name and Roswaal was tried
-	 * against. Nothing of theirs ships here or is needed to use Roswaal; they are
-	 * named so a reader seeing them in a picture or an example knows whose they
-	 * are.
+	 * How Roswaal uses it: one of `USAGES`, each saying what is and is not in
+	 * Roswaal. The distinction is the point. Listing something Roswaal only
+	 * learned from as included claims a relationship that does not exist, and
+	 * "uses" once covered both code that ships and tools that never do.
 	 */
-	relation: "uses" | "inspired-by" | "designed-for" | "tested-with";
+	usage: UsageKey;
+	/** What the at-a-glance grid calls it, where the name is long. */
+	short?: string;
+	/**
+	 * The licence its button opens: a file in `notices/upstream/` without its
+	 * `.txt`, or `notices` for the build's `THIRD-PARTY-NOTICES.txt`. Absent where
+	 * nothing of theirs ships.
+	 */
+	licenceFile?: string;
+	/** What the licence button says, where the SPDX name alone would mislead. */
+	licenceLabel?: string;
+	/** A second, narrower use the grid shows in its own column: the Luau logo. */
+	also?: { usage: UsageKey; short: string };
 	/** Where it is in what ships, or "Nothing of theirs ships." */
 	where: string;
 	/** What Roswaal does with it, in one sentence. */
@@ -81,13 +80,74 @@ export interface Attribution {
 	quote?: string;
 }
 
+export type UsageKey =
+	| "included"
+	| "quoted"
+	| "target"
+	| "works"
+	| "example"
+	| "inspired"
+	| "homage";
+
+/**
+ * The seven ways Roswaal uses someone's work, in the order the page shows
+ * them: what each means, and what it promises the holder.
+ */
+export const USAGES: { key: UsageKey; label: string; means: string; promise: string }[] = [
+	{
+		key: "included",
+		label: "Included",
+		means: "Code or assets that ship inside Roswaal.",
+		promise: "Its licence travels with it, in full.",
+	},
+	{
+		key: "quoted",
+		label: "Quoted",
+		means: "Someone's words, shipped inside Roswaal under their licence.",
+		promise: "Marked as theirs and not 0BSD, with what was changed.",
+	},
+	{
+		key: "target",
+		label: "Written for",
+		means: "What the code Roswaal generates is written for.",
+		promise: "Named to say what Roswaal works with. Nothing of theirs ships.",
+	},
+	{
+		key: "works",
+		label: "Works with",
+		means: "Tools and formats Roswaal reads or writes.",
+		promise: "Nothing of theirs ships, and Roswaal does not run their software.",
+	},
+	{
+		key: "example",
+		label: "Example",
+		means: "Named in the docs, pictures or tests as a real-world example.",
+		promise: "A name, and sometimes code Roswaal was tried against. Nothing copied.",
+	},
+	{
+		key: "inspired",
+		label: "Inspired by",
+		means: "Conventions Roswaal learned from.",
+		promise: "No code, assets, content or dependency.",
+	},
+	{
+		key: "homage",
+		label: "Named after",
+		means: "A name used as homage.",
+		promise: "Not licensed, and no rights claimed. Nothing from the work is used.",
+	},
+];
+
 /** What `where` says when nothing of a holder's is in Roswaal. */
 export const NOTHING_SHIPS = "Nothing of theirs ships.";
 
 export const ATTRIBUTIONS: Attribution[] = [
 	{
 		name: "Luau",
-		relation: "designed-for",
+		usage: "target",
+		licenceFile: "luau-site",
+		licenceLabel: "MIT · logo",
+		also: { usage: "included", short: "Luau logo (canary)" },
 		holder: "Roblox Corporation",
 		licence: "MIT",
 		ships: true,
@@ -103,7 +163,7 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Roblox",
-		relation: "designed-for",
+		usage: "target",
 		holder: "Roblox Corporation",
 		licence: null,
 		ships: false,
@@ -113,7 +173,7 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Lune",
-		relation: "designed-for",
+		usage: "target",
 		holder: "Filip Tibell and contributors",
 		licence: null,
 		ships: false,
@@ -123,7 +183,7 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Unreal Engine",
-		relation: "inspired-by",
+		usage: "inspired",
 		holder: "Epic Games, Inc.",
 		licence: null,
 		ships: false,
@@ -135,7 +195,8 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Unity Visual Scripting (Bolt)",
-		relation: "inspired-by",
+		usage: "inspired",
+		short: "Visual Scripting (Bolt)",
 		holder: "Unity Technologies",
 		licence: null,
 		ships: false,
@@ -145,7 +206,7 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Blender",
-		relation: "inspired-by",
+		usage: "inspired",
 		holder: "Blender Foundation",
 		licence: null,
 		ships: false,
@@ -155,7 +216,7 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Affinity",
-		relation: "inspired-by",
+		usage: "inspired",
 		holder: "Canva",
 		licence: null,
 		ships: false,
@@ -167,7 +228,7 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Procreate",
-		relation: "inspired-by",
+		usage: "inspired",
 		holder: "Savage Interactive Pty Ltd",
 		licence: null,
 		ships: false,
@@ -179,7 +240,8 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Material Symbols",
-		relation: "uses",
+		usage: "included",
+		licenceFile: "material-symbols",
 		holder: "Google LLC",
 		licence: "Apache-2.0",
 		ships: true,
@@ -189,7 +251,9 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "CodeMirror 6",
-		relation: "uses",
+		usage: "included",
+		short: "CodeMirror",
+		licenceFile: "notices",
 		holder: "Marijn Haverbeke and contributors",
 		licence: "MIT",
 		ships: true,
@@ -199,7 +263,9 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Node.js",
-		relation: "uses",
+		usage: "included",
+		licenceFile: "notices",
+		licenceLabel: "MIT and others",
 		holder: "OpenJS Foundation and Node.js contributors",
 		licence: "MIT",
 		ships: true,
@@ -211,7 +277,10 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Open-source packages",
-		relation: "uses",
+		usage: "included",
+		short: "Packages",
+		licenceFile: "notices",
+		licenceLabel: "MIT · ISC · BSD",
 		holder: "Their authors",
 		licence: "MIT, ISC and BSD-3-Clause",
 		ships: true,
@@ -224,7 +293,7 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Lua",
-		relation: "uses",
+		usage: "works",
 		holder: "PUC-Rio",
 		licence: "MIT",
 		ships: false,
@@ -234,7 +303,8 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Tokyo Night",
-		relation: "uses",
+		usage: "included",
+		licenceFile: "tokyo-night",
 		holder: "Enkia",
 		licence: "MIT",
 		ships: true,
@@ -244,7 +314,8 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Catppuccin",
-		relation: "uses",
+		usage: "included",
+		licenceFile: "catppuccin",
 		holder: "Catppuccin",
 		licence: "MIT",
 		ships: true,
@@ -254,7 +325,8 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Nord",
-		relation: "uses",
+		usage: "included",
+		licenceFile: "nord",
 		holder: "Sven Greb",
 		licence: "MIT",
 		ships: true,
@@ -264,7 +336,7 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Rojo",
-		relation: "uses",
+		usage: "works",
 		holder: "rojo-rbx and contributors",
 		licence: "MPL-2.0",
 		ships: false,
@@ -274,7 +346,7 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Wally",
-		relation: "uses",
+		usage: "works",
 		holder: "Uplift Games and contributors",
 		licence: "MPL-2.0",
 		ships: false,
@@ -284,7 +356,7 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Moonwave",
-		relation: "uses",
+		usage: "works",
 		holder: "Eryn L. K. and contributors",
 		licence: "MPL-2.0",
 		ships: false,
@@ -294,7 +366,10 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Roblox Creator Documentation",
-		relation: "uses",
+		usage: "quoted",
+		short: "Creator Documentation",
+		licenceFile: "creator-docs",
+		licenceLabel: "CC BY 4.0",
 		holder: "Roblox Corporation",
 		licence: "CC-BY-4.0",
 		ships: true,
@@ -308,7 +383,9 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Lune's type definitions",
-		relation: "uses",
+		usage: "quoted",
+		short: "Type definitions",
+		licenceFile: "lune",
 		holder: "Filip Tibell and contributors",
 		licence: "MPL-2.0",
 		ships: true,
@@ -320,7 +397,7 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Sift",
-		relation: "tested-with",
+		usage: "example",
 		holder: "csqrl",
 		licence: "MIT",
 		ships: false,
@@ -330,7 +407,7 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Signal",
-		relation: "tested-with",
+		usage: "example",
 		holder: "Stephen Leitnick",
 		licence: "MIT",
 		ships: false,
@@ -340,7 +417,7 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Promise",
-		relation: "tested-with",
+		usage: "example",
 		holder: "Eryn L. K.",
 		licence: "MIT",
 		ships: false,
@@ -350,13 +427,25 @@ export const ATTRIBUTIONS: Attribution[] = [
 	},
 	{
 		name: "Roact",
-		relation: "tested-with",
+		usage: "example",
 		holder: "Roblox Corporation",
 		licence: "Apache-2.0",
 		ships: false,
 		where: NOTHING_SHIPS,
 		note: "Roswaal's docs use `@roact` as the example of an alias.",
 		url: "https://github.com/Roblox/roact",
+	},
+	{
+		name: "The name “Roswaal”",
+		usage: "homage",
+		short: "The name",
+		holder: "KADOKAWA · Tappei Nagatsuki",
+		licence: null,
+		ships: false,
+		where: `${NOTHING_SHIPS} The name only: no artwork, likeness or text from the work.`,
+		note:
+			"Roswaal is named after Roswaal L. Mathers, a character in *Re:Zero − Starting Life in " +
+			"Another World*.",
 	},
 ];
 
@@ -439,29 +528,40 @@ export const HOW_IT_IS_MADE = [
 		"Anthropic.",
 ] as const;
 
-/** The ones Roswaal actually ships or stands on. */
-export const DEPENDENCIES = ATTRIBUTIONS.filter((a) => a.relation === "uses");
+/** The entries one usage type covers, in page order. */
+export function entriesUsed(usage: UsageKey): Attribution[] {
+	return ATTRIBUTIONS.filter((a) => a.usage === usage);
+}
 
-/**
- * The ones it only learned from.
- *
- * Separate because "built on" and "inspired by" are different claims, and the
- * weaker one is the true one here.
- */
-export const INSPIRATIONS = ATTRIBUTIONS.filter((a) => a.relation === "inspired-by");
+/** Who holds what, holders A to Z, each holder's entries in page order. */
+export function byHolder(): { holder: string; entries: Attribution[] }[] {
+	const holders = new Map<string, Attribution[]>();
+	for (const entry of ATTRIBUTIONS) {
+		const holder = entry.holder ?? "—";
+		holders.set(holder, [...(holders.get(holder) ?? []), entry]);
+	}
+	return [...holders]
+		.sort(([a], [b]) => a.localeCompare(b, "en", { sensitivity: "base" }))
+		.map(([holder, entries]) => ({ holder, entries }));
+}
 
-/**
- * The languages and runtimes the generated code is for.
- *
- * Weaker than either of the others, and listed anyway: a reader seeing Roblox's
- * class names throughout the editor is owed the sentence saying whose they are.
- * Luau is here rather than under "built on" because Roswaal writes it, and its
- * README asks for the attribution in user-facing documentation, which this is.
- */
-export const TARGETS = ATTRIBUTIONS.filter((a) => a.relation === "designed-for");
+/** A holder's trademark line, or its name notice, said above its entries. */
+export function holderStatement(holder: string): string | undefined {
+	if (holder === "KADOKAWA · Tappei Nagatsuki") return NAME_NOTICE.body[1];
+	return TRADEMARKS.find((mark) => mark.holder === holder)?.line;
+}
 
-/**
- * Libraries these pages name and Roswaal was tried against. Their own heading,
- * because none of them is something Roswaal is built on: it only reads them.
- */
-export const TESTED_WITH = ATTRIBUTIONS.filter((a) => a.relation === "tested-with");
+/** What the licence column says for an entry. */
+export function licenceShown(entry: Attribution): string {
+	if (!entry.ships || !entry.licence) return "None needed";
+	return entry.licenceLabel ?? entry.licence;
+}
+
+/** An anchor for a holder or an entry: lower case, words joined by dashes. */
+export function attributionSlug(text: string): string {
+	return text
+		.toLowerCase()
+		.normalize("NFKD")
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-|-$/g, "");
+}

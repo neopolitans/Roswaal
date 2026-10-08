@@ -9,6 +9,21 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.160.0",
+		date: "2026-10-08",
+		headline: "Attributions you can find yourself in: by holder, at a glance or in full.",
+		affects: ["editor", "docs"],
+		added: [
+			"**The Attributions page is a browser.** **Simple** shows every rights holder on one screen against the seven ways Roswaal uses their work; pick a name to find it in **Advanced**, the list by holder, with search, a filter for each usage type, and a link to every holder.",
+			"**Every licence opens from its entry.** The licence beside an entry is a button that opens the licence itself, exactly as Roswaal carries it: in the editor's read-only view in the app's docs, and as numbered lines on the website. The notices file opens the same way.",
+			"**Seven usage types**, each with what it means: Included, Quoted, Written for, Works with, Example, Inspired by and Named after. They replace the four headings the page had, one of which covered both code that ships and tools that never do.",
+		],
+		changed: [
+			"Each holder's trademark line is above its entries, once. The name Roswaal is an entry of its own, under its notice.",
+			"`ATTRIBUTIONS.md` is one table by rights holder, with the usage type of each entry.",
+		],
+	},
+	{
 		version: "0.159.0",
 		date: "2026-10-08",
 		headline: "Every licence Roswaal carries travels with it, and opens to its exact text.",

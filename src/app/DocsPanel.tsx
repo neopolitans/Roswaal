@@ -23,6 +23,7 @@ import {
 	useState,
 } from "react";
 import { VERSION } from "../cli/version.js";
+import { attributionsHtml } from "../core/docs/attributionsHtml.js";
 import { graphViews } from "../core/docs/graphViews.js";
 import { headingId } from "../core/docs/html.js";
 import { type LayoutSpec, layoutHtml, listedRegions } from "../core/docs/layouts.js";
@@ -65,6 +66,7 @@ import { growthState } from "../core/nodes/growth.js";
 import { BUILTIN_NODES, type Registry } from "../core/nodes/index.js";
 import { RUNTIME_LABEL, RUNTIME_SUMMARY } from "../core/nodes/runtimes.js";
 import type { NodeScript } from "../core/schema.js";
+import { attachAttributions } from "./attributionsBrowser.js";
 import { DocsSearch } from "./DocsSearch.jsx";
 import { chosenDevice, pickTab, readerDevice, rememberPick } from "./docsDevice.js";
 import { attachWalkthrough } from "./docsWalk.js";
@@ -72,7 +74,7 @@ import { wirePath } from "./geometry.js";
 import { attachGraphView } from "./graphView.js";
 import { highlightLuau } from "./highlight.js";
 import { EVEN_ODD, ICONS, Icon, STROKED, VIEW_BOX } from "./icons.jsx";
-import { DocsLicences } from "./LicenceView.jsx";
+import { DocsLicences, LicenceDialog, noticesUrl } from "./LicenceView.jsx";
 import { NODE, ZOOM } from "./layers.js";
 import { logoMarkup } from "./logo.jsx";
 import { attachMapPanel } from "./mapPanel.js";
@@ -776,6 +778,8 @@ function BlockView({ block }: { block: Block }) {
 			return <ReleaseBlock block={block} />;
 		case "licences":
 			return <DocsLicences />;
+		case "attributions":
+			return <AttributionsView />;
 		case "details":
 			return (
 				<details
@@ -1117,6 +1121,40 @@ function ReleaseBlock({ block }: { block: ReleaseBlockData }) {
  * so the published site and this panel cannot be drawing different chrome.
  * `attachMapPanel` is the same function the static site's script runs.
  */
+/**
+ * The attributions browser, as the static site draws it, wired by the same
+ * module; a licence opens in the editor's read-only view rather than the
+ * static site's numbered lines.
+ */
+function AttributionsView() {
+	const html = useMemo(
+		() => ({ __html: attributionsHtml((slug) => `#${slug}`, noticesUrl()) }),
+		[],
+	);
+	const host = useRef<HTMLDivElement>(null);
+	const [licence, setLicence] = useState<{ key: string; from: HTMLElement } | null>(null);
+
+	useEffect(() => {
+		if (!host.current) return;
+		return attachAttributions(host.current, {
+			openLicence: (key, from) => setLicence({ key, from }),
+		});
+	}, [html]);
+
+	return (
+		<>
+			<div className="docs-attributions" ref={host} dangerouslySetInnerHTML={html} />
+			{licence !== null && (
+				<LicenceDialog
+					licenceKey={licence.key}
+					returnTo={licence.from}
+					onClose={() => setLicence(null)}
+				/>
+			)}
+		</>
+	);
+}
+
 function MapFigureView({ map, caption }: { map: NodeMap; caption?: string }) {
 	const html = useMemo(() => ({ __html: mapFigureHtml(mapFigure(map)) }), [map]);
 	const host = useRef<HTMLElement>(null);
