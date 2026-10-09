@@ -13,6 +13,7 @@ dist-binary/
 
 # Built documentation site.
 dist-docs/
+dist-spec/
 dist-site/
 dist-pages/
 

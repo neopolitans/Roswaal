@@ -145,9 +145,21 @@ function upTo(slug: string): string {
 // Blocks
 // ---------------------------------------------------------------------------
 
+/**
+ * Where a page link goes from the page being written: `../` enough to climb to
+ * the docs' root, or, for a site that lays its pages out otherwise -- the
+ * standalone specification -- a function from a page's slug to its address.
+ */
+export type Up = string | ((slug: string) => string);
+
+/** A page's address, from the page being written. */
+function linkTo(up: Up, slug: string): string {
+	return typeof up === "function" ? up(slug) : up + pagePath(slug);
+}
+
 /** `up` climbs from the page being written to the site root, for page links. */
-function inline(text: string, up = ""): string {
-	return inlineHtml(text, (slug) => up + pagePath(slug));
+function inline(text: string, up: Up = ""): string {
+	return inlineHtml(text, (slug) => linkTo(up, slug));
 }
 
 function swatchStyle(
@@ -241,7 +253,7 @@ function licencesHtml(up: string): string {
 function renderBlock(
 	block: Block,
 	options: RenderOptions,
-	up = "",
+	up: Up = "",
 	page: PageState = { drawn: 0 },
 ): string {
 	switch (block.t) {
@@ -417,7 +429,7 @@ function renderBlock(
 		case "releaseRows":
 		case "releaseVersions":
 		case "releasePager":
-			return releaseBlockHtml(block, (slug) => up + pagePath(slug));
+			return releaseBlockHtml(block, (slug) => linkTo(up, slug));
 		case "nodemap": {
 			const caption = block.caption ? `<figcaption>${inline(block.caption, up)}</figcaption>` : "";
 			// One string, built in core, for the reason the toolbars are: the
@@ -563,9 +575,12 @@ function renderBlock(
 			);
 		}
 		case "licences":
-			return licencesHtml(up);
+			return licencesHtml(typeof up === "string" ? up : "");
 		case "attributions":
-			return attributionsHtml((slug) => up + pagePath(slug), `${up}../THIRD-PARTY-NOTICES.txt`);
+			return attributionsHtml(
+				(slug) => linkTo(up, slug),
+				`${typeof up === "string" ? up : ""}../THIRD-PARTY-NOTICES.txt`,
+			);
 		case "details": {
 			// A plain `<details>`: it opens and closes with no script at all.
 			const aside = block.aside ? `<span class="aside">${escapeHtml(block.aside)}</span>` : "";
@@ -584,7 +599,21 @@ function renderBlock(
 /** Past this many, a pin's values are counted rather than listed. */
 const NAMEABLE_OPTIONS = 8;
 
-function renderPins(block: Block & { t: "pins" }, options: RenderOptions, up: string): string {
+/**
+ * A page's blocks as HTML, for a site that lays its pages out its own way: the
+ * standalone specification renders the same blocks the docs do, with its own
+ * chrome around them and its own addresses for page links.
+ */
+export function renderBlocksHtml(
+	blocks: readonly Block[],
+	options: RenderOptions,
+	link: (slug: string) => string,
+): string {
+	const page: PageState = { drawn: 0 };
+	return blocks.map((block) => renderBlock(block, options, link, page)).join("\n");
+}
+
+function renderPins(block: Block & { t: "pins" }, options: RenderOptions, up: Up): string {
 	const rows = block.pins
 		.map((pin) => {
 			const badges = [

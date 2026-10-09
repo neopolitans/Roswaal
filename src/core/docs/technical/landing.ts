@@ -84,6 +84,17 @@ export function technicalPage(): DocPage {
 					"drawn settled the release before. " +
 					"[Process](technical/process) says what each version will promise once there is a 1.0.",
 			},
+
+			{ t: "h", level: 2, text: "Where it is published" },
+			{
+				t: "p",
+				text:
+					"At [spec.roswaal.app](https://spec.roswaal.app/), a site of its own that loads " +
+					"nothing of the editor's, and here in Roswaal's documentation, offline in the Docs " +
+					"panel. Both are built from the same pages. On the site, the latest draft is at the " +
+					`root and each draft also keeps an address of its own, such as spec.roswaal.app/${SPEC_DRAFT}/, ` +
+					"which does not change once a newer draft is the latest: cite that one.",
+			},
 		],
 	};
 }

@@ -119,11 +119,18 @@ async function main() {
 		"utf8",
 	);
 	await writeFile(join(out, "404.html"), notFoundPage(base, version), "utf8");
-	// `/technical/`, the address the specification is known by, as a short way
-	// into its pages in the docs. A redirect rather than a copy, so there is one
-	// page to link to and one for a search engine to index.
-	await mkdir(join(out, "technical"), { recursive: true });
-	await writeFile(join(out, "technical", "index.html"), technicalRedirect(), "utf8");
+	// `/technical/`: the specification as its own site, as spec.roswaal.app
+	// serves it -- the canary's preview of it, and a copy on roswaal.app for the
+	// address it was first given. Every page names spec.roswaal.app as its
+	// canonical address, so search engines index the one. Built by
+	// `build-spec.mjs`; without that build, a redirect to the published site.
+	const spec = join(root, "dist-spec");
+	if ((await readdir(spec).catch(() => [])).length > 0) {
+		await cp(spec, join(out, "technical"), { recursive: true });
+	} else {
+		await mkdir(join(out, "technical"), { recursive: true });
+		await writeFile(join(out, "technical", "index.html"), technicalRedirect(), "utf8");
+	}
 
 	// Tells Pages not to run the files through Jekyll, which would drop every
 	// directory whose name begins with an underscore.
@@ -144,9 +151,9 @@ async function main() {
 	);
 }
 
-/** The page at `/technical/`: straight on to the specification's front page. */
+/** The page at `/technical/` when the specification was not built: on to its site. */
 function technicalRedirect() {
-	const to = "../docs/technical.html";
+	const to = "https://spec.roswaal.app/";
 	return `<!doctype html>
 <html lang="en">
 <head>

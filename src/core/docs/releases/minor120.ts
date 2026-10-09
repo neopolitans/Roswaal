@@ -9,6 +9,21 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.164.0",
+		date: "2026-10-09",
+		headline: "The technical specification as a site of its own, at spec.roswaal.app.",
+		affects: ["docs"],
+		added: [
+			"**The specification has a site of its own**, built for spec.roswaal.app and previewed at `/technical/` on the canary. It loads its own small stylesheet and script and nothing of the editor's: a chapter is about 15 KB to read, against about 340 KB as a page of the docs, and its search, over the specification alone, loads the first time it is used.",
+			"Each chapter has its own address, such as `/visual-grammar/`, and a sidebar of the chapters and the sections of the one being read. On a phone the chapters fold into a Chapters button.",
+			"**Each draft keeps an address of its own**: the latest draft is at the root, and Draft 0.1 is also at `/0.1/`, where it stays as published once a newer draft replaces it.",
+			"It is drawn in Roswaal's own light and dark themes, read from the themes the editor ships, with the same node pictures as the docs.",
+		],
+		changed: [
+			"The specification stays in the Docs panel too, built from the same pages. Its front page and §14.1 say where it is published, and which address to cite.",
+		],
+	},
+	{
 		version: "0.163.1",
 		date: "2026-10-09",
 		headline: "Luau Expression's mark sits inline, as a value's glyph does.",

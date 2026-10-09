@@ -1,0 +1,620 @@
+/* The technical specification's own stylesheet, for spec.roswaal.app.
+
+   Small on purpose: a page of the specification loads this and its own text,
+   not the editor's stylesheet. The colour tokens above this comment are
+   written by `scripts/build-spec.mjs` from Roswaal's built-in light and dark
+   themes, so the site and the editor share one palette; what follows uses
+   only those names. The class names inside an article are the docs' block
+   renderer's (`docs-note`, `docs-table`, `docs-preview`), because the same
+   renderer draws both. */
+
+* {
+	box-sizing: border-box;
+}
+
+html {
+	color-scheme: light dark;
+	scroll-padding-top: 72px;
+}
+
+body {
+	margin: 0;
+	background: var(--bg-app);
+	color: var(--fg);
+	font: 16px/1.65 "Segoe UI", system-ui, -apple-system, sans-serif;
+	-webkit-font-smoothing: antialiased;
+}
+
+a {
+	color: var(--accent);
+	text-underline-offset: 2px;
+}
+
+code {
+	font: 0.88em "Cascadia Mono", Consolas, ui-monospace, monospace;
+	padding: 1px 4px;
+	border-radius: 4px;
+	background: color-mix(in srgb, var(--fg) 7%, transparent);
+}
+
+.spec-skip {
+	position: absolute;
+	left: 12px;
+	top: -48px;
+	z-index: 10;
+	padding: 8px 12px;
+	border-radius: 6px;
+	background: var(--bg-panel);
+}
+
+.spec-skip:focus {
+	top: 12px;
+}
+
+/* ---------------------------------------------------------------- the bar */
+
+.spec-bar {
+	position: sticky;
+	top: 0;
+	z-index: 5;
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 10px 16px;
+	padding: 10px 20px;
+	background: var(--bg-panel);
+	border-bottom: 1px solid var(--border);
+}
+
+.spec-home {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	color: var(--fg);
+	text-decoration: none;
+	font-weight: 700;
+}
+
+.spec-home svg {
+	height: 22px;
+	width: auto;
+}
+
+.spec-home .what {
+	font-weight: 500;
+	color: var(--fg-muted);
+}
+
+.spec-drafts {
+	position: relative;
+	font-size: 13px;
+}
+
+.spec-drafts summary {
+	list-style: none;
+	cursor: pointer;
+	padding: 2px 10px;
+	border: 1px solid color-mix(in srgb, var(--warning) 60%, transparent);
+	border-radius: 999px;
+	color: var(--warning);
+	font-weight: 650;
+}
+
+.spec-drafts summary::-webkit-details-marker {
+	display: none;
+}
+
+.spec-drafts ul {
+	position: absolute;
+	top: calc(100% + 6px);
+	left: 0;
+	min-width: 150px;
+	margin: 0;
+	padding: 6px;
+	list-style: none;
+	background: var(--bg-panel);
+	border: 1px solid var(--border-strong);
+	border-radius: 8px;
+	box-shadow: 0 8px 24px rgb(0 0 0 / 22%);
+}
+
+.spec-drafts a {
+	display: block;
+	padding: 5px 10px;
+	border-radius: 5px;
+	color: var(--fg);
+	text-decoration: none;
+}
+
+.spec-drafts a:hover,
+.spec-drafts a[aria-current] {
+	background: var(--bg-hover);
+}
+
+.spec-search {
+	position: relative;
+	flex: 1 1 220px;
+	max-width: 420px;
+	margin-left: auto;
+}
+
+.spec-search input {
+	width: 100%;
+	height: 34px;
+	padding: 0 12px;
+	border: 1px solid var(--border-strong);
+	border-radius: 8px;
+	background: var(--bg-input);
+	color: var(--fg);
+	font: inherit;
+	font-size: 14px;
+}
+
+.spec-results {
+	position: absolute;
+	top: calc(100% + 6px);
+	left: 0;
+	right: 0;
+	max-height: 60vh;
+	overflow: auto;
+	padding: 6px;
+	background: var(--bg-panel);
+	border: 1px solid var(--border-strong);
+	border-radius: 8px;
+	box-shadow: 0 8px 24px rgb(0 0 0 / 22%);
+}
+
+.spec-results a {
+	display: block;
+	padding: 7px 10px;
+	border-radius: 6px;
+	color: var(--fg);
+	text-decoration: none;
+	font-size: 14px;
+	line-height: 1.4;
+}
+
+.spec-results a .where {
+	display: block;
+	color: var(--fg-muted);
+	font-size: 12.5px;
+}
+
+.spec-results a:hover,
+.spec-results a.active {
+	background: var(--bg-hover);
+}
+
+.spec-results .none {
+	padding: 7px 10px;
+	color: var(--fg-muted);
+	font-size: 14px;
+}
+
+.spec-out {
+	font-size: 14px;
+	color: var(--fg-muted);
+}
+
+/* --------------------------------------------------------------- the body */
+
+.spec-body {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	max-width: 1320px;
+	margin: 0 auto;
+}
+
+.spec-nav {
+	flex: 1 1 240px;
+	max-width: 280px;
+	position: sticky;
+	top: 57px;
+	max-height: calc(100vh - 57px);
+	overflow: auto;
+	padding: 24px 16px 40px 20px;
+	font-size: 14px;
+	line-height: 1.45;
+}
+
+/* Open on a wide screen, where the summary is hidden; folded on a phone, where
+   the chapters would push the text a screen down (`spec.js` folds it there). */
+.spec-nav-fold > summary {
+	display: none;
+}
+
+.spec-nav-part {
+	margin: 18px 0 6px;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--fg-muted);
+}
+
+.spec-nav-part:first-child {
+	margin-top: 0;
+}
+
+.spec-nav ol {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.spec-nav a {
+	display: block;
+	padding: 4px 10px;
+	border-radius: 6px;
+	color: var(--fg);
+	text-decoration: none;
+}
+
+.spec-nav a:hover {
+	background: var(--bg-hover);
+}
+
+.spec-nav li.on > a {
+	background: color-mix(in srgb, var(--accent) 16%, transparent);
+	color: var(--fg);
+	font-weight: 650;
+}
+
+.spec-nav-sections {
+	margin: 2px 0 6px 10px !important;
+	border-left: 1px solid var(--border);
+}
+
+.spec-nav-sections a {
+	padding: 2px 10px;
+	font-size: 13px;
+	color: var(--fg-muted);
+}
+
+.spec-main {
+	flex: 999 1 560px;
+	min-width: 0;
+	padding: 28px 28px 64px;
+}
+
+.spec-article {
+	max-width: 74ch;
+}
+
+.spec-part {
+	margin: 0;
+	font-size: 13px;
+	color: var(--fg-muted);
+}
+
+.spec-article h1 {
+	margin: 4px 0 8px;
+	font-size: 34px;
+	line-height: 1.2;
+}
+
+.spec-summary {
+	margin: 0 0 12px;
+	font-size: 18px;
+	color: var(--fg-muted);
+}
+
+.spec-status {
+	display: flex;
+	gap: 6px;
+	margin: 0 0 28px;
+	padding-bottom: 20px;
+	border-bottom: 1px solid var(--border);
+}
+
+.badge {
+	display: inline-flex;
+	align-items: center;
+	height: 22px;
+	padding: 0 9px;
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	font-size: 11.5px;
+	font-weight: 650;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--fg-muted);
+}
+
+.badge.normative {
+	color: var(--danger);
+	border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+}
+
+.badge.draft {
+	color: var(--warning);
+	border-color: color-mix(in srgb, var(--warning) 60%, transparent);
+}
+
+.spec-article h2 {
+	margin: 44px 0 12px;
+	padding-top: 8px;
+	font-size: 25px;
+	line-height: 1.25;
+}
+
+.spec-article h3 {
+	margin: 28px 0 8px;
+	font-size: 19px;
+}
+
+.spec-article p,
+.spec-article ul,
+.spec-article ol {
+	margin: 0 0 14px;
+}
+
+.spec-article li {
+	margin: 4px 0;
+}
+
+.spec-article strong {
+	font-weight: 650;
+}
+
+/* The specification's own neighbours, Back and Next, a book's way round. */
+.spec-neighbours {
+	display: flex;
+	justify-content: space-between;
+	gap: 16px;
+	margin-top: 48px;
+	padding-top: 20px;
+	border-top: 1px solid var(--border);
+}
+
+.spec-neighbour {
+	display: flex;
+	flex-direction: column;
+	padding: 10px 14px;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	color: var(--fg);
+	text-decoration: none;
+}
+
+.spec-neighbour.next {
+	text-align: right;
+}
+
+.spec-neighbour .which {
+	font-size: 12px;
+	color: var(--fg-muted);
+}
+
+.spec-neighbour:hover {
+	border-color: var(--accent);
+}
+
+.spec-foot {
+	padding: 20px;
+	border-top: 1px solid var(--border);
+	color: var(--fg-muted);
+	font-size: 13px;
+	text-align: center;
+}
+
+/* ------------------------------------------- blocks, as the docs draw them */
+
+.docs-table {
+	margin: 0 0 18px;
+	overflow-x: auto;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--bg-panel);
+}
+
+.docs-table table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 14.5px;
+	line-height: 1.5;
+}
+
+.docs-table th {
+	padding: 9px 12px;
+	text-align: left;
+	font-size: 11.5px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--fg-muted);
+	border-bottom: 1px solid var(--border);
+}
+
+.docs-table td {
+	padding: 9px 12px;
+	vertical-align: top;
+	border-top: 1px solid var(--border);
+}
+
+.docs-table tr:first-child td {
+	border-top: 0;
+}
+
+.docs-note {
+	--note: var(--border-strong);
+	margin: 0 0 16px;
+	padding: 10px 14px;
+	border: 1px solid color-mix(in srgb, var(--note) 45%, transparent);
+	border-radius: 8px;
+	background: color-mix(in srgb, var(--note) 9%, var(--bg-input));
+	line-height: 1.6;
+}
+
+.docs-note.note-info {
+	--note: var(--accent);
+}
+
+.docs-note.note-good {
+	--note: var(--ok);
+}
+
+.docs-note.note-warn {
+	--note: var(--warning);
+}
+
+.docs-note.note-danger {
+	--note: var(--danger);
+}
+
+.docs-note-head {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 0 0 4px;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--note);
+}
+
+.docs-note-body > :last-child {
+	margin-bottom: 0;
+}
+
+.docs-code {
+	margin: 0 0 18px;
+	overflow: hidden;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--bg-input);
+}
+
+.docs-code-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 6px 12px;
+	border-bottom: 1px solid var(--border);
+	font-size: 12px;
+	color: var(--fg-muted);
+}
+
+.docs-code-head .copy {
+	padding: 2px 10px;
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	background: none;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+}
+
+.docs-code pre {
+	margin: 0;
+	padding: 12px 14px;
+	overflow-x: auto;
+	font: 13.5px/1.6 "Cascadia Mono", Consolas, ui-monospace, monospace;
+}
+
+.tok-keyword { color: var(--code-keyword); }
+.tok-string { color: var(--code-string); }
+.tok-number { color: var(--code-number); }
+.tok-comment { color: var(--code-comment); font-style: italic; }
+.tok-operator { color: var(--code-operator); }
+.tok-global { color: var(--code-global); }
+.tok-function { color: var(--code-function); }
+.tok-type,
+.tok-meta { color: var(--code-type); }
+.tok-property { color: var(--code-property); }
+.tok-bracket,
+.tok-punctuation { color: var(--fg-muted); }
+
+/* A node, drawn as the canvas draws it, on the canvas's dotted ground. */
+.docs-preview {
+	margin: 0 0 20px;
+	padding: 18px 16px;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background-color: var(--bg-canvas);
+	background-image: radial-gradient(circle, var(--grid-dot-light) 1.2px, transparent 1.6px);
+	background-size: 24px 24px;
+}
+
+.docs-preview .row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	gap: 20px;
+}
+
+.docs-preview .node-preview-frame {
+	filter: drop-shadow(0 2px 6px rgb(0 0 0 / 18%));
+}
+
+.docs-preview svg.node-preview {
+	display: block;
+	max-width: 100%;
+	height: auto;
+	font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+.docs-preview figcaption {
+	margin-top: 14px;
+	font-size: 14px;
+	line-height: 1.5;
+	color: var(--fg-muted);
+}
+
+/* ----------------------------------------------------- narrow and printed */
+
+@media (max-width: 860px) {
+	.spec-nav {
+		position: static;
+		max-width: none;
+		max-height: none;
+		flex-basis: 100%;
+		padding-bottom: 0;
+		border-bottom: 1px solid var(--border);
+	}
+
+	.spec-nav-sections {
+		display: none;
+	}
+
+	.spec-nav-fold > summary {
+		display: block;
+		padding: 8px 12px;
+		border: 1px solid var(--border);
+		border-radius: 8px;
+		font-weight: 650;
+		cursor: pointer;
+	}
+
+	.spec-nav-fold[open] > summary {
+		margin-bottom: 12px;
+	}
+
+	.spec-nav {
+		padding-bottom: 16px;
+	}
+
+	.spec-main {
+		padding: 20px 16px 48px;
+	}
+
+	.spec-article h1 {
+		font-size: 28px;
+	}
+}
+
+@media print {
+	.spec-bar,
+	.spec-nav,
+	.spec-neighbours,
+	.spec-skip {
+		display: none;
+	}
+
+	body {
+		background: #fff;
+		color: #000;
+	}
+}

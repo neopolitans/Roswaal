@@ -1,0 +1,111 @@
+# Publishes the technical specification as its own site: spec.roswaal.app.
+#
+# Called by `neopolitans/roswaal-spec`, which lends it a Pages site with the
+# domain and keeps the drafts that have been superseded, as published, under
+# `drafts/<draft>/`. The current draft is built from Roswaal's source here --
+# its tables are generated from that source -- and the archived ones are laid
+# beside it unchanged, so a citation of an old draft never moves.
+#
+# Only for roswaal-spec. Run in this repository it would publish the
+# specification over this repository's own Pages site, so the job refuses to.
+name: Specification
+
+on:
+  workflow_call:
+    inputs:
+      source:
+        description: The repository to build the current draft from.
+        type: string
+        default: neopolitans/Roswaal
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  # A build from the canary is a preview: it links into the canary's docs and
+  # keeps itself out of search indexes.
+  ROSWAAL_CHANNEL: ${{ inputs.source == 'neopolitans/roswaal-canary' && 'canary' || 'stable' }}
+
+jobs:
+  build:
+    if: github.repository == 'neopolitans/roswaal-spec'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the source
+        env:
+          SOURCE: ${{ inputs.source }}
+        run: |
+          case "$SOURCE" in
+            neopolitans/Roswaal|neopolitans/roswaal-canary) ;;
+            *) echo "::error::source must be neopolitans/Roswaal or neopolitans/roswaal-canary, not '$SOURCE'"; exit 1 ;;
+          esac
+
+      # Roswaal, to build the current draft from.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ inputs.source }}
+          path: roswaal
+          persist-credentials: false
+
+      # roswaal-spec, for the drafts it keeps.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: published
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: roswaal/package-lock.json
+
+      - run: npm ci
+        working-directory: roswaal
+
+      # The archived drafts, by folder name, so the switcher on every page
+      # lists them.
+      - name: Find the archived drafts
+        id: drafts
+        run: |
+          list=""
+          if [ -d published/drafts ]; then
+            list=$(find published/drafts -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -V | paste -sd, -)
+          fi
+          echo "list=$list" >> "$GITHUB_OUTPUT"
+
+      - name: Build the current draft
+        working-directory: roswaal
+        env:
+          ROSWAAL_SPEC_DRAFTS: ${{ steps.drafts.outputs.list }}
+        run: npm run build:spec
+
+      # An archived draft is laid in exactly as it was published, over any copy
+      # the build made of the same draft.
+      - name: Lay in the archived drafts
+        run: |
+          # Folders only: a note beside them stays in the repository.
+          for draft in published/drafts/*/; do
+            [ -d "$draft" ] || continue
+            rm -rf "roswaal/dist-spec/$(basename "$draft")"
+            cp -R "$draft" "roswaal/dist-spec/$(basename "$draft")"
+          done
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: roswaal/dist-spec
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

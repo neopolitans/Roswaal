@@ -132,7 +132,9 @@ export function processPage(): DocPage {
 				t: "p",
 				text:
 					"The specification's version is not Roswaal's. A Roswaal release says which " +
-					`draft it implements; this is Draft ${SPEC_DRAFT}, carried by Roswaal 0.162.`,
+					`draft it implements; this is Draft ${SPEC_DRAFT}, first carried by Roswaal 0.162. ` +
+					"Each draft is published at an address of its own on spec.roswaal.app, kept as it " +
+					"was published once a newer draft replaces it.",
 			},
 			{ t: "h", level: 3, text: "The road to 1.0" },
 			{

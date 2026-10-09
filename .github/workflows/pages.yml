@@ -98,6 +98,9 @@ jobs:
       - name: Build the documentation
         run: npm run build:docs
 
+      - name: Build the specification
+        run: npm run build:spec
+
       - name: Assemble the site
         run: npm run build:pages
 
