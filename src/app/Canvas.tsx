@@ -69,6 +69,7 @@ import {
 import { GRID, LAYER, NODE, ZOOM } from "./layers.js";
 import { NodeView, type PinDragState } from "./NodeView.jsx";
 import { configText, functionNameOf } from "./nodeConfig.js";
+import { ProblemNotes, problemsByNode } from "./ProblemNotes.jsx";
 import { commentColor, pinColor } from "./palette.js";
 import { promotionsFor } from "./promote.js";
 import { store, useEditor, useView } from "./store.js";
@@ -337,6 +338,9 @@ export function Canvas({
 		}
 		return map;
 	}, [diagnostics]);
+
+	// What each node's note says, and which of its pins is at fault.
+	const problems = useMemo(() => problemsByNode(diagnostics), [diagnostics]);
 
 	// The node the rest of a selection would line up on, marked on the canvas.
 	//
@@ -1456,6 +1460,7 @@ export function Canvas({
 						anchor={node.id === anchorId}
 						errorCount={errorsByNode.get(node.id) ?? 0}
 						warningCount={warningsByNode.get(node.id) ?? 0}
+						faultPins={faultPins(problems.get(node.id))}
 						connected={connectedPins}
 						drag={wireDrag}
 						canAccept={canAccept}
@@ -1483,6 +1488,14 @@ export function Canvas({
 						}}
 					/>
 				))}
+
+				<ProblemNotes
+					script={script}
+					registry={registry}
+					problems={problems}
+					selection={selection}
+					wideNodes={wideNodes}
+				/>
 			</div>
 
 			{holdAt && (
@@ -1635,3 +1648,11 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 export { NODE };
+
+const NO_PINS: ReadonlySet<string> = new Set();
+
+/** The pins a node's problems name, which the node marks. */
+function faultPins(list: readonly Diagnostic[] | undefined): ReadonlySet<string> {
+	if (!list?.some((d) => d.pin)) return NO_PINS;
+	return new Set(list.flatMap((d) => (d.pin ? [d.pin] : [])));
+}

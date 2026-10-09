@@ -20,6 +20,7 @@ import {
 	operatorLayout,
 	operatorSymbol,
 } from "./operatorLayout.js";
+import { bodyRows } from "./pinLayout.js";
 import type { GraphNode, Literal, NodeConfig, NodeDef, PinDef } from "./schema.js";
 
 export interface Rect {
@@ -157,8 +158,7 @@ export function nodeHeight(
 	def?: NodeDef,
 	config?: NodeConfig,
 ): number {
-	const rows = Math.max(inputs.length, outputs.length, 1);
-	return headerHeight(def, config) + rows * NODE.rowHeight + NODE.footer;
+	return headerHeight(def, config) + bodyRows(inputs, outputs) * NODE.rowHeight + NODE.footer;
 }
 
 export function nodeBounds(node: GraphNode, registry: Registry, wide = false): Rect {

@@ -7,12 +7,15 @@ import {
 	type PointerEvent as ReactPointerEvent,
 	useState,
 } from "react";
+import { GLYPH_STROKE, GLYPH_VIEW_BOX, GLYPHS, nodeGlyph } from "../core/nodeGlyphs.js";
 import { nodeTitle } from "../core/nodes/index.js";
 import { castsResult, resultCastOf } from "../core/nodes/resultCast.js";
 import { pinTypeOf, pinTypeText } from "../core/nodes/variables.js";
 import { operatorSymbol } from "../core/operatorLayout.js";
+import { bodyRows, onHeader } from "../core/pinLayout.js";
 import { CLASS_OPTIONS, classGroup, TYPE_OPTIONS, typeGroup } from "../core/roblox.js";
 import type { GraphNode, Literal, NodeDef, PinDef } from "../core/schema.js";
+import { typeChip, typeFamily } from "../core/typeFamily.js";
 import { cx } from "./cx.js";
 import {
 	compactLabel,
@@ -29,6 +32,7 @@ import { Icon } from "./icons.jsx";
 import { LAYER, NODE } from "./layers.js";
 import { nodeColor, pinColor } from "./palette.js";
 import { useTypeChoices } from "./TypePicker.jsx";
+import { typeCardHandlers } from "./typeCard.js";
 import { classDetail, ValuePicker } from "./ValuePicker.jsx";
 
 const NEWLINE = String.fromCharCode(10);
@@ -60,6 +64,8 @@ export interface NodeViewProps {
 	 */
 	anchor: boolean;
 	errorCount: number;
+	/** Pins a problem names, whose labels are marked. */
+	faultPins?: ReadonlySet<string>;
 	/**
 	 * Warnings on this node, drawn only when there are no errors.
 	 *
@@ -159,7 +165,12 @@ function NodeViewInner(props: NodeViewProps) {
 	if (isCompact(def)) return renderCapsule(props, def, outputs[0]);
 	if (isOperator(def)) return renderOperator(props, def, inputs, outputs[0]);
 
-	const rows = Math.max(inputs.length, outputs.length, 1);
+	// The flow in and the flow on ride the header; every other pin has a row.
+	const headIn = onHeader(inputs) ? inputs[0] : undefined;
+	const headOut = onHeader(outputs) ? outputs[0] : undefined;
+	const bodyIn = headIn ? inputs.slice(1) : inputs;
+	const bodyOut = headOut ? outputs.slice(1) : outputs;
+	const rows = bodyRows(inputs, outputs);
 	const subtitle = def.subtitle?.(node.config ?? {});
 	const head = headerHeight(def, node.config);
 	const style: CSSProperties = {
@@ -167,6 +178,9 @@ function NodeViewInner(props: NodeViewProps) {
 		top: node.y,
 		width: nodeWidth(def, node, props.wideNodes),
 		zIndex: selected ? LAYER.nodeSelected : LAYER.node,
+		// The category's colour, handed to the stylesheet rather than painted
+		// with: the header is a tint of it, the corner tab is it.
+		["--cat" as string]: nodeColor(def),
 	};
 
 	return (
@@ -190,10 +204,10 @@ function NodeViewInner(props: NodeViewProps) {
 					!
 				</span>
 			)}
-			<div
-				className={cx("head", subtitle && "two-line")}
-				style={{ background: nodeColor(def), height: head }}
-			>
+			<div className={cx("head", subtitle && "two-line")} style={{ height: head }}>
+				<span className="tab" aria-hidden="true">
+					<NodeGlyph def={def} size={def.pure ? 15 : 18} />
+				</span>
 				<span className="lines">
 					<span className="title">{nodeTitle(def, node)}</span>
 					{subtitle && <span className="subtitle">{subtitle}</span>}
@@ -239,16 +253,45 @@ function NodeViewInner(props: NodeViewProps) {
 				{Array.from({ length: rows }, (_, i) => (
 					<div className="row" key={i}>
 						<span className="side left">
-							{inputs[i] && pinTarget(props, inputs[i], "in", renderPin(props, inputs[i], "in"))}
+							{bodyIn[i] && pinTarget(props, bodyIn[i], "in", renderPin(props, bodyIn[i], "in"))}
 						</span>
 						<span className="side right">
-							{outputs[i] &&
-								pinTarget(props, outputs[i], "out", renderPin(props, outputs[i], "out"))}
+							{bodyOut[i] &&
+								pinTarget(props, bodyOut[i], "out", renderPin(props, bodyOut[i], "out"))}
 						</span>
 					</div>
 				))}
 			</div>
+			{headIn && (
+				<span className="head-pin in" style={{ top: head / 2 }}>
+					{pinTarget(props, headIn, "in", renderPin(props, headIn, "in"))}
+				</span>
+			)}
+			{headOut && (
+				<span className="head-pin out" style={{ top: head / 2 }}>
+					{pinTarget(props, headOut, "out", renderPin(props, headOut, "out"))}
+				</span>
+			)}
 		</div>
+	);
+}
+
+/**
+ * The glyph in a node's corner tab. See `nodeGlyphs.ts` for why it is not one
+ * of the toolbar's icons.
+ */
+function NodeGlyph({ def, size }: { def: NodeDef; size: number }) {
+	return (
+		<svg viewBox={GLYPH_VIEW_BOX} width={size} height={size}>
+			<path
+				d={GLYPHS[nodeGlyph(def)]}
+				fill="none"
+				stroke="currentColor"
+				strokeWidth={GLYPH_STROKE}
+				strokeLinecap="round"
+				strokeLinejoin="round"
+			/>
+		</svg>
 	);
 }
 
@@ -436,7 +479,14 @@ function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out") {
 	const highlighted = props.highlightPin === `${side}:${pin.id}` && "highlighted";
 	const dot = (
 		<span
-			className={cx("pin", pin.kind, wired && "connected", state, highlighted)}
+			className={cx(
+				"pin",
+				pin.kind,
+				pin.kind === "data" && `fam-${typeFamily(pin.type)}`,
+				wired && "connected",
+				state,
+				highlighted,
+			)}
 			style={{ color: pinColor(pin.type, pin.kind) }}
 			title={pin.description ?? (pin.kind === "data" ? pinTypeText(pin) : pin.kind)}
 			onPointerDown={(e) => props.onPinPointerDown(e, node.id, pin, side)}
@@ -456,7 +506,9 @@ function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out") {
 	// children of a split struct pin — without that, three number pins called X,
 	// Y and Z read as three unrelated inputs.
 	const label = pin.name ? (
-		<span className={cx("pin-label", pin.part && "part")}>{pin.name}</span>
+		<span className={cx("pin-label", pin.part && "part", props.faultPins?.has(pin.id) && "fault")}>
+			{pin.name}
+		</span>
 	) : null;
 
 	// An unwired data input is edited in place, which is what keeps simple
@@ -486,6 +538,20 @@ function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out") {
 		</span>
 	) : null;
 
+	// The output's type in words, where the name does not already say it, in
+	// a chip of the type's colour. A cast says it already, so it has none.
+	const chipText =
+		side === "out" && pin.kind === "data" && !cast ? typeChip(pin.name, pin.type) : null;
+	const chip = chipText ? (
+		<span
+			className="type-chip"
+			style={{ "--pin": pinColor(pin.type, "data") } as React.CSSProperties}
+			{...typeCardHandlers(pin.type!)}
+		>
+			{chipText}
+		</span>
+	) : null;
+
 	return side === "in" ? (
 		<>
 			{dot}
@@ -494,6 +560,7 @@ function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out") {
 		</>
 	) : (
 		<>
+			{chip}
 			{label}
 			{castMark}
 			{dot}

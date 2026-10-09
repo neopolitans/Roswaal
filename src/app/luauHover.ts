@@ -8,7 +8,7 @@
 import type { Extension } from "@codemirror/state";
 import { hoverTooltip } from "@codemirror/view";
 import type { DocComment } from "../core/luau/docComment.js";
-import { hoverAt, instanceHover, type ModuleInfo } from "../core/luau/hover.js";
+import { type Hover, hoverAt, instanceHover, type ModuleInfo } from "../core/luau/hover.js";
 import type { TableMember } from "../core/luau/infer.js";
 import type { InstanceNode } from "../core/luau/instances.js";
 import type { Target } from "../core/schema.js";
@@ -35,67 +35,74 @@ export function luauHover(
 				pos: hover.from,
 				end: hover.to,
 				above: true,
-				create: () => {
-					const dom = document.createElement("div");
-					dom.className = "luau-hover";
-					// Highlighted as the editor highlights Luau, one span per token.
-					// What a call returns follows an arrow, which is not Luau, so the
-					// highlighter would leave it plain: it is drawn as the type it is.
-					const code = document.createElement("code");
-					const [signature, returned] = hover.code.split(" → ");
-					for (const line of highlightLuau(signature)) {
-						for (const token of line) {
-							if (token.cls === "") {
-								code.append(token.text);
-							} else {
-								const span = document.createElement("span");
-								span.className = token.cls;
-								span.textContent = token.text;
-								code.append(span);
-							}
-						}
-					}
-					if (returned !== undefined) {
-						const type = document.createElement("span");
-						type.className = "tok-type";
-						type.textContent = returned;
-						code.append(" → ", type);
-					}
-					// The name and its type, and under it, quieter, what kind of
-					// name it is: `event: (name: string) -> (RemoteEvent)` over
-					// "local function".
-					const head = document.createElement("div");
-					head.className = "luau-hover-head";
-					head.append(code);
-					if (hover.role) {
-						const role = document.createElement("span");
-						role.className = "luau-hover-role";
-						role.textContent = hover.role;
-						head.append(role);
-					}
-					dom.append(head);
-					if (hover.summary) {
-						const summary = document.createElement("p");
-						summary.textContent = hover.summary.replace(/`/g, "");
-						dom.append(summary);
-					}
-					if (hover.doc) dom.append(renderDoc(hover.doc));
-					// The class first, and for a global its own entry second.
-					for (const to of [hover.link, hover.also]) {
-						if (!to) continue;
-						const link = document.createElement("a");
-						link.href = to.href;
-						link.target = "_blank";
-						link.rel = "noopener noreferrer";
-						link.textContent = to.label;
-						dom.append(link);
-					}
-					return { dom };
-				},
+				create: () => ({ dom: hoverCard(hover) }),
 			};
 		},
 		{ hoverTime: 350 },
 	);
+}
+
+/**
+ * The card itself: the name in code, what kind of name it is, a sentence, the
+ * code's own doc comment, and where to read more. Exported because a node's
+ * type chip opens the same card for the type it names (`typeCard.ts`).
+ */
+export function hoverCard(hover: Hover): HTMLElement {
+	const dom = document.createElement("div");
+	dom.className = "luau-hover";
+	// Highlighted as the editor highlights Luau, one span per token.
+	// What a call returns follows an arrow, which is not Luau, so the
+	// highlighter would leave it plain: it is drawn as the type it is.
+	const code = document.createElement("code");
+	const [signature, returned] = hover.code.split(" → ");
+	for (const line of highlightLuau(signature)) {
+		for (const token of line) {
+			if (token.cls === "") {
+				code.append(token.text);
+			} else {
+				const span = document.createElement("span");
+				span.className = token.cls;
+				span.textContent = token.text;
+				code.append(span);
+			}
+		}
+	}
+	if (returned !== undefined) {
+		const type = document.createElement("span");
+		type.className = "tok-type";
+		type.textContent = returned;
+		code.append(" → ", type);
+	}
+	// The name and its type, and under it, quieter, what kind of
+	// name it is: `event: (name: string) -> (RemoteEvent)` over
+	// "local function".
+	const head = document.createElement("div");
+	head.className = "luau-hover-head";
+	head.append(code);
+	if (hover.role) {
+		const role = document.createElement("span");
+		role.className = "luau-hover-role";
+		role.textContent = hover.role;
+		head.append(role);
+	}
+	dom.append(head);
+	if (hover.summary) {
+		const summary = document.createElement("p");
+		summary.textContent = hover.summary.replace(/`/g, "");
+		dom.append(summary);
+	}
+	if (hover.doc) dom.append(renderDoc(hover.doc));
+	// The class first, and for a global its own entry second.
+	for (const to of [hover.link, hover.also]) {
+		if (!to) continue;
+		const link = document.createElement("a");
+		link.href = to.href;
+		link.target = "_blank";
+		link.rel = "noopener noreferrer";
+		link.textContent = to.label;
+		dom.append(link);
+	}
+	return dom;
 }
 
 /** Luau as the editor colours it, one span per token. */

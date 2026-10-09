@@ -959,6 +959,7 @@ const LOG_WITH_PREFIX: NodePreview = {
 	id: "example_copy.logWithPrefix",
 	title: "Log With Prefix",
 	category: "Custom",
+	pure: false,
 	display: "normal",
 	latent: false,
 	inputs: [

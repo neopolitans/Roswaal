@@ -7,7 +7,7 @@
  */
 
 import type { Registry } from "../core/nodes/index.js";
-import { execReach } from "../core/pinLayout.js";
+import { execReach, pinCentreY } from "../core/pinLayout.js";
 import type { GraphNode } from "../core/schema.js";
 import { NODE } from "./layers.js";
 
@@ -93,7 +93,7 @@ export function pinPosition(
 	const reach = list[index].kind === "exec" ? execReach(NODE) : 0;
 	return {
 		x: side === "in" ? node.x - reach : node.x + nodeWidth(def, node, wide) + reach,
-		y: node.y + headerHeight(def, node.config) + index * NODE.rowHeight + NODE.rowHeight / 2,
+		y: node.y + pinCentreY(list, index, headerHeight(def, node.config), NODE.rowHeight),
 	};
 }
 

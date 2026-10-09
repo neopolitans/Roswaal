@@ -29,7 +29,7 @@ import {
 	placeGraph,
 	previewOf,
 	previewOfPlaced,
-	previewRowY,
+	previewPinY,
 	previewSize,
 	previewSvg,
 	straighten,
@@ -110,7 +110,9 @@ describe("preview geometry", () => {
 				pins.forEach((pin, i) => {
 					const onCanvas = pinPosition(node, registry, pin.id, side);
 					expect(onCanvas, `${def.id} ${side}:${pin.id}`).not.toBeNull();
-					expect(previewRowY(preview, NODE, i), `${def.id} ${side}:${pin.id}`).toBe(onCanvas!.y);
+					expect(previewPinY(preview, NODE, side, i), `${def.id} ${side}:${pin.id}`).toBe(
+						onCanvas!.y,
+					);
 				});
 			}
 		}
@@ -175,7 +177,10 @@ describe("preview geometry", () => {
 		for (const def of BUILTIN_NODES) {
 			if ((def.display ?? "normal") !== "normal") continue;
 			const svg = previewSvg(previewOf(def), options);
-			const border = svg.indexOf('stroke="var(--node-border');
+			// A value's outline takes a little of `--pure-edge`; a step's is plain.
+			const border = svg.search(
+				/stroke="(?:var\(--node-border|color-mix\(in srgb, var\(--pure-edge)/,
+			);
 			const pin = svg.search(/<circle |<path d="M-?[\d.]+ [\d.]+L/);
 			if (pin === -1) continue;
 			expect(border, `${def.id} draws its border`).toBeGreaterThan(-1);

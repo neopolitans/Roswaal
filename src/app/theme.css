@@ -103,7 +103,15 @@
 	   all rather than the literal it used to be. Capsules and reroute knots
 	   deliberately do not read it: their shapes are what say "value" and "just a
 	   bend", and squaring those would delete the signal rather than restyle it. */
-	--node-radius: 7px;
+	--node-radius: 8px;
+	/* How much of its category's colour a node header takes, and how much of
+	   it a pure node's name is drawn in (the rest is the text colour, which is
+	   what keeps a dark category readable on a dark body). Both depend on
+	   whether the scheme is dark, so both are among `derivedTokens`. */
+	--head-tint: 0.14;
+	--cat-ink: 85%;
+	/* The corner tab's width: `NODE.tab`. */
+	--tab-width: 30px;
 	/* What shows through an unwired execution triangle: the surface it is drawn
 	   against, so it reads as empty rather than as a lighter shade of itself.
 	   A knot and a capsule override it, because they are not a node body. */
@@ -180,6 +188,8 @@
 		--node-body: #262a32;
 		--node-border: #3a404b;
 		--node-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+		--head-tint: 0.24;
+		--cat-ink: 45%;
 		/* Still darker than the canvas, or the well stops reading as one. */
 		--pin-well: #06080b;
 
@@ -1951,22 +1961,53 @@ button.tb.primary:hover:not(:disabled) {
 	border-color: var(--danger);
 }
 
+/* A tint of the category's colour rather than a block of it, with the title
+   in the ordinary text colour.
+
+   The solid headers were the loudest thing on the canvas, and every one of
+   them was loud: a graph of twenty nodes read as twenty coloured bars before
+   it read as anything else, and white text on the lighter categories was the
+   hardest text in the editor to read. The colour is still there to find a
+   category by -- in the corner tab, at full strength, where it is small enough
+   not to shout. `--head-tint` is how much of it the header takes; dark schemes
+   take more, because a 14% tint of a dark colour over a dark body vanishes. */
 .node .head {
 	height: 30px;
 	display: flex;
 	align-items: center;
-	gap: 6px;
-	padding: 0 9px;
+	gap: 8px;
+	padding: 0 9px 0 0;
 	/* One pixel inside the body's own corner, so the header's arc sits within
 	   the border rather than crossing it. `max()` keeps it at zero when corners
 	   are square, instead of going negative and being ignored. */
 	border-radius: max(0px, calc(var(--node-radius) - 1px)) max(0px, calc(var(--node-radius) - 1px)) 0 0;
-	color: #fff;
+	background: color-mix(in srgb, var(--cat) calc(var(--head-tint) * 100%), var(--node-body));
+	/* The header's lower edge, as a shadow so it takes no height: the rows'
+	   positions are computed from the header's, and a border would move them. */
+	box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--cat) calc(var(--head-tint) * 200%), var(--node-body));
+	color: var(--fg);
 	font-weight: 600;
 	font-size: var(--text-md);
 	cursor: grab;
 	overflow: hidden;
-	text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
+}
+
+/* The category, as a tab in the header's corner: the full height of the
+   header, flush to the node's edge, with an 18px glyph. Big enough to read with
+   a whole graph in view, which a 12px icon in a chip was not. */
+.node .head .tab {
+	align-self: stretch;
+	flex: none;
+	width: var(--tab-width);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--cat);
+	color: #fff;
+}
+
+.node .head .tab svg {
+	display: block;
 }
 
 .node .head .title {
@@ -2062,6 +2103,27 @@ button.tb.primary:hover:not(:disabled) {
 	left: calc(var(--pin-pad) + var(--pin-slot) + var(--exec-gap) + var(--node-stroke));
 }
 
+/* The flow in and the flow on, level with the middle of the header rather than
+   on a row of their own, so a run of steps is joined header to header and
+   reads straight across. `top` is the header's middle, set inline from the
+   header's height; the box is a pin slot, centred on it. Absolutely placed in
+   the node's padding box, which starts inside the border, so both offsets
+   carry the border back -- the same arithmetic as a row's flow pins. */
+.node .head-pin {
+	position: absolute;
+	display: flex;
+	height: var(--pin-slot);
+	margin-top: calc(-1 * (var(--pin-slot) / 2 + var(--node-stroke)));
+}
+
+.node .head-pin.in {
+	left: calc(-1 * (var(--exec-width) + var(--exec-gap) + var(--node-stroke)));
+}
+
+.node .head-pin.out {
+	right: calc(-1 * (var(--pin-slot) + var(--exec-gap) + var(--node-stroke)));
+}
+
 /* Asymmetric hit areas, on purpose.
  *
  * Starting a wire asks for aim: the grab area is the dot and a hair around it,
@@ -2150,6 +2212,70 @@ button.tb.primary:hover:not(:disabled) {
 	display: none;
 }
 
+/* A data pin's shape is its type's family -- see `typeFamily.ts`. A value
+   keeps the circle above; the other four are drawn here, each in the same
+   10px footprint, so a row's pins line up whatever they carry.
+
+   An object -- an Instance, any class -- is a rounded square. */
+.node .pin.fam-object .dot {
+	border-radius: 3px;
+}
+
+/* A table is a diamond: a square turned, a little smaller so its points stay
+   inside the slot. The ring of well turns with it. */
+.node .pin.fam-table .dot {
+	inset: 3.5px;
+	border-radius: 2px;
+	transform: rotate(45deg);
+}
+
+/* A function is a dot in a ring: something you call. Wired, the dot grows to
+   nearly fill the ring, keeping a hair of well so it still reads as two parts. */
+.node .pin.fam-function .dot {
+	background: radial-gradient(closest-side, currentColor 0 1.5px, var(--pin-well) 2px);
+}
+
+.node .pin.fam-function.connected .dot {
+	background: radial-gradient(closest-side, currentColor 0 1.8px, var(--pin-well) 2.3px 2.6px, currentColor 3px);
+}
+
+/* A signal is a hexagon: something to listen to. Cut out by clip-path, which
+   cuts away a border and a box-shadow too, so the outline is a second, smaller
+   hexagon of well inside it, and the hover and drag halos move to the pin. */
+.node .pin.fam-signal .dot {
+	inset: 2.5px 2px;
+	border: 0;
+	border-radius: 0;
+	background: currentColor;
+	box-shadow: none;
+	clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+}
+
+.node .pin.fam-signal .dot::after {
+	content: "";
+	position: absolute;
+	inset: 2px 2.3px;
+	background: var(--pin-well);
+	clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+}
+
+.node .pin.fam-signal.connected .dot::after {
+	display: none;
+}
+
+.node .pin.fam-signal.compatible::before,
+.node .pin.fam-signal.highlighted::before {
+	content: "";
+	position: absolute;
+	inset: 2px;
+	border-radius: 50%;
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 45%, transparent);
+}
+
+.node .pin.fam-signal.highlighted::before {
+	box-shadow: 0 0 0 3px var(--accent);
+}
+
 /* The well's ring stays under it, or a legal target loses the outline every
    other pin has while a wire is in flight. */
 .node .pin.compatible .dot {
@@ -2160,12 +2286,53 @@ button.tb.primary:hover:not(:disabled) {
 	opacity: 0.3;
 }
 
+/* A pin's name is most of what a node says, so it is drawn nearly in the text
+   colour rather than the muted grey of a secondary label. */
 .node .pin-label {
 	font-size: var(--text-sm);
-	color: var(--fg-muted);
+	color: color-mix(in srgb, var(--fg) 88%, var(--node-body));
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+}
+
+/* An output's type in words, where its name does not already say it: a short
+   name in a chip of the type's colour, so it reads as a label for the pin
+   rather than more of the pin's name. Pointing at it opens the type's card
+   (`typeCard.ts`). It gives way before the name does. */
+.node .type-chip {
+	flex: 0 1 auto;
+	min-width: 0;
+	max-width: 96px;
+	height: 16px;
+	padding: 0 5px;
+	border-radius: 4px;
+	background: color-mix(in srgb, var(--pin) 16%, var(--node-body));
+	color: color-mix(in srgb, var(--pin) 62%, var(--fg));
+	font-size: var(--text-xs);
+	font-weight: 600;
+	line-height: 16px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	cursor: help;
+}
+
+.node .type-chip:hover {
+	box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--pin) 70%, transparent);
+}
+
+/* The card a chip opens: the code editor's hover card, outside the editor, so
+   it carries the frame CodeMirror would otherwise give it. Above every panel,
+   as a menu is. */
+.type-card {
+	position: fixed;
+	z-index: 1000;
+	background: var(--bg-panel);
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-sm);
+	box-shadow: var(--shadow-popover);
+	color: var(--fg);
 }
 
 /* A call's result cast where it is made: the Cast pill's `::` and the type, in
@@ -2352,6 +2519,39 @@ button.tb.primary:hover:not(:disabled) {
 	min-width: 15px;
 	padding: 0;
 	text-align: center;
+}
+
+/* A problem written out under its node -- see ProblemNotes.tsx. In the world,
+   so it pans and zooms with the node, at `LAYER.problem`, above every node. */
+.problem-note {
+	position: absolute;
+	width: max-content;
+	padding: 5px 9px;
+	border-radius: var(--radius-md);
+	border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--bg-panel));
+	background: color-mix(in srgb, var(--danger) 10%, var(--bg-panel));
+	color: color-mix(in srgb, var(--danger) 55%, var(--fg));
+	box-shadow: var(--shadow-raised);
+	font-size: var(--text-md);
+	line-height: 1.4;
+	overflow-wrap: anywhere;
+	pointer-events: none;
+}
+
+.problem-note.warn {
+	border-color: color-mix(in srgb, var(--warning) 50%, var(--bg-panel));
+	background: color-mix(in srgb, var(--warning) 12%, var(--bg-panel));
+	color: color-mix(in srgb, var(--warning) 40%, var(--fg));
+}
+
+.problem-note .more {
+	opacity: 0.75;
+}
+
+/* The pin a problem names, so the note and the node point at the same row. */
+.node .pin-label.fault {
+	color: var(--danger);
+	font-weight: 600;
 }
 
 /* ---------------------------------------------------------------- comment */
@@ -4858,6 +5058,36 @@ button.start-tile:disabled {
 	cursor: default;
 }
 
+/* A node at rest shows only what it says: the − and + that change how many
+   inputs it takes appear when they are reached for -- the pointer over the
+   node, the node selected, or a key moving focus onto them -- and not
+   otherwise. Faded rather than removed, so the header does not reflow and the
+   title does not jump as the pointer crosses it. A touch screen has no hover;
+   there, selecting the node with a tap shows them. */
+.node .head .grow,
+.node.node--operator .operator-grow {
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.12s ease;
+}
+
+.node:hover .head .grow,
+.node.node--selected .head .grow,
+.node .head .grow:focus-within,
+.node.node--operator:hover .operator-grow,
+.node.node--operator.node--selected .operator-grow,
+.node.node--operator .operator-grow:focus-within {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.node .head .grow,
+	.node.node--operator .operator-grow {
+		transition: none;
+	}
+}
+
 /* --------------------------------------------------------- capsule getters */
 
 /* The usual node-editor shape for a variable getter: a dark pill, the name, one
@@ -5134,11 +5364,36 @@ button.tb.primary.danger:hover:not(:disabled) {
 	background: var(--danger);
 }
 
-/* A pure node has no execution pins and can be wired anywhere. Green is the
-   usual signal for that; a thin edge carries it here without fighting the
-   category colour on the header. */
+/* A pure node: a value, worked out where it is used, with no place in the
+   order of things. It used to say so with a green stripe down its left edge,
+   which meant nothing until someone explained it. Now it says so with its
+   shape: rounder, with no header bar, and its name and glyph in the category's
+   colour on a faint wash of it -- a different kind of thing from the steps,
+   whose headers the flow runs along.
+
+   The corner follows the square-corners preference by doubling it, so a
+   reader who asked for square nodes gets square values too. The outline takes
+   a little of `--pure-edge`, which is what that theme role is for now. */
 .node.node--pure {
-	border-left: 3px solid var(--pure-edge);
+	border-radius: calc(var(--node-radius) * 2);
+	border-color: color-mix(in srgb, var(--pure-edge) 40%, var(--node-border));
+	background: color-mix(in srgb, var(--cat) 5%, var(--node-body));
+}
+
+.node.node--pure .head {
+	border-radius: max(0px, calc(var(--node-radius) * 2 - 1px)) max(0px, calc(var(--node-radius) * 2 - 1px)) 0 0;
+	background: none;
+	box-shadow: none;
+	color: color-mix(in srgb, var(--cat) var(--cat-ink), var(--fg));
+	padding-left: 6px;
+	gap: 5px;
+}
+
+.node.node--pure .head .tab {
+	align-self: center;
+	width: auto;
+	background: none;
+	color: inherit;
 }
 
 :root {
@@ -5179,16 +5434,16 @@ button.tb.primary.danger:hover:not(:disabled) {
 	padding: 0;
 	line-height: 14px;
 	text-align: center;
-	border: 1px solid rgba(255, 255, 255, 0.35);
+	border: 1px solid color-mix(in srgb, var(--cat) 45%, var(--node-border));
 	border-radius: var(--radius-xs);
-	background: rgba(0, 0, 0, 0.2);
-	color: #fff;
+	background: var(--node-body);
+	color: var(--fg);
 	cursor: pointer;
 	font-size: var(--text-md);
 }
 
 .node .head .grow button:hover:not(:disabled) {
-	background: rgba(255, 255, 255, 0.25);
+	background: color-mix(in srgb, var(--cat) 22%, var(--node-body));
 }
 
 .node .head .grow button:disabled {
@@ -5206,15 +5461,15 @@ button.tb.primary.danger:hover:not(:disabled) {
 	height: 18px;
 	margin-left: auto;
 	padding: 0;
-	border: 1px solid rgba(255, 255, 255, 0.35);
+	border: 1px solid color-mix(in srgb, var(--cat) 45%, var(--node-border));
 	border-radius: var(--radius-xs);
-	background: rgba(0, 0, 0, 0.2);
-	color: #fff;
+	background: var(--node-body);
+	color: var(--fg);
 	cursor: pointer;
 }
 
 .node .head .open-graph:hover {
-	background: rgba(255, 255, 255, 0.25);
+	background: color-mix(in srgb, var(--cat) 22%, var(--node-body));
 }
 
 .node .head .open-graph + .grow {

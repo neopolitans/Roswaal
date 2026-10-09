@@ -41,9 +41,16 @@ export const NODE = {
 	titleCharWidth: 6.8,
 	/**
 	 * The header's own padding, plus room for what sits beside the title: the
-	 * latent hourglass, and the − / + a growable node carries.
+	 * corner tab and the gap after it, the latent hourglass, and the − / + a
+	 * growable node carries.
 	 */
-	headerPadding: 54,
+	headerPadding: 83,
+	/**
+	 * The corner tab that carries a node's category glyph: `--tab-width` in
+	 * `theme.css`. The title starts 8px past it, which is most of why
+	 * `headerPadding` is what it is.
+	 */
+	tab: 30,
 	/** A reroute knot is a dot with a pin either side. */
 	rerouteSize: 22,
 	/**
@@ -91,7 +98,7 @@ export const NODE = {
 	 */
 	pinSlot: 16,
 	rowPadding: 6,
-	radius: 7,
+	radius: 8,
 	/**
 	 * How much of a row a pin still takes once it is drawn on the edge instead
 	 * of inside it — `--pin-lane` in `theme.css`.

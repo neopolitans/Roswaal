@@ -9,6 +9,32 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.161.0",
+		date: "2026-10-09",
+		headline:
+			"Nodes redrawn to be read: a quieter header, pins shaped by kind, types in words, problems in plain sight.",
+		affects: ["editor", "designer", "docs"],
+		added: [
+			"**A glyph for every category**, in a tab in the header's corner: the full height of the header, in the category's colour, with an 18px glyph drawn for the purpose. It stays readable with a whole graph in view, where the old header colour was the only cue.",
+			"**Pins are shaped by what they carry.** A plain value is a circle, an Instance or any class a rounded square, a table a diamond, a function a dot in a ring, and an event to listen to a hexagon. Colour still says the exact type; the shape says the kind without it.",
+			"**Outputs say their type in words** where the pin's name does not already: a short name in a chip of the type's colour, so `RBXScriptConnection` reads Connection. A pin called player holding a Player, or one with no fixed type, has no chip.",
+			"**Pointing at a type chip opens the type's card**, the same one the Code panel shows: what it is, from Roblox's Creator Documentation, and a link to its page. On a touch screen, a tap opens it and a tap elsewhere closes it.",
+			"**A problem is written out under its node**, above everything else in the graph: no node, comment or wire covers it, and only the panels and menus do. The pin it names is marked in red in the node.",
+		],
+		changed: [
+			"**Headers are a tint of their category** with the title in the ordinary text colour, in place of a solid bar with white text. Pin names are drawn nearly in the text colour rather than grey.",
+			"**The flow in and the flow on ride the header**, level with its middle, so a run of steps is joined header to header and reads straight across. A named flow pin, such as Body, True or Then 0, keeps its row. Most steps are a row shorter for it.",
+			"**Flow triangles are drawn in the flow wire's colour**, dark on a light canvas and light on a dark one, rather than a pale grey that all but disappeared against a light node.",
+			"**A pure node is rounder, with no header bar**: its name and glyph are in its category's colour, on a faint wash of it. The green stripe down its left edge is gone; the scheme colour that drew it now tints the outline.",
+			"**The − and + on a node that takes a list appear on hover or selection**, and are hidden at rest. On a touch screen, select the node to show them. The documentation's node pictures no longer draw them.",
+			"Node corners are 8px, from 7px.",
+		],
+		watch: [
+			"**Graphs keep their positions**, but most steps are now a row shorter, so a node that was placed snugly under one has more room below it than before.",
+			"A type from one of the project's own modules has no card yet: the chip shows its name, and pointing at it opens nothing.",
+		],
+	},
+	{
 		version: "0.160.3",
 		date: "2026-10-09",
 		headline: "The attributions grid's names sit in the middle of their cells.",

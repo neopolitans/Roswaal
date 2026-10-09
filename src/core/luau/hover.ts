@@ -671,6 +671,49 @@ function bareName(ask: Ask): Hover | null {
 	return roblox ? aboutGlobal(word, from, to) : null;
 }
 
+/**
+ * Luau's own types, in a line each. Written here rather than taken from the
+ * Creator Documentation, which documents them as pages of a guide rather than
+ * as entries with a summary to quote.
+ */
+const LUAU_TYPES: Readonly<Record<string, string>> = {
+	number: "A number: whole or fractional, as Luau stores every number.",
+	string: "Text: a sequence of characters, such as a name or a message.",
+	boolean: "true or false.",
+	table: "Luau's one data structure: a list, a dictionary, or an object of fields.",
+	function: "A function: code to call, or to pass along for something else to call.",
+	thread: "A coroutine: a function that can pause partway and be resumed.",
+	buffer: "A fixed-size block of raw bytes.",
+	nil: "No value at all.",
+};
+
+/**
+ * What a pin's type is, for the card a node's type chip opens: the same card
+ * the code editor shows for the same name, from the same summaries and links.
+ * A class, a datatype, or one of Luau's own types; anything else, nothing.
+ */
+export function aboutType(type: string): Hover | null {
+	const name = type.trim().replace(/\?$/, "");
+	const optional = name !== type.trim();
+	const code = type.trim();
+	if (CLASS_SET.has(name)) {
+		return { ...aboutClass(name, 0, 0, code), ...(optional ? { role: "class, or nil" } : {}) };
+	}
+	if (DATATYPE_SET.has(name)) {
+		return {
+			from: 0,
+			to: 0,
+			code,
+			role: optional ? "datatype, or nil" : "datatype",
+			summary: DATATYPE_SUMMARIES[name],
+			link: datatypeLink(name),
+		};
+	}
+	const luau = LUAU_TYPES[name];
+	if (luau) return { from: 0, to: 0, code, role: "Luau type", summary: luau };
+	return null;
+}
+
 /** A local of the code's own: what it was declared as, and the comment that says what it is. */
 function aboutLocal(ask: Ask, local: ScopedName): Hover {
 	const { src, word, from, to } = ask;

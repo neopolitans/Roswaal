@@ -160,7 +160,11 @@ export const ROLES: { role: ColorRole; css: string; what: string }[] = [
 	{ role: "warning", css: "--warning", what: "Warnings" },
 	{ role: "ok", css: "--ok", what: "Success, and a clean compile" },
 	{ role: "select", css: "--select", what: "The selection outline on the canvas" },
-	{ role: "pure", css: "--pure-edge", what: "The edge marking a node with no side effects" },
+	{
+		role: "pure",
+		css: "--pure-edge",
+		what: "A hint in the outline of a node with no side effects",
+	},
 
 	{ role: "capsule", css: "--capsule-bg", what: "Inline chips and badges" },
 	{ role: "capsuleBorder", css: "--capsule-border", what: "Their outline" },
@@ -222,6 +226,11 @@ export function derivedTokens(dark: boolean): Record<string, string> {
 		"--watermark": `rgba(${ink}, ${dark ? 0.22 : 0.26})`,
 		"--node-shadow": dark ? "0 3px 10px rgba(0, 0, 0, 0.45)" : "0 2px 6px rgba(0, 0, 0, 0.14)",
 		"--comment-fill": dark ? "0.14" : "0.1",
+		// A node header's tint of its category, and how much of the category a
+		// pure node's name is drawn in. A dark scheme needs more tint to see it
+		// and less ink to read it -- the palette's colours are all dark.
+		"--head-tint": dark ? "0.24" : "0.14",
+		"--cat-ink": dark ? "45%" : "85%",
 		// The project tree's script and folder colours. Fixed hues -- they say
 		// what a thing is in Studio, not how the scheme looks -- with a shade for
 		// each background, so a light scheme keeps them as readable as a dark one.

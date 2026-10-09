@@ -33,11 +33,14 @@
  * editor, and a reader hunting for a node they can see in their own graph is
  * not helped by chrome that only appears when they interact with it.
  *
- * The − and + on a node that takes a list *are* drawn, and so is the dashed
- * **default** on an optional input. The canvas shows both on every such node,
- * all the time, so they are part of what the node looks like.
+ * The − and + on a node that takes a list are among them now: the canvas shows
+ * them only on hover or selection, so the picture leaves them out and keeps
+ * the room they take, as the canvas's header does. The dashed **default** on
+ * an optional input *is* drawn: the canvas shows it on every such node, all
+ * the time, so it is part of what the node looks like.
  */
 
+import { GLYPH_STROKE, GLYPHS, nodeGlyph } from "../nodeGlyphs.js";
 import { nodeTitle, type Registry, resolveNodePins } from "../nodes/index.js";
 import {
 	type OperatorField,
@@ -47,9 +50,10 @@ import {
 	operatorLayout,
 	operatorSymbol,
 } from "../operatorLayout.js";
-import { execReach, execWidth } from "../pinLayout.js";
+import { bodyRows, execReach, execWidth, onHeader, pinCentreY } from "../pinLayout.js";
 import { retypeReroutes } from "../reroutes.js";
 import type { GraphNode, Literal, NodeConfig, NodeDef, NodeScript, PinDef } from "../schema.js";
+import { typeChip, typeFamily } from "../typeFamily.js";
 
 // ---------------------------------------------------------------------------
 // The model
@@ -102,7 +106,11 @@ export interface NodePreview {
 	title: string;
 	subtitle?: string;
 	category: string;
+	/** A datatype's group, which picks its colour and glyph as it does on the canvas. */
+	subcategory?: string;
 	role?: string;
+	/** Drawn rounder and without a header bar, as the canvas draws a value. */
+	pure: boolean;
 	display: "normal" | "compact" | "reroute" | "operator";
 	/**
 	 * What an operator pill shows in its middle, and what its rows carry.
@@ -146,6 +154,8 @@ export interface PreviewGeometry {
 	/** The node's own border, which a row is laid out inside. See `NODE`. */
 	nodeStroke: number;
 	radius: number;
+	/** The corner tab's width. See `NODE.tab`. */
+	tab: number;
 	/**
 	 * An execution pin's triangle is as tall as the slot and this fraction of
 	 * that wide. It is also how far such a pin hangs past the node's edge, which
@@ -186,7 +196,12 @@ export interface PreviewGeometry {
 export interface PreviewOptions {
 	geometry: PreviewGeometry;
 	/** Header colour. Takes the fields it reads, not a whole `NodeDef`. */
-	nodeColor: (node: { id?: string; category: string; role?: string }) => string;
+	nodeColor: (node: {
+		id?: string;
+		category: string;
+		subcategory?: string;
+		role?: string;
+	}) => string;
 	pinColor: (type: string | undefined, kind: "exec" | "data") => string;
 	/**
 	 * The curve a wire takes between two points, for graph previews.
@@ -199,9 +214,10 @@ export interface PreviewOptions {
 	 */
 	wirePath?: (from: { x: number; y: number }, to: { x: number; y: number }) => string;
 	/**
-	 * Which of a node's header buttons are live, or null for a node that cannot
-	 * grow. Passed in with the colours; the rule is `growthState`, shared with
-	 * the editor. Absent, no buttons are drawn.
+	 * Whether a node takes a list, so its header keeps room for the − and +
+	 * the canvas shows there on hover. Passed in with the colours; the rule is
+	 * `growthState`, shared with the editor. The buttons themselves are not
+	 * drawn: a picture is of a node at rest.
 	 */
 	growth?: (preview: NodePreview) => { canAdd: boolean; canRemove: boolean } | null;
 	/**
@@ -254,7 +270,9 @@ export function previewOf(
 		title: def.defaultLabel?.(config ?? {}) || def.title,
 		subtitle: def.subtitle?.(config ?? {}),
 		category: def.category,
+		subcategory: def.subcategory,
 		role: def.role,
+		pure: def.pure === true,
 		display: def.display ?? "normal",
 		operator: operatorOf(def, inputs, config),
 		latent: def.latent === true,
@@ -383,7 +401,7 @@ export function previewSize(preview: NodePreview, g: PreviewGeometry): PreviewSi
 		const layout = operatorLayoutOf(preview, g);
 		return { width: layout.width, height: layout.height };
 	}
-	const rows = Math.max(preview.inputs.length, preview.outputs.length, 1);
+	const rows = bodyRows(preview.inputs, preview.outputs);
 	return {
 		width: headerWidth(preview, g),
 		height: headHeight(preview, g) + rows * g.rowHeight + g.footer,
@@ -430,6 +448,22 @@ export function previewRowY(preview: NodePreview, g: PreviewGeometry, index: num
 	return headHeight(preview, g) + index * g.rowHeight + g.rowHeight / 2;
 }
 
+/**
+ * The centre of a pin, relative to the node's top-left: on its row, or level
+ * with the middle of the header for the flow pins that ride there. The number
+ * the tests hold against `pinPosition` for every pin in the library.
+ */
+export function previewPinY(
+	preview: NodePreview,
+	g: PreviewGeometry,
+	side: "in" | "out",
+	index: number,
+): number {
+	if (preview.display === "operator") return previewRowY(preview, g, index);
+	const pins = side === "in" ? preview.inputs : preview.outputs;
+	return pinCentreY(pins, index, headHeight(preview, g), g.rowHeight);
+}
+
 function compactWidth(preview: NodePreview, g: PreviewGeometry): number {
 	const label = previewLabel(preview);
 	return Math.round(
@@ -454,6 +488,7 @@ const TYPE = {
 	value: 11,
 	constant: 10,
 	unset: 10,
+	chip: 10,
 	/** Roughly the width of one character, as a fraction of the font size. */
 	ratio: 0.55,
 	/** Monospace is wider and more even. */
@@ -488,6 +523,11 @@ export function escapeXml(text: string): string {
 /** Rounds to a tenth of a pixel: enough precision, half the markup. */
 function n(value: number): string {
 	return String(Math.round(value * 10) / 10);
+}
+
+/** A scale factor, which a tenth would round visibly. */
+function n4(value: number): string {
+	return String(Math.round(value * 10000) / 10000);
 }
 
 /**
@@ -580,24 +620,6 @@ function drawOperator(preview: NodePreview, options: PreviewOptions): string {
 		),
 	);
 
-	const growth = options.growth?.(preview) ?? null;
-	if (growth) {
-		const x = layout.growLeft + 3;
-		const size = g.growButton;
-		const button = (y: number, glyph: string, live: boolean) =>
-			`<g${live ? "" : ` opacity="0.3"`}>` +
-			`<rect x="${n(x + 0.5)}" y="${n(y + 0.5)}" width="${size - 1}" height="${size - 1}" ` +
-			`rx="3" fill="var(--bg-input, #fff)" stroke="var(--border, #c6cad2)"/>` +
-			text(x + size / 2, y + size / 2, glyph, {
-				size: 10,
-				fill: "var(--fg-muted, #5c636e)",
-				anchor: "middle",
-			}) +
-			`</g>`;
-		const top = layout.height / 2 - size - 1;
-		parts.push(button(top, "+", growth.canAdd) + button(top + size + 2, "−", growth.canRemove));
-	}
-
 	const output = preview.outputs.find((pin) => pin.kind === "data");
 	if (output) {
 		parts.push(pinAt(output, layout.width, layout.height / 2, g.pinSlot, options, "node", "out"));
@@ -618,7 +640,10 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 	const g = options.geometry;
 	const { width, height } = previewSize(preview, g);
 	const head = headHeight(preview, g);
-	const r = g.radius;
+	const pure = preview.pure;
+	// A value is rounder: twice the corner, as `.node.node--pure` has it.
+	const r = pure ? g.radius * 2 : g.radius;
+	const cat = escapeXml(options.nodeColor(preview));
 	const parts: string[] = [];
 
 	// Body, then the header over its top corners, then the border over both —
@@ -627,41 +652,67 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 		`<rect x="0" y="0" width="${n(width)}" height="${n(height)}" rx="${n(r)}" ` +
 			`fill="var(--node-body, #fbfbfd)"/>`,
 	);
+	const top = (right: number) =>
+		`M0 ${n(head)}V${n(r)}A${n(r)} ${n(r)} 0 0 1 ${n(r)} 0H${n(right - (right === width ? r : 0))}` +
+		(right === width ? `A${n(r)} ${n(r)} 0 0 1 ${n(width)} ${n(r)}V${n(head)}Z` : `V${n(head)}Z`);
+	if (pure) {
+		// A faint wash of the category over the whole body, and no header bar.
+		parts.push(
+			`<rect x="0" y="0" width="${n(width)}" height="${n(height)}" rx="${n(r)}" ` +
+				`fill="${cat}" fill-opacity="0.05"/>`,
+		);
+	} else {
+		// The header is a tint of the category — the colour laid over the body
+		// at `--head-tint`, which is the same sum as the canvas's `color-mix` —
+		// with its lower edge at twice that, and the tab at full strength.
+		parts.push(
+			`<path d="${top(width)}" fill="${cat}" style="fill-opacity: var(--head-tint, 0.14)"/>`,
+			`<rect x="0" y="${n(head - 1)}" width="${n(width)}" height="1" fill="${cat}" ` +
+				`style="fill-opacity: calc(var(--head-tint, 0.14) * 2)"/>`,
+			`<path d="${top(g.tab)}" fill="${cat}"/>`,
+		);
+	}
+
+	// The glyph: 18px and white on the tab, or 15px in the category's colour
+	// where a value's header has no tab to sit on.
+	const glyphSize = pure ? 15 : 18;
+	const glyphX = pure ? 6 : (g.tab - glyphSize) / 2;
+	const ink = pure ? `color-mix(in srgb, ${cat} var(--cat-ink, 85%), var(--fg, #1c1f24))` : "#fff";
 	parts.push(
-		`<path d="M0 ${n(r)}A${n(r)} ${n(r)} 0 0 1 ${n(r)} 0H${n(width - r)}` +
-			`A${n(r)} ${n(r)} 0 0 1 ${n(width)} ${n(r)}V${n(head)}H0Z" ` +
-			`fill="${escapeXml(options.nodeColor(preview))}"/>`,
+		`<g transform="translate(${n(glyphX)} ${n((head - glyphSize) / 2)}) scale(${n4(glyphSize / 24)})">` +
+			`<path d="${GLYPHS[nodeGlyph(preview)]}" fill="none" stroke="${ink}" ` +
+			`stroke-width="${GLYPH_STROKE}" stroke-linecap="round" stroke-linejoin="round"/></g>`,
 	);
 
-	// Header text. White with no shadow: the shadow on the canvas is there to
-	// survive a header colour picked by a pack, and the palette's own are all
-	// dark enough not to need it at this size.
+	// Header text, in the text colour on the tint, or the category's on a value.
+	const titleFill = pure ? ink : "var(--fg, #1c1f24)";
+	const titleX = pure ? glyphX + glyphSize + 5 : g.tab + 8;
 	const growth = options.growth?.(preview) ?? null;
 	const buttons = growth ? GROW.size * 2 + GROW.gap + 4 : 0;
-	const titleRoom = width - 18 - (preview.latent ? 14 : 0) - buttons;
+	const titleRoom = width - titleX - 9 - (preview.latent ? 14 : 0) - buttons;
 	if (preview.subtitle) {
 		parts.push(
-			text(9, 16.75, fit(preview.title, titleRoom, TYPE.title), {
+			text(titleX, 16.75, fit(preview.title, titleRoom, TYPE.title), {
 				size: TYPE.title,
 				weight: 600,
-				fill: "#fff",
+				fill: titleFill,
 			}),
 		);
 		parts.push(
-			text(9, 30.5, fit(preview.subtitle, titleRoom, TYPE.subtitle, true), {
+			text(titleX, 30.5, fit(preview.subtitle, titleRoom, TYPE.subtitle, true), {
 				size: TYPE.subtitle,
 				weight: 500,
-				fill: "#fff",
+				fill: titleFill,
 				opacity: 0.78,
 				mono: true,
 			}),
 		);
 	} else {
 		parts.push(
-			text(9, head / 2, fit(preview.title, titleRoom, TYPE.title), {
+			text(titleX, head / 2, fit(preview.title, titleRoom, TYPE.title), {
 				size: TYPE.title,
 				weight: 600,
-				fill: "#fff",
+				fill: titleFill,
 			}),
 		);
 	}
@@ -669,13 +720,12 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 		parts.push(
 			text(width - 9 - buttons, head / 2, "⏳", {
 				size: TYPE.subtitle,
-				fill: "#fff",
+				fill: titleFill,
 				opacity: 0.85,
 				anchor: "end",
 			}),
 		);
 	}
-	if (growth) parts.push(drawGrowth(width, head, growth));
 
 	// The border, before the rows and after the header.
 	//
@@ -685,14 +735,24 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 	// through every pin, because a pin sits on the edge rather than inside it.
 	parts.push(
 		`<rect x="0.5" y="0.5" width="${n(width - 1)}" height="${n(height - 1)}" rx="${n(r - 0.5)}" ` +
-			`fill="none" stroke="var(--node-border, #b3b9c4)"/>`,
+			`fill="none" stroke="${
+				pure
+					? "color-mix(in srgb, var(--pure-edge, #6aa84f) 40%, var(--node-border, #b3b9c4))"
+					: "var(--node-border, #b3b9c4)"
+			}"/>`,
 	);
 
-	const rows = Math.max(preview.inputs.length, preview.outputs.length, 1);
+	// The flow in and the flow on, level with the middle of the header.
+	const headIn = onHeader(preview.inputs);
+	const headOut = onHeader(preview.outputs);
+	if (headIn) parts.push(drawPin(preview.inputs[0], "in", head / 2, 0, options));
+	if (headOut) parts.push(drawPin(preview.outputs[0], "out", head / 2, width, options));
+
+	const rows = bodyRows(preview.inputs, preview.outputs);
 	for (let i = 0; i < rows; i++) {
 		const y = previewRowY(preview, g, i);
-		const input = preview.inputs[i];
-		const output = preview.outputs[i];
+		const input = preview.inputs[i + (headIn ? 1 : 0)];
+		const output = preview.outputs[i + (headOut ? 1 : 0)];
 
 		// The right side reserves a lane whether or not this row has an output,
 		// which is what keeps the input values in one column down the node
@@ -706,11 +766,29 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 				parts.push(
 					text(rightEdge - 5, y, label, {
 						size: TYPE.label,
-						fill: "var(--fg-muted, #5c636e)",
+						fill: LABEL,
 						anchor: "end",
 					}),
 				);
 				rightEdge -= textWidth(label, TYPE.label) + 5;
+			}
+			// `.node .type-chip`: the type in words where the name does not say it.
+			const chip = output.kind === "data" ? typeChip(output.name, output.type) : null;
+			if (chip) {
+				const words = fit(chip, 96 - 10, TYPE.chip);
+				const w = textWidth(words, TYPE.chip) + 10;
+				const x = rightEdge - 5 - w;
+				const colour = escapeXml(options.pinColor(output.type, "data"));
+				parts.push(
+					`<rect x="${n(x)}" y="${n(y - 8)}" width="${n(w)}" height="16" rx="4" ` +
+						`fill="color-mix(in srgb, ${colour} 16%, var(--node-body, #fbfbfd))"/>`,
+					text(x + 5, y, words, {
+						size: TYPE.chip,
+						weight: 600,
+						fill: `color-mix(in srgb, ${colour} 62%, var(--fg, #1c1f24))`,
+					}),
+				);
+				rightEdge = x;
 			}
 		}
 
@@ -728,7 +806,7 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 			const labelX = g.pinLane + g.nodeStroke + 5;
 			const label = fit(input.name, labelEnd - labelX - 4, TYPE.label);
 			if (label !== "") {
-				parts.push(text(labelX, y, label, { size: TYPE.label, fill: "var(--fg-muted, #5c636e)" }));
+				parts.push(text(labelX, y, label, { size: TYPE.label, fill: LABEL }));
 			}
 		}
 	}
@@ -736,35 +814,11 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 	return parts.join("");
 }
 
+/** `.node .pin-label`: nearly the text colour. */
+const LABEL = "color-mix(in srgb, var(--fg, #1c1f24) 88%, var(--node-body, #fbfbfd))";
+
 /** `.node .head .grow button`: 16px squares, 2px apart, 8px in from the edge. */
 const GROW = { size: 16, gap: 2, inset: 8 } as const;
-
-/**
- * The − and + a node that takes a list carries in its header. A button that
- * would take the node past its limit fades to 0.3, which is how the canvas
- * shows it disabled.
- */
-function drawGrowth(
-	width: number,
-	head: number,
-	growth: { canAdd: boolean; canRemove: boolean },
-): string {
-	const y = (head - GROW.size) / 2;
-	const button = (x: number, glyph: string, live: boolean) =>
-		`<g${live ? "" : ` opacity="0.3"`}>` +
-		`<rect x="${n(x + 0.5)}" y="${n(y + 0.5)}" width="${GROW.size - 1}" height="${GROW.size - 1}" ` +
-		`rx="3" fill="rgba(0,0,0,0.2)" stroke="rgba(255,255,255,0.35)"/>` +
-		text(x + GROW.size / 2, y + GROW.size / 2, glyph, {
-			size: 12,
-			fill: "#fff",
-			anchor: "middle",
-		}) +
-		`</g>`;
-	const plus = width - GROW.inset - GROW.size;
-	return (
-		button(plus - GROW.gap - GROW.size, "−", growth.canRemove) + button(plus, "+", growth.canAdd)
-	);
-}
 
 /**
  * The capsule getter: a pill with its name and one output, which is how node
@@ -896,11 +950,50 @@ function pinAt(
 	// from the node body on one side and the canvas on the other, so the ring
 	// keeps its colour against both.
 	const well = "var(--pin-well, #2a2f37)";
-	return (
-		`<circle cx="${n(edge)}" cy="${n(y)}" r="6" fill="${well}"/>` +
-		`<circle cx="${n(edge)}" cy="${n(y)}" r="4" ` +
-		`fill="${pin.wired ? colour : well}" stroke="${colour}" stroke-width="2"/>`
-	);
+	const x = edge;
+	const fill = pin.wired ? colour : well;
+	switch (typeFamily(pin.type)) {
+		// `.pin.fam-object`: the same ring with 3px corners.
+		case "object":
+			return (
+				`<rect x="${n(x - 6)}" y="${n(y - 6)}" width="12" height="12" rx="4" fill="${well}"/>` +
+				`<rect x="${n(x - 4)}" y="${n(y - 4)}" width="8" height="8" rx="2" ` +
+				`fill="${fill}" stroke="${colour}" stroke-width="2"/>`
+			);
+		// `.pin.fam-table`: a 9px square turned 45°.
+		case "table": {
+			const diamond = (r: number) =>
+				`M${n(x)} ${n(y - r)}L${n(x + r)} ${n(y)}L${n(x)} ${n(y + r)}L${n(x - r)} ${n(y)}Z`;
+			return (
+				`<path d="${diamond(7.8)}" fill="${well}" stroke="${well}" stroke-width="1" stroke-linejoin="round"/>` +
+				`<path d="${diamond(5)}" fill="${fill}" stroke="${colour}" stroke-width="2" stroke-linejoin="round"/>`
+			);
+		}
+		// `.pin.fam-function`: a ring with a dot in it, the dot grown when wired.
+		case "function":
+			return (
+				`<circle cx="${n(x)}" cy="${n(y)}" r="6" fill="${well}"/>` +
+				`<circle cx="${n(x)}" cy="${n(y)}" r="4" fill="${well}" stroke="${colour}" stroke-width="2"/>` +
+				`<circle cx="${n(x)}" cy="${n(y)}" r="${pin.wired ? 1.8 : 1.5}" fill="${colour}"/>`
+			);
+		// `.pin.fam-signal`: a hexagon, with a smaller one of well inside it
+		// while nothing is wired.
+		case "signal": {
+			const hex = (w: number, h: number) =>
+				`M${n(x - w / 4)} ${n(y - h / 2)}H${n(x + w / 4)}L${n(x + w / 2)} ${n(y)}` +
+				`L${n(x + w / 4)} ${n(y + h / 2)}H${n(x - w / 4)}L${n(x - w / 2)} ${n(y)}Z`;
+			return (
+				`<path d="${hex(12, 11)}" fill="${colour}"/>` +
+				(pin.wired ? "" : `<path d="${hex(7.4, 7)}" fill="${well}"/>`)
+			);
+		}
+		default:
+			return (
+				`<circle cx="${n(x)}" cy="${n(y)}" r="6" fill="${well}"/>` +
+				`<circle cx="${n(x)}" cy="${n(y)}" r="4" ` +
+				`fill="${fill}" stroke="${colour}" stroke-width="2"/>`
+			);
+	}
 }
 
 /** An equilateral triangle pointing right, in the box `x, y, w, h`. */
@@ -1070,7 +1163,9 @@ export function previewOfPlaced(
 		title: nodeTitle(def, node),
 		subtitle: def.subtitle?.(config),
 		category: def.category,
+		subcategory: def.subcategory,
 		role: def.role,
+		pure: def.pure === true,
 		display: def.display ?? "normal",
 		operator: operatorOf(def, inputs, config, node.literals),
 		latent: def.latent === true,
@@ -1349,7 +1444,7 @@ export function placedPinAnchor(
 	const reach = pins[index].kind === "exec" ? execReach(g) : 0;
 	return {
 		x: side === "in" ? placed.x - reach : placed.x + placed.width + reach,
-		y: placed.y + previewRowY(placed.preview, g, index),
+		y: placed.y + previewPinY(placed.preview, g, side, index),
 	};
 }
 

@@ -116,7 +116,10 @@ export function isFlowBoundary(def: NodeDef): boolean {
  * gold is a vector.
  */
 const TYPE_COLORS: Record<string, string> = {
-	exec: "#e2e6ec",
+	// A flow triangle is drawn in its wire's colour, which every scheme sets
+	// close to its text: dark on a light canvas, light on a dark one. The pale
+	// grey it used to be all but disappeared against a light node body.
+	exec: "var(--wire-exec, #5a616d)",
 	any: "#9aa2af",
 	wildcard: "#9aa2af",
 	boolean: "#8f2f2a",

@@ -40,6 +40,12 @@ export const LAYER = {
 	wireDrag: 45,
 	node: 50,
 	nodeSelected: 55,
+	/**
+	 * Problem notes: an error or warning written out under its node. Above
+	 * every node, selected or not, so nothing in the graph covers what is
+	 * wrong with it; only the panels and menus around the canvas may.
+	 */
+	problem: 58,
 	/** Marquee selection rectangle. */
 	marquee: 60,
 	/**
