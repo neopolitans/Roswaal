@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.163.1",
+		date: "2026-10-09",
+		headline: "Luau Expression's mark sits inline, as a value's glyph does.",
+		affects: ["editor", "docs"],
+		fixed: [
+			"Luau Expression drew its `ƒx` in a box with an edge of its own, a tab a value node does not have. It now sits before its name as every other value's glyph does, on the canvas and in the documentation's pictures.",
+		],
+	},
+	{
 		version: "0.163.0",
 		date: "2026-10-09",
 		headline: "Tidier function headers, and any parameter or output removed from where it is.",

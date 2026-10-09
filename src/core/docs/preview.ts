@@ -668,6 +668,8 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 	// A node that holds code takes the Code panel's mark in its tab, in the
 	// code face and colours, on the editor's surface: `.node .head .tab.code-tab`.
 	const code = CODE_MARKS[preview.id];
+	// A mark's width in the code face at 12px, as the canvas lays it out.
+	const codeWidth = code ? Math.max(15, code.mark.length * 12 * 0.6) : 0;
 	// The glyph: 18px and white on the tab, or 15px in the category's colour
 	// where a value's header has no tab to sit on.
 	const glyphSize = pure ? 15 : 18;
@@ -675,10 +677,15 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 	const ink = pure ? `color-mix(in srgb, ${cat} var(--cat-ink, 85%), var(--fg, #1c1f24))` : "#fff";
 	if (code) {
 		const role = CODE_MARK_ROLE[code.kind];
+		// A value has no tab, so its mark sits inline where a value's glyph does.
+		if (!pure) {
+			parts.push(
+				`<path d="${top(g.tab)}" fill="var(--bg-input, #ffffff)"/>`,
+				`<rect x="${n(g.tab - 1)}" y="0" width="1" height="${n(head)}" fill="${cat}" fill-opacity="0.35"/>`,
+			);
+		}
 		parts.push(
-			`<path d="${top(g.tab)}" fill="var(--bg-input, #ffffff)"/>`,
-			`<rect x="${n(g.tab - 1)}" y="0" width="1" height="${n(head)}" fill="${cat}" fill-opacity="0.35"/>`,
-			text(g.tab / 2, head / 2, code.mark, {
+			text(pure ? glyphX + codeWidth / 2 : g.tab / 2, head / 2, code.mark, {
 				size: 12,
 				weight: 700,
 				mono: true,
@@ -696,7 +703,7 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 
 	// Header text, in the text colour on the tint, or the category's on a value.
 	const titleFill = pure ? ink : "var(--fg, #1c1f24)";
-	const titleX = pure && !code ? glyphX + glyphSize + 5 : g.tab + 8;
+	const titleX = pure ? glyphX + (code ? codeWidth : glyphSize) + 5 : g.tab + 8;
 	const titleRoom = width - titleX - 9 - (preview.latent ? 14 : 0);
 	if (preview.subtitle) {
 		parts.push(

@@ -2039,10 +2039,13 @@ button.tb.primary:hover:not(:disabled) {
 	font-weight: 400;
 }
 
+/* A value has no tab, so a value that holds code -- Luau Expression -- takes
+   its mark as other values take their glyph: inline before its name, with no
+   surface or edge of its own. */
 .node.node--pure .head .tab.code-tab {
-	align-self: stretch;
-	width: var(--tab-width);
-	margin-left: -6px;
+	background: none;
+	box-shadow: none;
+	min-width: 15px;
 }
 
 .node .head .title {
