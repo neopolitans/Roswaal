@@ -41,6 +41,7 @@ import { Icon, type IconName } from "./icons.jsx";
 import { Menu } from "./Menu.jsx";
 import { trackPointer } from "./pointer.js";
 import type { FunctionTabs } from "./preferences.js";
+import { useSidewaysWheel } from "./sidewaysWheel.js";
 import type { OpenDocument, TabKind } from "./store.js";
 
 export interface GraphTabsProps {
@@ -104,6 +105,7 @@ export function GraphTabs({
 	onReorder,
 }: GraphTabsProps) {
 	const row = useRef<HTMLDivElement>(null);
+	useSidewaysWheel(row, documents.length);
 	// The tab being dragged, and the one it would land before.
 	const [drag, setDrag] = useState<{ key: string; before: string | null } | null>(null);
 	const [listOpen, setListOpen] = useState(false);

@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.164.1",
+		date: "2026-10-09",
+		headline: "A mouse wheel scrolls the tab rows sideways.",
+		affects: ["editor"],
+		fixed: [
+			"**The graph tabs, and the Code panel's tabs, scroll with a mouse wheel.** Both rows scroll sideways with their scrollbars hidden, which a trackpad does by itself; a mouse wheel turns only up and down, so on Windows the tabs past the edge could not be reached with it. Turning the wheel over a row that has more tabs than it shows now scrolls it sideways.",
+		],
+	},
+	{
 		version: "0.164.0",
 		date: "2026-10-09",
 		headline: "The technical specification as a site of its own, at spec.roswaal.app.",

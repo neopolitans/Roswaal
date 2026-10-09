@@ -55,6 +55,7 @@ import { luauExtensions } from "./luauExtensions.js";
 import { Menu } from "./Menu.jsx";
 import { nameDrop } from "./nameDrop.js";
 import { configText, functionNameOf } from "./nodeConfig.js";
+import { useSidewaysWheel } from "./sidewaysWheel.js";
 
 /**
  * One field open in the panel: a pin's code, or -- with `field` -- a Declare
@@ -256,6 +257,7 @@ export function CodePanel(props: CodePanelProps) {
 	const current = tabs.find((t) => t.key === active) ?? tabs[0];
 	const labels = useMemo(() => codeTabLabels(script, registry, tabs), [script, registry, tabs]);
 	const { row, overflowing } = useOverflow(tabs.length);
+	useSidewaysWheel(row, tabs.length);
 	const [listAt, setListAt] = useState<HTMLButtonElement | null>(null);
 
 	// The tab in front stays in sight in a row that scrolls, chosen from the
