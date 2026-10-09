@@ -2010,6 +2010,41 @@ button.tb.primary:hover:not(:disabled) {
 	display: block;
 }
 
+/* A node that holds code takes the Code panel's mark in its tab, in the code
+   face and colours, on the code editor's own surface: `{ }`, `ƒx`, `<T>`. The
+   colours are the `.code-mark-*` ones the panel's tabs use. */
+.node .head .tab.code-tab {
+	background: var(--bg-input);
+	box-shadow: inset -1px 0 0 color-mix(in srgb, var(--cat) 35%, var(--node-border));
+	font-family: "Cascadia Mono", Consolas, monospace;
+	font-size: var(--text-md);
+	font-weight: 700;
+	white-space: nowrap;
+}
+
+.node .head .tab.code-tab.code-mark-block {
+	color: var(--code-keyword);
+}
+
+.node .head .tab.code-tab.code-mark-expression {
+	color: var(--code-function);
+}
+
+.node .head .tab.code-tab.code-mark-type {
+	color: var(--code-type);
+}
+
+.node .head .tab.code-tab .code-mark-angle {
+	color: var(--fg-faint);
+	font-weight: 400;
+}
+
+.node.node--pure .head .tab.code-tab {
+	align-self: stretch;
+	width: var(--tab-width);
+	margin-left: -6px;
+}
+
 .node .head .title {
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -5069,22 +5104,23 @@ button.start-tile:disabled {
 	cursor: default;
 }
 
-/* A node at rest shows only what it says: the − and + that change how many
-   inputs it takes appear when they are reached for -- the pointer over the
-   node, the node selected, or a key moving focus onto them -- and not
-   otherwise. Faded rather than removed, so the header does not reflow and the
-   title does not jump as the pointer crosses it. A touch screen has no hover;
-   there, selecting the node with a tap shows them. */
-.node .head .grow,
+/* A node at rest shows only what it says: the Add row and the × that change
+   how many entries a node has, and an operator's − and +, appear when they
+   are reached for -- the pointer over the node, the node selected, or a key
+   moving focus onto them -- and not otherwise. The operator's are faded rather
+   than removed, so the pill does not reflow; the ×, which sits beside a label
+   with nothing after it that could move, appears outright. A touch screen has
+   no hover; there, selecting the node with a tap shows them. */
+.node .add-row,
 .node.node--operator .operator-grow {
 	opacity: 0;
 	pointer-events: none;
 	transition: opacity 0.12s ease;
 }
 
-.node:hover .head .grow,
-.node.node--selected .head .grow,
-.node .head .grow:focus-within,
+.node:hover .add-row,
+.node.node--selected .add-row,
+.node .add-row:focus-visible,
 .node.node--operator:hover .operator-grow,
 .node.node--operator.node--selected .operator-grow,
 .node.node--operator .operator-grow:focus-within {
@@ -5092,8 +5128,16 @@ button.start-tile:disabled {
 	pointer-events: auto;
 }
 
+.node:hover .pin-remove,
+.node.node--selected .pin-remove,
+.node:focus-within .pin-remove {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
 @media (prefers-reduced-motion: reduce) {
-	.node .head .grow,
+	.node .add-row,
 	.node.node--operator .operator-grow {
 		transition: none;
 	}
@@ -5430,39 +5474,68 @@ button.tb.primary.danger:hover:not(:disabled) {
 	text-overflow: ellipsis;
 }
 
-/* Arity controls, for nodes that choose how many inputs they take. The header
-   is where they fit without changing the node's geometry. */
-.node .head .grow {
-	display: flex;
-	gap: 2px;
-	margin-left: auto;
-	flex: none;
-}
-
-.node .head .grow button {
-	width: 16px;
-	height: 16px;
+/* Adding to a node that grows: a row hung under it, as wide as the node, that
+   always adds at the end -- "+ Add parameter", "+ Add output". Outside the
+   node's box, so it moves no pin and takes no part in the node's size. The
+   bridge above it keeps the pointer "on the node" while it crosses the gap. */
+.node .add-row {
+	position: absolute;
+	left: 10px;
+	right: 10px;
+	top: calc(100% + 3px);
+	height: 22px;
 	padding: 0;
-	line-height: 14px;
-	text-align: center;
-	border: 1px solid color-mix(in srgb, var(--cat) 45%, var(--node-border));
-	border-radius: var(--radius-xs);
+	border: 1px dashed color-mix(in srgb, var(--cat, var(--fg-faint)) 45%, var(--node-border));
+	border-radius: var(--radius-sm);
 	background: var(--node-body);
-	color: var(--fg);
+	color: var(--fg-muted);
+	font-size: var(--text-sm);
 	cursor: pointer;
-	font-size: var(--text-md);
 }
 
-.node .head .grow button:hover:not(:disabled) {
-	background: color-mix(in srgb, var(--cat) 22%, var(--node-body));
+.node .add-row::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: -5px;
+	height: 5px;
 }
 
-.node .head .grow button:disabled {
-	opacity: 0.3;
-	cursor: default;
+.node .add-row:hover {
+	border-style: solid;
+	color: var(--fg);
+	background: color-mix(in srgb, var(--cat, var(--fg-faint)) 12%, var(--node-body));
 }
 
-/* Opens a Declare Function's graph. Beside the grow buttons, and drawn like them. */
+/* Taking one out: a grey × beside each entry that can go, at any position. */
+.node .pin-remove {
+	display: none;
+	flex: none;
+	width: 14px;
+	height: 14px;
+	padding: 0;
+	border: 0;
+	border-radius: var(--radius-xs);
+	background: none;
+	color: var(--fg-faint);
+	font-size: 13px;
+	line-height: 13px;
+	cursor: pointer;
+}
+
+.node .pin-remove:hover {
+	color: var(--danger);
+	background: color-mix(in srgb, var(--danger) 12%, transparent);
+}
+
+/* A function's signature under its name: types only, each in its pin's colour. */
+.node .head .subtitle .sig-type {
+	color: color-mix(in srgb, var(--pin) 75%, var(--fg));
+	font-weight: 600;
+}
+
+/* Opens a Declare Function's graph, at the right of its header. */
 .node .head .open-graph {
 	display: flex;
 	align-items: center;
@@ -5483,9 +5556,6 @@ button.tb.primary.danger:hover:not(:disabled) {
 	background: color-mix(in srgb, var(--cat) 22%, var(--node-body));
 }
 
-.node .head .open-graph + .grow {
-	margin-left: 4px;
-}
 
 /* A node that a dragged wire can grow to accept. */
 .node.grow-target {

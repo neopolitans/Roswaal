@@ -411,7 +411,7 @@ export function App() {
 	}, [codeShown, showing]);
 
 	/** How the node picker draws: the same settings the docs pictures follow. */
-	const nodePreview = useMemo(() => previewFor(prefs, registry), [prefs, registry]);
+	const nodePreview = useMemo(() => previewFor(prefs), [prefs]);
 	/**
 	 * The documentation, for the editor's own Ctrl+K.
 	 *

@@ -598,7 +598,8 @@ describe("what the node says it is", () => {
 			params: [{ name: "tank", type: "Model" }],
 			returns: [{ name: "c", type: "Config" }],
 		};
-		expect(def.subtitle?.(sig)).toBe("(tank: Model) → Config");
+		// Types only: the names are on the pins underneath (T1, 0.163.0).
+		expect(def.subtitle?.(sig)).toBe("(Model) → Config");
 		expect(def.subtitle?.(sig)).toBe(registry.get("function.entry")!.subtitle?.(sig));
 	});
 });

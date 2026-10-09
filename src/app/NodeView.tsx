@@ -7,7 +7,9 @@ import {
 	type PointerEvent as ReactPointerEvent,
 	useState,
 } from "react";
-import { GLYPH_STROKE, GLYPH_VIEW_BOX, GLYPHS, nodeGlyph } from "../core/nodeGlyphs.js";
+import { CODE_MARKS, GLYPH_STROKE, GLYPH_VIEW_BOX, GLYPHS, nodeGlyph } from "../core/nodeGlyphs.js";
+import { FUNCTION_NODES, signatureOf, signatureTypes } from "../core/nodes/flow.js";
+import { entryIndex, type GrowthRule } from "../core/nodes/growth.js";
 import { nodeTitle } from "../core/nodes/index.js";
 import { castsResult, resultCastOf } from "../core/nodes/resultCast.js";
 import { pinTypeOf, pinTypeText } from "../core/nodes/variables.js";
@@ -91,8 +93,10 @@ export interface NodeViewProps {
 	onContextMenu: (e: ReactPointerEvent, nodeId: string) => void;
 	/** Adds or removes one input pin, for nodes whose arity is theirs to choose. */
 	onGrow: (nodeId: string, delta: number) => void;
-	/** How many inputs this node can gain or lose, if any. */
-	growth: { canAdd: boolean; canRemove: boolean; label: string } | null;
+	/** Takes one entry out, from any position: the × beside it. */
+	onRemoveEntry?: (nodeId: string, index: number) => void;
+	/** Whether this node can gain or lose entries, and what they are. */
+	growth: Growth | null;
 	/** Set on a Declare Function in the flow: opens the graph it declares. */
 	onOpen?: (nodeId: string) => void;
 	/**
@@ -112,6 +116,14 @@ export interface NodeViewProps {
 		pin: PinDef,
 		side: "in" | "out",
 	) => void;
+}
+
+/** What a node that grows can do now, and the rule it grows by. */
+export interface Growth {
+	canAdd: boolean;
+	canRemove: boolean;
+	label: string;
+	rule: GrowthRule;
 }
 
 /**
@@ -171,6 +183,9 @@ function NodeViewInner(props: NodeViewProps) {
 	const bodyIn = headIn ? inputs.slice(1) : inputs;
 	const bodyOut = headOut ? outputs.slice(1) : outputs;
 	const rows = bodyRows(inputs, outputs);
+	const removable = props.onRemoveEntry
+		? removableEntries(props.growth, inputs, outputs)
+		: NO_ENTRIES;
 	const subtitle = def.subtitle?.(node.config ?? {});
 	const head = headerHeight(def, node.config);
 	const style: CSSProperties = {
@@ -205,12 +220,29 @@ function NodeViewInner(props: NodeViewProps) {
 				</span>
 			)}
 			<div className={cx("head", subtitle && "two-line")} style={{ height: head }}>
-				<span className="tab" aria-hidden="true">
-					<NodeGlyph def={def} size={def.pure ? 15 : 18} />
-				</span>
+				{CODE_MARKS[def.id] ? (
+					<span className={`tab code-tab code-mark-${CODE_MARKS[def.id].kind}`} aria-hidden="true">
+						{CODE_MARKS[def.id].kind === "type" ? (
+							<>
+								<span className="code-mark-angle">{"<"}</span>T
+								<span className="code-mark-angle">{">"}</span>
+							</>
+						) : (
+							CODE_MARKS[def.id].mark
+						)}
+					</span>
+				) : (
+					<span className="tab" aria-hidden="true">
+						<NodeGlyph def={def} size={def.pure ? 15 : 18} />
+					</span>
+				)}
 				<span className="lines">
 					<span className="title">{nodeTitle(def, node)}</span>
-					{subtitle && <span className="subtitle">{subtitle}</span>}
+					{subtitle && (
+						<span className="subtitle">
+							{FUNCTION_NODES.has(def.id) ? <SignatureTypes config={node.config} /> : subtitle}
+						</span>
+					)}
 				</span>
 				{def.latent && (
 					<span className="marker" title="This node yields">
@@ -228,40 +260,42 @@ function NodeViewInner(props: NodeViewProps) {
 						<Icon name="function" size={13} />
 					</button>
 				)}
-				{props.growth && (
-					<span className="grow">
-						<button
-							disabled={!props.growth.canRemove}
-							title={`One fewer ${props.growth.label}`}
-							onPointerDown={(e) => e.stopPropagation()}
-							onClick={() => props.onGrow(node.id, -1)}
-						>
-							−
-						</button>
-						<button
-							disabled={!props.growth.canAdd}
-							title={`One more ${props.growth.label} — or drop a wire on this node`}
-							onPointerDown={(e) => e.stopPropagation()}
-							onClick={() => props.onGrow(node.id, 1)}
-						>
-							+
-						</button>
-					</span>
-				)}
 			</div>
 			<div className="rows" style={{ height: rows * NODE.rowHeight + NODE.footer }}>
 				{Array.from({ length: rows }, (_, i) => (
 					<div className="row" key={i}>
 						<span className="side left">
-							{bodyIn[i] && pinTarget(props, bodyIn[i], "in", renderPin(props, bodyIn[i], "in"))}
+							{bodyIn[i] &&
+								pinTarget(
+									props,
+									bodyIn[i],
+									"in",
+									renderPin(props, bodyIn[i], "in", removable.get(`in:${bodyIn[i].id}`)),
+								)}
 						</span>
 						<span className="side right">
 							{bodyOut[i] &&
-								pinTarget(props, bodyOut[i], "out", renderPin(props, bodyOut[i], "out"))}
+								pinTarget(
+									props,
+									bodyOut[i],
+									"out",
+									renderPin(props, bodyOut[i], "out", removable.get(`out:${bodyOut[i].id}`)),
+								)}
 						</span>
 					</div>
 				))}
 			</div>
+			{props.growth?.canAdd && (
+				<button
+					type="button"
+					className="add-row"
+					title={`Add ${props.growth.rule.one} at the end — or drop a wire on this node`}
+					onPointerDown={(e) => e.stopPropagation()}
+					onClick={() => props.onGrow(node.id, 1)}
+				>
+					+ Add {props.growth.rule.one}
+				</button>
+			)}
 			{headIn && (
 				<span className="head-pin in" style={{ top: head / 2 }}>
 					{pinTarget(props, headIn, "in", renderPin(props, headIn, "in"))}
@@ -491,7 +525,7 @@ function renderOperator(
 	);
 }
 
-function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out") {
+function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out", entry?: number) {
 	const { node } = props;
 	const wired = props.connected.has(`${side}:${node.id}/${pin.id}`);
 	const drag = props.drag;
@@ -586,18 +620,88 @@ function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out") {
 		</span>
 	) : null;
 
+	// The grey × that takes this entry out, wherever it is in the list. Shown
+	// with the Add row, on hover or selection, and only while the node is above
+	// its minimum.
+	const remove =
+		entry !== undefined && props.onRemoveEntry ? (
+			<button
+				type="button"
+				className="pin-remove"
+				title={`Remove ${pin.name || props.growth?.rule.one || "this"}`}
+				aria-label={`Remove ${pin.name || props.growth?.rule.one || "this"}`}
+				onPointerDown={(e) => e.stopPropagation()}
+				onClick={() => props.onRemoveEntry!(node.id, entry)}
+			>
+				×
+			</button>
+		) : null;
+
 	return side === "in" ? (
 		<>
 			{dot}
 			{label}
+			{remove}
 			{editor}
 		</>
 	) : (
 		<>
+			{remove}
 			{chip}
 			{label}
 			{castMark}
 			{dot}
+		</>
+	);
+}
+
+const NO_ENTRIES: ReadonlyMap<string, number> = new Map();
+
+/**
+ * The pins that carry a × to remove their entry, as `side:pin` → its index.
+ *
+ * One per entry: a split entry's parts all belong to it, so the × sits on the
+ * first part only.
+ */
+function removableEntries(
+	growth: Growth | null,
+	inputs: PinDef[],
+	outputs: PinDef[],
+): ReadonlyMap<string, number> {
+	if (!growth?.canRemove) return NO_ENTRIES;
+	const { rule } = growth;
+	const map = new Map<string, number>();
+	const seen = new Set<number>();
+	for (const pin of rule.side === "in" ? inputs : outputs) {
+		const index = entryIndex(rule, rule.side, pin.id);
+		if (index < 0 || seen.has(index)) continue;
+		seen.add(index);
+		map.set(`${rule.side}:${pin.id}`, index);
+	}
+	return map;
+}
+
+/**
+ * A function's signature as types alone, each in its pin's colour:
+ * `(Model, BasePart) → boolean`. The names are on the pins below.
+ */
+function SignatureTypes({ config }: { config: GraphNode["config"] }) {
+	const { params, returns } = signatureTypes(signatureOf(config));
+	const type = (t: string, i: number) => (
+		<span
+			key={i}
+			className="sig-type"
+			style={{ "--pin": pinColor(pinTypeOf(t), "data") } as React.CSSProperties}
+		>
+			{t}
+		</span>
+	);
+	const list = (types: string[]) =>
+		types.flatMap((t, i) => (i === 0 ? [type(t, i)] : [", ", type(t, i)]));
+	return (
+		<>
+			({list(params)}) →{" "}
+			{returns.length === 0 ? "()" : returns.length === 1 ? list(returns) : <>({list(returns)})</>}
 		</>
 	);
 }

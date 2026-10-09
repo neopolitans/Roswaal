@@ -81,6 +81,7 @@ import {
 	bindNodeToVariable,
 	disconnectInput,
 	localRefFor,
+	removeListEntry,
 	setConfig,
 	setLiteral,
 	setPinType,
@@ -1751,7 +1752,13 @@ function ListEditor({ node, field, title, hint }: ListEditorProps) {
 							className="tb list-remove"
 							title="Remove"
 							aria-label={`Remove ${entry.name}`}
-							onClick={() => write(list.filter((_, j) => j !== i))}
+							onClick={() => {
+								// Through `removeListEntry`, so the wires on the entries after
+								// this one move up with them rather than landing on a neighbour.
+								const registry = store.getRegistry();
+								if (!registry) return write(list.filter((_, j) => j !== i));
+								store.edit((s) => removeListEntry(s, registry, node.id, field, i));
+							}}
 						>
 							<Icon name="close" size={13} />
 						</button>

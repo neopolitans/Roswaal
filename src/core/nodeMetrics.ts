@@ -21,9 +21,15 @@ export const NODE = {
 	rowHeight: 24,
 	/** Height of a compact getter capsule. */
 	compactHeight: 28,
-	/** Minimum capsule width, and roughly the pixels one character adds. */
+	/**
+	 * Minimum capsule width, and roughly the pixels one character adds.
+	 *
+	 * Wide enough for the widest system face it is drawn in: at 6.8 a name such
+	 * as AccumulateNum needed 95px on a Mac and was given 86, and read
+	 * "Accumulate…". Measured, it is 7.3 a character; this leaves a little over.
+	 */
 	compactMinWidth: 96,
-	compactCharWidth: 6.8,
+	compactCharWidth: 7.6,
 	compactPadding: 46,
 	/**
 	 * One character of a node's header title, and the space around it.

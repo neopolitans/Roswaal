@@ -42,7 +42,6 @@ import { SOURCE_REPOSITORY, STABLE_SITE } from "../../src/core/docs/links.ts";
 import { graphSvg } from "../../src/core/docs/preview.ts";
 import { RELEASES, taglineFor } from "../../src/core/docs/releases.ts";
 import { buildSite } from "../../src/core/docs/site.ts";
-import { growthState } from "../../src/core/nodes/growth.ts";
 import {
 	BUILTIN_NODES as ALL_NODES,
 	BUILTIN_NODES,
@@ -176,7 +175,6 @@ export function heroGraph() {
 		nodeColor,
 		pinColor,
 		wirePath,
-		growth: (pin) => growthState(registry.get(pin.id), pin.config),
 	});
 }
 
@@ -201,7 +199,6 @@ function examples() {
 			nodeColor,
 			pinColor,
 			wirePath,
-			growth: (pin) => growthState(registry.get(pin.id), pin.config),
 		});
 		return { ...one, svg, luau: highlight(code.text) };
 	});

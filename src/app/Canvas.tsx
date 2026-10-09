@@ -37,14 +37,15 @@ import {
 	commentsByArea,
 	connect,
 	connectThroughCast,
-	currentArity,
 	disconnectPin,
 	growNode,
 	growthRule,
+	growthState,
 	insertReroute,
 	type Placement,
 	pinLinkCount,
 	placeNodes,
+	removeEntry,
 	removeLink,
 	selectionAnchor,
 	setConfig,
@@ -67,7 +68,7 @@ import {
 	wirePath,
 } from "./geometry.js";
 import { GRID, LAYER, NODE, ZOOM } from "./layers.js";
-import { NodeView, type PinDragState } from "./NodeView.jsx";
+import { type Growth, NodeView, type PinDragState } from "./NodeView.jsx";
 import { configText, functionNameOf } from "./nodeConfig.js";
 import { ProblemNotes, problemsByNode } from "./ProblemNotes.jsx";
 import { commentColor, pinColor } from "./palette.js";
@@ -354,17 +355,16 @@ export function Canvas({
 	const nodesById = useMemo(() => new Map(script.nodes.map((n) => [n.id, n])), [script.nodes]);
 
 	const growth = useMemo(() => {
-		const map = new Map<string, { canAdd: boolean; canRemove: boolean; label: string }>();
+		const map = new Map<string, Growth>();
 		for (const node of script.nodes) {
 			const def = registry.get(node.def);
 			const rule = growthRule(def);
-			if (!rule) continue;
-			const count = currentArity(node, def, rule);
-			map.set(node.id, {
-				canAdd: count < rule.max,
-				canRemove: count > rule.min,
-				label: rule.label,
-			});
+			// `growthState` rather than the count alone: a call wired from a
+			// declared function takes that function's arguments, and has none
+			// of its own to add or take away.
+			const state = growthState(def, node.config);
+			if (!rule || !state) continue;
+			map.set(node.id, { ...state, label: rule.label, rule });
 		}
 		return map;
 	}, [script.nodes, registry]);
@@ -372,6 +372,13 @@ export function Canvas({
 	const onGrow = useCallback(
 		(nodeId: string, delta: number) => {
 			store.edit((s) => growNode(s, registry, nodeId, delta).script);
+		},
+		[registry],
+	);
+
+	const onRemoveEntry = useCallback(
+		(nodeId: string, index: number) => {
+			store.edit((s) => removeEntry(s, registry, nodeId, index));
 		},
 		[registry],
 	);
@@ -1474,6 +1481,7 @@ export function Canvas({
 						onEditCode={onEditCode}
 						onGrow={onGrow}
 						growth={growth.get(node.id) ?? null}
+						onRemoveEntry={onRemoveEntry}
 						onOpen={configText(node, "presence") === "outer" ? openFunction : undefined}
 						onContextMenu={(e, id) => {
 							if (!selection.has(id)) store.select([id]);

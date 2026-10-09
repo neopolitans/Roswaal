@@ -97,6 +97,14 @@ export function interactionPage(): DocPage {
 					"is selected, or when the keyboard reaches them. Hidden, they **MUST NOT** take " +
 					"clicks, and showing them **MUST NOT** move anything else in the node.",
 			},
+			{
+				t: "ul",
+				items: [
+					"A node that takes a list **SHOULD** offer one control that adds an entry at the end, and one beside each entry that removes it, wherever it is in the list. Roswaal hangs an Add row under the node and puts a grey × beside each entry.",
+					"Removing an entry **MUST** keep the wires and typed values of the entries after it on those same entries, and **MUST** remove the removed entry's own wires.",
+					"A control to remove an entry **MUST NOT** be offered when the node is at its minimum.",
+				],
+			},
 
 			// 4.6 ----------------------------------------------------------------
 			{ t: "h", level: 2, text: "4.6 Problems: where and how they show" },

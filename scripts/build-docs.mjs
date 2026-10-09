@@ -29,7 +29,6 @@ import { VERSION } from "../src/cli/version.ts";
 import { escapeHtml, renderSite } from "../src/core/docs/html.ts";
 import { STABLE_SITE } from "../src/core/docs/links.ts";
 import { buildSearchIndex, buildSite } from "../src/core/docs/site.ts";
-import { growthState } from "../src/core/nodes/growth.ts";
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.ts";
 import { buildDocsClient } from "./lib/docsClient.mjs";
 import { buildDocsToggle } from "./lib/docsToggle.mjs";
@@ -69,7 +68,6 @@ async function main() {
 		nodeColor,
 		pinColor,
 		wirePath,
-		growth: (p) => growthState(registry.get(p.id), p.config),
 	};
 	// Which line this site was built from. Read off the environment rather than
 	// through `pages.ts`, which reads a Vite define that does not exist here.

@@ -9,6 +9,27 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.163.0",
+		date: "2026-10-09",
+		headline: "Tidier function headers, and any parameter or output removed from where it is.",
+		affects: ["editor", "docs"],
+		added: [
+			"**A grey × beside each entry a node can lose**: a function's parameters, a call's arguments, Sequence's outputs, a Return's results, Module Exports' entries and Make Dictionary's rows. It takes that one away, wherever it is, and the wires and values on the ones after it move up with them. It shows when you point at the node or select it, and not when the node is at its minimum.",
+			"**An Add row under a node that grows**, also on hover or selection: **+ Add parameter**, **+ Add argument**, **+ Add output** and so on. It always adds at the end. A problem note under such a node sits a row lower, so it never covers the row.",
+		],
+		changed: [
+			"**A function's header is its name over its types.** Function and Declare Function show `(Model, BasePart) → boolean`, each type in its pin's colour, in place of the names and types together, which were cut short: the names are on the pins below. Both take the ƒ glyph, where the hoisted Function had the play glyph of an entry, and Return takes an arrow back in place of the stop square.",
+			"The − and + have left the headers of nodes that grow, for the Add row and the ×. An operator keeps its own beside its symbol.",
+			"**Code Block, Luau Expression and Declare Type carry the Code panel's marks**: `{ }`, `ƒx` and `<T>` in their corner tab, in the code face and the theme's code colours, on the code editor's own surface, so a node and its tab in the Code panel read as one thing.",
+			"The technical specification says how adding and removing entries behaves (§4.5) and what a function's header shows (§5.4).",
+		],
+		fixed: [
+			"**Removing a parameter, a result or an export in the Inspector no longer moves wires onto the wrong pin.** Taking out any but the last left the wires of the ones after it on their neighbours, and the last one's pointing at a pin that no longer existed. It now renumbers as the × does.",
+			"**A getter's name is no longer cut short on a Mac.** Capsules were estimated a little narrow for the system face there, so a name such as AccumulateNum read “Accumulate…”. Every getter is a few pixels wider.",
+			"A call wired from a declared function no longer offers to add arguments, which it takes from its function.",
+		],
+	},
+	{
 		version: "0.162.0",
 		date: "2026-10-09",
 		headline:

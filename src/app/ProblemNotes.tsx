@@ -17,6 +17,7 @@
 
 import type { Diagnostic } from "../core/compiler/index.js";
 import { nodeBounds } from "../core/nodeBox.js";
+import { growthState } from "../core/nodes/growth.js";
 import type { Registry } from "../core/nodes/index.js";
 import type { NodeScript } from "../core/schema.js";
 import { cx } from "./cx.js";
@@ -41,6 +42,13 @@ export function problemsByNode(diagnostics: readonly Diagnostic[]): Map<string, 
 /** How far below its node a note hangs. */
 const GAP = 6;
 
+/**
+ * And how much further under a node that grows: its Add row hangs there on
+ * hover (`.node .add-row`, 3 + 22), and a note over it would hide the row a
+ * person is reaching for.
+ */
+const ADD_ROW = 25;
+
 export function ProblemNotes(props: {
 	script: NodeScript;
 	registry: Registry;
@@ -56,6 +64,7 @@ export function ProblemNotes(props: {
 				const list = problems.get(node.id);
 				if (!list?.length) return null;
 				const box = nodeBounds(node, registry, wideNodes);
+				const grows = growthState(registry.get(node.def), node.config)?.canAdd === true;
 				const first = list[0];
 				const more = list.length - 1;
 				return (
@@ -65,7 +74,7 @@ export function ProblemNotes(props: {
 						role="note"
 						style={{
 							left: box.x,
-							top: box.y + box.h + GAP,
+							top: box.y + box.h + GAP + (grows ? ADD_ROW : 0),
 							maxWidth: Math.max(box.w + 40, 240),
 							// The selected node's note over its neighbours', when two meet.
 							zIndex: LAYER.problem + (selection.has(node.id) ? 1 : 0),

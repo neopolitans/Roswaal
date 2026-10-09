@@ -118,6 +118,28 @@ export function signatureText(sig: Signature): string {
 }
 
 /**
+ * A signature as its types alone: `(Model, BasePart) → boolean`.
+ *
+ * What a function's header shows under its name. The parameters' names are
+ * already on the pins below, so writing them again in the header only made
+ * the line too long to read: `(character: Model, hu…`.
+ */
+export function signatureTypes(sig: Signature): { params: string[]; returns: string[] } {
+	return {
+		params: (sig.params ?? []).map((p) => p.type ?? "any"),
+		returns: (sig.returns ?? []).map((r) => r.type ?? "any"),
+	};
+}
+
+/** `signatureTypes` written out as one line of text. */
+export function signatureTypesText(sig: Signature): string {
+	const { params, returns } = signatureTypes(sig);
+	const result =
+		returns.length === 0 ? "()" : returns.length === 1 ? returns[0] : `(${returns.join(", ")})`;
+	return `(${params.join(", ")}) → ${result}`;
+}
+
+/**
  * Whether an execution output carries on in the *same* Luau block as the
  * node's input, rather than opening a nested one.
  *
@@ -281,7 +303,7 @@ export const FLOW_NODES: NodeDef[] = [
 		// The name goes on the title line and the signature underneath it, so a
 		// graph full of functions can be read without opening any of them.
 		defaultLabel: (config) => signatureOf(config).name,
-		subtitle: (config) => signatureText(signatureOf(config)),
+		subtitle: (config) => signatureTypesText(signatureOf(config)),
 	},
 	{
 		/**
@@ -352,7 +374,7 @@ export const FLOW_NODES: NodeDef[] = [
 			const name = signatureOf(config).name;
 			return name ? `Declare Function (${name})` : undefined;
 		},
-		subtitle: (config) => signatureText(signatureOf(config)),
+		subtitle: (config) => signatureTypesText(signatureOf(config)),
 	},
 	{
 		id: "function.return",

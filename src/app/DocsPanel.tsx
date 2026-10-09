@@ -63,7 +63,6 @@ import type { ToolbarSpec } from "../core/docs/toolbars.js";
 import { controlKey, legendOf, TOOLBAR_HINT, toolbarHtml } from "../core/docs/toolbars.js";
 import { typeCellHtml } from "../core/docs/typeCell.js";
 import type { NodeMap } from "../core/nodemap.js";
-import { growthState } from "../core/nodes/growth.js";
 import { BUILTIN_NODES, type Registry } from "../core/nodes/index.js";
 import { RUNTIME_LABEL, RUNTIME_SUMMARY } from "../core/nodes/runtimes.js";
 import type { NodeScript } from "../core/schema.js";
@@ -126,7 +125,7 @@ const DEFAULT_PREVIEW: PreviewOptions = { geometry: NODE, nodeColor, pinColor, w
  * Exported because the node picker draws with it too — a picture that is not
  * the node you are about to place is worse than no picture.
  */
-export function previewFor(prefs: Preferences, registry: Registry): PreviewOptions {
+export function previewFor(prefs: Preferences): PreviewOptions {
 	return {
 		geometry: {
 			...NODE,
@@ -136,7 +135,6 @@ export function previewFor(prefs: Preferences, registry: Registry): PreviewOptio
 		nodeColor,
 		pinColor,
 		wirePath: (from, to) => wirePath(from, to, prefs.wireStyle),
-		growth: (preview) => growthState(registry.get(preview.id), preview.config),
 		scale: prefs.docsPreviewScale,
 	};
 }
@@ -192,7 +190,7 @@ export function DocsView({
 	const site = useMemo(() => buildSite(registry, BUILTIN_IDS), [registry]);
 	const index = useMemo(() => buildSearchIndex(site), [site]);
 
-	const preview = useMemo(() => previewFor(prefs, registry), [prefs, registry]);
+	const preview = useMemo(() => previewFor(prefs), [prefs]);
 
 	const [slug, setSlug] = useState(initialSlug ?? HOME);
 	// The newest release this browser has read the notes for, for the dots on

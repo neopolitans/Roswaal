@@ -57,7 +57,6 @@ import {
 import { importLuau } from "../../src/core/import/fromLuau.ts";
 import { hoverAt } from "../../src/core/luau/hover.ts";
 import { instanceLocalsAt } from "../../src/core/luau/instances.ts";
-import { growthState } from "../../src/core/nodes/growth.ts";
 import { BUILTIN_NODES, createRegistry, nodeTitle } from "../../src/core/nodes/index.ts";
 import { emptyScript } from "../../src/core/schema.ts";
 
@@ -155,7 +154,6 @@ function pickerNodes() {
 			nodeColor,
 			pinColor,
 			wirePath,
-			growth: (pin) => growthState(registry.get(pin.id), pin.config),
 		});
 		return {
 			id,
@@ -370,7 +368,6 @@ function previewDemo() {
 		nodeColor,
 		pinColor,
 		wirePath,
-		growth: (pin) => growthState(registry.get(pin.id), pin.config),
 	};
 	const svg = graphSvg(script, registry, options);
 	// Where graphSvg drew each node: levelled the same way, measured the same way.
@@ -661,13 +658,11 @@ const DEVICE_LAYOUTS = [
 ];
 
 function windowsDemo() {
-	const registry = createRegistry();
 	const preview = {
 		geometry: NODE,
 		nodeColor,
 		pinColor,
 		wirePath,
-		growth: (pin) => growthState(registry.get(pin.id), pin.config),
 	};
 	return `<div class="tour-pane tour-windows-demo">
           ${DEVICE_LAYOUTS.map(([id], i) => `<input class="tour-pick" type="radio" name="tour-device" id="tour-device-${id}"${i === 0 ? " checked" : ""} />`).join("")}
@@ -923,7 +918,6 @@ function importDemo() {
 		nodeColor,
 		pinColor,
 		wirePath,
-		growth: (pin) => growthState(registry.get(pin.id), pin.config),
 	};
 	const modes = IMPORT_MODES.map(([mode, name]) => {
 		const result = importLuau(IMPORT_SOURCE, {

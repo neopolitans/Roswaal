@@ -33,14 +33,13 @@
  * editor, and a reader hunting for a node they can see in their own graph is
  * not helped by chrome that only appears when they interact with it.
  *
- * The − and + on a node that takes a list are among them now: the canvas shows
- * them only on hover or selection, so the picture leaves them out and keeps
- * the room they take, as the canvas's header does. The dashed **default** on
+ * A node's Add row and the × beside each entry are among them: the canvas shows
+ * them only on hover or selection, outside the node's box. The dashed **default** on
  * an optional input *is* drawn: the canvas shows it on every such node, all
  * the time, so it is part of what the node looks like.
  */
 
-import { GLYPH_STROKE, GLYPHS, nodeGlyph } from "../nodeGlyphs.js";
+import { CODE_MARK_ROLE, CODE_MARKS, GLYPH_STROKE, GLYPHS, nodeGlyph } from "../nodeGlyphs.js";
 import { nodeTitle, type Registry, resolveNodePins } from "../nodes/index.js";
 import {
 	type OperatorField,
@@ -124,8 +123,8 @@ export interface NodePreview {
 	inputs: PreviewPin[];
 	outputs: PreviewPin[];
 	/**
-	 * A placed node's own config, so the header buttons can say whether another
-	 * pin would fit. Absent on a palette preview, which is at its minimum.
+	 * A placed node's own config, which an operator's pill is measured from.
+	 * Absent on a palette preview, which is at its minimum.
 	 */
 	config?: NodeConfig;
 }
@@ -213,13 +212,6 @@ export interface PreviewOptions {
 	 * them — a picture missing a line is honest, a wrong curve is not.
 	 */
 	wirePath?: (from: { x: number; y: number }, to: { x: number; y: number }) => string;
-	/**
-	 * Whether a node takes a list, so its header keeps room for the − and +
-	 * the canvas shows there on hover. Passed in with the colours; the rule is
-	 * `growthState`, shared with the editor. The buttons themselves are not
-	 * drawn: a picture is of a node at rest.
-	 */
-	growth?: (preview: NodePreview) => { canAdd: boolean; canRemove: boolean } | null;
 	/**
 	 * How large a single node picture is drawn, as a multiple of canvas size.
 	 * Only the outer size changes; the drawing inside is the same numbers,
@@ -673,23 +665,39 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 		);
 	}
 
+	// A node that holds code takes the Code panel's mark in its tab, in the
+	// code face and colours, on the editor's surface: `.node .head .tab.code-tab`.
+	const code = CODE_MARKS[preview.id];
 	// The glyph: 18px and white on the tab, or 15px in the category's colour
 	// where a value's header has no tab to sit on.
 	const glyphSize = pure ? 15 : 18;
 	const glyphX = pure ? 6 : (g.tab - glyphSize) / 2;
 	const ink = pure ? `color-mix(in srgb, ${cat} var(--cat-ink, 85%), var(--fg, #1c1f24))` : "#fff";
-	parts.push(
-		`<g transform="translate(${n(glyphX)} ${n((head - glyphSize) / 2)}) scale(${n4(glyphSize / 24)})">` +
-			`<path d="${GLYPHS[nodeGlyph(preview)]}" fill="none" stroke="${ink}" ` +
-			`stroke-width="${GLYPH_STROKE}" stroke-linecap="round" stroke-linejoin="round"/></g>`,
-	);
+	if (code) {
+		const role = CODE_MARK_ROLE[code.kind];
+		parts.push(
+			`<path d="${top(g.tab)}" fill="var(--bg-input, #ffffff)"/>`,
+			`<rect x="${n(g.tab - 1)}" y="0" width="1" height="${n(head)}" fill="${cat}" fill-opacity="0.35"/>`,
+			text(g.tab / 2, head / 2, code.mark, {
+				size: 12,
+				weight: 700,
+				mono: true,
+				anchor: "middle",
+				fill: `var(--code-${role}, #3b6ea5)`,
+			}),
+		);
+	} else {
+		parts.push(
+			`<g transform="translate(${n(glyphX)} ${n((head - glyphSize) / 2)}) scale(${n4(glyphSize / 24)})">` +
+				`<path d="${GLYPHS[nodeGlyph(preview)]}" fill="none" stroke="${ink}" ` +
+				`stroke-width="${GLYPH_STROKE}" stroke-linecap="round" stroke-linejoin="round"/></g>`,
+		);
+	}
 
 	// Header text, in the text colour on the tint, or the category's on a value.
 	const titleFill = pure ? ink : "var(--fg, #1c1f24)";
-	const titleX = pure ? glyphX + glyphSize + 5 : g.tab + 8;
-	const growth = options.growth?.(preview) ?? null;
-	const buttons = growth ? GROW.size * 2 + GROW.gap + 4 : 0;
-	const titleRoom = width - titleX - 9 - (preview.latent ? 14 : 0) - buttons;
+	const titleX = pure && !code ? glyphX + glyphSize + 5 : g.tab + 8;
+	const titleRoom = width - titleX - 9 - (preview.latent ? 14 : 0);
 	if (preview.subtitle) {
 		parts.push(
 			text(titleX, 16.75, fit(preview.title, titleRoom, TYPE.title), {
@@ -718,7 +726,7 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 	}
 	if (preview.latent) {
 		parts.push(
-			text(width - 9 - buttons, head / 2, "⏳", {
+			text(width - 9, head / 2, "⏳", {
 				size: TYPE.subtitle,
 				fill: titleFill,
 				opacity: 0.85,
@@ -816,9 +824,6 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 
 /** `.node .pin-label`: nearly the text colour. */
 const LABEL = "color-mix(in srgb, var(--fg, #1c1f24) 88%, var(--node-body, #fbfbfd))";
-
-/** `.node .head .grow button`: 16px squares, 2px apart, 8px in from the edge. */
-const GROW = { size: 16, gap: 2, inset: 8 } as const;
 
 /**
  * The capsule getter: a pill with its name and one output, which is how node

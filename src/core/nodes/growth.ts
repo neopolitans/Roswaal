@@ -1,5 +1,6 @@
 /**
- * How a node gains and loses pins -- the rule behind the − and + in its header.
+ * How a node gains and loses pins -- the rule behind its Add row and the ×
+ * beside each pin that can go.
  *
  * In core rather than beside the edits that apply it, because the documentation
  * draws those buttons too, and the static docs build cannot import the editor.
@@ -23,7 +24,15 @@ export interface GrowthRule {
 	max: number;
 	/** Pin id prefix, used to find the newest pin after growing. */
 	prefix: string;
+	/** What the entries are called, plural: "parameters". */
 	label: string;
+	/** One of them: "parameter", for the node's Add row. */
+	one: string;
+	/**
+	 * Which side the entries are on. A function's parameters and a Sequence's
+	 * steps are outputs; everything else that grows takes inputs.
+	 */
+	side: "in" | "out";
 }
 
 export function growthRule(def: NodeDef | undefined): GrowthRule | null {
@@ -37,6 +46,8 @@ export function growthRule(def: NodeDef | undefined): GrowthRule | null {
 			kind: "count",
 			prefix: "p",
 			label: "pairs",
+			one: "pair",
+			side: "in",
 			min: def.variadic.min,
 			max: def.variadic.max,
 		};
@@ -47,6 +58,8 @@ export function growthRule(def: NodeDef | undefined): GrowthRule | null {
 			kind: "count",
 			prefix: "a",
 			label: "operands",
+			one: "operand",
+			side: "in",
 			min: def.variadic.min,
 			max: def.variadic.max,
 		};
@@ -55,16 +68,61 @@ export function growthRule(def: NodeDef | undefined): GrowthRule | null {
 		case "call.function":
 		case "call.value":
 		case "call.method":
-			return { field: "args", kind: "count", min: 0, max: 8, prefix: "a", label: "arguments" };
+			return {
+				field: "args",
+				kind: "count",
+				min: 0,
+				max: 8,
+				prefix: "a",
+				label: "arguments",
+				one: "argument",
+				side: "in",
+			};
 		case "flow.sequence":
-			return { field: "count", kind: "count", min: 2, max: 12, prefix: "s", label: "outputs" };
+			return {
+				field: "count",
+				kind: "count",
+				min: 2,
+				max: 12,
+				prefix: "s",
+				label: "outputs",
+				one: "output",
+				side: "out",
+			};
 		case "function.return":
-			return { field: "returns", kind: "list", min: 0, max: 8, prefix: "r", label: "returns" };
+			return {
+				field: "returns",
+				kind: "list",
+				min: 0,
+				max: 8,
+				prefix: "r",
+				label: "results",
+				one: "result",
+				side: "in",
+			};
 		case "module.exports":
-			return { field: "exports", kind: "list", min: 1, max: 16, prefix: "e", label: "exports" };
+			return {
+				field: "exports",
+				kind: "list",
+				min: 1,
+				max: 16,
+				prefix: "e",
+				label: "exports",
+				one: "export",
+				side: "in",
+			};
 		case "function.entry":
 		case "function.declareHere":
-			return { field: "params", kind: "list", min: 0, max: 8, prefix: "p", label: "parameters" };
+			return {
+				field: "params",
+				kind: "list",
+				min: 0,
+				max: 8,
+				prefix: "p",
+				label: "parameters",
+				one: "parameter",
+				side: "out",
+			};
 		default:
 			return null;
 	}
@@ -93,4 +151,16 @@ export function growthState(
 	if (def && WIRED_CALLS.has(def.id) && wiredSignatureOf(config ?? {})) return null;
 	const arity = currentArity({ config }, def, rule);
 	return { canAdd: arity < rule.max, canRemove: arity > rule.min };
+}
+
+/**
+ * Which entry a pin is, by position, or -1 for a pin that is not one of the
+ * node's entries. A split entry's parts count as the entry: a dictionary row
+ * split into Key and Value is one row.
+ */
+export function entryIndex(rule: GrowthRule, side: "in" | "out", pinId: string): number {
+	if (side !== rule.side) return -1;
+	const match = /^([a-z]+)(\d+)(?:\..+)?$/.exec(pinId);
+	if (!match || match[1] !== rule.prefix) return -1;
+	return Number(match[2]);
 }

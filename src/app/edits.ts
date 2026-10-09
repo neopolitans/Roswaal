@@ -24,7 +24,7 @@ import {
 	HANDLER_NODES,
 	signatureOf,
 } from "../core/nodes/flow.js";
-import { currentArity, type GrowthRule, growthRule } from "../core/nodes/growth.js";
+import { currentArity, entryIndex, type GrowthRule, growthRule } from "../core/nodes/growth.js";
 import type { Registry } from "../core/nodes/index.js";
 import { literalOnlyPins, pinTypesOf, resolveNodePins } from "../core/nodes/index.js";
 import { type LocalRef, localNameOf, pinDefaultFor, pinTypeOf } from "../core/nodes/variables.js";
@@ -1057,7 +1057,12 @@ function pinsOf(def: NodeDef, node: GraphNode) {
 
 // The rule itself lives in core, so the documentation can draw the same
 // buttons the canvas does.
-export { currentArity, type GrowthRule, growthRule } from "../core/nodes/growth.js";
+export {
+	currentArity,
+	type GrowthRule,
+	growthRule,
+	growthState,
+} from "../core/nodes/growth.js";
 
 /**
  * Adds or removes one input. Returns the new script and, when one was added,
@@ -1135,6 +1140,156 @@ export function growNode(
 	// dropped on the node lands on the new row's Value.
 	const added = `${rule.prefix}${next - 1}`;
 	return { script: updated, pin: splitRow ? partPinId(added, "value") : added };
+}
+
+/**
+ * Takes one entry out of a node that grows -- a parameter, an argument, an
+ * output, a result -- from any position, not only the last.
+ *
+ * An entry's pins are named by position (`p0`, `p1`, …), and wires, typed
+ * values and splits refer to pins by name. Taking `p1` out of three without
+ * renaming would leave the wire that was on `p2` pointing at a pin that no
+ * longer exists, and the old `p2`'s values arriving on what is now `p1`. So
+ * every pin after the one removed moves up a place and takes its wires, its
+ * value and its split with it; the removed one's wires go.
+ *
+ * A Return's results are its function's, so removing one reaches the function
+ * and every other Return in it, each renumbered the same way. A call wired to
+ * a function follows its parameters by name, which `adoptWiredSignatures`
+ * does after the edit.
+ */
+export function removeEntry(
+	script: NodeScript,
+	registry: Registry,
+	nodeId: string,
+	index: number,
+): NodeScript {
+	const node = script.nodes.find((n) => n.id === nodeId);
+	const def = node && registry.get(node.def);
+	const rule = growthRule(def);
+	if (!node || !def || !rule) return script;
+	const count = currentArity(node, def, rule);
+	if (count <= rule.min || index < 0 || index >= count) return script;
+
+	// Renumbered first, while every pin still exists: changing the config
+	// drops the wires of pins that are gone, and the last entry's pin is gone
+	// once the list is shorter, though its wires belong one place up.
+	let updated = renumberEntries(script, nodeId, rule, index);
+	if (rule.kind === "count") return setConfig(updated, nodeId, { [rule.field]: count - 1 });
+
+	const list = configEntries(node, rule.field);
+	const next = list.filter((_, i) => i !== index);
+	const owner =
+		def.id === "function.return"
+			? (findOwningFunction(script, nodeId) ?? graphOf(node))
+			: undefined;
+	if (owner) {
+		// The function's other Returns lose the same result, renumbered the
+		// same way, before their configs are brought into step.
+		for (const other of script.nodes) {
+			if (other.id !== nodeId && other.def === "function.return" && graphOf(other) === owner) {
+				updated = renumberEntries(updated, other.id, rule, index);
+			}
+		}
+	}
+	updated = setConfig(updated, nodeId, { [rule.field]: next });
+	if (owner) {
+		updated = setConfig(updated, owner, { returns: next });
+		updated = syncFunctionReturns(updated, owner);
+	}
+	if (rule.field === "params") updated = syncParamRefs(updated, nodeId, list, next);
+	return updated;
+}
+
+/**
+ * Takes entry `index` out of one of a node's lists, as the Inspector's × does.
+ *
+ * The list a node grows by goes through `removeEntry`, so its pins renumber.
+ * A function's results are not its own pins but its Returns', so each Return
+ * in its graph is renumbered before the signature changes. Any other list --
+ * a type's fields -- has no pins, and is only shortened.
+ */
+export function removeListEntry(
+	script: NodeScript,
+	registry: Registry,
+	nodeId: string,
+	field: string,
+	index: number,
+): NodeScript {
+	const node = script.nodes.find((n) => n.id === nodeId);
+	if (!node) return script;
+	const rule = growthRule(registry.get(node.def));
+	if (rule?.field === field) return removeEntry(script, registry, nodeId, index);
+
+	const list = configEntries(node, field);
+	const next = list.filter((_, i) => i !== index);
+	if (field === "returns" && FUNCTION_NODES.has(node.def)) {
+		const results = growthRule(registry.get("function.return"));
+		let updated = script;
+		if (results) {
+			for (const other of script.nodes) {
+				if (other.def === "function.return" && graphOf(other) === nodeId) {
+					updated = renumberEntries(updated, other.id, results, index);
+				}
+			}
+		}
+		return syncFunctionReturns(setConfig(updated, nodeId, { returns: next }), nodeId);
+	}
+	return setConfig(script, nodeId, { [field]: next });
+}
+
+/** Moves a node's entries after `index` up a place, dropping the one at it. */
+function renumberEntries(
+	script: NodeScript,
+	nodeId: string,
+	rule: GrowthRule,
+	index: number,
+): NodeScript {
+	const rename = (pin: string): string | null => {
+		const at = entryIndex(rule, rule.side, pin);
+		if (at < index) return pin;
+		if (at === index) return null;
+		return `${rule.prefix}${at - 1}${pin.slice(`${rule.prefix}${at}`.length)}`;
+	};
+	const end = rule.side === "in" ? "to" : "from";
+
+	const links = script.links.flatMap((link) => {
+		const ref = link[end];
+		if (ref.node !== nodeId) return [link];
+		const pin = rename(ref.pin);
+		if (pin === null) return [];
+		return pin === ref.pin ? [link] : [{ ...link, [end]: { ...ref, pin } }];
+	});
+
+	const nodes = script.nodes.map((n) => {
+		if (n.id !== nodeId) return n;
+		let next = n;
+		if (rule.side === "in" && n.literals) {
+			const literals: Record<string, Literal> = {};
+			for (const [pin, value] of Object.entries(n.literals)) {
+				const to = rename(pin);
+				if (to !== null) literals[to] = value;
+			}
+			next = { ...next, literals };
+		}
+		const splits = splitsOf(n.config);
+		if (Object.keys(splits).length > 0) {
+			const moved: Record<string, string> = {};
+			for (const [key, mode] of Object.entries(splits)) {
+				const [side, pin] = [key.slice(0, key.indexOf(":")), key.slice(key.indexOf(":") + 1)];
+				if (side !== rule.side) {
+					moved[key] = mode;
+					continue;
+				}
+				const to = rename(pin);
+				if (to !== null) moved[splitKey(side, to)] = mode;
+			}
+			next = { ...next, config: { ...(next.config ?? {}), split: moved } };
+		}
+		return next;
+	});
+
+	return { ...script, nodes, links };
 }
 
 function defaultEntryName(rule: GrowthRule): string {

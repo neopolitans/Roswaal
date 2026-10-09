@@ -276,16 +276,20 @@ export function wiresAndPinsPage({ registry }: PageContext): DocPage {
 			{
 				t: "p",
 				text:
-					"A node that takes a list has **+** and **−** in its header, which show when you " +
-					"point at the node or select it: the maths and logic operators, Make Dictionary, " +
-					"calls, Sequence, Return, Module Exports, and a function's parameters.",
+					"A node that takes a list, such as a call, Make Dictionary, Sequence, Return, " +
+					"Module Exports or a function's parameters, shows an **Add** row under it when you " +
+					"point at it or select it, and a grey **×** beside each entry it can lose. Add " +
+					"puts a new one at the end. × takes that one away, wherever it is, and the wires " +
+					"and values of the ones after it move up with them. The maths and logic " +
+					"operators keep a **+** and **−** beside their symbol.",
 			},
 			{
 				t: "graph",
 				script: GUIDE_SCENES.growPins(),
 				caption:
-					"Add at three operands and Sequence at three outputs. **+** adds one and **−** " +
-					"takes the last away; each greys out at the node's limit.",
+					"Add at three operands and Sequence at three outputs. Add's **+** and **−** sit " +
+					"beside its symbol; Sequence's Add row and its × show when you point at it, and " +
+					"go once it reaches its limit.",
 			},
 		],
 	};

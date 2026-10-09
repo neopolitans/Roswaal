@@ -238,6 +238,8 @@ export function visualGrammarPage({ registry }: PageContext): DocPage {
 					`In the header's left corner is the **category tab**: \`tab\` wide, the full height of the header, filled with the category's colour, holding the category's glyph at 18 units in white. Glyphs are drawn as strokes ${GLYPH_STROKE} wide on a 24-unit grid, scaled to fit.`,
 					"The title starts 8 units after the tab and is cut short with an ellipsis rather than wrapped. A second line, where a node has one, is set smaller under the title, in a monospaced face.",
 					"A value has no tab: its glyph, at 15 units, and its title are drawn in the category's colour, mixed with the text colour enough to stay readable on the body.",
+					"A node that holds code **SHOULD** show the profile's mark for that kind of code in its tab, in place of a glyph, as the profile's code editor marks it. Roswaal's are `{ }` for statements, `ƒx` for an expression and `<T>` for a type, in the theme's code colours on the code editor's surface.",
+					"A function definition's second line **SHOULD** be its signature as types alone, each in its type's colour, such as `(Model, BasePart) → boolean`: the names are on its pins, and with them the line is too long to read.",
 					"A renderer **MUST NOT** fill a header with the category's colour at full strength and **MUST NOT** put the category's colour behind the title text. The colour belongs to the tab.",
 				],
 			},

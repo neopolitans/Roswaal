@@ -133,7 +133,8 @@ export function luauForRobloxPage(): DocPage {
 					"Generated from `core/nodes` and `core/nodeGlyphs.ts`. **Both** means the node " +
 					"works in a Lune graph too (§12). The Roblox Types category is split by datatype, " +
 					"each with a colour and a glyph of its own. A node that starts or ends a flow takes " +
-					"the glyph `entry` or `terminal`, and Declare Function the glyph `function`, " +
+					"the glyph `entry` or `terminal`; Function and Declare Function take `function`, " +
+					"and Return `return`, " +
 					"whatever its category.",
 			},
 

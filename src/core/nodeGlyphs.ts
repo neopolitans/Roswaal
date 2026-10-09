@@ -22,9 +22,11 @@ export const GLYPH_STROKE = 2.2;
 export const GLYPHS = {
 	/** Where a flow starts: Script Start, a function's Body. */
 	entry: "M8 5.5v13l10.5-6.5z",
-	/** Where it stops: Script End, Return. */
+	/** Where it stops: Script End, Break, Module Exports. */
 	terminal: "M6.5 6.5h11v11h-11z",
-	/** A function declared where it sits in a flow: Declare Function. */
+	/** A function handing its results back: Return. */
+	return: "M19 5.5v5.25a4 4 0 0 1-4 4H5.5M9.5 10.75l-4 4 4 4",
+	/** A function: Function, which is hoisted, and Declare Function. */
 	function: "M16.5 4.5c-3-1.2-5.2 0-5.7 3L9.2 16.5c-.5 3-2.7 4.2-5.7 3M7.5 10.5h8",
 	/** Flow: one way in, two ways on. */
 	flow: "M3.5 12h5.5l4-5.5h7.5M9 12l4 5.5h7.5M17.5 3.5l3 3-3 3M17.5 14.5l3 3-3 3",
@@ -122,9 +124,39 @@ export function nodeGlyph(def: {
 	subcategory?: string;
 	role?: string;
 }): GlyphName {
+	// A function definition is a function before it is an entry: the red
+	// already says a flow starts there, and ƒ says what kind of thing it is.
+	if (def.id !== undefined && FUNCTION_NODES.has(def.id)) return "function";
+	if (def.id === "function.return") return "return";
 	if (def.role === "entry") return "entry";
 	if (def.role === "terminal") return "terminal";
-	if (def.id !== undefined && FUNCTION_NODES.has(def.id)) return "function";
 	if (def.subcategory && BY_SUBCATEGORY[def.subcategory]) return BY_SUBCATEGORY[def.subcategory];
 	return CATEGORY_GLYPHS[def.category] ?? "other";
 }
+
+/**
+ * The nodes that hold code, and the mark each takes in place of a glyph: the
+ * Code panel's own, so a Code Block on the graph and its tab in the editor
+ * read as one thing. `{ }` for statements, `ƒx` for a value worked out, as a
+ * formula bar has it, and `<T>` for a type, as Luau writes a type parameter.
+ *
+ * Drawn as text in the code face and the code colours on the editor's own
+ * surface, rather than white on the category's colour: a theme is checked for
+ * its code colours against that surface (`validateTheme`), so the mark is
+ * readable in every theme without another check.
+ */
+export const CODE_MARKS: Readonly<
+	Record<string, { kind: "block" | "expression" | "type"; mark: string }>
+> = {
+	"code.custom": { kind: "block", mark: "{ }" },
+	"value.expression": { kind: "expression", mark: "ƒx" },
+	"type.declareTop": { kind: "type", mark: "<T>" },
+	"type.declareHere": { kind: "type", mark: "<T>" },
+};
+
+/** The code role each mark is coloured with: `--code-keyword` and so on. */
+export const CODE_MARK_ROLE = {
+	block: "keyword",
+	expression: "function",
+	type: "type",
+} as const;
