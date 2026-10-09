@@ -18524,3 +18524,184 @@ textarea.tb:where(:disabled) {
 		display: none;
 	}
 }
+
+/* ---------------------------------------------- specification blocks */
+/* The technical specification's own blocks: requirement rows, key words as
+   pins, cards side by side, and framed examples. Drawn the same in the Docs
+   panel, the static docs and spec.roswaal.app: `scripts/build-spec.mjs` copies
+   this section, from here to its end marker, into the specification site's
+   stylesheet, so the two cannot drift apart. Only tokens a theme sets. */
+
+/* A key word of RFC 2119, as a pin coloured by how hard it binds. */
+.kw {
+	display: inline-block;
+	padding: 1px 5px;
+	border-radius: 4px;
+	font: 700 0.72em/1.35 "Cascadia Mono", Consolas, ui-monospace, monospace;
+	letter-spacing: 0.04em;
+	vertical-align: 0.08em;
+	white-space: nowrap;
+}
+
+.kw.kw-must {
+	background: color-mix(in srgb, var(--danger) 16%, transparent);
+	color: color-mix(in srgb, var(--danger) 78%, var(--fg));
+}
+
+.kw.kw-should {
+	background: color-mix(in srgb, var(--warning) 20%, transparent);
+	color: color-mix(in srgb, var(--warning) 62%, var(--fg));
+}
+
+.kw.kw-may {
+	background: color-mix(in srgb, var(--fg) 10%, transparent);
+	color: color-mix(in srgb, var(--fg) 80%, transparent);
+}
+
+/* A numbered requirement: its number, what it requires, and whether Roswaal
+   meets it. Consecutive ones join into one card. */
+.spec-req {
+	display: grid;
+	grid-template-columns: 76px minmax(0, 1fr) auto;
+	gap: 6px 14px;
+	align-items: start;
+	margin: 0 0 16px;
+	padding: 12px 16px;
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	background: var(--bg-input);
+}
+
+.spec-req:has(+ .spec-req) {
+	margin-bottom: 0;
+	border-bottom-left-radius: 0;
+	border-bottom-right-radius: 0;
+}
+
+.spec-req + .spec-req {
+	border-top: 0;
+	border-top-left-radius: 0;
+	border-top-right-radius: 0;
+}
+
+.spec-req:target {
+	box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.spec-req-id {
+	padding-top: 2px;
+	font: 600 12px/1.7 "Cascadia Mono", Consolas, ui-monospace, monospace;
+	color: var(--fg-muted);
+	text-decoration: none;
+	white-space: nowrap;
+}
+
+.spec-req-id:hover {
+	color: var(--accent);
+}
+
+.spec-req-text p {
+	margin: 0;
+}
+
+.spec-req-text .spec-req-gap {
+	margin-top: 6px;
+	font-size: 0.9em;
+	color: var(--fg-muted);
+}
+
+.spec-req-status {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding-top: 3px;
+	font-size: 12px;
+	font-weight: 650;
+	white-space: nowrap;
+}
+
+.spec-req-status::before {
+	content: "";
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: currentColor;
+}
+
+.spec-req-status.st-meets {
+	color: var(--ok);
+}
+
+.spec-req-status.st-partly {
+	color: var(--warning);
+}
+
+.spec-req-status.st-not-yet {
+	color: var(--danger);
+}
+
+@media (max-width: 640px) {
+	.spec-req {
+		grid-template-columns: minmax(0, 1fr) auto;
+	}
+
+	.spec-req-text {
+		grid-column: 1 / -1;
+		grid-row: 2;
+	}
+}
+
+/* Statements side by side, each in a card of its own under a small label. */
+.docs-compare {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 10px;
+	margin: 0 0 18px;
+}
+
+.docs-compare-card {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	padding: 10px 12px;
+	border-radius: 8px;
+	background: color-mix(in srgb, var(--fg) 5%, var(--bg-input));
+	line-height: 1.5;
+}
+
+.docs-compare-card.tone-warn {
+	background: color-mix(in srgb, var(--danger) 9%, var(--bg-input));
+	color: color-mix(in srgb, var(--danger) 45%, var(--fg));
+}
+
+.docs-compare-card .label {
+	font-size: 10.5px;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	opacity: 0.75;
+}
+
+/* An example in a frame that says whose it is. */
+.docs-preview.framed {
+	padding-top: 0;
+	overflow: hidden;
+}
+
+.docs-frame-head {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	margin: 0 -16px 16px;
+	padding: 7px 14px;
+	border-bottom: 1px solid var(--border);
+	background: var(--bg-panel);
+	font-size: 12px;
+	color: var(--fg-muted);
+}
+
+.docs-frame-head .aside {
+	font-style: italic;
+}
+
+/* ------------------------------------------ end specification blocks */

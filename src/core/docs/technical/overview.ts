@@ -4,7 +4,7 @@
  */
 
 import type { DocPage } from "../site.js";
-import { normative } from "./spec.js";
+import { normative, req } from "./spec.js";
 
 export function overviewPage(): DocPage {
 	return {
@@ -66,18 +66,24 @@ export function overviewPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"An implementation supports one or more profiles. A graph says which profile it " +
-					"was written for (§9.1), and an implementation that does not support it **MUST** " +
-					"say so rather than open the graph as though it belonged to another.",
+					"An implementation supports one or more profiles, and a graph says which profile " +
+					"it was written for (§9.1).",
 			},
+			req(
+				"1.2-R1",
+				"not-yet",
+				"An implementation given a graph for a profile it does not support **MUST** say so, rather than open the graph as though it belonged to another.",
+				"Roswaal reads a graph whose `target` it does not know as a Roblox graph.",
+			),
 
 			{ t: "h", level: 2, text: "1.3 Conformance levels" },
 			{
 				t: "p",
 				text:
 					"An implementation conforms at one or more of four levels. Each level names the " +
-					"chapters it is held to. A level does not require the ones before it, so a " +
-					"compiler can conform without drawing anything, and a viewer without compiling.",
+					"chapters it is held to. Compile includes Format, and Interact includes Render, but " +
+					"the two pairs are independent: a compiler can conform without drawing anything, " +
+					"and a viewer without compiling.",
 			},
 			{
 				t: "table",
@@ -105,12 +111,15 @@ export function overviewPage(): DocPage {
 					],
 				],
 			},
+			req(
+				"1.3-R1",
+				"not-yet",
+				"An implementation **MUST** state which levels and which profiles it conforms to, and which draft of the specification.",
+				"Roswaal does not say yet. It will once there are fixtures to check a claim against (§13).",
+			),
 			{
 				t: "p",
-				text:
-					"An implementation **MUST** state which levels and which profiles it conforms to, " +
-					"and which draft of the specification. [Conformance](technical/conformance) " +
-					"describes the fixtures each level is checked against.",
+				text: "[Conformance](technical/conformance) describes the fixtures each level is checked against.",
 			},
 
 			{ t: "h", level: 2, text: "1.4 Notation" },

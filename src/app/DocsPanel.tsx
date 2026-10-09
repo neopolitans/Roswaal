@@ -26,6 +26,7 @@ import { VERSION } from "../cli/version.js";
 import { attributionsHtml } from "../core/docs/attributionsHtml.js";
 import { graphViews } from "../core/docs/graphViews.js";
 import { headingId } from "../core/docs/html.js";
+import { keywordStrength } from "../core/docs/inlineHtml.js";
 import { type LayoutSpec, layoutHtml, listedRegions } from "../core/docs/layouts.js";
 import { mapFigure, mapFigureHtml, walkMapHtml } from "../core/docs/mapFigure.js";
 import { nodeCodeHtml } from "../core/docs/nodeCode.js";
@@ -58,7 +59,13 @@ import {
 	searchDocs,
 	TAG_LABELS,
 } from "../core/docs/site.js";
-import { DRAFT_DETAIL, SPEC_DETAILS, SPEC_LABELS } from "../core/docs/technical/spec.js";
+import {
+	DRAFT_DETAIL,
+	REQ_STATUS_LABELS,
+	reqAnchor,
+	SPEC_DETAILS,
+	specStatusLabel,
+} from "../core/docs/technical/spec.js";
 import type { ToolbarSpec } from "../core/docs/toolbars.js";
 import { controlKey, legendOf, TOOLBAR_HINT, toolbarHtml } from "../core/docs/toolbars.js";
 import { typeCellHtml } from "../core/docs/typeCell.js";
@@ -235,16 +242,33 @@ export function DocsView({
 
 	// A new page starts at the top; keeping the old scroll position drops you
 	// into the middle of something you have not read.
+	// A place on the page to open at, from a link such as `technical/types#r-6-3-r1`.
+	const anchor = useRef<string | null>(null);
+	const scrollToAnchor = (id: string | null): boolean => {
+		const target = id ? body.current?.querySelector(`#${CSS.escape(id)}`) : null;
+		target?.scrollIntoView({ block: "start" });
+		return Boolean(target);
+	};
+
 	useEffect(() => {
-		body.current?.scrollTo({ top: 0 });
+		const id = anchor.current;
+		anchor.current = null;
+		if (!scrollToAnchor(id)) body.current?.scrollTo({ top: 0 });
 		onNavigate?.(slug);
 	}, [slug, onNavigate]);
 
 	const go = (next: string) => {
-		setSlug(next);
+		const [bare, hash] = next.split("#");
 		setQuery("");
 		setPalette(false);
-		setRecent((was) => [next, ...was.filter((slug) => slug !== next)].slice(0, 8));
+		setRecent((was) => [bare, ...was.filter((slug) => slug !== bare)].slice(0, 8));
+		// The same page: no change of slug to scroll on, so scroll now.
+		if (bare === slug) {
+			scrollToAnchor(hash ?? null);
+			return;
+		}
+		anchor.current = hash ?? null;
+		setSlug(bare);
 	};
 
 	/**
@@ -586,7 +610,7 @@ function Page({ page, site, go }: { page: DocPage; site: DocSite; go: (next: str
 									className={`badge spec ${page.spec.status}`}
 									title={SPEC_DETAILS[page.spec.status]}
 								>
-									{SPEC_LABELS[page.spec.status]}
+									{specStatusLabel(page.spec)}
 								</span>
 								<span className="badge spec draft" title={DRAFT_DETAIL}>
 									Draft {page.spec.draft}
@@ -894,7 +918,7 @@ function BlockView({ block }: { block: Block }) {
 			return (
 				<div className={`docs-note note-${block.kind}`}>
 					<div
-						dangerouslySetInnerHTML={{ __html: noteHeadHtml(block.kind) }}
+						dangerouslySetInnerHTML={{ __html: noteHeadHtml(block.kind, block.label) }}
 						style={{ display: "contents" }}
 					/>
 					<div className="docs-note-body">
@@ -914,7 +938,43 @@ function BlockView({ block }: { block: Block }) {
 		case "pins":
 			return <PinTable title={block.title} pins={block.pins} />;
 		case "preview":
-			return <PreviewFigure nodes={block.nodes} caption={block.caption} />;
+			return <PreviewFigure nodes={block.nodes} caption={block.caption} label={block.label} />;
+		case "req": {
+			const id = reqAnchor(block.id);
+			return (
+				<div className="spec-req" id={id}>
+					<a className="spec-req-id" href={`#${id}`} title="Link to this requirement">
+						{block.id}
+					</a>
+					<div className="spec-req-text">
+						<p>
+							<Rich text={block.text} />
+						</p>
+						{block.gap && (
+							<p className="spec-req-gap">
+								<Rich text={block.gap} />
+							</p>
+						)}
+					</div>
+					<span className={`spec-req-status st-${block.roswaal}`}>
+						{REQ_STATUS_LABELS[block.roswaal]}
+					</span>
+				</div>
+			);
+		}
+		case "compare":
+			return (
+				<div className="docs-compare">
+					{block.items.map((item, i) => (
+						<div className={`docs-compare-card tone-${item.tone ?? "plain"}`} key={i}>
+							<span className="label">{item.label}</span>
+							<span className="text">
+								<Rich text={item.text} />
+							</span>
+						</div>
+					))}
+				</div>
+			);
 		case "graph": {
 			// A function is drawn in a graph of its own, a tab each, as the
 			// editor opens it.
@@ -1364,11 +1424,25 @@ function Tabs({ block }: { block: Block & { t: "tabs" } }) {
  * thing here and another on the website. Nothing in it comes from the user —
  * every value passes through `escapeXml` on the way in.
  */
-function PreviewFigure({ nodes, caption }: { nodes: NodePreview[]; caption?: string }) {
+function PreviewFigure({
+	nodes,
+	caption,
+	label,
+}: {
+	nodes: NodePreview[];
+	caption?: string;
+	label?: string;
+}) {
 	const preview = useContext(PreviewContext);
 	const wide = breakout(preview.scale);
 	return (
-		<figure className={`docs-preview${wide.className}`} style={wide.style}>
+		<figure className={`docs-preview${label ? " framed" : ""}${wide.className}`} style={wide.style}>
+			{label && (
+				<div className="docs-frame-head">
+					<span>{label}</span>
+					<span className="aside">informative</span>
+				</div>
+			)}
 			<div className="row">
 				{nodes.map((node) => (
 					<div
@@ -1549,8 +1623,10 @@ function Run({ run }: { run: Inline }) {
 			return <>{run.text}</>;
 		case "code":
 			return <code>{run.text}</code>;
-		case "strong":
-			return <strong>{run.text}</strong>;
+		case "strong": {
+			const kw = keywordStrength(run.text);
+			return kw ? <span className={`kw kw-${kw}`}>{run.text}</span> : <strong>{run.text}</strong>;
+		}
 		case "em":
 			return <em>{run.text}</em>;
 		case "link":

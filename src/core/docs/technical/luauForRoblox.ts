@@ -46,7 +46,7 @@ export function luauForRobloxPage(): DocPage {
 		title: "11 Luau for Roblox",
 		summary:
 			"The profile for Roblox experiences: Luau's types and Roblox's, the class tree, the built-in library, and the files it writes.",
-		spec: normative(),
+		spec: normative("Level 2"),
 		blocks: [
 			{ t: "h", level: 2, text: "11.1 Overview" },
 			{ t: "note", kind: "info", text: "This section is informative." },
@@ -204,8 +204,9 @@ export function luauForRobloxPage(): DocPage {
 			{
 				t: "note",
 				kind: "info",
+				label: "Proposed",
 				text:
-					"**Proposed.** Typing a hand-written module's functions for graphs from its " +
+					"Typing a hand-written module's functions for graphs from its " +
 					"Moonwave doc comments, and from Roswaal's own tags where Moonwave has none, in " +
 					"plain `--` comments so a Moonwave site still builds (§6.5). Not decided, and not " +
 					"built.",
@@ -222,7 +223,7 @@ export function luauForLunePage(): DocPage {
 		title: "12 Luau for Lune",
 		summary:
 			"The profile for Lune programs: what changes from Roblox, Lune's standard library, and running the output.",
-		spec: normative(),
+		spec: normative("Level 2"),
 		blocks: [
 			{ t: "h", level: 2, text: "12.1 What changes from Roblox" },
 			{ t: "note", kind: "info", text: "This section is informative." },

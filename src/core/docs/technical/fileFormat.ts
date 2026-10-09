@@ -8,7 +8,7 @@
 import { SCHEMA_VERSION } from "../../schema.js";
 import { code } from "../pages/blocks.js";
 import type { DocPage } from "../site.js";
-import { normative } from "./spec.js";
+import { normative, req } from "./spec.js";
 
 export function fileFormatPage(): DocPage {
 	return {
@@ -16,7 +16,7 @@ export function fileFormatPage(): DocPage {
 		title: "9 File format",
 		summary:
 			"How a graph is stored: the graph file, its nodes and wires, variables and modules, comments, node maps, project settings and versions.",
-		spec: normative(),
+		spec: normative("Level 1"),
 		blocks: [
 			{
 				t: "p",
@@ -85,8 +85,14 @@ export function fileFormatPage(): DocPage {
 				text:
 					"`scriptClass`, `runContext`, `typecheck` and `services` are the Luau profiles' " +
 					"fields, kept at the top level for Draft 0.1; §10.1 says how a profile names its " +
-					"own. A reader **MUST** keep fields it does not know when it writes a file back.",
+					"own.",
 			},
+			req(
+				"9.1-R1",
+				"not-yet",
+				"A reader **MUST** keep fields it does not know when it writes a file back.",
+				"Roswaal keeps them in `roswaal.json`, and drops them from a graph file when it saves it.",
+			),
 
 			// 9.2 ----------------------------------------------------------------
 			{ t: "h", level: 2, text: "9.2 Nodes and links" },
@@ -155,9 +161,9 @@ export function fileFormatPage(): DocPage {
 				t: "p",
 				text:
 					"Ids are opaque strings. Roswaal makes them as random UUIDs; another " +
-					"implementation **MAY** use any scheme that keeps them unique within the file, and " +
-					"**MUST NOT** read meaning into another's.",
+					"implementation **MAY** use any scheme that keeps them unique within the file.",
 			},
+			req("9.2-R1", "meets", "An implementation **MUST NOT** read meaning into another's ids."),
 
 			// 9.3 ----------------------------------------------------------------
 			{ t: "h", level: 2, text: "9.3 Variables, modules, services" },
@@ -194,11 +200,13 @@ export function fileFormatPage(): DocPage {
 			},
 			{
 				t: "p",
-				text:
-					"The list of modules is the program's whole list: a compiler **MUST NOT** load a " +
-					"module the list does not name. Locals and functions are not listed: each is a " +
-					"node (§3.6, §3.7).",
+				text: "Locals and functions are not listed: each is a node (§3.6, §3.7).",
 			},
+			req(
+				"9.3-R1",
+				"meets",
+				"The list of modules is the program's whole list: a compiler **MUST NOT** load a module the list does not name.",
+			),
 
 			// 9.4 ----------------------------------------------------------------
 			{ t: "h", level: 2, text: "9.4 Comments" },
@@ -233,8 +241,13 @@ export function fileFormatPage(): DocPage {
 					"programs are written (`outDir`), where node packs are (`nodePaths`), when to " +
 					'compile (`compileMode`, `"manual"` or `"hot"`), and how programs are laid ' +
 					"out (`format`, `indentStyle`, `indentWidth`, `comments`). A missing field takes " +
-					"its default; a field a reader does not know **MUST** be kept.",
+					"its default.",
 			},
+			req(
+				"9.6-R1",
+				"meets",
+				"A field of the project file a reader does not know **MUST** be kept.",
+			),
 
 			// 9.7 ----------------------------------------------------------------
 			{ t: "h", level: 2, text: "9.7 Versions and migration" },
@@ -242,17 +255,26 @@ export function fileFormatPage(): DocPage {
 				t: "ul",
 				items: [
 					`Every file carries \`schemaVersion\`. This draft describes version ${SCHEMA_VERSION}.`,
-					"A reader **MUST** refuse a file with a higher version than it knows, and say it was written by a newer implementation, rather than guess at it.",
-					"A reader **SHOULD** bring an older file up to date as it reads it: fill in fields that did not exist, and rename nodes and pins that were renamed. It **MUST** say what it changed.",
-					"A writer **MUST** write the version it implements.",
 				],
 			},
+			req(
+				"9.7-R1",
+				"meets",
+				"A reader **MUST** refuse a file with a higher version than it knows, and say it was written by a newer implementation, rather than guess at it.",
+			),
+			req(
+				"9.7-R2",
+				"meets",
+				"A reader **SHOULD** bring an older file up to date as it reads it: fill in fields that did not exist, and rename nodes and pins that were renamed. It **MUST** say what it changed.",
+			),
+			req("9.7-R3", "meets", "A writer **MUST** write the version it implements."),
 			{
 				t: "note",
 				kind: "info",
+				label: "A version that has changed shape",
 				text:
-					`**In Draft 0.1, version ${SCHEMA_VERSION} has changed shape without changing ` +
-					"number.** Roswaal recognises an old file by what is in it, not by its version: " +
+					`In Draft 0.1, version ${SCHEMA_VERSION} has changed shape without changing number. ` +
+					"Roswaal recognises an old file by what is in it, not by its version: " +
 					"a renamed node by its old id, an old field by its presence. Until 1.0, an " +
 					"implementation reading Roswaal's files has to do the same. From 1.0 a change of " +
 					"shape will change the number (§14.1).",
@@ -260,16 +282,11 @@ export function fileFormatPage(): DocPage {
 
 			// 9.8 ----------------------------------------------------------------
 			{ t: "h", level: 2, text: "9.8 Writing a file" },
-			{
-				t: "p",
-				text:
-					"So that a graph saved twice is the same bytes, and a change to a graph is a small " +
-					"change to its file, a writer **SHOULD** write the canonical form: two-space " +
-					"indentation and a final newline; keys in the order this chapter lists them; " +
-					"nodes, links and comments sorted by id; the keys inside `literals` and `config` " +
-					"sorted; positions rounded to two decimal places; and optional fields left out " +
-					"when empty. Variables and modules keep the order the author gave them.",
-			},
+			req(
+				"9.8-R1",
+				"meets",
+				"So that a graph saved twice is the same bytes, and a change to a graph is a small change to its file, a writer **SHOULD** write the canonical form: two-space indentation and a final newline; keys in the order this chapter lists them; nodes, links and comments sorted by id; the keys inside `literals` and `config` sorted; positions rounded to two decimal places; and optional fields left out when empty. Variables and modules keep the order the author gave them.",
+			),
 			{
 				t: "code",
 				lang: "json",
@@ -310,8 +327,9 @@ export function fileFormatPage(): DocPage {
 			{
 				t: "note",
 				kind: "info",
+				label: "To come: JSON Schemas",
 				text:
-					"**To come: JSON Schemas.** Draft 0.1 defines the format in these tables. A JSON " +
+					"Draft 0.1 defines the format in these tables. A JSON " +
 					"Schema for each file, generated from Roswaal's types, is part of the plan for " +
 					"the first published draft (§14).",
 			},

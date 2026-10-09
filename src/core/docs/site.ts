@@ -190,6 +190,9 @@ export type ReleaseTag =
  */
 export type NoteKind = "info" | "good" | "warn" | "danger";
 
+/** Whether Roswaal meets a requirement of its own specification. */
+export type ReqStatus = "meets" | "partly" | "not-yet";
+
 export type Block =
 	/** `aside` sits at the right of the heading: a date, a version, a status. */
 	/** `badge` sits right beside the heading's text: "Latest", on the current release. */
@@ -228,7 +231,29 @@ export type Block =
 	 * scanned. Optional, because most notes are a single thought and a bullet
 	 * with nothing to be distinguished from is furniture.
 	 */
-	| { t: "note"; kind: NoteKind; text: string; items?: string[] }
+	| {
+			t: "note";
+			kind: NoteKind;
+			text: string;
+			items?: string[];
+			/** The heading in place of the kind's own word: "Open question". */
+			label?: string;
+	  }
+	/**
+	 * One requirement of the technical specification, numbered so it can be
+	 * cited: `5.8-R3`. The number is written in the source and never moves once
+	 * published; a requirement taken out leaves its number unused.
+	 *
+	 * `roswaal` is whether Roswaal itself meets it, and `gap` what it lacks when
+	 * it does not, so the specification says where its own reference
+	 * implementation falls short beside the rule rather than in a separate list.
+	 */
+	| { t: "req"; id: string; text: string; roswaal: ReqStatus; gap?: string }
+	/**
+	 * Two or more short statements side by side, each in a card of its own with
+	 * a label over it: "In Roswaal" beside "A profile must not".
+	 */
+	| { t: "compare"; items: { label: string; text: string; tone?: "plain" | "warn" }[] }
 	/** Pin tables on a node page, which want their own rendering. */
 	| { t: "pins"; title: string; pins: NodeDoc["inputs"] }
 	/**
@@ -239,7 +264,13 @@ export type Block =
 	 * setter — and two pictures side by side answer "which one do I want" in a
 	 * way that two pictures a paragraph apart do not.
 	 */
-	| { t: "preview"; nodes: NodePreview[]; caption?: string }
+	| {
+			t: "preview";
+			nodes: NodePreview[];
+			caption?: string;
+			/** A frame's heading, saying whose example it is: "Example · Luau for Roblox". */
+			label?: string;
+	  }
 	/**
 	 * A whole graph — nodes where they were placed, and the wires between
 	 * them.

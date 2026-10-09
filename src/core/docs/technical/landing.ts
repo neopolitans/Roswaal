@@ -27,8 +27,9 @@ export function technicalPage(): DocPage {
 			{
 				t: "note",
 				kind: "warn",
+				label: `This is Draft ${SPEC_DRAFT}`,
 				text:
-					`**This is Draft ${SPEC_DRAFT}.** Anything here can still change, and nothing is promised ` +
+					"Anything here can still change, and nothing is promised " +
 					"until version 1.0. It is published so it can be read and argued with while the " +
 					"design settles, not so it can be built against as though it were fixed.",
 			},

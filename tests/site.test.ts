@@ -265,7 +265,7 @@ describe("inline markup in the pages themselves", () => {
 		for (const page of allPages(site)) {
 			for (const text of pageStrings(page, "inline")) {
 				for (const run of parseInline(text)) {
-					if (run.t === "link" && isPageLink(run.href) && !slugs.has(run.href)) {
+					if (run.t === "link" && isPageLink(run.href) && !slugs.has(run.href.split("#")[0])) {
 						broken.push(`${page.slug} -> ${run.href}`);
 					}
 				}

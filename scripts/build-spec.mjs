@@ -67,6 +67,23 @@ function tokensCss() {
 	);
 }
 
+/**
+ * The specification's blocks, as the editor's stylesheet draws them: the
+ * section of `theme.css` between its two markers, copied so the Docs panel and
+ * the site draw a requirement, a key word and an example identically.
+ */
+function specBlocksCss(themeCss) {
+	const start = themeCss.indexOf(
+		"/* ---------------------------------------------- specification blocks */",
+	);
+	const end = themeCss.indexOf(
+		"/* ------------------------------------------ end specification blocks */",
+	);
+	if (start < 0 || end < start)
+		throw new Error("theme.css has lost its specification blocks section.");
+	return themeCss.slice(start, end);
+}
+
 async function main() {
 	await rm(out, { recursive: true, force: true });
 	await mkdir(out, { recursive: true });
@@ -94,6 +111,7 @@ async function main() {
 		sections,
 		render,
 		docsBase: isCanary ? "https://canary.roswaal.app/docs/" : "https://roswaal.app/docs/",
+		tryHref: isCanary ? "https://canary.roswaal.app/try.html" : "https://roswaal.app/try.html",
 		draft: SPEC_DRAFT,
 		drafts,
 		version: VERSION,
@@ -108,7 +126,12 @@ async function main() {
 			canonicalBase: `https://spec.roswaal.app/${SPEC_DRAFT}/`,
 		},
 	];
-	const css = tokensCss() + "\n" + (await readFile(join(root, "src/spec/spec.css"), "utf8"));
+	const css =
+		tokensCss() +
+		"\n" +
+		(await readFile(join(root, "src/spec/spec.css"), "utf8")) +
+		"\n" +
+		specBlocksCss(await readFile(join(root, "src/app/theme.css"), "utf8"));
 	const js = await readFile(join(root, "src/spec/spec.js"), "utf8");
 
 	let pages = 0;

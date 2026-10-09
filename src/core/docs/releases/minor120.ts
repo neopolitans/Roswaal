@@ -9,6 +9,24 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.165.0",
+		date: "2026-10-09",
+		headline:
+			"The specification's requirements numbered, with where Roswaal stands on each, and drawn as its drafts were.",
+		affects: ["docs"],
+		added: [
+			"**Every requirement in the specification is numbered**, for the section it is in: **5.8-R3** is the third in §5.8. Each is a row of its own with a link to itself and whether Roswaal meets it: Roswaal meets, Roswaal partly, or Not yet in Roswaal, with what is missing beneath. A number never moves once published.",
+			"**All requirements**, at the end of Part III: all 104, by chapter, with Roswaal's totals and a link to each where its chapter states it. The list to read an implementation, or the specification itself, against.",
+			"Each chapter on spec.roswaal.app says how many requirements it makes and how many Roswaal meets, beside its status, and its status names the conformance levels it holds: Normative · Level 3.",
+		],
+		changed: [
+			"**MUST, SHOULD and MAY are pins**, coloured by how hard they bind, wherever the docs write them, in place of bold capitals inside a sentence.",
+			"The principles are drawn as their draft had them, each with its *In Roswaal* and *A profile must not* side by side. Notes say what they are in their heading: *Open question*, *Where Roswaal falls short*. Examples are framed and say which profile they come from.",
+			"spec.roswaal.app has a **Try Roswaal** button in place of a link, filled status pills, and, on a phone, a header that scrolls away rather than covering the text.",
+			"A link to a place on another page of the docs, such as one requirement, opens that page at that place, in the Docs panel as well as on the site.",
+		],
+	},
+	{
 		version: "0.164.1",
 		date: "2026-10-09",
 		headline: "A mouse wheel scrolls the tab rows sideways.",

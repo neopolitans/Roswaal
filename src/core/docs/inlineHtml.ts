@@ -18,9 +18,13 @@ export function escapeHtml(text: string): string {
 		.replace(/"/g, "&quot;");
 }
 
-/** Where a page's file goes, relative to the site root. */
+/**
+ * Where a page's file goes, relative to the site root. A slug may carry a
+ * place on the page after `#`, as a link to one requirement does.
+ */
 export function pagePath(slug: string): string {
-	return `${slug}.html`;
+	const [bare, hash] = slug.split("#");
+	return `${bare}.html${hash ? `#${hash}` : ""}`;
 }
 
 /** Inline markup as HTML. `pageHref` says where a page of these docs is. */
@@ -33,8 +37,10 @@ export function inlineHtml(text: string, pageHref: (slug: string) => string): st
 					return body;
 				case "code":
 					return `<code>${body}</code>`;
-				case "strong":
-					return `<strong>${body}</strong>`;
+				case "strong": {
+					const kw = keywordStrength(run.text);
+					return kw ? `<span class="kw kw-${kw}">${body}</span>` : `<strong>${body}</strong>`;
+				}
 				case "em":
 					return `<em>${body}</em>`;
 				case "link":
@@ -46,4 +52,17 @@ export function inlineHtml(text: string, pageHref: (slug: string) => string): st
 			}
 		})
 		.join("");
+}
+
+/**
+ * The key words of RFC 2119, by how hard they bind: a requirement, a
+ * recommendation, or a permission. Written in bold capitals in the source, and
+ * drawn as a pin coloured by strength, so a reader finds the rules on a page
+ * by eye. Anything else in bold stays bold.
+ */
+export function keywordStrength(text: string): "must" | "should" | "may" | null {
+	if (/^(MUST|MUST NOT|REQUIRED|SHALL|SHALL NOT)$/.test(text)) return "must";
+	if (/^(SHOULD|SHOULD NOT|RECOMMENDED|NOT RECOMMENDED)$/.test(text)) return "should";
+	if (/^(MAY|OPTIONAL)$/.test(text)) return "may";
+	return null;
 }

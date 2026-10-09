@@ -40,7 +40,13 @@ import {
 	stripMarkup,
 	TAG_LABELS,
 } from "./site.js";
-import { DRAFT_DETAIL, SPEC_DETAILS, SPEC_LABELS } from "./technical/spec.js";
+import {
+	DRAFT_DETAIL,
+	REQ_STATUS_LABELS,
+	reqAnchor,
+	SPEC_DETAILS,
+	specStatusLabel,
+} from "./technical/spec.js";
 import { controlKey, legendOf, TOOLBAR_HINT, type ToolbarArt, toolbarHtml } from "./toolbars.js";
 import { typeCellHtml } from "./typeCell.js";
 
@@ -319,10 +325,34 @@ function renderBlock(
 				? `<ul>${block.items.map((i) => `<li>${inline(i, up)}</li>`).join("")}</ul>`
 				: "";
 			return (
-				`<div class="docs-note note-${block.kind}">${noteHeadHtml(block.kind)}` +
+				`<div class="docs-note note-${block.kind}">${noteHeadHtml(block.kind, block.label)}` +
 				`<div class="docs-note-body">${inline(block.text, up)}${items}</div></div>`
 			);
 		}
+		case "req": {
+			const id = reqAnchor(block.id);
+			const gap = block.gap ? `<p class="spec-req-gap">${inline(block.gap, up)}</p>` : "";
+			return (
+				`<div class="spec-req" id="${id}">` +
+				`<a class="spec-req-id" href="#${id}" title="Link to this requirement">${escapeHtml(block.id)}</a>` +
+				`<div class="spec-req-text"><p>${inline(block.text, up)}</p>${gap}</div>` +
+				`<span class="spec-req-status st-${block.roswaal}">${REQ_STATUS_LABELS[block.roswaal]}</span>` +
+				"</div>"
+			);
+		}
+		case "compare":
+			return (
+				`<div class="docs-compare">` +
+				block.items
+					.map(
+						(item) =>
+							`<div class="docs-compare-card tone-${item.tone ?? "plain"}">` +
+							`<span class="label">${escapeHtml(item.label)}</span>` +
+							`<span class="text">${inline(item.text, up)}</span></div>`,
+					)
+					.join("") +
+				"</div>"
+			);
 		case "pins":
 			return renderPins(block, options, up);
 		case "graph": {
@@ -448,7 +478,10 @@ function renderBlock(
 				)
 				.join("");
 			const caption = block.caption ? `<figcaption>${inline(block.caption, up)}</figcaption>` : "";
-			return `<figure class="docs-preview"><div class="row">${svgs}</div>${caption}</figure>`;
+			const head = block.label
+				? `<div class="docs-frame-head"><span>${escapeHtml(block.label)}</span><span class="aside">informative</span></div>`
+				: "";
+			return `<figure class="docs-preview${block.label ? " framed" : ""}">${head}<div class="row">${svgs}</div>${caption}</figure>`;
 		}
 		case "layout": {
 			// A toolbar's figure, holding a window rather than a bar: the same
@@ -842,7 +875,7 @@ function specBadges(page: DocPage): string {
 	if (!page.spec) return "";
 	const { status, draft } = page.spec;
 	return (
-		`<span class="badge spec ${status}" title="${escapeHtml(SPEC_DETAILS[status])}">${SPEC_LABELS[status]}</span>` +
+		`<span class="badge spec ${status}" title="${escapeHtml(SPEC_DETAILS[status])}">${escapeHtml(specStatusLabel(page.spec))}</span>` +
 		`<span class="badge spec draft" title="${escapeHtml(DRAFT_DETAIL)}">Draft ${escapeHtml(draft)}</span>`
 	);
 }

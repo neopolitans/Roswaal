@@ -7,7 +7,7 @@
  */
 
 import type { DocPage } from "../site.js";
-import { normative } from "./spec.js";
+import { normative, req } from "./spec.js";
 
 export function executionPage(): DocPage {
 	return {
@@ -15,7 +15,7 @@ export function executionPage(): DocPage {
 		title: "7 Execution",
 		summary:
 			"What a graph means when it runs: which steps run and in what order, when values are worked out, scope, functions and events.",
-		spec: normative(),
+		spec: normative("Level 2"),
 		blocks: [
 			{
 				t: "p",
@@ -33,21 +33,42 @@ export function executionPage(): DocPage {
 				t: "ul",
 				items: [
 					"A flow starts at an **entry**: the script's start, a function's body (§7.5), or an event handler's body (§7.6). Nothing else starts one.",
-					"A graph **MAY** have more than one script start. Their flows run one after another, ordered by position, top to bottom, and share one scope; a compiler **SHOULD** warn that there is more than one.",
-					"A graph with nodes and no entry runs nothing, and a compiler **SHOULD** say so.",
+					"A graph **MAY** have more than one script start. Their flows run one after another, ordered by position, top to bottom, and share one scope.",
+					"A graph with nodes and no entry runs nothing.",
 				],
 			},
+			req(
+				"7.1-R1",
+				"meets",
+				"A compiler **SHOULD** warn when a graph has more than one script start.",
+			),
+			req("7.1-R2", "meets", "A compiler **SHOULD** say so when a graph has nodes and no entry."),
 			{ t: "h", level: 3, text: "How it moves" },
 			{
 				t: "ul",
 				items: [
 					"A step runs when the flow reaches its flow input, and the flow then leaves by one of its flow outputs. **What runs, and in what order, is decided by flow wires alone**, never by where a node sits.",
-					"A flow output **MUST** lead to at most one node. To do several things in turn, a graph uses a sequence node, whose outputs run one after another, top to bottom, in one block (§7.4).",
-					"A flow input **MUST** take at most one wire. Two flows cannot join at one node.",
-					"A step that no flow reaches never runs. A compiler **SHOULD** warn about a node joined to nothing that runs.",
-					"Flow wires **MUST NOT** form a loop. Repetition is a loop node's: a compiler **MUST** report a loop of flow wires as an error.",
+					"A step that no flow reaches never runs.",
+					"To do several things in turn, a graph uses a sequence node, whose outputs run one after another, top to bottom, in one block (§7.4).",
 				],
 			},
+			req("7.1-R3", "meets", "A flow output **MUST** lead to at most one node."),
+			req(
+				"7.1-R4",
+				"meets",
+				"A flow input **MUST** take at most one wire. Two flows cannot join at one node.",
+			),
+			req(
+				"7.1-R5",
+				"partly",
+				"A compiler **SHOULD** warn about a node that nothing running reaches.",
+				"Roswaal follows every wire, not only flow wires, so a step joined to the rest only by data wires is not warned about, though it never runs.",
+			),
+			req(
+				"7.1-R6",
+				"meets",
+				"Flow wires **MUST NOT** form a loop. Repetition is a loop node's: a compiler **MUST** report a loop of flow wires as an error.",
+			),
 			{ t: "h", level: 3, text: "Blocks" },
 			{
 				t: "p",
@@ -86,13 +107,16 @@ export function executionPage(): DocPage {
 					],
 				],
 			},
-			{
-				t: "ul",
-				items: [
-					"A step that ends its block, such as a return, break or continue, **MUST** be the last step of its chain. A compiler **MUST** report a step that could never run after one, such as a sequence output following an output that returned.",
-					"Break and continue **MUST** be inside a loop's block, and not inside a function nested in it.",
-				],
-			},
+			req(
+				"7.1-R7",
+				"meets",
+				"A step that ends its block, such as a return, break or continue, **MUST** be the last step of its chain. A compiler **MUST** report a step that could never run after one, such as a sequence output following an output that returned.",
+			),
+			req(
+				"7.1-R8",
+				"meets",
+				"Break and continue **MUST** be inside a loop's block, and not inside a function nested in it.",
+			),
 
 			// 7.2 ----------------------------------------------------------------
 			{ t: "h", level: 2, text: "7.2 Values: when worked out" },
@@ -103,15 +127,23 @@ export function executionPage(): DocPage {
 					"value is worked out when a step that uses it runs, as part of that step, and not " +
 					"where the value node sits.",
 			},
+			req(
+				"7.2-R1",
+				"meets",
+				"Within one block, a value **MUST** be worked out once however many inputs it feeds, so work and side effects are not repeated. A compiler **MAY** write a value used once directly where it is used.",
+			),
+			req(
+				"7.2-R2",
+				"meets",
+				"A **variable**'s value is read where it is used, every time, never shared between uses: a set between two reads **MUST** be seen by the second.",
+			),
 			{
 				t: "ul",
 				items: [
-					"Within one block, a value **MUST** be worked out once however many inputs it feeds, so work and side effects are not repeated. A compiler **MAY** write a value used once directly where it is used.",
 					"A value used in two different blocks, such as both arms of a branch, is worked out in each; one used inside a loop is worked out on each pass.",
-					"A **variable**'s value is read where it is used, every time, never shared between uses: a set between two reads **MUST** be seen by the second.",
 					"A step's own outputs exist from when it runs, inside the block it ran in and the blocks nested in that one. Reading one elsewhere is an error; the graph keeps it in a variable instead.",
 					"An input with no wire takes the value typed into it, or its default. A required input with neither is an error, written as which node needs a value on which pin.",
-					"The order in which one step's inputs are worked out is not specified, and a graph **MUST NOT** depend on it.",
+					"The order in which one step's inputs are worked out is not specified, so a graph that depends on it is not portable between implementations.",
 				],
 			},
 
@@ -121,15 +153,19 @@ export function executionPage(): DocPage {
 				t: "p",
 				text:
 					"A node that can pause the program, waiting for time to pass, an event or another " +
-					"machine, is **latent**. A renderer **MUST** mark a latent node where it can be " +
-					"seen; Roswaal puts an hourglass in its header. A latent step pauses the flow it " +
-					"is in and nothing else.",
+					"machine, is **latent**. A latent step pauses the flow it is in and nothing else.",
 			},
+			req(
+				"7.3-R1",
+				"meets",
+				"A renderer **MUST** mark a latent node where it can be seen. Roswaal puts an hourglass in its header.",
+			),
 			{
 				t: "note",
 				kind: "info",
+				label: "Open in Draft 0.1",
 				text:
-					`**Open in Draft 0.1.** The specification does not yet say where a latent node may ` +
+					`The specification does not yet say where a latent node may ` +
 					"be used. Roswaal compiles a latent node like any other of its kind and does not " +
 					"check, for example, that a value node which waits is used where waiting is allowed.",
 			},
@@ -143,9 +179,13 @@ export function executionPage(): DocPage {
 					"A **local** exists from the step that declares it, in that block and the blocks nested in it, and nowhere else.",
 					"Each arm of a branch, each loop body, each handler body and each function body is a block nested in the one it sits in. A sequence's outputs share one block, so a local declared under its first output is seen under its second.",
 					"A hoisted function (§7.5) sees the graph's variables and its own parameters and locals, and none of the main flow's locals. A declared function sees everything in scope where it is declared.",
-					"A compiler **MUST** report a read of a local, a parameter or a step's output outside its scope as an error.",
 				],
 			},
+			req(
+				"7.4-R1",
+				"meets",
+				"A compiler **MUST** report a read of a local, a parameter or a step's output outside its scope as an error.",
+			),
 
 			// 7.5 ----------------------------------------------------------------
 			{ t: "h", level: 2, text: "7.5 Functions and calls" },
@@ -156,10 +196,14 @@ export function executionPage(): DocPage {
 					"A **hoisted** function is a node of its own, outside any flow. It exists before any flow runs, so it can be called from anywhere in the graph, including itself and other hoisted functions.",
 					"A **declared** function is a step: it comes to exist when the flow reaches it, and can be used only after. Its body sees what is in scope where it is declared.",
 					"A **return** step ends the function's body with its results.",
-					"Each function's body is drawn in a graph of its own (§9.2), and a wire **MUST NOT** run between two graphs: a value reaches a function through a parameter, a local or a variable.",
 					"A **call** runs a function with arguments and gives its results, as a step or, where the profile allows, as a value.",
 				],
 			},
+			req(
+				"7.5-R1",
+				"meets",
+				"Each function's body is drawn in a graph of its own (§9.2), and a wire **MUST NOT** run between two graphs: a value reaches a function through a parameter, a local or a variable.",
+			),
 
 			// 7.6 ----------------------------------------------------------------
 			{ t: "h", level: 2, text: "7.6 Events" },
@@ -176,12 +220,11 @@ export function executionPage(): DocPage {
 
 			// 7.7 ----------------------------------------------------------------
 			{ t: "h", level: 2, text: "7.7 Problems a compiler reports" },
-			{
-				t: "p",
-				text:
-					"A compiler **MUST** report each of these as an error, on the node or wire at " +
-					"fault (§5.8), and **MUST NOT** produce a program from a graph that has one:",
-			},
+			req(
+				"7.7-R1",
+				"meets",
+				"A compiler **MUST** report each of these as an error, on the node or wire at fault (§5.8), and **MUST NOT** produce a program from a graph that has one:",
+			),
 			{
 				t: "ul",
 				items: [
@@ -196,13 +239,11 @@ export function executionPage(): DocPage {
 					"A node that only works in another profile's programs.",
 				],
 			},
-			{
-				t: "p",
-				text:
-					"And **SHOULD** report these as warnings: a node joined to nothing that runs, a " +
-					"graph with no entry, more than one script start, and a wire between pins whose " +
-					"types do not connect (§6.3).",
-			},
+			req(
+				"7.7-R2",
+				"meets",
+				"A compiler **SHOULD** report these as warnings: a node joined to nothing that runs, a graph with no entry, more than one script start, and a wire between pins whose types do not connect (§6.3).",
+			),
 		],
 	};
 }

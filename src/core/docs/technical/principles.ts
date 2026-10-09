@@ -4,7 +4,7 @@
  */
 
 import type { DocPage } from "../site.js";
-import { normative } from "./spec.js";
+import { normative, req } from "./spec.js";
 
 interface Principle {
 	title: string;
@@ -97,32 +97,25 @@ export function principlesPage(): DocPage {
 			{ t: "h", level: 2, text: "2.1 The ten principles" },
 			{
 				t: "p",
-				text:
-					"Every rule in this specification follows from one of these. A profile **MUST** " +
-					"keep all ten. Where a language seems to need an exception, the exception is a " +
-					"proposal to change this page (§14.2), not a choice a profile makes quietly.",
+				text: "Every rule in this specification follows from one of these.",
 			},
+			req(
+				"2.1-R1",
+				"partly",
+				"A profile **MUST** keep all ten. Where a language seems to need an exception, the exception is a proposal to change this page (§14.2), not a choice a profile makes quietly.",
+				"Roswaal's two Luau profiles do not yet keep principle 9 on the canvas (§8.4), and a graph with more than one script start runs them by position (§7.1), which principle 1 rules out.",
+			),
 			...PRINCIPLES.flatMap((p, i) => [
 				{ t: "h" as const, level: 3 as const, text: `${i + 1}. ${p.title}` },
 				{ t: "p" as const, text: p.why },
 				{
-					t: "table" as const,
-					rows: [
-						["**In Roswaal**", p.roswaal],
-						["**A profile must not**", p.mustNot],
+					t: "compare" as const,
+					items: [
+						{ label: "In Roswaal", text: p.roswaal },
+						{ label: "A profile must not", text: p.mustNot, tone: "warn" as const },
 					],
 				},
 			]),
-			{
-				t: "note",
-				kind: "info",
-				text:
-					"**Where Draft 0.1 does not yet keep one.** A graph with more than one script " +
-					"start runs them in order of position (§7.1), which principle 1 rules out; " +
-					"Roswaal warns about it. And principle 9 is not yet kept on Roswaal's canvas " +
-					"(§8.4).",
-			},
-
 			{ t: "h", level: 2, text: "2.2 Where they come from" },
 			{ t: "note", kind: "info", text: "This section is informative." },
 			{

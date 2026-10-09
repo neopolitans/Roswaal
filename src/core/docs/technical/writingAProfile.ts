@@ -3,7 +3,7 @@
  */
 
 import type { DocPage } from "../site.js";
-import { normative } from "./spec.js";
+import { normative, req } from "./spec.js";
 
 export function writingAProfilePage(): DocPage {
 	return {
@@ -11,7 +11,7 @@ export function writingAProfilePage(): DocPage {
 		title: "10 Writing a profile",
 		summary:
 			"What a profile defines for a new language, what it must leave alone, and how it shows it works.",
-		spec: normative(),
+		spec: normative("Level 2"),
 		blocks: [
 			{
 				t: "p",
@@ -85,29 +85,41 @@ export function writingAProfilePage(): DocPage {
 				t: "p",
 				text:
 					"A profile **MAY** add kinds of node, fields in a pack and fields in a file, under " +
-					"names of its own; it **MUST NOT** change the meaning of anything in Part I. A " +
-					"language that cannot keep one of these, one with no order of steps, say, needs a " +
-					"proposal to Part I (§14.2) before it needs a profile.",
+					"names of its own. A language that cannot keep one of these, one with no order of " +
+					"steps, say, needs a proposal to Part I (§14.2) before it needs a profile.",
 			},
+			req("10.2-R1", "meets", "A profile **MUST NOT** change the meaning of anything in Part I."),
 
 			{ t: "h", level: 2, text: "10.3 Types and the hierarchy" },
+			req(
+				"10.3-R1",
+				"meets",
+				"Every type a pin can have **MUST** have a name, a family, and a colour or the profile's colour for untyped pins.",
+			),
+			req(
+				"10.3-R2",
+				"meets",
+				"Where the language has subtypes, the profile gives each type its parent. A type **MUST NOT** be its own ancestor, and a reader **SHOULD** stop following parents after a fixed number of steps rather than trust the data.",
+			),
 			{
-				t: "ul",
-				items: [
-					"Every type a pin can have **MUST** have a name, a family, and a colour or the profile's colour for untyped pins.",
-					"Where the language has subtypes, the profile gives each type its parent. A type **MUST NOT** be its own ancestor, and a reader **SHOULD** stop following parents after a fixed number of steps rather than trust the data.",
-					"The profile says how each of its language's type annotations becomes a pin type, including which become `any` because no pin type can express them.",
-				],
+				t: "p",
+				text: "The profile says how each of its language's type annotations becomes a pin type, including which become `any` because no pin type can express them.",
 			},
 
 			{ t: "h", level: 2, text: "10.4 The built-in library" },
+			req(
+				"10.4-R1",
+				"meets",
+				"Node definitions **MUST** be data. A profile's library, and every pack written for it, **MUST** load without running any code from it.",
+			),
+			req(
+				"10.4-R2",
+				"meets",
+				"Each definition has an id, a title, a category, its pins, and what it becomes (§10.5). Its id is how files refer to it (§9.2), so it **MUST NOT** change; a renamed node keeps its old id as an alias (§9.7).",
+			),
 			{
-				t: "ul",
-				items: [
-					"Node definitions **MUST** be data. A profile's library, and every pack written for it, **MUST** load without running any code from it.",
-					"Each definition has an id, a title, a category, its pins, and what it becomes (§10.5). Its id is how files refer to it (§9.2), so it **MUST NOT** change; a renamed node keeps its old id as an alias (§9.7).",
-					"A definition says whether it is a step or a value, whether it is latent (§7.3), and which of the profile's runtimes it works in, where the profile has more than one.",
-				],
+				t: "p",
+				text: "A definition says whether it is a step or a value, whether it is latent (§7.3), and which of the profile's runtimes it works in, where the profile has more than one.",
 			},
 
 			{ t: "h", level: 2, text: "10.5 Compiling a node" },
@@ -129,10 +141,15 @@ export function writingAProfilePage(): DocPage {
 					[
 						"`builtin`",
 						"Control flow",
-						"Written by the compiler itself, because it opens blocks: branches, loops, function and handler bodies. A pack **MUST NOT** use it.",
+						"Written by the compiler itself, because it opens blocks: branches, loops, function and handler bodies.",
 					],
 				],
 			},
+			req(
+				"10.5-R1",
+				"meets",
+				"A pack **MUST NOT** use `builtin`: a definition a pack brings compiles from a template.",
+			),
 			{
 				t: "p",
 				text:
@@ -143,25 +160,36 @@ export function writingAProfilePage(): DocPage {
 			},
 
 			{ t: "h", level: 2, text: "10.6 The emitted file" },
-			{
-				t: "ul",
-				items: [
-					"One graph file becomes one program file, named after the graph.",
-					"The file **SHOULD** begin by saying it was generated, from which graph file, and that it is edited by editing the graph.",
-					"It **SHOULD** carry the graph's id and a hash of the graph and of its own text, so an implementation can tell a file it wrote from one edited by hand.",
-					"It **SHOULD** be laid out by the language's usual formatter, where the project has one.",
-					"It **MUST NOT** need a library of the implementation's to run (§2.1, principle 10).",
-				],
-			},
+			{ t: "p", text: "One graph file becomes one program file, named after the graph." },
+			req(
+				"10.6-R1",
+				"meets",
+				"The file **SHOULD** begin by saying it was generated, from which graph file, and that it is edited by editing the graph.",
+			),
+			req(
+				"10.6-R2",
+				"meets",
+				"It **SHOULD** carry the graph's id and a hash of the graph and of its own text, so an implementation can tell a file it wrote from one edited by hand.",
+			),
+			req(
+				"10.6-R3",
+				"meets",
+				"It **SHOULD** be laid out by the language's usual formatter, where the project has one.",
+			),
+			req(
+				"10.6-R4",
+				"meets",
+				"It **MUST NOT** need a library of the implementation's to run (§2.1, principle 10).",
+			),
 
 			{ t: "h", level: 2, text: "10.7 Fixtures for a new profile" },
-			{
-				t: "p",
-				text:
-					"A profile **MUST** come with fixtures: graphs, and the programs they should " +
-					"compile to or what those programs should do when run. [Conformance](technical/conformance) " +
-					"describes the layout.",
-			},
+			req(
+				"10.7-R1",
+				"not-yet",
+				"A profile **MUST** come with fixtures: graphs, and the programs they should compile to or what those programs should do when run.",
+				"Roswaal's two profiles have tests of their own, but no fixtures published in the shape §13 describes.",
+			),
+			{ t: "p", text: "[Conformance](technical/conformance) describes the layout." },
 
 			{ t: "h", level: 2, text: "10.8 Checklist" },
 			{ t: "note", kind: "info", text: "This section is informative." },

@@ -9,6 +9,8 @@
  * implementing Roswaal's design is bound by it.
  */
 
+import type { Block, ReqStatus } from "../site.js";
+
 /** The draft every page of the specification currently belongs to. */
 export const SPEC_DRAFT = "0.1";
 
@@ -20,6 +22,8 @@ export interface SpecStatus {
 	 */
 	status: "normative" | "informative";
 	draft: string;
+	/** The conformance levels a normative page holds (§1.3): "Level 3". */
+	levels?: string;
 }
 
 export const SPEC_LABELS: Record<SpecStatus["status"], string> = {
@@ -37,8 +41,33 @@ export const SPEC_DETAILS: Record<SpecStatus["status"], string> = {
 export const DRAFT_DETAIL =
 	"A draft: anything here can still change, and nothing is promised until 1.0. See Process.";
 
-export function normative(): SpecStatus {
-	return { status: "normative", draft: SPEC_DRAFT };
+/** What a requirement's status reads beside it. */
+export const REQ_STATUS_LABELS: Record<ReqStatus, string> = {
+	meets: "Roswaal meets",
+	partly: "Roswaal partly",
+	"not-yet": "Not yet in Roswaal",
+};
+
+/** A requirement's anchor on its page: `5.8-R3` is `#r-5-8-r3`. */
+export function reqAnchor(id: string): string {
+	return `r-${id.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+}
+
+/**
+ * A requirement block, written as the chapters write them:
+ * `req("5.8-R3", "meets", "Notes **MUST** be drawn above …")`.
+ */
+export function req(id: string, roswaal: ReqStatus, text: string, gap?: string): Block {
+	return { t: "req", id, roswaal, text, ...(gap ? { gap } : {}) };
+}
+
+export function normative(levels?: string): SpecStatus {
+	return { status: "normative", draft: SPEC_DRAFT, ...(levels ? { levels } : {}) };
+}
+
+/** The status badge's words: "Normative · Level 3". */
+export function specStatusLabel(spec: SpecStatus): string {
+	return spec.levels ? `${SPEC_LABELS[spec.status]} · ${spec.levels}` : SPEC_LABELS[spec.status];
 }
 
 export function informative(): SpecStatus {

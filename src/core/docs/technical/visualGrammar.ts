@@ -10,13 +10,21 @@
 import { GRID, LAYER, ZOOM } from "../../canvasLayers.js";
 import { GLYPH_STROKE } from "../../nodeGlyphs.js";
 import { NODE } from "../../nodeMetrics.js";
+import type { Registry } from "../../nodes/index.js";
 import { derivedTokens, ROLES } from "../../theme.js";
 import { TYPE_FAMILIES } from "../../typeFamily.js";
 import { previews } from "../pages/blocks.js";
-import type { DocPage, PageContext } from "../site.js";
-import { normative } from "./spec.js";
+import type { Block, DocPage, PageContext } from "../site.js";
+import { normative, req } from "./spec.js";
 
 const GENERATED = (source: string) => `Generated from \`${source}\`.`;
+
+/** Node pictures framed as the Roblox profile's: Part I names no language of its own. */
+function example(registry: Registry, ids: string[], caption: string): Block[] {
+	return previews(registry, ids, caption).map((block) =>
+		block.t === "preview" ? { ...block, label: "Example · Luau for Roblox" } : block,
+	);
+}
 
 /** What each layer holds, in the specification's words. */
 const LAYER_WHAT: Record<keyof typeof LAYER, string> = {
@@ -48,16 +56,19 @@ export function visualGrammarPage({ registry }: PageContext): DocPage {
 		title: "5 Visual grammar",
 		summary:
 			"How a graph is drawn: the canvas, the shape and size of every kind of node, pins, wires, colour and what is drawn over what.",
-		spec: normative(),
+		spec: normative("Level 3"),
 		blocks: [
 			{
 				t: "p",
 				text:
 					"A renderer conforming at level 3 (§1.3) draws a graph as this chapter says. Its " +
-					"numbers are canvas units (§1.4). Where a length is given, a renderer **MUST** use " +
-					"it, so that a graph drawn by one implementation can be laid over the same graph " +
-					"drawn by another and every pin meets the same wire.",
+					"numbers are canvas units (§1.4).",
 			},
+			req(
+				"5-R1",
+				"meets",
+				"Where a length is given, a renderer **MUST** use it, so that a graph drawn by one implementation can be laid over the same graph drawn by another and every pin meets the same wire.",
+			),
 
 			// 5.1 -----------------------------------------------------------------
 			{ t: "h", level: 2, text: "5.1 The canvas and its grid" },
@@ -100,9 +111,9 @@ export function visualGrammarPage({ registry }: PageContext): DocPage {
 				t: "p",
 				text:
 					"The grid **MAY** be drawn as dots at each grid point or as ruled lines, and at " +
-					"more than one strength; Roswaal offers both, with dots the default. The grid " +
-					"**MUST** be drawn below everything in the graph (§5.8).",
+					"more than one strength; Roswaal offers both, with dots the default.",
 			},
+			req("5.1-R1", "meets", "The grid **MUST** be drawn below everything in the graph (§5.8)."),
 
 			// 5.2 -----------------------------------------------------------------
 			{ t: "h", level: 2, text: "5.2 Node geometry" },
@@ -168,23 +179,26 @@ export function visualGrammarPage({ registry }: PageContext): DocPage {
 					"A flow pin on the header is centred `headerHeight / 2` below the node's top.",
 					"A data pin is centred **on** the node's left or right edge.",
 					`A flow pin's triangle is ${execWidth} wide (\`pinSlot × execAspect\`) and stands \`execGap\` clear of the edge, outside the node. Its wire meets it at the triangle's centre, \`execGap + width / 2\` from the edge.`,
-					"A wire **MUST** end where its pin is, by these rules. A renderer that drew the pin elsewhere would show a wire ending in empty space.",
 				],
 			},
+			req(
+				"5.2-R1",
+				"meets",
+				"A wire **MUST** end where its pin is, by these rules. A renderer that drew the pin elsewhere would show a wire ending in empty space.",
+			),
 
 			// 5.3 -----------------------------------------------------------------
 			{ t: "h", level: 2, text: "5.3 Node kinds and shapes" },
-			...previews(
+			...example(
 				registry,
 				["event.connect", "roblox.getProperty", "variable.get", "math.add"],
-				"A step, a value, a getter and an operator, from the Luau for Roblox profile.",
+				"A step, a value, a getter and an operator.",
 			),
 			{
 				t: "p",
-				text:
-					"Shape is the first thing read about a node, so each kind has one of its own and " +
-					"a renderer **MUST NOT** draw one kind in another's shape.",
+				text: "Shape is the first thing read about a node, so each kind has one of its own.",
 			},
+			req("5.3-R1", "meets", "A renderer **MUST NOT** draw one kind of node in another's shape."),
 			{
 				t: "table",
 				head: ["Kind", "Shape", "Why"],
@@ -238,11 +252,23 @@ export function visualGrammarPage({ registry }: PageContext): DocPage {
 					`In the header's left corner is the **category tab**: \`tab\` wide, the full height of the header, filled with the category's colour, holding the category's glyph at 18 units in white. Glyphs are drawn as strokes ${GLYPH_STROKE} wide on a 24-unit grid, scaled to fit.`,
 					"The title starts 8 units after the tab and is cut short with an ellipsis rather than wrapped. A second line, where a node has one, is set smaller under the title, in a monospaced face.",
 					"A value has no tab: its glyph, at 15 units, and its title are drawn in the category's colour, mixed with the text colour enough to stay readable on the body.",
-					"A node that holds code **SHOULD** show the profile's mark for that kind of code in its tab, in place of a glyph, as the profile's code editor marks it. Roswaal's are `{ }` for statements, `ƒx` for an expression and `<T>` for a type, in the theme's code colours on the code editor's surface.",
-					"A function definition's second line **SHOULD** be its signature as types alone, each in its type's colour, such as `(Model, BasePart) → boolean`: the names are on its pins, and with them the line is too long to read.",
-					"A renderer **MUST NOT** fill a header with the category's colour at full strength and **MUST NOT** put the category's colour behind the title text. The colour belongs to the tab.",
 				],
 			},
+			req(
+				"5.4-R1",
+				"meets",
+				"A renderer **MUST NOT** fill a header with the category's colour at full strength and **MUST NOT** put the category's colour behind the title text. The colour belongs to the tab.",
+			),
+			req(
+				"5.4-R2",
+				"meets",
+				"A node that holds code **SHOULD** show the profile's mark for that kind of code in its tab, in place of a glyph, as the profile's code editor marks it. Roswaal's are `{ }` for statements, `ƒx` for an expression and `<T>` for a type, in the theme's code colours on the code editor's surface.",
+			),
+			req(
+				"5.4-R3",
+				"meets",
+				"A function definition's second line **SHOULD** be its signature as types alone, each in its type's colour, such as `(Model, BasePart) → boolean`: the names are on its pins, and with them the line is too long to read.",
+			),
 			{
 				t: "p",
 				text:
@@ -263,20 +289,18 @@ export function visualGrammarPage({ registry }: PageContext): DocPage {
 				],
 			},
 			{ t: "h", level: 3, text: "Data pins" },
-			...previews(
+			...example(
 				registry,
 				["call.function", "table.new", "roblox.getEvent"],
 				"A function's dot in a ring on Call Function, a table's diamond on New Table, whose " +
 					"output's name already says its type and so has no chip, and an object's square " +
-					"and a signal's hexagon on Get Event, whose unnamed output's chip says Signal. " +
-					"From the Luau for Roblox profile.",
+					"and a signal's hexagon on Get Event, whose unnamed output's chip says Signal.",
 			),
 			{
 				t: "p",
 				text:
 					"A data pin is centred on the node's edge, in its type's colour, and its shape is " +
-					"its type's **family** (§6.2). A renderer **MUST** draw these shapes, so a pin's " +
-					"kind can be read without telling colours apart (§8.1):",
+					"its type's **family** (§6.2):",
 			},
 			{
 				t: "table",
@@ -284,6 +308,12 @@ export function visualGrammarPage({ registry }: PageContext): DocPage {
 				rows: TYPE_FAMILIES.map((f) => [`\`${f.family}\``, f.shape, f.what]),
 			},
 			{ t: "p", text: GENERATED("core/typeFamily.ts") },
+			req(
+				"5.5-R1",
+				"partly",
+				"A renderer **MUST** draw these shapes, so a pin's kind can be read without telling colours apart (§8.1).",
+				"A reroute knot's pin is drawn as a circle whatever it carries.",
+			),
 			{
 				t: "p",
 				text:
@@ -297,10 +327,16 @@ export function visualGrammarPage({ registry }: PageContext): DocPage {
 				items: [
 					"A pin's name is drawn beside it, inside the node, nearly in the text colour.",
 					"An output also shows its type, as a **chip**: a short name in a rounded box tinted with the type's colour. The chip is left out when the pin is untyped or generic, and when the pin's name already says the type, so a type is never said twice.",
-					"A long type name **MAY** be shortened on the chip; the profile says how (§10.1). The full name **MUST** be shown when the reader asks, by pointing at the chip or tapping it, with what the type is.",
+					"A long type name **MAY** be shortened on the chip; the profile says how (§10.1).",
 					"A reroute knot, a getter and an operator pill are too small to hold a chip beside their one output, so theirs is centred under them, outside the node, where it takes no part in the node's size or its wires.",
 				],
 			},
+			req(
+				"5.5-R2",
+				"partly",
+				"The full name of a type on a chip **MUST** be shown when the reader asks, by pointing at the chip or tapping it, with what the type is.",
+				"The canvas does. The documentation's pictures draw the chips but cannot open their card, and do not yet draw a getter's, an operator's or a knot's type under it.",
+			),
 
 			// 5.6 -----------------------------------------------------------------
 			{ t: "h", level: 2, text: "5.6 Wires and how they route" },
@@ -308,20 +344,28 @@ export function visualGrammarPage({ registry }: PageContext): DocPage {
 				t: "ul",
 				items: [
 					"A wire runs from an output to an input. A flow wire is drawn in the theme's flow-wire colour; a data wire in the colour of the pin it leaves.",
-					"Where a data wire joins pins of different colours, as when a number feeds a string, it **SHOULD** fade from one colour to the other along its length.",
 					"A flow wire is drawn heavier than a data wire.",
-					"A wire **MUST** be drawn below every node (§5.8).",
 				],
 			},
+			req(
+				"5.6-R1",
+				"meets",
+				"Where a data wire joins pins of different colours, as when a number feeds a string, it **SHOULD** fade from one colour to the other along its length.",
+			),
+			req("5.6-R2", "meets", "A wire **MUST** be drawn below every node (§5.8)."),
 			{
 				t: "p",
 				text:
 					"Roswaal offers three routes, as a preference: **curved**, a cubic curve that " +
 					`leaves and enters its pins horizontally, its control points at least ${NODE.wireSlack} ` +
 					"units out; **rigid**, horizontal and vertical runs; and **angular**, which cuts " +
-					"its corners. Curved is the default. A renderer **MUST** offer curved and **MAY** " +
-					"offer others.",
+					"its corners. Curved is the default.",
 			},
+			req(
+				"5.6-R3",
+				"meets",
+				"A renderer **MUST** offer the curved route, and **MAY** offer others.",
+			),
 
 			// 5.7 -----------------------------------------------------------------
 			{ t: "h", level: 2, text: "5.7 Colour tokens and themes" },
@@ -343,8 +387,9 @@ export function visualGrammarPage({ registry }: PageContext): DocPage {
 				text:
 					"A theme says whether it is light or dark, and the translucent overlays (hover, " +
 					"the grid, the header tint) are worked out from that rather than chosen, so no " +
-					"theme can make one invisible. A theme **MUST** meet the contrasts of §8.2.",
+					"theme can make one invisible.",
 			},
+			req("5.7-R1", "meets", "A theme **MUST** meet the contrasts of §8.2."),
 
 			// 5.8 -----------------------------------------------------------------
 			{ t: "h", level: 2, text: "5.8 States and layering" },
@@ -359,25 +404,43 @@ export function visualGrammarPage({ registry }: PageContext): DocPage {
 				]),
 			},
 			{ t: "p", text: GENERATED("core/canvasLayers.ts") },
-			{
-				t: "p",
-				text:
-					"A renderer **MUST** keep this order. The numbers are Roswaal's; another " +
-					"implementation **MAY** use any numbers that keep the same order. The panels " +
-					"around the canvas are outside this stack, above it.",
-			},
+			req(
+				"5.8-R1",
+				"meets",
+				"A renderer **MUST** keep this order. The numbers are Roswaal's; another implementation **MAY** use any numbers that keep the same order.",
+			),
+			{ t: "p", text: "The panels around the canvas are outside this stack, above it." },
 			{ t: "h", level: 3, text: "Problems are seen first" },
-			{
-				t: "ul",
-				items: [
-					"A node with an error **MUST** be marked: its border in the theme's danger colour and a count of its errors on its corner.",
-					"The first problem's sentence **MUST** be written under the node, in a note, with how many more there are. A pin a problem names **MUST** be marked in the node.",
-					"Notes **MUST** be drawn above every node, comment and wire, selected or not, so nothing in the graph covers what is wrong with it. Only the panels around the canvas, its menus and the compile cover **MAY** cover one.",
-					"A note **MUST** be drawn in a layer of its own rather than inside its node: a node is drawn as a unit, so nothing inside one can rise above the node next to it.",
-					"Where two notes overlap, the one belonging to a selected node **SHOULD** be drawn on top.",
-					"A note **SHOULD NOT** take the pointer, so the node under it can still be grabbed.",
-				],
-			},
+			req(
+				"5.8-R2",
+				"meets",
+				"A node with an error **MUST** be marked: its border in the theme's danger colour and a count of its errors on its corner.",
+			),
+			req(
+				"5.8-R3",
+				"meets",
+				"The first problem's sentence **MUST** be written under the node, in a note, with how many more there are. A pin a problem names **MUST** be marked in the node.",
+			),
+			req(
+				"5.8-R4",
+				"meets",
+				"Notes **MUST** be drawn above every node, comment and wire, selected or not, so nothing in the graph covers what is wrong with it. Only the panels around the canvas, its menus and the compile cover **MAY** cover one.",
+			),
+			req(
+				"5.8-R5",
+				"meets",
+				"A note **MUST** be drawn in a layer of its own rather than inside its node: a node is drawn as a unit, so nothing inside one can rise above the node next to it.",
+			),
+			req(
+				"5.8-R6",
+				"meets",
+				"Where two notes overlap, the one belonging to a selected node **SHOULD** be drawn on top.",
+			),
+			req(
+				"5.8-R7",
+				"meets",
+				"A note **SHOULD NOT** take the pointer, so the node under it can still be grabbed.",
+			),
 			{ t: "h", level: 3, text: "Other states" },
 			{
 				t: "table",
@@ -399,8 +462,9 @@ export function visualGrammarPage({ registry }: PageContext): DocPage {
 			{
 				t: "note",
 				kind: "info",
+				label: "Open question",
 				text:
-					"**Open question.** What a problem note does zoomed far out, where its sentence " +
+					"What a problem note does zoomed far out, where its sentence " +
 					"cannot be read: shrink to its count, or keep its size on screen. To be decided in " +
 					"the editor before it is written here.",
 			},

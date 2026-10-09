@@ -11,7 +11,7 @@ import { pinsCompatible } from "../../compiler/validate.js";
 import { PAIR } from "../../schema.js";
 import { TYPE_FAMILIES, typeFamily } from "../../typeFamily.js";
 import type { DocPage } from "../site.js";
-import { normative } from "./spec.js";
+import { normative, req } from "./spec.js";
 
 /** Wires to test the rule with: from, to, and what the example shows. */
 const EXAMPLES: [from: string, to: string, shows: string][] = [
@@ -33,7 +33,7 @@ export function typesPage(): DocPage {
 		title: "6 Types",
 		summary:
 			"What a pin's type is, the five families every type falls into, which pins connect, and where types come from.",
-		spec: normative(),
+		spec: normative("Level 2"),
 		blocks: [
 			// 6.1 ----------------------------------------------------------------
 			{ t: "h", level: 2, text: "6.1 Pin types, abstractly" },
@@ -42,11 +42,22 @@ export function typesPage(): DocPage {
 				items: [
 					"A flow pin has no type. A data pin has one, written as a name: the profile's name for it, such as `number` or `Model`.",
 					"Two names are the same in every profile: `any`, which holds anything, and `pair`, a key and its value, which exists only to build a dictionary.",
-					"Whether a value may be missing is not part of the type. A pin **MAY** be marked as possibly missing, and a renderer **SHOULD** say so where it shows the type (Roswaal writes `Model?`), but it does not change what connects.",
+					"Whether a value may be missing is not part of the type. A pin **MAY** be marked as possibly missing, which does not change what connects.",
 					"A node **MAY** work out a pin's type from its other pins or settings, such as a node that makes an object of a class it is told, whose output is then that class. A reroute knot takes the type of what feeds it.",
-					"A node **MAY** let a person choose the type of an input it declares as `any`. The choice narrows what can be wired and typed in; it **MUST NOT** change the program.",
+					"A node **MAY** let a person choose the type of an input it declares as `any`.",
 				],
 			},
+			req(
+				"6.1-R1",
+				"partly",
+				"A renderer **SHOULD** say where it shows a pin's type that its value may be missing. Roswaal writes `Model?`.",
+				"Roswaal does in a pin's tooltip and the Inspector, and not yet on its type chip.",
+			),
+			req(
+				"6.1-R2",
+				"meets",
+				"Choosing the type of an `any` input narrows what can be wired and typed in, and **MUST NOT** change the program.",
+			),
 
 			// 6.2 ----------------------------------------------------------------
 			{ t: "h", level: 2, text: "6.2 Families" },
@@ -54,9 +65,13 @@ export function typesPage(): DocPage {
 				t: "p",
 				text:
 					"Every type belongs to exactly one of five **families**, which decide the shape " +
-					"its pin is drawn in (§5.5). A profile **MUST** put each of its types in one, and " +
-					"**MUST NOT** add a family.",
+					"its pin is drawn in (§5.5).",
 			},
+			req(
+				"6.2-R1",
+				"meets",
+				"A profile **MUST** put each of its types in one family, and **MUST NOT** add a family.",
+			),
 			{
 				t: "table",
 				head: ["Family", "Drawn as", "Holds"],
@@ -108,14 +123,22 @@ export function typesPage(): DocPage {
 					"run on that pair as these pages are built. `Model` and `Instance` are the Roblox " +
 					"profile's.",
 			},
-			{
-				t: "ul",
-				items: [
-					"An editor **MUST** refuse to make a wire this rule does not allow, and **SHOULD** say why.",
-					"A compiler **MUST** report a wire between a flow pin and a data pin as an error, and **SHOULD** report a data wire this rule does not allow, which can arrive in a file written elsewhere, as a warning.",
-					"A wire between two types the rule joins through a conversion **SHOULD** be drawn so the change shows (§5.6).",
-				],
-			},
+			req(
+				"6.3-R1",
+				"partly",
+				"An editor **MUST** refuse to make a wire this rule does not allow, and **SHOULD** say why.",
+				"Roswaal refuses every one, and says why only when a class cannot be narrowed without a cast.",
+			),
+			req(
+				"6.3-R2",
+				"meets",
+				"A compiler **MUST** report a wire between a flow pin and a data pin as an error, and **SHOULD** report a data wire this rule does not allow, which can arrive in a file written elsewhere, as a warning.",
+			),
+			req(
+				"6.3-R3",
+				"meets",
+				"A wire between two types the rule joins through a conversion **SHOULD** be drawn so the change shows (§5.6).",
+			),
 
 			// 6.4 ----------------------------------------------------------------
 			{ t: "h", level: 2, text: "6.4 Types from source code" },
@@ -131,8 +154,9 @@ export function typesPage(): DocPage {
 			{
 				t: "note",
 				kind: "info",
+				label: "Not yet in Roswaal",
 				text:
-					"**Not yet in Roswaal.** Functions in hand-written source files, rather than in " +
+					"Functions in hand-written source files, rather than in " +
 					"graphs, do not give pins types yet; their doc comments feed the code editor's " +
 					"hover and completion only.",
 			},
@@ -142,8 +166,9 @@ export function typesPage(): DocPage {
 			{
 				t: "note",
 				kind: "info",
+				label: "Proposed, not built",
 				text:
-					"**Proposed, not built.** A way to type a hand-written function's pins from tags " +
+					"A way to type a hand-written function's pins from tags " +
 					"in its doc comments, written so that a documentation generator that does not " +
 					"know them ignores them. For Luau the design has to keep Moonwave sites building: " +
 					"Moonwave treats an unknown tag in a doc comment as an error, so these tags would " +

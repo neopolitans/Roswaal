@@ -13,7 +13,7 @@ export function abstractionsPage(): DocPage {
 		title: "3 Abstractions",
 		summary:
 			"The things a graph is made of, defined once: graphs, nodes, pins, links, steps and values, scope, functions, events, modules, comments and knots.",
-		spec: normative(),
+		spec: normative("Levels 1 and 2"),
 		blocks: [
 			{
 				t: "p",

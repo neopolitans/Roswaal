@@ -123,8 +123,20 @@ export function blockStrings(block: Block): BlockString[] {
 			for (const tag of block.tags) add("plain", TAG_LABELS[tag]);
 			break;
 		case "note":
+			add("plain", block.label);
 			add("inline", block.text);
 			for (const item of block.items ?? []) add("inline", item);
+			break;
+		case "req":
+			add("plain", block.id);
+			add("inline", block.text);
+			add("inline", block.gap);
+			break;
+		case "compare":
+			for (const item of block.items) {
+				add("plain", item.label);
+				add("inline", item.text);
+			}
 			break;
 		case "pins":
 			// The name and the type are what a search is for; the rest of a pin
@@ -139,6 +151,7 @@ export function blockStrings(block: Block): BlockString[] {
 			break;
 		case "preview":
 			for (const node of block.nodes) add("plain", node.title);
+			add("plain", block.label);
 			add("inline", block.caption);
 			break;
 		case "graph":

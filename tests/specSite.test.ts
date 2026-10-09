@@ -19,6 +19,7 @@ const base = {
 	sections,
 	render: { version: "test" },
 	docsBase: "https://roswaal.app/docs/",
+	tryHref: "https://roswaal.app/try.html",
 	draft: SPEC_DRAFT,
 	drafts: [SPEC_DRAFT],
 	version: "test",

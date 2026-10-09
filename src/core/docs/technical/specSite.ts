@@ -21,7 +21,7 @@ import {
 } from "../html.js";
 import { blockText, stripMarkup } from "../markup.js";
 import type { Block, DocPage, DocSection } from "../site.js";
-import { DRAFT_DETAIL, SPEC_DETAILS, SPEC_LABELS } from "./spec.js";
+import { DRAFT_DETAIL, SPEC_DETAILS, specStatusLabel } from "./spec.js";
 
 export interface SpecSiteOptions {
 	/** The specification's sections, as `technicalSections` builds them. */
@@ -39,6 +39,8 @@ export interface SpecSiteOptions {
 	latest: boolean;
 	/** The Roswaal release it was built from. */
 	version: string;
+	/** Where "Try Roswaal" goes: the editor in the browser. */
+	tryHref: string;
 	/** Keep it out of search indexes: the canary's preview. */
 	noindex?: boolean;
 }
@@ -108,10 +110,17 @@ function renderSpecPage(
 	};
 
 	const body = renderBlocksHtml(page.blocks, options.render, link);
+	const reqs = page.blocks.filter((b): b is Block & { t: "req" } => b.t === "req");
+	const met = reqs.filter((r) => r.roswaal === "meets").length;
+	const tally =
+		reqs.length > 0
+			? `<a class="spec-tally" href="${link("technical/requirements")}">${reqs.length} requirement${reqs.length === 1 ? "" : "s"} · Roswaal meets ${met}</a>`
+			: "";
 	const status = page.spec
 		? `<p class="spec-status">` +
-			`<span class="badge ${page.spec.status}" title="${escapeHtml(SPEC_DETAILS[page.spec.status])}">${SPEC_LABELS[page.spec.status]}</span>` +
+			`<span class="badge ${page.spec.status}" title="${escapeHtml(SPEC_DETAILS[page.spec.status])}">${escapeHtml(specStatusLabel(page.spec))}</span>` +
 			`<span class="badge draft" title="${escapeHtml(DRAFT_DETAIL)}">Draft ${escapeHtml(page.spec.draft)}</span>` +
+			tally +
 			"</p>"
 		: "";
 	const prev = pages[at - 1]?.page;
@@ -143,7 +152,7 @@ ${options.render.logo ? `<link rel="icon" type="image/svg+xml" href="${escapeHtm
 <a class="spec-home" href="${up || "./"}">${options.render.logo?.mark ?? ""}<span class="name">Roswaal</span><span class="what">Technical specification</span></a>
 ${draftSwitcher(options, up)}
 <div class="spec-search" role="search"><input id="spec-search" type="search" placeholder="Search the specification" aria-label="Search the specification" autocomplete="off"><div id="spec-results" class="spec-results" hidden></div></div>
-<a class="spec-out" href="https://roswaal.app/">roswaal.app</a>
+<a class="spec-try" href="${escapeHtml(options.tryHref)}">Try Roswaal</a>
 </header>
 <div class="spec-body">
 <nav class="spec-nav" aria-label="Chapters">

@@ -5,7 +5,7 @@
 
 import { code } from "../pages/blocks.js";
 import type { DocPage } from "../site.js";
-import { informative, normative, SPEC_DRAFT } from "./spec.js";
+import { informative, normative, req, SPEC_DRAFT } from "./spec.js";
 
 export function conformancePage(): DocPage {
 	return {
@@ -18,8 +18,9 @@ export function conformancePage(): DocPage {
 			{
 				t: "note",
 				kind: "warn",
+				label: "Planned, not yet released",
 				text:
-					`**Planned, not yet released.** Draft ${SPEC_DRAFT} defines the levels (§1.3) but ` +
+					`Draft ${SPEC_DRAFT} defines the levels (§1.3) but ` +
 					"publishes no fixtures and no checker. Until it does, an implementation can only " +
 					"claim to follow the text. This chapter says what is coming, so it can be argued " +
 					"with before it is built.",
@@ -174,12 +175,16 @@ export function processPage(): DocPage {
 			},
 
 			{ t: "h", level: 2, text: "14.3 Registering a profile" },
+			req(
+				"14.3-R1",
+				"meets",
+				"A profile's id is what a graph file says it is for (§9.1), so two profiles **MUST NOT** share one.",
+			),
 			{
 				t: "p",
 				text:
-					"A profile's id is what a graph file says it is for (§9.1), so two profiles " +
-					"**MUST NOT** share one. Until there is a registry, `roblox` and `lune` are taken, " +
-					"and a new profile is registered by proposing it (§14.2).",
+					"Until there is a registry, `roblox` and `lune` are taken, and a new profile is " +
+					"registered by proposing it (§14.2).",
 			},
 
 			{ t: "h", level: 2, text: "14.4 Changelog" },
