@@ -11015,9 +11015,12 @@ p.licence-meta,
 }
 
 /* Everything centred in its cell, but the holders, which read as a list
-   down the left and so start at the same edge, clear of the border. */
-.attr-grid th,
-.attr-grid td {
+   down the left and so start at the same edge, clear of the border. Prefixed
+   with `.attr` so it outranks the docs' own table cells, which have no
+   padding on the left and 14px on the right: enough, on a name that wraps
+   and so fills its cell, to push the whole box off centre. */
+.attr .attr-grid th,
+.attr .attr-grid td {
 	padding: 8px;
 	border-top: 1px solid var(--border);
 	text-align: center;

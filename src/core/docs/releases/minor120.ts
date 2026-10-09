@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.160.3",
+		date: "2026-10-09",
+		headline: "The attributions grid's names sit in the middle of their cells.",
+		affects: ["editor", "docs"],
+		fixed: [
+			"In the Attributions page's Simple grid, a name that wraps, such as **Luau logo (canary)**, sits in the middle of its cell rather than to the left of it. The grid took the docs' table spacing, with none on a cell's left and more on its right, which only showed once a name filled its cell.",
+		],
+	},
+	{
 		version: "0.160.2",
 		date: "2026-10-08",
 		headline: "A name that wraps in the attributions grid stays centred.",
