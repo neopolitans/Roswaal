@@ -9,6 +9,30 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.162.0",
+		date: "2026-10-09",
+		headline:
+			"The technical specification, Draft 0.1: Roswaal's design written so another editor can follow it.",
+		affects: ["editor", "docs"],
+		added: [
+			"**The technical specification**, at roswaal.app/technical, in [the docs](technical) and in the Docs panel, under a heading of its own. Fourteen chapters in three parts: the principles, abstractions, interactions, visual grammar, types, execution, accessibility and file format that hold in every language; how to write a profile for a new language, with Luau for Roblox and Luau for Lune as the first two; and how conformance will be checked and the specification changed.",
+			"Each page says whether it is **Normative**, binding an implementation in the words of RFC 2119, or **Informative**, and that it is **Draft 0.1**. Nothing in a draft is promised until 1.0.",
+			"Its tables of numbers are **generated** from Roswaal's own source as the pages are built: node geometry, the drawing layers, the grid and zoom, the pin families, the theme roles, the built-in library by category, and the connection rule, whose examples are the compiler's own answers.",
+			"Where Roswaal does not yet do what the specification asks, the page says so beside the requirement: the canvas cannot yet be used from the keyboard or by a screen reader, and pins do not grow for a finger.",
+		],
+		changed: [
+			"[Wires and pins](wires-and-pins) describes the pin shapes and type chips, and value nodes as rounder with no header bar. Adding and removing pins, and [Coming from Blueprints](coming-from-blueprints), describe the controls and flow pins as 0.161 draws them.",
+		],
+		fixed: [
+			"**A getter, an operator and a reroute knot show their type underneath**, centred, rather than in a chip beside their output, where it cut a getter's name short, covered an operator's symbol and sat on top of a knot's pin.",
+			"**A handler whose body reads its own connection** now works. A Body that disconnected its own Connection compiled to `local connection = …:Connect(function() connection:Disconnect() end)`, where the `connection` inside the function is not yet the local and so is nil. The local is now declared first and assigned by the connect.",
+		],
+		watch: [
+			"The documentation's pictures of getters, operators and knots do not show the type under them yet.",
+			"Draft 0.1 publishes no conformance fixtures or checker; its Conformance chapter says what is planned.",
+		],
+	},
+	{
 		version: "0.161.0",
 		date: "2026-10-09",
 		headline:

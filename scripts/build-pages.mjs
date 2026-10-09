@@ -119,6 +119,11 @@ async function main() {
 		"utf8",
 	);
 	await writeFile(join(out, "404.html"), notFoundPage(base, version), "utf8");
+	// `/technical/`, the address the specification is known by, as a short way
+	// into its pages in the docs. A redirect rather than a copy, so there is one
+	// page to link to and one for a search engine to index.
+	await mkdir(join(out, "technical"), { recursive: true });
+	await writeFile(join(out, "technical", "index.html"), technicalRedirect(), "utf8");
 
 	// Tells Pages not to run the files through Jekyll, which would drop every
 	// directory whose name begins with an underscore.
@@ -137,6 +142,25 @@ async function main() {
 	console.log(
 		`site: ${base} -> dist-pages/ (editor, ${pages} node pages, docs; ${html.length} pages with the policy)`,
 	);
+}
+
+/** The page at `/technical/`: straight on to the specification's front page. */
+function technicalRedirect() {
+	const to = "../docs/technical.html";
+	return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="0; url=${to}">
+<link rel="canonical" href="${to}">
+<title>Technical specification · Roswaal</title>
+</head>
+<body>
+<p><a href="${to}">Roswaal's technical specification</a></p>
+</body>
+</html>
+`;
 }
 
 await main();

@@ -24,7 +24,7 @@ export const GLYPHS = {
 	entry: "M8 5.5v13l10.5-6.5z",
 	/** Where it stops: Script End, Return. */
 	terminal: "M6.5 6.5h11v11h-11z",
-	/** A function declared or called by name. */
+	/** A function declared where it sits in a flow: Declare Function. */
 	function: "M16.5 4.5c-3-1.2-5.2 0-5.7 3L9.2 16.5c-.5 3-2.7 4.2-5.7 3M7.5 10.5h8",
 	/** Flow: one way in, two ways on. */
 	flow: "M3.5 12h5.5l4-5.5h7.5M9 12l4 5.5h7.5M17.5 3.5l3 3-3 3M17.5 14.5l3 3-3 3",
@@ -74,7 +74,7 @@ export const GLYPHS = {
 export type GlyphName = keyof typeof GLYPHS;
 
 /** By category key — the key, not the label `categoryLabel` shows. */
-const BY_CATEGORY: Record<string, GlyphName> = {
+export const CATEGORY_GLYPHS: Record<string, GlyphName> = {
 	Flow: "flow",
 	Events: "events",
 	Variables: "variables",
@@ -126,5 +126,5 @@ export function nodeGlyph(def: {
 	if (def.role === "terminal") return "terminal";
 	if (def.id !== undefined && FUNCTION_NODES.has(def.id)) return "function";
 	if (def.subcategory && BY_SUBCATEGORY[def.subcategory]) return BY_SUBCATEGORY[def.subcategory];
-	return BY_CATEGORY[def.category] ?? "other";
+	return CATEGORY_GLYPHS[def.category] ?? "other";
 }

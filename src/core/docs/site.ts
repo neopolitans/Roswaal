@@ -65,6 +65,8 @@ import { wallyPackagesPage } from "./pages/wallyPackages.js";
 import { wiresAndPinsPage } from "./pages/wiresAndPins.js";
 import type { NodePreview } from "./preview.js";
 import { type Review, reviewOf } from "./reviews.js";
+import { technicalSections } from "./technical/index.js";
+import type { SpecStatus } from "./technical/spec.js";
 import type { ToolbarSpec } from "./toolbars.js";
 
 export {
@@ -454,6 +456,12 @@ export interface DocPage {
 	 * every page but a pack's; see `reviews.ts`.
 	 */
 	review?: Review;
+	/**
+	 * A page of the technical specification: whether it binds an
+	 * implementation (normative) or explains (informative), and which draft of
+	 * the specification it belongs to. See `technical/spec.ts`.
+	 */
+	spec?: SpecStatus;
 }
 
 /** One step of a walkthrough. */
@@ -535,6 +543,13 @@ export const GROUPS = {
 	 */
 	conversions: "Conversions",
 	project: "Project nodes",
+	/**
+	 * The technical specification: Roswaal's design written as a standard
+	 * another implementation can follow. A heading of its own, after the guides
+	 * and before the node reference, because it is read by a different person
+	 * for a different reason: someone building an editor, not using one.
+	 */
+	technical: "Technical specification",
 } as const;
 
 export interface DocSite {
@@ -697,6 +712,7 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 			},
 			{ title: "Attributions", slug: "attributions", group: GROUPS.learn, pages: [attributions] },
 			{ title: "Contributing", slug: "contributing", group: GROUPS.learn, pages: [contributing] },
+			...technicalSections(GROUPS.technical, ctx),
 			...reference(GROUPS.builtin, false),
 			...engineTypeSections(),
 			...conversionSections(),

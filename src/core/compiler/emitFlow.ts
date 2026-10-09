@@ -801,12 +801,32 @@ function connectHandler(
 	e.names.push();
 	const { params } = luauSignature(e, sig, id, body);
 	e.push(`${prefix}${signal}:${method}(function(${params})`, id);
+	const opener = e.out.length - 1;
 	e.indent++;
 	e.walk(e.index.execTarget(id, "body"), body);
 	e.indent--;
 	e.names.pop();
 	e.push("end)", id);
 	e.terminated = false;
+
+	// A body that reads its own connection -- to disconnect after the first
+	// fire, say -- needs the local declared before the statement that assigns
+	// it. In `local c = s:Connect(function() c:Disconnect() end)` the new local
+	// is not yet in scope inside its own initialiser, so the `c` in the body is
+	// a global, and nil. Declared first, the body closes over it.
+	if (prefix) {
+		const ident = scope.bindings.get(`${id}/connection`)!;
+		const reads = new RegExp(`(^|[^\\w.:])${ident}\\b`);
+		if (e.out.slice(opener + 1).some((line) => reads.test(line.text))) {
+			const line = e.out[opener];
+			line.text = line.text.slice("local ".length);
+			e.out.splice(opener, 0, {
+				text: `local ${ident}${e.annotates ? ": RBXScriptConnection" : ""}`,
+				indent: line.indent,
+				node: id,
+			});
+		}
+	}
 	return e.index.execTarget(id, "then");
 }
 

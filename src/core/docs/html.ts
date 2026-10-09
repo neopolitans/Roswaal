@@ -40,6 +40,7 @@ import {
 	stripMarkup,
 	TAG_LABELS,
 } from "./site.js";
+import { DRAFT_DETAIL, SPEC_DETAILS, SPEC_LABELS } from "./technical/spec.js";
 import { controlKey, legendOf, TOOLBAR_HINT, type ToolbarArt, toolbarHtml } from "./toolbars.js";
 import { typeCellHtml } from "./typeCell.js";
 
@@ -807,6 +808,16 @@ function stamp(options: RenderOptions): string {
 	return key ? `?v=${encodeURIComponent(key)}` : "";
 }
 
+/** Normative or Informative, and the draft, on a page of the specification. */
+function specBadges(page: DocPage): string {
+	if (!page.spec) return "";
+	const { status, draft } = page.spec;
+	return (
+		`<span class="badge spec ${status}" title="${escapeHtml(SPEC_DETAILS[status])}">${SPEC_LABELS[status]}</span>` +
+		`<span class="badge spec draft" title="${escapeHtml(DRAFT_DETAIL)}">Draft ${escapeHtml(draft)}</span>`
+	);
+}
+
 /** Pending, Reviewed or Verified, with what that means on hover. */
 function reviewBadge(review: Review): string {
 	return (
@@ -926,7 +937,7 @@ ${renderNav(site, page, options)}
 <header class="docs-title">
 <h1>${escapeHtml(page.title)}${runtimeBadge(page)}${page.custom ? `<span class="badge">from a node pack</span>` : ""}<a class="tb icon-only docs-edit" href="${escapeHtml(proposeHref(page))}" rel="noreferrer noopener" title="Suggest an edit — opens an issue for this page" aria-label="Suggest an edit">✎</a></h1>
 <p class="summary">${inline(page.summary, up)}</p>
-${page.review ? `<p class="docs-status">${reviewBadge(page.review)}</p>\n` : ""}</header>
+${page.review || page.spec ? `<p class="docs-status">${specBadges(page)}${page.review ? reviewBadge(page.review) : ""}</p>\n` : ""}</header>
 ${body}
 ${renderNeighbours(site, page)}${page.review ? `<p class="docs-reviewed">${inline(reviewLine(page.review), up)}</p>\n` : ""}${page.review?.verify ? `<p class="docs-verify"><strong>To verify:</strong> ${inline(page.review.verify, up)}</p>\n` : ""}<div class="docs-tail" aria-hidden="true"></div>
 </div>

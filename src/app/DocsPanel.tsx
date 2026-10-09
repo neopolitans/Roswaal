@@ -58,6 +58,7 @@ import {
 	searchDocs,
 	TAG_LABELS,
 } from "../core/docs/site.js";
+import { DRAFT_DETAIL, SPEC_DETAILS, SPEC_LABELS } from "../core/docs/technical/spec.js";
 import type { ToolbarSpec } from "../core/docs/toolbars.js";
 import { controlKey, legendOf, TOOLBAR_HINT, toolbarHtml } from "../core/docs/toolbars.js";
 import { typeCellHtml } from "../core/docs/typeCell.js";
@@ -579,9 +580,22 @@ function Page({ page, site, go }: { page: DocPage; site: DocSite; go: (next: str
 				<p className="summary">
 					<Rich text={page.summary} />
 				</p>
-				{page.review && (
+				{(page.review || page.spec) && (
 					<p className="docs-status">
-						<ReviewBadge review={page.review} />
+						{page.spec && (
+							<>
+								<span
+									className={`badge spec ${page.spec.status}`}
+									title={SPEC_DETAILS[page.spec.status]}
+								>
+									{SPEC_LABELS[page.spec.status]}
+								</span>
+								<span className="badge spec draft" title={DRAFT_DETAIL}>
+									Draft {page.spec.draft}
+								</span>
+							</>
+						)}
+						{page.review && <ReviewBadge review={page.review} />}
 					</p>
 				)}
 			</header>

@@ -95,12 +95,12 @@ export const BLUEPRINT_MAP: MappingSection[] = [
 				unreal: "Exec pins",
 				roswaal: "Execution pins",
 				note:
-					"Same idea, same white pins, same rule that a node is either in the line or pure. " +
-					"Drawn as a triangle outside the node rather than an arrow inside it.",
+					"Same idea, same rule that a node is either in the line or pure. Drawn as a " +
+					"triangle outside the node rather than an arrow inside it, in the flow wire's colour.",
 			},
 			{
 				unreal: "Pure node (green)",
-				roswaal: "Pure node (green left edge)",
+				roswaal: "Pure node (rounder, no header bar)",
 				note:
 					"Same meaning: no execution wire, evaluated where it is used. Roswaal inlines a pure " +
 					"value with one consumer and binds it to a local with two, so it is evaluated once.",

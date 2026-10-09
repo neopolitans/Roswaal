@@ -152,3 +152,52 @@ describe("Connect Event from Get Event", () => {
 		expect(signatureOf(node.config).params).toEqual([]);
 	});
 });
+
+describe("a handler that reads its own connection", () => {
+	/**
+	 * `local c = s:Connect(function() c:Disconnect() end)` reads a global `c`
+	 * inside the body: a local is not in scope in its own initialiser. So the
+	 * local is declared first and assigned by the connect.
+	 */
+	it("declares the connection before connecting, so the body sees it", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const players = playersInto(b);
+		const on = b.node("event.on", { config: { event: "PlayerAdded", params: [] } });
+		const disconnect = b.node("connection.disconnect");
+		b.link(start, "then", on, "in");
+		b.link(players, "service", on, "instance");
+		b.link(on, "body", disconnect, "in");
+		b.link(on, "connection", disconnect, "connection");
+
+		const out = compile(b.build(), registry);
+		expect(errors(out)).toEqual([]);
+		expect(body(out.code)).toBe(
+			[
+				`local Players = game:GetService("Players")`,
+				"",
+				"local connection: RBXScriptConnection",
+				"connection = Players.PlayerAdded:Connect(function()",
+				"\tconnection:Disconnect()",
+				"end)",
+			].join("\n"),
+		);
+	});
+
+	it("keeps the one-line form when only the flow after it reads the connection", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const players = playersInto(b);
+		const on = b.node("event.on", { config: { event: "PlayerAdded", params: [] } });
+		const disconnect = b.node("connection.disconnect");
+		b.link(start, "then", on, "in");
+		b.link(players, "service", on, "instance");
+		b.link(on, "then", disconnect, "in");
+		b.link(on, "connection", disconnect, "connection");
+
+		const out = compile(b.build(), registry);
+		expect(errors(out)).toEqual([]);
+		expect(body(out.code)).toContain("local connection = Players.PlayerAdded:Connect(function()");
+		expect(body(out.code)).not.toContain("local connection: RBXScriptConnection");
+	});
+});

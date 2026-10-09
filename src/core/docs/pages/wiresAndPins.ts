@@ -2,6 +2,7 @@
  * The `wires-and-pins` page of the documentation. `buildSite` places it.
  */
 
+import { TYPE_FAMILIES } from "../../typeFamily.js";
 import { GUIDE_SCENES } from "../examples.js";
 import type { DocPage, PageContext } from "../site.js";
 import { previews } from "./blocks.js";
@@ -17,8 +18,9 @@ export function wiresAndPinsPage({ registry }: PageContext): DocPage {
 				t: "p",
 				text:
 					"**Execution** wires say what happens in what order. **Data** wires carry values. An " +
-					"execution pin is a triangle hung outside the node; a data pin is a circle " +
-					"balanced on its edge. Both are hollow until something is wired to them.",
+					"execution pin is a triangle hung outside the node, and a step's flow in and flow on " +
+					"sit level with its header. A data pin is balanced on the node's edge, shaped by the " +
+					"kind of value it carries. Both are drawn open until something is wired to them.",
 			},
 			...previews(
 				registry,
@@ -54,7 +56,7 @@ export function wiresAndPinsPage({ registry }: PageContext): DocPage {
 			{
 				t: "p",
 				text:
-					"Pure nodes have a green left edge, and a variable's Get is a pill with no header. A " +
+					"Pure nodes are rounder, with no header bar, and a variable's Get is a pill. A " +
 					"pure value used once is written where it is used; used twice or more, it is bound " +
 					"to a local first, so the work happens once. A variable is the exception — it is " +
 					"read where it is used, every time, so a Set between two reads is never missed.",
@@ -89,6 +91,29 @@ export function wiresAndPinsPage({ registry }: PageContext): DocPage {
 				caption:
 					"Add's number lands on a string pin, and Concatenate's string on Print's Value, " +
 					"which takes anything — so each wire fades from one colour to the other.",
+			},
+
+			{ t: "h", level: 2, text: "Shapes and type chips" },
+			{
+				t: "p",
+				text:
+					"A data pin's shape says what kind of value it carries, so a pin can be read " +
+					"without telling its colour apart:",
+			},
+			{
+				t: "table",
+				head: ["Shape", "Carries"],
+				rows: TYPE_FAMILIES.map((f) => [capitalise(f.shape), f.what]),
+			},
+			{
+				t: "p",
+				text:
+					"An output also says its type in words, in a chip of the type's colour, where its " +
+					"name does not already say it. An unnamed `RBXScriptSignal` output reads " +
+					"**Signal**; Connect Event's **Connection** output has no chip, because its name " +
+					"already says it. Point at a chip for what the type is and a link to its page in " +
+					"Roblox's Creator Documentation, the same card the Code panel shows; on a touch " +
+					"screen, tap it.",
 			},
 
 			{ t: "h", level: 2, text: "What connects" },
@@ -251,9 +276,9 @@ export function wiresAndPinsPage({ registry }: PageContext): DocPage {
 			{
 				t: "p",
 				text:
-					"A node that takes a list has **+** and **−** in its header: the maths and logic " +
-					"operators, Make Dictionary, calls, Sequence, Return, Module Exports, and a " +
-					"function's parameters.",
+					"A node that takes a list has **+** and **−** in its header, which show when you " +
+					"point at the node or select it: the maths and logic operators, Make Dictionary, " +
+					"calls, Sequence, Return, Module Exports, and a function's parameters.",
 			},
 			{
 				t: "graph",
@@ -264,4 +289,8 @@ export function wiresAndPinsPage({ registry }: PageContext): DocPage {
 			},
 		],
 	};
+}
+
+function capitalise(text: string): string {
+	return text.charAt(0).toUpperCase() + text.slice(1);
 }

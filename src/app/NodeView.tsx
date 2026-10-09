@@ -327,7 +327,33 @@ function renderReroute(
 		>
 			{input && renderPin(props, input, "in")}
 			{output && renderPin(props, output, "out")}
+			{hangingChip(output ?? input)}
 		</div>
+	);
+}
+
+/** Whether a node's output type hangs under it rather than sitting by its pin. */
+function hangsChip(def: NodeDef | undefined): boolean {
+	return isReroute(def) || isCompact(def) || isOperator(def);
+}
+
+/**
+ * What a knot, a getter or a pill gives, in a chip hung under it and centred
+ * on it, as a problem note hangs under a node. Only for a type that says
+ * something: an unwired knot is `any`, which a chip would only announce.
+ */
+function hangingChip(pin: PinDef | undefined) {
+	if (!pin || pin.kind !== "data") return null;
+	const text = typeChip(undefined, pin.type);
+	if (!text) return null;
+	return (
+		<span
+			className="type-chip hanging-type"
+			style={{ "--pin": pinColor(pin.type, "data") } as React.CSSProperties}
+			{...typeCardHandlers(pin.type!)}
+		>
+			{text}
+		</span>
 	);
 }
 
@@ -367,6 +393,7 @@ function renderCapsule(props: NodeViewProps, def: NodeDef, output: PinDef | unde
 			)}
 			<span className="capsule-label">{compactLabel(def, node)}</span>
 			{output && renderPin(props, output, "out")}
+			{hangingChip(output)}
 		</div>
 	);
 }
@@ -459,6 +486,7 @@ function renderOperator(
 					{renderPin(props, output, "out")}
 				</span>
 			)}
+			{hangingChip(output)}
 		</div>
 	);
 }
@@ -540,8 +568,14 @@ function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out") {
 
 	// The output's type in words, where the name does not already say it, in
 	// a chip of the type's colour. A cast says it already, so it has none.
+	// A knot's, a getter's and a pill's type hangs under it instead
+	// (`hangingChip`): each is too small to hold a chip beside its one output,
+	// and one drawn there sat on the knot's pin, cut a getter's name short and
+	// covered a pill's symbol.
 	const chipText =
-		side === "out" && pin.kind === "data" && !cast ? typeChip(pin.name, pin.type) : null;
+		side === "out" && pin.kind === "data" && !cast && !hangsChip(props.def)
+			? typeChip(pin.name, pin.type)
+			: null;
 	const chip = chipText ? (
 		<span
 			className="type-chip"

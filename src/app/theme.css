@@ -2318,6 +2318,17 @@ button.tb.primary:hover:not(:disabled) {
 	cursor: help;
 }
 
+/* A knot's, a getter's or a pill's type, under it and centred on it: each is
+   too small to hold a chip beside its one output. Outside the node's box, so
+   it takes no part in the node's size, its hit area or its wires' geometry. */
+.node .hanging-type {
+	position: absolute;
+	top: calc(100% + 4px);
+	left: 50%;
+	transform: translateX(-50%);
+	max-width: 120px;
+}
+
 .node .type-chip:hover {
 	box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--pin) 70%, transparent);
 }
@@ -9682,6 +9693,29 @@ a.docs-minor-row .aside {
 .docs-title .badge.review.pending {
 	color: var(--warning);
 	border-color: color-mix(in srgb, var(--warning) 60%, transparent);
+}
+
+/* A page of the technical specification: whether it binds an implementation,
+   and which draft it is. Normative in the danger colour, because it is the
+   one that holds a reader to something; the draft in the warning colour, as
+   a page still pending review is. */
+.docs-title .badge.spec.normative {
+	color: var(--danger);
+	border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+}
+
+.docs-title .badge.spec.informative {
+	color: var(--fg-muted);
+	border-color: var(--border);
+}
+
+.docs-title .badge.spec.draft {
+	color: var(--warning);
+	border-color: color-mix(in srgb, var(--warning) 60%, transparent);
+}
+
+.docs-title .docs-status .badge + .badge {
+	margin-left: 6px;
 }
 
 /* Which runtime this node needs, beside its name.
