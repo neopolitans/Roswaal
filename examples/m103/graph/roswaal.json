@@ -8,5 +8,9 @@
     ".roswaal/nodes"
   ],
   "format": true,
-  "rojoProject": "default.project.json"
+  "indentStyle": "tab",
+  "indentWidth": 4,
+  "comments": true,
+  "rojoProject": "default.project.json",
+  "castsByHierarchy": true
 }

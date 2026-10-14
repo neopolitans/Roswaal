@@ -1,0 +1,2325 @@
+{
+  "schemaVersion": 1,
+  "kind": "script",
+  "id": "1aca34f2-9279-4534-9c7a-f5aea0d44d5e",
+  "name": "Remotes",
+  "scriptClass": "ModuleScript",
+  "target": "roblox",
+  "typecheck": "strict",
+  "variables": [
+    {
+      "id": "29e30ce7-1504-43eb-8b7b-bbec9adb02a5",
+      "name": "Remotes",
+      "type": "table",
+      "default": {
+        "t": "raw",
+        "v": "{}"
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "00192375-42d0-4c02-87d1-dde8e86b3919",
+      "def": "instance.isA",
+      "x": 2680,
+      "y": 324,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+      "literals": {
+        "className": {
+          "t": "string",
+          "v": "RemoteEvent"
+        }
+      }
+    },
+    {
+      "id": "03dc140c-4f42-4b5d-9dfa-28fad1ad64a6",
+      "def": "type.declareHere",
+      "x": 453,
+      "y": 152,
+      "config": {
+        "fields": [
+          {
+            "name": "throttle",
+            "type": "number"
+          },
+          {
+            "name": "steer",
+            "type": "number"
+          },
+          {
+            "name": "aim",
+            "type": "Vector3"
+          }
+        ],
+        "layout": "lines",
+        "name": "Input",
+        "shape": "fields"
+      }
+    },
+    {
+      "id": "064446f0-bda8-4eb2-8e7e-fbc1c0c2a6a1",
+      "def": "flow.reroute",
+      "x": 3309,
+      "y": 905,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+      "config": {
+        "type": "RemoteEvent"
+      }
+    },
+    {
+      "id": "07e39c57-e4ab-4d18-af00-629c5f4f1c98",
+      "def": "logic.or",
+      "x": 1938,
+      "y": 1058,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001"
+    },
+    {
+      "id": "0bb9dbf0-cbd8-4efd-b133-f62ce91298c8",
+      "def": "function.get",
+      "x": 195,
+      "y": 264,
+      "graph": "41a7c9e2-f453-4201-bc04-472bee07d2aa",
+      "config": {
+        "function": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+        "name": "event"
+      }
+    },
+    {
+      "id": "0ea83bfd-1ccd-4f23-bf3f-83ac084a8fb1",
+      "def": "roblox.findFirstChild",
+      "x": 2403,
+      "y": 468,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+      "config": {
+        "resultName": "existing"
+      }
+    },
+    {
+      "id": "0fbfe709-08c3-41a9-acbe-3cbda97be168",
+      "def": "local.get",
+      "x": 1177,
+      "y": 951,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+      "config": {
+        "local": "931ade8e-0faf-4409-bb0b-20287c1a602c",
+        "name": "input",
+        "type": "Input"
+      }
+    },
+    {
+      "id": "2038281e-c550-4b1d-a896-f6259c6ceaf6",
+      "def": "function.return",
+      "x": 2073,
+      "y": 250,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+      "config": {
+        "returns": [
+          {
+            "name": "isValid",
+            "type": "boolean"
+          }
+        ]
+      }
+    },
+    {
+      "id": "20646e45-5dda-4907-b347-de0ebe4dd02e",
+      "def": "flow.branch",
+      "x": 3158,
+      "y": 172,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135"
+    },
+    {
+      "id": "2068db0c-927c-4f6a-a66d-3370c4e996e4",
+      "def": "call.value",
+      "x": 379,
+      "y": 236,
+      "graph": "41a7c9e2-f453-4201-bc04-472bee07d2aa",
+      "config": {
+        "wired": {
+          "name": "event",
+          "params": [
+            {
+              "name": "name",
+              "type": "string"
+            }
+          ],
+          "returns": [
+            {
+              "name": "Result",
+              "type": "RemoteEvent"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "22d304e2-aa0f-4259-b0a5-e1973378698b",
+      "def": "roblox.getService",
+      "x": 2668,
+      "y": 938,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+      "literals": {
+        "service": {
+          "t": "string",
+          "v": "ReplicatedStorage"
+        }
+      }
+    },
+    {
+      "id": "278d89fb-31bd-455f-8f32-0c3d58c989d0",
+      "def": "local.get",
+      "x": 333,
+      "y": 309,
+      "graph": "ac35a68c-e7fe-49ba-ac4b-5edc48cb10d6",
+      "config": {
+        "local": "51e0f54c-a93a-4ef1-bde0-941f1dd92552",
+        "name": "EXIT",
+        "type": "any"
+      }
+    },
+    {
+      "id": "310846ab-9374-4dc3-8512-41a4af72bba2",
+      "def": "flow.reroute",
+      "x": 2450,
+      "y": 905,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+      "config": {
+        "type": "RemoteEvent"
+      }
+    },
+    {
+      "id": "31d4b5cc-6e3b-409e-ba49-4dd0aab1b53a",
+      "def": "value.member",
+      "x": 1334,
+      "y": 951,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+      "config": {
+        "member": "throttle",
+        "type": "number"
+      }
+    },
+    {
+      "id": "34be94c9-91c4-44e9-a037-580ef380a17c",
+      "def": "value.member",
+      "x": 1332,
+      "y": 1719,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+      "config": {
+        "member": "aim",
+        "type": "Vector3"
+      }
+    },
+    {
+      "id": "35fb6d7b-3b11-4db0-9e11-396f887ad0a7",
+      "def": "roblox.setProperty",
+      "x": 2611,
+      "y": 725,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135"
+    },
+    {
+      "id": "3a070e59-712a-428c-84a7-24324da9cfde",
+      "def": "value.expression",
+      "x": 1297,
+      "y": 2127,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+      "literals": {
+        "code": {
+          "t": "raw",
+          "v": "1e-4"
+        }
+      }
+    },
+    {
+      "id": "3a774ea1-49f8-4276-b081-c37cc1fc649d",
+      "def": "local.get",
+      "x": 1177,
+      "y": 1334,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+      "config": {
+        "local": "931ade8e-0faf-4409-bb0b-20287c1a602c",
+        "name": "input",
+        "type": "Input"
+      }
+    },
+    {
+      "id": "41a7c9e2-f453-4201-bc04-472bee07d2aa",
+      "def": "function.declareHere",
+      "x": 1198,
+      "y": 533,
+      "config": {
+        "name": "input",
+        "params": [],
+        "returns": [
+          {
+            "name": "Result",
+            "type": "RemoteEvent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "42b5f975-4919-4f6a-8b9e-94d3ec1f7cee",
+      "def": "value.member",
+      "x": 1334,
+      "y": 1334,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+      "config": {
+        "member": "steer",
+        "type": "number"
+      }
+    },
+    {
+      "id": "4434e30b-d736-46bf-88d4-25d4c4275cac",
+      "def": "flow.sequence",
+      "x": 842,
+      "y": 160,
+      "config": {
+        "count": 5
+      }
+    },
+    {
+      "id": "47eba5a7-cdd3-4c55-9930-19860d418d9b",
+      "def": "flow.sequence",
+      "x": 600,
+      "y": 250,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+      "config": {
+        "count": 6
+      }
+    },
+    {
+      "id": "4dcfbf9c-8aa1-4adc-b01a-c3d953c05e63",
+      "def": "value.typeName",
+      "x": 1558,
+      "y": 1374,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+      "literals": {
+        "type": {
+          "t": "string",
+          "v": "number"
+        }
+      }
+    },
+    {
+      "id": "51e0f54c-a93a-4ef1-bde0-941f1dd92552",
+      "def": "local.declare",
+      "x": 2077,
+      "y": 158,
+      "literals": {
+        "name": {
+          "t": "string",
+          "v": "EXIT"
+        }
+      }
+    },
+    {
+      "id": "537162a4-c92b-4951-bfaf-27f15749758c",
+      "def": "compare.selfNeq",
+      "x": 1555,
+      "y": 1082,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001"
+    },
+    {
+      "id": "54c792b7-342f-4386-97fb-458e0d314524",
+      "def": "value.typeName",
+      "x": 1558,
+      "y": 991,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+      "literals": {
+        "type": {
+          "t": "string",
+          "v": "number"
+        }
+      }
+    },
+    {
+      "id": "5621c4ee-9bd7-4e44-8ab8-086bce2c3e5a",
+      "def": "function.return",
+      "x": 886,
+      "y": 433,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+      "config": {
+        "returns": [
+          {
+            "name": "value1",
+            "type": "any"
+          }
+        ]
+      }
+    },
+    {
+      "id": "5b027db9-8452-4565-84b9-1ed7bf39a191",
+      "def": "script.begin",
+      "x": 120,
+      "y": 160
+    },
+    {
+      "id": "60b0f6cc-87bd-422a-aaa9-dfc2d34be66c",
+      "def": "module.exports",
+      "x": 118,
+      "y": 60
+    },
+    {
+      "id": "63977abb-b9d0-4b05-a1a7-bad3b9c4470d",
+      "def": "local.get",
+      "x": 985,
+      "y": 2080,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+      "config": {
+        "local": "931ade8e-0faf-4409-bb0b-20287c1a602c",
+        "name": "input",
+        "type": "Input"
+      }
+    },
+    {
+      "id": "653ad776-2c17-4c7c-83fb-ca719125f61c",
+      "def": "function.getParam",
+      "x": 104,
+      "y": 555,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+      "config": {
+        "function": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+        "param": "name",
+        "type": "string"
+      }
+    },
+    {
+      "id": "6706db88-d66f-407d-bc59-2ab6b25601ea",
+      "def": "call.value",
+      "x": 513,
+      "y": 239,
+      "graph": "ac35a68c-e7fe-49ba-ac4b-5edc48cb10d6",
+      "config": {
+        "wired": {
+          "name": "event",
+          "params": [
+            {
+              "name": "name",
+              "type": "string"
+            }
+          ],
+          "returns": [
+            {
+              "name": "Result",
+              "type": "RemoteEvent"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "6a07b86d-79aa-44f8-9992-1a292718f378",
+      "def": "flow.rerouteExec",
+      "x": 1039,
+      "y": 2040,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001"
+    },
+    {
+      "id": "6bd3208a-4264-4855-8570-89fb02dc1c81",
+      "def": "value.string",
+      "x": 1237,
+      "y": 208,
+      "literals": {
+        "value": {
+          "t": "string",
+          "v": "TankInput"
+        }
+      }
+    },
+    {
+      "id": "6e30a385-f7b3-414c-bfc8-9869abee64fd",
+      "def": "variable.get",
+      "x": -100,
+      "y": 88,
+      "config": {
+        "name": "Remotes",
+        "type": "table",
+        "variable": "29e30ce7-1504-43eb-8b7b-bbec9adb02a5"
+      }
+    },
+    {
+      "id": "6f045c48-d17a-4bb3-8a56-98539a00290d",
+      "def": "value.typeName",
+      "x": 1556,
+      "y": 1759,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+      "literals": {
+        "type": {
+          "t": "string",
+          "v": "Vector3"
+        }
+      }
+    },
+    {
+      "id": "77c99829-0990-47b7-8ad6-7cb2bcf2ca85",
+      "def": "flow.branch",
+      "x": 2082,
+      "y": 1621,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001"
+    },
+    {
+      "id": "7ab7fd28-9dea-4846-a8b7-ac3ee7011c7a",
+      "def": "roblox.getService",
+      "x": -17,
+      "y": 466,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+      "literals": {
+        "service": {
+          "t": "string",
+          "v": "ReplicatedStorage"
+        }
+      }
+    },
+    {
+      "id": "809d1812-a47b-4acb-a9a4-eb16261a1ca6",
+      "def": "flow.branch",
+      "x": 2084,
+      "y": 1236,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001"
+    },
+    {
+      "id": "81755021-9b06-4c8b-8fa8-44bfc6602847",
+      "def": "value.typeof",
+      "x": 1604,
+      "y": 1719,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001"
+    },
+    {
+      "id": "840aebc3-15e0-4eeb-a0f7-40e341918ace",
+      "def": "roblox.getService",
+      "x": 2113,
+      "y": 468,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+      "literals": {
+        "service": {
+          "t": "string",
+          "v": "ReplicatedStorage"
+        }
+      }
+    },
+    {
+      "id": "847a3625-7377-4cee-8369-bb1c0cf63859",
+      "def": "flow.reroute",
+      "x": 3296,
+      "y": 515,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+      "config": {
+        "type": "Instance"
+      }
+    },
+    {
+      "id": "89e14453-5076-4313-a2a8-6fcdd3c712b9",
+      "def": "value.member",
+      "x": 1154,
+      "y": 2080,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+      "config": {
+        "member": "aim",
+        "type": "Vector3"
+      }
+    },
+    {
+      "id": "8d80a5d2-e746-4a46-855a-52750645e77a",
+      "def": "value.string",
+      "x": 1800,
+      "y": 206,
+      "literals": {
+        "value": {
+          "t": "string",
+          "v": "TankExit"
+        }
+      }
+    },
+    {
+      "id": "931ade8e-0faf-4409-bb0b-20287c1a602c",
+      "def": "local.declare",
+      "x": 1558,
+      "y": 622,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+      "literals": {
+        "name": {
+          "t": "string",
+          "v": "input"
+        }
+      },
+      "config": {
+        "type": "Input"
+      }
+    },
+    {
+      "id": "94e13f0c-d225-4402-8319-1cfffa2120c0",
+      "def": "vector3.magnitude",
+      "x": 1303,
+      "y": 2080,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001"
+    },
+    {
+      "id": "9686bc8c-c42d-4d73-9067-3ba75ab6e5d7",
+      "def": "value.string",
+      "x": 1274,
+      "y": 425,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+      "literals": {
+        "value": {
+          "t": "string",
+          "v": "table"
+        }
+      }
+    },
+    {
+      "id": "96a56fbe-056d-4c02-90ba-8c45da95cd60",
+      "def": "flow.reroute",
+      "x": 2649,
+      "y": 292,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+      "config": {
+        "type": "Instance"
+      }
+    },
+    {
+      "id": "9a3ca34b-5627-4ffa-b924-56df944fe815",
+      "def": "function.return",
+      "x": 3425,
+      "y": 725,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+      "config": {
+        "returns": [
+          {
+            "name": "Child",
+            "type": "Instance"
+          }
+        ]
+      }
+    },
+    {
+      "id": "9f189728-35b8-4edf-b6b9-a3851f9f488f",
+      "def": "compare.neq",
+      "x": 1832,
+      "y": 951,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001"
+    },
+    {
+      "id": "9fe8190d-0607-44c9-98ab-d9223deb3d92",
+      "def": "flow.branch",
+      "x": 1267,
+      "y": 172,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135"
+    },
+    {
+      "id": "a1f3d3cc-9c53-4c65-9f10-3d7d759f88b3",
+      "def": "roblox.waitForChildValue",
+      "x": 275,
+      "y": 466,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135"
+    },
+    {
+      "id": "abd98549-fd72-4bb7-a3d8-3d9954d60432",
+      "def": "flow.branch",
+      "x": 1698,
+      "y": 250,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001"
+    },
+    {
+      "id": "ac35a68c-e7fe-49ba-ac4b-5edc48cb10d6",
+      "def": "function.declareHere",
+      "x": 1200,
+      "y": 649,
+      "config": {
+        "name": "exit",
+        "params": [],
+        "returns": [
+          {
+            "name": "Result",
+            "type": "RemoteEvent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ac601d37-211a-42e8-beaf-9b1eb22dbf69",
+      "def": "value.typeof",
+      "x": 1606,
+      "y": 951,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001"
+    },
+    {
+      "id": "af834a27-630b-4c9b-bec1-d505270a50e9",
+      "def": "flow.rerouteExec",
+      "x": 1122,
+      "y": 669,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001"
+    },
+    {
+      "id": "b02067eb-f0c2-4ec6-b003-d9111b57cbb1",
+      "def": "logic.or",
+      "x": 1938,
+      "y": 1441,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001"
+    },
+    {
+      "id": "b220691c-7421-47fa-a4c8-dcb86db9fa03",
+      "def": "function.getParam",
+      "x": 1143,
+      "y": 731,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+      "config": {
+        "function": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+        "param": "packet",
+        "type": "unknown"
+      }
+    },
+    {
+      "id": "b319deb6-1865-400b-a9c9-8632d9ff93eb",
+      "def": "function.getParam",
+      "x": 2441,
+      "y": 825,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+      "config": {
+        "function": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+        "param": "name",
+        "type": "string"
+      }
+    },
+    {
+      "id": "be58cb25-18d7-4368-8870-e42c98af1231",
+      "def": "local.declare",
+      "x": 1514,
+      "y": 160,
+      "literals": {
+        "name": {
+          "t": "string",
+          "v": "INPUT"
+        }
+      }
+    },
+    {
+      "id": "bfbcb9fb-9a84-4cf6-9b63-25ef7b650338",
+      "def": "function.getParam",
+      "x": 2228,
+      "y": 550,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+      "config": {
+        "function": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+        "param": "name",
+        "type": "string"
+      }
+    },
+    {
+      "id": "c13bceab-ed9a-4409-b6b4-d4bfba6f8565",
+      "def": "function.return",
+      "x": 2459,
+      "y": 853,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+      "config": {
+        "returns": [
+          {
+            "name": "isValid",
+            "type": "boolean"
+          }
+        ]
+      }
+    },
+    {
+      "id": "c42297e5-4043-45ee-af5f-5fb44a779c15",
+      "def": "function.return",
+      "x": 2457,
+      "y": 1621,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+      "config": {
+        "returns": [
+          {
+            "name": "isValid",
+            "type": "boolean"
+          }
+        ]
+      }
+    },
+    {
+      "id": "c536e98c-b9d6-4956-8fa3-cd4ef1fe94e5",
+      "def": "variable.get",
+      "x": 880,
+      "y": 649,
+      "config": {
+        "name": "Remotes",
+        "type": "table",
+        "variable": "29e30ce7-1504-43eb-8b7b-bbec9adb02a5"
+      }
+    },
+    {
+      "id": "c6309a25-1fce-4515-99d9-01d1c44142b0",
+      "def": "function.return",
+      "x": 2459,
+      "y": 1236,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+      "config": {
+        "returns": [
+          {
+            "name": "isValid",
+            "type": "boolean"
+          }
+        ]
+      }
+    },
+    {
+      "id": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+      "def": "function.declareHere",
+      "x": 1198,
+      "y": 406,
+      "inner": {
+        "x": 80,
+        "y": 156
+      },
+      "config": {
+        "name": "event",
+        "params": [
+          {
+            "name": "name",
+            "type": "string"
+          }
+        ],
+        "returns": [
+          {
+            "name": "Result",
+            "type": "RemoteEvent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "c814c40f-8235-4e2d-a03b-745289f8adf4",
+      "def": "roblox.setProperty",
+      "x": 3017,
+      "y": 725,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+      "literals": {
+        "property": {
+          "t": "string",
+          "v": "Parent"
+        }
+      }
+    },
+    {
+      "id": "c87cb5b2-b54f-4460-9fc7-22e50d1d97c8",
+      "def": "cast.as",
+      "x": 562,
+      "y": 494,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+      "literals": {
+        "type": {
+          "t": "string",
+          "v": "RemoteEvent"
+        }
+      },
+      "config": {
+        "castLabel": "name"
+      }
+    },
+    {
+      "id": "cce2ff03-c0ca-427f-9733-4d2c36ab5457",
+      "def": "compare.selfNeq",
+      "x": 1553,
+      "y": 1850,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001"
+    },
+    {
+      "id": "cfbb722a-07c6-4b8b-916e-39591cba225a",
+      "def": "compare.neq",
+      "x": 1832,
+      "y": 1334,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001"
+    },
+    {
+      "id": "cfe27502-749b-4d01-82bd-a2abdfa4914a",
+      "def": "flow.rerouteExec",
+      "x": 1137,
+      "y": 886,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001"
+    },
+    {
+      "id": "d3231494-910e-40cd-af57-5034db0553e3",
+      "def": "flow.sequence",
+      "x": 475,
+      "y": 172,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+      "config": {
+        "count": 2
+      }
+    },
+    {
+      "id": "d43d2123-7f0e-4df4-b82d-1b5c52c81f3e",
+      "def": "compare.neq",
+      "x": 1830,
+      "y": 1719,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001"
+    },
+    {
+      "id": "d4481b80-3d9f-448c-b763-ceda80b6e59a",
+      "def": "compare.selfNeq",
+      "x": 1555,
+      "y": 1465,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001"
+    },
+    {
+      "id": "d4e9025c-09c2-4302-8aa2-9fb65236899c",
+      "def": "roblox.instanceNew",
+      "x": 2108,
+      "y": 709,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+      "literals": {
+        "className": {
+          "t": "string",
+          "v": "RemoteEvent"
+        }
+      },
+      "config": {
+        "resultName": "remote"
+      }
+    },
+    {
+      "id": "d4ebbc14-e808-40ac-bd1b-8312bc68255c",
+      "def": "compare.gt",
+      "x": 1637,
+      "y": 2080,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+      "literals": {
+        "b": {
+          "t": "number",
+          "v": 0
+        }
+      }
+    },
+    {
+      "id": "d50086d9-79c7-4163-bc89-91052d8da07b",
+      "def": "logic.or",
+      "x": 1936,
+      "y": 1826,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001"
+    },
+    {
+      "id": "d69e40b2-2d8d-48c9-9a05-d111d2cc2f27",
+      "def": "flow.rerouteExec",
+      "x": 1107,
+      "y": 1654,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001"
+    },
+    {
+      "id": "d70cfd27-6c30-4a44-bccd-d1a8efb1e830",
+      "def": "function.return",
+      "x": 831,
+      "y": 176,
+      "graph": "ac35a68c-e7fe-49ba-ac4b-5edc48cb10d6",
+      "config": {
+        "returns": [
+          {
+            "name": "Result",
+            "type": "RemoteEvent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "d850f423-1ac4-42c9-b89c-2f704d6f53ef",
+      "def": "function.get",
+      "x": 332,
+      "y": 267,
+      "graph": "ac35a68c-e7fe-49ba-ac4b-5edc48cb10d6",
+      "config": {
+        "function": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+        "name": "event"
+      }
+    },
+    {
+      "id": "daea91ec-224e-48e2-a43f-008b06017ae2",
+      "def": "cast.as",
+      "x": 1289,
+      "y": 731,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+      "literals": {
+        "type": {
+          "t": "string",
+          "v": "Input"
+        }
+      }
+    },
+    {
+      "id": "dd218400-44a0-4e61-a9fe-2ea70c8753be",
+      "def": "function.return",
+      "x": 3535,
+      "y": 172,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+      "config": {
+        "returns": [
+          {
+            "name": "Child",
+            "type": "Instance"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ddfc1df4-fc95-43d4-935a-61ee0a63608d",
+      "def": "flow.reroute",
+      "x": 2873,
+      "y": 905,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+      "config": {
+        "type": "RemoteEvent"
+      }
+    },
+    {
+      "id": "de7cea54-224c-4e3c-a9ff-1fd646c6e898",
+      "def": "value.typeof",
+      "x": 1606,
+      "y": 1334,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001"
+    },
+    {
+      "id": "e44b88aa-112c-4c01-8f08-6be654fe3cc0",
+      "def": "value.typeof",
+      "x": 1270,
+      "y": 333,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001"
+    },
+    {
+      "id": "e4b95764-d992-41d3-b4d0-e4543e06edb3",
+      "def": "flow.branch",
+      "x": 2084,
+      "y": 853,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001"
+    },
+    {
+      "id": "e4e88320-bdbb-485a-bf3a-397aedc9b55f",
+      "def": "compare.neq",
+      "x": 1567,
+      "y": 361,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001"
+    },
+    {
+      "id": "ecf9c849-eff9-486f-b5ff-79f2bb10857b",
+      "def": "flow.sequence",
+      "x": 1560,
+      "y": 172,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135"
+    },
+    {
+      "id": "ef07bab1-91a9-4496-9b65-084441d5c3a5",
+      "def": "roblox.serviceValue",
+      "x": 992,
+      "y": 266,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+      "config": {
+        "method": "IsServer",
+        "service": "RunService"
+      }
+    },
+    {
+      "id": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+      "def": "function.declareHere",
+      "x": 1200,
+      "y": 777,
+      "inner": {
+        "x": 79,
+        "y": 234
+      },
+      "config": {
+        "name": "valid",
+        "params": [
+          {
+            "name": "packet",
+            "type": "unknown"
+          }
+        ],
+        "returns": [
+          {
+            "name": "isValid",
+            "type": "boolean"
+          }
+        ]
+      }
+    },
+    {
+      "id": "f4578975-f364-40f3-8539-83966eb7b605",
+      "def": "function.return",
+      "x": 804,
+      "y": 176,
+      "graph": "41a7c9e2-f453-4201-bc04-472bee07d2aa",
+      "config": {
+        "returns": [
+          {
+            "name": "Result",
+            "type": "RemoteEvent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "f66e4c6e-85fa-4a79-a919-d821f69fc647",
+      "def": "function.getParam",
+      "x": 1090,
+      "y": 361,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+      "config": {
+        "function": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+        "param": "packet",
+        "type": "unknown"
+      }
+    },
+    {
+      "id": "f7ae4a71-85dc-447a-a956-1816acb2cec2",
+      "def": "flow.rerouteExec",
+      "x": 1118,
+      "y": 1269,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001"
+    },
+    {
+      "id": "f7f1b2b5-3e9f-4580-b817-e84192e407ae",
+      "def": "logic.and",
+      "x": 2970,
+      "y": 289,
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135"
+    },
+    {
+      "id": "fae748ed-3fc2-441a-8ed8-e490992c6bbd",
+      "def": "local.get",
+      "x": 196,
+      "y": 306,
+      "graph": "41a7c9e2-f453-4201-bc04-472bee07d2aa",
+      "config": {
+        "local": "be58cb25-18d7-4368-8870-e42c98af1231",
+        "name": "INPUT",
+        "type": "any"
+      }
+    },
+    {
+      "id": "fc804a56-bf48-4ce2-845b-f56e8a1dcf71",
+      "def": "local.get",
+      "x": 1175,
+      "y": 1719,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+      "config": {
+        "local": "931ade8e-0faf-4409-bb0b-20287c1a602c",
+        "name": "input",
+        "type": "Input"
+      }
+    },
+    {
+      "id": "fcc98c24-a5d2-4afb-8172-7f0c7c096c84",
+      "def": "function.return",
+      "x": 1863,
+      "y": 2009,
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+      "config": {
+        "returns": [
+          {
+            "name": "isValid",
+            "type": "boolean"
+          }
+        ]
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "017dfa35-d02f-4fbe-8f69-4d9ced49975a",
+      "from": {
+        "node": "54c792b7-342f-4386-97fb-458e0d314524",
+        "pin": "result"
+      },
+      "to": {
+        "node": "9f189728-35b8-4edf-b6b9-a3851f9f488f",
+        "pin": "b"
+      }
+    },
+    {
+      "id": "025b9bba-cd91-4ded-ac5c-a4df0e432b2c",
+      "from": {
+        "node": "63977abb-b9d0-4b05-a1a7-bad3b9c4470d",
+        "pin": "value"
+      },
+      "to": {
+        "node": "89e14453-5076-4313-a2a8-6fcdd3c712b9",
+        "pin": "object"
+      }
+    },
+    {
+      "id": "053ded9f-4502-4b45-95a5-620ee15f2259",
+      "from": {
+        "node": "ac35a68c-e7fe-49ba-ac4b-5edc48cb10d6",
+        "pin": "body"
+      },
+      "to": {
+        "node": "d70cfd27-6c30-4a44-bccd-d1a8efb1e830",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "08c96546-125b-4446-a033-75a6456abf06",
+      "from": {
+        "node": "f7ae4a71-85dc-447a-a956-1816acb2cec2",
+        "pin": "then"
+      },
+      "to": {
+        "node": "809d1812-a47b-4acb-a9a4-eb16261a1ca6",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "0ab271b4-2046-4675-b808-720c97b31729",
+      "from": {
+        "node": "d50086d9-79c7-4163-bc89-91052d8da07b",
+        "pin": "result"
+      },
+      "to": {
+        "node": "77c99829-0990-47b7-8ad6-7cb2bcf2ca85",
+        "pin": "condition"
+      }
+    },
+    {
+      "id": "0b729bd2-1fef-43b8-b395-73c46fa15357",
+      "from": {
+        "node": "daea91ec-224e-48e2-a43f-008b06017ae2",
+        "pin": "result"
+      },
+      "to": {
+        "node": "931ade8e-0faf-4409-bb0b-20287c1a602c",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "0c2af083-583e-4f78-ba38-c5ee8cf5d5e8",
+      "from": {
+        "node": "2068db0c-927c-4f6a-a66d-3370c4e996e4",
+        "pin": "result"
+      },
+      "to": {
+        "node": "f4578975-f364-40f3-8539-83966eb7b605",
+        "pin": "r0"
+      }
+    },
+    {
+      "id": "0d2cd0ee-b02a-4c98-b516-f27b13c1900c",
+      "from": {
+        "node": "d3231494-910e-40cd-af57-5034db0553e3",
+        "pin": "s1"
+      },
+      "to": {
+        "node": "5621c4ee-9bd7-4e44-8ab8-086bce2c3e5a",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "1392c386-a90d-4606-ac75-0d080f17c64e",
+      "from": {
+        "node": "d850f423-1ac4-42c9-b89c-2f704d6f53ef",
+        "pin": "fn"
+      },
+      "to": {
+        "node": "6706db88-d66f-407d-bc59-2ab6b25601ea",
+        "pin": "fn"
+      }
+    },
+    {
+      "id": "1484e176-9eff-404a-8f30-54205593e113",
+      "from": {
+        "node": "b319deb6-1865-400b-a9c9-8632d9ff93eb",
+        "pin": "value"
+      },
+      "to": {
+        "node": "35fb6d7b-3b11-4db0-9e11-396f887ad0a7",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "15e40c4f-f88c-4343-84f7-ff6a6ff4d1e4",
+      "from": {
+        "node": "6bd3208a-4264-4855-8570-89fb02dc1c81",
+        "pin": "result"
+      },
+      "to": {
+        "node": "be58cb25-18d7-4368-8870-e42c98af1231",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "1924e3ae-c1b5-4649-9e4f-c1644ab45688",
+      "from": {
+        "node": "ddfc1df4-fc95-43d4-935a-61ee0a63608d",
+        "pin": "out"
+      },
+      "to": {
+        "node": "c814c40f-8235-4e2d-a03b-745289f8adf4",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "1e9256b5-e96b-44ef-9550-57f487bf6c4e",
+      "from": {
+        "node": "4434e30b-d736-46bf-88d4-25d4c4275cac",
+        "pin": "s2"
+      },
+      "to": {
+        "node": "41a7c9e2-f453-4201-bc04-472bee07d2aa",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "1fc40b5f-c229-419f-bd00-eb521f8c7057",
+      "from": {
+        "node": "e44b88aa-112c-4c01-8f08-6be654fe3cc0",
+        "pin": "result"
+      },
+      "to": {
+        "node": "e4e88320-bdbb-485a-bf3a-397aedc9b55f",
+        "pin": "a"
+      }
+    },
+    {
+      "id": "212bf0ba-74fe-4e74-b469-73a4b3ef722d",
+      "from": {
+        "node": "47eba5a7-cdd3-4c55-9930-19860d418d9b",
+        "pin": "s4"
+      },
+      "to": {
+        "node": "d69e40b2-2d8d-48c9-9a05-d111d2cc2f27",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "241664e4-1e20-4a51-befe-0897caffedab",
+      "from": {
+        "node": "ac601d37-211a-42e8-beaf-9b1eb22dbf69",
+        "pin": "result"
+      },
+      "to": {
+        "node": "9f189728-35b8-4edf-b6b9-a3851f9f488f",
+        "pin": "a"
+      }
+    },
+    {
+      "id": "2494c0b2-a7ed-41f5-b2fb-3bdbe0de25e1",
+      "from": {
+        "node": "9686bc8c-c42d-4d73-9067-3ba75ab6e5d7",
+        "pin": "result"
+      },
+      "to": {
+        "node": "e4e88320-bdbb-485a-bf3a-397aedc9b55f",
+        "pin": "b"
+      }
+    },
+    {
+      "id": "2614b1db-380c-40ed-b637-1da227eeea5a",
+      "from": {
+        "node": "d3231494-910e-40cd-af57-5034db0553e3",
+        "pin": "s0"
+      },
+      "to": {
+        "node": "9fe8190d-0607-44c9-98ab-d9223deb3d92",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "2800debe-2a9e-4834-8b88-f17b7e44b1c4",
+      "from": {
+        "node": "47eba5a7-cdd3-4c55-9930-19860d418d9b",
+        "pin": "s1"
+      },
+      "to": {
+        "node": "af834a27-630b-4c9b-bec1-d505270a50e9",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "2db2fd1c-1d59-469d-bd8e-06ed428ab08c",
+      "from": {
+        "node": "c814c40f-8235-4e2d-a03b-745289f8adf4",
+        "pin": "then"
+      },
+      "to": {
+        "node": "9a3ca34b-5627-4ffa-b924-56df944fe815",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "309f23fd-fea5-42b4-9a3b-9ad2232ab47d",
+      "from": {
+        "node": "31d4b5cc-6e3b-409e-ba49-4dd0aab1b53a",
+        "pin": "result"
+      },
+      "to": {
+        "node": "ac601d37-211a-42e8-beaf-9b1eb22dbf69",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "33b670b8-39da-43b7-9502-1897d76051d7",
+      "from": {
+        "node": "ecf9c849-eff9-486f-b5ff-79f2bb10857b",
+        "pin": "s1"
+      },
+      "to": {
+        "node": "d4e9025c-09c2-4302-8aa2-9fb65236899c",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "35cb8c75-9111-4272-9e36-8ffcf446fe28",
+      "from": {
+        "node": "a1f3d3cc-9c53-4c65-9f10-3d7d759f88b3",
+        "pin": "result"
+      },
+      "to": {
+        "node": "c87cb5b2-b54f-4460-9fc7-22e50d1d97c8",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "380d2d10-3ba9-4b13-b09c-00b1721702e5",
+      "from": {
+        "node": "89e14453-5076-4313-a2a8-6fcdd3c712b9",
+        "pin": "result"
+      },
+      "to": {
+        "node": "94e13f0c-d225-4402-8319-1cfffa2120c0",
+        "pin": "v"
+      }
+    },
+    {
+      "id": "39521474-6125-4a4c-846d-6d5c24e58cbe",
+      "from": {
+        "node": "fc804a56-bf48-4ce2-845b-f56e8a1dcf71",
+        "pin": "value"
+      },
+      "to": {
+        "node": "34be94c9-91c4-44e9-a037-580ef380a17c",
+        "pin": "object"
+      }
+    },
+    {
+      "id": "3b42a564-5f6b-4095-9c61-ce59b564e8bb",
+      "from": {
+        "node": "42b5f975-4919-4f6a-8b9e-94d3ec1f7cee",
+        "pin": "result"
+      },
+      "to": {
+        "node": "d4481b80-3d9f-448c-b763-ceda80b6e59a",
+        "pin": "a"
+      }
+    },
+    {
+      "id": "3cf489ec-d9e0-46f8-bd78-85bd29fb485c",
+      "from": {
+        "node": "4434e30b-d736-46bf-88d4-25d4c4275cac",
+        "pin": "s1"
+      },
+      "to": {
+        "node": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "3fc7db29-f7c5-4f21-81c4-d2a28c909039",
+      "from": {
+        "node": "c7356f1f-3b6a-4ca6-9d3c-48171d639135",
+        "pin": "body"
+      },
+      "to": {
+        "node": "d3231494-910e-40cd-af57-5034db0553e3",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "3fea150a-731e-4dac-bdd8-3b385fce2063",
+      "from": {
+        "node": "d4e9025c-09c2-4302-8aa2-9fb65236899c",
+        "pin": "then"
+      },
+      "to": {
+        "node": "35fb6d7b-3b11-4db0-9e11-396f887ad0a7",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "3ff4c6ca-6a4b-44d4-9e42-757505f655f9",
+      "from": {
+        "node": "cfbb722a-07c6-4b8b-916e-39591cba225a",
+        "pin": "result"
+      },
+      "to": {
+        "node": "b02067eb-f0c2-4ec6-b003-d9111b57cbb1",
+        "pin": "a0"
+      }
+    },
+    {
+      "id": "41cc371d-6aab-40e6-b6bb-af4e9265c25d",
+      "from": {
+        "node": "d69e40b2-2d8d-48c9-9a05-d111d2cc2f27",
+        "pin": "then"
+      },
+      "to": {
+        "node": "77c99829-0990-47b7-8ad6-7cb2bcf2ca85",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "4633971c-a8d1-44a9-8206-e31c7d4d8797",
+      "from": {
+        "node": "07e39c57-e4ab-4d18-af00-629c5f4f1c98",
+        "pin": "result"
+      },
+      "to": {
+        "node": "e4b95764-d992-41d3-b4d0-e4543e06edb3",
+        "pin": "condition"
+      }
+    },
+    {
+      "id": "49938bc1-8a7c-4d12-8e9d-4e9c222472c6",
+      "from": {
+        "node": "22d304e2-aa0f-4259-b0a5-e1973378698b",
+        "pin": "service"
+      },
+      "to": {
+        "node": "c814c40f-8235-4e2d-a03b-745289f8adf4",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "4f0093c1-9ead-487f-a51d-89063ae1ff0d",
+      "from": {
+        "node": "278d89fb-31bd-455f-8f32-0c3d58c989d0",
+        "pin": "value"
+      },
+      "to": {
+        "node": "6706db88-d66f-407d-bc59-2ab6b25601ea",
+        "pin": "a0"
+      }
+    },
+    {
+      "id": "51ca8581-bb45-4879-91e8-484ccc61121b",
+      "from": {
+        "node": "34be94c9-91c4-44e9-a037-580ef380a17c",
+        "pin": "result"
+      },
+      "to": {
+        "node": "81755021-9b06-4c8b-8fa8-44bfc6602847",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "5875b781-8df5-4b48-bcd2-2a558820d6b1",
+      "from": {
+        "node": "4434e30b-d736-46bf-88d4-25d4c4275cac",
+        "pin": "s0"
+      },
+      "to": {
+        "node": "be58cb25-18d7-4368-8870-e42c98af1231",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "5ba079f0-2163-4947-88cf-bc8ca7e4219c",
+      "from": {
+        "node": "d43d2123-7f0e-4df4-b82d-1b5c52c81f3e",
+        "pin": "result"
+      },
+      "to": {
+        "node": "d50086d9-79c7-4163-bc89-91052d8da07b",
+        "pin": "a0"
+      }
+    },
+    {
+      "id": "5db87d0a-2328-476b-b70e-72e01e11c29c",
+      "from": {
+        "node": "47eba5a7-cdd3-4c55-9930-19860d418d9b",
+        "pin": "s5"
+      },
+      "to": {
+        "node": "6a07b86d-79aa-44f8-9992-1a292718f378",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "5edb949b-bd1c-4482-abc8-0166f7190476",
+      "from": {
+        "node": "5b027db9-8452-4565-84b9-1ed7bf39a191",
+        "pin": "then"
+      },
+      "to": {
+        "node": "03dc140c-4f42-4b5d-9dfa-28fad1ad64a6",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "611b66e7-fbe3-4e06-b084-fd42a3c44285",
+      "from": {
+        "node": "6e30a385-f7b3-414c-bfc8-9869abee64fd",
+        "pin": "value"
+      },
+      "to": {
+        "node": "60b0f6cc-87bd-422a-aaa9-dfc2d34be66c",
+        "pin": "e0"
+      }
+    },
+    {
+      "id": "65941856-912e-4b21-849d-13a310ed780b",
+      "from": {
+        "node": "00192375-42d0-4c02-87d1-dde8e86b3919",
+        "pin": "result"
+      },
+      "to": {
+        "node": "f7f1b2b5-3e9f-4580-b817-e84192e407ae",
+        "pin": "a1"
+      }
+    },
+    {
+      "id": "65ae789c-8060-4624-b645-362d9025a4fb",
+      "from": {
+        "node": "0ea83bfd-1ccd-4f23-bf3f-83ac084a8fb1",
+        "pin": "result"
+      },
+      "to": {
+        "node": "847a3625-7377-4cee-8369-bb1c0cf63859",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "68fd29a4-c886-4141-91c6-48c8ea60dbfc",
+      "from": {
+        "node": "9f189728-35b8-4edf-b6b9-a3851f9f488f",
+        "pin": "result"
+      },
+      "to": {
+        "node": "07e39c57-e4ab-4d18-af00-629c5f4f1c98",
+        "pin": "a0"
+      }
+    },
+    {
+      "id": "706805c0-c314-4813-a67a-d95d7ef73e6a",
+      "from": {
+        "node": "c536e98c-b9d6-4956-8fa3-cd4ef1fe94e5",
+        "pin": "value"
+      },
+      "to": {
+        "node": "41a7c9e2-f453-4201-bc04-472bee07d2aa",
+        "pin": "owner"
+      }
+    },
+    {
+      "id": "724cf75f-2212-4793-ba2a-5ebf46b1f4cb",
+      "from": {
+        "node": "f66e4c6e-85fa-4a79-a919-d821f69fc647",
+        "pin": "value"
+      },
+      "to": {
+        "node": "e44b88aa-112c-4c01-8f08-6be654fe3cc0",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "72c8f1ca-af15-493d-a721-03f629d1d26c",
+      "from": {
+        "node": "de7cea54-224c-4e3c-a9ff-1fd646c6e898",
+        "pin": "result"
+      },
+      "to": {
+        "node": "cfbb722a-07c6-4b8b-916e-39591cba225a",
+        "pin": "a"
+      }
+    },
+    {
+      "id": "78922fd7-fc36-4559-bb89-9142f6785d6e",
+      "from": {
+        "node": "77c99829-0990-47b7-8ad6-7cb2bcf2ca85",
+        "pin": "true"
+      },
+      "to": {
+        "node": "c42297e5-4043-45ee-af5f-5fb44a779c15",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "797b9eb5-440e-47b5-bd32-e532b60008c0",
+      "from": {
+        "node": "cfe27502-749b-4d01-82bd-a2abdfa4914a",
+        "pin": "then"
+      },
+      "to": {
+        "node": "e4b95764-d992-41d3-b4d0-e4543e06edb3",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "7bfd40da-7a4c-4e1e-bbc3-bcf69045727b",
+      "from": {
+        "node": "653ad776-2c17-4c7c-83fb-ca719125f61c",
+        "pin": "value"
+      },
+      "to": {
+        "node": "a1f3d3cc-9c53-4c65-9f10-3d7d759f88b3",
+        "pin": "name"
+      }
+    },
+    {
+      "id": "7d0f1f9a-757b-4993-b2d1-b05eb45ffc49",
+      "from": {
+        "node": "31d4b5cc-6e3b-409e-ba49-4dd0aab1b53a",
+        "pin": "result"
+      },
+      "to": {
+        "node": "537162a4-c92b-4951-bfaf-27f15749758c",
+        "pin": "a"
+      }
+    },
+    {
+      "id": "7dc95ad9-4b58-435d-a49e-abefc31f6ec1",
+      "from": {
+        "node": "be58cb25-18d7-4368-8870-e42c98af1231",
+        "pin": "then"
+      },
+      "to": {
+        "node": "51e0f54c-a93a-4ef1-bde0-941f1dd92552",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "7dd2c877-1073-4252-ad0d-b0e8fe175f82",
+      "from": {
+        "node": "d4e9025c-09c2-4302-8aa2-9fb65236899c",
+        "pin": "result"
+      },
+      "to": {
+        "node": "310846ab-9374-4dc3-8512-41a4af72bba2",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "80ead6b8-b752-4467-aa30-f9e0763a494c",
+      "from": {
+        "node": "840aebc3-15e0-4eeb-a0f7-40e341918ace",
+        "pin": "service"
+      },
+      "to": {
+        "node": "0ea83bfd-1ccd-4f23-bf3f-83ac084a8fb1",
+        "pin": "parent"
+      }
+    },
+    {
+      "id": "848c37df-ac45-498d-b513-e4d9fb98260e",
+      "from": {
+        "node": "0bb9dbf0-cbd8-4efd-b133-f62ce91298c8",
+        "pin": "fn"
+      },
+      "to": {
+        "node": "2068db0c-927c-4f6a-a66d-3370c4e996e4",
+        "pin": "fn"
+      }
+    },
+    {
+      "id": "855ba792-8372-4e38-a262-c635d7792fa6",
+      "from": {
+        "node": "310846ab-9374-4dc3-8512-41a4af72bba2",
+        "pin": "out"
+      },
+      "to": {
+        "node": "ddfc1df4-fc95-43d4-935a-61ee0a63608d",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "87387f49-17c2-4e97-8a44-1e669d3ad705",
+      "from": {
+        "node": "0fbfe709-08c3-41a9-acbe-3cbda97be168",
+        "pin": "value"
+      },
+      "to": {
+        "node": "31d4b5cc-6e3b-409e-ba49-4dd0aab1b53a",
+        "pin": "object"
+      }
+    },
+    {
+      "id": "88a26fcf-efa0-44e5-a600-f92be2a7689a",
+      "from": {
+        "node": "c536e98c-b9d6-4956-8fa3-cd4ef1fe94e5",
+        "pin": "value"
+      },
+      "to": {
+        "node": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+        "pin": "owner"
+      }
+    },
+    {
+      "id": "89ad9c4e-1975-4aab-8400-0437dae7a18d",
+      "from": {
+        "node": "ecf9c849-eff9-486f-b5ff-79f2bb10857b",
+        "pin": "s0"
+      },
+      "to": {
+        "node": "20646e45-5dda-4907-b347-de0ebe4dd02e",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "8c894235-9298-43eb-bffa-71315c5ef28e",
+      "from": {
+        "node": "4dcfbf9c-8aa1-4adc-b01a-c3d953c05e63",
+        "pin": "result"
+      },
+      "to": {
+        "node": "cfbb722a-07c6-4b8b-916e-39591cba225a",
+        "pin": "b"
+      }
+    },
+    {
+      "id": "8cbe0e4c-f3d2-43b2-ba64-258c643163aa",
+      "from": {
+        "node": "4434e30b-d736-46bf-88d4-25d4c4275cac",
+        "pin": "s4"
+      },
+      "to": {
+        "node": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "8f3c5df0-f219-4212-b203-de4102812f3a",
+      "from": {
+        "node": "47eba5a7-cdd3-4c55-9930-19860d418d9b",
+        "pin": "s2"
+      },
+      "to": {
+        "node": "cfe27502-749b-4d01-82bd-a2abdfa4914a",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "9080fbb2-8f69-4fc6-b705-05d2d98d5660",
+      "from": {
+        "node": "3a070e59-712a-428c-84a7-24324da9cfde",
+        "pin": "result"
+      },
+      "to": {
+        "node": "d4ebbc14-e808-40ac-bd1b-8312bc68255c",
+        "pin": "b"
+      }
+    },
+    {
+      "id": "923e7b3d-7b0d-4cf8-9e66-f7864e3672fe",
+      "from": {
+        "node": "41a7c9e2-f453-4201-bc04-472bee07d2aa",
+        "pin": "body"
+      },
+      "to": {
+        "node": "f4578975-f364-40f3-8539-83966eb7b605",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "9b74d12e-b2e6-4821-9fc3-a89b504db2c2",
+      "from": {
+        "node": "537162a4-c92b-4951-bfaf-27f15749758c",
+        "pin": "result"
+      },
+      "to": {
+        "node": "07e39c57-e4ab-4d18-af00-629c5f4f1c98",
+        "pin": "a1"
+      }
+    },
+    {
+      "id": "9b9e6a22-4a32-4667-83d4-5c7128010ba5",
+      "from": {
+        "node": "9fe8190d-0607-44c9-98ab-d9223deb3d92",
+        "pin": "true"
+      },
+      "to": {
+        "node": "ecf9c849-eff9-486f-b5ff-79f2bb10857b",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "9c95da7e-6571-4833-a0d5-99689438421d",
+      "from": {
+        "node": "064446f0-bda8-4eb2-8e7e-fbc1c0c2a6a1",
+        "pin": "out"
+      },
+      "to": {
+        "node": "9a3ca34b-5627-4ffa-b924-56df944fe815",
+        "pin": "r0"
+      }
+    },
+    {
+      "id": "9d1c9448-ff69-4c68-a28f-1fe19f25ea12",
+      "from": {
+        "node": "94e13f0c-d225-4402-8319-1cfffa2120c0",
+        "pin": "result"
+      },
+      "to": {
+        "node": "d4ebbc14-e808-40ac-bd1b-8312bc68255c",
+        "pin": "a"
+      }
+    },
+    {
+      "id": "a052d864-db3c-4453-adb8-f7f5188af61f",
+      "from": {
+        "node": "96a56fbe-056d-4c02-90ba-8c45da95cd60",
+        "pin": "out"
+      },
+      "to": {
+        "node": "f7f1b2b5-3e9f-4580-b817-e84192e407ae",
+        "pin": "a0"
+      }
+    },
+    {
+      "id": "a37e0ea9-ae8f-48db-b28e-9272e5f29f93",
+      "from": {
+        "node": "3a774ea1-49f8-4276-b081-c37cc1fc649d",
+        "pin": "value"
+      },
+      "to": {
+        "node": "42b5f975-4919-4f6a-8b9e-94d3ec1f7cee",
+        "pin": "object"
+      }
+    },
+    {
+      "id": "a81ce68a-ce0a-4a2b-8eef-32393e8083c3",
+      "from": {
+        "node": "d4e9025c-09c2-4302-8aa2-9fb65236899c",
+        "pin": "result"
+      },
+      "to": {
+        "node": "35fb6d7b-3b11-4db0-9e11-396f887ad0a7",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "ab14ab6b-d151-4b03-9441-f9028a30e6ab",
+      "from": {
+        "node": "6a07b86d-79aa-44f8-9992-1a292718f378",
+        "pin": "then"
+      },
+      "to": {
+        "node": "fcc98c24-a5d2-4afb-8172-7f0c7c096c84",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "b153d70f-8dfa-4c60-a1b7-06b6d6cb3448",
+      "from": {
+        "node": "b02067eb-f0c2-4ec6-b003-d9111b57cbb1",
+        "pin": "result"
+      },
+      "to": {
+        "node": "809d1812-a47b-4acb-a9a4-eb16261a1ca6",
+        "pin": "condition"
+      }
+    },
+    {
+      "id": "b16bd8f8-8cbc-464c-a7e5-547be86e51e8",
+      "from": {
+        "node": "d4ebbc14-e808-40ac-bd1b-8312bc68255c",
+        "pin": "result"
+      },
+      "to": {
+        "node": "fcc98c24-a5d2-4afb-8172-7f0c7c096c84",
+        "pin": "r0"
+      }
+    },
+    {
+      "id": "b3cbfcb0-d7da-4194-ab5f-6537cd59af63",
+      "from": {
+        "node": "f7f1b2b5-3e9f-4580-b817-e84192e407ae",
+        "pin": "result"
+      },
+      "to": {
+        "node": "20646e45-5dda-4907-b347-de0ebe4dd02e",
+        "pin": "condition"
+      }
+    },
+    {
+      "id": "b7f25bdc-b60c-4615-b69c-34a2b3bf305d",
+      "from": {
+        "node": "bfbcb9fb-9a84-4cf6-9b63-25ef7b650338",
+        "pin": "value"
+      },
+      "to": {
+        "node": "0ea83bfd-1ccd-4f23-bf3f-83ac084a8fb1",
+        "pin": "name"
+      }
+    },
+    {
+      "id": "ba9db7ea-8c64-4f72-a141-71f9c432d6ff",
+      "from": {
+        "node": "cce2ff03-c0ca-427f-9733-4d2c36ab5457",
+        "pin": "result"
+      },
+      "to": {
+        "node": "d50086d9-79c7-4163-bc89-91052d8da07b",
+        "pin": "a1"
+      }
+    },
+    {
+      "id": "bffbf1bb-4a31-4205-925d-fc82338e4a52",
+      "from": {
+        "node": "81755021-9b06-4c8b-8fa8-44bfc6602847",
+        "pin": "result"
+      },
+      "to": {
+        "node": "d43d2123-7f0e-4df4-b82d-1b5c52c81f3e",
+        "pin": "a"
+      }
+    },
+    {
+      "id": "c058baea-0c16-464c-8025-bc92ff8a9d8e",
+      "from": {
+        "node": "03dc140c-4f42-4b5d-9dfa-28fad1ad64a6",
+        "pin": "then"
+      },
+      "to": {
+        "node": "4434e30b-d736-46bf-88d4-25d4c4275cac",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "c079bdc8-4516-460a-95b9-880ebc7c2f16",
+      "from": {
+        "node": "47eba5a7-cdd3-4c55-9930-19860d418d9b",
+        "pin": "s0"
+      },
+      "to": {
+        "node": "abd98549-fd72-4bb7-a3d8-3d9954d60432",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "c0f873e1-9070-4220-b91b-352df31ee7a3",
+      "from": {
+        "node": "7ab7fd28-9dea-4846-a8b7-ac3ee7011c7a",
+        "pin": "service"
+      },
+      "to": {
+        "node": "a1f3d3cc-9c53-4c65-9f10-3d7d759f88b3",
+        "pin": "parent"
+      }
+    },
+    {
+      "id": "c1066e95-bf9e-41db-83c0-aeea3bc878df",
+      "from": {
+        "node": "42b5f975-4919-4f6a-8b9e-94d3ec1f7cee",
+        "pin": "result"
+      },
+      "to": {
+        "node": "de7cea54-224c-4e3c-a9ff-1fd646c6e898",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "c223a185-499e-4b72-8f1c-69254e6cd8d0",
+      "from": {
+        "node": "4434e30b-d736-46bf-88d4-25d4c4275cac",
+        "pin": "s3"
+      },
+      "to": {
+        "node": "ac35a68c-e7fe-49ba-ac4b-5edc48cb10d6",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "c2279fb8-4ac6-47be-a99d-c049ff6ca940",
+      "from": {
+        "node": "35fb6d7b-3b11-4db0-9e11-396f887ad0a7",
+        "pin": "then"
+      },
+      "to": {
+        "node": "c814c40f-8235-4e2d-a03b-745289f8adf4",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "c54c96bb-58e3-43be-a484-a3772a9399f1",
+      "from": {
+        "node": "0ea83bfd-1ccd-4f23-bf3f-83ac084a8fb1",
+        "pin": "result"
+      },
+      "to": {
+        "node": "96a56fbe-056d-4c02-90ba-8c45da95cd60",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "c7b4371a-0674-4811-9637-8154b63379ad",
+      "from": {
+        "node": "e4e88320-bdbb-485a-bf3a-397aedc9b55f",
+        "pin": "result"
+      },
+      "to": {
+        "node": "abd98549-fd72-4bb7-a3d8-3d9954d60432",
+        "pin": "condition"
+      }
+    },
+    {
+      "id": "cc8e671d-5d7a-42ee-b1bb-080c255e96ad",
+      "from": {
+        "node": "34be94c9-91c4-44e9-a037-580ef380a17c",
+        "pin": "result"
+      },
+      "to": {
+        "node": "cce2ff03-c0ca-427f-9733-4d2c36ab5457",
+        "pin": "a"
+      }
+    },
+    {
+      "id": "ce02f69d-75b4-4af6-9773-983bcae32f1a",
+      "from": {
+        "node": "d4481b80-3d9f-448c-b763-ceda80b6e59a",
+        "pin": "result"
+      },
+      "to": {
+        "node": "b02067eb-f0c2-4ec6-b003-d9111b57cbb1",
+        "pin": "a1"
+      }
+    },
+    {
+      "id": "cf16d860-e850-4a98-af51-42d35833bd90",
+      "from": {
+        "node": "fae748ed-3fc2-441a-8ed8-e490992c6bbd",
+        "pin": "value"
+      },
+      "to": {
+        "node": "2068db0c-927c-4f6a-a66d-3370c4e996e4",
+        "pin": "a0"
+      }
+    },
+    {
+      "id": "cf79332c-1dbe-4242-b1d6-fc917ef6bb86",
+      "from": {
+        "node": "809d1812-a47b-4acb-a9a4-eb16261a1ca6",
+        "pin": "true"
+      },
+      "to": {
+        "node": "c6309a25-1fce-4515-99d9-01d1c44142b0",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "d1894909-e0e7-477f-adee-7554e79ebd1b",
+      "from": {
+        "node": "c87cb5b2-b54f-4460-9fc7-22e50d1d97c8",
+        "pin": "result"
+      },
+      "to": {
+        "node": "5621c4ee-9bd7-4e44-8ab8-086bce2c3e5a",
+        "pin": "r0"
+      }
+    },
+    {
+      "id": "d215339e-4ed8-4fc6-a9a8-fa048128ec5f",
+      "from": {
+        "node": "ef07bab1-91a9-4496-9b65-084441d5c3a5",
+        "pin": "result"
+      },
+      "to": {
+        "node": "9fe8190d-0607-44c9-98ab-d9223deb3d92",
+        "pin": "condition"
+      }
+    },
+    {
+      "id": "d4782ed9-360f-45a3-ac22-de32766a50b3",
+      "from": {
+        "node": "c536e98c-b9d6-4956-8fa3-cd4ef1fe94e5",
+        "pin": "value"
+      },
+      "to": {
+        "node": "ac35a68c-e7fe-49ba-ac4b-5edc48cb10d6",
+        "pin": "owner"
+      }
+    },
+    {
+      "id": "d568b4e1-cc01-4ca6-b794-fbef2a9e9a91",
+      "from": {
+        "node": "20646e45-5dda-4907-b347-de0ebe4dd02e",
+        "pin": "true"
+      },
+      "to": {
+        "node": "dd218400-44a0-4e61-a9fe-2ea70c8753be",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "d6a5faf2-86d5-4db3-897c-a1e3f5f14f5a",
+      "from": {
+        "node": "47eba5a7-cdd3-4c55-9930-19860d418d9b",
+        "pin": "s3"
+      },
+      "to": {
+        "node": "f7ae4a71-85dc-447a-a956-1816acb2cec2",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "dd4750f7-2385-43b3-a9f2-a0ee17bb7745",
+      "from": {
+        "node": "6706db88-d66f-407d-bc59-2ab6b25601ea",
+        "pin": "result"
+      },
+      "to": {
+        "node": "d70cfd27-6c30-4a44-bccd-d1a8efb1e830",
+        "pin": "r0"
+      }
+    },
+    {
+      "id": "de6ba5b7-1699-47d2-9f71-c818a550554e",
+      "from": {
+        "node": "af834a27-630b-4c9b-bec1-d505270a50e9",
+        "pin": "then"
+      },
+      "to": {
+        "node": "931ade8e-0faf-4409-bb0b-20287c1a602c",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "e0301d83-97f8-4487-94f4-c0704431f4a2",
+      "from": {
+        "node": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001",
+        "pin": "body"
+      },
+      "to": {
+        "node": "47eba5a7-cdd3-4c55-9930-19860d418d9b",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "e2c73046-f2a3-4d19-90ff-6f992920b404",
+      "from": {
+        "node": "e4b95764-d992-41d3-b4d0-e4543e06edb3",
+        "pin": "true"
+      },
+      "to": {
+        "node": "c13bceab-ed9a-4409-b6b4-d4bfba6f8565",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "e9316aaf-6645-473d-aaa7-822e9cf7b5d9",
+      "from": {
+        "node": "ddfc1df4-fc95-43d4-935a-61ee0a63608d",
+        "pin": "out"
+      },
+      "to": {
+        "node": "064446f0-bda8-4eb2-8e7e-fbc1c0c2a6a1",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "eb5a53a9-2fb4-4080-a011-6142d34c485d",
+      "from": {
+        "node": "8d80a5d2-e746-4a46-855a-52750645e77a",
+        "pin": "result"
+      },
+      "to": {
+        "node": "51e0f54c-a93a-4ef1-bde0-941f1dd92552",
+        "pin": "value"
+      }
+    },
+    {
+      "id": "ebfd123b-40ac-4839-a81b-f5a2e6946b3d",
+      "from": {
+        "node": "96a56fbe-056d-4c02-90ba-8c45da95cd60",
+        "pin": "out"
+      },
+      "to": {
+        "node": "00192375-42d0-4c02-87d1-dde8e86b3919",
+        "pin": "instance"
+      }
+    },
+    {
+      "id": "ee555f63-6b5e-4ea5-a71f-13f19d36027e",
+      "from": {
+        "node": "abd98549-fd72-4bb7-a3d8-3d9954d60432",
+        "pin": "true"
+      },
+      "to": {
+        "node": "2038281e-c550-4b1d-a896-f6259c6ceaf6",
+        "pin": "in"
+      }
+    },
+    {
+      "id": "f8c77ebd-9b54-414c-9c7f-4f41526c7354",
+      "from": {
+        "node": "6f045c48-d17a-4bb3-8a56-98539a00290d",
+        "pin": "result"
+      },
+      "to": {
+        "node": "d43d2123-7f0e-4df4-b82d-1b5c52c81f3e",
+        "pin": "b"
+      }
+    },
+    {
+      "id": "fb4b2265-8732-4abb-a842-8ed3fcd850cb",
+      "from": {
+        "node": "847a3625-7377-4cee-8369-bb1c0cf63859",
+        "pin": "out"
+      },
+      "to": {
+        "node": "dd218400-44a0-4e61-a9fe-2ea70c8753be",
+        "pin": "r0"
+      }
+    },
+    {
+      "id": "fd43f02f-abe3-4981-9dca-7d4045ecda95",
+      "from": {
+        "node": "b220691c-7421-47fa-a4c8-dcb86db9fa03",
+        "pin": "value"
+      },
+      "to": {
+        "node": "daea91ec-224e-48e2-a43f-008b06017ae2",
+        "pin": "value"
+      }
+    }
+  ],
+  "comments": [
+    {
+      "id": "0d83cf3c-3654-4726-b438-026698a7fad6",
+      "x": 2089,
+      "y": 120,
+      "w": 1686,
+      "h": 514,
+      "text": "If the event can be found, return it",
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135"
+    },
+    {
+      "id": "2c08e710-519a-4f6f-ba11-b71f69bd7b24",
+      "x": -41,
+      "y": 381,
+      "w": 1167,
+      "h": 257,
+      "text": "Fallback to returning the first instance matching the event name.",
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135"
+    },
+    {
+      "id": "5d5de3f7-d16a-441c-81e6-c712e8d0bb11",
+      "x": 2084,
+      "y": 657,
+      "w": 1581,
+      "h": 369,
+      "text": "Otherwise just create one anew.",
+      "graph": "c7356f1f-3b6a-4ca6-9d3c-48171d639135"
+    },
+    {
+      "id": "a3cadb6c-0d88-4015-962a-1a0db43a74e0",
+      "x": 1066,
+      "y": 198,
+      "w": 1247,
+      "h": 315,
+      "text": "Refuse non-tables first",
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001"
+    },
+    {
+      "id": "c358f4af-efa0-40a2-9ab9-b85d37729365",
+      "x": 1068.42,
+      "y": 540.48,
+      "w": 1630.58,
+      "h": 1397.52,
+      "text": "if an invalid member is found, we'll reject it.",
+      "graph": "ef8554ee-2f7d-4481-bc5f-5d6fc65f3001"
+    }
+  ]
+}

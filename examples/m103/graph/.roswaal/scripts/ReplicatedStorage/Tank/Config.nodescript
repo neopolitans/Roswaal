@@ -35,13 +35,15 @@
       "id": "03a9d116-5117-4bc5-bee7-3dffb0d61bed",
       "def": "flow.branch",
       "x": 434,
-      "y": 1563
+      "y": 1563,
+      "graph": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65"
     },
     {
       "id": "058205a0-a73b-4e3a-8b1d-7fcf53a17e97",
       "def": "string.concat",
       "x": 484,
       "y": 2528,
+      "graph": "7ee57110-a905-4092-bb97-713e2e6f1401",
       "literals": {
         "a1": {
           "t": "string",
@@ -54,6 +56,7 @@
       "def": "value.string",
       "x": 3,
       "y": 2874,
+      "graph": "7ee57110-a905-4092-bb97-713e2e6f1401",
       "literals": {
         "value": {
           "t": "string",
@@ -66,6 +69,7 @@
       "def": "function.return",
       "x": 80,
       "y": 2033,
+      "graph": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65",
       "config": {
         "returns": [
           {
@@ -96,13 +100,15 @@
       "id": "0b34d140-35f6-4ebe-9e9f-988f1211287a",
       "def": "flow.rerouteExec",
       "x": -203,
-      "y": 2065
+      "y": 2065,
+      "graph": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65"
     },
     {
       "id": "0bc8cd68-a891-45ec-ad28-ab57c52149c6",
       "def": "debug.error",
       "x": 995,
       "y": 2423,
+      "graph": "7ee57110-a905-4092-bb97-713e2e6f1401",
       "literals": {
         "level": {
           "t": "number",
@@ -128,63 +134,77 @@
       "x": 446,
       "y": 0,
       "literals": {
-        "k0": {
+        "p0.key": {
           "t": "string",
           "v": "turnRate"
         },
-        "k1": {
+        "p1.key": {
           "t": "string",
           "v": "accelerationTime"
         },
-        "k2": {
+        "p2.key": {
           "t": "string",
           "v": "brakingTime"
         },
-        "k3": {
+        "p3.key": {
           "t": "string",
           "v": "reverseFraction"
         },
-        "k4": {
+        "p4.key": {
           "t": "string",
           "v": "traverseRate"
         },
-        "k5": {
+        "p5.key": {
           "t": "string",
           "v": "elevationRate"
         },
-        "k6": {
+        "p6.key": {
           "t": "string",
           "v": "minElevation"
         },
-        "k7": {
+        "p7.key": {
           "t": "string",
           "v": "maxElevation"
         },
-        "k8": {
+        "p8.key": {
           "t": "string",
           "v": "groundClearance"
         },
-        "k9": {
+        "p9.key": {
           "t": "string",
           "v": "promptDistance"
         }
       },
       "config": {
         "args": 10,
-        "layout": "lines"
+        "layout": "lines",
+        "split": {
+          "in:p0": "keyValue",
+          "in:p1": "keyValue",
+          "in:p2": "keyValue",
+          "in:p3": "keyValue",
+          "in:p4": "keyValue",
+          "in:p5": "keyValue",
+          "in:p6": "keyValue",
+          "in:p7": "keyValue",
+          "in:p8": "keyValue",
+          "in:p9": "keyValue"
+        }
       }
     },
     {
       "id": "176d867b-3362-41ab-a56d-b62f7fcb7de4",
       "def": "flow.branch",
       "x": 483,
-      "y": 2423
+      "y": 2423,
+      "graph": "7ee57110-a905-4092-bb97-713e2e6f1401"
     },
     {
       "id": "18d344ab-b037-4fac-b44e-592a853a7ff4",
       "def": "string.concat",
       "x": 355,
       "y": 1295,
+      "graph": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65",
       "literals": {
         "a1": {
           "t": "string",
@@ -199,19 +219,22 @@
       "id": "1b4cd2fd-9057-43e6-b81c-47dfdc621792",
       "def": "instance.getClassName",
       "x": 59,
-      "y": 1870
+      "y": 1870,
+      "graph": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65"
     },
     {
       "id": "1fedbcf0-5eca-4de9-ab2c-b3f090e7bac7",
       "def": "logic.not",
       "x": 146,
-      "y": 2525
+      "y": 2525,
+      "graph": "7ee57110-a905-4092-bb97-713e2e6f1401"
     },
     {
       "id": "26e7a136-e510-4e36-94b6-94882d89f316",
       "def": "instance.isA",
       "x": -153,
       "y": 1671,
+      "graph": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65",
       "literals": {
         "className": {
           "t": "string",
@@ -224,6 +247,7 @@
       "def": "string.concat",
       "x": 433,
       "y": 1786,
+      "graph": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65",
       "literals": {
         "a1": {
           "t": "string",
@@ -242,13 +266,14 @@
       "id": "3db6aa90-70ae-46da-94f2-550b46e92ba8",
       "def": "flow.sequence",
       "x": 25,
-      "y": 2423
+      "y": 2423,
+      "graph": "7ee57110-a905-4092-bb97-713e2e6f1401"
     },
     {
       "id": "42d88c42-3429-4db9-a71a-3c5d5cb9650c",
       "def": "variable.get",
       "x": 1348,
-      "y": -59,
+      "y": -99,
       "config": {
         "name": "TankConfig",
         "type": "table",
@@ -260,10 +285,16 @@
       "def": "table.dictionary",
       "x": 630,
       "y": 2755,
+      "graph": "7ee57110-a905-4092-bb97-713e2e6f1401",
       "literals": {
-        "k0": {
+        "p0.key": {
           "t": "string",
           "v": "movementSpeed"
+        }
+      },
+      "config": {
+        "split": {
+          "in:p0": "keyValue"
         }
       }
     },
@@ -298,6 +329,7 @@
       "def": "function.return",
       "x": 1001,
       "y": 2697,
+      "graph": "7ee57110-a905-4092-bb97-713e2e6f1401",
       "config": {
         "returns": [
           {
@@ -310,8 +342,9 @@
     {
       "id": "6299963a-04cb-4698-bccc-5e2610ee67cb",
       "def": "logic.not",
-      "x": -77,
-      "y": 1166
+      "x": -60,
+      "y": 1219,
+      "graph": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65"
     },
     {
       "id": "652694a3-9ea3-4e4e-a7a0-652b16c6ee61",
@@ -327,8 +360,12 @@
     {
       "id": "7ee57110-a905-4092-bb97-713e2e6f1401",
       "def": "function.declareHere",
-      "x": -909,
-      "y": 2383,
+      "x": -1094,
+      "y": 271,
+      "inner": {
+        "x": -852,
+        "y": 2423
+      },
       "config": {
         "name": "read",
         "params": [
@@ -352,8 +389,8 @@
     {
       "id": "8489ec9d-a71a-4de9-933d-78703acf801c",
       "def": "local.declare",
-      "x": 724,
-      "y": -111,
+      "x": 725,
+      "y": -119,
       "literals": {
         "name": {
           "t": "string",
@@ -378,7 +415,8 @@
       "id": "93eb20b2-c93f-47cb-aabc-964d1420b936",
       "def": "instance.getFullName",
       "x": -552,
-      "y": 2533
+      "y": 2533,
+      "graph": "7ee57110-a905-4092-bb97-713e2e6f1401"
     },
     {
       "id": "982c487a-07d0-4a02-83dc-4e62968ba81d",
@@ -423,6 +461,7 @@
       "def": "flow.reroute",
       "x": -744,
       "y": 1326,
+      "graph": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65",
       "config": {
         "type": "Instance"
       }
@@ -432,6 +471,7 @@
       "def": "roblox.getProperty",
       "x": -461,
       "y": 2057,
+      "graph": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65",
       "literals": {
         "property": {
           "t": "string",
@@ -442,8 +482,9 @@
     {
       "id": "a8beff3e-bc55-45bf-ac20-e7b512403450",
       "def": "roblox.findFirstChild",
-      "x": -739,
-      "y": 1189,
+      "x": -722,
+      "y": 1175,
+      "graph": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65",
       "config": {
         "resultName": "value"
       }
@@ -453,6 +494,7 @@
       "def": "debug.error",
       "x": 635,
       "y": 1088,
+      "graph": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65",
       "literals": {
         "message": {
           "t": "string",
@@ -487,6 +529,7 @@
       "def": "roblox.findFirstChild",
       "x": -552,
       "y": 2622,
+      "graph": "7ee57110-a905-4092-bb97-713e2e6f1401",
       "literals": {
         "name": {
           "t": "string",
@@ -502,6 +545,7 @@
       "def": "flow.reroute",
       "x": -736,
       "y": 1374,
+      "graph": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65",
       "config": {
         "type": "string"
       }
@@ -511,6 +555,7 @@
       "def": "flow.reroute",
       "x": -557,
       "y": 1702,
+      "graph": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65",
       "config": {
         "type": "Instance"
       }
@@ -520,8 +565,23 @@
       "def": "call.function",
       "x": 328,
       "y": 2697,
+      "graph": "7ee57110-a905-4092-bb97-713e2e6f1401",
       "config": {
-        "args": 2
+        "args": 2,
+        "wired": {
+          "name": "readNumbers",
+          "params": [
+            {
+              "name": "container",
+              "type": "Instance"
+            },
+            {
+              "name": "name",
+              "type": "string"
+            }
+          ],
+          "returns": []
+        }
       }
     },
     {
@@ -560,7 +620,7 @@
       "id": "c6a055f6-775a-42e1-85a0-e56fe64b77eb",
       "def": "table.setKey",
       "x": 1521,
-      "y": -111,
+      "y": -127,
       "literals": {
         "key": {
           "t": "number",
@@ -584,8 +644,8 @@
     {
       "id": "cca65f7c-6889-457b-8467-a23ea862fa55",
       "def": "variable.get",
-      "x": -1083,
-      "y": 2451,
+      "x": -1337,
+      "y": 315,
       "config": {
         "name": "TankConfig",
         "type": "table",
@@ -595,8 +655,8 @@
     {
       "id": "cd408f72-2b84-4f54-a43a-3b62ed622704",
       "def": "type.declareHere",
-      "x": 1104,
-      "y": -127,
+      "x": 1093,
+      "y": -135,
       "config": {
         "name": "Tuning"
       }
@@ -606,6 +666,7 @@
       "def": "flow.sequence",
       "x": -485,
       "y": 1089,
+      "graph": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65",
       "config": {
         "count": 3
       }
@@ -615,6 +676,7 @@
       "def": "flow.reroute",
       "x": -168,
       "y": 2776,
+      "graph": "7ee57110-a905-4092-bb97-713e2e6f1401",
       "config": {
         "type": "Instance"
       }
@@ -623,43 +685,54 @@
       "id": "d1c65065-bae4-49d5-b7e6-e7dcf14c2fb0",
       "def": "instance.getFullName",
       "x": 57,
-      "y": 1786
+      "y": 1786,
+      "graph": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65"
     },
     {
       "id": "d7aada93-c698-4ea4-b562-6861cca6484a",
       "def": "table.dictionary",
       "x": -605,
-      "y": -5
+      "y": -5,
+      "config": {
+        "split": {
+          "in:p0": "keyValue"
+        }
+      }
     },
     {
       "id": "d9af5e8a-2988-4172-8e0c-9e7d7abff148",
       "def": "logic.not",
       "x": 149,
-      "y": 1699
+      "y": 1699,
+      "graph": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65"
     },
     {
       "id": "da242fef-5b26-4ea5-9aa0-77a7163b29d2",
       "def": "debug.error",
       "x": 815,
-      "y": 1568
+      "y": 1568,
+      "graph": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65"
     },
     {
       "id": "e640294e-cd98-4227-b9b0-f472e279774b",
       "def": "flow.rerouteExec",
       "x": -179,
-      "y": 1593
+      "y": 1593,
+      "graph": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65"
     },
     {
       "id": "e6ba45da-77d1-431d-8855-66e3369aa006",
       "def": "flow.branch",
       "x": 249,
-      "y": 1088
+      "y": 1088,
+      "graph": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65"
     },
     {
       "id": "ef65d85c-4000-45d5-9fe9-c5fe1a40ec85",
       "def": "function.get",
       "x": 155,
       "y": 2748,
+      "graph": "7ee57110-a905-4092-bb97-713e2e6f1401",
       "config": {
         "function": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65",
         "name": "readNumbers"
@@ -669,13 +742,18 @@
       "id": "f3f98ccf-ce8d-4eca-837c-173ec79da32b",
       "def": "instance.getFullName",
       "x": -50,
-      "y": 1295
+      "y": 1295,
+      "graph": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65"
     },
     {
       "id": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65",
       "def": "function.declareHere",
-      "x": -1058,
-      "y": 1067,
+      "x": -1096,
+      "y": 133,
+      "inner": {
+        "x": -1044,
+        "y": 1073
+      },
       "config": {
         "name": "readNumbers",
         "params": [
@@ -745,7 +823,7 @@
       },
       "to": {
         "node": "170fd33e-c3d0-4069-b0f0-dcc4193630e4",
-        "pin": "a7"
+        "pin": "p7.value"
       }
     },
     {
@@ -756,7 +834,7 @@
       },
       "to": {
         "node": "170fd33e-c3d0-4069-b0f0-dcc4193630e4",
-        "pin": "a9"
+        "pin": "p9.value"
       }
     },
     {
@@ -800,7 +878,7 @@
       },
       "to": {
         "node": "170fd33e-c3d0-4069-b0f0-dcc4193630e4",
-        "pin": "a8"
+        "pin": "p8.value"
       }
     },
     {
@@ -811,7 +889,7 @@
       },
       "to": {
         "node": "170fd33e-c3d0-4069-b0f0-dcc4193630e4",
-        "pin": "a4"
+        "pin": "p4.value"
       }
     },
     {
@@ -888,7 +966,7 @@
       },
       "to": {
         "node": "170fd33e-c3d0-4069-b0f0-dcc4193630e4",
-        "pin": "a0"
+        "pin": "p0.value"
       }
     },
     {
@@ -998,7 +1076,7 @@
       },
       "to": {
         "node": "170fd33e-c3d0-4069-b0f0-dcc4193630e4",
-        "pin": "a6"
+        "pin": "p6.value"
       }
     },
     {
@@ -1185,7 +1263,7 @@
       },
       "to": {
         "node": "170fd33e-c3d0-4069-b0f0-dcc4193630e4",
-        "pin": "a1"
+        "pin": "p1.value"
       }
     },
     {
@@ -1229,7 +1307,7 @@
       },
       "to": {
         "node": "170fd33e-c3d0-4069-b0f0-dcc4193630e4",
-        "pin": "a3"
+        "pin": "p3.value"
       }
     },
     {
@@ -1361,7 +1439,7 @@
       },
       "to": {
         "node": "170fd33e-c3d0-4069-b0f0-dcc4193630e4",
-        "pin": "a5"
+        "pin": "p5.value"
       }
     },
     {
@@ -1394,7 +1472,7 @@
       },
       "to": {
         "node": "170fd33e-c3d0-4069-b0f0-dcc4193630e4",
-        "pin": "a2"
+        "pin": "p2.value"
       }
     },
     {
@@ -1427,7 +1505,7 @@
       },
       "to": {
         "node": "4cbf8d70-fb6d-4f5e-896e-90a50a01c425",
-        "pin": "a0"
+        "pin": "p0.value"
       }
     },
     {
@@ -1471,7 +1549,8 @@
       "y": 1033,
       "w": 987.71,
       "h": 406.14,
-      "text": "First check if the child exists"
+      "text": "First check if the child exists",
+      "graph": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65"
     },
     {
       "id": "4b2e23cd-c5cf-43e7-8c86-0e1d16655af4",
@@ -1487,7 +1566,8 @@
       "y": 1514,
       "w": 1270.94,
       "h": 437.68,
-      "text": "Then check if it is a NumberValue"
+      "text": "Then check if it is a NumberValue",
+      "graph": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65"
     },
     {
       "id": "c4a61e50-f56a-4f91-992a-9368108ec290",
@@ -1503,7 +1583,8 @@
       "y": 1981,
       "w": 805,
       "h": 188,
-      "text": "Return the NumberValue.Value property"
+      "text": "Return the NumberValue.Value property",
+      "graph": "fb3f4c43-d0dd-4a63-ab9e-b620aee98d65"
     },
     {
       "id": "f91b6450-6501-45e6-94ab-d913f0d02b55",

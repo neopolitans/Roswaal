@@ -1,0 +1,90 @@
+{
+  "nodes": [
+    {
+      "id": "DemoPack.newNode",
+      "title": "MyDemoNode",
+      "category": "DemoPack",
+      "inputs": [
+        {
+          "id": "in",
+          "name": "",
+          "kind": "exec"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "then",
+          "name": "",
+          "kind": "exec"
+        }
+      ],
+      "compilesTo": {
+        "kind": "statement",
+        "template": "print(\"This is a Demo Node!\")"
+      },
+      "logic": {
+        "nodes": [
+          {
+            "id": "logic-inputs",
+            "def": "logic.inputs",
+            "x": 80,
+            "y": 120,
+            "config": {
+              "pure": false,
+              "inputs": [],
+              "outputs": []
+            }
+          },
+          {
+            "id": "logic-outputs",
+            "def": "logic.outputs",
+            "x": 825,
+            "y": 120,
+            "config": {
+              "pure": false,
+              "inputs": [],
+              "outputs": []
+            }
+          },
+          {
+            "id": "7687b16b-9635-41fa-a93d-ee2dccdaf1f3",
+            "def": "debug.print",
+            "x": 472,
+            "y": 120,
+            "literals": {
+              "value": {
+                "t": "string",
+                "v": "This is a Demo Node!"
+              }
+            }
+          }
+        ],
+        "links": [
+          {
+            "id": "daf33273-c36c-487e-b3c2-bc5318cf867d",
+            "from": {
+              "node": "logic-inputs",
+              "pin": "then"
+            },
+            "to": {
+              "node": "7687b16b-9635-41fa-a93d-ee2dccdaf1f3",
+              "pin": "in"
+            }
+          },
+          {
+            "id": "2601f0cd-9ca5-4a37-8cb5-901b7204a878",
+            "from": {
+              "node": "7687b16b-9635-41fa-a93d-ee2dccdaf1f3",
+              "pin": "then"
+            },
+            "to": {
+              "node": "logic-outputs",
+              "pin": "in"
+            }
+          }
+        ],
+        "comments": []
+      }
+    }
+  ]
+}

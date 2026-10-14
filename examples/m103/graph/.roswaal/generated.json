@@ -2,5 +2,12 @@
   "schemaVersion": 1,
   "outputs": {
     "default.project.json": ".roswaal/scripts/Tank.nodemap"
+  },
+  "synced": {
+    ".roswaal/scripts/Tank.nodemap": {
+      "rs-tank": "src/ReplicatedStorage/Tank",
+      "sp-scripts": "src/StarterPlayer/StarterPlayerScripts",
+      "sss": "src/ServerScriptService"
+    }
   }
 }
