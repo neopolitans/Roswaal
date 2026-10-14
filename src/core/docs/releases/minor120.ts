@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.170.1",
+		date: "2026-10-14",
+		headline: "The tour shows the editor itself on each screen, and a menu for each kind of file.",
+		affects: ["editor", "docs"],
+		fixed: [
+			"**The editor on each screen is a picture of the editor.** On an iPad the drawn panels kept their text large while the rest shrank, and came out jumbled. Computer, Tablet and Phone are now screenshots of the editor with the demo graph open.",
+			"**The menu slide opens each kind of file's own menu.** Right-click a graph, wally.toml, Luau you wrote or Luau Roswaal writes. The menus come from the same lists as the Project panel's.",
+			"**The demo project's two Code Blocks no longer overlap.** The first is wider now it shows its code.",
+		],
+	},
+	{
 		version: "0.170.0",
 		date: "2026-10-14",
 		headline: "Code Block, Luau Expression and Declare Type show their Luau on the node.",

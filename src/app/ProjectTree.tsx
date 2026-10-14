@@ -14,6 +14,7 @@ import { NOT_HERE, useHostCan } from "./host.js";
 import { Icon, type IconName } from "./icons.jsx";
 import { Menu } from "./Menu.jsx";
 import { depthStyle, SectionHead } from "./PanelParts.jsx";
+import { fileMenu, packageMenu, type TreeAction } from "./treeMenus.js";
 
 const KIND_ICONS: Record<Exclude<TreeEntry["kind"], "directory">, IconName> = {
 	nodescript: "document",
@@ -270,6 +271,37 @@ export const ProjectTree = memo(function ProjectTree({
 		if (movable.length) onMove(movable, dir);
 	}
 
+	/** What a menu entry does, by the action `treeMenus.ts` names it with. */
+	const runTreeAction = (action: TreeAction, entry: TreeEntry) => {
+		const dir = parentDirOf(entry);
+		switch (action) {
+			case "packageZip":
+				return onPackage?.("zip", entry);
+			case "wally":
+				return onPackage?.("wally");
+			case "zip":
+				return onPackage?.("zip");
+			case "github":
+				return onPackage?.("github");
+			case "removePackage":
+				return onPackage?.("remove", entry);
+			case "newGraph":
+				return onNewGraph(dir);
+			case "newMap":
+				return onNewMap(dir);
+			case "import":
+				return onImport?.(entry);
+			case "newFolder":
+				return onNewFolder(dir);
+			case "reveal":
+				return onReveal(entry.path);
+			case "rename":
+				return onRename(entry.path);
+			case "delete":
+				return onDelete(selected.has(entry.path) ? [...selected] : [entry.path]);
+		}
+	};
+
 	return (
 		<div className="tree">
 			{rows.map(({ entry, depth, section, fn }) => {
@@ -433,109 +465,26 @@ export const ProjectTree = memo(function ProjectTree({
 				</div>
 			)}
 
-			{menu && isListed(menu.entry) && onPackage && (
+			{menu && (isListed(menu.entry) ? onPackage : true) && (
 				<Menu
 					at={menu}
 					label={menu.entry.name}
 					onClose={() => setMenu(null)}
-					sections={[
-						{
-							entries: [
-								menu.entry.kind === "package" &&
-									menu.entry.missing && {
-										label: "Insert its zip…",
-										icon: "folderOpen",
-										run: () => onPackage("zip", menu.entry),
-									},
-							],
-						},
-						{
-							entries: [
-								{ label: "Add from Wally…", icon: "instance", run: () => onPackage("wally") },
-								{ label: "Insert package zip…", icon: "folderOpen", run: () => onPackage("zip") },
-								{
-									label: "Insert GitHub repo…",
-									icon: "external",
-									disabled: !canGithub,
-									title: canGithub ? undefined : NOT_HERE,
-									run: () => onPackage("github"),
-								},
-							],
-						},
-						{
-							// Last, as every menu's red entry is.
-							entries: [
-								menu.entry.kind === "package" && {
-									label: "Remove package…",
-									icon: "remove",
-									danger: true,
-									run: () => onPackage("remove", menu.entry),
-								},
-							],
-						},
-					]}
-				/>
-			)}
-
-			{menu && !isListed(menu.entry) && (
-				<Menu
-					at={menu}
-					label={menu.entry.name}
-					onClose={() => setMenu(null)}
-					sections={[
-						{
-							// Making things first, then finding them, then changing and
-							// destroying them. A menu opened on a folder is nearly always
-							// opened to put something in it.
-							entries: [
-								holdsGraphs(parentDirOf(menu.entry)) && {
-									label: "New graph here",
-									icon: "newFile",
-									run: () => onNewGraph(parentDirOf(menu.entry)),
-								},
-								holdsGraphs(parentDirOf(menu.entry)) && {
-									label: "New map here",
-									icon: "map",
-									run: () => onNewMap(parentDirOf(menu.entry)),
-								},
-								onImport &&
-									menu.entry.kind === "luau" &&
-									!menu.entry.generatedFrom && {
-										label: "Import as graph",
-										icon: "graph",
-										run: () => onImport(menu.entry),
-									},
-								{
-									label: "New folder",
-									icon: "newFolder",
-									run: () => onNewFolder(parentDirOf(menu.entry)),
-								},
-							],
-						},
-						{
-							entries: [
-								{
-									label: "Show in file manager",
-									icon: "external",
-									disabled: !canReveal,
-									title: canReveal ? undefined : NOT_HERE,
-									run: () => onReveal(menu.entry.path),
-								},
-							],
-						},
-						{
-							entries: [
-								{ label: "Rename", icon: "rename", run: () => onRename(menu.entry.path) },
-								{
-									label: "Delete",
-									icon: "remove",
-									danger: true,
-									run: () =>
-										onDelete(selected.has(menu.entry.path) ? [...selected] : [menu.entry.path]),
-								},
-							],
-						},
-					]}
+					sections={(isListed(menu.entry)
+						? packageMenu(menu.entry, { canGithub, notHere: NOT_HERE })
+						: fileMenu(menu.entry, {
+								holdsGraphs: holdsGraphs(parentDirOf(menu.entry)),
+								canImport: onImport !== undefined,
+								canGithub,
+								canReveal,
+								notHere: NOT_HERE,
+							})
+					).map((entries) => ({
+						entries: entries.map(({ action, ...shown }) => ({
+							...shown,
+							run: () => runTreeAction(action, menu.entry),
+						})),
+					}))}
 				/>
 			)}
 		</div>

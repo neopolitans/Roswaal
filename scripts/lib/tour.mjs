@@ -9,8 +9,8 @@
  * **Every demonstration is made by the code it demonstrates.** The pickers
  * list real nodes in `nodeColor()`'s colours and the visual one draws them
  * with the docs' renderer; the hovers are `hoverAt` asked about each name in
- * the snippet at build time; the menu is `menuHtml` over the Wally menu the
- * docs already draw; the preview is the compiler's output with its lines
+ * the snippet at build time; the menus are the Project panel's own lists,
+ * from `treeMenus.ts`; the preview is the compiler's output with its lines
  * picked out by the editor's own `analyse`. So a slide cannot show a hover the editor would not give,
  * or a node that has gone, and the build fails rather than drift.
  *
@@ -32,27 +32,19 @@ import { luauCompletionSource } from "../../src/app/luauCompletions.ts";
 import { TOOLTIP_STYLE, themeCss } from "../../src/app/luauTheme.ts";
 import { nodeColor, pinColor } from "../../src/app/palette.ts";
 import { analyse, fold } from "../../src/app/SelectionPreview.tsx";
+import { fileMenu, packageMenu } from "../../src/app/treeMenus.ts";
 import { NODE_ALIASES } from "../../src/core/aliases.ts";
 import { categoryLabel } from "../../src/core/categories.ts";
 import { compile } from "../../src/core/compiler/index.ts";
 import { escapeHtml } from "../../src/core/docs/html.ts";
-import {
-	EDITOR_LAYOUT_PHONE,
-	EDITOR_LAYOUT_TOUCH,
-	inBrowser,
-	layoutHtml,
-	WALK_EDITOR_WEB,
-} from "../../src/core/docs/layouts.ts";
 import { graphSvg, placeGraph, straighten } from "../../src/core/docs/preview.ts";
 import { RELEASES } from "../../src/core/docs/releases.ts";
 import { releasePageSlug } from "../../src/core/docs/site.ts";
 import {
 	DATAMODEL_BROWSER,
-	menuHtml,
 	PROJECT_TREE_WALLY,
 	PROJECT_TREE_WALLY_ADDED,
 	toolbarHtml,
-	WALLY_MENU,
 } from "../../src/core/docs/toolbars.ts";
 import { importLuau } from "../../src/core/import/fromLuau.ts";
 import { hoverAt } from "../../src/core/luau/hover.ts";
@@ -642,74 +634,214 @@ function hoverDemo(source, open, label) {
 // ------------------------------------------------------------ the windows
 
 /**
- * The editor on each kind of screen, as the documentation draws it: the same
- * `layoutHtml` and the same layouts as [The interface](the-interface), which a
- * test holds against the editor's own chrome. So the slide shows the floating
- * groups, the cards and the sheets where each form factor really puts them,
- * rather than a sketch of them that could only agree by luck.
+ * The editor on each kind of screen, as screenshots of the editor itself.
+ *
+ * They were drawings from `layoutHtml`, scaled with CSS `zoom`; Safari on an
+ * iPad scaled the drawing and not its text, and the panels came out as a
+ * jumble (reported from an iPad Mini, 14 Oct 2026). A picture scales the same
+ * everywhere. Each is the browser editor with the demo project's Main graph
+ * open, at the screen's own size and twice its pixels, saved in `site/tour/`:
+ * retake them when the editor's look changes (`TOUR_SHOTS` says how).
  */
-/** @type {[string, string, import("../../src/core/docs/layouts.ts").LayoutSpec][]} */
-const DEVICE_LAYOUTS = [
-	["computer", "Computer", WALK_EDITOR_WEB],
-	// With its card open: the walkthroughs' tablet has them closed, which is
-	// right for "press the mark" and shows nothing of how a tablet lays out.
-	["tablet", "Tablet", inBrowser(EDITOR_LAYOUT_TOUCH, "tour-tablet")],
-	["phone", "Phone", inBrowser(EDITOR_LAYOUT_PHONE, "tour-phone")],
+const DEVICE_SHOTS = [
+	{
+		id: "computer",
+		name: "Computer",
+		width: 1440,
+		height: 900,
+		alt: "The editor on a computer: the Project and Variables cards docked on the left, the Inspector on the right, and the graph between them.",
+	},
+	{
+		id: "tablet",
+		name: "Tablet",
+		width: 1133,
+		height: 744,
+		alt: "The editor on a tablet: the controls in groups along the top, the zoom strip at the side, and the graph filling the screen.",
+	},
+	{
+		id: "phone",
+		name: "Phone",
+		width: 393,
+		height: 852,
+		alt: "The editor on a phone: the graph's name at the top, the graph zoomed to read, and a bar along the bottom.",
+	},
 ];
 
 /**
- * The welcome graph from the first slide, drawn into each frame's canvas so a
- * screen shows work on it rather than an empty grid. Sized in the screen's own
- * pixels, so the frame's scale takes it down with everything else.
+ * How the shots were taken, for whoever retakes them: the built site served
+ * at 127.0.0.1:4173, `try.html` in headless Edge at each size with a device
+ * scale of 2 (touch and `hover: none` for the tablet and phone), Main.nodescript
+ * opened and fitted, the phone zoomed in on Connect Event; saved as WebP.
  */
-// A phone shows it near working size, cut off by the screen as a phone would.
-const DEVICE_GRAPH_WIDTH = { computer: 900, tablet: 760, phone: 620 };
+export const TOUR_SHOTS = DEVICE_SHOTS.map((d) => `site/tour/editor-${d.id}.webp`);
 
 function windowsDemo() {
-	const preview = {
-		geometry: NODE,
-		nodeColor,
-		pinColor,
-		wirePath,
-	};
-	const graph = graphSvg(welcomeScript(), createRegistry(), preview);
-	const withGraph = (html, id) => {
-		const at = html.indexOf('data-name="The graph">');
-		if (at === -1) throw new Error("The tour's window drawing has no graph region to draw into.");
-		const end = at + 'data-name="The graph">'.length;
-		return `${html.slice(0, end)}<div class="tour-device-graph" style="width: ${DEVICE_GRAPH_WIDTH[id]}px">${graph}</div>${html.slice(end)}`;
-	};
 	return `<div class="tour-pane tour-windows-demo">
-          ${DEVICE_LAYOUTS.map(([id], i) => `<input class="tour-pick" type="radio" name="tour-device" id="tour-device-${id}"${i === 0 ? " checked" : ""} />`).join("")}
-          <div class="tour-device-switch segmented" role="group" aria-label="Show it on">${DEVICE_LAYOUTS.map(([id, name]) => `<label for="tour-device-${id}">${name}</label>`).join("")}</div>
-          ${DEVICE_LAYOUTS.map(
-						([id, , spec]) =>
-							`<div class="tour-device tour-device-${id}">${withGraph(layoutHtml(spec, { ...ART, version: "" }, { preview, numbered: false }), id)}</div>`,
+          ${DEVICE_SHOTS.map(({ id }, i) => `<input class="tour-pick" type="radio" name="tour-device" id="tour-device-${id}"${i === 0 ? " checked" : ""} />`).join("")}
+          <div class="tour-device-switch segmented" role="group" aria-label="Show it on">${DEVICE_SHOTS.map(({ id, name }) => `<label for="tour-device-${id}">${name}</label>`).join("")}</div>
+          ${DEVICE_SHOTS.map(
+						({ id, width, height, alt }) =>
+							`<div class="tour-device tour-device-${id}"><figure class="tour-screen tour-screen-${id}"><img src="tour/editor-${id}.webp" width="${width}" height="${height}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async" /></figure></div>`,
 					).join("\n          ")}
         </div>`;
 }
 
-/** The Wally menu, open on its package, as the editor's one menu draws it. */
+/**
+ * The rows the menu slide opens a menu on, each with the menu the Project
+ * panel gives it: `treeMenus.ts`, which the panel itself is built from. The
+ * host is the installed editor, where every entry can be done.
+ */
+const MENU_ROWS = [
+	{
+		name: "Events.nodescript",
+		key: "graph",
+		menu: () => fileMenu({ kind: "nodescript" }, MENU_HOST(true)),
+	},
+	{
+		name: "wally.toml",
+		key: "wally",
+		menu: () => packageMenu({ kind: "wally" }, MENU_HOST(false)),
+	},
+	{ name: "Greeter.luau", key: "luau", menu: () => fileMenu({ kind: "luau" }, MENU_HOST(false)) },
+	{
+		name: "Events.server.luau",
+		key: "generated",
+		menu: () => fileMenu({ kind: "luau", generatedFrom: "Events.nodescript" }, MENU_HOST(false)),
+	},
+];
+const MENU_OPEN = "graph";
+const MENU_HOST = (holdsGraphs) => ({
+	holdsGraphs,
+	canImport: true,
+	canGithub: true,
+	canReveal: true,
+	notHere: "",
+});
+
+/**
+ * The project the menu slide's tree shows: a graph, Wally, and the Luau beside them.
+ * @type {import("../../src/core/docs/toolbars.ts").ToolbarSpec}
+ */
+const MENU_TREE = {
+	id: "tour-menu-tree",
+	title: "A project",
+	summary: "",
+	chrome: "filetree",
+	groups: [
+		{
+			items: [
+				{ t: "treeSection", text: "Graph Content" },
+				{ t: "treeRow", label: ".roswaal", depth: 0, twist: "open", icon: "folderOpen" },
+				{ t: "treeRow", label: "scripts", depth: 1, twist: "open", icon: "folderOpen" },
+				{
+					t: "treeRow",
+					label: "Events.nodescript",
+					name: "Events.nodescript",
+					depth: 2,
+					icon: "document",
+					tone: "nodescript",
+				},
+				{
+					t: "treeRow",
+					label: "wally.toml",
+					name: "wally.toml",
+					depth: 0,
+					twist: "open",
+					icon: "settings",
+					tone: "wally",
+				},
+				{
+					t: "treeRow",
+					label: "Signal",
+					depth: 1,
+					icon: "instance",
+					tone: "package",
+					badge: "1.5.0",
+				},
+				{ t: "treeSection", text: "Compile Content" },
+				{
+					t: "treeRow",
+					label: "src",
+					depth: 0,
+					twist: "open",
+					icon: "folderOpen",
+					tone: "tree-folder-plain",
+				},
+				{
+					t: "treeRow",
+					label: "Shared",
+					depth: 1,
+					twist: "open",
+					icon: "folderOpenFilled",
+					tone: "tree-folder-special",
+				},
+				{
+					t: "treeRow",
+					label: "Greeter.luau",
+					name: "Greeter.luau",
+					depth: 2,
+					icon: "luauScript",
+					tone: "luau tree-script-module",
+				},
+				{
+					t: "treeRow",
+					label: "Events.server.luau",
+					name: "Events.server.luau",
+					depth: 1,
+					icon: "luauScript",
+					tone: "luau tree-script-server",
+					badge: "generated",
+				},
+			],
+		},
+	],
+};
+
+/** One of the editor's menus, in `Menu.tsx`'s markup, from `treeMenus.ts` entries. */
+function treeMenuHtml(sections, key, label) {
+	const body = sections
+		.filter((entries) => entries.length > 0)
+		.map(
+			(entries) =>
+				`<div class="menu-section" role="group">${entries
+					.map(
+						(entry) =>
+							`<button type="button" tabindex="-1" role="menuitem" class="menu-item${entry.danger ? " menu-item--danger" : ""}"` +
+							`${entry.disabled ? ` aria-disabled="true" title="${escapeHtml(entry.title ?? "")}"` : ""}>` +
+							`${icon(entry.icon, 15).replace("<svg ", '<svg class="menu-icon" ')}<span class="menu-text">${escapeHtml(entry.label)}</span></button>`,
+					)
+					.join("")}</div>`,
+		)
+		.join('<div class="menu-sep" role="separator"></div>');
+	return `<div class="menu menu--list tour-menu" role="menu" aria-label="${escapeHtml(label)}" data-menu="${key}"${key === MENU_OPEN ? "" : " hidden"}><div class="menu-body">${body}</div></div>`;
+}
+
+/**
+ * The Project panel's tree, and the menu each kind of row opens: a graph, the
+ * Wally file, a module you wrote, and a script Roswaal writes. The menus are
+ * the panel's own lists, so the slide cannot offer an entry the editor does not.
+ */
 function menuDemo() {
-	const sections = WALLY_MENU.groups.map((group) => group.items);
-	const body = menuHtml(sections, { ...ART }).replace(
-		/<button type="button" tabindex="-1"/g,
-		'<button type="button" tabindex="-1" role="menuitem"',
+	let tree = toolbarHtml(MENU_TREE, { ...ART, version: "" }).replace(
+		'<div class="docs-bar-frame filetree" aria-hidden="true">',
+		'<div class="docs-bar-frame filetree">',
 	);
-	// The Project panel's tree as the Wally slide draws it, with wally.toml the
-	// row the menu opens from. It is the one part of the drawing to answer, so
-	// the drawing is not hidden from assistive technology here.
-	const tree = toolbarHtml(PROJECT_TREE_WALLY, { ...ART, version: "" })
-		.replace('<div class="docs-bar-frame filetree" aria-hidden="true">', '<div class="docs-bar-frame filetree">')
-		.replace(
-			'<div class="tree-row" data-control="wally-toml"',
-			'<div class="tree-row tour-menu-anchor on" tabindex="0" role="button" aria-haspopup="menu" aria-expanded="true" data-control="wally-toml"',
-		);
-	if (!tree.includes("tour-menu-anchor")) throw new Error("The tour's menu has no wally.toml row to open from.");
+	for (const row of MENU_ROWS) {
+		const at = tree.indexOf(`data-name="${row.name}"`);
+		if (at === -1) throw new Error(`The tour's menu tree has no ${row.name} row to open from.`);
+		const open = tree.lastIndexOf('<div class="tree-row"', at);
+		tree =
+			tree.slice(0, open) +
+			`<div class="tree-row tour-menu-anchor${row.key === MENU_OPEN ? " on" : ""}" tabindex="0" role="button" aria-haspopup="menu" aria-expanded="${row.key === MENU_OPEN}" data-menu="${row.key}"` +
+			tree.slice(open + '<div class="tree-row"'.length);
+	}
+	const menus = MENU_ROWS.map((row) => treeMenuHtml(row.menu(), row.key, row.name)).join("");
 	return `<div class="tour-pane tour-canvas grid-surface tour-menu-demo" data-tour="menu">
-          <div class="tour-menu-tree">${tree}</div>
-          <div class="menu menu--list tour-menu" role="menu" aria-label="wally.toml">${body}</div>
-          <p class="tour-readout" aria-live="polite">Right-click <code>wally.toml</code>, or press <kbd>Enter</kbd> on it.</p>
+          <div class="tour-menu-stage">
+            <div class="tour-menu-tree">${tree}</div>
+            <div class="tour-menu-col">${menus}</div>
+          </div>
+          <p class="tour-readout" aria-live="polite">Right-click a row, or press <kbd>Enter</kbd> on it: each kind of file has its own menu.</p>
         </div>`;
 }
 
@@ -950,7 +1082,9 @@ function importLinesHtml(source, nodesOf, open) {
 					? " "
 					: line
 							.map((t) =>
-								t.cls === "" ? escapeHtml(t.text) : `<span class="${t.cls}">${escapeHtml(t.text)}</span>`,
+								t.cls === ""
+									? escapeHtml(t.text)
+									: `<span class="${t.cls}">${escapeHtml(t.text)}</span>`,
 							)
 							.join("");
 			const tap = nodes.length
@@ -1034,7 +1168,9 @@ function importMode(mode, registry, options) {
 	// A line of the file selects the nodes made from it, innermost first: the
 	// `coins += i` line is its Code Block, not the For Loop around it.
 	const fromLine = (line) => {
-		const covering = Object.entries(result.origins).filter(([, o]) => o.from <= line && line <= o.to);
+		const covering = Object.entries(result.origins).filter(
+			([, o]) => o.from <= line && line <= o.to,
+		);
 		if (covering.length === 0) return [];
 		const tightest = Math.min(...covering.map(([, o]) => o.to - o.from));
 		return covering.filter(([, o]) => o.to - o.from === tightest).map(([id]) => id);
@@ -1063,13 +1199,25 @@ function importMode(mode, registry, options) {
 function importDemo() {
 	const registry = createRegistry();
 	const options = { geometry: NODE, nodeColor, pinColor, wirePath };
-	const modes = IMPORT_MODES.map(([mode, name]) => ({ name, ...importMode(mode, registry, options) }));
+	const modes = IMPORT_MODES.map(([mode, name]) => ({
+		name,
+		...importMode(mode, registry, options),
+	}));
 	return `<div class="tour-pane tour-import-demo" data-tour="import">
           ${modes.map(({ mode }) => `<input class="tour-pick" type="radio" name="tour-import" id="tour-import-${mode}"${mode === IMPORT_OPEN ? " checked" : ""} />`).join("")}
           <div class="tour-device-switch segmented" role="group" aria-label="Import mode">${modes.map(({ mode, name }) => `<label for="tour-import-${mode}">${name}</label>`).join("")}</div>
           ${modes
 						.map(
-							({ mode, width, height, svg, buttons, source, output, report }) => `<div class="tour-import tour-import-${mode}">
+							({
+								mode,
+								width,
+								height,
+								svg,
+								buttons,
+								source,
+								output,
+								report,
+							}) => `<div class="tour-import tour-import-${mode}">
             <div class="tour-import-graph tour-canvas grid-surface"><div class="tour-import-frame" style="width: ${width}px; height: ${height}px">${svg}${buttons}</div></div>
             <div class="tour-import-code">
               <div><div class="tour-card-head">Coins.server.luau</div><pre class="landing-code tour-import-src"><code>${source}</code></pre></div>
@@ -1226,18 +1374,18 @@ export const SLIDES = [
 		body: "Controls float over the graph in groups. On a computer the panels are cards that dock, fold and take tabs; on a tablet they open from the groups along the top; on a phone they are sheets from a bar along the bottom.",
 		keys: "The same editor on any screen",
 		tryThis:
-			"Switch between Computer, Tablet and Phone. Each is drawn as <a href='docs/the-interface.html'>The interface</a> draws it.",
+			"Switch between Computer, Tablet and Phone. Each is the editor itself, on that screen, with the same graph open.",
 	},
 	{
 		key: "menu",
 		tab: "Menus",
-		title: "One menu, from the keyboard",
+		title: "A menu for each kind of file",
 		since: "0.144.0",
 		doc: "docs/controls.html",
-		body: "Every context menu and dropdown is the same menu: it opens over everything, stays on screen, and is divided where its entries are different kinds of thing.",
-		keys: "<kbd>↑</kbd> <kbd>↓</kbd> <kbd>Home</kbd> <kbd>End</kbd> <kbd>Enter</kbd> <kbd>Esc</kbd>",
+		body: "Every context menu is the same menu: it opens over everything, stays on screen, and is divided where its entries are different kinds of thing. What it offers depends on what you opened it on: a graph, Wally's file, Luau you wrote, or Luau Roswaal writes.",
+		keys: "<kbd>Right-click</kbd>, then <kbd>↑</kbd> <kbd>↓</kbd> <kbd>Enter</kbd> <kbd>Esc</kbd>",
 		tryThis:
-			"Move through the menu with the arrow keys and choose with <kbd>Enter</kbd>. <kbd>Esc</kbd> closes it.",
+			"Right-click each file in the tree. Only Luau you wrote offers <strong>Import as graph</strong>, and only wally.toml offers packages.",
 	},
 ];
 
@@ -1469,14 +1617,12 @@ ${themeCss(".tour-complete-box", TOOLTIP_STYLE)}
 #tour-device-computer:checked ~ .tour-device-computer,
 #tour-device-tablet:checked ~ .tour-device-tablet,
 #tour-device-phone:checked ~ .tour-device-phone { display: block; }
-.tour-device .docs-layout-fit { overflow: hidden; margin: 0 auto; }
-.tour-device .docs-layout-frame { margin: 0 auto !important; }
-/* The graph on each screen, under the controls that float over it. */
-.tour-device-graph { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 0; pointer-events: none; }
-.tour-device-graph svg { display: block; width: 100%; height: auto; }
-/* On a computer the cards take the sides: centred in what is left between them. */
-.tour-device-computer .tour-device-graph { left: 57%; }
-.tour .docs-layout-screen.dev-phone { --z: 0.6; overflow: hidden !important; }
+/* Each screen is a picture of the editor in a bezel of its kind. */
+.tour-screen { margin: 0 auto; overflow: hidden; background: var(--bg-canvas); border: 8px solid var(--border-strong, #3a3f49); box-shadow: var(--shadow-raised); }
+.tour-screen img { display: block; width: 100%; height: auto; }
+.tour-screen-computer { max-width: 680px; border-radius: 12px; border-bottom-width: 16px; }
+.tour-screen-tablet { max-width: 620px; border-width: 12px; border-radius: 24px; }
+.tour-screen-phone { max-width: 250px; border-width: 9px; border-radius: 30px; }
 
 /* The header of a drawn editor card: Code Block, or a file's name. */
 .tour-card-head {
@@ -1590,11 +1736,15 @@ ${themeCss(".tour-complete-box", TOOLTIP_STYLE)}
 
 /* 6. The one menu, open on the package it was asked about. */
 .tour-menu-demo { flex-direction: row; flex-wrap: wrap; align-items: flex-start; align-content: center; gap: 14px 6px; }
+.tour-menu-stage { display: flex; flex-wrap: wrap; align-items: stretch; justify-content: center; gap: 14px 10px; width: 100%; }
 .tour-menu-tree { width: min(300px, 100%); }
 .tour-menu-tree .docs-bar-frame { margin: 0; }
+.tour-menu-col { position: relative; width: 236px; min-height: 260px; }
+.tour-menu-anchor.on { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+@media (max-width: 640px) { .tour-menu-col { width: min(300px, 100%); min-height: 0; } .tour .tour-menu { position: relative; top: auto !important; margin: 0; } }
 .tour-menu-anchor { cursor: context-menu; outline: none; }
 .tour-menu-anchor:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
-.tour .tour-menu { position: relative; margin-top: 128px; box-shadow: var(--shadow-popover); }
+.tour .tour-menu { position: absolute; left: 0; top: 0; width: 100%; box-shadow: var(--shadow-popover); }
 .tour .tour-menu[hidden] { display: none; }
 .tour-readout { flex-basis: 100%; margin: 6px 0 0; text-align: center; font-size: 13px; color: var(--fg-muted, var(--fg-faint)); min-height: 1.6em; }
 `;
@@ -2151,52 +2301,78 @@ export const TOUR_SCRIPT = `(() => {
 
   // The one menu: arrows move, Home and End jump, Enter chooses, Escape and
   // Tab close it and put focus back on what opened it.
+  // Menus: each row of the tree opens the menu the Project panel gives that
+  // kind of file, beside the row, and the keys walk it as they do in the editor.
   const menuDemo = tour.querySelector('[data-tour="menu"]');
   if (menuDemo) {
-    const anchor = menuDemo.querySelector(".tour-menu-anchor");
-    const menu = menuDemo.querySelector(".tour-menu");
+    const anchors = [...menuDemo.querySelectorAll(".tour-menu-anchor")];
+    const menus = [...menuDemo.querySelectorAll(".tour-menu")];
+    const column = menuDemo.querySelector(".tour-menu-col");
     const readout = menuDemo.querySelector(".tour-readout");
-    const items = [...menu.querySelectorAll(".menu-item")];
+    let current = anchors.find((a) => a.classList.contains("on")) || anchors[0];
     // Built rather than parsed: words, and the few marks they carry.
     const say = (...parts) => {
       readout.replaceChildren(...parts.map((part) => typeof part === "string" ? part : Object.assign(document.createElement(part[0]), { textContent: part[1] })));
     };
-    const open = () => {
-      menu.hidden = false;
-      anchor.setAttribute("aria-expanded", "true");
-      items[0].focus();
-      say(["kbd", "↑"], " ", ["kbd", "↓"], " to move, ", ["kbd", "Enter"], " to choose, ", ["kbd", "Esc"], " to close.");
+    const menuOf = (anchor) => menus.find((m) => m.dataset.menu === anchor.dataset.menu);
+    const enabled = (menu) => [...menu.querySelectorAll(".menu-item")].filter((i) => i.getAttribute("aria-disabled") !== "true");
+    // Level with its row where the column sits beside the tree; under it where they stack.
+    const place = (anchor, menu) => {
+      if (getComputedStyle(menu).position !== "absolute") { menu.style.top = ""; return; }
+      const top = anchor.getBoundingClientRect().top - column.getBoundingClientRect().top;
+      const room = column.offsetHeight > 0 ? Math.max(0, column.offsetHeight - menu.offsetHeight) : top;
+      menu.style.top = Math.max(0, Math.min(top, room)) + "px";
+    };
+    const show = (anchor, focus) => {
+      for (const a of anchors) { a.classList.toggle("on", a === anchor); a.setAttribute("aria-expanded", String(a === anchor)); }
+      for (const m of menus) m.hidden = m !== menuOf(anchor);
+      current = anchor;
+      const menu = menuOf(anchor);
+      place(anchor, menu);
+      if (focus) {
+        enabled(menu)[0]?.focus();
+        say(["code", anchor.querySelector(".label")?.textContent || ""], ": ", ["kbd", "↑"], " ", ["kbd", "↓"], " to move, ", ["kbd", "Enter"], " to choose, ", ["kbd", "Esc"], " to close.");
+      }
     };
     const close = (chosen) => {
-      menu.hidden = true;
-      anchor.setAttribute("aria-expanded", "false");
-      anchor.focus();
-      const again = [" Right-click ", ["code", "wally.toml"], ", or press ", ["kbd", "Enter"], ", to open it again."];
+      for (const m of menus) m.hidden = true;
+      current.setAttribute("aria-expanded", "false");
+      current.focus();
+      const again = [" Right-click a row, or press ", ["kbd", "Enter"], " on it."];
       if (chosen) say("Chose ", ["strong", chosen], chosen.endsWith("…") ? "" : ".", ...again);
       else say("Closed.", ...again);
     };
-    anchor.addEventListener("contextmenu", (event) => { event.preventDefault(); open(); });
-    anchor.addEventListener("click", open);
-    anchor.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " " || event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) { event.preventDefault(); open(); }
-    });
-    for (const item of items) {
-      item.addEventListener("pointermove", () => { if (document.activeElement !== item) item.focus(); });
-      item.addEventListener("click", () => close(item.textContent.trim()));
+    for (const anchor of anchors) {
+      anchor.addEventListener("contextmenu", (event) => { event.preventDefault(); show(anchor, true); });
+      anchor.addEventListener("click", () => show(anchor, true));
+      anchor.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " " || event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) { event.preventDefault(); show(anchor, true); }
+      });
     }
-    menu.addEventListener("keydown", (event) => {
-      const at = items.indexOf(document.activeElement);
-      let next = -1;
-      if (event.key === "ArrowDown") next = (at + 1) % items.length;
-      else if (event.key === "ArrowUp") next = (at - 1 + items.length) % items.length;
-      else if (event.key === "Home") next = 0;
-      else if (event.key === "End") next = items.length - 1;
-      else if (event.key === "Enter" || event.key === " ") { event.preventDefault(); if (at >= 0) close(items[at].textContent.trim()); return; }
-      else if (event.key === "Escape" || event.key === "Tab") { event.preventDefault(); close(); return; }
-      else return;
-      event.preventDefault();
-      items[next].focus();
-    });
+    for (const menu of menus) {
+      for (const item of menu.querySelectorAll(".menu-item")) {
+        const off = item.getAttribute("aria-disabled") === "true";
+        item.addEventListener("pointermove", () => { if (!off && document.activeElement !== item) item.focus(); });
+        item.addEventListener("click", () => { if (!off) close(item.textContent.trim()); });
+      }
+      menu.addEventListener("keydown", (event) => {
+        const items = enabled(menu);
+        const at = items.indexOf(document.activeElement);
+        let next = -1;
+        if (event.key === "ArrowDown") next = (at + 1) % items.length;
+        else if (event.key === "ArrowUp") next = (at - 1 + items.length) % items.length;
+        else if (event.key === "Home") next = 0;
+        else if (event.key === "End") next = items.length - 1;
+        else if (event.key === "Enter" || event.key === " ") { event.preventDefault(); if (at >= 0) close(items[at].textContent.trim()); return; }
+        else if (event.key === "Escape" || event.key === "Tab") { event.preventDefault(); close(); return; }
+        else return;
+        event.preventDefault();
+        items[next].focus();
+      });
+    }
+    // Placed once the slide is shown: a hidden slide has no positions to read.
+    tour.addEventListener("change", () => requestAnimationFrame(() => { if (!menuOf(current).hidden) place(current, menuOf(current)); }));
+    requestAnimationFrame(() => place(current, menuOf(current)));
   }
 })();
 `;

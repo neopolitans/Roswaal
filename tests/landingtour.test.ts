@@ -7,6 +7,8 @@
  * promise, so a slide cannot drift into showing a tool that is not there.
  */
 
+import { existsSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
@@ -60,13 +62,35 @@ describe("the tour", () => {
 		expect(tourOnly).toMatch(/data-find="wait[^"]*sleep[^"]*" data-name="Wait"/);
 	});
 
-	it("draws the menu the docs draw, divided where the editor divides it", () => {
-		expect(tourOnly).toContain("Add from Wally…");
-		expect(tourOnly).toContain('class="menu menu--list tour-menu" role="menu"');
-		const menu = tourOnly.slice(tourOnly.indexOf('class="menu menu--list tour-menu"'));
-		expect(
-			(menu.slice(0, menu.indexOf("tour-readout")).match(/class="menu-sep"/g) ?? []).length,
-		).toBe(2);
+	/** Each row opens the menu the Project panel gives it, from the panel's own lists. */
+	/** The editor on each screen is a picture of it, which has to ship. */
+	it("shows the editor on each screen from a picture the site carries", () => {
+		for (const file of tourModule.TOUR_SHOTS as string[]) {
+			expect(existsSync(new URL(`../${file}`, import.meta.url)), file).toBe(true);
+			expect(tourOnly).toContain(`src="${file.replace(/^site\//, "")}"`);
+		}
+	});
+
+	it("opens each kind of file's own menu", () => {
+		const menuOf = (key: string) => {
+			const start = tourOnly.indexOf(
+				`data-menu="${key}"`,
+				tourOnly.indexOf('class="menu menu--list tour-menu"'),
+			);
+			return tourOnly.slice(start, tourOnly.indexOf("</div></div>", start));
+		};
+		for (const key of ["graph", "wally", "luau", "generated"]) {
+			expect(tourOnly).toContain(`class="tree-row tour-menu-anchor`);
+			expect(tourOnly).toMatch(
+				new RegExp(`aria-haspopup="menu" aria-expanded="(true|false)" data-menu="${key}"`),
+			);
+		}
+		expect(menuOf("graph")).toContain("New graph here");
+		expect(menuOf("graph")).not.toContain("Import as graph");
+		expect(menuOf("luau")).toContain("Import as graph");
+		expect(menuOf("generated")).not.toContain("Import as graph");
+		expect(menuOf("wally")).toContain("Add from Wally…");
+		expect(menuOf("wally")).not.toContain("Delete");
 	});
 });
 
@@ -287,7 +311,11 @@ describe("the slides added in 0.149.0", () => {
 			slideOf("import").indexOf('class="tour-import tour-import-tidy"'),
 			slideOf("import").indexOf('class="tour-import tour-import-modern"'),
 		);
-		const nodes = [...tidy.matchAll(/class="tour-import-node" data-nodes="([^"]+)" data-src="([^"]*)" data-out="([^"]*)"/g)];
+		const nodes = [
+			...tidy.matchAll(
+				/class="tour-import-node" data-nodes="([^"]+)" data-src="([^"]*)" data-out="([^"]*)"/g,
+			),
+		];
 		expect(nodes.length).toBeGreaterThan(10);
 		for (const [, id, src, out] of nodes) {
 			if (id.endsWith("-begin") || id.endsWith("-1")) continue;
@@ -295,8 +323,13 @@ describe("the slides added in 0.149.0", () => {
 			expect(out, id).toMatch(/^\d+(,\d+)*$/);
 		}
 		const ids = new Set(nodes.map(([, id]) => id));
-		const lines = [...tidy.matchAll(/class="ln" data-line="(\d+)" role="button" tabindex="0" data-nodes="([^"]+)"/g)];
-		for (const [, , named] of lines) for (const id of named.split(",")) expect(ids.has(id), id).toBe(true);
+		const lines = [
+			...tidy.matchAll(
+				/class="ln" data-line="(\d+)" role="button" tabindex="0" data-nodes="([^"]+)"/g,
+			),
+		];
+		for (const [, , named] of lines)
+			for (const id of named.split(",")) expect(ids.has(id), id).toBe(true);
 		// The loop's line is the For Loop's, and the line in its body is the Code Block's.
 		const loopLine = lines.find(([, line]) => line === "5");
 		const bodyLine = lines.find(([, line]) => line === "6");

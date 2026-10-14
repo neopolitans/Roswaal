@@ -349,7 +349,7 @@ export const ROBLOX_DEMO_GRAPHS =
 				{
 					"id": "1b0880ee-a507-41d2-a9e3-fa722b301ee8",
 					"def": "code.custom",
-					"x": 539,
+					"x": 580,
 					"y": 840,
 					"literals": {
 						"code": {
