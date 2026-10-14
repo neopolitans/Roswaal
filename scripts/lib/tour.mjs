@@ -1022,7 +1022,8 @@ function wallyDemo() {
 
 /**
  * A file to import: a run long enough that Tidy cuts it into rows, a loop, a
- * branch, an `and … or` that Modern rewrites, and one line that stays Luau.
+ * branch, an `and … or` that Modern rewrites, and a `repeat` loop, which has
+ * no node yet and stays Luau.
  */
 const IMPORT_SOURCE = `local coins = 0
 local bonus = true
@@ -1036,6 +1037,10 @@ local doubled = coins * 2
 local label = bonus and "Bonus round" or "Round"
 print(label, doubled)
 task.wait(1)
+
+repeat
+	coins -= 1
+until coins <= 20
 
 if coins > 10 then
 	print("Enough coins")

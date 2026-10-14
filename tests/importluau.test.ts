@@ -437,6 +437,38 @@ describe("event handlers", () => {
 	});
 });
 
+describe("several names, and assigning with an operator", () => {
+	it("makes `local a, b = f()` one call with a result for each name", () => {
+		const src =
+			'local ok, err = pcall(print, "coins")\nif not ok then\n\twarn(err)\nend\nlocal x, y = workspace.Part.CFrame:ToOrientation()\nprint(x, y)\n';
+		const script = imported(src, "T.server.luau");
+		const call = script.nodes.find((n) => n.def === "call.function");
+		expect(call?.config).toMatchObject({ results: 2, resultNames: ["ok", "err"] });
+		expect(script.nodes.find((n) => n.def === "call.method")?.config?.resultNames).toEqual(["x", "y"]);
+		expect(roundTrip(src, "T.server.luau")).toEqual(lines(src));
+	});
+
+	it("keeps `x += v` as written, on the setter it would be with `=`", () => {
+		const src =
+			'local score = 0\nlocal total = 1\ntotal += 2\nscore -= total\nworkspace.Part.Transparency += 0.5\nlocal counts = {}\ncounts["hits"] ..= "x"\nprint(score, counts)\n';
+		const script = imported(src, "T.server.luau", { locals: "local" });
+		expect(script.nodes.filter((n) => n.config?.op).map((n) => [n.def, n.config?.op])).toEqual([
+			["local.set", "+="],
+			["local.set", "-="],
+			["roblox.setProperty", "+="],
+			["table.setKey", "..="],
+		]);
+		expect(roundTrip(src, "T.server.luau", { locals: "local" })).toEqual(lines(src));
+	});
+
+	it("keeps a compound assignment to a name it does not know as code", () => {
+		const src = "somewhereElse *= 2\n";
+		const result = importLuau(src, { name: "T", scriptClass: "Script", target: "roblox" });
+		if (!result.ok) throw new Error(result.error);
+		expect(result.report.asCode).toEqual([{ construct: "compound assignment", count: 1 }]);
+	});
+});
+
 describe("the library's own nodes", () => {
 	it("makes print and warn Print and Warn, with every value", () => {
 		const src = 'local label = "Round"\nprint(label, 3)\nwarn("Not enough coins")\n';

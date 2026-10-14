@@ -291,7 +291,7 @@ describe("the slides added in 0.149.0", () => {
 		const modern = slide.slice(slide.indexOf('class="tour-import tour-import-modern"'));
 		expect(verbatim.replace(/<[^>]+>/g, "")).toContain("bonus and &quot;Bonus round&quot; or");
 		expect(modern.replace(/<[^>]+>/g, "")).toContain("if bonus then &quot;Bonus round&quot; else");
-		expect(slide).toContain("Kept as code: compound assignment ×1.");
+		expect(slide).toContain("Kept as code: repeat loop ×1.");
 		// Tidy cuts the long run into rows; Verbatim keeps one chain.
 		const tidy = slide.slice(
 			slide.indexOf('class="tour-import tour-import-tidy"'),

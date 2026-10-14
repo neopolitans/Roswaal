@@ -28,6 +28,7 @@ import {
 } from "../core/luneCalls.js";
 import { membersFor } from "../core/members.js";
 import { namedResultRef } from "../core/namedResults.js";
+import { COMPOUND_NODES, COMPOUND_OPS, compoundOf } from "../core/nodes/compound.js";
 import {
 	FUNCTION_NODES,
 	HANDLER_NODES,
@@ -140,6 +141,7 @@ const INSPECTOR_SECTIONS: readonly SectionRule[] = [
 	{ applies: (def) => HANDLER_NODES.has(def.id), Section: HandlerParams },
 	{ applies: ids("string.concat"), Section: ConcatStyle },
 	{ applies: ids("task.thread"), Section: ThreadWhenPicker },
+	{ applies: (def) => COMPOUND_NODES.has(def.id), Section: AssignWith },
 	{
 		applies: (def) => def.display === "operator" && !CAST_NODES.has(def.id),
 		Section: OperatorBrackets,
@@ -349,7 +351,12 @@ function ArgumentCount({ node, def }: SectionProps) {
 			</p>
 		);
 	}
-	return <CountEditor node={node} field="args" label="Arguments" min={0} max={8} fallback={1} />;
+	return (
+		<>
+			<CountEditor node={node} field="args" label="Arguments" min={0} max={8} fallback={1} />
+			<CountEditor node={node} field="results" label="Results" min={1} max={8} fallback={1} />
+		</>
+	);
 }
 
 /**
@@ -743,6 +750,30 @@ function TableLayout({ node }: { node: GraphNode }) {
  * everybody on the project reads. **New concatenate nodes** in Settings
  * decides what one you drop today starts as.
  */
+/** How a setter assigns: `=`, or a compound operator that works the old value in. */
+function AssignWith({ node }: { node: GraphNode }) {
+	return (
+		<Field label="Assign with" hint="`x += v` is `x = x + v`, with `x` worked out once.">
+			<select
+				className="tb"
+				value={compoundOf(node.def, node.config) ?? "="}
+				onChange={(e) =>
+					store.edit((s) =>
+						setConfig(s, node.id, { op: e.target.value === "=" ? undefined : e.target.value }),
+					)
+				}
+			>
+				<option value="=">= (replace)</option>
+				{COMPOUND_OPS.map((op) => (
+					<option key={op} value={op}>
+						{op}
+					</option>
+				))}
+			</select>
+		</Field>
+	);
+}
+
 /** When New Thread starts its Body: now, after this frame's work, or after some seconds. */
 function ThreadWhenPicker({ node }: { node: GraphNode }) {
 	return (

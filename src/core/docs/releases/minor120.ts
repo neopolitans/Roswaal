@@ -9,6 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.172.0",
+		date: "2026-10-14",
+		headline: "Setters assign with += and its kin, and a call can hand back several values.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Assign with an operator.** Set Local, Set Variable, Set Property and Set Key can write `+=`, `-=`, `*=`, `/=`, `//=`, `%=`, `^=` or `..=` in place of `=`: choose it under Assign with in the Inspector. The Value pin says what it does, such as Add (+=).",
+			"**A call can hand back several values.** Set Results on Call Function or Call Method and it has an output for each: `local ok, err = pcall(f)`.",
+			"**Import draws both.** `x += 1` becomes the setter `x = 1` would, with its operator, and `local a, b = f()` becomes one call with a result for each name, each read wired to its own.",
+		],
+		fixed: [
+			"**Import keeps a key written in brackets.** `t[\"name\"] = v` came back as `t.name = v`.",
+		],
+	},
+	{
 		version: "0.171.0",
 		date: "2026-10-14",
 		headline: "Import draws event handlers and threads as nodes, and New Thread runs a body on one.",

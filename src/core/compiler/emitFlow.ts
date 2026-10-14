@@ -6,6 +6,7 @@
  */
 
 import { LUAU_PRIMITIVES } from "../luneTypes.js";
+import { compoundOf } from "../nodes/compound.js";
 import {
 	isMethod,
 	loopNamesOf,
@@ -14,8 +15,9 @@ import {
 	signatureOf,
 	typeDeclarationOf,
 } from "../nodes/flow.js";
-import { threadWhen } from "../nodes/library.js";
+import { resultNamesOf, threadWhen } from "../nodes/library.js";
 import { isConstLocal, localTypeOf, variableRefOf } from "../nodes/variables.js";
+import type { PinDef } from "../schema.js";
 import { scriptCallOf } from "../scriptCalls.js";
 import { isRobloxTypeName, luneCall, resultNameOf, serviceCall, writeCall } from "./emitCalls.js";
 import {
@@ -254,7 +256,50 @@ function callInvoke(e: Emitter, r: ResolvedNode, scope: Scope): string | undefin
 		callee = parenPrefix(e.resolveInput(r, e.pin(r, "fn", "in"), scope));
 	}
 
-	return writeCall(e, r, `${callee}(${args.join(", ")})`, "result", scope, { fallback: "result" });
+	const rendered = `${callee}(${args.join(", ")})`;
+	const results = r.baseOutputs.filter((p) => p.kind === "data");
+	if (results.length > 1) return bindResults(e, r, rendered, results, scope);
+	return writeCall(e, r, rendered, "result", scope, { fallback: "result" });
+}
+
+/**
+ * `local a, b = f()`: a call that hands back several values, each bound.
+ *
+ * Written as far as the last value anything reads, with `_` for the ones
+ * between that nothing does -- unless the graph keeps what was written, when
+ * every value the call was given a name for is declared under that name, read
+ * or not, as the file had it.
+ */
+function bindResults(
+	e: Emitter,
+	r: ResolvedNode,
+	rendered: string,
+	results: PinDef[],
+	scope: Scope,
+): string | undefined {
+	const id = r.node.id;
+	const given = resultNamesOf(r.node.config);
+	const read = results.map(
+		(p, i) =>
+			e.index.readerCount(id, p.id, { parts: true }) > 0 ||
+			(e.asWritten && (given[i] ?? "") !== ""),
+	);
+	const last = read.lastIndexOf(true);
+	if (last < 0) {
+		e.push(rendered, id);
+		return e.index.execTarget(id, "then");
+	}
+	const names = results.slice(0, last + 1).map((p, i) => {
+		if (!read[i]) return "_";
+		const ident =
+			e.asWritten && given[i]
+				? e.declareName(given[i], "value", id)
+				: e.names.unique(p.name || `value${i + 1}`, "value");
+		scope.bindings.set(`${id}/${p.id}`, ident);
+		return ident;
+	});
+	e.push(`local ${names.join(", ")} = ${rendered}`, id);
+	return e.index.execTarget(id, "then");
 }
 
 /**
@@ -585,7 +630,7 @@ function setVariable(e: Emitter, r: ResolvedNode, scope: Scope): string | undefi
 	// No variable, or one that is gone: `validate` reports it, for every
 	// node rather than only those the walk reaches.
 	if (!ident) return e.index.execTarget(id, "then");
-	e.push(`${ident} = ${value}`, id);
+	e.push(`${ident} ${compoundOf(r.def.id, r.node.config) ?? "="} ${value}`, id);
 	// The pass-through output is the variable itself, so a Set can sit
 	// mid-chain and feed the value onwards without a second read.
 	scope.bindings.set(`${id}/value`, ident);

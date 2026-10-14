@@ -557,6 +557,27 @@ function dictionaryPins(config: Record<string, unknown>): { inputs: PinDef[]; ou
  * Argument pins for the call nodes. One by default, because most calls take
  * one, and the count is stored per node rather than baked into the definition.
  */
+/**
+ * A call's results: one, or as many as `results` says -- `local ok, err =
+ * pcall(f)` is two. Each is named by `resultNames` where it has one, which an
+ * import fills from the names the file gave them.
+ */
+export function resultPins(config: Record<string, unknown>, single?: PinDef): PinDef[] {
+	const count = Math.max(1, Math.min(MAX_ARGS, Number(config.results ?? 1) || 1));
+	if (count === 1) return [single ?? d("result", "Result", "any")];
+	const names = Array.isArray(config.resultNames) ? config.resultNames : [];
+	return Array.from({ length: count }, (_, i) => {
+		const given = typeof names[i] === "string" ? (names[i] as string).trim() : "";
+		return d(i === 0 ? "result" : `result${i + 1}`, given || `Result ${i + 1}`, "any");
+	});
+}
+
+/** The names `resultNames` gives a call's results, as written; empty where none. */
+export function resultNamesOf(config: Record<string, unknown> | undefined): string[] {
+	const names = Array.isArray(config?.resultNames) ? config.resultNames : [];
+	return names.map((n) => (typeof n === "string" ? n.trim() : ""));
+}
+
 function argPins(config: Record<string, unknown>): PinDef[] {
 	const count = Math.max(0, Math.min(MAX_ARGS, Number(config.args ?? 1)));
 	return Array.from({ length: count }, (_, i) =>
@@ -3170,7 +3191,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 			const wired = wiredCallPins(config, "Result");
 			return {
 				inputs: [exec("in"), d("fn", "Function", "function"), ...(wired?.args ?? argPins(config))],
-				outputs: [exec("then"), wired?.result ?? d("result", "Result", "any")],
+				outputs: [exec("then"), ...resultPins(config, wired?.result)],
 			};
 		},
 	},
@@ -3194,7 +3215,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 				str("method", "Method", "Method"),
 				...argPins(config),
 			],
-			outputs: [exec("then"), d("result", "Result", "any")],
+			outputs: [exec("then"), ...resultPins(config)],
 		}),
 	},
 

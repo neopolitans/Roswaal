@@ -21,9 +21,16 @@
  */
 
 import { commentLines, headersByNode, oneLine } from "../comments.js";
+import { compoundTemplate } from "../nodes/compound.js";
 import { FUNCTION_NODES, loopNamesOf, signatureOf } from "../nodes/flow.js";
 import { nodeTitle, type Registry } from "../nodes/index.js";
-import { CAST_NODES, type CastMode, castModeOf, NILABLE_CLASS_READS } from "../nodes/library.js";
+import {
+	CAST_NODES,
+	type CastMode,
+	castModeOf,
+	NILABLE_CLASS_READS,
+	resultNamesOf,
+} from "../nodes/library.js";
 import { castCall, castsResult } from "../nodes/resultCast.js";
 import { type Comment, type NodeScript, PAIR, type PinDef } from "../schema.js";
 import {
@@ -462,7 +469,12 @@ export class Emitter {
 			case "call":
 				return emitCall(this, r, spec.template, spec.result, scope);
 			case "statement":
-				return emitStatement(this, r, spec.template, scope);
+				return emitStatement(
+					this,
+					r,
+					compoundTemplate(r.def.id, r.node.config, spec.template),
+					scope,
+				);
 			case "expr":
 				this.error(
 					`"${r.def.title}" is a pure node and cannot be placed in an execution chain.`,
@@ -873,6 +885,10 @@ function givenNames(script: NodeScript): string[] {
 				for (const p of sig.params ?? []) names.push(p.name);
 				break;
 			}
+			case "call.function":
+			case "call.method":
+				for (const name of resultNamesOf(node.config)) if (name) names.push(name);
+				break;
 			case "flow.forRange":
 			case "event.connect":
 			case "event.once":

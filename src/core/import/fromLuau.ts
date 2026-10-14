@@ -20,6 +20,7 @@
 import type { Binding, Block, Expr, FunctionBody, Stat } from "../luau/ast.js";
 import { lineIndex, tokenize } from "../luau/lexer.js";
 import { parseChunk } from "../luau/parser.js";
+import { COMPOUND_NODES } from "../nodes/compound.js";
 import { BUILTIN_NODES, createRegistry, type Registry } from "../nodes/index.js";
 import {
 	emptyScript,
@@ -122,7 +123,6 @@ interface FunctionContext {
 const KEPT_AS: Partial<Record<Stat["kind"], string>> = {
 	typeAlias: "type",
 	typeFunction: "type function",
-	compoundAssign: "compound assignment",
 	do: "do block",
 	repeat: "repeat loop",
 	const: "const",
@@ -584,6 +584,8 @@ class Importer {
 
 		switch (stat.kind) {
 			case "local": {
+				const several = this.severalFromOneCall(stat, tail, scope, graph, row);
+				if (several) return counted(several);
 				if (stat.names.length !== 1 || stat.values.length > 1 || stat.attributes.length > 0) {
 					for (const n of stat.names) scope.set(n.name, { kind: "text" });
 					return this.custom(stat, tail, graph, row, "local with several names");
@@ -772,6 +774,34 @@ class Importer {
 				return this.custom(stat, tail, graph, row, "function");
 			}
 
+			case "compoundAssign": {
+				// `x += v` as `x = v` would be drawn, with the operator on the setter.
+				// A target that has no setter stays as code, under its own name.
+				const before = this.links.length;
+				this.stats -= 1;
+				const plain: Stat = {
+					kind: "assign",
+					targets: [stat.target],
+					values: [stat.value],
+					start: stat.start,
+					end: stat.end,
+				};
+				const result = this.statement(plain, tail, scope, graph, row, fn, false);
+				const link = this.links
+					.slice(before)
+					.find((l) => l.from.node === tail.node && l.from.pin === tail.pin);
+				const node = link ? this.nodeById(link.to.node) : undefined;
+				if (node && COMPOUND_NODES.has(node.def)) {
+					node.config = { ...node.config, op: stat.op };
+				} else if (node?.def === "code.custom") {
+					// Reported as what it is.
+					this.codeKinds.set("assignment", (this.codeKinds.get("assignment") ?? 1) - 1);
+					if (this.codeKinds.get("assignment") === 0) this.codeKinds.delete("assignment");
+					this.code("compound assignment");
+				}
+				return result;
+			}
+
 			default:
 				return this.custom(stat, tail, graph, row, KEPT_AS[stat.kind] ?? stat.kind);
 		}
@@ -793,7 +823,14 @@ class Importer {
 		const at = this.place(graph, row);
 		const near = { x: at.x, y: at.y + 70 };
 		const property = target.kind === "index" && /^[A-Z][a-z0-9]/.test(target.name.name);
-		const id = this.node(property ? "roblox.setProperty" : "table.setKey", graph, at);
+		// `t["name"] = v` keeps its brackets: Set Key writes `t.name` unless told.
+		const bracketed = target.kind === "indexExpr" && target.key.kind === "string";
+		const id = this.node(
+			property ? "roblox.setProperty" : "table.setKey",
+			graph,
+			at,
+			bracketed ? { config: { keys: "brackets" } } : {},
+		);
 		this.feed(this.expr(target.object, scope, graph, at), {
 			node: id,
 			pin: property ? "instance" : "table",
@@ -1034,6 +1071,56 @@ class Importer {
 			false,
 		);
 		return id;
+	}
+
+	/**
+	 * `local ok, err = pcall(f, x)` and `local a, b = obj:Get()`: Call Function
+	 * or Call Method with a result for each name, named as the file named them,
+	 * and every later read of a name wired to its result. A typed name, an
+	 * attribute or a function written in the call keeps the line as code.
+	 */
+	private severalFromOneCall(
+		stat: Extract<Stat, { kind: "local" }>,
+		tail: Tail,
+		scope: Scope,
+		graph: string | undefined,
+		row: number,
+	): Tail | undefined {
+		const call = stat.values[0];
+		if (
+			stat.names.length < 2 ||
+			stat.values.length !== 1 ||
+			stat.attributes.length > 0 ||
+			stat.names.some((n) => n.type) ||
+			(call.kind !== "call" && call.kind !== "methodCall") ||
+			call.args.length > 8 ||
+			call.args.some((a) => a.kind === "function" || a.kind === "varargs")
+		) {
+			return undefined;
+		}
+		const names = stat.names.map((n) => n.name);
+		const config = { args: call.args.length, results: names.length, resultNames: names };
+		const at = this.place(graph, row);
+		let id: string;
+		if (call.kind === "methodCall") {
+			id = this.node("call.method", graph, at, { config });
+			this.feed(this.expr(call.object, scope, graph, at), { node: id, pin: "object" });
+			this.literal(id, "method", { t: "string", v: call.method.name });
+		} else {
+			id = this.node("call.function", graph, at, { config });
+			this.feed(this.expr(call.callee, scope, graph, at), { node: id, pin: "fn" });
+		}
+		call.args.forEach((arg, i) => {
+			this.feed(this.expr(arg, scope, graph, { x: at.x, y: at.y + 70 * (i + 1) }), {
+				node: id,
+				pin: `a${i}`,
+			});
+		});
+		this.chain(tail, id);
+		names.forEach((name, i) => {
+			scope.set(name, { kind: "pin", node: id, pin: i === 0 ? "result" : `result${i + 1}` });
+		});
+		return { node: id, pin: "then" };
 	}
 
 	/** The library node that writes this call, if one does and nothing in the file hides its name. */
