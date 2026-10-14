@@ -14828,6 +14828,13 @@ select:not(.literal):not([multiple]) {
 	color: var(--fg-muted);
 }
 
+/* A sentence that ends the card -- a type's card under its chip, or a hover
+   with no docs and no link -- keeps the room below it that the docs and the
+   link keep, rather than sitting on the card's edge. */
+.luau-hover > p:last-child {
+	padding-bottom: 8px;
+}
+
 /* The code's own doc comment: prose, examples and tags, scrolling past a
    screenful rather than covering the file. Its code is inline and plain,
    where the heading's is the signature in bold. */

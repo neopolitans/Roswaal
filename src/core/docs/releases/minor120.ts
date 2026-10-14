@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.170.3",
+		date: "2026-10-14",
+		headline: "A type's card keeps room under its sentence.",
+		affects: ["editor"],
+		fixed: [
+			"**The card a type chip opens no longer ends on its text.** A card that ends with its sentence, as a type's does under a knot, a getter or a node, had nothing below it. It keeps the room the code editor's hovers keep.",
+		],
+	},
+	{
 		version: "0.170.2",
 		date: "2026-10-14",
 		headline: "Node Design types a node's title where its header draws it.",
