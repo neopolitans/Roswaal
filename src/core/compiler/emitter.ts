@@ -874,6 +874,9 @@ function givenNames(script: NodeScript): string[] {
 				break;
 			}
 			case "flow.forRange":
+			case "event.connect":
+			case "event.once":
+			case "task.thread":
 				if (node.label) names.push(node.label);
 				break;
 			case "flow.forEach":

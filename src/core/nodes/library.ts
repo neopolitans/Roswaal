@@ -91,6 +91,22 @@ const d = (id: string, name: string, type: string, def?: PinDef["default"]): Pin
 	default: def,
 });
 const num = (id: string, name: string, v = 0) => d(id, name, "number", { t: "number", v });
+
+/** When New Thread starts its Body: the `task` function it writes. */
+export type ThreadWhen = "spawn" | "defer" | "delay";
+export function threadWhen(config: NodeConfig | undefined): ThreadWhen {
+	const when = config?.when;
+	return when === "defer" || when === "delay" ? when : "spawn";
+}
+/** Seconds, only when it waits them. */
+function threadInputs(config: NodeConfig): PinDef[] {
+	return [exec("in"), ...(threadWhen(config) === "delay" ? [num("seconds", "Seconds", 1)] : [])];
+}
+const THREAD_OUTPUTS: PinDef[] = [
+	exec("then"),
+	exec("body", "Body"),
+	d("thread", "Thread", "thread"),
+];
 const str = (id: string, name: string, v = "") => d(id, name, "string", { t: "string", v });
 const bool = (id: string, name: string, v = false) => d(id, name, "boolean", { t: "boolean", v });
 /**
@@ -3207,6 +3223,19 @@ export const LIBRARY_NODES: NodeDef[] = [
 				"Yields this thread for at least that long, and gives back how long it actually took. The global `wait()` is deprecated; this is its replacement.",
 		},
 	),
+	{
+		id: "task.thread",
+		title: "New Thread",
+		category: "Threads",
+		role: "flow",
+		summary:
+			"Runs the Body on a thread of its own, written as the function it is: at once with `task.spawn`, once this frame's work is done with `task.defer`, or after some seconds with `task.delay`. Choose which in the Inspector. The thread comes back on Thread, to cancel.",
+		inputs: threadInputs({}),
+		outputs: THREAD_OUTPUTS,
+		compilesTo: { kind: "builtin", handler: "task.thread" },
+		subtitle: (config) => `task.${threadWhen(config)}`,
+		derivePins: (config) => ({ inputs: threadInputs(config), outputs: THREAD_OUTPUTS }),
+	},
 	variadicCall(
 		"task.spawn",
 		"Spawn",

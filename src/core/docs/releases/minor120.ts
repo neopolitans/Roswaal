@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.171.0",
+		date: "2026-10-14",
+		headline: "Import draws event handlers and threads as nodes, and New Thread runs a body on one.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Event handlers import as Connect Event and Connect Once.** `:Connect(function(player) ... end)` and `:Once` become the node, the handler's parameters its pins and its body on Body. `local conn = ...:Connect(...)` names the node, and what reads `conn` is wired to its Connection.",
+			"**New Thread runs its Body on a thread of its own.** At once, once this frame's work is done, or after some seconds: `task.spawn`, `task.defer` or `task.delay` with the function written in place. Choose which in the Inspector. Imported files use it for those calls.",
+		],
+		fixed: [
+			"**A loop's variable read inside a function declared in its body imports.** It was wired across the function's edge, and the graph did not compile; it is read by name.",
+		],
+	},
+	{
 		version: "0.170.3",
 		date: "2026-10-14",
 		headline: "A type's card keeps room under its sentence.",

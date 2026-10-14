@@ -36,7 +36,7 @@ import {
 	typeShapeOf,
 } from "../core/nodes/flow.js";
 import { nodeTitle, resolveNodePins } from "../core/nodes/index.js";
-import { CAST_MODES, CAST_NODES, castModeOf } from "../core/nodes/library.js";
+import { CAST_MODES, CAST_NODES, castModeOf, threadWhen } from "../core/nodes/library.js";
 import { castsResult, RESULT_CAST } from "../core/nodes/resultCast.js";
 import { isConstLocal, localNameOf, pinTypeText } from "../core/nodes/variables.js";
 import { packLuau } from "../core/packs.js";
@@ -139,6 +139,7 @@ const INSPECTOR_SECTIONS: readonly SectionRule[] = [
 	{ applies: ids("event.on"), Section: EventPicker },
 	{ applies: (def) => HANDLER_NODES.has(def.id), Section: HandlerParams },
 	{ applies: ids("string.concat"), Section: ConcatStyle },
+	{ applies: ids("task.thread"), Section: ThreadWhenPicker },
 	{
 		applies: (def) => def.display === "operator" && !CAST_NODES.has(def.id),
 		Section: OperatorBrackets,
@@ -742,6 +743,29 @@ function TableLayout({ node }: { node: GraphNode }) {
  * everybody on the project reads. **New concatenate nodes** in Settings
  * decides what one you drop today starts as.
  */
+/** When New Thread starts its Body: now, after this frame's work, or after some seconds. */
+function ThreadWhenPicker({ node }: { node: GraphNode }) {
+	return (
+		<Field label="When" hint="Which task function the Body is handed to. Delay adds a Seconds pin.">
+			<select
+				className="tb"
+				value={threadWhen(node.config)}
+				onChange={(e) =>
+					store.edit((s) =>
+						setConfig(s, node.id, {
+							when: e.target.value === "spawn" ? undefined : e.target.value,
+						}),
+					)
+				}
+			>
+				<option value="spawn">At once: task.spawn</option>
+				<option value="defer">After this frame's work: task.defer</option>
+				<option value="delay">After some seconds: task.delay</option>
+			</select>
+		</Field>
+	);
+}
+
 function ConcatStyle({ node }: { node: GraphNode }) {
 	const on = configFlag(node, "interpolate");
 	return (

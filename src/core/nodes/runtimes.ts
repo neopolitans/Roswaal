@@ -135,6 +135,7 @@ export const NODE_RUNTIME: Record<string, Runtime> = {
 	"task.defer": "roblox",
 	"task.delay": "roblox",
 	"task.cancel": "roblox",
+	"task.thread": "roblox",
 	"task.synchronize": "roblox",
 	"task.desynchronize": "roblox",
 

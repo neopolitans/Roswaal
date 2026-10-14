@@ -32,6 +32,7 @@ import {
 	type ScriptVariable,
 	type Target,
 } from "../schema.js";
+import { layoutImport } from "./layout.js";
 import {
 	applyEdits,
 	type Edit,
@@ -41,7 +42,6 @@ import {
 	modernEdits,
 	type TopLevelLocals,
 } from "./modes.js";
-import { layoutImport } from "./layout.js";
 import { type CallTemplate, callTemplates, matchCall } from "./templates.js";
 
 export interface ImportOptions {
@@ -211,8 +211,25 @@ class Importer {
 	 * the first line of one that holds a block, whose body has nodes of its own.
 	 */
 	private head(stat: Stat): { start: number; end: number } {
-		const holds = ["if", "while", "repeat", "do", "numericFor", "genericFor", "localFunction", "functionStat"];
-		if (!holds.includes(stat.kind)) return { start: stat.start, end: stat.end };
+		const holds = [
+			"if",
+			"while",
+			"repeat",
+			"do",
+			"numericFor",
+			"genericFor",
+			"localFunction",
+			"functionStat",
+		];
+		const handler =
+			(stat.kind === "callStat" && stat.call.args.some((a) => a.kind === "function")) ||
+			(stat.kind === "local" &&
+				stat.values.some(
+					(v) =>
+						(v.kind === "methodCall" || v.kind === "call") &&
+						v.args.some((a) => a.kind === "function"),
+				));
+		if (!holds.includes(stat.kind) && !handler) return { start: stat.start, end: stat.end };
 		const eol = this.src.indexOf("\n", stat.start);
 		return { start: stat.start, end: eol === -1 ? stat.end : eol };
 	}
@@ -334,7 +351,16 @@ class Importer {
 			}
 			case "name": {
 				const ref = scope.get(e.name);
-				if (ref?.kind === "pin") return { kind: "wire", node: ref.node, pin: ref.pin };
+				if (ref?.kind === "pin") {
+					// A loop's variable or a handler's parameter read inside a function
+					// declared there: a wire cannot cross into the function's own graph,
+					// so it is read by name, as the file reads it. The name is kept as
+					// written, so it is the variable's.
+					if (this.nodeById(ref.node).graph === graph) {
+						return { kind: "wire", node: ref.node, pin: ref.pin };
+					}
+					return this.luau(e, graph, below(0));
+				}
 				if (ref?.kind === "local") {
 					const id = this.node("local.get", graph, below(0), {
 						config: { local: ref.node, name: ref.name, ...(ref.type ? { type: ref.type } : {}) },
@@ -375,7 +401,8 @@ class Importer {
 				const pure = this.libraryCall(e, scope, ["expr"]);
 				if (pure) {
 					const id = this.libraryNode(pure, e, scope, graph, below(0));
-					const result = (pure.def.compilesTo as { result?: string }).result ?? firstOutput(pure.def);
+					const result =
+						(pure.def.compilesTo as { result?: string }).result ?? firstOutput(pure.def);
 					return { kind: "wire", node: id, pin: result };
 				}
 				return this.luau(e, graph, below(0));
@@ -562,6 +589,22 @@ class Importer {
 					return this.custom(stat, tail, graph, row, "local with several names");
 				}
 				const binding = stat.names[0];
+				// `local conn = signal:Connect(function ... end)`: the node is the
+				// declaration, and `conn` is its Connection.
+				if (stat.values[0] && !binding.type) {
+					const value = stat.values[0];
+					const connected = this.connectCall(value, tail, scope, graph, row, binding.name);
+					const handled =
+						connected ?? this.threadCall(value, tail, scope, graph, row, binding.name);
+					if (handled) {
+						scope.set(binding.name, {
+							kind: "pin",
+							node: handled,
+							pin: connected ? "connection" : "thread",
+						});
+						return counted({ node: handled, pin: "then" });
+					}
+				}
 				const at = this.place(graph, row);
 				const type = this.typeText(binding);
 				// A file-level local is a script variable, declared where it was by
@@ -838,6 +881,13 @@ class Importer {
 		row: number,
 	): Tail | undefined {
 		const call = stat.call;
+		const handled =
+			this.connectCall(call, tail, scope, graph, row) ??
+			this.threadCall(call, tail, scope, graph, row);
+		if (handled) {
+			this.asNodes += 1;
+			return { node: handled, pin: "then" };
+		}
 		// A function written inline as an argument has a body of its own, which
 		// a value pin cannot hold well. The whole statement stays as code.
 		if (call.args.some((a) => a.kind === "function") || call.args.length > 8) return undefined;
@@ -876,13 +926,126 @@ class Importer {
 		return { node: id, pin: "then" };
 	}
 
+	/**
+	 * `signal:Connect(function(player) ... end)` and `:Once`: Connect Event or
+	 * Connect Once, the handler's parameters its pins and its body on Body, as
+	 * the node writes it back. Returns the node, chained from `tail`, or
+	 * undefined for a call that is not one: a handler with `...`, generics, a
+	 * return type or attributes stays as code, as does one on Lune, where the
+	 * nodes do not run.
+	 *
+	 * `name`, for `local conn = signal:Connect(...)`, is the node's label: the
+	 * connection is its output, and the node writes the `local` itself. The
+	 * name is set in scope only after the body, so the handler reads `conn` as
+	 * the file did: in `local c = s:Connect(function() c:Disconnect() end)` the
+	 * `c` inside is not yet the local.
+	 */
+	private connectCall(
+		call: Expr,
+		tail: Tail,
+		scope: Scope,
+		graph: string | undefined,
+		row: number,
+		name?: string,
+	): string | undefined {
+		if (this.target !== "roblox" || call.kind !== "methodCall" || call.args.length !== 1)
+			return undefined;
+		const method = call.method.name;
+		if (method !== "Connect" && method !== "Once") return undefined;
+		const literal = call.args[0];
+		if (literal.kind !== "function" || literal.attributes.length > 0) return undefined;
+		const func = literal.func;
+		if (func.varargs || func.generics.length > 0 || func.returns || returnsValues(func.body)) {
+			return undefined;
+		}
+		const params = func.params.map((p) => ({
+			name: p.name,
+			...(this.typeText(p) ? { type: this.typeText(p) } : {}),
+		}));
+		const at = this.place(graph, row);
+		const id = this.node(method === "Once" ? "event.once" : "event.connect", graph, at, {
+			config: { params },
+			...(name ? { label: name } : {}),
+		});
+		this.feed(this.expr(call.object, scope, graph, at), { node: id, pin: "signal" });
+		this.chain(tail, id);
+		const inner = new Scope(scope);
+		params.forEach((p, i) => inner.set(p.name, { kind: "pin", node: id, pin: `p${i}` }));
+		this.block(
+			func.body,
+			{ node: id, pin: "body" },
+			inner,
+			graph,
+			row + 1,
+			{ node: id, returns: [] },
+			false,
+		);
+		return id;
+	}
+
+	/**
+	 * `task.spawn(function() ... end)`, `task.defer(...)` and
+	 * `task.delay(seconds, function() ... end)`: New Thread, its Body the
+	 * function's. Only a function that takes nothing and is handed nothing
+	 * more; one passed arguments stays as code. `name` is as for `connectCall`.
+	 */
+	private threadCall(
+		call: Expr,
+		tail: Tail,
+		scope: Scope,
+		graph: string | undefined,
+		row: number,
+		name?: string,
+	): string | undefined {
+		if (this.target !== "roblox" || call.kind !== "call") return undefined;
+		const callee = dottedName(call.callee);
+		const when = callee?.startsWith("task.") ? callee.slice("task.".length) : undefined;
+		if ((when !== "spawn" && when !== "defer" && when !== "delay") || scope.get("task"))
+			return undefined;
+		const literal = call.args[when === "delay" ? 1 : 0];
+		if (call.args.length !== (when === "delay" ? 2 : 1) || literal?.kind !== "function")
+			return undefined;
+		const func = literal.func;
+		if (
+			literal.attributes.length > 0 ||
+			func.params.length > 0 ||
+			func.varargs ||
+			func.generics.length > 0 ||
+			func.returns ||
+			returnsValues(func.body)
+		) {
+			return undefined;
+		}
+		const at = this.place(graph, row);
+		const id = this.node("task.thread", graph, at, {
+			...(when === "spawn" ? {} : { config: { when } }),
+			...(name ? { label: name } : {}),
+		});
+		if (when === "delay")
+			this.feed(this.expr(call.args[0], scope, graph, at), { node: id, pin: "seconds" });
+		this.chain(tail, id);
+		this.block(
+			func.body,
+			{ node: id, pin: "body" },
+			new Scope(scope),
+			graph,
+			row + 1,
+			{ node: id, returns: [] },
+			false,
+		);
+		return id;
+	}
+
 	/** The library node that writes this call, if one does and nothing in the file hides its name. */
 	private libraryCall(
 		call: Expr,
 		scope: Scope,
 		kinds: readonly CallTemplate["kind"][],
 	): CallTemplate | undefined {
-		if (call.kind !== "call" || call.args.some((a) => a.kind === "function" || a.kind === "varargs"))
+		if (
+			call.kind !== "call" ||
+			call.args.some((a) => a.kind === "function" || a.kind === "varargs")
+		)
 			return undefined;
 		const callee = dottedName(call.callee);
 		if (!callee || scope.get(callee.split(".")[0]) !== undefined) return undefined;
@@ -897,12 +1060,16 @@ class Importer {
 		graph: string | undefined,
 		at: { x: number; y: number },
 	): string {
-		if (call.kind !== "call") throw new Error("The importer matched a template to something not a call.");
+		if (call.kind !== "call")
+			throw new Error("The importer matched a template to something not a call.");
 		const extra = call.args.length - template.pins.length;
 		const id = this.node(template.def.id, graph, at, extra > 0 ? { config: { args: extra } } : {});
 		call.args.forEach((arg, i) => {
 			const pin = i < template.pins.length ? template.pins[i] : `a${i - template.pins.length}`;
-			this.feed(this.expr(arg, scope, graph, { x: at.x, y: at.y + 70 * (i + 1) }), { node: id, pin });
+			this.feed(this.expr(arg, scope, graph, { x: at.x, y: at.y + 70 * (i + 1) }), {
+				node: id,
+				pin,
+			});
 		});
 		return id;
 	}
@@ -1109,7 +1276,10 @@ export function importLuau(file: string, options: ImportOptions): ImportResult {
 	const lineOf = lineIndex(src);
 	const origins: Origins = {};
 	for (const [id, span] of importer.origins) {
-		origins[id] = { from: lineOf(span.start).line, to: lineOf(Math.max(span.start, span.end - 1)).line };
+		origins[id] = {
+			from: lineOf(span.start).line,
+			to: lineOf(Math.max(span.start, span.end - 1)).line,
+		};
 	}
 	return {
 		ok: true,

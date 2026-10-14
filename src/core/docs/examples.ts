@@ -393,6 +393,19 @@ export const CURATED: Record<string, () => NodeScript> = {
 		return g.out();
 	},
 
+	/** After two seconds, on a thread of its own: the Body is the function `task.delay` is handed. */
+	"task.thread": () => {
+		const g = new G();
+		const begin = g.node("script.begin");
+		const later = g.node("task.thread", {
+			config: { when: "delay" },
+			literals: { seconds: num(2) },
+		});
+		g.link(begin, "then", later, "in");
+		printAfter(g, later, "body", "Two seconds later");
+		return g.out();
+	},
+
 	"event.on": () => {
 		const g = new G();
 		const begin = g.node("script.begin");

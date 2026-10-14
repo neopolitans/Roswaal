@@ -14,6 +14,7 @@ import {
 	signatureOf,
 	typeDeclarationOf,
 } from "../nodes/flow.js";
+import { threadWhen } from "../nodes/library.js";
 import { isConstLocal, localTypeOf, variableRefOf } from "../nodes/variables.js";
 import { scriptCallOf } from "../scriptCalls.js";
 import { isRobloxTypeName, luneCall, resultNameOf, serviceCall, writeCall } from "./emitCalls.js";
@@ -810,8 +811,11 @@ function connectHandler(
 	// The connection is a local in the *enclosing* block, so it is
 	// named before the handler's own frame is opened.
 	let prefix = "";
-	if (e.index.readerCount(id, "connection") > 0) {
-		const ident = e.names.unique(r.node.label || "connection", "connection");
+	// Kept as written, a named connection is declared whether or not anything
+	// reads it: `local conn = signal:Connect(...)` is how the file had it.
+	const named = e.asWritten && (r.node.label ?? "").trim() !== "";
+	if (named || e.index.readerCount(id, "connection") > 0) {
+		const ident = e.declareName(r.node.label || "connection", "connection", id);
 		scope.bindings.set(`${id}/connection`, ident);
 		prefix = `local ${ident} = `;
 	}
@@ -850,6 +854,36 @@ function connectHandler(
 	return e.index.execTarget(id, "then");
 }
 
+/**
+ * New Thread: `task.spawn(function() ... end)`, or `task.defer`, or
+ * `task.delay(seconds, function() ... end)`. The Body is the function, so its
+ * locals are its own, as a handler's are; the thread is a local only when
+ * something reads it, or, kept as written, when the node is named.
+ */
+function newThread(e: Emitter, r: ResolvedNode, scope: Scope): string | undefined {
+	const id = r.node.id;
+	const when = threadWhen(r.node.config);
+	const seconds =
+		when === "delay" ? `${e.resolveInput(r, e.pin(r, "seconds", "in"), scope)}, ` : "";
+	let prefix = "";
+	const named = e.asWritten && (r.node.label ?? "").trim() !== "";
+	if (named || e.index.readerCount(id, "thread") > 0) {
+		const ident = e.declareName(r.node.label || "thread", "thread", id);
+		scope.bindings.set(`${id}/thread`, ident);
+		prefix = `local ${ident} = `;
+	}
+	const body = new Scope(scope, "function");
+	e.names.push();
+	e.push(`${prefix}task.${when}(${seconds}function()`, id);
+	e.indent++;
+	e.walk(e.index.execTarget(id, "body"), body);
+	e.indent--;
+	e.names.pop();
+	e.push("end)", id);
+	e.terminated = false;
+	return e.index.execTarget(id, "then");
+}
+
 /** What each builtin flow node writes, by the handler its `compilesTo` names. */
 const FLOW_HANDLERS = new Map<string, FlowHandler>([
 	["script.begin", passThrough],
@@ -884,6 +918,7 @@ const FLOW_HANDLERS = new Map<string, FlowHandler>([
 	["flow.continue", breakOrContinue],
 	["event.connect", connectHandler],
 	["event.once", connectHandler],
+	["task.thread", newThread],
 	["event.on", connectHandler],
 ]);
 

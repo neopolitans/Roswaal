@@ -17,9 +17,9 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { compile } from "../src/core/compiler/index.js";
+import { viewOf } from "../src/core/functionGraph.js";
 import { graphNameOf, type ImportOptions, importLuau } from "../src/core/import/fromLuau.js";
 import { detectTarget } from "../src/core/import/modes.js";
-import { viewOf } from "../src/core/functionGraph.js";
 import { nodeBounds } from "../src/core/nodeBox.js";
 import { FUNCTION_NODES } from "../src/core/nodes/flow.js";
 import { createRegistry } from "../src/core/nodes/index.js";
@@ -359,7 +359,8 @@ describe("names and types as written", () => {
 	});
 
 	it("keeps a name that hides a global, and says so on its node", () => {
-		const src = 'local roblox = require("@lune/roblox")\nlocal Color3 = roblox.Color3\nprint(Color3.new(1, 0, 0))\n';
+		const src =
+			'local roblox = require("@lune/roblox")\nlocal Color3 = roblox.Color3\nprint(Color3.new(1, 0, 0))\n';
 		const { code, errors } = compiled(imported(src, "T.luau"));
 		expect(errors).toEqual([]);
 		expect(lines(code)).toEqual(lines(src));
@@ -381,10 +382,58 @@ describe("names and types as written", () => {
 	});
 
 	it("writes a type set out over several lines on one", () => {
-		const src = "local tiers: {\n\t[string]: { color: Color3, -- shown\n\tsize: number },\n} = {}\nprint(tiers)\n";
+		const src =
+			"local tiers: {\n\t[string]: { color: Color3, -- shown\n\tsize: number },\n} = {}\nprint(tiers)\n";
 		const { code, errors } = compiled(imported(src, "T.luau"));
 		expect(errors).toEqual([]);
 		expect(code).toContain("local tiers: { [string]: { color: Color3, size: number } } = {}");
+	});
+});
+
+describe("event handlers", () => {
+	const src =
+		'local Players = game:GetService("Players")\n\nPlayers.PlayerAdded:Connect(function(player: Player)\n\tif player.Name == "" then\n\t\treturn\n\tend\n\tprint("Welcome", player.Name)\nend)\n\nlocal conn = Players.PlayerRemoving:Connect(function(player)\n\twarn(player)\nend)\n\nworkspace.ChildAdded:Once(function(child)\n\tprint(child, conn)\nend)\n';
+
+	it("makes Connect and Once their nodes, the handler's body on Body", () => {
+		const script = imported(src, "T.server.luau");
+		expect(defsOf(script).filter((d) => d === "event.connect")).toHaveLength(2);
+		expect(defsOf(script)).toContain("event.once");
+		expect(defsOf(script)).toContain("function.return");
+		const added = script.nodes.find((n) => n.def === "event.connect" && !n.label);
+		expect(added?.config?.params).toEqual([{ name: "player", type: "Player" }]);
+		expect(roundTrip(src, "T.server.luau")).toEqual(lines(src));
+	});
+
+	it("names the connection a local takes, and wires its reads to it", () => {
+		const script = imported(src, "T.server.luau");
+		const named = script.nodes.find((n) => n.label === "conn");
+		expect(named?.def).toBe("event.connect");
+		expect(script.links.some((l) => l.from.node === named?.id && l.from.pin === "connection")).toBe(
+			true,
+		);
+	});
+
+	it("makes task.spawn, task.defer and task.delay with a function New Thread", () => {
+		const tasks =
+			'local count = 0\n\ntask.spawn(function()\n\tprint("now")\nend)\n\ntask.delay(2, function()\n\tprint("later", count)\nend)\n\nlocal t = task.defer(function()\n\tprint("deferred")\nend)\ntask.cancel(t)\n';
+		const script = imported(tasks, "T.server.luau");
+		const threads = script.nodes.filter((n) => n.def === "task.thread");
+		expect(threads.map((n) => n.config?.when ?? "spawn")).toEqual(["spawn", "delay", "defer"]);
+		expect(threads.find((n) => n.label === "t")).toBeDefined();
+		expect(defsOf(script)).toContain("task.cancel");
+		expect(roundTrip(tasks, "T.server.luau")).toEqual(lines(tasks));
+	});
+
+	it("reads a loop's variable by name inside a function declared in its body", () => {
+		const nested =
+			"for name, value in pairs({}) do\n\ttask.spawn(function()\n\t\tlocal function apply()\n\t\t\tprint(name, value)\n\t\tend\n\t\tapply()\n\tend)\nend\n";
+		expect(roundTrip(nested, "T.server.luau")).toEqual(lines(nested));
+	});
+
+	it("keeps a handler it cannot draw as code: one taking `...`", () => {
+		const kept = "workspace.ChildAdded:Connect(function(...)\n\tprint(...)\nend)\n";
+		expect(defsOf(imported(kept, "T.server.luau"))).not.toContain("event.connect");
+		expect(roundTrip(kept, "T.server.luau")).toEqual(lines(kept));
 	});
 });
 
@@ -407,7 +456,7 @@ describe("the library's own nodes", () => {
 	});
 
 	it("leaves a call alone when the file has its own of that name", () => {
-		const src = "local function print(x: string)\n\twarn(x)\nend\nprint(\"hi\")\n";
+		const src = 'local function print(x: string)\n\twarn(x)\nend\nprint("hi")\n';
 		const script = imported(src, "T.server.luau");
 		expect(defsOf(script)).not.toContain("debug.print");
 		expect(roundTrip(src, "T.server.luau")).toEqual(lines(src));
@@ -451,7 +500,10 @@ describe("rows and layout", () => {
 		"%s lays out with no node over another",
 		(name, file) => {
 			const script = imported(readFileSync(file, "utf8"), name);
-			const graphs = [null, ...script.nodes.filter((n) => FUNCTION_NODES.has(n.def)).map((n) => n.id)];
+			const graphs = [
+				null,
+				...script.nodes.filter((n) => FUNCTION_NODES.has(n.def)).map((n) => n.id),
+			];
 			for (const graph of graphs) {
 				const boxes = viewOf(script, graph).nodes.map((n) => ({
 					id: n.id,
@@ -459,7 +511,8 @@ describe("rows and layout", () => {
 				}));
 				for (const [i, a] of boxes.entries()) {
 					for (const b of boxes.slice(i + 1)) {
-						const overlap = a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+						const overlap =
+							a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 						expect(overlap, `${a.id} and ${b.id} in ${graph ?? "the main graph"}`).toBe(false);
 					}
 				}
