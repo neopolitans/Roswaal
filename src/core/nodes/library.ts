@@ -1195,6 +1195,75 @@ export const LIBRARY_NODES: NodeDef[] = [
 		d("table", "Table", "table"),
 		num("index", "Index", 1),
 	]),
+	// The rest of Luau's table library that takes and gives plain values.
+	// Freeze is a step, as it changes the table; it hands the same table on,
+	// so `return table.freeze(t)` is one node.
+	call(
+		"table.freeze",
+		"Freeze",
+		"Tables",
+		"table.freeze($in.table)",
+		[d("table", "Table", "table")],
+		"Table",
+		"table",
+		{
+			summary:
+				"Makes a table read-only, and hands it on. A frozen table cannot be unfrozen; Clone gives a copy that can be written to.",
+		},
+	),
+	pure(
+		"table.isFrozen",
+		"Is Frozen",
+		"Tables",
+		"table.isfrozen($in.table)",
+		[d("table", "Table", "table")],
+		"boolean",
+	),
+	pure(
+		"table.clone",
+		"Clone",
+		"Tables",
+		"table.clone($in.table)",
+		[d("table", "Table", "table")],
+		"table",
+		"A shallow copy: the tables inside it are the same tables. A copy of a frozen table is not frozen.",
+	),
+	stmt("table.clear", "Clear", "Tables", "table.clear($in.table)", [d("table", "Table", "table")], {
+		summary: "Removes every key, keeping the table: anything holding it sees it empty.",
+	}),
+	pure(
+		"table.find",
+		"Find",
+		"Tables",
+		"table.find($in.table, $in.value$opt(, ))",
+		[
+			d("table", "Table", "table"),
+			d("value", "Value", "any", { t: "nil" }),
+			{ ...num("init", "From", 1), optional: true },
+		],
+		"number",
+		"The first index in an array holding Value, from From on, or nil when none does.",
+	),
+	stmt(
+		"table.sort",
+		"Sort",
+		"Tables",
+		"table.sort($in.table$opt(, ))",
+		[d("table", "Table", "table"), { ...d("compare", "Compare", "function"), optional: true }],
+		{
+			summary:
+				"Sorts an array in place, smallest first, or by Compare: a function given two values that returns whether the first goes before the second.",
+		},
+	),
+	pure(
+		"table.concat",
+		"Table Concat",
+		"Tables",
+		"table.concat($in.table$opt(, ))",
+		[d("table", "Table", "table"), { ...str("separator", "Separator", ""), optional: true }],
+		"string",
+		"An array of strings and numbers joined into one string, with Separator between each.",
+	),
 
 	/**
 	 * A dictionary written out in one node.

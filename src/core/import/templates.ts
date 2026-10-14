@@ -6,7 +6,8 @@
  * `task.wait($in.seconds)`, `math.floor($in.x)` -- so a call whose callee and
  * argument count fit a template is that node, with each argument on the pin
  * the template puts it in. Only the plain shapes are read: a dotted callee and
- * a list of pins, with variadic arguments after them (`$more`, `$args`).
+ * a list of pins, with variadic arguments after them (`$more`, `$args`) or
+ * the node's optional pins (`$opt`), which a call may leave off from the end.
  * Method templates (`$in.instance:Destroy()`) are left alone, because a method
  * of that name on a table that is not an Instance would become a node that
  * says it is one.
@@ -26,21 +27,33 @@ export interface CallTemplate {
 	pins: string[];
 	/** Whether any number of arguments may follow, on `a0`, `a1`, ... */
 	variadic: boolean;
+	/** The optional pins that may follow the fixed ones, in order. */
+	optional: string[];
 }
 
 const CALL = /^([A-Za-z_][\w]*(?:\.[A-Za-z_][\w]*)*)\((.*)\)$/;
 const PIN = /^\$in\.([A-Za-z_]\w*)$/;
 const PIN_THEN_MORE = /^\$in\.([A-Za-z_]\w*)\$more$/;
+const PIN_THEN_OPT = /^\$in\.([A-Za-z_]\w*)\$opt$/;
 
 /** The callee and argument pattern of a template, when it has the plain shape. */
-function readTemplate(template: string): { callee: string; pins: string[]; variadic: boolean } | null {
+function readTemplate(
+	template: string,
+	def: NodeDef,
+): { callee: string; pins: string[]; variadic: boolean; optional: string[] } | null {
 	// The variadic markers carry a separator in brackets; read as one word
 	// each, so the arguments split on their commas alone.
-	const call = CALL.exec(template.trim().replaceAll("$more(, )", "$more").replaceAll("$args(, )", "$args"));
+	const call = CALL.exec(
+		template
+			.trim()
+			.replaceAll("$more(, )", "$more")
+			.replaceAll("$args(, )", "$args")
+			.replaceAll("$opt(, )", "$opt"),
+	);
 	if (!call) return null;
 	const [, callee, inside] = call;
-	if (inside.trim() === "") return { callee, pins: [], variadic: false };
-	if (inside.trim() === "$args") return { callee, pins: [], variadic: true };
+	if (inside.trim() === "") return { callee, pins: [], variadic: false, optional: [] };
+	if (inside.trim() === "$args") return { callee, pins: [], variadic: true, optional: [] };
 	const parts = inside.split(", ");
 	const pins: string[] = [];
 	let variadic = false;
@@ -51,25 +64,38 @@ function readTemplate(template: string): { callee: string; pins: string[]; varia
 			pins.push(plain[1]);
 			continue;
 		}
+		const opt = last ? PIN_THEN_OPT.exec(part) : null;
+		if (opt) {
+			pins.push(opt[1]);
+			const optional = def.inputs.filter((pin) => pin.optional === true).map((pin) => pin.id);
+			return { callee, pins, variadic: false, optional };
+		}
 		const more = last ? PIN_THEN_MORE.exec(part) : null;
 		if (!more) return null;
 		pins.push(more[1]);
 		variadic = true;
 	}
-	return { callee, pins, variadic };
+	return { callee, pins, variadic, optional: [] };
 }
 
 /** Every template the library offers, by callee. */
 export function callTemplates(defs: readonly NodeDef[]): Map<string, CallTemplate[]> {
 	const out = new Map<string, CallTemplate[]>();
 	for (const def of defs) {
-		const compiles = def.compilesTo as { kind?: string; template?: string } | undefined;
+		const compiles = def.compilesTo as
+			| { kind?: string; template?: string; outputs?: Record<string, string> }
+			| undefined;
 		const kind = compiles?.kind;
-		if (!compiles?.template || (kind !== "statement" && kind !== "call" && kind !== "expr")) continue;
-		const read = readTemplate(compiles.template);
+		if (kind !== "statement" && kind !== "call" && kind !== "expr") continue;
+		// A value node says what it writes per output; one with a single
+		// output is a call like any other.
+		const outputs = Object.values(compiles?.outputs ?? {});
+		const template = compiles?.template ?? (outputs.length === 1 ? outputs[0] : undefined);
+		if (!template) continue;
+		const read = readTemplate(template, def);
 		if (!read) continue;
 		const list = out.get(read.callee) ?? [];
-		list.push({ def, kind, pins: read.pins, variadic: read.variadic });
+		list.push({ def, kind, pins: read.pins, variadic: read.variadic, optional: read.optional });
 		out.set(read.callee, list);
 	}
 	return out;
@@ -91,7 +117,9 @@ export function matchCall(
 		(t) =>
 			kinds.includes(t.kind) &&
 			(!t.def.targets || t.def.targets.includes(target)) &&
-			(t.variadic ? args >= t.pins.length : args === t.pins.length),
+			(t.variadic
+				? args >= t.pins.length
+				: args >= t.pins.length && args <= t.pins.length + t.optional.length),
 	);
 	return fits.sort((a, b) => kinds.indexOf(a.kind) - kinds.indexOf(b.kind))[0];
 }

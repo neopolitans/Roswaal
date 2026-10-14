@@ -9,6 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.175.0",
+		date: "2026-10-14",
+		headline: "Freeze, Clone, Find, Sort and the rest of the table library are nodes, and import uses them.",
+		affects: ["editor", "docs"],
+		added: [
+			"**More of the table library.** Freeze, Is Frozen, Clone, Clear, Find, Sort and Table Concat join Insert and Remove.",
+			"**Import reads them as nodes.** `table.freeze(icon)` is Freeze, not Call Function on a Luau Expression, and `return table.freeze(M)` is Freeze into Module Exports, compiled back as the one line.",
+		],
+		fixed: [
+			"**Import reads a library call made for its value as its node.** `math.floor(x)` and `string.lower(s)` inside an expression stayed as code.",
+			"**A call may leave off the arguments its node marks optional.** `table.concat(names)` and `table.concat(names, \", \")` are both Table Concat.",
+		],
+	},
+	{
 		version: "0.174.0",
 		date: "2026-10-14",
 		headline: "Import draws a file's comments as comment boxes around what they describe.",

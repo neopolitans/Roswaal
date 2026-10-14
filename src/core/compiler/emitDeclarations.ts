@@ -632,15 +632,27 @@ export function emitModuleReturn(e: Emitter, root: Scope): void {
 
 	const node = exportsNodes[0];
 	const exports = node.inputs.filter((p) => p.kind === "data");
-	e.blank();
 
 	// A single input named "value" (the default) returns that value directly,
 	// which is what a module exporting one function or one class wants.
 	const single = exports.length === 1 && (exports[0].name === "value" || exports[0].name === "");
 	if (single) {
-		e.push(`return ${e.resolveInput(node, exports[0], root)}`, node.node.id);
+		const value = e.resolveInput(node, exports[0], root);
+		// The step just before it, made for it and nothing else: `return
+		// table.freeze(M)` rather than a local and then a return of it. Only
+		// when that local is the last line, so nothing ran in between.
+		const fold = e.returnFold;
+		const last = [...e.out].reverse().find((line) => line.text !== "");
+		if (fold && last === fold.line && value === fold.ident) {
+			e.out.splice(e.out.lastIndexOf(fold.line));
+			e.push(`return ${fold.rendered}`, fold.node);
+			return;
+		}
+		e.blank();
+		e.push(`return ${value}`, node.node.id);
 		return;
 	}
+	e.blank();
 
 	const entries = exports.map((pin) => {
 		const key = toIdentifier(pin.name || pin.id, pin.id);

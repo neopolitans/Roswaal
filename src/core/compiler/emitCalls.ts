@@ -236,6 +236,11 @@ export function writeCall(
 				: "";
 		e.push(`local ${ident}${annotation} = ${rendered}`, r.node.id);
 		scope.bindings.set(`${r.node.id}/${resultPin}`, ident);
+		const readers = e.index.readersOf(r.node.id, resultPin);
+		const only = readers.length === 1 ? e.index.get(readers[0].to.node) : undefined;
+		if (!named && !scope.parent && only?.def.id === "module.exports") {
+			e.returnFold = { node: r.node.id, ident, rendered, line: e.out[e.out.length - 1] };
+		}
 	} else if (isCallExpression(rendered)) {
 		e.push(rendered, r.node.id);
 	} else {

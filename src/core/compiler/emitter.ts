@@ -68,6 +68,12 @@ export class Emitter {
 	index: GraphIndex;
 	names = new NameScope();
 	out: OutLine[] = [];
+	/**
+	 * A step at the top level whose one reader is Module Exports, as it was
+	 * written: `return` takes it back as `return table.freeze(M)` when its
+	 * line is still the last one. See `emitModuleReturn`.
+	 */
+	returnFold?: { node: string; ident: string; rendered: string; line: OutLine };
 	indent = 0;
 	diagnostics: Diagnostic[] = [];
 	/** Guards against an exec wire looping back and emitting forever. */

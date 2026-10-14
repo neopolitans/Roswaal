@@ -64,6 +64,12 @@ export const NODE_ALIASES: Readonly<Record<string, readonly string[]>> = {
 	"table.dictionary": ["Make Table", "Map"],
 	"table.length": ["Count"],
 	"table.insert": ["Push", "Append"],
+	"table.freeze": ["Read Only", "Lock Table", "Immutable"],
+	"table.clone": ["Copy Table", "Duplicate Table"],
+	"table.clear": ["Empty Out", "Wipe"],
+	"table.find": ["Index Of", "Contains"],
+	"table.sort": ["Order"],
+	"table.concat": ["Join", "Join Array"],
 
 	"roblox.instanceNew": ["Create Instance", "Spawn Instance"],
 	"roblox.destroy": ["Delete", "Remove Instance"],

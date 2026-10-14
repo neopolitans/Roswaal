@@ -873,7 +873,12 @@ class Importer {
 					if (moduleReturn && stat.values.length === 1) {
 						const at = this.place(graph, row);
 						const id = this.node("module.exports", graph, at);
-						this.feed(this.expr(stat.values[0], scope, graph, at), { node: id, pin: "e0" });
+						// `return table.freeze(M)`: the step, then what it hands on.
+						const step = this.valueStep(stat.values[0], tail, scope, graph, at);
+						this.feed(step?.value ?? this.expr(stat.values[0], scope, graph, at), {
+							node: id,
+							pin: "e0",
+						});
 						this.asNodes += 1;
 						return null;
 					}
@@ -1295,9 +1300,16 @@ class Importer {
 		if (call.kind !== "call")
 			throw new Error("The importer matched a template to something not a call.");
 		const extra = call.args.length - template.pins.length;
-		const id = this.node(template.def.id, graph, at, extra > 0 ? { config: { args: extra } } : {});
+		const id = this.node(
+			template.def.id,
+			graph,
+			at,
+			extra > 0 && template.variadic ? { config: { args: extra } } : {},
+		);
 		call.args.forEach((arg, i) => {
-			const pin = i < template.pins.length ? template.pins[i] : `a${i - template.pins.length}`;
+			const after = i - template.pins.length;
+			const pin =
+				after < 0 ? template.pins[i] : template.variadic ? `a${after}` : template.optional[after];
 			this.feed(this.expr(arg, scope, graph, { x: at.x, y: at.y + 70 * (i + 1) }), {
 				node: id,
 				pin,
