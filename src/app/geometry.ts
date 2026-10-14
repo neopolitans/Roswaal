@@ -7,7 +7,8 @@
  */
 
 import type { Registry } from "../core/nodes/index.js";
-import { execReach, pinCentreY } from "../core/pinLayout.js";
+import { codeFaceOf, codeFacePinY } from "../core/codeFace.js";
+import { execReach, pinCentreY, pinRow } from "../core/pinLayout.js";
 import type { GraphNode } from "../core/schema.js";
 import { NODE } from "./layers.js";
 
@@ -91,9 +92,14 @@ export function pinPosition(
 			: { x: node.x + layout.width, y: node.y + layout.height / 2 };
 	}
 	const reach = list[index].kind === "exec" ? execReach(NODE) : 0;
+	const head = headerHeight(def, node.config);
+	// On a code face the body's pins sit level with the code's first line.
+	const face = pinRow(list, index) >= 0 ? codeFaceOf(def, node, inputs, outputs) : undefined;
 	return {
 		x: side === "in" ? node.x - reach : node.x + nodeWidth(def, node, wide) + reach,
-		y: node.y + pinCentreY(list, index, headerHeight(def, node.config), NODE.rowHeight),
+		y:
+			node.y +
+			(face ? codeFacePinY(head, face) : pinCentreY(list, index, head, NODE.rowHeight)),
 	};
 }
 

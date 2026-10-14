@@ -22,8 +22,14 @@ export const GLYPH_STROKE = 2.2;
 export const GLYPHS = {
 	/** Where a flow starts: Script Start, a function's Body. */
 	entry: "M8 5.5v13l10.5-6.5z",
-	/** Where it stops: Script End, Break, Module Exports. */
+	/** Where it stops: Script End, Break. */
 	terminal: "M6.5 6.5h11v11h-11z",
+	/**
+	 * What a module hands to whoever requires it: Module Exports. A puzzle
+	 * piece, after Material's "extension", drawn in this set's stroke: the
+	 * piece another script fits into its own.
+	 */
+	exports: "M5.5 7.5h3.5a2 2 0 1 1 4 0h3.5v3.5a2 2 0 1 1 0 4v3.5h-11z",
 	/** A function handing its results back: Return. */
 	return: "M19 5.5v5.25a4 4 0 0 1-4 4H5.5M9.5 10.75l-4 4 4 4",
 	/** A function: Function, which is hoisted, and Declare Function. */
@@ -128,6 +134,7 @@ export function nodeGlyph(def: {
 	// already says a flow starts there, and ƒ says what kind of thing it is.
 	if (def.id !== undefined && FUNCTION_NODES.has(def.id)) return "function";
 	if (def.id === "function.return") return "return";
+	if (def.id === "module.exports") return "exports";
 	if (def.role === "entry") return "entry";
 	if (def.role === "terminal") return "terminal";
 	if (def.subcategory && BY_SUBCATEGORY[def.subcategory]) return BY_SUBCATEGORY[def.subcategory];

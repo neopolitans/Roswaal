@@ -5,6 +5,7 @@ import {
 	memo,
 	type ReactNode,
 	type PointerEvent as ReactPointerEvent,
+	useRef,
 	useState,
 } from "react";
 import { CODE_MARKS, GLYPH_STROKE, GLYPH_VIEW_BOX, GLYPHS, nodeGlyph } from "../core/nodeGlyphs.js";
@@ -14,11 +15,14 @@ import { nodeTitle } from "../core/nodes/index.js";
 import { castsResult, resultCastOf } from "../core/nodes/resultCast.js";
 import { pinTypeOf, pinTypeText } from "../core/nodes/variables.js";
 import { operatorSymbol } from "../core/operatorLayout.js";
+import { type CodeFace, codeFaceHeight, codeFaceOf, codeFacePinY } from "../core/codeFace.js";
 import { bodyRows, onHeader } from "../core/pinLayout.js";
 import { CLASS_OPTIONS, classGroup, TYPE_OPTIONS, typeGroup } from "../core/roblox.js";
 import type { GraphNode, Literal, NodeDef, PinDef } from "../core/schema.js";
 import { typeChip, typeFamily } from "../core/typeFamily.js";
+import { requestCodeEdit } from "./codeEditRequests.js";
 import { cx } from "./cx.js";
+import { highlightLuau } from "./highlight.js";
 import {
 	compactLabel,
 	compactWidth,
@@ -183,6 +187,7 @@ function NodeViewInner(props: NodeViewProps) {
 	const bodyIn = headIn ? inputs.slice(1) : inputs;
 	const bodyOut = headOut ? outputs.slice(1) : outputs;
 	const rows = bodyRows(inputs, outputs);
+	const face = codeFaceOf(def, node, inputs, outputs);
 	const removable = props.onRemoveEntry
 		? removableEntries(props.growth, inputs, outputs)
 		: NO_ENTRIES;
@@ -206,6 +211,7 @@ function NodeViewInner(props: NodeViewProps) {
 				selected && "node--selected",
 				props.anchor && "node--anchor",
 				props.errorCount && "node--has-error",
+				!face && rows === 0 && "node--head-only",
 			)}
 			style={style}
 			data-node-id={node.id}
@@ -261,6 +267,22 @@ function NodeViewInner(props: NodeViewProps) {
 					</button>
 				)}
 			</div>
+			{face && (
+				<div className="node-face-body" style={{ height: codeFaceHeight(face) }}>
+					{bodyIn[0] && (
+						<span className="node-face-pin in" style={{ top: codeFacePinY(head, face) - head }}>
+							{pinTarget(props, bodyIn[0], "in", renderPin(props, bodyIn[0], "in", undefined, true))}
+						</span>
+					)}
+					<CodeFaceView face={face} props={props} inputs={inputs} />
+					{bodyOut[0] && (
+						<span className="node-face-pin out" style={{ top: codeFacePinY(head, face) - head }}>
+							{pinTarget(props, bodyOut[0], "out", renderPin(props, bodyOut[0], "out", undefined, true))}
+						</span>
+					)}
+				</div>
+			)}
+			{!face && rows > 0 && (
 			<div className="rows" style={{ height: rows * NODE.rowHeight + NODE.footer }}>
 				{Array.from({ length: rows }, (_, i) => (
 					<div className="row" key={i}>
@@ -285,6 +307,7 @@ function NodeViewInner(props: NodeViewProps) {
 					</div>
 				))}
 			</div>
+			)}
 			{props.growth?.canAdd && (
 				<button
 					type="button"
@@ -306,6 +329,77 @@ function NodeViewInner(props: NodeViewProps) {
 					{pinTarget(props, headOut, "out", renderPin(props, headOut, "out"))}
 				</span>
 			)}
+		</div>
+	);
+}
+
+/**
+ * The code on a code node's face, coloured as the Code panel colours it. A
+ * click opens it there -- a pin's code, or a Declare Type's definition -- but
+ * not at the end of a drag, so a node can be moved by its face.
+ */
+function CodeFaceView({
+	face,
+	props,
+	inputs,
+}: {
+	face: CodeFace;
+	props: NodeViewProps;
+	inputs: readonly PinDef[];
+}) {
+	const down = useRef<{ x: number; y: number } | null>(null);
+	const open = () => {
+		if (!face.editable) return;
+		const pin = face.pin ? inputs.find((p) => p.id === face.pin) : undefined;
+		if (pin) {
+			const literal = props.node.literals?.[pin.id] ?? pin.default;
+			const value = literal && (literal.t === "raw" || literal.t === "string") ? literal.v : "";
+			props.onEditCode(props.node.id, pin, value);
+		} else {
+			requestCodeEdit({ nodeId: props.node.id, field: "definition", kind: "type" });
+		}
+	};
+	const lines = face.empty ? [] : highlightLuau(face.lines.join("\n"));
+	return (
+		<div
+			className={cx("node-face", face.more > 0 && "clipped", face.empty && "empty")}
+			role={face.editable ? "button" : undefined}
+			tabIndex={face.editable ? 0 : undefined}
+			title={face.editable ? "Edit in the Code panel" : "Edit in the Inspector"}
+			onPointerDown={(e) => {
+				down.current = { x: e.clientX, y: e.clientY };
+			}}
+			onClick={(e) => {
+				const from = down.current;
+				if (from && Math.hypot(e.clientX - from.x, e.clientY - from.y) > 4) return;
+				open();
+			}}
+			onKeyDown={(e) => {
+				if (e.key !== "Enter" && e.key !== " ") return;
+				e.preventDefault();
+				e.stopPropagation();
+				open();
+			}}
+		>
+			{face.empty ??
+				lines.map((line, i) => (
+					// biome-ignore lint/suspicious/noArrayIndexKey: lines have no identity but their place.
+					<span className="node-face-line" key={i}>
+						{line.length === 0
+							? " "
+							: line.map((t, j) =>
+									t.cls === "" ? (
+										t.text
+									) : (
+										// biome-ignore lint/suspicious/noArrayIndexKey: tokens likewise.
+										<span className={t.cls} key={j}>
+											{t.text}
+										</span>
+									),
+								)}
+					</span>
+				))}
+			{face.more > 0 && <span className="more">+{face.more} lines</span>}
 		</div>
 	);
 }
@@ -525,7 +619,14 @@ function renderOperator(
 	);
 }
 
-function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out", entry?: number) {
+function renderPin(
+	props: NodeViewProps,
+	pin: PinDef,
+	side: "in" | "out",
+	entry?: number,
+	/** The dot alone: a pin beside a code face, whose code is the face. */
+	bare = false,
+) {
 	const { node } = props;
 	const wired = props.connected.has(`${side}:${node.id}/${pin.id}`);
 	const drag = props.drag;
@@ -563,6 +664,8 @@ function renderPin(props: NodeViewProps, pin: PinDef, side: "in" | "out", entry?
 			<span className="dot" />
 		</span>
 	);
+
+	if (bare) return dot;
 
 	// A component of a split pin is indented under it, the usual way to nest the
 	// children of a split struct pin — without that, three number pins called X,

@@ -96,7 +96,8 @@ export function handWrittenLuauPage({ registry }: PageContext): DocPage {
 			{
 				t: "p",
 				text:
-					"Both pins are typed `luau` rather than `string`, and clicking one opens it in the " +
+					"Both pins are typed `luau` rather than `string`. The node shows its first six lines on " +
+					"its face, and clicking them opens the code in the " +
 					"**Code panel**: Luau highlighting, the parser the build runs marking a mistake as you " +
 					"type, and completion over Luau's globals **and the names this graph puts in scope**.",
 			},

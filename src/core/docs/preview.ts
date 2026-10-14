@@ -39,6 +39,16 @@
  * the time, so it is part of what the node looks like.
  */
 
+import {
+	CODE_FACE,
+	type CodeFace,
+	codeFaceBoxHeight,
+	codeFaceHeight,
+	codeFaceOf,
+	codeFacePinY,
+	codeFaceWidth,
+} from "../codeFace.js";
+import { tokenize } from "../luau/lexer.js";
 import { CODE_MARK_ROLE, CODE_MARKS, GLYPH_STROKE, GLYPHS, nodeGlyph } from "../nodeGlyphs.js";
 import { nodeTitle, type Registry, resolveNodePins } from "../nodes/index.js";
 import {
@@ -49,7 +59,7 @@ import {
 	operatorLayout,
 	operatorSymbol,
 } from "../operatorLayout.js";
-import { bodyRows, execReach, execWidth, onHeader, pinCentreY } from "../pinLayout.js";
+import { bodyRows, execReach, execWidth, onHeader, pinCentreY, pinRow } from "../pinLayout.js";
 import { retypeReroutes } from "../reroutes.js";
 import type { GraphNode, Literal, NodeConfig, NodeDef, NodeScript, PinDef } from "../schema.js";
 import { typeChip, typeFamily } from "../typeFamily.js";
@@ -127,6 +137,8 @@ export interface NodePreview {
 	 * Absent on a palette preview, which is at its minimum.
 	 */
 	config?: NodeConfig;
+	/** The code a code node shows on its face, as `codeFace.ts` has it. */
+	face?: CodeFace;
 }
 
 /**
@@ -270,6 +282,7 @@ export function previewOf(
 		latent: def.latent === true,
 		inputs: inputs.map((p) => previewPin(p, "in")),
 		outputs: outputs.map((p) => previewPin(p, "out")),
+		face: codeFaceOf(def, { def: def.id, config, literals }, inputs, outputs),
 	};
 }
 
@@ -393,10 +406,18 @@ export function previewSize(preview: NodePreview, g: PreviewGeometry): PreviewSi
 		const layout = operatorLayoutOf(preview, g);
 		return { width: layout.width, height: layout.height };
 	}
+	if (preview.face) {
+		return {
+			width: Math.max(headerWidth(preview, g), codeFaceWidth(preview.face)),
+			height: headHeight(preview, g) + codeFaceHeight(preview.face),
+		};
+	}
 	const rows = bodyRows(preview.inputs, preview.outputs);
 	return {
 		width: headerWidth(preview, g),
-		height: headHeight(preview, g) + rows * g.rowHeight + g.footer,
+		// No rows, no footer: as the canvas has it, a node with nothing below
+		// its header is only its header.
+		height: headHeight(preview, g) + (rows > 0 ? rows * g.rowHeight + g.footer : 0),
 	};
 }
 
@@ -453,6 +474,8 @@ export function previewPinY(
 ): number {
 	if (preview.display === "operator") return previewRowY(preview, g, index);
 	const pins = side === "in" ? preview.inputs : preview.outputs;
+	// On a code face the body's pins sit level with its first line.
+	if (preview.face && pinRow(pins, index) >= 0) return codeFacePinY(headHeight(preview, g), preview.face);
 	return pinCentreY(pins, index, headHeight(preview, g), g.rowHeight);
 }
 
@@ -763,6 +786,16 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 	if (headIn) parts.push(drawPin(preview.inputs[0], "in", head / 2, 0, options));
 	if (headOut) parts.push(drawPin(preview.outputs[0], "out", head / 2, width, options));
 
+	if (preview.face) {
+		parts.push(drawFace(preview.face, head, width));
+		const y = codeFacePinY(head, preview.face);
+		const input = preview.inputs[headIn ? 1 : 0];
+		const output = preview.outputs[headOut ? 1 : 0];
+		if (input) parts.push(drawPin(input, "in", y, 0, options));
+		if (output) parts.push(drawPin(output, "out", y, width, options));
+		return parts.join("");
+	}
+
 	const rows = bodyRows(preview.inputs, preview.outputs);
 	for (let i = 0; i < rows; i++) {
 		const y = previewRowY(preview, g, i);
@@ -828,6 +861,84 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 
 	return parts.join("");
 }
+
+/**
+ * `.node .code-face`: the code on the editor's own surface, coloured by the
+ * lexer's word for each token, with the fade and "+N lines" when there is more.
+ */
+function drawFace(face: CodeFace, head: number, width: number): string {
+	const x = CODE_FACE.inset;
+	const y = head + CODE_FACE.insetTop;
+	const w = width - CODE_FACE.inset * 2;
+	const h = codeFaceBoxHeight(face);
+	const parts = [
+		`<rect x="${n(x + 0.5)}" y="${n(y + 0.5)}" width="${n(w - 1)}" height="${n(h - 1)}" rx="4" ` +
+			`fill="var(--bg-input, #ffffff)" stroke="var(--border, #d0d5dd)"${face.empty ? ' stroke-dasharray="4 3"' : ""}/>`,
+	];
+	const left = x + CODE_FACE.border + CODE_FACE.padX;
+	const first = y + CODE_FACE.border + CODE_FACE.padY;
+	if (face.empty) {
+		parts.push(
+			text(x + w / 2, first + 9, face.empty, { size: 12, fill: "var(--fg-faint, #8a919c)", anchor: "middle" }),
+		);
+		return parts.join("");
+	}
+	const room = Math.floor((w - (CODE_FACE.border + CODE_FACE.padX) * 2) / CODE_FACE.charWidth);
+	face.lines.forEach((line, i) => {
+		const baseline = first + i * CODE_FACE.lineHeight + CODE_FACE.lineHeight / 2 + 11 * 0.34;
+		const shown = line.length > room ? `${line.slice(0, Math.max(0, room - 1))}…` : line;
+		const tokens = tokenize(shown).filter((t) => t.kind !== "eof");
+		const words = tokens.filter((t) => t.kind !== "whitespace");
+		const spans = tokens
+			.map((t) => {
+				// `export type` opens a declaration, where the lexer reads them as
+				// names (they are words Luau gives meaning only there).
+				const opening =
+					t.kind === "name" &&
+					(t.text === "export" || t.text === "type") &&
+					words.indexOf(t) <= 1 &&
+					words[0]?.text !== undefined &&
+					(words[0].text === "export" || words[0].text === "type");
+				const fill = opening ? TOKEN_FILL.keyword : TOKEN_FILL[t.kind];
+				const body = escapeXml(t.text);
+				return fill ? `<tspan fill="${fill}">${body}</tspan>` : body;
+			})
+			.join("");
+		parts.push(
+			`<text x="${n(left)}" y="${n(baseline)}" font-size="11" xml:space="preserve" ` +
+				`font-family="Cascadia Mono, Consolas, ui-monospace, monospace" fill="var(--fg, #1c1f24)">${spans}</text>`,
+		);
+	});
+	if (face.more > 0) {
+		const label = `+${face.more} lines`;
+		const chipW = textWidth(label, 10) + 12;
+		const chipX = x + w - chipW - 6;
+		const chipY = y + h - CODE_FACE.moreHeight - 3;
+		parts.push(
+			`<rect x="${n(chipX)}" y="${n(chipY)}" width="${n(chipW)}" height="14" rx="7" ` +
+				`fill="var(--bg-panel, #f6f7f9)" stroke="var(--border, #d0d5dd)"/>`,
+			text(chipX + chipW / 2, chipY + 7, label, {
+				size: 10,
+				weight: 600,
+				fill: "var(--fg-muted, #5d6573)",
+				anchor: "middle",
+			}),
+		);
+	}
+	return parts.join("");
+}
+
+/** The code colours the lexer's tokens take, as `.code-face .tok-*` has them. */
+const TOKEN_FILL: Partial<Record<string, string>> = {
+	keyword: "var(--code-keyword, #a626a4)",
+	string: "var(--code-string, #50a14f)",
+	interpSimple: "var(--code-string, #50a14f)",
+	interpBegin: "var(--code-string, #50a14f)",
+	interpMid: "var(--code-string, #50a14f)",
+	interpEnd: "var(--code-string, #50a14f)",
+	number: "var(--code-number, #986801)",
+	comment: "var(--code-comment, #a0a1a7)",
+};
 
 /** `.node .pin-label`: nearly the text colour. */
 const LABEL = "color-mix(in srgb, var(--fg, #1c1f24) 88%, var(--node-body, #fbfbfd))";
@@ -1195,6 +1306,7 @@ export function previewOfPlaced(
 		})),
 		outputs: outputs.map((pin) => ({ ...previewPin(pin, "out"), wired: isWired("out", pin.id) })),
 		config: node.config,
+		face: codeFaceOf(def, node, inputs, outputs),
 	};
 }
 

@@ -10,6 +10,7 @@
  * every name here, so nothing that reached for them there had to change.
  */
 
+import { type CodeFace, codeFaceHeight, codeFaceOf, codeFaceWidth } from "./codeFace.js";
 import { NODE } from "./nodeMetrics.js";
 import type { Registry } from "./nodes/index.js";
 import { nodeTitle, resolveNodePins } from "./nodes/index.js";
@@ -136,6 +137,21 @@ export function compactWidth(def: NodeDef, node: GraphNode): number {
  * rather than about packing.
  */
 export function nodeWidth(def: NodeDef | undefined, node: GraphNode, wide = false): number {
+	const face = def ? codeFaceFor(def, node) : undefined;
+	if (face) return Math.max(codeFaceWidth(face), wideWidth(def, node, wide));
+	return wideWidth(def, node, wide);
+}
+
+/** The face a node shows its code on, when it is one that holds code. See `codeFace.ts`. */
+export function codeFaceFor(
+	def: NodeDef,
+	node: Pick<GraphNode, "def" | "config" | "literals">,
+): CodeFace | undefined {
+	const { inputs, outputs } = resolvePins(def, node.config, node.literals);
+	return codeFaceOf(def, node, inputs, outputs);
+}
+
+function wideWidth(def: NodeDef | undefined, node: GraphNode, wide: boolean): number {
 	if (!wide || !def) return NODE.width;
 	const subtitle = def.subtitle?.(node.config ?? {}) ?? "";
 	const longest = Math.max(nodeTitle(def, node).length, subtitle.length);
@@ -158,7 +174,9 @@ export function nodeHeight(
 	def?: NodeDef,
 	config?: NodeConfig,
 ): number {
-	return headerHeight(def, config) + bodyRows(inputs, outputs) * NODE.rowHeight + NODE.footer;
+	const rows = bodyRows(inputs, outputs);
+	// No rows, no footer: a node whose pins all ride its header is its header.
+	return headerHeight(def, config) + (rows > 0 ? rows * NODE.rowHeight + NODE.footer : 0);
 }
 
 export function nodeBounds(node: GraphNode, registry: Registry, wide = false): Rect {
@@ -180,10 +198,13 @@ export function nodeBounds(node: GraphNode, registry: Registry, wide = false): R
 		return { x: node.x, y: node.y, w: layout.width, h: layout.height };
 	}
 	const { inputs, outputs } = resolvePins(def, node.config, node.literals);
+	const face = codeFaceOf(def, node, inputs, outputs);
 	return {
 		x: node.x,
 		y: node.y,
 		w: nodeWidth(def, node, wide),
-		h: nodeHeight(inputs, outputs, def, node.config),
+		h: face
+			? headerHeight(def, node.config) + codeFaceHeight(face)
+			: nodeHeight(inputs, outputs, def, node.config),
 	};
 }

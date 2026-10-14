@@ -493,7 +493,10 @@ export const CURATED: Record<string, () => NodeScript> = {
 	"value.member": () => {
 		const g = new G();
 		const begin = g.node("script.begin");
+		// Below the flow: it shows its declaration, which is wider than a column.
 		g.node("type.declareTop", {
+			column: 0,
+			row: 1,
 			config: {
 				name: "Input",
 				fields: [

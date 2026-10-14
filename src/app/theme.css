@@ -4616,6 +4616,113 @@ button.start-tile:disabled {
 }
 
 /* The raw-literal button on a node: a peek at the code, not the code. */
+/* A node with nothing below its header is only its header (0.170.0): Script
+   Start, a Return with no values. It had an empty strip under it, and a node
+   with no pins at all a whole empty row. */
+.node.node--head-only .head {
+	border-radius: max(0px, calc(var(--node-radius) - 1px));
+	box-shadow: none;
+}
+
+/* The code on a code node's face (0.170.0): Code Block, Luau Expression and
+   the Declare Types show their Luau rather than one clipped line behind a
+   label. The numbers are `CODE_FACE` in `src/core/codeFace.ts`, which the
+   wires and the documentation's drawings are measured from. Change both. */
+.node .node-face-body {
+	position: relative;
+	box-sizing: border-box;
+	padding: 8px 10px 10px;
+}
+
+.node .node-face {
+	position: relative;
+	display: block;
+	box-sizing: border-box;
+	padding: 5px 8px;
+	overflow: hidden;
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-xs);
+	font: 11px/16px "Cascadia Mono", Consolas, monospace;
+	white-space: pre;
+	color: var(--fg);
+	cursor: pointer;
+}
+
+.node .node-face-line {
+	display: block;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.node .node-face:hover,
+.node .node-face:focus-visible {
+	border-color: var(--accent);
+	outline: none;
+}
+
+.node .node-face:not([role="button"]) {
+	cursor: inherit;
+}
+
+.node .node-face.clipped {
+	padding-bottom: 19px;
+}
+
+.node .node-face.clipped::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 30px;
+	background: linear-gradient(to bottom, transparent, var(--bg-input) 70%);
+	pointer-events: none;
+}
+
+.node .node-face .more {
+	position: absolute;
+	right: 6px;
+	bottom: 3px;
+	z-index: 1;
+	font: 600 10px/12px system-ui, sans-serif;
+	color: var(--fg-muted);
+	background: var(--bg-panel);
+	border: 1px solid var(--border);
+	border-radius: 7px;
+	padding: 0 6px;
+}
+
+.node .node-face.empty {
+	border-style: dashed;
+	color: var(--fg-faint);
+	font: 12px/18px system-ui, sans-serif;
+	text-align: center;
+	white-space: normal;
+}
+
+.node.node--has-error .node-face.empty {
+	border-color: color-mix(in srgb, var(--danger) 60%, var(--border));
+	color: color-mix(in srgb, var(--danger) 70%, var(--fg));
+}
+
+/* A face's pins sit level with its first line, centred on the node's edge as
+   a row's data pins are. `top` is set inline from `codeFacePinY`. */
+.node .node-face-pin {
+	position: absolute;
+	display: flex;
+	height: var(--pin-slot);
+	margin-top: calc(-1 * (var(--pin-slot) / 2 + var(--node-stroke)));
+}
+
+.node .node-face-pin.in {
+	left: calc(-1 * (var(--pin-slot) / 2 + var(--node-stroke)));
+}
+
+.node .node-face-pin.out {
+	right: calc(-1 * (var(--pin-slot) / 2 + var(--node-stroke)));
+}
+
 .node .literal.code {
 	display: inline-flex;
 	align-items: center;
@@ -7234,18 +7341,18 @@ button.tb.icon-only.on {
  * The variables are the ones the Code Block editor's HighlightStyle uses, so a
  * snippet in the docs, the same code in the editor and the same code in the
  * preview are one opinion about Luau rather than four. */
-:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-keyword { color: var(--code-keyword); }
-:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-string { color: var(--code-string); }
-:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-number { color: var(--code-number); }
-:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-comment { color: var(--code-comment); font-style: italic; }
-:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-meta { color: var(--code-type); font-style: italic; }
-:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-operator { color: var(--code-operator); }
-:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-global { color: var(--code-global); }
-:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-function { color: var(--code-function); }
-:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-type { color: var(--code-type); }
-:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-property { color: var(--code-property); }
-:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-bracket,
-:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view) .tok-punctuation { color: var(--fg-muted); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view, .node-face) .tok-keyword { color: var(--code-keyword); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view, .node-face) .tok-string { color: var(--code-string); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view, .node-face) .tok-number { color: var(--code-number); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view, .node-face) .tok-comment { color: var(--code-comment); font-style: italic; }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view, .node-face) .tok-meta { color: var(--code-type); font-style: italic; }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view, .node-face) .tok-operator { color: var(--code-operator); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view, .node-face) .tok-global { color: var(--code-global); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view, .node-face) .tok-function { color: var(--code-function); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view, .node-face) .tok-type { color: var(--code-type); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view, .node-face) .tok-property { color: var(--code-property); }
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view, .node-face) .tok-bracket,
+:is(.docs-code, .preview-code, .landing-code, .luau-hover code, .luau-signature code, .code-view, .node-face) .tok-punctuation { color: var(--fg-muted); }
 
 /* Pin lists, in the shape Roblox's own reference uses for properties: one
    bordered row per entry, the signature scannable down the left, detail

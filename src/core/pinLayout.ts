@@ -63,8 +63,8 @@ export function pinRow(pins: readonly { kind: string; name?: string }[], index: 
 
 /**
  * How many rows a node's body has, once its header has taken its flow pins.
- * None, for a node whose only pins are those: it is a header and a footer.
- * One, for a node with no pins at all, so it still has a body to hold.
+ * None, for a node whose only pins are those, or that has none: it is only
+ * its header (0.170.0; it had an empty strip, and a pinless one a whole row).
  */
 export function bodyRows(
 	inputs: readonly { kind: string; name?: string }[],
@@ -72,8 +72,7 @@ export function bodyRows(
 ): number {
 	const headIn = onHeader(inputs);
 	const headOut = onHeader(outputs);
-	const rows = Math.max(inputs.length - (headIn ? 1 : 0), outputs.length - (headOut ? 1 : 0));
-	return rows === 0 && !headIn && !headOut ? 1 : rows;
+	return Math.max(inputs.length - (headIn ? 1 : 0), outputs.length - (headOut ? 1 : 0));
 }
 
 /** The y of a pin's centre from the node's top, given its header and row heights. */

@@ -9,6 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.170.0",
+		date: "2026-10-14",
+		headline: "Code Block, Luau Expression and Declare Type show their Luau on the node.",
+		affects: ["editor", "designer", "docs"],
+		added: [
+			"**A code node shows its code.** Code Block, Luau Expression and the two Declare Types show up to six lines of their Luau, coloured as the Code panel colours it, then how many lines more. The node widens to its longest line, up to 340px. Click the code to open it in the Code panel.",
+			"**A Declare Type says what it declares, or what it is missing.** It shows its declaration as the compiler writes it; with no name or no definition it says which.",
+			"**Module Exports has its own icon**, a puzzle piece: the piece another script fits into its own.",
+		],
+		fixed: [
+			"**A node with nothing under its header is only its header.** Script Start had an empty strip below it, and a node with no pins at all an empty row.",
+		],
+	},
+	{
 		version: "0.169.0",
 		date: "2026-10-14",
 		headline: "Import makes the library's own nodes, and Print and Warn take any number of values.",
