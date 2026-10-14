@@ -199,12 +199,16 @@ function semanticJson(script: NodeScript, layout: { headers?: Map<string, Commen
 
 /** Each written header's text and the nodes it heads, ordered by comment id. */
 function headerProjection(headers: Map<string, Comment> | undefined): {
-	headers?: { text: string; nodes: string[] }[];
+	headers?: { text: string; style?: string; nodes: string[] }[];
 } {
 	if (headers === undefined || headers.size === 0) return {};
-	const byComment = new Map<string, { text: string; nodes: string[] }>();
+	const byComment = new Map<string, { text: string; style?: string; nodes: string[] }>();
 	for (const [nodeId, comment] of headers) {
-		const entry = byComment.get(comment.id) ?? { text: comment.text, nodes: [] };
+		const entry = byComment.get(comment.id) ?? {
+			text: comment.text,
+			...(comment.style ? { style: comment.style } : {}),
+			nodes: [],
+		};
 		entry.nodes.push(nodeId);
 		byComment.set(comment.id, entry);
 	}
@@ -281,6 +285,7 @@ export function serialiseScript(script: NodeScript): string {
 				text: c.text,
 				...(c.color ? { color: c.color } : {}),
 				...(c.graph ? { graph: c.graph } : {}),
+				...(c.style ? { style: c.style } : {}),
 			})),
 	};
 	return JSON.stringify(ordered, null, 2) + "\n";

@@ -17,12 +17,17 @@
  * caller decides where the graph goes and whether one is already there.
  */
 
+import { viewOf } from "../functionGraph.js";
 import type { Binding, Block, Expr, FunctionBody, Stat } from "../luau/ast.js";
 import { lineIndex, tokenize } from "../luau/lexer.js";
 import { parseChunk } from "../luau/parser.js";
+import { nodeBounds } from "../nodeBox.js";
 import { COMPOUND_NODES } from "../nodes/compound.js";
+import { FUNCTION_NODES } from "../nodes/flow.js";
 import { BUILTIN_NODES, createRegistry, type Registry } from "../nodes/index.js";
 import {
+	type Comment,
+	type CommentStyle,
 	emptyScript,
 	type GraphNode,
 	type Link,
@@ -69,6 +74,12 @@ export interface ImportReport {
 	findings: Finding[];
 	/** How many places Modern wrote in newer syntax. */
 	rewrites: number;
+	/**
+	 * The file's comments: drawn as a box around what they describe, moved
+	 * there from the end of a line, or left out -- one at the end of a block,
+	 * with nothing after it to describe.
+	 */
+	comments: { kept: number; moved: number; dropped: number };
 }
 
 /** The lines of the file a node was made from, first and last, counting from 1. */
@@ -162,6 +173,7 @@ class Importer {
 	}
 
 	private text(span: { start: number; end: number }): string {
+		this.keptSpans.push(span);
 		return this.src.slice(span.start, span.end);
 	}
 
@@ -171,6 +183,7 @@ class Importer {
 	 * so text that kept its own indentation would be indented twice.
 	 */
 	private kept(span: { start: number; end: number }): string {
+		this.keptSpans.push(span);
 		const lineStart = this.src.lastIndexOf("\n", span.start - 1) + 1;
 		const indent = /^[ \t]*/.exec(this.src.slice(lineStart, span.start))?.[0] ?? "";
 		const text = applyEdits(this.src, span, this.edits);
@@ -258,7 +271,7 @@ class Importer {
 		this.codeKinds.set(kind, (this.codeKinds.get(kind) ?? 0) + 1);
 	}
 
-	report(): Omit<ImportReport, "findings" | "rewrites"> {
+	report(): Omit<ImportReport, "findings" | "rewrites" | "comments"> {
 		return {
 			statements: this.stats,
 			asNodes: this.asNodes,
@@ -559,11 +572,128 @@ class Importer {
 	): Tail | null {
 		const outer = this.origin;
 		this.origin = this.head(stat);
+		const comment = this.commentsOf(stat);
+		const first = this.nodes.length;
+		const links = this.links.length;
+		this.inner.push(new Set());
 		try {
 			return this.statement(stat, tail, scope, graph, row, fn, moduleReturn);
 		} finally {
 			this.origin = outer;
+			const inner = this.inner.pop() ?? new Set<string>();
+			const all = this.nodes.slice(first);
+			for (const n of all) this.inner.at(-1)?.add(n.id);
+			if (comment) {
+				// Its own nodes: not those of the statements in its body, which
+				// run on below the row and under the statements after it.
+				const made = all.filter((n) => (n.graph ?? undefined) === graph && !inner.has(n.id));
+				const chained = this.links
+					.slice(links)
+					.find((l) => l.from.node === tail.node && l.from.pin === tail.pin);
+				if (made.length > 0) {
+					this.boxes.push({
+						...comment,
+						graph,
+						nodes: made.map((n) => n.id),
+						head: chained?.to.node ?? made[0].id,
+					});
+				} else {
+					this.commentCount.dropped += comment.count;
+				}
+			}
 		}
+	}
+
+	/** The nodes each statement being imported has had made by those in its body. */
+	private inner: Set<string>[] = [];
+	/** Spans of the file kept as code, whose comments go with them. */
+	private keptSpans: { start: number; end: number }[] = [];
+
+	/** The file's comments, in order, and which have been taken. */
+	private comments: { start: number; end: number; text: string; line: number }[] = [];
+	private taken = new Set<number>();
+	/** What each commented statement became: its nodes, and the text over them. */
+	readonly boxes: {
+		text: string;
+		style?: CommentStyle;
+		graph: string | undefined;
+		nodes: string[];
+		head: string;
+	}[] = [];
+	readonly commentCount = { kept: 0, moved: 0, dropped: 0 };
+
+	/** Reads the file's comments once, before any statement asks for them. */
+	collectComments(): void {
+		const lineOf = lineIndex(this.src);
+		for (const token of tokenize(this.src)) {
+			if (token.kind !== "comment" || token.text.startsWith("--!")) continue;
+			this.comments.push({
+				start: token.start,
+				end: token.end,
+				text: token.text,
+				line: lineOf(token.start).line,
+			});
+		}
+		this.lineOf = (offset) => lineOf(offset).line;
+	}
+	private lineOf: (offset: number) => number = () => 0;
+
+	/**
+	 * The comment a statement is drawn with: the comment lines directly above
+	 * it, back to the code before them, and one at the end of its own last
+	 * line. Undefined when it has none.
+	 */
+	private commentsOf(
+		stat: Stat,
+	): { text: string; style?: CommentStyle; count: number } | undefined {
+		if (this.comments.length === 0) return undefined;
+		const endLine = this.lineOf(Math.max(stat.start, stat.end - 1));
+		// Above: the comments between this statement and the code before it,
+		// leaving out one on that code's own line, which belongs to it.
+		const above: typeof this.comments = [];
+		for (let i = this.comments.length - 1; i >= 0; i--) {
+			const c = this.comments[i];
+			if (c.end > stat.start || this.taken.has(i)) continue;
+			const next = above.length === 0 ? stat.start : above[0].start;
+			if (/\S/.test(this.src.slice(c.end, next))) break;
+			const before = this.src.slice(0, c.start).replace(/[ \t]+$/, "");
+			if (before !== "" && !before.endsWith("\n")) break;
+			above.unshift(c);
+			this.taken.add(i);
+		}
+		// After: one on the statement's own last line.
+		const after = this.comments.findIndex(
+			(c, i) =>
+				!this.taken.has(i) &&
+				c.start >= stat.end &&
+				c.line === endLine &&
+				!/\S/.test(this.src.slice(stat.end, c.start)),
+		);
+		const trailing = after === -1 ? undefined : this.comments[after];
+		if (trailing) this.taken.add(after);
+		if (above.length === 0 && !trailing) return undefined;
+
+		const parts = above.map((c) => readComment(c.text));
+		const doc = parts.find((p) => p.style === "doc" || p.style === "docBlock")?.style;
+		const lines = parts.flatMap((p) => p.lines);
+		if (trailing) lines.push(...readComment(trailing.text).lines);
+		this.commentCount.kept += above.length;
+		if (trailing) this.commentCount.moved += 1;
+		const style: CommentStyle | undefined =
+			doc ?? (above.length > 1 || (trailing && above.length > 0) ? "lines" : undefined);
+		return {
+			text: lines.join("\n"),
+			...(style ? { style } : {}),
+			count: above.length + (trailing ? 1 : 0),
+		};
+	}
+
+	/** Comments no statement took: at the end of a block, with nothing after them. */
+	untakenComments(): number {
+		return this.comments.filter(
+			(c, i) =>
+				!this.taken.has(i) && !this.keptSpans.some((s) => s.start <= c.start && c.end <= s.end),
+		).length;
 	}
 
 	private statement(
@@ -1347,7 +1477,7 @@ export function importLuau(file: string, options: ImportOptions): ImportResult {
 	const prefix = options.idPrefix ?? `imp${Math.random().toString(36).slice(2, 8)}`;
 	const mode = options.mode ?? "tidy";
 	const edits = mode === "modern" ? modernEdits(parsed.value, src) : [];
-	const importer = new Importer(
+	const importer: Importer = new Importer(
 		src,
 		prefix,
 		options.locals ?? "variable",
@@ -1355,6 +1485,7 @@ export function importLuau(file: string, options: ImportOptions): ImportResult {
 		mode !== "verbatim",
 		options.target,
 	);
+	importer.collectComments();
 	const script: NodeScript = {
 		...emptyScript(options.name, `${prefix}-graph`),
 		scriptClass: options.scriptClass,
@@ -1375,6 +1506,19 @@ export function importLuau(file: string, options: ImportOptions): ImportResult {
 	);
 	const { nodes, links } = importer.result();
 	const built = { ...script, variables: importer.variables, nodes: [begin, ...nodes], links };
+	// Laid out twice when there are comments: once to learn how wide each box
+	// is, and so how tall its title wraps, then with that room above each row.
+	const first = layoutImport(built, registry());
+	const rooms = new Map<string, number>();
+	if (importer.boxes.length > 0) {
+		for (const [i, box] of commentBoxes(first, importer.boxes, prefix, new Map()).entries())
+			rooms.set(
+				importer.boxes[i].head,
+				Math.max(rooms.get(importer.boxes[i].head) ?? 0, titleHeight(box.text, box.w) + BOX_GAP),
+			);
+	}
+	const laid = rooms.size > 0 ? layoutImport(built, registry(), rooms) : first;
+	const commented = { ...laid, comments: commentBoxes(laid, importer.boxes, prefix, rooms) };
 	const lineOf = lineIndex(src);
 	const origins: Origins = {};
 	for (const [id, span] of importer.origins) {
@@ -1386,11 +1530,115 @@ export function importLuau(file: string, options: ImportOptions): ImportResult {
 	return {
 		ok: true,
 		origins,
-		script: layoutImport(built, registry()),
+		script: commented,
 		report: {
 			...importer.report(),
 			findings: findLikelyBugs(parsed.value, src),
 			rewrites: edits.length,
+			comments: {
+				...importer.commentCount,
+				dropped: importer.commentCount.dropped + importer.untakenComments(),
+			},
 		},
 	};
+}
+
+/** A comment token's words, without its marks, and the form it was written in. */
+function readComment(text: string): { lines: string[]; style?: CommentStyle } {
+	const block = /^--\[(=*)\[([\s\S]*)\]\1\]$/.exec(text);
+	if (block) {
+		const body = block[2].replace(/^\n/, "").replace(/\n[ \t]*$/, "");
+		const lines = body.split("\n");
+		const indent = Math.min(
+			...lines.filter((l) => l.trim() !== "").map((l) => /^[ \t]*/.exec(l)?.[0].length ?? 0),
+		);
+		const trimmed = lines.map((l) => l.slice(Number.isFinite(indent) ? indent : 0).trimEnd());
+		return { lines: trimmed, ...(block[1].length > 0 ? { style: "docBlock" as const } : {}) };
+	}
+	if (text.startsWith("---")) return { lines: [text.slice(3).replace(/^ /, "")], style: "doc" };
+	return { lines: [text.slice(2).replace(/^ /, "")] };
+}
+
+/** Room around a box's nodes, and between its title and the row above. */
+const BOX_PAD = 18;
+const BOX_GAP = 12;
+
+/**
+ * How tall a comment's title draws at a box's width: the editor's header
+ * wraps it at 16px a line inside 5px of padding. Characters are taken a
+ * little wide, so a title is given a line too many rather than one too few.
+ */
+export function titleHeight(text: string, width: number): number {
+	const perLine = Math.max(8, Math.floor((width - 16) / 7.4));
+	const lines = text
+		.split("\n")
+		.reduce((n, line) => n + Math.max(1, Math.ceil(line.length / perLine)), 0);
+	return 10 + 16 * lines + BOX_PAD;
+}
+
+/**
+ * A comment box around each commented statement's nodes, as they were laid
+ * out: the compiler writes a box's text above the first of them, which is
+ * where the file had it.
+ */
+function commentBoxes(
+	script: NodeScript,
+	boxes: Importer["boxes"],
+	prefix: string,
+	/** The room each row was lowered by, for a box's title; one line where not given. */
+	rooms: ReadonlyMap<string, number>,
+): Comment[] {
+	const reg = registry();
+	const byId = new Map<string, GraphNode>();
+	for (const graph of [
+		null,
+		...script.nodes.filter((n) => FUNCTION_NODES.has(n.def)).map((n) => n.id),
+	]) {
+		for (const node of viewOf(script, graph).nodes)
+			if (!byId.has(`${graph}/${node.id}`)) byId.set(`${graph}/${node.id}`, node);
+	}
+	return boxes.flatMap((box, i) => {
+		// The box holds the statement's row: its first node, what runs on from
+		// it along the same row, and what feeds them. Not an `elseif`'s test or
+		// the like, drawn down by the lane it starts.
+		const nodeOf = (id: string) => byId.get(`${box.graph ?? null}/${id}`);
+		const own = new Set(box.nodes);
+		const rowY = nodeOf(box.head)?.y;
+		const held = new Set([box.head]);
+		for (let grew = true; grew; ) {
+			grew = false;
+			for (const link of script.links) {
+				const { node: from } = link.from;
+				const { node: to } = link.to;
+				if (held.has(to) && own.has(from) && !held.has(from)) held.add(from);
+				else if (held.has(from) && own.has(to) && !held.has(to) && nodeOf(to)?.y === rowY)
+					held.add(to);
+				else continue;
+				grew = true;
+			}
+		}
+		const rects = [...held]
+			.map(nodeOf)
+			.filter((n): n is GraphNode => n !== undefined)
+			.map((n) => nodeBounds(n, reg, true));
+		if (rects.length === 0) return [];
+		const left = Math.min(...rects.map((r) => r.x)) - BOX_PAD;
+		const top =
+			Math.min(...rects.map((r) => r.y)) -
+			((rooms.get(box.head) ?? 26 + BOX_PAD + BOX_GAP) - BOX_GAP);
+		const right = Math.max(...rects.map((r) => r.x + r.w)) + BOX_PAD;
+		const bottom = Math.max(...rects.map((r) => r.y + r.h)) + BOX_PAD;
+		return [
+			{
+				id: `${prefix}-comment${i + 1}`,
+				x: Math.round(left),
+				y: Math.round(top),
+				w: Math.round(right - left),
+				h: Math.round(bottom - top),
+				text: box.text,
+				...(box.style ? { style: box.style } : {}),
+				...(box.graph ? { graph: box.graph } : {}),
+			},
+		];
+	});
 }

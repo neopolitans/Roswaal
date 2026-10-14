@@ -446,7 +446,16 @@ export interface Comment {
 	color?: string;
 	/** The function graph it is drawn in, as for `GraphNode.graph`. */
 	graph?: string;
+	/**
+	 * How its header is written, when not the default (one `--` line, or a
+	 * `--[[ ]]` block for more): `lines` writes a `--` line each, `doc` a
+	 * `---` line each, and `docBlock` a `--[=[ ]=]` block, the two forms a doc
+	 * comment takes. Set by an import, to write back what the file wrote.
+	 */
+	style?: CommentStyle;
 }
+
+export type CommentStyle = "lines" | "doc" | "docBlock";
 
 /**
  * A named value belonging to the whole graph, in the sense visual-scripting

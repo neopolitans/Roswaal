@@ -219,8 +219,10 @@ export function fileFormatPage(): DocPage {
 				t: "p",
 				text:
 					'A comment is `{ "id", "x", "y", "w", "h", "text" }`, with an optional ' +
-					"`color`, six hexadecimal digits without the `#`, and an optional `graph`, as on a " +
-					"node. What a comment holds is never stored: it is whatever lies inside it (§4.3).",
+					"`color`, six hexadecimal digits without the `#`, an optional `graph`, as on a " +
+					"node, and an optional `style`: `lines` (a `--` line each), `doc` (a `---` line each) " +
+					"or `docBlock` (a `--[=[ ]=]` block), how its header is written when not the default. " +
+					"What a comment holds is never stored: it is whatever lies inside it (§4.3).",
 			},
 
 			// 9.5 ----------------------------------------------------------------

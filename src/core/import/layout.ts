@@ -40,7 +40,15 @@ interface Box {
 }
 
 /** Lays out every graph of an imported script. */
-export function layoutImport(script: NodeScript, registry: Registry): NodeScript {
+export function layoutImport(
+	script: NodeScript,
+	registry: Registry,
+	/**
+	 * Statements a comment box will head, and the room its title takes: their
+	 * row is lowered by it, so the title sits in a gap of its own.
+	 */
+	headed: ReadonlyMap<string, number> = new Map(),
+): NodeScript {
 	let out = script;
 	const graphs: GraphId[] = [
 		null,
@@ -48,12 +56,17 @@ export function layoutImport(script: NodeScript, registry: Registry): NodeScript
 	];
 	for (const graph of graphs) {
 		const view = viewOf(out, graph);
-		out = mergeLayout(out, graph, layoutView(view, registry, graph));
+		out = mergeLayout(out, graph, layoutView(view, registry, graph, headed));
 	}
 	return out;
 }
 
-function layoutView(view: NodeScript, registry: Registry, graph: GraphId): NodeScript {
+function layoutView(
+	view: NodeScript,
+	registry: Registry,
+	graph: GraphId,
+	headed: ReadonlyMap<string, number>,
+): NodeScript {
 	const byId = new Map(view.nodes.map((n) => [n.id, n]));
 	const size = new Map<string, Box>();
 	const box = (id: string): Box => {
@@ -157,7 +170,17 @@ function layoutView(view: NodeScript, registry: Registry, graph: GraphId): NodeS
 	};
 
 	/** Lays a lane out from `start`, its top-left at (x, y). Returns its right and bottom. */
-	const lane = (start: string, x: number, y: number): { right: number; bottom: number } => {
+	const lane = (start: string, x: number, top: number): { right: number; bottom: number } => {
+		// A row with commented statements on it is lowered by the tallest of
+		// their titles, so each sits in the gap above rather than over the row
+		// before.
+		let room = 0;
+		for (let at: string | undefined = start; at && !placed.has(at); ) {
+			room = Math.max(room, headed.get(at) ?? 0);
+			const next = execTargets(at);
+			at = next.length === 1 ? next[0] : undefined;
+		}
+		const y = top + room;
 		let at: string | undefined = start;
 		let cursor = x;
 		let right = x;
@@ -211,7 +234,7 @@ function layoutView(view: NodeScript, registry: Registry, graph: GraphId): NodeS
 			continue;
 		}
 		const size = treeSize(node.id);
-		placeTree(node.id, x + size.w, bottom);
+		placeTree(node.id, x + size.w, bottom + (headed.get(node.id) ?? 0));
 		x += size.w + GAP_X;
 	}
 

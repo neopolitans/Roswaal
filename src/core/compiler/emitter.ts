@@ -290,7 +290,7 @@ export class Emitter {
 		// opener sits one level shallower than what it opens.
 		const previous = [...this.out].reverse().find((line) => line.text !== "");
 		if (previous && previous.indent >= this.indent) this.blank();
-		this.write(commentLines(comment.text).join("\n"), nodeId, true);
+		this.write(commentLines(comment.text, comment.style).join("\n"), nodeId, true);
 	}
 
 	/**

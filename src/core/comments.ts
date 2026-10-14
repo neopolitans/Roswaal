@@ -24,7 +24,7 @@
 import { graphOf, viewOf } from "./functionGraph.js";
 import { nodeBounds, type Rect, rectContains } from "./nodeBox.js";
 import type { Registry } from "./nodes/index.js";
-import type { Comment, NodeScript } from "./schema.js";
+import type { Comment, CommentStyle, NodeScript } from "./schema.js";
 
 /** A comment, and the ids of everything drawn inside it. */
 export interface CommentArea {
@@ -147,11 +147,19 @@ export function oneLine(text: string): string {
  * neither how deep the block it is going into happens to be, nor whether the
  * project indents with spaces.
  */
-export function commentLines(text: string): string[] {
+export function commentLines(text: string, style?: CommentStyle): string[] {
 	const lines = text
 		.replace(/\r\n?/g, "\n")
 		.split("\n")
 		.map((line) => line.trimEnd());
+	// What an import found: a run of `--` lines, or a doc comment, as written.
+	if (style === "lines") return lines.map((line) => `-- ${line}`.trimEnd());
+	if (style === "doc") return lines.map((line) => `--- ${line}`.trimEnd());
+	if (style === "docBlock") {
+		// A doc block is `--[=[`, so its level is at least one.
+		const eq = "=".repeat(Math.max(1, bracketLevel(text)));
+		return [`--[${eq}[`, ...lines.map((line) => (line === "" ? "" : `\t${line}`)), `]${eq}]`];
+	}
 	if (lines.length === 1) return [`-- ${lines[0]}`.trimEnd()];
 
 	const eq = "=".repeat(bracketLevel(text));

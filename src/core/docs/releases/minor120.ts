@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.174.0",
+		date: "2026-10-14",
+		headline: "Import draws a file's comments as comment boxes around what they describe.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Comments import as comment boxes.** The comments above a statement become a box around its nodes, titled with their text, and a comment at the end of the line joins them. A row with a box on it moves down to make room for the title.",
+			"**Comments compile back as the file wrote them.** A run of `--` lines, a `---` doc comment and a `--[=[ ]=]` doc block are each written in the same form above the same statement.",
+			"**The import says what happened to them.** It counts the comments boxed, and those left out: one at the end of a block, with nothing after it to describe.",
+		],
+	},
+	{
 		version: "0.173.0",
 		date: "2026-10-14",
 		headline: "Import draws type aliases as Declare Type, and loops over what a call gives as For Each.",

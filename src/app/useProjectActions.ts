@@ -917,11 +917,20 @@ export function useProjectActions(context: ProjectActionsContext) {
 				});
 				await refreshTree();
 				store.open(out.path, out.script);
-				const { statements, asNodes, asCode, findings, rewrites } = out.report;
+				const { statements, asNodes, asCode, findings, rewrites, comments } = out.report;
 				const kept = asCode.map((c) => `${c.construct} ×${c.count}`).join(", ");
+				const boxed = comments.kept + comments.moved;
 				const lines = [
 					`${asNodes} of ${statements} statements are nodes.${kept ? ` Kept as code: ${kept}.` : ""}`,
 					...(rewrites > 0 ? [`Written in newer syntax: ${rewrites}.`] : []),
+					...(boxed > 0 || comments.dropped > 0
+						? [
+								`Comments boxed: ${boxed}${comments.moved > 0 ? ` (${comments.moved} from line ends)` : ""}.` +
+									(comments.dropped > 0
+										? ` Left out, with nothing after them: ${comments.dropped}.`
+										: ""),
+							]
+						: []),
 					...findings.map((f) => `Line ${f.line}: ${f.message}`),
 					`${entry.name} is unchanged; compiling over it asks for force.`,
 				];
