@@ -20,12 +20,13 @@
 import type { Binding, Block, Expr, FunctionBody, Stat } from "../luau/ast.js";
 import { lineIndex, tokenize } from "../luau/lexer.js";
 import { parseChunk } from "../luau/parser.js";
-import { createRegistry, type Registry } from "../nodes/index.js";
+import { BUILTIN_NODES, createRegistry, type Registry } from "../nodes/index.js";
 import {
 	emptyScript,
 	type GraphNode,
 	type Link,
 	type Literal,
+	type NodeDef,
 	type NodeScript,
 	type ScriptClass,
 	type ScriptVariable,
@@ -41,6 +42,7 @@ import {
 	type TopLevelLocals,
 } from "./modes.js";
 import { layoutImport } from "./layout.js";
+import { type CallTemplate, callTemplates, matchCall } from "./templates.js";
 
 export interface ImportOptions {
 	/** The graph's name: the file's, without `.server`, `.client` or `.luau`. */
@@ -151,6 +153,8 @@ class Importer {
 		private readonly edits: readonly Edit[] = [],
 		/** Tidy and Modern: a blank line in the file starts a new row. */
 		private readonly paragraphs = false,
+		/** What the graph runs on, so only nodes that run there are matched. */
+		private readonly target: Target = "roblox",
 	) {}
 
 	private id(): string {
@@ -368,6 +372,12 @@ class Importer {
 					});
 					return { kind: "wire", node: id, pin: "result" };
 				}
+				const pure = this.libraryCall(e, scope, ["expr"]);
+				if (pure) {
+					const id = this.libraryNode(pure, e, scope, graph, below(0));
+					const result = (pure.def.compilesTo as { result?: string }).result ?? firstOutput(pure.def);
+					return { kind: "wire", node: id, pin: result };
+				}
 				return this.luau(e, graph, below(0));
 			}
 			case "cast": {
@@ -570,17 +580,21 @@ class Importer {
 						config: { variable, name: binding.name, ...(type ? { type } : {}) },
 					});
 					// No value is left unset: `local conn: RBXScriptConnection`.
-					if (stat.values[0])
+					const step = this.valueStep(stat.values[0], tail, scope, graph, at);
+					if (step) this.feed(step.value, { node: id, pin: "value" });
+					else if (stat.values[0])
 						this.feed(this.expr(stat.values[0], scope, graph, at), { node: id, pin: "value" });
-					this.chain(tail, id);
+					this.chain(step?.tail ?? tail, id);
 					scope.set(binding.name, { kind: "variable", id: variable, name: binding.name, type });
 					return counted({ node: id, pin: "then" });
 				}
 				const id = this.node("local.declare", graph, at, type ? { config: { type } } : {});
 				this.literal(id, "name", { t: "string", v: binding.name });
-				if (stat.values[0])
+				const step = this.valueStep(stat.values[0], tail, scope, graph, at);
+				if (step) this.feed(step.value, { node: id, pin: "value" });
+				else if (stat.values[0])
 					this.feed(this.expr(stat.values[0], scope, graph, at), { node: id, pin: "value" });
-				this.chain(tail, id);
+				this.chain(step?.tail ?? tail, id);
 				scope.set(binding.name, { kind: "local", node: id, name: binding.name, type });
 				return counted({ node: id, pin: "then" });
 			}
@@ -828,6 +842,13 @@ class Importer {
 		// a value pin cannot hold well. The whole statement stays as code.
 		if (call.args.some((a) => a.kind === "function") || call.args.length > 8) return undefined;
 		const at = this.place(graph, row);
+		const library = this.libraryCall(call, scope, ["statement", "call"]);
+		if (library) {
+			const id = this.libraryNode(library, call, scope, graph, at);
+			this.chain(tail, id);
+			this.asNodes += 1;
+			return { node: id, pin: "then" };
+		}
 		let id: string;
 		if (call.kind === "methodCall") {
 			id = this.node("call.method", graph, at, { config: { args: call.args.length } });
@@ -853,6 +874,58 @@ class Importer {
 		this.chain(tail, id);
 		this.asNodes += 1;
 		return { node: id, pin: "then" };
+	}
+
+	/** The library node that writes this call, if one does and nothing in the file hides its name. */
+	private libraryCall(
+		call: Expr,
+		scope: Scope,
+		kinds: readonly CallTemplate["kind"][],
+	): CallTemplate | undefined {
+		if (call.kind !== "call" || call.args.some((a) => a.kind === "function" || a.kind === "varargs"))
+			return undefined;
+		const callee = dottedName(call.callee);
+		if (!callee || scope.get(callee.split(".")[0]) !== undefined) return undefined;
+		return matchCall(libraryTemplates(), callee, call.args.length, kinds, this.target);
+	}
+
+	/** A library node for a matched call, its arguments on the template's pins. */
+	private libraryNode(
+		template: CallTemplate,
+		call: Expr,
+		scope: Scope,
+		graph: string | undefined,
+		at: { x: number; y: number },
+	): string {
+		if (call.kind !== "call") throw new Error("The importer matched a template to something not a call.");
+		const extra = call.args.length - template.pins.length;
+		const id = this.node(template.def.id, graph, at, extra > 0 ? { config: { args: extra } } : {});
+		call.args.forEach((arg, i) => {
+			const pin = i < template.pins.length ? template.pins[i] : `a${i - template.pins.length}`;
+			this.feed(this.expr(arg, scope, graph, { x: at.x, y: at.y + 70 * (i + 1) }), { node: id, pin });
+		});
+		return id;
+	}
+
+	/**
+	 * `local part = Instance.new("Part")`: a library call made for its value,
+	 * as the step it is, ahead of the declaration that reads it. The compiler
+	 * writes the two back as the one line they were.
+	 */
+	private valueStep(
+		value: Expr | undefined,
+		tail: Tail,
+		scope: Scope,
+		graph: string | undefined,
+		at: { x: number; y: number },
+	): { tail: Tail; value: Value } | undefined {
+		if (!value) return undefined;
+		const template = this.libraryCall(value, scope, ["call"]);
+		if (!template) return undefined;
+		const id = this.libraryNode(template, value, scope, graph, { x: at.x - 260, y: at.y });
+		this.chain(tail, id);
+		const result = (template.def.compilesTo as { result?: string }).result ?? "result";
+		return { tail: { node: id, pin: "then" }, value: { kind: "wire", node: id, pin: result } };
 	}
 
 	private functionStat(
@@ -881,9 +954,11 @@ class Importer {
 					graph,
 					at,
 				);
-			} else if (scope.get(name) === undefined) {
-				// `function f()` with no local `f`: a global. Faithful would need a
-				// global declaration Roswaal does not write; kept as code.
+			} else {
+				// `function f()` assigns to `f`: a global, or a local declared
+				// earlier (`local f` above it, so that what comes first can call
+				// it). Declare Function would write `local function f`, a new local
+				// that whatever captured the first never sees; kept as code.
 				return undefined;
 			}
 		}
@@ -920,6 +995,28 @@ class Importer {
 		this.asNodes += 1;
 		return { node: id, pin: "then" };
 	}
+}
+
+/** The library's templates, read once. */
+let templates: Map<string, CallTemplate[]> | undefined;
+function libraryTemplates(): Map<string, CallTemplate[]> {
+	templates ??= callTemplates(BUILTIN_NODES);
+	return templates;
+}
+
+/** `print`, `task.wait`, `Instance.new`: a callee written as a name and fields. */
+function dottedName(e: Expr): string | undefined {
+	if (e.kind === "name") return e.name;
+	if (e.kind === "index") {
+		const object = dottedName(e.object);
+		return object ? `${object}.${e.name.name}` : undefined;
+	}
+	return undefined;
+}
+
+/** A pure node's value: its first data output. */
+function firstOutput(def: NodeDef): string {
+	return def.outputs.find((p) => p.kind !== "exec")?.id ?? "result";
 }
 
 /** Whether a function's own body returns a value anywhere; functions inside it are their own. */
@@ -981,7 +1078,14 @@ export function importLuau(file: string, options: ImportOptions): ImportResult {
 	const prefix = options.idPrefix ?? `imp${Math.random().toString(36).slice(2, 8)}`;
 	const mode = options.mode ?? "tidy";
 	const edits = mode === "modern" ? modernEdits(parsed.value, src) : [];
-	const importer = new Importer(src, prefix, options.locals ?? "variable", edits, mode !== "verbatim");
+	const importer = new Importer(
+		src,
+		prefix,
+		options.locals ?? "variable",
+		edits,
+		mode !== "verbatim",
+		options.target,
+	);
 	const script: NodeScript = {
 		...emptyScript(options.name, `${prefix}-graph`),
 		scriptClass: options.scriptClass,

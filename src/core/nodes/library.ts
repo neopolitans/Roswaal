@@ -424,10 +424,18 @@ const MAX_ARGS = 8;
 const MAX_PAIRS = 24;
 
 /** Payload pins for a call whose argument count is chosen per node. */
-function payload(config: Record<string, unknown>, min: number, max = MAX_ARGS): PinDef[] {
+function payload(
+	config: Record<string, unknown>,
+	min: number,
+	max = MAX_ARGS,
+	/** Where the numbering starts, when the payload follows a Value of its own. */
+	after = 0,
+): PinDef[] {
 	const count = Math.max(min, Math.min(max, Number(config.args ?? min)));
 	return Array.from({ length: count }, (_, i) =>
-		d(`a${i}`, count === 1 ? "Value" : `Value ${i + 1}`, "any", { t: "nil" }),
+		d(`a${i}`, count === 1 && after === 0 ? "Value" : `Value ${i + 1 + after}`, "any", {
+			t: "nil",
+		}),
 	);
 }
 
@@ -446,11 +454,11 @@ function variadicStmt(
 	template: string,
 	fixed: PinDef[],
 	summary: string,
-	opts: { min?: number; targets?: NodeDef["targets"] } = {},
+	opts: { min?: number; targets?: NodeDef["targets"]; after?: number } = {},
 ): NodeDef {
 	const min = opts.min ?? 0;
 	const shape = (config: Record<string, unknown>) => ({
-		inputs: [exec("in"), ...fixed, ...payload(config, min)],
+		inputs: [exec("in"), ...fixed, ...payload(config, min, MAX_ARGS, opts.after)],
 		outputs: [exec("then")],
 	});
 	return {
@@ -3333,12 +3341,26 @@ export const LIBRARY_NODES: NodeDef[] = [
 	),
 
 	// -- Debug -------------------------------------------------------------
-	stmt("debug.print", "Print", "Debug", "print($in.value)", [
-		d("value", "Value", "any", { t: "string", v: "Hello" }),
-	]),
-	stmt("debug.warn", "Warn", "Debug", "warn($in.value)", [
-		d("value", "Value", "any", { t: "string", v: "Warning" }),
-	]),
+	// Print and Warn take any number of values, as `print` does: one by
+	// default, more with the + in the header, each written after a comma.
+	variadicStmt(
+		"debug.print",
+		"Print",
+		"Debug",
+		"print($in.value$more(, ))",
+		[d("value", "Value", "any", { t: "string", v: "Hello" })],
+		"Writes its values to the output, separated by spaces.",
+		{ after: 1 },
+	),
+	variadicStmt(
+		"debug.warn",
+		"Warn",
+		"Debug",
+		"warn($in.value$more(, ))",
+		[d("value", "Value", "any", { t: "string", v: "Warning" })],
+		"Writes its values to the output as a warning, in yellow.",
+		{ after: 1 },
+	),
 	stmt(
 		"debug.error",
 		"Error",

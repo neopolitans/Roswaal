@@ -9,6 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.169.0",
+		date: "2026-10-14",
+		headline: "Import makes the library's own nodes, and Print and Warn take any number of values.",
+		affects: ["editor", "docs"],
+		added: [
+			"**A call the library has a node for imports as that node.** print, warn, error, assert, require, task.wait, table.insert, Instance.new and the other calls a library node writes become that node rather than Call Function on a Luau Expression. A file that declares its own print keeps calling it.",
+			"**A local set to such a call keeps it as a step.** `local part = Instance.new(\"Part\")` imports as Instance.new and Declare Local, and compiles back as the one line.",
+			"**Print and Warn take any number of values.** Add one with the + in the header; each is written after a comma, as print takes them. Graphs with one value are unchanged.",
+		],
+		fixed: [
+			"**Import keeps a function that assigns an earlier local as code.** `function f()` after `local f` assigns that local; it was imported as a new local function, which whatever captured the first never saw.",
+		],
+	},
+	{
 		version: "0.168.1",
 		date: "2026-10-14",
 		headline: "Three of the front page's tour slides fit an iPad Mini, and a phone's graph name is out from under the bar.",

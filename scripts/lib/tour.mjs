@@ -1205,6 +1205,7 @@ export const SLIDES = [
 			["0.143.0", "Verbatim, Tidy and Modern"],
 			["0.166.0", "names and types as written"],
 			["0.167.0", "laid out in rows"],
+			["0.169.0", "the library's own nodes"],
 		],
 		doc: "docs/project-panel.html",
 		body: "<strong>Import as graph</strong> turns a <code>.luau</code> file's statements into nodes; what has no node yet stays as Luau text. Still in progress: comments are not kept yet, so test what you import.",

@@ -388,6 +388,39 @@ describe("names and types as written", () => {
 	});
 });
 
+describe("the library's own nodes", () => {
+	it("makes print and warn Print and Warn, with every value", () => {
+		const src = 'local label = "Round"\nprint(label, 3)\nwarn("Not enough coins")\n';
+		const script = imported(src, "T.server.luau");
+		const print = script.nodes.find((n) => n.def === "debug.print");
+		expect(print?.config?.args).toBe(1);
+		expect(defsOf(script)).toContain("debug.warn");
+		expect(defsOf(script)).not.toContain("call.function");
+		expect(roundTrip(src, "T.server.luau")).toEqual(lines(src));
+	});
+
+	it("makes a call a local is set to the step it is, written back on one line", () => {
+		const src = 'local part = Instance.new("Part")\npart.Parent = workspace\n';
+		const script = imported(src, "T.server.luau", { locals: "local" });
+		expect(defsOf(script)).toContain("roblox.instanceNew");
+		expect(roundTrip(src, "T.server.luau", { locals: "local" })).toEqual(lines(src));
+	});
+
+	it("leaves a call alone when the file has its own of that name", () => {
+		const src = "local function print(x: string)\n\twarn(x)\nend\nprint(\"hi\")\n";
+		const script = imported(src, "T.server.luau");
+		expect(defsOf(script)).not.toContain("debug.print");
+		expect(roundTrip(src, "T.server.luau")).toEqual(lines(src));
+	});
+
+	it("keeps `function f()` after `local f` as code: it assigns the local, not a new one", () => {
+		const src = "local f\nlocal function g()\n\tf()\nend\nfunction f()\n\tprint(1)\nend\ng()\n";
+		const script = imported(src, "T.server.luau");
+		expect(script.nodes.filter((n) => n.def === "function.declareHere")).toHaveLength(1);
+		expect(roundTrip(src, "T.server.luau")).toEqual(lines(src));
+	});
+});
+
 describe("rows and layout", () => {
 	const generated = (code: string) =>
 		code
