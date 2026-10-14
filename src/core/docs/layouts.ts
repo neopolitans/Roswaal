@@ -1213,7 +1213,6 @@ export const EDITOR_LAYOUT_PHONE: LayoutSpec = {
 			name: "The graph",
 			kind: "canvas",
 			at: [1, 8, 1, 4],
-			watermark: ["Script", "Events"],
 			what: "The same gestures as on a tablet; see [Controls](controls). There is no side strip: pinch to zoom.",
 		},
 		{

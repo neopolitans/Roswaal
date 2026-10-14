@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.168.1",
+		date: "2026-10-14",
+		headline: "Three of the front page's tour slides fit an iPad Mini, and a phone's graph name is out from under the bar.",
+		affects: ["editor", "docs"],
+		fixed: [
+			"**From the DataModel stacks on an iPad.** The tree and Code Block sat over each other, and the filter field was cut off. They stack when the slide is narrower than both.",
+			"**The editor on each screen shows a graph.** Computer, Tablet and Phone each draw the welcome graph in their canvas, fill the slide's width, and the phone is drawn larger.",
+			"**One menu draws the Project panel as it is.** The tree is the Project panel's own, with wally.toml the row the menu opens from.",
+			"**On a phone, the graph's name is no longer drawn in the canvas's corner.** It sat under the bar along the bottom; the name is in the graph's tab.",
+		],
+	},
+	{
 		version: "0.168.0",
 		date: "2026-10-14",
 		headline: "The front page's import demonstration answers a tap, and fits an iPad Mini.",

@@ -657,6 +657,14 @@ const DEVICE_LAYOUTS = [
 	["phone", "Phone", inBrowser(EDITOR_LAYOUT_PHONE, "tour-phone")],
 ];
 
+/**
+ * The welcome graph from the first slide, drawn into each frame's canvas so a
+ * screen shows work on it rather than an empty grid. Sized in the screen's own
+ * pixels, so the frame's scale takes it down with everything else.
+ */
+// A phone shows it near working size, cut off by the screen as a phone would.
+const DEVICE_GRAPH_WIDTH = { computer: 900, tablet: 760, phone: 620 };
+
 function windowsDemo() {
 	const preview = {
 		geometry: NODE,
@@ -664,12 +672,19 @@ function windowsDemo() {
 		pinColor,
 		wirePath,
 	};
+	const graph = graphSvg(welcomeScript(), createRegistry(), preview);
+	const withGraph = (html, id) => {
+		const at = html.indexOf('data-name="The graph">');
+		if (at === -1) throw new Error("The tour's window drawing has no graph region to draw into.");
+		const end = at + 'data-name="The graph">'.length;
+		return `${html.slice(0, end)}<div class="tour-device-graph" style="width: ${DEVICE_GRAPH_WIDTH[id]}px">${graph}</div>${html.slice(end)}`;
+	};
 	return `<div class="tour-pane tour-windows-demo">
           ${DEVICE_LAYOUTS.map(([id], i) => `<input class="tour-pick" type="radio" name="tour-device" id="tour-device-${id}"${i === 0 ? " checked" : ""} />`).join("")}
           <div class="tour-device-switch segmented" role="group" aria-label="Show it on">${DEVICE_LAYOUTS.map(([id, name]) => `<label for="tour-device-${id}">${name}</label>`).join("")}</div>
           ${DEVICE_LAYOUTS.map(
 						([id, , spec]) =>
-							`<div class="tour-device tour-device-${id}">${layoutHtml(spec, { ...ART, version: "" }, { preview, numbered: false })}</div>`,
+							`<div class="tour-device tour-device-${id}">${withGraph(layoutHtml(spec, { ...ART, version: "" }, { preview, numbered: false }), id)}</div>`,
 					).join("\n          ")}
         </div>`;
 }
@@ -681,15 +696,18 @@ function menuDemo() {
 		/<button type="button" tabindex="-1"/g,
 		'<button type="button" tabindex="-1" role="menuitem"',
 	);
+	// The Project panel's tree as the Wally slide draws it, with wally.toml the
+	// row the menu opens from. It is the one part of the drawing to answer, so
+	// the drawing is not hidden from assistive technology here.
+	const tree = toolbarHtml(PROJECT_TREE_WALLY, { ...ART, version: "" })
+		.replace('<div class="docs-bar-frame filetree" aria-hidden="true">', '<div class="docs-bar-frame filetree">')
+		.replace(
+			'<div class="tree-row" data-control="wally-toml"',
+			'<div class="tree-row tour-menu-anchor on" tabindex="0" role="button" aria-haspopup="menu" aria-expanded="true" data-control="wally-toml"',
+		);
+	if (!tree.includes("tour-menu-anchor")) throw new Error("The tour's menu has no wally.toml row to open from.");
 	return `<div class="tour-pane tour-canvas grid-surface tour-menu-demo" data-tour="menu">
-          <div class="tour-tree-card">
-            <div class="tour-card-head">Project</div>
-            <ul class="tour-tree">
-              <li class="tour-tree-file">${icon("document", 13)}default.project.json</li>
-              <li class="tour-tree-file tour-menu-anchor on" tabindex="0" aria-haspopup="menu" aria-expanded="true">${icon("instance", 13)}wally.toml</li>
-              <li class="tour-tree-folder">${icon("folderOpen", 13)}Packages</li>
-            </ul>
-          </div>
+          <div class="tour-menu-tree">${tree}</div>
           <div class="menu menu--list tour-menu" role="menu" aria-label="wally.toml">${body}</div>
           <p class="tour-readout" aria-live="polite">Right-click <code>wally.toml</code>, or press <kbd>Enter</kbd> on it.</p>
         </div>`;
@@ -1451,11 +1469,13 @@ ${themeCss(".tour-complete-box", TOOLTIP_STYLE)}
 #tour-device-tablet:checked ~ .tour-device-tablet,
 #tour-device-phone:checked ~ .tour-device-phone { display: block; }
 .tour-device .docs-layout-fit { overflow: hidden; margin: 0 auto; }
-/* Held to about one height, so switching does not move the page under it. */
-.tour-device-computer .docs-layout-fit { max-width: 680px; }
-.tour-device-tablet .docs-layout-fit { max-width: 600px; }
 .tour-device .docs-layout-frame { margin: 0 auto !important; }
-.tour .docs-layout-screen.dev-phone { --z: 0.41; }
+/* The graph on each screen, under the controls that float over it. */
+.tour-device-graph { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 0; pointer-events: none; }
+.tour-device-graph svg { display: block; width: 100%; height: auto; }
+/* On a computer the cards take the sides: centred in what is left between them. */
+.tour-device-computer .tour-device-graph { left: 57%; }
+.tour .docs-layout-screen.dev-phone { --z: 0.6; overflow: hidden !important; }
 
 /* The header of a drawn editor card: Code Block, or a file's name. */
 .tour-card-head {
@@ -1511,6 +1531,11 @@ ${themeCss(".tour-complete-box", TOOLTIP_STYLE)}
   background: var(--accent); color: #fff; font: 600 12px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace;
   box-shadow: var(--shadow-popover); transform: translate(10px, 10px);
 }
+/* Two columns only with the room for both: the tree's names and the code's
+   lines are read whole. Measured on the demonstration, not the window, so an
+   iPad's stacked slide stacks this too. */
+.tour-demo { container: tour-demo / inline-size; }
+@container tour-demo (max-width: 760px) { .tour-drag-demo { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 640px) { .tour-drag-demo { grid-template-columns: minmax(0, 1fr); } }
 
 /* Wally: the project tree before and after a package is added. */
@@ -1564,13 +1589,11 @@ ${themeCss(".tour-complete-box", TOOLTIP_STYLE)}
 
 /* 6. The one menu, open on the package it was asked about. */
 .tour-menu-demo { flex-direction: row; flex-wrap: wrap; align-items: flex-start; align-content: center; gap: 14px 6px; }
-.tour-tree-card {
-  width: 210px; background: var(--bg-panel); border: 1px solid var(--border);
-  border-radius: var(--radius-md, 8px); box-shadow: var(--shadow-raised); overflow: hidden; font-size: 13px;
-}
+.tour-menu-tree { width: min(300px, 100%); }
+.tour-menu-tree .docs-bar-frame { margin: 0; }
 .tour-menu-anchor { cursor: context-menu; outline: none; }
 .tour-menu-anchor:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
-.tour .tour-menu { position: relative; margin-top: 52px; box-shadow: var(--shadow-popover); }
+.tour .tour-menu { position: relative; margin-top: 128px; box-shadow: var(--shadow-popover); }
 .tour .tour-menu[hidden] { display: none; }
 .tour-readout { flex-basis: 100%; margin: 6px 0 0; text-align: center; font-size: 13px; color: var(--fg-muted, var(--fg-faint)); min-height: 1.6em; }
 `;

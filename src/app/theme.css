@@ -13755,6 +13755,12 @@ p.licence-meta,
 	.dock.drawer.right:not(.drawer-open) {
 		transform: translateY(24px);
 	}
+
+	/* The graph's name is in its tab at the top; in the corner it sat under
+	   the bar along the bottom. */
+	.canvas .watermark {
+		display: none;
+	}
 }
 
 @media (prefers-reduced-motion: reduce) {
