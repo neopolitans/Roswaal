@@ -10,6 +10,8 @@ export interface OutLine {
 	text: string;
 	indent: number;
 	node?: string;
+	/** Part of a comment, which Luau reads as space between statements. */
+	comment?: true;
 }
 
 /** Lexical scope: which node outputs are bound to which locals, and where. */

@@ -324,5 +324,23 @@ describe("unary minus and prefix positions", () => {
 		const result = compile(b.build(), registry);
 		expect(result.ok).toBe(true);
 		expect(body(result.code)).toContain('("hello"):upper()');
+		// First in its block: nothing before it to run into.
+		expect(body(result.code)).not.toContain(';("hello")');
+	});
+
+	it("starts a bracketed statement with `;` when one comes before it", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const first = b.node("call.method", { config: { args: 0 } });
+		b.lit(first, "object", { t: "raw", v: "workspace" });
+		b.lit(first, "method", { t: "string", v: "ClearAllChildren" });
+		const second = b.node("call.method", { config: { args: 0 } });
+		b.lit(second, "object", { t: "string", v: "hello" });
+		b.lit(second, "method", { t: "string", v: "upper" });
+		b.link(start, "then", first, "in");
+		b.link(first, "then", second, "in");
+		const result = compile(b.build(), registry);
+		expect(result.ok).toBe(true);
+		expect(body(result.code)).toContain('workspace:ClearAllChildren()\n;("hello"):upper()');
 	});
 });

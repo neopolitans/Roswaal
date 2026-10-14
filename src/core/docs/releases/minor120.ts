@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.165.1",
+		date: "2026-10-14",
+		headline: "Imported Luau compiles back as it was written in four more places.",
+		affects: ["editor"],
+		fixed: [
+			"**A statement that opens with a bracket no longer runs into the one before it.** `(part :: BasePart).Parent = model` after a call was read as calling that call's result, and the graph's Luau did not parse. It is written `;(part :: BasePart).Parent = model`, as Luau is written by hand.",
+			"**A call whose argument holds a comment or a backtick string stays a call.** It was written `local _rw1 = table.insert(...)`.",
+			"**Import keeps the brackets around a call.** `print((pick()))` passes only the first value `pick` returns; it came back as `print(pick())`, which passes all of them.",
+			"**Import keeps a number as it was written.** `0.10` and `2.0` came back as `0.1` and `2`.",
+		],
+	},
+	{
 		version: "0.165.0",
 		date: "2026-10-09",
 		headline:

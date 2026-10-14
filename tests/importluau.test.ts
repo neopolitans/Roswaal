@@ -343,6 +343,34 @@ describe("what stays as code", () => {
 	});
 });
 
+describe("what the round trip keeps", () => {
+	it("keeps the brackets that cut a call to its first value", () => {
+		const src = "print((pick()))\nlocal t = {}\nt[1] = (...)\n";
+		expect(roundTrip(src)).toEqual(lines(src));
+	});
+
+	it("keeps a number as it was written", () => {
+		const src = "local a = 0.10\nlocal b = 2.0\nlocal c = 3\nprint(a, b, c)\n";
+		expect(roundTrip(src)).toEqual(lines(src));
+	});
+
+	it("keeps a call a statement when its argument holds a comment or a backtick string", () => {
+		const src =
+			"local hub = 1\ntable.insert(list, {\n\tjoint = hub, -- the hub's parent\n})\nwarn(`a {hub}` .. `b's`)\n";
+		const { code, errors } = compiled(imported(src));
+		expect(errors).toEqual([]);
+		expect(code).not.toContain("local _rw");
+		expect(code).toContain("table.insert(list, {");
+	});
+
+	it("starts a statement that opens with a bracket where the last one ended", () => {
+		const src = "local s = make()\n;(s :: any).Parent = workspace\n";
+		const { code, errors } = compiled(imported(src));
+		expect(errors).toEqual([]);
+		expect(code).toContain("local s = make()\n;(s :: any).Parent = workspace");
+	});
+});
+
 describe("the file around it", () => {
 	it("takes its script class from the file name", () => {
 		expect(graphNameOf("Tank.server.luau")).toEqual({ name: "Tank", scriptClass: "Script" });

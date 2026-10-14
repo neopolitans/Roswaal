@@ -1,6 +1,12 @@
 /** Luau lexical helpers: identifiers, literals, and safe expression splicing. */
 
-import { CONTEXTUAL_WORDS, RESERVED_WORDS, significant, tokenize } from "../luau/lexer.js";
+import {
+	CONTEXTUAL_WORDS,
+	RESERVED_WORDS,
+	significant,
+	type Token,
+	tokenize,
+} from "../luau/lexer.js";
 import type { Literal } from "../schema.js";
 import { quoteString } from "./quote.js";
 
@@ -278,20 +284,12 @@ export function isCallExpression(expr: string): boolean {
 	return /^[.:[(]/.test(chain) && isBalancedChain(chain);
 }
 
-/** Where the bracket opening `e` closes, skipping strings; -1 if it never does. */
+/** Where the bracket opening `e` closes, skipping strings and comments; -1 if it never does. */
 function groupEnd(e: string): number {
 	let depth = 0;
-	for (let i = 0; i < e.length; i++) {
-		const c = e[i];
-		if (c === '"' || c === "'") {
-			i = skipString(e, i) - 1;
-			continue;
-		}
-		if (c === "(" || c === "[" || c === "{") depth++;
-		else if (c === ")" || c === "]" || c === "}") {
-			depth--;
-			if (depth === 0) return i;
-		}
+	for (const token of tokenize(e)) {
+		depth += nesting(token);
+		if (depth === 0 && token.kind === "symbol" && /^[)\]}]$/.test(token.text)) return token.start;
 	}
 	return -1;
 }
@@ -527,18 +525,6 @@ export function expressionPrecedence(expr: string): number {
 	return lowest;
 }
 
-function skipString(text: string, start: number): number {
-	const quote = text[start];
-	for (let i = start + 1; i < text.length; i++) {
-		if (text[i] === "\\") {
-			i++;
-			continue;
-		}
-		if (text[i] === quote) return i + 1;
-	}
-	return text.length;
-}
-
 /**
  * Parenthesises `expr` only when the position it is going into binds tighter
  * than the expression itself does.
@@ -641,54 +627,54 @@ function fromFollowing(after: string): number {
 	return PREC.lowest;
 }
 
+/**
+ * How far a token moves bracket depth. Read off the lexer rather than the
+ * characters, so a bracket inside a string, a comment, a long string or an
+ * interpolated one is not counted: `{ a = 1 -- the hub's parent }` is one table.
+ */
+function nesting(token: Token): number {
+	if (token.kind === "interpBegin") return 1;
+	if (token.kind === "interpEnd") return -1;
+	if (token.kind !== "symbol") return 0;
+	if (token.text === "(" || token.text === "[" || token.text === "{") return 1;
+	if (token.text === ")" || token.text === "]" || token.text === "}") return -1;
+	return 0;
+}
+
 /** True when the first bracket opened is only closed by the final character. */
 function closesAtEnd(e: string): boolean {
+	const tokens = significant(tokenize(e)).filter((t) => t.kind !== "eof");
 	let depth = 0;
-	for (let i = 0; i < e.length; i++) {
-		const c = e[i];
-		if (c === "(" || c === "[" || c === "{") depth++;
-		else if (c === ")" || c === "]" || c === "}") {
-			depth--;
-			if (depth === 0 && i !== e.length - 1) return false;
-			if (depth < 0) return false;
-		}
+	for (const [i, token] of tokens.entries()) {
+		depth += nesting(token);
+		if (depth < 0) return false;
+		if (depth === 0 && i !== tokens.length - 1) return false;
 	}
 	return depth === 0;
 }
 
 /**
  * Verifies the expression is a bracket-balanced postfix chain with no
- * top-level operators or whitespace-separated tokens.
+ * top-level operators, whitespace or comments.
  */
 function isBalancedChain(e: string): boolean {
 	let depth = 0;
-	let inString: string | null = null;
-	for (let i = 0; i < e.length; i++) {
-		const c = e[i];
-		if (inString) {
-			if (c === "\\") {
-				i++;
-				continue;
-			}
-			if (c === inString) inString = null;
-			continue;
-		}
-		if (c === '"' || c === "'") {
-			inString = c;
-			continue;
-		}
-		if (c === "(" || c === "[" || c === "{") {
-			depth++;
-			continue;
-		}
-		if (c === ")" || c === "]" || c === "}") {
-			depth--;
+	for (const token of tokenize(e)) {
+		if (token.kind === "eof") break;
+		if (token.kind === "error") return false;
+		const step = nesting(token);
+		if (step !== 0) {
+			depth += step;
 			if (depth < 0) return false;
 			continue;
 		}
 		// At the top level anything other than chain punctuation means this is a
 		// compound expression, which needs parentheses to splice safely.
-		if (depth === 0 && !/[A-Za-z0-9_.:]/.test(c)) return false;
+		if (depth > 0) continue;
+		if (token.kind === "name" || token.kind === "number" || token.kind === "string") continue;
+		if (token.kind === "interpSimple") continue;
+		if (token.kind === "symbol" && (token.text === "." || token.text === ":")) continue;
+		return false;
 	}
-	return depth === 0 && inString === null;
+	return depth === 0;
 }

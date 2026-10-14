@@ -515,7 +515,7 @@ export function emitVariables(e: Emitter): void {
 		// As a comment header is written: a description is the graph file's
 		// text, and a line break in it must not start a line of code.
 		if (variable.description) {
-			for (const line of commentLines(variable.description)) e.push(line);
+			e.push(commentLines(variable.description).join("\n"), undefined, true);
 		}
 		const keyword = variable.const === true ? "const" : "local";
 		e.push(`${keyword} ${ident}${annotation} = ${literalToLuau(variable.default)}`);

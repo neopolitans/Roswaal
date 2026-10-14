@@ -260,7 +260,7 @@ export class Emitter {
 		// opener sits one level shallower than what it opens.
 		const previous = [...this.out].reverse().find((line) => line.text !== "");
 		if (previous && previous.indent >= this.indent) this.blank();
-		this.write(commentLines(comment.text).join("\n"), nodeId);
+		this.write(commentLines(comment.text).join("\n"), nodeId, true);
 	}
 
 	/**
@@ -273,9 +273,27 @@ export class Emitter {
 	 * indent its own body without knowing how deep the statement it lands in
 	 * happens to be.
 	 */
-	push(text: string, node?: string): void {
+	push(text: string, node?: string, comment = false): void {
 		this.headerFor(node);
-		this.write(text, node);
+		if (comment) return this.write(text, node, true);
+		// `f()` then `(x :: Part).Parent = p` on the next line is one call to
+		// Luau: `f()(x :: Part)`. A statement that opens with a bracket after
+		// another in its block says where it starts, as hand-written Luau does.
+		// First in its block there is nothing to run into, and Luau refuses a
+		// `;` with no statement before it.
+		const opens = /^(\t*)\(/.exec(text);
+		const runsOn = opens && this.followsStatement(this.indent + opens[1].length);
+		this.write(runsOn ? text.replace(/^(\t*)/, "$1;") : text, node);
+	}
+
+	/** Whether the last line of code written is a statement at `indent` or deeper, not a block's opener. */
+	private followsStatement(indent: number): boolean {
+		for (let i = this.out.length - 1; i >= 0; i--) {
+			const line = this.out[i];
+			if (line.text === "" || line.comment) continue;
+			return line.indent >= indent;
+		}
+		return false;
 	}
 
 	/**
@@ -287,10 +305,15 @@ export class Emitter {
 	 * level — so the body follows the project's indent setting rather than being
 	 * a tab sitting inside four spaces.
 	 */
-	private write(text: string, node?: string): void {
+	private write(text: string, node?: string, comment = false): void {
 		for (const line of text.split("\n")) {
 			const inner = line.length - line.replace(/^\t+/, "").length;
-			this.out.push({ text: line.slice(inner), indent: this.indent + inner, node });
+			this.out.push({
+				text: line.slice(inner),
+				indent: this.indent + inner,
+				node,
+				...(comment ? { comment: true as const } : {}),
+			});
 		}
 	}
 

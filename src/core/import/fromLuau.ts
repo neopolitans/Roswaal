@@ -260,7 +260,8 @@ class Importer {
 				return { kind: "literal", literal: { t: "boolean", v: e.value } };
 			case "number": {
 				const v = Number(e.raw);
-				return /^-?\d+(\.\d+)?$/.test(e.raw) && Number.isFinite(v)
+				// As written: `0.10` and `2.0` stay so, not `0.1` and `2`.
+				return /^-?\d+(\.\d+)?$/.test(e.raw) && Number.isFinite(v) && String(v) === e.raw
 					? { kind: "literal", literal: { t: "number", v } }
 					: { kind: "literal", literal: { t: "raw", v: e.raw } };
 			}
@@ -270,8 +271,14 @@ class Importer {
 					? { kind: "literal", literal: { t: "string", v: simple[2] } }
 					: { kind: "literal", literal: { t: "raw", v: e.raw } };
 			}
-			case "paren":
+			case "paren": {
+				// Brackets around a call or `...` keep only its first value:
+				// `print((pick()))` passes one. Without them it would pass all.
+				const inner = e.inner.kind;
+				if (inner === "call" || inner === "methodCall" || inner === "varargs")
+					return this.luau(e, graph, below(0));
 				return this.expr(e.inner, scope, graph, near);
+			}
 			case "name": {
 				const ref = scope.get(e.name);
 				if (ref?.kind === "pin") return { kind: "wire", node: ref.node, pin: ref.pin };
