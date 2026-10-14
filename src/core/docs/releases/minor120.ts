@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.179.0",
+		date: "2026-10-15",
+		headline: "Node-Prioritized imports as much as it can as nodes, and Tidy keeps tables as code again.",
+		affects: ["editor"],
+		added: [
+			"**Node-Prioritized, a fourth way to import.** It lays a file out as Tidy does and puts as much as it can in nodes, a table written out as Make Dictionary among them.",
+		],
+		changed: [
+			"**Tidy and Modern keep a table written out as code.** A long table reads better as the table than as a node with a row per key.",
+		],
+	},
+	{
 		version: "0.178.1",
 		date: "2026-10-15",
 		headline: "A module returning a frozen table written over several lines compiles, and the Code panel drags by its tab strip.",

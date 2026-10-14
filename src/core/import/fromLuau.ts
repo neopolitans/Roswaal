@@ -164,14 +164,12 @@ class Importer {
 		private readonly prefix: string,
 		private readonly locals: TopLevelLocals = "variable",
 		private readonly edits: readonly Edit[] = [],
-		/**
-		 * Tidy and Modern: a blank line in the file starts a new row, and a
-		 * table written out is built with Make Dictionary. Verbatim keeps both
-		 * as the file has them.
-		 */
+		/** All but Verbatim: a blank line in the file starts a new row. */
 		private readonly paragraphs = false,
 		/** What the graph runs on, so only nodes that run there are matched. */
 		private readonly target: Target = "roblox",
+		/** Node-Prioritized: a table written out is built with Make Dictionary. */
+		private readonly tables = false,
 	) {}
 
 	private id(): string {
@@ -362,8 +360,7 @@ class Importer {
 			}
 			case "table":
 				return (
-					(this.paragraphs && this.dictionary(e, scope, graph, near)) ||
-					this.luau(e, graph, below(0))
+					(this.tables && this.dictionary(e, scope, graph, near)) || this.luau(e, graph, below(0))
 				);
 			case "paren": {
 				// Brackets around a call or `...` keep only its first value:
@@ -1565,6 +1562,7 @@ export function importLuau(file: string, options: ImportOptions): ImportResult {
 		edits,
 		mode !== "verbatim",
 		options.target,
+		mode === "nodes",
 	);
 	importer.collectComments();
 	const script: NodeScript = {

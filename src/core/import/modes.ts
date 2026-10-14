@@ -4,11 +4,12 @@
  * Every mode keeps the file's behaviour as the Luau spec defines it. The
  * modes differ in how the graph reads:
  *
- * - **Verbatim** keeps the source's shapes: each block one chain of nodes,
- *   and a table written out kept as code.
+ * - **Verbatim** keeps the source's shapes: each block one chain of nodes.
  * - **Tidy**, the default, lays a long block out in rows on a Sequence, cut at
- *   its blank lines (0.167.0), and builds a table written out with Make
- *   Dictionary (0.176.0).
+ *   its blank lines (0.167.0). A table written out stays as code: a long one
+ *   reads better as the table than as a node a row per key.
+ * - **Node-Prioritized** lays out as Tidy does, and puts as much as it can in
+ *   nodes, a table written out as Make Dictionary among them (0.179.0).
  * - **Modern** rewrites to newer syntax where the rewrite is provably the same.
  *
  * A rewrite that cannot be shown to behave the same is not made. And a likely
@@ -20,7 +21,7 @@ import type { Block, Expr, Span } from "../luau/ast.js";
 import { visitBlock } from "../luau/visit.js";
 import type { Target } from "../schema.js";
 
-export type ImportMode = "verbatim" | "tidy" | "modern";
+export type ImportMode = "verbatim" | "tidy" | "modern" | "nodes";
 
 /** What a file-level `local` becomes. */
 export type TopLevelLocals = "variable" | "local";

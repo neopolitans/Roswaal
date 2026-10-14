@@ -1,11 +1,13 @@
 /**
- * Tables written out, imported as Make Dictionary (0.176.0).
+ * Tables written out, imported as Make Dictionary (0.176.0; Node-Prioritized
+ * only since 0.179.0).
  *
- * In Tidy and Modern, `{ name = value }` becomes Make Dictionary with a row
+ * In Node-Prioritized, `{ name = value }` becomes Make Dictionary with a row
  * for each entry, a table inside it a node of its own, and compiles back to
  * the table as written: on one line or a key to a line, brackets where the
- * file had them, and the last separator as it was. Verbatim keeps the table
- * as code, and so does any table whose keys could not come back as written.
+ * file had them, and the last separator as it was. Tidy, Modern and Verbatim
+ * keep the table as code, and so does any table whose keys could not come
+ * back as written.
  */
 
 import { describe, expect, it } from "vitest";
@@ -17,7 +19,7 @@ import type { NodeScript } from "../src/core/schema.js";
 
 const registry = createRegistry();
 
-function imported(src: string, mode: ImportOptions["mode"] = "tidy"): NodeScript {
+function imported(src: string, mode: ImportOptions["mode"] = "nodes"): NodeScript {
 	const { name, scriptClass } = graphNameOf("Test.server.luau");
 	const result = importLuau(src, { name, scriptClass, target: "roblox", idPrefix: "t", mode });
 	if (!result.ok) throw new Error(result.error);
@@ -80,9 +82,11 @@ describe("a table written out", () => {
 		}
 	});
 
-	it("stays as code in Verbatim", () => {
+	it("stays as code in Tidy, Modern and Verbatim", () => {
 		const src = "local t = { a = 1 }\nprint(t)\n";
-		expect(dictionaries(imported(src, "verbatim"))).toHaveLength(0);
-		expect(dictionaries(imported(src, "modern"))).toHaveLength(1);
+		for (const mode of ["tidy", "modern", "verbatim"] as const) {
+			expect(dictionaries(imported(src, mode)), mode).toHaveLength(0);
+		}
+		expect(dictionaries(imported(src, "nodes"))).toHaveLength(1);
 	});
 });

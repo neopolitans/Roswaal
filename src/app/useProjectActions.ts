@@ -8,6 +8,7 @@ import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toBase64 } from "../core/base64.js";
 import { errorMessage } from "../core/errorMessage.js";
+import type { ImportMode } from "../core/import/modes.js";
 import { detectTarget } from "../core/import/modes.js";
 import { projectNameProblem } from "../core/newProject.js";
 import type { NodeScript, Target } from "../core/schema.js";
@@ -50,6 +51,11 @@ export interface ProjectActionsContext {
 	refreshTree: () => Promise<void>;
 	openEntry: (entry: TreeEntry) => Promise<void>;
 	setIntroOpen: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+/** The import mode a dialog's answer names; Tidy for anything else. */
+function modeOf(answer: unknown): ImportMode {
+	return answer === "verbatim" || answer === "modern" || answer === "nodes" ? answer : "tidy";
 }
 
 export function useProjectActions(context: ProjectActionsContext) {
@@ -893,6 +899,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 							{ value: "tidy", label: "Tidy" },
 							{ value: "verbatim", label: "Verbatim" },
 							{ value: "modern", label: "Modern" },
+							{ value: "nodes", label: "Node-Prioritized" },
 						],
 					},
 					...(conflict
@@ -918,7 +925,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 			try {
 				const out = await api.importScript(entry.path, {
 					locals: chosen.locals === "local" ? "local" : "variable",
-					mode: chosen.mode === "verbatim" || chosen.mode === "modern" ? chosen.mode : "tidy",
+					mode: modeOf(chosen.mode),
 					target: conflict
 						? chosen.target === "roblox"
 							? "roblox"
@@ -997,6 +1004,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 							{ value: "tidy", label: "Tidy" },
 							{ value: "verbatim", label: "Verbatim" },
 							{ value: "modern", label: "Modern" },
+							{ value: "nodes", label: "Node-Prioritized" },
 						],
 					},
 				],
@@ -1006,7 +1014,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 			if (typeof answer !== "string") return;
 			const chosen = JSON.parse(answer) as FormAnswers;
 			const locals = chosen.locals === "local" ? "local" : "variable";
-			const mode = chosen.mode === "verbatim" || chosen.mode === "modern" ? chosen.mode : "tidy";
+			const mode = modeOf(chosen.mode);
 			let statements = 0;
 			let asNodes = 0;
 			let first: { path: string; script: NodeScript } | undefined;
