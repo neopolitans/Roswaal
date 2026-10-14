@@ -41,6 +41,8 @@ export interface TreeEntry {
 	/** `wally` is `wally.toml` and `package` a dependency under it; see the daemon's copy. */
 	kind: "directory" | "nodescript" | "nodemap" | "luau" | "luaurc" | "wally" | "package";
 	generatedFrom?: string;
+	/** On hand-written Luau already imported: the graph Reimport replaces. */
+	graph?: string;
 	/** A graph's functions, as the file on disk has them. */
 	functions?: FunctionInfo[];
 	children?: TreeEntry[];
@@ -372,7 +374,13 @@ export const api = {
 	/** A `.luau` file read into a new graph; the file itself is left alone. */
 	importScript: (
 		path: string,
-		settings: { locals?: TopLevelLocals; mode?: ImportMode; target?: Target } = {},
+		settings: {
+			locals?: TopLevelLocals;
+			mode?: ImportMode;
+			target?: Target;
+			/** Over the graph an earlier import of this file made. */
+			replace?: boolean;
+		} = {},
 	) =>
 		post<{ path: string; script: NodeScript; report: ImportReport }>("/api/script/import", {
 			path,

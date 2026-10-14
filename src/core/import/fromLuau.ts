@@ -1573,6 +1573,7 @@ export function importLuau(file: string, options: ImportOptions): ImportResult {
 		target: options.target,
 		typecheck: typecheckOf(src),
 		asWritten: true,
+		importedAs: { mode, locals: options.locals ?? "variable" },
 	};
 	const beginId = `${prefix}-begin`;
 	const begin: GraphNode = { id: beginId, def: "script.begin", x: 0, y: 120 };

@@ -853,14 +853,24 @@ export function useProjectActions(context: ProjectActionsContext) {
 			const projectTarget = project?.config.target ?? "roblox";
 			// Asked only when the file and the project disagree.
 			const conflict = detected !== undefined && detected !== projectTarget;
+			// Imported before: offered again with the settings it was given.
+			const again = entry.graph;
+			const before = again
+				? await api
+						.readScript(again)
+						.then((r) => r.script.importedAs)
+						.catch(() => undefined)
+				: undefined;
+			const graphName = again?.split("/").pop();
 			const answer = await ask({
 				kind: "form",
-				title: `Import ${entry.name} as a graph?`,
-				message:
-					"Turning Luau into a graph can be made safer but never certain. Test the graph before you rely on it.",
+				title: again ? `Reimport ${entry.name} as a graph?` : `Import ${entry.name} as a graph?`,
+				message: again
+					? `This replaces ${graphName}, and any change made to it since.`
+					: "Turning Luau into a graph can be made safer but never certain. Test the graph before you rely on it.",
 				points: [
 					"It can compile and still behave differently, such as a call running at another moment.",
-					"Comments, blank lines and formatting are not kept.",
+					"Comments become comment boxes. Spacing and formatting are the compiler's.",
 					"What has no node stays as Luau text, which the graph does not check.",
 				],
 				fields: [
@@ -868,7 +878,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 						id: "locals",
 						kind: "choice",
 						label: "File-level locals become",
-						value: "variable",
+						value: before?.locals ?? "variable",
 						options: [
 							{ value: "variable", label: "Script variables" },
 							{ value: "local", label: "Declare Locals" },
@@ -878,7 +888,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 						id: "mode",
 						kind: "choice",
 						label: "Reads as (every mode behaves the same)",
-						value: "tidy",
+						value: before?.mode ?? "tidy",
 						options: [
 							{ value: "tidy", label: "Tidy" },
 							{ value: "verbatim", label: "Verbatim" },
@@ -900,7 +910,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 							]
 						: []),
 				],
-				confirmLabel: "Import",
+				confirmLabel: again ? "Reimport" : "Import",
 				icon: "graph",
 			});
 			if (typeof answer !== "string") return;
@@ -914,6 +924,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 							? "roblox"
 							: "lune"
 						: (detected ?? undefined),
+					...(again ? { replace: true } : {}),
 				});
 				await refreshTree();
 				store.open(out.path, out.script);
@@ -934,7 +945,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 					...findings.map((f) => `Line ${f.line}: ${f.message}`),
 					`${entry.name} is unchanged; compiling over it asks for force.`,
 				];
-				notify(`${entry.name} imported`, lines.join(" "));
+				notify(`${entry.name} ${again ? "reimported" : "imported"}`, lines.join(" "));
 			} catch (err) {
 				notify(`Could not import ${entry.name}`, errorMessage(err));
 			}

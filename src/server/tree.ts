@@ -17,7 +17,7 @@ import type { OpenProject } from "./config.js";
 import { collectMaps, readMap } from "./documents.js";
 import { fs, path } from "./host.js";
 import { mappedOutputFolders } from "./mapFolders.js";
-import { generatedIndex } from "./outputs.js";
+import { generatedIndex, importGraphPath } from "./outputs.js";
 import { safeJoin, tidyPath, toPosix } from "./paths.js";
 
 /**
@@ -40,6 +40,11 @@ export interface TreeEntry {
 	kind: "directory" | "nodescript" | "nodemap" | "luau" | "luaurc" | "wally" | "package";
 	/** Set on generated Luau: the graph it came from. */
 	generatedFrom?: string;
+	/**
+	 * Set on Luau written by hand whose graph is where Import as graph puts
+	 * it: the graph, which Reimport replaces.
+	 */
+	graph?: string;
 	/** Set on a graph with functions, which the tree lists under it. */
 	functions?: FunctionInfo[];
 	children?: TreeEntry[];
@@ -84,6 +89,7 @@ export async function buildTree(project: OpenProject): Promise<TreeEntry[]> {
 		keepEmptyUnder,
 		await mappedFolders(project),
 	);
+	await markImported(project, tree);
 	const wally = await wallyEntry(project);
 	if (!wally) return tree;
 	// It opens like a folder, so it is listed with the folders: after them and
@@ -91,6 +97,20 @@ export async function buildTree(project: OpenProject): Promise<TreeEntry[]> {
 	// sitting under a file as though it were inside it.
 	const files = tree.findIndex((e) => e.kind !== "directory");
 	return files === -1 ? [...tree, wally] : [...tree.slice(0, files), wally, ...tree.slice(files)];
+}
+
+/** Marks each hand-written Luau file whose import graph exists with that graph. */
+async function markImported(project: OpenProject, entries: TreeEntry[]): Promise<void> {
+	for (const entry of entries) {
+		if (entry.children) await markImported(project, entry.children);
+		if (entry.kind !== "luau" || entry.generatedFrom) continue;
+		const graph = importGraphPath(project, entry.path);
+		const there = await fs
+			.stat(safeJoin(project.root, graph))
+			.then(() => true)
+			.catch(() => false);
+		if (there) entry.graph = graph;
+	}
 }
 
 /**

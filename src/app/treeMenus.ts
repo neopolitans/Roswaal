@@ -87,7 +87,7 @@ export function packageMenu(
  * something in it.
  */
 export function fileMenu(
-	entry: { kind: string; generatedFrom?: string },
+	entry: { kind: string; generatedFrom?: string; graph?: string },
 	ctx: TreeMenuContext,
 ): TreeMenuEntry[][] {
 	return [
@@ -96,7 +96,13 @@ export function fileMenu(
 			ctx.holdsGraphs && { action: "newMap", label: "New map here", icon: "map" },
 			ctx.canImport &&
 				entry.kind === "luau" &&
-				!entry.generatedFrom && { action: "import", label: "Import as graph", icon: "graph" },
+				!entry.generatedFrom && {
+					action: "import",
+					// Imported already, and still written by hand: imported again
+					// over that graph, to try another setting.
+					label: entry.graph ? "Reimport as graph" : "Import as graph",
+					icon: "graph",
+				},
 			{ action: "newFolder", label: "New folder", icon: "newFolder" },
 		]),
 		[

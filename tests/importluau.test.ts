@@ -693,4 +693,62 @@ describe("importing from the project tree", () => {
 			"local G = {}\nreturn G\n",
 		);
 	});
+
+	it("imports over its own import while the file is written by hand", async () => {
+		const api = await session();
+		await api.handle("POST", "/script/import", { body: { path: "src/Shared/Greeter.luau" } });
+		const out = (await api.handle("POST", "/script/import", {
+			body: { path: "src/Shared/Greeter.luau", mode: "verbatim", locals: "local", replace: true },
+		})) as { script: NodeScript };
+		expect(out.script.importedAs).toEqual({ mode: "verbatim", locals: "local" });
+		const saved = JSON.parse(
+			await readFile(path.join(root, ".roswaal/scripts/Shared/Greeter.nodescript"), "utf8"),
+		);
+		expect(saved.importedAs).toEqual({ mode: "verbatim", locals: "local" });
+	});
+
+	it("marks a file imported already with its graph, for Reimport", async () => {
+		const api = await session();
+		const find = async () => {
+			const { tree } = (await api.handle("GET", "/tree", {})) as { tree: TreeLike[] };
+			return flatten(tree).find((e) => e.path === "src/Shared/Greeter.luau");
+		};
+		expect((await find())?.graph).toBeUndefined();
+		await api.handle("POST", "/script/import", { body: { path: "src/Shared/Greeter.luau" } });
+		expect((await find())?.graph).toBe(".roswaal/scripts/Shared/Greeter.nodescript");
+	});
+
+	it("never imports over a graph not imported, or once compiled over the file", async () => {
+		const api = await session();
+		const created = (await api.handle("POST", "/script/create", {
+			body: { dir: ".roswaal/scripts/Shared", name: "Greeter", scriptClass: "ModuleScript" },
+		})) as { path: string };
+		expect(created.path).toBe(".roswaal/scripts/Shared/Greeter.nodescript");
+		await expect(
+			api.handle("POST", "/script/import", {
+				body: { path: "src/Shared/Greeter.luau", replace: true },
+			}),
+		).rejects.toThrow(/was not imported/);
+
+		await rm(path.join(root, created.path));
+		await api.handle("POST", "/script/import", { body: { path: "src/Shared/Greeter.luau" } });
+		await api.handle("POST", "/compile", {
+			body: { path: ".roswaal/scripts/Shared/Greeter.nodescript", write: true, force: true },
+		});
+		await expect(
+			api.handle("POST", "/script/import", {
+				body: { path: "src/Shared/Greeter.luau", replace: true },
+			}),
+		).rejects.toThrow(/is compiled from/);
+	});
 });
+
+interface TreeLike {
+	path: string;
+	graph?: string;
+	children?: TreeLike[];
+}
+
+function flatten(entries: TreeLike[]): TreeLike[] {
+	return entries.flatMap((e) => [e, ...flatten(e.children ?? [])]);
+}

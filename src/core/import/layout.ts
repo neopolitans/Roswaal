@@ -234,6 +234,17 @@ function layoutView(
 			continue;
 		}
 		const size = treeSize(node.id);
+		// Fed by the step a lane ends on (`return table.freeze(M)`): beside
+		// that step, rather than below everything with a wire back across.
+		const step = view.links
+			.filter((l) => l.to.node === node.id)
+			.map((l) => byId.get(l.from.node))
+			.find((n) => n && isExec(n) && placed.has(n.id) && execTargets(n.id).length === 0);
+		const at = step && placed.get(step.id);
+		if (step && at) {
+			placeTree(node.id, at.x + box(step.id).w + GAP_X + size.w, at.y);
+			continue;
+		}
 		placeTree(node.id, x + size.w, bottom + (headed.get(node.id) ?? 0));
 		x += size.w + GAP_X;
 	}

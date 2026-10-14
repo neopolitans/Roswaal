@@ -39,6 +39,7 @@ import { emptyScript, type NodeDef, type NodeScript, type Target } from "../core
 import { errorMessage, HttpError, UserError } from "./errors.js";
 import { path } from "./host.js";
 import { createProject } from "./newProject.js";
+import { importGraphPath } from "./outputs.js";
 import { toPosix } from "./paths.js";
 import {
 	buildTree,
@@ -676,25 +677,35 @@ export class ApiSession {
 					locals?: TopLevelLocals;
 					mode?: ImportMode;
 					target?: Target;
+					/** Import over the graph an earlier import of this file made. */
+					replace?: boolean;
 				}>(req);
 				const luauPath = need(body.path, "path");
 				const fileName = path.posix.basename(luauPath);
 				const { name, scriptClass } = graphNameOf(fileName);
-				const outDir = toPosix(project.config.outDir);
-				const dir = path.posix.dirname(luauPath);
-				const within = dir.startsWith(`${outDir}/`) ? dir.slice(outDir.length + 1) : "";
-				const relPath = path.posix.join(project.config.sourceDir, within, `${name}.nodescript`);
-				const taken = await readText(project, relPath).then(
-					() => true,
-					() => false,
-				);
-				if (taken)
+				const relPath = importGraphPath(project, luauPath);
+				const source = await readText(project, luauPath);
+				const existing = await readScript(project, relPath).catch(() => null);
+				if (existing && !body.replace)
 					throw new HttpError(
 						409,
 						`${relPath} already exists. Move or rename it to import ${fileName}.`,
 					);
+				// Only over a graph an import made, and only while the file is
+				// still the one written by hand: once the graph is compiled over
+				// it, the file is the graph's.
+				if (existing && existing.asWritten !== true)
+					throw new HttpError(
+						409,
+						`${relPath} was not imported from ${fileName}, so it is not imported over. Move or rename it first.`,
+					);
+				if (existing && /^-- roswaal-graph: /m.test(source.slice(0, 512)))
+					throw new HttpError(
+						409,
+						`${fileName} is compiled from ${relPath} now. Change the graph instead.`,
+					);
 
-				const result = importLuau(await readText(project, luauPath), {
+				const result = importLuau(source, {
 					name,
 					scriptClass,
 					target: body.target ?? project.config.target,

@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.177.0",
+		date: "2026-10-14",
+		headline: "Reimport as graph tries another import setting on a file not yet compiled over.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Reimport as graph.** A Luau file imported already, and still the one written by hand, offers Reimport as graph in its menu. It replaces the graph, with the settings it was last imported with chosen to start, so Tidy, Verbatim and Modern can be compared before one is compiled over the file.",
+		],
+		changed: [
+			"**The import dialog says what happens to comments.** They become comment boxes.",
+			"**An imported Module Exports fed by the last step of a row sits beside it.** It was set out below the graph, with a wire back across it.",
+		],
+	},
+	{
 		version: "0.176.0",
 		date: "2026-10-14",
 		headline: "Import builds a table written out with Make Dictionary in Tidy and Modern.",

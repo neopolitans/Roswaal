@@ -561,6 +561,11 @@ export interface NodeScript {
 	 * the mode line. Set by Import as graph. Absent on any other graph.
 	 */
 	asWritten?: true;
+	/**
+	 * The settings Import as graph was given, which Reimport offers again.
+	 * Absent on a graph not imported, and on one imported before 0.177.0.
+	 */
+	importedAs?: { mode: "verbatim" | "tidy" | "modern"; locals: "variable" | "local" };
 	nodes: GraphNode[];
 	links: Link[];
 	comments: Comment[];

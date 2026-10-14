@@ -7,6 +7,7 @@
  */
 
 import { outputFileName } from "../core/compiler/index.js";
+import { graphNameOf } from "../core/import/fromLuau.js";
 import type { OpenProject } from "./config.js";
 import { collectScripts, readScript } from "./documents.js";
 import { walkFiles } from "./files.js";
@@ -28,6 +29,19 @@ export async function generatedIndex(project: OpenProject): Promise<Map<string, 
 		if (match) map.set(file.path, match[1].trim());
 	}
 	return map;
+}
+
+/**
+ * Where Import as graph puts the graph for the Luau file at `luauPath`: under
+ * `sourceDir`, in the folder that mirrors the file's under `outDir`, named as
+ * the file's script. Project-relative.
+ */
+export function importGraphPath(project: OpenProject, luauPath: string): string {
+	const { name } = graphNameOf(path.posix.basename(luauPath));
+	const outDir = toPosix(project.config.outDir);
+	const dir = path.posix.dirname(luauPath);
+	const within = dir.startsWith(`${outDir}/`) ? dir.slice(outDir.length + 1) : "";
+	return path.posix.join(project.config.sourceDir, within, `${name}.nodescript`);
 }
 
 /**

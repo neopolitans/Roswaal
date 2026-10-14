@@ -256,6 +256,9 @@ export function serialiseScript(script: NodeScript): string {
 		// The author's order, which is the order they are written at the top.
 		...((script.services ?? []).length > 0 ? { services: script.services } : {}),
 		...(script.asWritten === true ? { asWritten: true } : {}),
+		...(script.importedAs
+			? { importedAs: { mode: script.importedAs.mode, locals: script.importedAs.locals } }
+			: {}),
 		nodes: [...script.nodes]
 			.sort((a, b) => a.id.localeCompare(b.id))
 			.map((n) => ({

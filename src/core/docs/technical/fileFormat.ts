@@ -80,6 +80,11 @@ export function fileFormatPage(): DocPage {
 						"boolean, optional",
 						"Names and types are written as the graph gives them, never renamed. Set on a graph imported from source; absent otherwise.",
 					],
+					[
+						"`importedAs`",
+						"object, optional",
+						'The settings it was imported with, `{ "mode", "locals" }`, offered again when it is imported over.',
+					],
 					["`nodes`", "array", "Every node, in every graph of the file (§9.2)."],
 					["`links`", "array", "Every wire (§9.2)."],
 					["`comments`", "array", "Every comment (§9.4)."],
