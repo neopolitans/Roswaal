@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.170.2",
+		date: "2026-10-14",
+		headline: "Node Design types a node's title where its header draws it.",
+		affects: ["designer"],
+		fixed: [
+			"**A node's title in Node Design no longer runs over its icon.** The title is typed on the header, and the text started at the node's left edge, under the corner tab. It now starts where the header draws the title.",
+		],
+	},
+	{
 		version: "0.170.1",
 		date: "2026-10-14",
 		headline: "The tour shows the editor itself on each screen, and a menu for each kind of file.",

@@ -28,6 +28,7 @@ import {
 	type PointerEvent as ReactPointerEvent,
 	useCallback,
 	useEffect,
+	useLayoutEffect,
 	useMemo,
 	useRef,
 	useState,
@@ -261,6 +262,27 @@ export function NodeEditor({
 	// beside them starts where they end. Their width changes with the layout:
 	// on a tablet held upright they carry Logic's switch as well.
 	const root = useRef<HTMLDivElement>(null);
+
+	// The title is typed where the header's own title is drawn: after the
+	// corner tab, or after a value's glyph, or a code node's mark. Measured from
+	// the header the node really drew rather than worked out again here, so
+	// the text sits on the hidden title wherever the header's design puts it.
+	const titleEdit = useRef<HTMLInputElement>(null);
+	useLayoutEffect(() => {
+		const input = titleEdit.current;
+		const title = input?.parentElement?.querySelector<HTMLElement>(".node .head .title");
+		const drawn = title?.closest<HTMLElement>(".node");
+		if (!input || !title || !drawn) return;
+		let left = drawn.clientLeft;
+		for (
+			let at: HTMLElement | null = title;
+			at && at !== drawn;
+			at = at.offsetParent as HTMLElement | null
+		) {
+			left += at.offsetLeft;
+		}
+		input.style.paddingLeft = `${left}px`;
+	});
 	const [toolsW, setToolsW] = useState(0);
 	useEffect(() => {
 		const tools = root.current?.querySelector<HTMLElement>(".logic-canvas .floating-tools");
@@ -882,6 +904,7 @@ export function NodeEditor({
 					    so its title is in the details instead. */}
 						{!compact && (
 							<input
+								ref={titleEdit}
 								className="node-title-edit"
 								value={draft.title}
 								placeholder="Title"
