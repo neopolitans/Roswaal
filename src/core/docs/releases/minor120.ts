@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.166.0",
+		date: "2026-10-14",
+		headline: "An imported graph keeps the file's names and types.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Names stay as written.** An imported graph no longer renames a local that shadows another, drops a leading underscore, or turns `self` into `self_`, so Luau kept as text still reads the variable it read in the file. A name that hides a global, a service or a module is kept and flagged on its node.",
+			"**Types stay as written, with or without a mode line.** Parameters, returns and locals keep the annotations the file gave them and gain none it did not: no `: ()` on a function that said nothing, no `= nil` on `local conn: RBXScriptConnection`, and a table type set out over several lines is written on one rather than as `any`.",
+			"**Loops stay as written.** `for k, v in t` is no longer turned into `pairs(t)`, and `for k in t` keeps its one variable.",
+		],
+	},
+	{
 		version: "0.165.1",
 		date: "2026-10-14",
 		headline: "Imported Luau compiles back as it was written in four more places.",

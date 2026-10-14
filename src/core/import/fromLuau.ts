@@ -18,6 +18,7 @@
  */
 
 import type { Binding, Block, Expr, FunctionBody, Stat } from "../luau/ast.js";
+import { tokenize } from "../luau/lexer.js";
 import { parseChunk } from "../luau/parser.js";
 import {
 	emptyScript,
@@ -227,10 +228,31 @@ class Importer {
 	// -- types --------------------------------------------------------------
 
 	private typeText(binding: Binding): string | undefined {
-		return binding.type ? this.text(binding.type).trim() : undefined;
+		return binding.type ? this.typeOf(binding.type) : undefined;
 	}
 
-	private signature(func: FunctionBody): { params: Sig[]; returns: Sig[] } | undefined {
+	/**
+	 * A type as written, on one line: an annotation is written mid-line, so
+	 * a table type set out over several, or with comments in it, is the same
+	 * type said on one.
+	 */
+	private typeOf(span: { start: number; end: number }): string {
+		const text = this.text(span).trim();
+		if (!text.includes("\n") && !text.includes("--")) return text;
+		return tokenize(text)
+			.filter((t) => t.kind !== "comment" && t.kind !== "eof")
+			.map((t) => (t.kind === "whitespace" ? " " : t.text))
+			.join("")
+			.replace(/ +/g, " ")
+			.replace(/,\s*([})\]])/g, " $1")
+			.replace(/([([]) /g, "$1")
+			.replace(/ ([)\]])/g, "$1")
+			.trim();
+	}
+
+	private signature(
+		func: FunctionBody,
+	): { params: Sig[]; returns: Sig[]; returnsWritten?: false } | undefined {
 		if (func.varargs || func.generics.length > 0) return undefined;
 		const params = func.params.map((p) => ({
 			name: p.name,
@@ -238,14 +260,14 @@ class Importer {
 		}));
 		const returns = (func.returns?.types ?? []).map((t, i) => ({
 			name: i === 0 ? "result" : `value${i + 1}`,
-			type: this.text(t).trim(),
+			type: this.typeOf(t),
 		}));
 		if (func.returns?.tail) return undefined;
 		// Declare Function writes `: ()` for no returns, which is a promise.
 		// A function that returns values without saying what they are cannot
 		// make it, so it stays as code until the importer can infer them.
 		if (!func.returns && returnsValues(func.body)) return undefined;
-		return { params, returns };
+		return { params, returns, ...(func.returns ? {} : { returnsWritten: false as const }) };
 	}
 
 	// -- expressions --------------------------------------------------------
@@ -450,12 +472,9 @@ class Importer {
 					const id = this.node("variable.init", graph, at, {
 						config: { variable, name: binding.name, ...(type ? { type } : {}) },
 					});
-					this.feed(
-						stat.values[0]
-							? this.expr(stat.values[0], scope, graph, at)
-							: { kind: "literal", literal: { t: "nil" } },
-						{ node: id, pin: "value" },
-					);
+					// No value is left unset: `local conn: RBXScriptConnection`.
+					if (stat.values[0])
+						this.feed(this.expr(stat.values[0], scope, graph, at), { node: id, pin: "value" });
 					this.chain(tail, id);
 					scope.set(binding.name, { kind: "variable", id: variable, name: binding.name, type });
 					return counted({ node: id, pin: "then" });
@@ -658,7 +677,13 @@ class Importer {
 			}
 			const [k, v] = stat.variables;
 			id = this.node(plan.def, graph, at, {
-				config: { keyName: k?.name, ...(v ? { valueName: v.name } : {}) },
+				config: {
+					keyName: k?.name,
+					...(v ? { valueName: v.name } : {}),
+					...(plan.direct ? { iterate: "direct" } : {}),
+					...(k?.type ? { keyType: this.typeOf(k.type) } : {}),
+					...(v?.type ? { valueType: this.typeOf(v.type) } : {}),
+				},
 			});
 			this.feed(this.expr(plan.table, scope, graph, at), { node: id, pin: "table" });
 			if (k) inner.set(k.name, { kind: "pin", node: id, pin: plan.key });
@@ -676,7 +701,7 @@ class Importer {
 	/** `pairs(t)`, `ipairs(t)` or a bare `t`, as the loop node and its key pin. */
 	private iteration(
 		stat: Extract<Stat, { kind: "genericFor" }>,
-	): { def: string; key: string; table: Expr } | undefined {
+	): { def: string; key: string; table: Expr; direct?: true } | undefined {
 		if (stat.values.length !== 1 || stat.variables.length > 2) return undefined;
 		const value = stat.values[0];
 		if (value.kind === "call" && value.callee.kind === "name" && value.args.length === 1) {
@@ -687,7 +712,7 @@ class Importer {
 			return undefined;
 		}
 		if (value.kind === "call" || value.kind === "methodCall") return undefined;
-		return { def: "flow.forEach", key: "key", table: value };
+		return { def: "flow.forEach", key: "key", table: value, direct: true };
 	}
 
 	private callStat(
@@ -768,6 +793,7 @@ class Importer {
 				name,
 				params: sig.params,
 				returns: sig.returns,
+				...(sig.returnsWritten === false ? { returnsWritten: false } : {}),
 				...(method ? { method: true } : {}),
 			},
 		});
@@ -853,6 +879,7 @@ export function importLuau(file: string, options: ImportOptions): ImportResult {
 		scriptClass: options.scriptClass,
 		target: options.target,
 		typecheck: typecheckOf(src),
+		asWritten: true,
 	};
 	const beginId = `${prefix}-begin`;
 	const begin: GraphNode = { id: beginId, def: "script.begin", x: 0, y: 120 };

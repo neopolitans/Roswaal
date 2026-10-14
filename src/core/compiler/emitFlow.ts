@@ -385,7 +385,7 @@ function declareFunction(e: Emitter, r: ResolvedNode, scope: Scope): string | un
 	// its own and cannot collide with one. A method is still reached as a
 	// field when it is read as a value; only its declaration and its calls
 	// write the colon.
-	const ident = owner ? `${owner}.${name}` : e.names.unique(name, "fn");
+	const ident = owner ? `${owner}.${name}` : e.declareName(name, "fn", id);
 	// Set before the body is walked, so the function can call itself and
 	// so a Get Function inside it resolves.
 	e.functionNames.set(id, ident);
@@ -492,14 +492,15 @@ function declareLocal(e: Emitter, r: ResolvedNode, scope: Scope): string | undef
 		);
 	}
 	const wanted = e.literalText(r, "name") || r.node.label || "local";
-	const ident = e.names.unique(wanted, "local");
+	const ident = e.declareName(wanted, "local", id);
 	// The type, when one was given, on the terms every other annotation
 	// has: written when the mode line asks for annotations.
 	const declared = localTypeOf(r.node.config);
 	let annotation = "";
-	if (e.annotates && declared !== "" && declared !== "any") {
-		const written = luauType(declared);
-		if (written === "any") {
+	// Kept as written, even `any` is said: the author wrote it.
+	if (e.asWritten ? declared !== "" : e.annotates && declared !== "" && declared !== "any") {
+		const written = declared.trim() === "any" ? "any" : luauType(declared);
+		if (written === "any" && declared.trim() !== "any") {
 			e.error(`"${declared}" is not a type Roswaal can write. Check its brackets are closed.`, id);
 		} else {
 			annotation = `: ${written}`;
@@ -509,7 +510,11 @@ function declareLocal(e: Emitter, r: ResolvedNode, scope: Scope): string | undef
 	// is an error the language raises rather than one Roswaal has to.
 	// Only the keyword changes; everything downstream reads a local.
 	const keyword = isConstLocal(r.node.config) ? "const" : "local";
-	e.push(`${keyword} ${ident}${annotation} = ${value}`, id);
+	// `local conn: RBXScriptConnection` is how it was written; ` = nil` is
+	// the same binding, said again.
+	const unset =
+		e.asWritten && r.node.literals?.value === undefined && !e.index.sourceOf(id, "value");
+	e.push(`${keyword} ${ident}${annotation}${unset ? "" : ` = ${value}`}`, id);
 	scope.bindings.set(`${id}/ref`, ident);
 	return e.index.execTarget(id, "then");
 }
@@ -519,7 +524,11 @@ function initialiseVariable(e: Emitter, r: ResolvedNode, scope: Scope): string |
 	const id = r.node.id;
 	const ref = variableRefOf(r.node.config);
 	const ident = ref.variable ? e.variableNames.get(ref.variable) : undefined;
-	const value = e.resolveInput(r, e.pin(r, "value", "in"), scope);
+	// Kept as written, a declaration with no value is left without one:
+	// `local conn: RBXScriptConnection`.
+	const unset =
+		e.asWritten && r.node.literals?.value === undefined && !e.index.sourceOf(id, "value");
+	const value = unset ? "nil" : e.resolveInput(r, e.pin(r, "value", "in"), scope);
 	if (!ident || !ref.variable) {
 		e.error(
 			ref.variable
@@ -552,9 +561,15 @@ function initialiseVariable(e: Emitter, r: ResolvedNode, scope: Scope): string |
 		return e.index.execTarget(id, "then");
 	}
 	const variable = (e.script.variables ?? []).find((v) => v.id === ref.variable);
-	const annotation =
-		e.annotates && variable?.type && variable.type !== "any" ? `: ${luauType(variable.type)}` : "";
-	e.push(`local ${ident}${annotation} = ${value}`, id);
+	// Kept as written, the type is the one written where it was declared,
+	// which this node holds; `any` included, and none when none was.
+	const written = typeof r.node.config?.type === "string" ? r.node.config.type : "";
+	const annotation = e.asWritten
+		? written && `: ${written.trim() === "any" ? "any" : luauType(written)}`
+		: e.annotates && variable?.type && variable.type !== "any"
+			? `: ${luauType(variable.type)}`
+			: "";
+	e.push(`local ${ident}${annotation}${unset ? "" : ` = ${value}`}`, id);
 	e.declaredSoFar.add(ref.variable);
 	scope.bindings.set(`${id}/value`, ident);
 	return e.index.execTarget(id, "then");
@@ -631,7 +646,7 @@ function forRange(e: Emitter, r: ResolvedNode, scope: Scope): string | undefined
 	// The loop variable belongs to the body, so the next loop in the
 	// same block may call its own counter `i` as well.
 	e.names.push();
-	const idx = e.names.unique(r.node.label || "i", "i");
+	const idx = e.declareName(r.node.label || "i", "i", id);
 	body.bindings.set(`${id}/index`, idx);
 	const stepPart = step === "1" ? "" : `, ${step}`;
 	e.push(`for ${idx} = ${first}, ${last}${stepPart} do`, id);
@@ -664,8 +679,12 @@ function forPairs(e: Emitter, r: ResolvedNode, scope: Scope, handler: string): s
 	// Both belong to the body, for the same reason a numeric loop's
 	// counter does.
 	e.names.push();
-	const k = e.names.unique(names.key ?? (isArray ? "i" : "key"), "key");
-	const v = e.names.unique(names.value ?? "value", "value");
+	const k = e.declareName(names.key ?? (isArray ? "i" : "key"), "key", id);
+	// `for key in t` names one variable. Kept as written, a loop with no
+	// value named and nothing reading it names one too.
+	const oneName =
+		e.asWritten && names.value === undefined && e.index.readersOf(id, "value").length === 0;
+	const v = oneName ? "" : e.declareName(names.value ?? "value", "value", id);
 	body.bindings.set(`${id}/${keyPin}`, k);
 	body.bindings.set(`${id}/value`, v);
 	// Luau takes an annotation on a `for` binding, so a typed loop
@@ -678,12 +697,13 @@ function forPairs(e: Emitter, r: ResolvedNode, scope: Scope, handler: string): s
 	// when the mode line asks for them.
 	const types = loopTypes(r.node.config ?? {});
 	const bind = (ident: string, type: string | undefined) =>
-		e.annotates && type ? `${ident}: ${luauType(type)}` : ident;
+		(e.annotates || e.asWritten) && type ? `${ident}: ${luauType(type)}` : ident;
 	const keyBinding = isArray ? k : bind(k, types.key);
-	e.push(
-		`for ${keyBinding}, ${bind(v, types.value)} in ${isArray ? "ipairs" : "pairs"}(${source}) do`,
-		id,
-	);
+	const bindings = oneName ? keyBinding : `${keyBinding}, ${bind(v, types.value)}`;
+	// `for k, v in t`, Luau's own iteration, as an import found it.
+	const over =
+		r.node.config?.iterate === "direct" ? source : `${isArray ? "ipairs" : "pairs"}(${source})`;
+	e.push(`for ${bindings} in ${over} do`, id);
 	e.indent++;
 	e.walk(e.index.execTarget(id, "body"), body);
 	e.indent--;

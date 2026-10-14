@@ -504,14 +504,16 @@ export function emitVariables(e: Emitter): void {
 	// Two passes: claim every name before emitting, so a variable declared
 	// later cannot be renamed out from under an earlier one.
 	for (const variable of variables) {
-		e.variableNames.set(variable.id, e.names.unique(variable.name || "variable", "variable"));
+		e.variableNames.set(variable.id, e.declareName(variable.name || "variable", "variable"));
 	}
 	let written = 0;
 	for (const variable of variables) {
 		if (e.initialisedLater.has(variable.id)) continue;
 		const ident = e.variableNames.get(variable.id)!;
 		const annotation =
-			e.annotates && variable.type && variable.type !== "any" ? `: ${luauType(variable.type)}` : "";
+			(e.annotates || e.asWritten) && variable.type && variable.type !== "any"
+				? `: ${luauType(variable.type)}`
+				: "";
 		// As a comment header is written: a description is the graph file's
 		// text, and a line break in it must not start a line of code.
 		if (variable.description) {
@@ -536,7 +538,7 @@ export function emitFunctions(e: Emitter, root: Scope): void {
 	// Reserve every function name up front so mutual recursion resolves.
 	for (const fn of entries) {
 		const sig = signatureOf(fn.node.config);
-		const name = e.names.unique(sig.name || fn.node.label || "fn", "fn");
+		const name = e.declareName(sig.name || fn.node.label || "fn", "fn", fn.node.id);
 		e.functionNames.set(fn.node.id, name);
 	}
 
@@ -580,13 +582,18 @@ export function luauSignature(
 	body: Scope,
 ): { params: string; returns: string } {
 	const params = (sig.params ?? []).map((p, i) => {
-		const ident = e.names.unique(p.name || `arg${i + 1}`, `arg${i + 1}`);
+		const ident = e.declareName(p.name || `arg${i + 1}`, `arg${i + 1}`, ownerId);
 		body.bindings.set(`${ownerId}/p${i}`, ident);
+		// Kept as written, a parameter has the type it was given or none.
+		if (e.asWritten) return p.type ? `${ident}: ${luauType(p.type)}` : ident;
 		return e.annotates ? `${ident}: ${luauType(p.type)}` : ident;
 	});
-	if (!e.annotates) return { params: params.join(", "), returns: "" };
-
 	const returns = sig.returns ?? [];
+	const unwritten = e.asWritten
+		? returns.length === 0 && sig.returnsWritten === false
+		: !e.annotates;
+	if (unwritten) return { params: params.join(", "), returns: "" };
+
 	const written =
 		returns.length === 0
 			? "()"

@@ -545,6 +545,13 @@ export interface NodeScript {
 	 * 0.152.0, and on any that declares none.
 	 */
 	services?: string[];
+	/**
+	 * Names and types are written as the graph gives them, as the Luau it
+	 * was imported from had them: a name is never renumbered or tidied
+	 * (`_unused`, `self`, a shadowing `n`), and a type is written whatever
+	 * the mode line. Set by Import as graph. Absent on any other graph.
+	 */
+	asWritten?: true;
 	nodes: GraphNode[];
 	links: Link[];
 	comments: Comment[];

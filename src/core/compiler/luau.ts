@@ -28,6 +28,14 @@ export function isIdentifier(s: string): boolean {
 }
 
 /**
+ * A name Luau accepts as a local, whatever Roswaal would pick: `self`, `type`
+ * and `_unused` included. What a graph that keeps its names may declare.
+ */
+export function isLuauName(s: string): boolean {
+	return IDENT_RE.test(s) && !RESERVED_WORDS.has(s);
+}
+
+/**
  * A name that may follow a dot or label a table type's field: `t.type`,
  * `{ type: string }`. Wider than `isIdentifier`, because a contextual word
  * such as `type` is an ordinary field name; only Lua's keywords are refused.
@@ -129,7 +137,34 @@ export class NameScope {
 
 	/** Whether this block, or any block enclosing it, has claimed `name`. */
 	isTaken(name: string): boolean {
-		return this.frames.some((frame) => frame.has(name));
+		return this.frames.some((frame) => frame.has(name)) || this.kept.has(name);
+	}
+
+	/**
+	 * Names a graph gives as written (`asWritten`), anywhere in the file.
+	 * A name Roswaal makes up never takes one, so a generated local cannot be
+	 * hidden by an imported one further in, or hide one.
+	 */
+	private kept = new Set<string>();
+	/** Which of those have been declared so far. */
+	private claimed = new Set<string>();
+
+	/** Sets aside names the graph gives as written; see `claim`. */
+	keep(names: Iterable<string>): void {
+		for (const name of names) this.kept.add(name);
+	}
+
+	/**
+	 * Declares `name` exactly as given in the innermost block, shadowing
+	 * whatever encloses it, as the Luau it was imported from did. Returns
+	 * whether that hides a name that is not another of the graph's own: a
+	 * global, a service or a module Roswaal declares.
+	 */
+	claim(name: string): boolean {
+		const hides = this.frames.some((frame) => frame.has(name)) && !this.claimed.has(name);
+		this.claimed.add(name);
+		this.frames[this.frames.length - 1].add(name);
+		return hides;
 	}
 
 	/** A stable, readable name derived from `hint`, uniquified if taken. */

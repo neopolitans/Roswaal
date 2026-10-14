@@ -75,6 +75,11 @@ export function fileFormatPage(): DocPage {
 						"array of strings, optional",
 						"Services declared by name, where the profile has them (§9.3).",
 					],
+					[
+						"`asWritten`",
+						"boolean, optional",
+						"Names and types are written as the graph gives them, never renamed. Set on a graph imported from source; absent otherwise.",
+					],
 					["`nodes`", "array", "Every node, in every graph of the file (§9.2)."],
 					["`links`", "array", "Every wire (§9.2)."],
 					["`comments`", "array", "Every comment (§9.4)."],

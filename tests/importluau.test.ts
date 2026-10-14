@@ -158,9 +158,8 @@ describe("what becomes a node", () => {
 		const src = "local a = 1\nprint(a)\nlocal a = 2\nprint(a)\n";
 		const script = imported(src);
 		expect(script.variables.map((v) => v.name)).toEqual(["a"]);
-		// The compiler names the second `a2`, as it names any shadowing local,
-		// and every read of it follows: the same program.
-		expect(roundTrip(src)).toEqual(["local a = 1", "print(a)", "local a2 = 2", "print(a2)"]);
+		// An imported graph keeps its names, so the second is `a` again.
+		expect(roundTrip(src)).toEqual(lines(src));
 	});
 
 	/**
@@ -340,6 +339,49 @@ describe("what stays as code", () => {
 		const src = "local function f(): ()\n\tlocal t = {\n\t\ta = 1,\n\t}\n\tprint(t)\nend\n";
 		const { code } = compiled(imported(src));
 		expect(code).toContain("\tlocal t = {\n\t\ta = 1,\n\t}");
+	});
+});
+
+describe("names and types as written", () => {
+	it("keeps a shadowing local, so Luau kept as text reads the one it read", () => {
+		const src =
+			"local n = 1\nlocal function g()\n\tlocal n = 2\n\tn += 1\n\tprint(n)\nend\ng()\nprint(n)\n";
+		expect(roundTrip(src, "T.luau")).toEqual(lines(src));
+	});
+
+	it("keeps an underscore, and `self` as a parameter", () => {
+		const src =
+			"local M = {}\nfunction M.init(self: typeof(M), _unused: number)\n\tprint(self)\nend\nlocal _c = 1\nprint(_c)\nreturn M\n";
+		expect(roundTrip(src, "M.luau")).toEqual(lines(src));
+	});
+
+	it("keeps a name that hides a global, and says so on its node", () => {
+		const src = 'local roblox = require("@lune/roblox")\nlocal Color3 = roblox.Color3\nprint(Color3.new(1, 0, 0))\n';
+		const { code, errors } = compiled(imported(src, "T.luau"));
+		expect(errors).toEqual([]);
+		expect(lines(code)).toEqual(lines(src));
+		const warnings = compile(imported(src, "T.luau"), registry).diagnostics.filter(
+			(d) => d.severity === "warning",
+		);
+		expect(warnings.some((w) => w.message.includes('"Color3" is kept as written'))).toBe(true);
+	});
+
+	it("keeps the annotations of a file with no mode line, and adds none", () => {
+		const src =
+			"local function scale(v: number, by): number\n\treturn v * by\nend\nlocal function show(text: string)\n\tprint(text)\nend\nlocal conn: RBXScriptConnection\nlocal d: any = {}\nprint(scale(1, 2), show, conn, d)\n";
+		expect(roundTrip(src, "T.luau")).toEqual(lines(src));
+	});
+
+	it("keeps a loop over a table as Luau iterates it, with the names it gave", () => {
+		const src = "local t = {}\nfor k in t do\n\tprint(k)\nend\nfor _, v in t do\n\tprint(v)\nend\n";
+		expect(roundTrip(src, "T.luau")).toEqual(lines(src));
+	});
+
+	it("writes a type set out over several lines on one", () => {
+		const src = "local tiers: {\n\t[string]: { color: Color3, -- shown\n\tsize: number },\n} = {}\nprint(tiers)\n";
+		const { code, errors } = compiled(imported(src, "T.luau"));
+		expect(errors).toEqual([]);
+		expect(code).toContain("local tiers: { [string]: { color: Color3, size: number } } = {}");
 	});
 });
 

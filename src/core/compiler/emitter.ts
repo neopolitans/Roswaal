@@ -21,7 +21,7 @@
  */
 
 import { commentLines, headersByNode, oneLine } from "../comments.js";
-import { FUNCTION_NODES } from "../nodes/flow.js";
+import { FUNCTION_NODES, loopNamesOf, signatureOf } from "../nodes/flow.js";
 import { nodeTitle, type Registry } from "../nodes/index.js";
 import { CAST_NODES, type CastMode, castModeOf, NILABLE_CLASS_READS } from "../nodes/library.js";
 import { castCall, castsResult } from "../nodes/resultCast.js";
@@ -55,7 +55,7 @@ import { emitStatement, interpolated, isInterpolated, renderTemplate } from "./e
 import { CALLING_BUILTINS, pureBuiltin } from "./emitValues.js";
 import { GraphIndex, type ResolvedNode } from "./graph.js";
 import { hashString } from "./hash.js";
-import { isAccessPath, isIdentifier, literalToLuau, NameScope, paren } from "./luau.js";
+import { isAccessPath, isIdentifier, isLuauName, literalToLuau, NameScope, paren } from "./luau.js";
 
 export class Emitter {
 	index: GraphIndex;
@@ -148,6 +148,29 @@ export class Emitter {
 		if (this.options.comments) this.headers = headersByNode(script, registry);
 		// Anything Luau itself provides must not be shadowed by a generated name.
 		for (const g of PROVIDED_GLOBALS) this.names.reserve(g);
+		if (script.asWritten === true) this.names.keep(givenNames(script));
+	}
+
+	/** Whether names and types are written as the graph gives them. See `NodeScript.asWritten`. */
+	get asWritten(): boolean {
+		return this.script.asWritten === true;
+	}
+
+	/**
+	 * The name a declaration gets: `given` exactly, in a graph that keeps its
+	 * names, or one made unique from it in any other. Kept as written, a name
+	 * that hides a global, a service or a module says so on its node.
+	 */
+	declareName(given: string, fallback: string, node?: string): string {
+		const name = given.trim();
+		if (!this.asWritten || !isLuauName(name)) return this.names.unique(name || fallback, fallback);
+		if (this.names.claim(name)) {
+			this.warn(
+				`"${name}" is kept as written and hides another ${name} from here down. Check nothing below needs that one.`,
+				node,
+			);
+		}
+		return name;
 	}
 
 	run(): EmitResult {
@@ -829,4 +852,36 @@ export class Emitter {
 		scope.bindings.set(`${nodeId}/${pinId}`, ident);
 		return ident;
 	}
+}
+
+/** Every name a graph gives a declaration: what `asWritten` keeps. */
+function givenNames(script: NodeScript): string[] {
+	const names = (script.variables ?? []).map((v) => v.name);
+	for (const node of script.nodes) {
+		switch (node.def) {
+			case "local.declare": {
+				const name = node.literals?.name;
+				if (name?.t === "string") names.push(name.v);
+				break;
+			}
+			case "function.entry":
+			case "function.declareHere": {
+				const sig = signatureOf(node.config);
+				if (sig.name) names.push(sig.name);
+				for (const p of sig.params ?? []) names.push(p.name);
+				break;
+			}
+			case "flow.forRange":
+				if (node.label) names.push(node.label);
+				break;
+			case "flow.forEach":
+			case "flow.forIndex": {
+				const loop = loopNamesOf(node.config);
+				if (loop.key) names.push(loop.key);
+				if (loop.value) names.push(loop.value);
+				break;
+			}
+		}
+	}
+	return names.map((n) => n.trim()).filter(isLuauName);
 }

@@ -16,6 +16,12 @@ export interface Signature {
 	params?: { name: string; type?: string }[];
 	returns?: { name: string; type?: string }[];
 	exported?: boolean;
+	/**
+	 * False when the function's Luau said nothing of what it returns, so a
+	 * graph that keeps what was written leaves the annotation off rather than
+	 * promising `: ()`. Set by import; absent means the returns were given.
+	 */
+	returnsWritten?: false;
 }
 
 /**
@@ -39,6 +45,7 @@ export function signatureOf(config: NodeConfig | undefined): Signature {
 		params: entries(c.params),
 		returns: entries(c.returns),
 		...(typeof c.exported === "boolean" ? { exported: c.exported } : {}),
+		...(c.returnsWritten === false ? { returnsWritten: false as const } : {}),
 	};
 }
 
