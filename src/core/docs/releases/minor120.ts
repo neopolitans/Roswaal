@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.178.1",
+		date: "2026-10-15",
+		headline: "A module returning a frozen table written over several lines compiles, and the Code panel drags by its tab strip.",
+		affects: ["editor"],
+		fixed: [
+			"**A return of a frozen table written over several lines compiles.** An imported `return table.freeze({ ... })` left the table's first lines behind, and the file did not parse.",
+			"**The Code panel drags by the empty end of its tab strip.** Only its title moved it. A double-click there folds it again too.",
+		],
+	},
+	{
 		version: "0.178.0",
 		date: "2026-10-15",
 		headline: "Import selection as graphs, and Import folder as graphs, read many Luau files at once.",

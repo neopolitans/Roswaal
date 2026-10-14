@@ -94,6 +94,13 @@ describe("the table library", () => {
 		expect(code).toBe("local M = {}\n\nreturn table.freeze(M)\n");
 	});
 
+	it("writes the return whole when the table it freezes is written over several lines", () => {
+		const src = "return table.freeze({\n\tSpeed = 16,\n\n\t-- spread\n\tMinimum = 0.9,\n})\n";
+		const { code, errors } = roundTrip(src, "M.luau");
+		expect(errors).toEqual([]);
+		expect(code).toBe(src);
+	});
+
 	it("keeps a local when something runs between the step and the return", () => {
 		const src = "local M = {}\nlocal frozen = table.freeze(M)\nprint(frozen)\n\nreturn frozen\n";
 		const { code } = roundTrip(src, "M.luau");

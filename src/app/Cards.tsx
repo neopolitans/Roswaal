@@ -76,6 +76,11 @@ export function PanelBody({ slot, children }: { slot: HTMLElement | null; childr
 	return <HeadSlot.Provider value={slot}>{children}</HeadSlot.Provider>;
 }
 
+/** Whether `target` is in this card's own header, rather than its body. */
+function inHead(target: Element, card: Element): boolean {
+	return target.closest(".card-head")?.closest(".card") === card;
+}
+
 /** Whether a press on a header is on something of the panel's, not the card's handle. */
 export function onControl(target: EventTarget | null): boolean {
 	return (
@@ -136,30 +141,31 @@ export function CardView({
 			data-card={card.head}
 			data-active={card.active}
 			style={style}
-			// A headless card's handle is its own bar.
-			onPointerDown={
-				headless && onGrab
-					? (e) => {
-							if (e.target instanceof Element && e.target.closest(".bar") && !onControl(e.target))
-								onGrab(card.head, false, e);
-						}
-					: undefined
-			}
+			// The header's handle is taken here rather than on the header: what
+			// a panel puts in its header (the Code panel's tab strip) is a portal
+			// from the panel, and a portal's events go up through the panel to
+			// this card, never through the header it is drawn in. A headless
+			// card's handle is its own bar.
+			onPointerDown={(e) => {
+				if (!onGrab || !(e.target instanceof Element) || onControl(e.target)) return;
+				if (headless) {
+					if (e.target.closest(".bar")) onGrab(card.head, false, e);
+					return;
+				}
+				if (!inHead(e.target, e.currentTarget)) return;
+				const tab = e.target.closest<HTMLElement>(".card-tab");
+				onGrab(tab ? (tab.dataset.panel as PanelId) : card.active, tab !== null && many, e);
+			}}
+			onDoubleClick={(e) => {
+				if (headless || !(e.target instanceof Element)) return;
+				if (!inHead(e.target, e.currentTarget) || onControl(e.target)) return;
+				if (!e.target.closest(".card-tab")) onFold(!card.folded);
+			}}
 		>
 			{!headless && (
 				<header
 					className="card-head"
 					title={onGrab ? "Drag to move. Double-click to fold." : undefined}
-					onPointerDown={(e) => {
-						if (!onGrab || onControl(e.target)) return;
-						const tab =
-							e.target instanceof Element ? e.target.closest<HTMLElement>(".card-tab") : null;
-						onGrab(tab ? (tab.dataset.panel as PanelId) : card.active, tab !== null && many, e);
-					}}
-					onDoubleClick={(e) => {
-						if (!onControl(e.target) && !(e.target as Element).closest(".card-tab"))
-							onFold(!card.folded);
-					}}
 				>
 					{many ? (
 						<span className="card-tabs" role="tablist">

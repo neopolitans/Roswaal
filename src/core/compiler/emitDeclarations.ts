@@ -644,7 +644,7 @@ export function emitModuleReturn(e: Emitter, root: Scope): void {
 		const fold = e.returnFold;
 		const last = [...e.out].reverse().find((line) => line.text !== "");
 		if (fold && last === fold.line && value === fold.ident) {
-			e.out.splice(e.out.lastIndexOf(fold.line));
+			e.out.splice(e.out.lastIndexOf(fold.first));
 			e.push(`return ${fold.rendered}`, fold.node);
 			return;
 		}

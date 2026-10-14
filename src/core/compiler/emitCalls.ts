@@ -234,12 +234,17 @@ export function writeCall(
 			e.annotates && how.typed !== false && pin?.type && pin.type !== "any"
 				? `: ${luauType(pin.type)}${pin.nilable ? "?" : ""}`
 				: "";
+		const written = e.out.length;
 		e.push(`local ${ident}${annotation} = ${rendered}`, r.node.id);
 		scope.bindings.set(`${r.node.id}/${resultPin}`, ident);
 		const readers = e.index.readersOf(r.node.id, resultPin);
 		const only = readers.length === 1 ? e.index.get(readers[0].to.node) : undefined;
 		if (!named && !scope.parent && only?.def.id === "module.exports") {
-			e.returnFold = { node: r.node.id, ident, rendered, line: e.out[e.out.length - 1] };
+			// From its first line of code: a header written above it stays.
+			const first = e.out.slice(written).find((line) => !line.comment && line.text !== "");
+			if (first) {
+				e.returnFold = { node: r.node.id, ident, rendered, first, line: e.out[e.out.length - 1] };
+			}
 		}
 	} else if (isCallExpression(rendered)) {
 		e.push(rendered, r.node.id);

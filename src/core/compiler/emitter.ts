@@ -73,7 +73,14 @@ export class Emitter {
 	 * written: `return` takes it back as `return table.freeze(M)` when its
 	 * line is still the last one. See `emitModuleReturn`.
 	 */
-	returnFold?: { node: string; ident: string; rendered: string; line: OutLine };
+	returnFold?: {
+		node: string;
+		ident: string;
+		rendered: string;
+		/** The statement's first line and its last: a table written out is several. */
+		first: OutLine;
+		line: OutLine;
+	};
 	indent = 0;
 	diagnostics: Diagnostic[] = [];
 	/** Guards against an exec wire looping back and emitting forever. */
