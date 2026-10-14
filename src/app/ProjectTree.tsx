@@ -60,6 +60,8 @@ export interface ProjectTreeProps {
 	onReveal: (path: string) => void;
 	/** A hand-written `.luau` file, read into a new graph. */
 	onImport?: (entry: TreeEntry) => void;
+	/** Several hand-written `.luau` files, each read into a graph. */
+	onImportMany?: (entries: TreeEntry[]) => void;
 	/**
 	 * Adding a package, from the menu on wally.toml or on a package: from the
 	 * Wally registry, from a zip, or from a GitHub repository. `entry` is the
@@ -99,6 +101,7 @@ export const ProjectTree = memo(function ProjectTree({
 	onDelete,
 	onReveal,
 	onImport,
+	onImportMany,
 	onPackage,
 }: ProjectTreeProps) {
 	// A file manager to show a file in is something only a machine has.
@@ -119,6 +122,27 @@ export const ProjectTree = memo(function ProjectTree({
 	// Graphs whose functions are listed. Shut until asked, unlike folders.
 	const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
 	const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+	/** Whether the row is one of several selected. */
+	const multiple = (entry: TreeEntry) => selected.size > 1 && selected.has(entry.path);
+	/** The rows Import as graphs reads: the selection, or the folder the menu is on. */
+	const manyFrom = (entry: TreeEntry): ReadonlySet<string> =>
+		multiple(entry) ? selected : new Set([entry.path]);
+	/**
+	 * Hand-written Luau among `paths`, a folder giving everything under it:
+	 * what Import as graphs takes. Wally's folders are someone else's code.
+	 */
+	const importable = (paths: ReadonlySet<string>): TreeEntry[] => {
+		const out: TreeEntry[] = [];
+		const visit = (entry: TreeEntry, inside: boolean) => {
+			if (entry.role === "packages") return;
+			const taken = inside || paths.has(entry.path);
+			if (taken && entry.kind === "luau" && !entry.generatedFrom && !out.includes(entry))
+				out.push(entry);
+			for (const child of entry.children ?? []) visit(child, taken);
+		};
+		for (const entry of tree) visit(entry, false);
+		return out;
+	};
 	const [dropTarget, setDropTarget] = useState<string | null>(null);
 
 	// The two halves of a Roswaal project, shown as two rather than as a flat
@@ -291,6 +315,8 @@ export const ProjectTree = memo(function ProjectTree({
 				return onNewMap(dir);
 			case "import":
 				return onImport?.(entry);
+			case "importMany":
+				return onImportMany?.(importable(manyFrom(entry)));
 			case "newFolder":
 				return onNewFolder(dir);
 			case "reveal":
@@ -475,6 +501,14 @@ export const ProjectTree = memo(function ProjectTree({
 						: fileMenu(menu.entry, {
 								holdsGraphs: holdsGraphs(parentDirOf(menu.entry)),
 								canImport: onImport !== undefined,
+								...(onImportMany && (multiple(menu.entry) || menu.entry.kind === "directory")
+									? {
+											importMany: {
+												from: multiple(menu.entry) ? "selection" : "folder",
+												files: importable(manyFrom(menu.entry)).length,
+											},
+										}
+									: {}),
 								canGithub,
 								canReveal,
 								notHere: NOT_HERE,

@@ -953,6 +953,101 @@ export function useProjectActions(context: ProjectActionsContext) {
 		[ask, notify, refreshTree, project],
 	);
 
+	/**
+	 * Import selection as graphs, and Import folder as graphs: hand-written
+	 * Luau files, each read into a graph with the same settings. A file
+	 * imported before is imported over its graph, as Reimport does. Each
+	 * file's runtime is the one its requires say, else the project's.
+	 */
+	const importLuauFiles = useCallback(
+		async (entries: TreeEntry[]) => {
+			if (entries.length === 0) return;
+			if (entries.length === 1) return importLuauFile(entries[0]);
+			const again = entries.filter((e) => e.graph).length;
+			const answer = await ask({
+				kind: "form",
+				title: `Import ${entries.length} Luau files as graphs?`,
+				message:
+					"Turning Luau into a graph can be made safer but never certain. Test the graphs before you rely on them." +
+					(again > 0
+						? ` ${again === 1 ? "One was" : `${again} were`} imported before: ${again === 1 ? "its graph is" : "their graphs are"} replaced, with any change made since.`
+						: ""),
+				points: [
+					"It can compile and still behave differently, such as a call running at another moment.",
+					"Comments become comment boxes. Spacing and formatting are the compiler's.",
+					"What has no node stays as Luau text, which the graph does not check.",
+				],
+				fields: [
+					{
+						id: "locals",
+						kind: "choice",
+						label: "File-level locals become",
+						value: "variable",
+						options: [
+							{ value: "variable", label: "Script variables" },
+							{ value: "local", label: "Declare Locals" },
+						],
+					},
+					{
+						id: "mode",
+						kind: "choice",
+						label: "Reads as (every mode behaves the same)",
+						value: "tidy",
+						options: [
+							{ value: "tidy", label: "Tidy" },
+							{ value: "verbatim", label: "Verbatim" },
+							{ value: "modern", label: "Modern" },
+						],
+					},
+				],
+				confirmLabel: "Import",
+				icon: "graph",
+			});
+			if (typeof answer !== "string") return;
+			const chosen = JSON.parse(answer) as FormAnswers;
+			const locals = chosen.locals === "local" ? "local" : "variable";
+			const mode = chosen.mode === "verbatim" || chosen.mode === "modern" ? chosen.mode : "tidy";
+			let statements = 0;
+			let asNodes = 0;
+			let first: { path: string; script: NodeScript } | undefined;
+			const failed: string[] = [];
+			for (const entry of entries) {
+				try {
+					const target = await api
+						.readSource(entry.path)
+						.then((r) => detectTarget(r.text))
+						.catch(() => undefined);
+					const out = await api.importScript(entry.path, {
+						locals,
+						mode,
+						...(target ? { target } : {}),
+						...(entry.graph ? { replace: true } : {}),
+					});
+					statements += out.report.statements;
+					asNodes += out.report.asNodes;
+					first ??= out;
+					// An open tab of a graph imported over shows the new one.
+					if (store.isOpen(out.path)) store.reload(out.path, out.script);
+				} catch (err) {
+					failed.push(`${entry.name}: ${errorMessage(err)}`);
+				}
+			}
+			await refreshTree();
+			if (first) store.open(first.path, first.script);
+			const done = entries.length - failed.length;
+			notify(
+				`${done} of ${entries.length} files imported`,
+				[
+					`${asNodes} of ${statements} statements are nodes.`,
+					...(again > 0 ? [`Imported again over their graphs: ${again}.`] : []),
+					...failed.map((f) => `Not imported, ${f}`),
+					"The files are unchanged; compiling over them asks for force.",
+				].join(" "),
+			);
+		},
+		[ask, notify, refreshTree, importLuauFile],
+	);
+
 	const onTreeNewFolder = useCallback(
 		async (parentDir: string) => {
 			const name = await ask({
@@ -1037,6 +1132,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 		createGraphIn,
 		createMapIn,
 		importLuauFile,
+		importLuauFiles,
 		exportOpen,
 		importPlace,
 		importRojo,

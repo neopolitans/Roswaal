@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.178.0",
+		date: "2026-10-15",
+		headline: "Import selection as graphs, and Import folder as graphs, read many Luau files at once.",
+		affects: ["editor"],
+		added: [
+			"**Import selection as graphs.** With several files selected, the Project panel's menu imports every hand-written Luau file among them, with one choice of settings.",
+			"**Import folder as graphs.** A folder's menu does the same for every hand-written Luau file in it and its folders, Wally's packages left out. Each graph goes where Import as graph would put it.",
+			"**Files imported before are imported again.** Their graphs are replaced, as Reimport as graph does, and the dialog says how many.",
+		],
+	},
+	{
 		version: "0.177.0",
 		date: "2026-10-14",
 		headline: "Reimport as graph tries another import setting on a file not yet compiled over.",

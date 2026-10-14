@@ -18,6 +18,7 @@ export type TreeAction =
 	| "newGraph"
 	| "newMap"
 	| "import"
+	| "importMany"
 	| "newFolder"
 	| "reveal"
 	| "rename"
@@ -40,6 +41,11 @@ export interface TreeMenuContext {
 	holdsGraphs: boolean;
 	/** The host imports Luau as a graph. */
 	canImport: boolean;
+	/**
+	 * Several rows are selected, this one among them, or the row is a folder,
+	 * and hand-written Luau is in it: how many files Import as graphs takes.
+	 */
+	importMany?: { from: "selection" | "folder"; files: number };
 	canGithub: boolean;
 	canReveal: boolean;
 	/** Said on an entry this host cannot do. */
@@ -101,6 +107,16 @@ export function fileMenu(
 					// Imported already, and still written by hand: imported again
 					// over that graph, to try another setting.
 					label: entry.graph ? "Reimport as graph" : "Import as graph",
+					icon: "graph",
+				},
+			ctx.canImport &&
+				ctx.importMany &&
+				ctx.importMany.files > 0 && {
+					action: "importMany",
+					label:
+						ctx.importMany.from === "selection"
+							? "Import selection as graphs"
+							: "Import folder as graphs",
 					icon: "graph",
 				},
 			{ action: "newFolder", label: "New folder", icon: "newFolder" },

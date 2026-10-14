@@ -1184,6 +1184,7 @@ export function App() {
 		createGraphIn,
 		createMapIn,
 		importLuauFile,
+		importLuauFiles,
 		exportOpen,
 		importPlace,
 		importRojo,
@@ -1520,6 +1521,7 @@ export function App() {
 									onMove={onTreeMove}
 									onReveal={onTreeReveal}
 									onImport={importLuauFile}
+									onImportMany={importLuauFiles}
 									onTargetDir={setTargetDir}
 									onNewGraph={createGraphIn}
 									onNewMap={createMapIn}
