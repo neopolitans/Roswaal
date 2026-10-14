@@ -4,10 +4,11 @@
  * Every mode keeps the file's behaviour as the Luau spec defines it. The
  * modes differ in how the graph reads:
  *
- * - **Verbatim** keeps the source's shapes: each block one chain of nodes.
+ * - **Verbatim** keeps the source's shapes: each block one chain of nodes,
+ *   and a table written out kept as code.
  * - **Tidy**, the default, lays a long block out in rows on a Sequence, cut at
- *   its blank lines (0.167.0). Folding idioms into the library's template
- *   nodes is still to come.
+ *   its blank lines (0.167.0), and builds a table written out with Make
+ *   Dictionary (0.176.0).
  * - **Modern** rewrites to newer syntax where the rewrite is provably the same.
  *
  * A rewrite that cannot be shown to behave the same is not made. And a likely

@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.176.0",
+		date: "2026-10-14",
+		headline: "Import builds a table written out with Make Dictionary in Tidy and Modern.",
+		affects: ["editor"],
+		added: [
+			"**Tables import as Make Dictionary.** `{ Speed = 16, Name = \"Scout\" }` is a row for each entry, a value written typed in and one worked out wired, and a table inside it a Make Dictionary of its own. It compiles back as the file had it: on one line or a key to a line, brackets kept, and the last comma as it was.",
+			"**Verbatim keeps tables as code.** So do lists, tables mixing `name =` with `[\"name\"] =`, tables with more than 24 entries, and tables with a comment inside.",
+		],
+	},
+	{
 		version: "0.175.0",
 		date: "2026-10-14",
 		headline: "Freeze, Clone, Find, Sort and the rest of the table library are nodes, and import uses them.",

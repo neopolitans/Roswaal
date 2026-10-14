@@ -17,6 +17,7 @@
  * caller decides where the graph goes and whether one is already there.
  */
 
+import { isFieldName } from "../compiler/luau.js";
 import { viewOf } from "../functionGraph.js";
 import type { Binding, Block, Expr, FunctionBody, Stat } from "../luau/ast.js";
 import { lineIndex, tokenize } from "../luau/lexer.js";
@@ -142,6 +143,8 @@ const KEPT_AS: Partial<Record<Stat["kind"], string>> = {
 const ROW = 8;
 
 const SIMPLE_STRING = /^(["'])((?:(?!\1)[^\\\n])*)\1$/;
+/** How many rows Make Dictionary has room for. */
+const MAX_DICTIONARY_ROWS = 24;
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 class Importer {
@@ -161,7 +164,11 @@ class Importer {
 		private readonly prefix: string,
 		private readonly locals: TopLevelLocals = "variable",
 		private readonly edits: readonly Edit[] = [],
-		/** Tidy and Modern: a blank line in the file starts a new row. */
+		/**
+		 * Tidy and Modern: a blank line in the file starts a new row, and a
+		 * table written out is built with Make Dictionary. Verbatim keeps both
+		 * as the file has them.
+		 */
 		private readonly paragraphs = false,
 		/** What the graph runs on, so only nodes that run there are matched. */
 		private readonly target: Target = "roblox",
@@ -353,6 +360,11 @@ class Importer {
 					? { kind: "literal", literal: { t: "string", v: simple[2] } }
 					: { kind: "literal", literal: { t: "raw", v: e.raw } };
 			}
+			case "table":
+				return (
+					(this.paragraphs && this.dictionary(e, scope, graph, near)) ||
+					this.luau(e, graph, below(0))
+				);
 			case "paren": {
 				// Brackets around a call or `...` keep only its first value:
 				// `print((pick()))` passes one. Without them it would pass all.
@@ -608,6 +620,63 @@ class Importer {
 	private inner: Set<string>[] = [];
 	/** Spans of the file kept as code, whose comments go with them. */
 	private keptSpans: { start: number; end: number }[] = [];
+
+	/**
+	 * `{ Speed = 16, Name = "Scout" }` as Make Dictionary: a row for each
+	 * entry, its key typed in and its value typed in or wired. A table written
+	 * over several lines is set to write a key to a line.
+	 *
+	 * Only where the keys come back as written: every entry `name = value`, or
+	 * every one in brackets (`["name"] = value`, `[1] = value`), which the node
+	 * is then set to keep. A list (`{ a, b }`), a mix of the two forms, more
+	 * entries than the node has rows, and a table with a comment inside it stay
+	 * as code.
+	 */
+	private dictionary(
+		e: Extract<Expr, { kind: "table" }>,
+		scope: Scope,
+		graph: string | undefined,
+		near: { x: number; y: number },
+	): Value | undefined {
+		const fields = e.fields;
+		if (fields.length === 0 || fields.length > MAX_DICTIONARY_ROWS) return undefined;
+		if (fields.some((f) => f.kind === "positional")) return undefined;
+		const named = fields.some((f) => f.kind === "named");
+		const bracketedName = fields.some(
+			(f) =>
+				f.kind === "keyed" &&
+				f.key.kind === "string" &&
+				isFieldName(SIMPLE_STRING.exec(f.key.raw)?.[2] ?? ""),
+		);
+		if (named && bracketedName) return undefined;
+		if (this.comments.some((c) => c.start >= e.start && c.end <= e.end)) return undefined;
+
+		const lines = this.src.slice(e.start, e.end).includes("\n");
+		// A separator after the last entry, or none: as the file wrote it.
+		const ended = /^\s*[,;]/.test(this.src.slice(fields[fields.length - 1].end, e.end));
+		const trailing = lines ? (ended ? undefined : "none") : ended ? "comma" : undefined;
+		const split = Object.fromEntries(fields.map((_, i) => [`in:p${i}`, "keyValue"]));
+		const at = { x: near.x - 240, y: near.y + 90 };
+		const id = this.node("table.dictionary", graph, at, {
+			config: {
+				args: fields.length,
+				split,
+				...(lines ? { layout: "lines" } : {}),
+				...(bracketedName ? { keys: "brackets" } : {}),
+				...(trailing ? { trailing } : {}),
+			},
+		});
+		fields.forEach((field, i) => {
+			const row = { x: at.x, y: at.y + 70 * (i + 1) };
+			if (field.kind === "named") {
+				this.literal(id, `p${i}.key`, { t: "string", v: field.name.name });
+			} else if (field.kind === "keyed") {
+				this.feed(this.expr(field.key, scope, graph, row), { node: id, pin: `p${i}.key` });
+			}
+			this.feed(this.expr(field.value, scope, graph, row), { node: id, pin: `p${i}.value` });
+		});
+		return { kind: "wire", node: id, pin: "result" };
+	}
 
 	/** The file's comments, in order, and which have been taken. */
 	private comments: { start: number; end: number; text: string; line: number }[] = [];

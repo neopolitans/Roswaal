@@ -375,10 +375,19 @@ export function renderTemplate(
 		// what stylua writes — it makes adding a key a one-line diff rather
 		// than a two-line one. The leading tab is relative: `push` adds it to
 		// whatever indentation the statement itself is at.
+		//
+		// `trailing` says otherwise where an import found the file did:
+		// `none` leaves the last line without one, `comma` gives a table on one
+		// line one.
+		const trailing = r.node.config?.trailing;
 		if (r.node.config?.layout === "lines") {
-			return `\n${entries.map((entry) => `\t${entry},`).join("\n")}\n`;
+			const last = entries.length - 1;
+			const rows = entries.map(
+				(entry, i) => `\t${entry}${i === last && trailing === "none" ? "" : ","}`,
+			);
+			return `\n${rows.join("\n")}\n`;
 		}
-		return ` ${entries.join(separator)} `;
+		return ` ${entries.join(separator)}${trailing === "comma" ? "," : ""} `;
 	});
 
 	// `$index(<table pin>, <key pin>)` — `t.name` or `t[expr]`.
