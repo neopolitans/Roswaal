@@ -870,24 +870,33 @@ function wallyDemo() {
 
 // ----------------------------------------------------------------- import
 
-/** A file to import: a loop, a branch and calls, and one line that stays Luau. */
+/**
+ * A file to import: a run long enough that Tidy cuts it into rows, a loop, a
+ * branch, an `and … or` that Modern rewrites, and one line that stays Luau.
+ */
 const IMPORT_SOURCE = `local coins = 0
 local bonus = true
+local rounds = 5
 
-for i = 1, 5 do
+for i = 1, rounds do
 	coins += i
 end
 
+local doubled = coins * 2
 local label = bonus and "Bonus round" or "Round"
+print(label, doubled)
+task.wait(1)
+
 if coins > 10 then
-	print(label, coins)
+	print("Enough coins")
 else
 	warn("Not enough coins")
 end
 `;
 
 /**
- * The modes import offers, as its settings name them.
+ * The modes import offers, as its settings name them, Tidy first checked as
+ * it is in the editor.
  * @type {[import("../../src/core/import/modes.ts").ImportMode, string][]}
  */
 const IMPORT_MODES = [
@@ -895,6 +904,10 @@ const IMPORT_MODES = [
 	["tidy", "Tidy"],
 	["modern", "Modern"],
 ];
+const IMPORT_OPEN = "tidy";
+
+/** How large the imported graph is drawn: big enough to read, scrolled to see. */
+const IMPORT_SCALE = 0.8;
 
 /** The report the editor shows when an import finishes, in its words. */
 function importReport(report) {
@@ -906,57 +919,145 @@ function importReport(report) {
 	].join(" ");
 }
 
+/** The line of the file the demonstration opens on: the loop. */
+const IMPORT_OPEN_LINE = 5;
+
+/** Numbered lines of Luau, each one a thing to tap that selects `nodesOf(line)`. */
+function importLinesHtml(source, nodesOf, open) {
+	return highlightLuau(source)
+		.map((line, i) => {
+			const nodes = nodesOf(i + 1);
+			const text =
+				line.length === 0
+					? " "
+					: line
+							.map((t) =>
+								t.cls === "" ? escapeHtml(t.text) : `<span class="${t.cls}">${escapeHtml(t.text)}</span>`,
+							)
+							.join("");
+			const tap = nodes.length
+				? ` role="button" tabindex="0" data-nodes="${escapeHtml(nodes.join(","))}"`
+				: "";
+			return `<span class="ln" data-line="${i + 1}"${tap}${open === i + 1 && nodes.length ? " data-open" : ""}><span class="num">${i + 1}</span>${text}</span>`;
+		})
+		.join("");
+}
+
 /**
- * The same file imported in each mode by `importLuau`, drawn, and compiled
- * back to Luau: so the reader sees what became nodes, what stayed as Luau
- * text, and what Modern rewrote.
+ * One mode's import, worked out in full: the graph drawn where the importer
+ * laid it out, a button over each node, and both files' lines, all carrying
+ * which nodes they are. The importer says which lines of the file each node
+ * came from (`origins`); the compiler says which node wrote each line of the
+ * output (`sourceMap`). A value writes no line of its own, so it answers with
+ * the lines of the statement it feeds.
+ */
+function importMode(mode, registry, options) {
+	const result = importLuau(IMPORT_SOURCE, {
+		name: "Coins",
+		scriptClass: "Script",
+		target: "roblox",
+		idPrefix: "tour",
+		mode,
+	});
+	if (!result.ok) throw new Error(`The tour's import no longer imports: ${result.error}`);
+	const script = result.script;
+	const compiled = compile(script, registry);
+	if (!compiled.ok) throw new Error("The tour's imported graph no longer compiles.");
+
+	// The generated header says where the file came from; the body is the point.
+	const all = compiled.code.split("\n");
+	let first = 0;
+	while (first < all.length && (all[first].startsWith("--") || all[first].trim() === "")) first++;
+	const body = all.slice(first).join("\n").trimEnd();
+
+	const written = new Map();
+	for (const { line, node } of compiled.sourceMap) {
+		if (line <= first) continue;
+		if (!written.has(node)) written.set(node, []);
+		written.get(node).push(line - first);
+	}
+	const readers = new Map();
+	for (const link of script.links) {
+		if (!readers.has(link.from.node)) readers.set(link.from.node, []);
+		readers.get(link.from.node).push(link.to.node);
+	}
+	/** The lines a node wrote, or the lines of the first statement its value reaches. */
+	const outLines = (id, seen = new Set()) => {
+		if (written.has(id)) return written.get(id);
+		if (seen.has(id)) return [];
+		seen.add(id);
+		for (const next of readers.get(id) ?? []) {
+			const lines = outLines(next, seen);
+			if (lines.length) return lines;
+		}
+		return [];
+	};
+
+	const placed = placeGraph(script, registry, options);
+	const svg = graphSvg(script, registry, options, true);
+	const box = /viewBox="([-\d.]+) ([-\d.]+) ([\d.]+) ([\d.]+)"/.exec(svg);
+	if (!box) throw new Error("The import graph was drawn without a viewBox.");
+	const [vx, vy, vw, vh] = box.slice(1).map(Number);
+	const pct = (v) => `${(v * 100).toFixed(3)}%`;
+	const buttons = placed
+		.map(({ node, x, y, width, height }) => {
+			const origin = result.origins[node.id];
+			// The node's kind, as the palette names it: "For Loop", not its `i`.
+			const title = registry.get(node.def)?.title ?? node.def;
+			return (
+				`<button type="button" class="tour-import-node" data-nodes="${escapeHtml(node.id)}"` +
+				` data-src="${origin ? `${origin.from}-${origin.to}` : ""}" data-out="${outLines(node.id).join(",")}"` +
+				` title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}"` +
+				` style="left: ${pct((x - vx) / vw)}; top: ${pct((y - vy) / vh)}; width: ${pct(width / vw)}; height: ${pct(height / vh)}"></button>`
+			);
+		})
+		.join("");
+
+	// A line of the file selects the nodes made from it, innermost first: the
+	// `coins += i` line is its Code Block, not the For Loop around it.
+	const fromLine = (line) => {
+		const covering = Object.entries(result.origins).filter(([, o]) => o.from <= line && line <= o.to);
+		if (covering.length === 0) return [];
+		const tightest = Math.min(...covering.map(([, o]) => o.to - o.from));
+		return covering.filter(([, o]) => o.to - o.from === tightest).map(([id]) => id);
+	};
+	// A line of the output selects the node that wrote it and the values it reads.
+	const toLine = (line) =>
+		script.nodes.filter((n) => outLines(n.id).includes(line)).map((n) => n.id);
+
+	return {
+		mode,
+		width: Math.round(vw * IMPORT_SCALE),
+		height: Math.round(vh * IMPORT_SCALE),
+		svg,
+		buttons,
+		source: importLinesHtml(IMPORT_SOURCE.trimEnd(), fromLine, IMPORT_OPEN_LINE),
+		output: importLinesHtml(body, toLine),
+		report: importReport(result.report),
+	};
+}
+
+/**
+ * The same file imported in each mode by `importLuau`, drawn as the importer
+ * laid it out, and compiled back to Luau. Tap a line of either file or a node,
+ * and the three light up together: what the line became, and what that wrote.
  */
 function importDemo() {
 	const registry = createRegistry();
-	const options = {
-		geometry: NODE,
-		nodeColor,
-		pinColor,
-		wirePath,
-	};
-	const modes = IMPORT_MODES.map(([mode, name]) => {
-		const result = importLuau(IMPORT_SOURCE, {
-			name: "Coins",
-			scriptClass: "Script",
-			target: "roblox",
-			idPrefix: "tour",
-			mode,
-		});
-		if (!result.ok) throw new Error(`The tour's import no longer imports: ${result.error}`);
-		const compiled = compile(result.script, registry);
-		if (!compiled.ok) throw new Error("The tour's imported graph no longer compiles.");
-		// The generated header says where the file came from; the body is the point.
-		const body = compiled.code
-			.split("\n")
-			.filter((line) => !line.startsWith("--"))
-			.join("\n")
-			.trim();
-		const main = { ...result.script, nodes: result.script.nodes.filter((node) => !node.graph) };
-		return {
-			mode,
-			name,
-			svg: graphSvg(main, registry, options),
-			body,
-			report: importReport(result.report),
-		};
-	});
-	return `<div class="tour-pane tour-import-demo">
-          ${modes.map(({ mode }, i) => `<input class="tour-pick" type="radio" name="tour-import" id="tour-import-${mode}"${i === 0 ? " checked" : ""} />`).join("")}
+	const options = { geometry: NODE, nodeColor, pinColor, wirePath };
+	const modes = IMPORT_MODES.map(([mode, name]) => ({ name, ...importMode(mode, registry, options) }));
+	return `<div class="tour-pane tour-import-demo" data-tour="import">
+          ${modes.map(({ mode }) => `<input class="tour-pick" type="radio" name="tour-import" id="tour-import-${mode}"${mode === IMPORT_OPEN ? " checked" : ""} />`).join("")}
           <div class="tour-device-switch segmented" role="group" aria-label="Import mode">${modes.map(({ mode, name }) => `<label for="tour-import-${mode}">${name}</label>`).join("")}</div>
           ${modes
 						.map(
-							({ mode, svg, body, report }) => `<div class="tour-import tour-import-${mode}">
-            <figure class="tour-import-graph tour-canvas grid-surface">${svg}</figure>
+							({ mode, width, height, svg, buttons, source, output, report }) => `<div class="tour-import tour-import-${mode}">
+            <div class="tour-import-graph tour-canvas grid-surface"><div class="tour-import-frame" style="width: ${width}px; height: ${height}px">${svg}${buttons}</div></div>
             <div class="tour-import-code">
-              <div><div class="tour-card-head">Coins.server.luau</div><pre class="landing-code"><code>${tokensHtml(IMPORT_SOURCE.trim())}</code></pre></div>
-              <div><div class="tour-card-head">What the graph writes</div><pre class="landing-code"><code>${tokensHtml(body)}</code></pre></div>
+              <div><div class="tour-card-head">Coins.server.luau</div><pre class="landing-code tour-import-src"><code>${source}</code></pre></div>
+              <div><div class="tour-card-head">What the graph writes</div><pre class="landing-code tour-import-out"><code>${output}</code></pre></div>
             </div>
-            <p class="tour-readout">${escapeHtml(report)}</p>
+            <p class="tour-readout" data-report="${escapeHtml(report)}">${escapeHtml(report)}</p>
           </div>`,
 						)
 						.join("\n          ")}
@@ -1082,12 +1183,16 @@ export const SLIDES = [
 		title: "Luau in, graph out",
 		status: "In progress",
 		since: "0.140.0",
-		steps: [["0.143.0", "Verbatim, Tidy and Modern"]],
+		steps: [
+			["0.143.0", "Verbatim, Tidy and Modern"],
+			["0.166.0", "names and types as written"],
+			["0.167.0", "laid out in rows"],
+		],
 		doc: "docs/project-panel.html",
-		body: "<strong>Import as graph</strong> turns a <code>.luau</code> file's statements into nodes; what has no node yet stays as Luau text. Still in progress: Tidy reads as Verbatim for now, comments and formatting are not kept, and a graph can behave differently from its source, so test it.",
+		body: "<strong>Import as graph</strong> turns a <code>.luau</code> file's statements into nodes; what has no node yet stays as Luau text. Still in progress: comments are not kept yet, so test what you import.",
 		keys: "<kbd>Right-click</kbd> a <code>.luau</code> file",
 		tryThis:
-			"Switch between Verbatim, Tidy and Modern. Modern writes the <code>and … or</code> line as an if-expression.",
+			"Tap a line of either file, or a node, to see what it became. Verbatim keeps one chain, Tidy cuts it into rows, and Modern writes the <code>and … or</code> line as an if-expression.",
 	},
 	{
 		key: "windows",
@@ -1418,25 +1523,44 @@ ${themeCss(".tour-complete-box", TOOLTIP_STYLE)}
 #tour-wally-before:focus-visible ~ .tour-device-switch label[for="tour-wally-before"],
 #tour-wally-after:focus-visible ~ .tour-device-switch label[for="tour-wally-after"] { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-/* Import: the graph a file became, and the file beside what the graph writes. */
-.tour-import-demo { padding: 12px 14px; gap: 8px; align-items: center; background: color-mix(in srgb, var(--bg-canvas) 60%, var(--landing-card)); }
-.tour-import { display: none; width: 100%; }
+/* Import: the graph a file became, at a size to read and scrolled to see, and
+   the file beside what the graph writes. A line or a node lights all three. */
+.tour-import-demo { padding: 12px 14px; gap: 8px; align-items: stretch; background: color-mix(in srgb, var(--bg-canvas) 60%, var(--landing-card)); }
+.tour-import-demo > .tour-device-switch { align-self: center; }
+.tour-import { display: none; width: 100%; min-width: 0; }
 #tour-import-verbatim:checked ~ .tour-import-verbatim,
 #tour-import-tidy:checked ~ .tour-import-tidy,
 #tour-import-modern:checked ~ .tour-import-modern { display: block; }
 #tour-import-verbatim:checked ~ .tour-device-switch label[for="tour-import-verbatim"],
 #tour-import-tidy:checked ~ .tour-device-switch label[for="tour-import-tidy"],
 #tour-import-modern:checked ~ .tour-device-switch label[for="tour-import-modern"] { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent); }
-/* Drawn whole and fitted to its frame: laying an import out well is part of
-   what is still in progress, and the shape of it is what this shows. */
-.tour-import-graph { margin: 0 0 8px; border: 1px solid var(--border); border-radius: 8px; padding: 8px; }
-.tour-import-graph svg { display: block; width: 100%; height: 108px; }
+#tour-import-verbatim:focus-visible ~ .tour-device-switch label[for="tour-import-verbatim"],
+#tour-import-tidy:focus-visible ~ .tour-device-switch label[for="tour-import-tidy"],
+#tour-import-modern:focus-visible ~ .tour-device-switch label[for="tour-import-modern"] { outline: 2px solid var(--accent); outline-offset: 1px; }
+.tour-import-graph {
+  display: block; margin: 0 0 8px; padding: 12px; border: 1px solid var(--border); border-radius: 8px;
+  max-height: 300px; overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+}
+.tour-import-frame { position: relative; }
+.tour-import-frame svg { display: block; width: 100%; height: 100%; }
+.tour-import-node {
+  position: absolute; padding: 0; border: 0; border-radius: 8px; background: transparent; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.tour-import-node:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tour-import-node.on { outline: 2px solid var(--accent); outline-offset: 2px; background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .tour-import-code { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
 .tour-import-code > div { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--bg-input); min-width: 0; }
-.tour-import-code pre { margin: 0; padding: 6px 10px; font-size: 11px; line-height: 1.4; white-space: pre; overflow: auto; max-height: 168px; }
+.tour-import-code pre { margin: 0; padding: 6px 0; font-size: 12px; line-height: 1.5; white-space: pre; overflow-x: auto; }
 .tour-import-code .tour-card-head { padding: 4px 10px; font-size: 11px; }
+.tour-import-code .ln { display: block; padding: 0 10px 0 0; min-width: max-content; }
+.tour-import-code .ln[role="button"] { cursor: pointer; }
+.tour-import-code .ln[role="button"]:hover { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.tour-import-code .ln:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tour-import-code .ln.on { background: color-mix(in srgb, var(--accent) 20%, transparent); }
+.tour-import-code .num { display: inline-block; width: 3ch; margin-right: 1ch; text-align: right; color: var(--fg-faint); user-select: none; }
 .tour-import .tour-readout { margin: 6px 0 0; font-size: 12px; }
-@media (max-width: 640px) { .tour-import-code { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) { .tour-import-code { grid-template-columns: minmax(0, 1fr); } .tour-import-graph { max-height: 240px; } }
 
 /* 6. The one menu, open on the package it was asked about. */
 .tour-menu-demo { flex-direction: row; flex-wrap: wrap; align-items: flex-start; align-content: center; gap: 14px 6px; }
@@ -1661,6 +1785,87 @@ export const TOUR_SCRIPT = `(() => {
     preview.querySelector(".tour-preview-graph").addEventListener("click", () => { selected.clear(); render(); });
     whole.addEventListener("change", render);
     render();
+  }
+
+  // Import: a line of either file, or a node, lights what it is in all three.
+  // Every answer was worked out when the page was built; this only adds up
+  // the nodes chosen and scrolls the graph to them.
+  const imported = tour.querySelector('[data-tour="import"]');
+  if (imported) {
+    const range = (text) => {
+      const out = [];
+      for (const part of (text || "").split(",")) {
+        if (!part) continue;
+        const [a, b] = part.split("-").map(Number);
+        for (let n = a; n <= (b || a); n++) out.push(n);
+      }
+      return out;
+    };
+    const lines = (n) => (n === 1 ? "line " : "lines ");
+    const span = (list) => {
+      if (list.length === 0) return "";
+      const sorted = [...new Set(list)].sort((a, b) => a - b);
+      const first = sorted[0], last = sorted[sorted.length - 1];
+      return lines(sorted.length) + (first === last ? first : first + "–" + last);
+    };
+    const reveals = [];
+    for (const pane of imported.querySelectorAll(".tour-import")) {
+      const graph = pane.querySelector(".tour-import-graph");
+      const frame = pane.querySelector(".tour-import-frame");
+      const buttons = [...pane.querySelectorAll(".tour-import-node")];
+      const src = [...pane.querySelectorAll(".tour-import-src .ln")];
+      const out = [...pane.querySelectorAll(".tour-import-out .ln")];
+      const readout = pane.querySelector(".tour-readout");
+      let current = [];
+      // Brings the chosen nodes into the graph's view, once the pane is shown.
+      const reveal = (smooth) => {
+        if (current.length === 0 || pane.offsetParent === null) return;
+        if (graph.scrollWidth <= graph.clientWidth + 1 && graph.scrollHeight <= graph.clientHeight + 1) return;
+        const left = Math.min(...current.map((b) => b.offsetLeft)) + frame.offsetLeft;
+        const top = Math.min(...current.map((b) => b.offsetTop)) + frame.offsetTop;
+        graph.scrollTo({ left: Math.max(0, left - 32), top: Math.max(0, top - 32), behavior: smooth && !still.matches ? "smooth" : "auto" });
+      };
+      reveals.push(reveal);
+      const select = (ids, scroll) => {
+        const chosen = buttons.filter((b) => ids.includes(b.dataset.nodes));
+        current = chosen;
+        const fromLines = chosen.flatMap((b) => range(b.dataset.src));
+        const toLines = chosen.flatMap((b) => range(b.dataset.out));
+        for (const b of buttons) {
+          const on = chosen.includes(b);
+          b.classList.toggle("on", on);
+          b.setAttribute("aria-pressed", String(on));
+        }
+        for (const l of src) l.classList.toggle("on", fromLines.includes(Number(l.dataset.line)));
+        for (const l of out) l.classList.toggle("on", toLines.includes(Number(l.dataset.line)));
+        if (chosen.length === 0) {
+          readout.textContent = readout.dataset.report;
+          return;
+        }
+        const names = [...new Set(chosen.map((b) => b.title))];
+        readout.textContent =
+          (fromLines.length ? "The file's " + span(fromLines) + " became " : "") + names.join(", ") +
+          (toLines.length ? ", which writes " + span(toLines) + "." : ".");
+        if (scroll) reveal(true);
+      };
+      for (const b of buttons) b.addEventListener("click", () => select([b.dataset.nodes], false));
+      for (const l of [...src, ...out]) {
+        if (!l.dataset.nodes) continue;
+        const take = () => select(l.dataset.nodes.split(","), true);
+        l.addEventListener("click", take);
+        l.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          take();
+        });
+      }
+      // Opened on one line, as an example of what a tap shows.
+      const open = src.find((l) => l.dataset.open !== undefined);
+      if (open) select(open.dataset.nodes.split(","), false);
+    }
+    // A pane is measured only once it is shown: on this slide, or this mode.
+    tour.addEventListener("change", () => requestAnimationFrame(() => reveals.forEach((r) => r(false))));
+    requestAnimationFrame(() => reveals.forEach((r) => r(false)));
   }
 
   // Completion: the editor's options for each place it is asked, narrowed as

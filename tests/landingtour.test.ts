@@ -268,6 +268,40 @@ describe("the slides added in 0.149.0", () => {
 		expect(verbatim.replace(/<[^>]+>/g, "")).toContain("bonus and &quot;Bonus round&quot; or");
 		expect(modern.replace(/<[^>]+>/g, "")).toContain("if bonus then &quot;Bonus round&quot; else");
 		expect(slide).toContain("Kept as code: compound assignment ×1.");
+		// Tidy cuts the long run into rows; Verbatim keeps one chain.
+		const tidy = slide.slice(
+			slide.indexOf('class="tour-import tour-import-tidy"'),
+			slide.indexOf('class="tour-import tour-import-modern"'),
+		);
+		expect(tidy).toContain('title="Sequence"');
+		expect(verbatim).not.toContain('title="Sequence"');
+	});
+
+	/**
+	 * Every node answers with the lines it came from and the lines it wrote,
+	 * and every line of either file that has nodes names them: a tap on any of
+	 * the three finds the other two.
+	 */
+	it("links each line of the file, each node and each line written", () => {
+		const tidy = slideOf("import").slice(
+			slideOf("import").indexOf('class="tour-import tour-import-tidy"'),
+			slideOf("import").indexOf('class="tour-import tour-import-modern"'),
+		);
+		const nodes = [...tidy.matchAll(/class="tour-import-node" data-nodes="([^"]+)" data-src="([^"]*)" data-out="([^"]*)"/g)];
+		expect(nodes.length).toBeGreaterThan(10);
+		for (const [, id, src, out] of nodes) {
+			if (id.endsWith("-begin") || id.endsWith("-1")) continue;
+			expect(src, id).toMatch(/^\d+-\d+$/);
+			expect(out, id).toMatch(/^\d+(,\d+)*$/);
+		}
+		const ids = new Set(nodes.map(([, id]) => id));
+		const lines = [...tidy.matchAll(/class="ln" data-line="(\d+)" role="button" tabindex="0" data-nodes="([^"]+)"/g)];
+		for (const [, , named] of lines) for (const id of named.split(",")) expect(ids.has(id), id).toBe(true);
+		// The loop's line is the For Loop's, and the line in its body is the Code Block's.
+		const loopLine = lines.find(([, line]) => line === "5");
+		const bodyLine = lines.find(([, line]) => line === "6");
+		expect(loopLine?.[2]).not.toBe(bodyLine?.[2]);
+		expect(tidy).toContain("data-open");
 	});
 
 	/** A part still being finished says so beside its version, and nowhere is it presented as done. */

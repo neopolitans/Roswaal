@@ -18,7 +18,7 @@
  */
 
 import type { Binding, Block, Expr, FunctionBody, Stat } from "../luau/ast.js";
-import { tokenize } from "../luau/lexer.js";
+import { lineIndex, tokenize } from "../luau/lexer.js";
 import { parseChunk } from "../luau/parser.js";
 import { createRegistry, type Registry } from "../nodes/index.js";
 import {
@@ -68,8 +68,11 @@ export interface ImportReport {
 	rewrites: number;
 }
 
+/** The lines of the file a node was made from, first and last, counting from 1. */
+export type Origins = Record<string, { from: number; to: number }>;
+
 export type ImportResult =
-	| { ok: true; script: NodeScript; report: ImportReport }
+	| { ok: true; script: NodeScript; report: ImportReport; origins: Origins }
 	| { ok: false; error: string };
 
 /** What a name means where it is read. */
@@ -190,7 +193,24 @@ class Importer {
 	): string {
 		const id = this.id();
 		this.nodes.push({ id, def, x: at.x, y: at.y, ...(graph ? { graph } : {}), ...extra });
+		if (this.origin) this.origins.set(id, this.origin);
 		return id;
+	}
+
+	/** The span of source the nodes being made now come from. */
+	private origin: { start: number; end: number } | undefined;
+	/** Every node's span of source, for `Origins`. */
+	readonly origins = new Map<string, { start: number; end: number }>();
+
+	/**
+	 * What of a statement its own nodes stand for: all of a simple one, and
+	 * the first line of one that holds a block, whose body has nodes of its own.
+	 */
+	private head(stat: Stat): { start: number; end: number } {
+		const holds = ["if", "while", "repeat", "do", "numericFor", "genericFor", "localFunction", "functionStat"];
+		if (!holds.includes(stat.kind)) return { start: stat.start, end: stat.end };
+		const eol = this.src.indexOf("\n", stat.start);
+		return { start: stat.start, end: eol === -1 ? stat.end : eol };
 	}
 
 	private link(from: { node: string; pin: string }, to: { node: string; pin: string }): void {
@@ -501,6 +521,24 @@ class Importer {
 		fn: FunctionContext | undefined,
 		moduleReturn: boolean,
 	): Tail | null {
+		const outer = this.origin;
+		this.origin = this.head(stat);
+		try {
+			return this.statement(stat, tail, scope, graph, row, fn, moduleReturn);
+		} finally {
+			this.origin = outer;
+		}
+	}
+
+	private statement(
+		stat: Stat,
+		tail: Tail,
+		scope: Scope,
+		graph: string | undefined,
+		row: number,
+		fn: FunctionContext | undefined,
+		moduleReturn: boolean,
+	): Tail | null {
 		this.stats += 1;
 		const counted = <T>(v: T): T => {
 			this.asNodes += 1;
@@ -598,6 +636,10 @@ class Importer {
 				let falseTail: Tail | null = null;
 				let first = true;
 				for (const clause of stat.clauses) {
+					// An `elseif` is its own line, and its Branch stands for that line.
+					const eol = this.src.indexOf("\n", clause.condition.start);
+					const lineStart = this.src.lastIndexOf("\n", clause.condition.start - 1) + 1;
+					this.origin = { start: lineStart, end: eol === -1 ? clause.condition.end : eol };
 					const at = this.place(graph, row);
 					const id = this.node("flow.branch", graph, at);
 					this.feed(this.expr(clause.condition, scope, graph, at), { node: id, pin: "condition" });
@@ -960,8 +1002,14 @@ export function importLuau(file: string, options: ImportOptions): ImportResult {
 	);
 	const { nodes, links } = importer.result();
 	const built = { ...script, variables: importer.variables, nodes: [begin, ...nodes], links };
+	const lineOf = lineIndex(src);
+	const origins: Origins = {};
+	for (const [id, span] of importer.origins) {
+		origins[id] = { from: lineOf(span.start).line, to: lineOf(Math.max(span.start, span.end - 1)).line };
+	}
 	return {
 		ok: true,
+		origins,
 		script: layoutImport(built, registry()),
 		report: {
 			...importer.report(),

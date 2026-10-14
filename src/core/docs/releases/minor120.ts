@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.168.0",
+		date: "2026-10-14",
+		headline: "The front page's import demonstration answers a tap, and fits an iPad Mini.",
+		affects: ["docs"],
+		added: [
+			"**Tap a line or a node in the import demonstration.** A line of the file, a node, or a line the graph writes lights the other two, and the graph scrolls to it.",
+			"**The imported graph is drawn at a size to read.** It is laid out as an import lays it out, scrolls inside its frame, and Tidy now shows its rows beside Verbatim's one chain. Both files show every line.",
+		],
+	},
+	{
 		version: "0.167.0",
 		date: "2026-10-14",
 		headline: "An imported graph is laid out to be read, in rows.",
