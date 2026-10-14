@@ -19,6 +19,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import { compile } from "../src/core/compiler/index.js";
 import { graphNameOf, type ImportOptions, importLuau } from "../src/core/import/fromLuau.js";
 import { detectTarget } from "../src/core/import/modes.js";
+import { viewOf } from "../src/core/functionGraph.js";
+import { nodeBounds } from "../src/core/nodeBox.js";
+import { FUNCTION_NODES } from "../src/core/nodes/flow.js";
 import { createRegistry } from "../src/core/nodes/index.js";
 import type { NodeScript } from "../src/core/schema.js";
 import { ApiSession } from "../src/server/routes.js";
@@ -383,6 +386,53 @@ describe("names and types as written", () => {
 		expect(errors).toEqual([]);
 		expect(code).toContain("local tiers: { [string]: { color: Color3, size: number } } = {}");
 	});
+});
+
+describe("rows and layout", () => {
+	const generated = (code: string) =>
+		code
+			.split("\n")
+			.filter((l) => !l.startsWith("-- "))
+			.join("\n")
+			.trim();
+
+	it("keeps the file's blank lines", () => {
+		const src = "local a = 1\nlocal b = 2\n\nprint(a)\n\nprint(b)\n";
+		expect(generated(compiled(imported(src, "T.luau")).code)).toBe(src.trim());
+	});
+
+	it("cuts a long run into rows in Tidy, at its blank lines, and not in Verbatim", () => {
+		const para = (n: number) =>
+			Array.from({ length: 5 }, (_, i) => `print(${n * 10 + i})`).join("\n");
+		const src = `${para(1)}\n\n${para(2)}\n\n${para(3)}\n`;
+		const tidy = imported(src, "T.luau", { mode: "tidy" });
+		const sequence = tidy.nodes.find((n) => n.def === "flow.sequence");
+		expect(sequence?.config?.count).toBe(3);
+		expect(generated(compiled(tidy).code)).toBe(src.trim());
+		const verbatim = imported(src, "T.luau", { mode: "verbatim" });
+		expect(verbatim.nodes.some((n) => n.def === "flow.sequence")).toBe(false);
+		expect(generated(compiled(verbatim).code)).toBe(src.trim());
+	});
+
+	it.each(luauFiles(NATIVE).map((f) => [path.basename(f), f]))(
+		"%s lays out with no node over another",
+		(name, file) => {
+			const script = imported(readFileSync(file, "utf8"), name);
+			const graphs = [null, ...script.nodes.filter((n) => FUNCTION_NODES.has(n.def)).map((n) => n.id)];
+			for (const graph of graphs) {
+				const boxes = viewOf(script, graph).nodes.map((n) => ({
+					id: n.id,
+					...nodeBounds(n, registry, true),
+				}));
+				for (const [i, a] of boxes.entries()) {
+					for (const b of boxes.slice(i + 1)) {
+						const overlap = a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+						expect(overlap, `${a.id} and ${b.id} in ${graph ?? "the main graph"}`).toBe(false);
+					}
+				}
+			}
+		},
+	);
 });
 
 describe("what the round trip keeps", () => {

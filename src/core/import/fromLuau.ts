@@ -20,6 +20,7 @@
 import type { Binding, Block, Expr, FunctionBody, Stat } from "../luau/ast.js";
 import { tokenize } from "../luau/lexer.js";
 import { parseChunk } from "../luau/parser.js";
+import { createRegistry, type Registry } from "../nodes/index.js";
 import {
 	emptyScript,
 	type GraphNode,
@@ -39,6 +40,7 @@ import {
 	modernEdits,
 	type TopLevelLocals,
 } from "./modes.js";
+import { layoutImport } from "./layout.js";
 
 export interface ImportOptions {
 	/** The graph's name: the file's, without `.server`, `.client` or `.luau`. */
@@ -121,6 +123,9 @@ const KEPT_AS: Partial<Record<Stat["kind"], string>> = {
 	const: "const",
 };
 
+/** The most statements a row takes in Tidy before it is cut anyway. */
+const ROW = 8;
+
 const SIMPLE_STRING = /^(["'])((?:(?!\1)[^\\\n])*)\1$/;
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -141,6 +146,8 @@ class Importer {
 		private readonly prefix: string,
 		private readonly locals: TopLevelLocals = "variable",
 		private readonly edits: readonly Edit[] = [],
+		/** Tidy and Modern: a blank line in the file starts a new row. */
+		private readonly paragraphs = false,
 	) {}
 
 	private id(): string {
@@ -383,35 +390,87 @@ class Importer {
 		fn: FunctionContext | undefined,
 		module: boolean,
 	): Tail | null {
-		let at = tail;
-		// An if-statement ends its chain: what follows it in Luau runs after the
-		// `end`, which in a graph is the next output of a Sequence. One Sequence
-		// takes a run of them, each `if` on its own Then and the rest on the last.
-		let sequence: { id: string; count: number } | undefined;
-		for (const [i, stat] of body.entries()) {
-			if (at === null) break;
-			const last = i === body.length - 1;
-			if (stat.kind === "if" && !last) {
-				const open = sequence && at.node === sequence.id && at.pin === `s${sequence.count - 1}`;
-				if (!sequence || !open) {
-					const id = this.node("flow.sequence", graph, this.place(graph, row), {
-						config: { count: 2 },
-					});
-					this.chain(at, id);
-					sequence = { id, count: 2 };
-					at = { node: id, pin: "s0" };
-				} else {
-					sequence.count += 1;
-					const node = this.nodeById(sequence.id);
-					node.config = { ...node.config, count: sequence.count };
-				}
-				this.stat(stat, at, scope, graph, row, fn, false);
-				at = { node: sequence.id, pin: `s${sequence.count - 1}` };
+		const segments = this.segments(body);
+		const lastStat = body[body.length - 1];
+		const run = (stats: Stat[], from: Tail | null): Tail | null => {
+			let at = from;
+			for (const stat of stats) {
+				if (at === null) break;
+				const before = at;
+				at = this.stat(stat, at, scope, graph, row, fn, module && stat === lastStat && !fn);
+				if (this.blankBefore(body, stat)) this.markBlank(before);
+			}
+			return at;
+		};
+		if (segments.length < 2 || tail === null) return run(body, tail);
+		// Several runs: one Sequence, a run on each output, in order. Each is
+		// a row of its own on the canvas.
+		const id = this.node("flow.sequence", graph, this.place(graph, row), {
+			config: { count: segments.length },
+		});
+		this.chain(tail, id);
+		let at: Tail | null = null;
+		for (const [i, seg] of segments.entries()) at = run(seg, { node: id, pin: `s${i}` });
+		return at;
+	}
+
+	/** Whether the file has a blank line between `stat` and the statement before it. */
+	private blankBefore(body: Block, stat: Stat): boolean {
+		const i = body.indexOf(stat);
+		const previous = body[i - 1];
+		return previous !== undefined && /\n[ \t]*\n/.test(this.src.slice(previous.end, stat.start));
+	}
+
+	/** Keeps a blank line before the statement chained from `tail`. */
+	private markBlank(tail: Tail): void {
+		const link = this.links.find((l) => l.from.node === tail.node && l.from.pin === tail.pin);
+		if (!link) return;
+		const node = this.nodeById(link.to.node);
+		node.config = { ...node.config, blankBefore: true };
+	}
+
+	/**
+	 * A block cut into runs of statements, each a row on the canvas.
+	 *
+	 * An if-statement always ends one: what follows it in Luau runs after its
+	 * `end`, which in a graph is the next output of a Sequence, never the last
+	 * arm's False. Tidy and Modern also keep a row to `ROW` statements, cut
+	 * where the file has a blank line when it can be, so a long function reads
+	 * down the canvas in paragraphs rather than off its edge.
+	 */
+	private segments(body: Block): Stat[][] {
+		// Runs an if-statement ends: these must be cut.
+		const hard: Stat[][] = [[]];
+		for (const stat of body) {
+			hard[hard.length - 1].push(stat);
+			if (stat.kind === "if") hard.push([]);
+		}
+		if (hard[hard.length - 1].length === 0) hard.pop();
+		if (!this.paragraphs) return hard;
+		const out: Stat[][] = [];
+		for (const run of hard) {
+			if (run.length <= ROW) {
+				out.push(run);
 				continue;
 			}
-			at = this.stat(stat, at, scope, graph, row, fn, module && last && !fn);
+			// Paragraphs, packed into rows of up to ROW; a longer one is cut at ROW.
+			const paragraphs: Stat[][] = [];
+			for (const stat of run) {
+				const last = paragraphs[paragraphs.length - 1];
+				if (!last || this.blankBefore(body, stat) || last.length >= ROW) paragraphs.push([stat]);
+				else last.push(stat);
+			}
+			let row: Stat[] = [];
+			for (const paragraph of paragraphs) {
+				if (row.length > 0 && row.length + paragraph.length > ROW) {
+					out.push(row);
+					row = [];
+				}
+				row.push(...paragraph);
+			}
+			if (row.length > 0) out.push(row);
 		}
-		return at;
+		return out;
 	}
 
 	private chain(tail: Tail, nodeId: string, pin = "in"): void {
@@ -860,6 +919,13 @@ function typecheckOf(src: string): NodeScript["typecheck"] {
 	return mode === "strict" || mode === "nonstrict" ? mode : "default";
 }
 
+/** The built-in nodes an import is made of, made once. */
+let builtIn: Registry | undefined;
+function registry(): Registry {
+	builtIn ??= createRegistry();
+	return builtIn;
+}
+
 export function importLuau(file: string, options: ImportOptions): ImportResult {
 	// Code kept as text goes into the graph as written, and a checkout on
 	// Windows writes it with CRLF; the compiler writes LF.
@@ -873,7 +939,7 @@ export function importLuau(file: string, options: ImportOptions): ImportResult {
 	const prefix = options.idPrefix ?? `imp${Math.random().toString(36).slice(2, 8)}`;
 	const mode = options.mode ?? "tidy";
 	const edits = mode === "modern" ? modernEdits(parsed.value, src) : [];
-	const importer = new Importer(src, prefix, options.locals ?? "variable", edits);
+	const importer = new Importer(src, prefix, options.locals ?? "variable", edits, mode !== "verbatim");
 	const script: NodeScript = {
 		...emptyScript(options.name, `${prefix}-graph`),
 		scriptClass: options.scriptClass,
@@ -893,9 +959,10 @@ export function importLuau(file: string, options: ImportOptions): ImportResult {
 		options.scriptClass === "ModuleScript",
 	);
 	const { nodes, links } = importer.result();
+	const built = { ...script, variables: importer.variables, nodes: [begin, ...nodes], links };
 	return {
 		ok: true,
-		script: { ...script, variables: importer.variables, nodes: [begin, ...nodes], links },
+		script: layoutImport(built, registry()),
 		report: {
 			...importer.report(),
 			findings: findLikelyBugs(parsed.value, src),

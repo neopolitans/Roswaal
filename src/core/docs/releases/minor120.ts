@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.167.0",
+		date: "2026-10-14",
+		headline: "An imported graph is laid out to be read, in rows.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Imported graphs are laid out from their structure.** Statements run left to right, the values each one reads sit below and to its left, and Branch, the loops and Sequence start a row for each output. Every node is placed at the size it is drawn, so none sits over another.",
+			"**Long code reads down the canvas.** In Tidy and Modern, a run of more than eight statements becomes rows on a Sequence, cut at the file's blank lines where it can be.",
+			"**Blank lines are kept.** A blank line in the file is written back where it was.",
+		],
+	},
+	{
 		version: "0.166.0",
 		date: "2026-10-14",
 		headline: "An imported graph keeps the file's names and types.",

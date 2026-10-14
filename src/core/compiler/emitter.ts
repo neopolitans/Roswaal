@@ -438,6 +438,8 @@ export class Emitter {
 			this.execStack.add(current);
 			entered.push(current);
 			this.terminated = false;
+			// A blank line the imported file had before this statement.
+			if (resolved.node.config?.blankBefore === true) this.blank();
 			current = this.emitNode(resolved, scope);
 			// Nothing may follow a return, break or continue in the same block.
 			if (this.terminated) break;

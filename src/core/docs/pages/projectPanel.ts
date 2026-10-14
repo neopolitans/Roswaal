@@ -68,7 +68,7 @@ export function projectPanelPage(): DocPage {
 					],
 					[
 						"A `.luau` you wrote",
-						"**Import as graph** as well: a new graph that compiles back to that file. Its prompt names the risks and asks what file-level locals become and how the graph reads. Names and types stay as the file has them, and a name that hides a global or a service is flagged on its node. The file stays as it is until you overwrite it, after seeing what changes",
+						"**Import as graph** as well: a new graph that compiles back to that file. Its prompt names the risks and asks what file-level locals become and how the graph reads. It is laid out in rows as the file reads, keeping its blank lines. Names and types stay as the file has them, and a name that hides a global or a service is flagged on its node. The file stays as it is until you overwrite it, after seeing what changes",
 					],
 					[
 						"`wally.toml`, or a package under it",
