@@ -310,13 +310,13 @@ describe("the modes", () => {
 
 describe("what stays as code", () => {
 	it("keeps what has no node yet as its own text", () => {
-		const src = "type Pair = { a: number }\nlocal x, y = 1, 2\nx += y\n";
+		const src = "type Pair<T> = { a: T }\nlocal x, y = 1, 2\nx += y\n";
 		const result = importLuau(src, { name: "T", scriptClass: "Script", target: "roblox" });
 		if (!result.ok) throw new Error(result.error);
 		expect(result.report.asCode.map((c) => c.construct).sort()).toEqual([
 			"compound assignment",
+			"generic type",
 			"local with several names",
-			"type",
 		]);
 		expect(roundTrip(src)).toEqual(lines(src));
 	});
@@ -437,6 +437,31 @@ describe("event handlers", () => {
 	});
 });
 
+describe("types, and loops over what a call gives", () => {
+	it("makes a type alias Declare Type where the file has it, written as it was", () => {
+		const src =
+			'export type Shot = {\n\tdamage: number, -- per hit\n\tfrom: Vector3,\n}\ntype Id = string\nlocal id: Id = "a"\nprint(id)\n';
+		const script = imported(src, "T.luau");
+		const types = script.nodes.filter((n) => n.def === "type.declareHere");
+		expect(types.map((n) => [n.config?.name, n.config?.export ?? true])).toEqual([
+			["Shot", true],
+			["Id", false],
+		]);
+		expect(roundTrip(src, "T.luau")).toEqual(lines(src));
+	});
+
+	it("iterates a call's result as the file does", () => {
+		const src =
+			'for _, child in workspace:GetChildren() do\n\tprint(child)\nend\nfor word in string.gmatch("a b", "%a+") do\n\tprint(word)\nend\n';
+		const script = imported(src, "T.server.luau");
+		const direct = script.nodes.filter(
+			(n) => n.def === "flow.forEach" && n.config?.iterate === "direct",
+		);
+		expect(direct).toHaveLength(2);
+		expect(roundTrip(src, "T.server.luau")).toEqual(lines(src));
+	});
+});
+
 describe("several names, and assigning with an operator", () => {
 	it("makes `local a, b = f()` one call with a result for each name", () => {
 		const src =
@@ -444,7 +469,10 @@ describe("several names, and assigning with an operator", () => {
 		const script = imported(src, "T.server.luau");
 		const call = script.nodes.find((n) => n.def === "call.function");
 		expect(call?.config).toMatchObject({ results: 2, resultNames: ["ok", "err"] });
-		expect(script.nodes.find((n) => n.def === "call.method")?.config?.resultNames).toEqual(["x", "y"]);
+		expect(script.nodes.find((n) => n.def === "call.method")?.config?.resultNames).toEqual([
+			"x",
+			"y",
+		]);
 		expect(roundTrip(src, "T.server.luau")).toEqual(lines(src));
 	});
 

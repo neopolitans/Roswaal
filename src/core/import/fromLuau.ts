@@ -121,7 +121,6 @@ interface FunctionContext {
 
 /** What the report calls a statement with no node yet. */
 const KEPT_AS: Partial<Record<Stat["kind"], string>> = {
-	typeAlias: "type",
 	typeFunction: "type function",
 	do: "do block",
 	repeat: "repeat loop",
@@ -774,6 +773,22 @@ class Importer {
 				return this.custom(stat, tail, graph, row, "function");
 			}
 
+			case "typeAlias": {
+				// Declare Type where the file declares it, written out as the file
+				// wrote it. A generic alias has nowhere to put its parameters yet.
+				if (stat.generics.length > 0) return this.custom(stat, tail, graph, row, "generic type");
+				const id = this.node("type.declareHere", graph, this.place(graph, row), {
+					config: {
+						name: stat.name.name,
+						shape: "written",
+						definition: this.kept(stat.type),
+						...(stat.exported ? {} : { export: false }),
+					},
+				});
+				this.chain(tail, id);
+				return counted({ node: id, pin: "then" });
+			}
+
 			case "compoundAssign": {
 				// `x += v` as `x = v` would be drawn, with the operator on the setter.
 				// A target that has no setter stays as code, under its own name.
@@ -904,9 +919,9 @@ class Importer {
 				return { def: "flow.forIndex", key: "index", table: value.args[0] };
 			if (value.callee.name === "pairs")
 				return { def: "flow.forEach", key: "key", table: value.args[0] };
-			return undefined;
 		}
-		if (value.kind === "call" || value.kind === "methodCall") return undefined;
+		// Anything else is iterated as it is written: a table, or what a call
+		// hands back, `x:GetChildren()` or the iterator `s:gmatch("%a+")` gives.
 		return { def: "flow.forEach", key: "key", table: value, direct: true };
 	}
 

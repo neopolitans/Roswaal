@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.173.0",
+		date: "2026-10-14",
+		headline: "Import draws type aliases as Declare Type, and loops over what a call gives as For Each.",
+		affects: ["editor"],
+		added: [
+			"**A type alias imports as Declare Type.** `type Shot = { ... }` and `export type` become Declare Type where the file has them, with the definition written as it was, comments and all. One with type parameters stays as code.",
+			"**A loop over what a call gives imports as For Each.** `for _, child in model:GetChildren()` and `for word in s:gmatch(...)` iterate the call as the file does.",
+		],
+	},
+	{
 		version: "0.172.0",
 		date: "2026-10-14",
 		headline: "Setters assign with += and its kin, and a call can hand back several values.",
