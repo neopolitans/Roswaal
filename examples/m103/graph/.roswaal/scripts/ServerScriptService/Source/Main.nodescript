@@ -23,13 +23,13 @@
       "id": "13a5c553-604c-4034-a094-9f63467069db",
       "def": "flow.sequence",
       "x": 72,
-      "y": 199
+      "y": 186
     },
     {
       "id": "1b0880ee-a507-41d2-a9e3-fa722b301ee8",
       "def": "code.custom",
-      "x": 539,
-      "y": 840,
+      "x": 852,
+      "y": 847,
       "literals": {
         "code": {
           "t": "raw",
@@ -38,44 +38,28 @@
       }
     },
     {
-      "id": "310e4f9d-1748-4efe-83df-7d493e5c97de",
-      "def": "type.declareTop",
-      "x": 1468,
-      "y": 833,
-      "config": {
-        "definition": "Model & { Humanoid : Humanoid, HumanoidRootPart : Basepa}",
-        "shape": "written"
-      }
-    },
-    {
       "id": "4e360814-1d98-41d1-ae9c-7c7168805c5b",
       "def": "code.custom",
-      "x": 233,
-      "y": 840,
+      "x": 369,
+      "y": 847,
       "literals": {
         "code": {
           "t": "raw",
-          "v": "\n-- your Luau here\n\nprint(\"This is from a custom code block.\")\n\nlocal newPart = Instance.new(\"Part\")\nnewPart.Parent = workspace\nnewPart.Anchored = true\nnewPart.Size = Vector3.new(5, 5, 5)\n\nnewPart.Position = Vector3.new(10, 5, 10)\n\nnewPart.c"
+          "v": "\n-- your Luau here\n\nprint(\"This is from a custom code block.\")\n\nlocal newPart = Instance.new(\"Part\")\nnewPart.Parent = workspace\nnewPart.Anchored = true\nnewPart.Size = Vector3.new(5, 5, 5)\n\nnewPart.Position = Vector3.new(10, 5, 10)"
         }
       }
     },
     {
-      "id": "640dc1fb-c4a8-41e3-b308-ec4eb36818fc",
-      "def": "value.expression",
-      "x": 868,
-      "y": 801
-    },
-    {
       "id": "a520f24f-70db-43a6-81f3-2c86ff7bce8d",
       "def": "flow.rerouteExec",
-      "x": 121,
-      "y": 871
+      "x": 257,
+      "y": 851
     },
     {
       "id": "conn",
       "def": "event.connect",
-      "x": 638.61,
-      "y": 198.61,
+      "x": 641,
+      "y": 213,
       "config": {
         "params": [
           {
@@ -99,8 +83,8 @@
     {
       "id": "countUp",
       "def": "variable.set",
-      "x": 1966,
-      "y": 229,
+      "x": 1968,
+      "y": 232,
       "config": {
         "name": "playersJoined",
         "type": "number",
@@ -110,7 +94,7 @@
     {
       "id": "greet",
       "def": "call.function",
-      "x": 1277,
+      "x": 1279,
       "y": 240,
       "config": {
         "args": 1
@@ -175,8 +159,8 @@
     {
       "id": "say",
       "def": "debug.print",
-      "x": 1671,
-      "y": 247
+      "x": 1673,
+      "y": 240
     },
     {
       "id": "signal",
@@ -194,7 +178,7 @@
       "id": "start",
       "def": "script.begin",
       "x": -336,
-      "y": 199
+      "y": 186
     },
     {
       "id": "svc",
