@@ -45,6 +45,12 @@ export interface CompileOutcome {
 	 * somebody may need to find later.
 	 */
 	superseded?: string[];
+	/**
+	 * Why StyLua left this file as emitted, when it ran and refused. The file
+	 * is still written; it only goes unformatted, which a developer whose
+	 * StyLua refuses every file would otherwise never learn.
+	 */
+	unformatted?: string;
 	diagnostics: CompileResult["diagnostics"];
 	sourceMap: CompileResult["sourceMap"];
 	code: string;
@@ -144,13 +150,14 @@ export async function compileScript(
 	// describes the bytes that actually land on disk.
 	const formatted = project.config.format
 		? formatLuau(project.root, result.code, project.config)
-		: result.code;
-	const code = stampOutputHash(formatted);
+		: { code: result.code };
+	const code = stampOutputHash(formatted.code);
 
 	const outcome: CompileOutcome = {
 		scriptPath: relPath,
 		outputPath: outputPathFor(project, relPath, result.fileName),
 		written: false,
+		...(formatted.unformatted ? { unformatted: formatted.unformatted } : {}),
 		diagnostics: result.diagnostics,
 		sourceMap: result.sourceMap,
 		code,

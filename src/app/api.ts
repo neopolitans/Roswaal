@@ -151,6 +151,8 @@ export interface CompileOutcome {
 	skipped?: string;
 	/** Files this graph used to write and no longer does, now deleted. */
 	superseded?: string[];
+	/** Why StyLua left the file as emitted, when it ran and refused. */
+	unformatted?: string;
 	diagnostics: Diagnostic[];
 	sourceMap: { line: number; node: string }[];
 	code: string;

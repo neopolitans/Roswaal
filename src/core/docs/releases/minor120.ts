@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.187.0",
+		date: "2026-10-15",
+		headline: "A compile says when StyLua did not format a file.",
+		affects: ["editor", "docs"],
+		added: [
+			"**StyLua's refusals are shown.** A file StyLua refuses is still written, unformatted, and what StyLua said is listed in Problems, raised as a notice, and printed by `roswaal compile` and `roswaal watch` — once per reason, not once per file. In Dynamic mode the notice comes when the reason first appears or changes.",
+		],
+	},
+	{
 		version: "0.186.8",
 		security: true,
 		date: "2026-10-15",

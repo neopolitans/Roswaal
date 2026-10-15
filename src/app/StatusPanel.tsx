@@ -6,6 +6,7 @@
 import { Fragment } from "react";
 
 import type { Diagnostic } from "../core/compiler/index.js";
+import { unformattedGroups, unformattedMessage } from "../core/unformatted.js";
 import type { CompileOutcome, MapOutcome } from "./api.js";
 import { cx } from "./cx.js";
 import { Icon } from "./icons.jsx";
@@ -103,6 +104,13 @@ export function StatusPanel(props: StatusPanelProps) {
 						<div className="entry error" key={`pack${i}`}>
 							<span className="sev">pack</span>
 							<span>{message}</span>
+						</div>
+					))}
+					{/* Written, but as emitted: once per thing StyLua said, not per file. */}
+					{unformattedGroups(outcomes).map((group) => (
+						<div className="entry warning" key={`unformatted:${group.reason}`}>
+							<span className="sev">unformatted</span>
+							<span>{unformattedMessage(group)}</span>
 						</div>
 					))}
 					{props.mapOutcomes.map((outcome) => (

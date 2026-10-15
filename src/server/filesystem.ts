@@ -89,4 +89,14 @@ export type Formatter = (
 	cwd: string,
 	code: string,
 	config?: Pick<RoswaalConfig, "indentStyle" | "indentWidth">,
-) => string;
+) => Formatted;
+
+export interface Formatted {
+	code: string;
+	/**
+	 * Why a formatter that ran left the code as emitted: its own first line
+	 * of complaint. Absent when it formatted the code, and when there is no
+	 * formatter to run, which is not worth a word.
+	 */
+	unformatted?: string;
+}

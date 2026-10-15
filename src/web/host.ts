@@ -78,4 +78,4 @@ export const path: ProjectPath = posixPath;
  * rest of somebody's codebase, which is a thing that matters on disk, in a
  * repository, next to code a person wrote.
  */
-export const formatLuau: Formatter = (_cwd, code) => code;
+export const formatLuau: Formatter = (_cwd, code) => ({ code });

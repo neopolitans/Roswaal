@@ -27,6 +27,7 @@ import { NEW_PLACE_FILE } from "../core/newProject.js";
 import { readRbx } from "../core/rbx/index.js";
 import { describePlaceReport } from "../core/rbx/placeExport.js";
 import { planImport, surveyPlace } from "../core/rbx/placeImport.js";
+import { unformattedGroups, unformattedWhat } from "../core/unformatted.js";
 import { createDaemon, DEFAULT_PORT, hasBundledEditor } from "../server/app.js";
 import { errorMessage } from "../server/errors.js";
 import { createProject } from "../server/newProject.js";
@@ -563,6 +564,10 @@ async function commandCompile(args: Args): Promise<number> {
 			console.log(`${red("error   ")} ${result.scriptPath}: ${diagnostic.message}`);
 		}
 	}
+	// Written, but as emitted: once per thing StyLua said, not once per file.
+	for (const group of unformattedGroups(results)) {
+		console.log(`${yellow("stylua  ")} did not format ${unformattedWhat(group)}: ${group.reason}`);
+	}
 
 	if (results.length === 0 && maps.length === 0) {
 		console.log(dim(`nothing to compile in ${project.config.sourceDir}`));
@@ -590,6 +595,9 @@ async function commandWatch(args: Args): Promise<number> {
 			console.log(`${stamp} ${green("wrote")}  ${event.outcome.outputPath}`);
 			for (const gone of event.outcome.superseded ?? []) {
 				console.log(`${stamp} ${dim("gone")}   ${gone}`);
+			}
+			if (event.outcome.unformatted) {
+				console.log(`${stamp} ${yellow("stylua")} did not format it: ${event.outcome.unformatted}`);
 			}
 		} else if (event.outcome?.skipped) {
 			console.log(`${stamp} ${yellow("skip")}   ${event.path}: ${event.outcome.skipped}`);

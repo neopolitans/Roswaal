@@ -17,7 +17,7 @@ vi.mock("../src/server/host.js", async () => {
 	const { posixPath: path } = await import("../src/web/posixPath.js");
 	const { Volume: MemoryVolume } = await import("../src/web/volume.js");
 	const volume = new MemoryVolume();
-	return { volume, fs: volume, path, formatLuau: (_cwd: string, code: string) => code };
+	return { volume, fs: volume, path, formatLuau: (_cwd: string, code: string) => ({ code }) };
 });
 
 const { volume } = (await import("../src/server/host.js")) as unknown as { volume: Volume };

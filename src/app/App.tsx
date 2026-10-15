@@ -19,6 +19,7 @@ import type { InstanceLocation } from "../core/nodemap.js";
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import { BUILTIN_NODES, createRegistry } from "../core/nodes/index.js";
 import { indentUnit, type NodeDef, type RoswaalConfig } from "../core/schema.js";
+import { unformattedGroups, unformattedMessage, unformattedWhat } from "../core/unformatted.js";
 import { AliasDocument } from "./AliasDocument.jsx";
 import {
 	api,
@@ -326,6 +327,29 @@ export function App() {
 	} | null>(null);
 
 	const { dialog, dialogOpen, ask, notify } = useDialogs();
+
+	/**
+	 * The notice for files StyLua left as emitted. Written, so it is a warning
+	 * and not a failure; what StyLua said is a click away.
+	 */
+	const warnUnformatted = useCallback(
+		(outcomes: CompileOutcome[]) => {
+			const groups = unformattedGroups(outcomes);
+			if (groups.length === 0) return;
+			showToast({
+				title:
+					groups.length === 1
+						? `StyLua did not format ${unformattedWhat(groups[0])}`
+						: "StyLua did not format some files",
+				detail: "Written as emitted · click for details",
+				tone: "warn",
+				onClick: () => notify("Not formatted", groups.map(unformattedMessage).join("\n\n")),
+			});
+		},
+		[notify],
+	);
+	/** What StyLua last said about a file Dynamic mode wrote, so it is said once. */
+	const hotUnformatted = useRef<string | null>(null);
 
 	/**
 	 * Autosave's queue: one pending write per file, graphs and node maps alike.
@@ -817,7 +841,14 @@ export function App() {
 				outcome?: CompileOutcome;
 				message?: string;
 			};
-			if (detail.outcome) setOutcomes([detail.outcome]);
+			if (detail.outcome) {
+				setOutcomes([detail.outcome]);
+				// When StyLua starts refusing, or says something new; every save
+				// would be every few seconds.
+				const said = detail.outcome.written ? (detail.outcome.unformatted ?? null) : null;
+				if (said && said !== hotUnformatted.current) warnUnformatted([detail.outcome]);
+				if (detail.outcome.written) hotUnformatted.current = said;
+			}
 			void api.tree().then(({ tree, place }) => setProject((p) => (p ? { ...p, tree, place } : p)));
 			refreshTypes();
 			refreshAliases();
@@ -858,7 +889,7 @@ export function App() {
 		});
 
 		return () => stream.close();
-	}, [project?.root, notify, loadProject]);
+	}, [project?.root, notify, loadProject, warnUnformatted]);
 
 	const refreshTree = useCallback(async () => {
 		const { tree, place } = await api.tree();
@@ -1084,7 +1115,10 @@ export function App() {
 				// One graph compiled: say what it wrote, where you are looking.
 				// A project's compile has its own progress toast.
 				const one = path && write && results.length === 1 ? results[0] : undefined;
-				if (one?.written) {
+				if (write && !one) warnUnformatted(results);
+				if (one?.written && one.unformatted) {
+					warnUnformatted([one]);
+				} else if (one?.written) {
 					const name =
 						(path ?? "")
 							.split("/")
@@ -1108,7 +1142,7 @@ export function App() {
 				setCompiling(false);
 			}
 		},
-		[refreshTree],
+		[refreshTree, warnUnformatted],
 	);
 
 	/**

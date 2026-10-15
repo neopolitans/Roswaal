@@ -127,7 +127,7 @@ vi.mock("../src/server/host.js", async () => {
 	const { posixPath: path } = await import("../src/web/posixPath.js");
 	const { DirectoryFs } = await import("../src/web/directoryFs.js");
 	const fs = new DirectoryFs(ROOT as unknown as FileSystemDirectoryHandle, "/demo");
-	return { fs, path, formatLuau: (_cwd: string, code: string) => code };
+	return { fs, path, formatLuau: (_cwd: string, code: string) => ({ code }) };
 });
 
 const { buildTree, compileAll, openProject, readScript, writeScript } = await import(

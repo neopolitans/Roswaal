@@ -125,7 +125,7 @@ export function compilingForLunePage(): DocPage {
 				text:
 					"A graph with errors writes nothing; warnings do not stop it. With `format` on and " +
 					"[StyLua](https://github.com/JohnnyMorganz/StyLua) on your PATH, the file is " +
-					"formatted as it is written. Then `lune run main` — Roswaal does not run it for you.",
+					"formatted as it is written. If StyLua refuses it, it is written unformatted and the compile says why. Then `lune run main` — Roswaal does not run it for you.",
 			},
 			{
 				t: "p",
