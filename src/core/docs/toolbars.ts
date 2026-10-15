@@ -1366,10 +1366,10 @@ export const GRAPH_BAR: ToolbarSpec = {
 				{
 					t: "icon",
 					icon: "layout",
-					name: "Realign",
+					name: "Refactor",
 					what:
-						"Lays the graph out along its flow — `Ctrl` + `Shift` + `L`. With several " +
-						"nodes selected, only those move; a pinned node stays put.",
+						"Opens the Refactor panel: Realign, Split into rows, A Get per reader and " +
+						"Share Gets. `Ctrl` + `Shift` + `L` realigns without it.",
 				},
 				{
 					t: "icon",
@@ -2283,7 +2283,15 @@ export const MORE_MENU_PHONE: ToolbarSpec = {
 					icon: "search",
 					...as(GRAPH_BAR, "Add node", HOLD_TO_ADD),
 				},
-				{ t: "button", text: "Realign", icon: "layout", ...as(GRAPH_BAR, "Realign") },
+				{
+					t: "button",
+					text: "Realign",
+					icon: "layout",
+					name: "Realign",
+					what:
+						"Lays the graph out along its flow. With several nodes selected, only those " +
+						"move; a pinned node stays put.",
+				},
 				{ t: "button", text: "Preview", icon: "terminal", ...as(GRAPH_BAR, "Preview") },
 			],
 		},
@@ -2360,7 +2368,7 @@ export const GRAPH_BAR_TABLET: ToolbarSpec = {
 		{
 			items: [
 				{ t: "icon", icon: "search", ...as(GRAPH_BAR, "Add node", HOLD_TO_ADD) },
-				{ t: "icon", icon: "layout", ...as(GRAPH_BAR, "Realign") },
+				{ t: "icon", icon: "layout", ...as(GRAPH_BAR, "Refactor") },
 				{ t: "icon", icon: "terminal", ...as(GRAPH_BAR, "Preview") },
 			],
 		},
@@ -2373,8 +2381,8 @@ export const GRAPH_BAR_PHONE: ToolbarSpec = {
 	device: "phone",
 	title: "The open graph, on a phone",
 	summary:
-		"Its tab, and the list of the others. **Add node** and **Preview** are in **More**; " +
-		"Realign is not on a phone.",
+		"Its tab, and the list of the others. **Add node**, **Realign** and **Preview** are " +
+		"in **More**.",
 	chrome: "float",
 	groups: [
 		{

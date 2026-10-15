@@ -329,7 +329,8 @@ describe("a panel in a window", () => {
 		expect(floated.panels.variables.dock).toBe("left");
 		// Out of the dock's list, so the dock sizes itself to what is left.
 		expect(panelsIn(floated, "left")).toEqual(["tree"]);
-		expect(floatingPanels(floated)).toEqual(["variables"]);
+		// The Refactor panel floats from the start, at the top of the graph.
+		expect(floatingPanels(floated)).toEqual(["variables", "refactor"]);
 	});
 
 	it("goes back to the dock it came from, and opens it", () => {
@@ -457,7 +458,7 @@ describe("cards", () => {
 		const frame = { x: 40, y: 80, w: 300, h: 360 };
 		let layout = dropCard(base(), "variables", { kind: "tab", host: "tree" });
 		layout = dropCard(layout, "tree", { kind: "float", frame });
-		expect(floatingCards(layout).map((c) => c.tabs)).toEqual([["tree", "variables"]]);
+		expect(floatingCards(layout).map((c) => c.tabs)).toEqual([["tree", "variables"], ["refactor"]]);
 		expect(layout.panels.variables.floating).toBe(true);
 	});
 

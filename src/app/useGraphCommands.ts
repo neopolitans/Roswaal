@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { ENTRY_HOME, mergeLayout, viewOf, withFunctionGraphs } from "../core/functionGraph.js";
 import { type Registry, resolveNodePins } from "../core/nodes/index.js";
 import { canShowName } from "../core/operatorLayout.js";
+import { getterPerReader, shareGets, splitIntoRows } from "../core/refactor.js";
 import type { Literal, NodeDef } from "../core/schema.js";
 import { SERVICE_CALL, SERVICE_VALUE } from "../core/serviceCalls.js";
 import type { ProjectInfo } from "./api.js";
@@ -366,6 +367,49 @@ export function useGraphCommands(context: GraphCommandsContext) {
 	}, [registry, wideNodes]);
 
 	/**
+	 * A change from the Refactor panel, to the selection when there is more than
+	 * one node in it, otherwise to the graph on screen; Split into rows always
+	 * takes the graph's chain. One edit, so one undo, realigning what it touched
+	 * after when the panel says to.
+	 */
+	const refactor = useCallback(
+		(change: RefactorChange) => {
+			const state = store.getSnapshot();
+			if (!state.script) return;
+			const graph = state.graph;
+			const view = viewOf(state.script, graph);
+			const selected = new Set(
+				[...state.selection].filter((id) => view.nodes.some((n) => n.id === id)),
+			);
+			const only = selected.size > 1 ? selected : undefined;
+			store.edit((s) => {
+				const before = new Set(s.nodes.map((n) => n.id));
+				const changed =
+					change === "perReader"
+						? getterPerReader(s, graph, only)
+						: change === "shareGets"
+							? shareGets(s, graph, only)
+							: splitIntoRows(s, registry, graph);
+				if (changed === s || !prefs.realignAfterRefactor) return changed;
+				// What the change added is laid out with what it was asked of.
+				const scope =
+					only && change !== "rows"
+						? new Set([
+								...[...only].filter((id) => changed.nodes.some((n) => n.id === id)),
+								...changed.nodes.filter((n) => !before.has(n.id)).map((n) => n.id),
+							])
+						: undefined;
+				return mergeLayout(
+					changed,
+					graph,
+					autoLayout(viewOf(changed, graph), registry, { only: scope, wideNodes, graph }),
+				);
+			});
+		},
+		[registry, wideNodes, prefs.realignAfterRefactor],
+	);
+
+	/**
 	 * Deletes a selection, asking first when a function in it takes its graph
 	 * along — nodes that are not on screen. A delete that only ever removes what
 	 * you can see needs no question.
@@ -649,8 +693,12 @@ export function useGraphCommands(context: GraphCommandsContext) {
 		presets,
 		promotePin,
 		realign,
+		refactor,
 		spawn,
 		spawnComment,
 		splitOrRecombine,
 	};
 }
+
+/** The Refactor panel's changes, besides Realign. */
+export type RefactorChange = "rows" | "perReader" | "shareGets";

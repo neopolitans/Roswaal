@@ -3120,6 +3120,61 @@ button.tb.primary:hover:not(:disabled) {
 	overflow-wrap: anywhere;
 }
 
+/* The Refactor panel's changes: a row each, its icon, its name over what it
+   does, and a shortcut where it has one. */
+.refactor .refactor-act {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	min-width: 0;
+	padding: 8px 10px;
+	text-align: left;
+	color: var(--fg);
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	font: inherit;
+	cursor: pointer;
+}
+
+.refactor .refactor-act:hover:not(:disabled) {
+	border-color: var(--accent);
+}
+
+.refactor .refactor-act:disabled {
+	cursor: default;
+	opacity: 0.55;
+}
+
+.refactor .refactor-text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	flex: 1;
+	min-width: 0;
+}
+
+.refactor .refactor-label {
+	font-weight: 600;
+}
+
+.refactor .refactor-hint {
+	font-size: var(--text-xs);
+	color: var(--fg-faint);
+	overflow-wrap: anywhere;
+}
+
+.refactor .refactor-act kbd {
+	flex: none;
+	font-family: inherit;
+	font-size: var(--text-xs);
+	color: var(--fg-faint);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-xs);
+	padding: 0 4px;
+}
+
 /* The list rows are three controls wide and the dock can be dragged to 140px.
    Left alone they push the panel wider than it is and it scrolls sideways. */
 .inspector .list-row {

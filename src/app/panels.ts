@@ -36,13 +36,21 @@ export const DOCK_SIDES: DockSide[] = ["left", "right", "bottom"];
  * "drop it" and "render nothing, silently" is whether the type says which
  * names are real.
  */
-export type PanelId = "tree" | "variables" | "inspector" | "properties" | "analysis" | "code";
+export type PanelId =
+	| "tree"
+	| "variables"
+	| "inspector"
+	| "properties"
+	| "refactor"
+	| "analysis"
+	| "code";
 
 export const PANEL_IDS: PanelId[] = [
 	"tree",
 	"variables",
 	"inspector",
 	"properties",
+	"refactor",
 	"analysis",
 	"code",
 ];
@@ -163,6 +171,16 @@ export const DEFAULT_LAYOUT: Layout = {
 			frame: DEFAULT_FRAME,
 			weight: 2,
 		},
+		// Refactor: Realign and the other tidy-ups, in a window at the top of
+		// the graph when the toolbar opens it, which docks under the Inspector.
+		refactor: {
+			dock: "right",
+			open: true,
+			order: 2,
+			floating: true,
+			frame: { x: 28, y: 64, w: 340, h: 330 },
+			weight: 2,
+		},
 		analysis: { dock: "bottom", open: true, order: 0, floating: false, frame: DEFAULT_FRAME },
 		// The code of a Code Block, a Luau Expression or a type, a tab per
 		// field, along the foot of the graph between the side columns. Shut
@@ -197,6 +215,7 @@ export const PANEL_TITLES: Record<PanelId, string> = {
 	variables: "Variables",
 	inspector: "Inspector",
 	properties: "Properties",
+	refactor: "Refactor",
 	analysis: "Script analysis",
 	code: "Code",
 };

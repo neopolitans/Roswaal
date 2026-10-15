@@ -34,6 +34,7 @@ import {
 import { Canvas } from "./Canvas.jsx";
 import { CanvasStrip, frameNode } from "./CanvasStrip.jsx";
 import { PanelHead } from "./Cards.jsx";
+import { RefactorPanel } from "./RefactorPanel.jsx";
 import { CodePanel, type CodeTab, codeTabKey, codeValue } from "./CodePanel.jsx";
 import { CompileToast } from "./CompileToast.jsx";
 import { type CodeOpenRequest, onCodeEditRequest } from "./codeEditRequests.js";
@@ -76,7 +77,7 @@ import { ProjectPicker } from "./ProjectPicker.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
 import { setEditorOpener, setPageReady, switchMode, useOnShown, useShowing } from "./pageHost.jsx";
 import { IS_STATIC_HOST, openHome, openPage } from "./pages.js";
-import { cardOf, foldCard, type PanelId, reopenPanel, showTab } from "./panels.js";
+import { cardOf, DEFAULT_LAYOUT, foldCard, type PanelId, reopenPanel, showTab } from "./panels.js";
 import { readPreferences, wheelAction } from "./preferences.js";
 import { SiteBanner } from "./previewBuild.jsx";
 import { setProjectAliases } from "./projectAliases.js";
@@ -208,6 +209,33 @@ export function App() {
 	const source = editor.side?.kind === "luau" ? editor.side.doc : null;
 	const mapDoc = editor.side?.kind === "map" ? editor.side.doc : null;
 	const layout = prefs.layout;
+
+	/**
+	 * The Refactor panel, there once the toolbar's Refactor button opens it.
+	 * The button shuts it again, and a session starts without it.
+	 */
+	const [refactorShown, setRefactorShown] = useState(false);
+	const toggleRefactor = useCallback(() => {
+		if (refactorShown && layout.panels.refactor.open) {
+			setRefactorShown(false);
+			return;
+		}
+		setRefactorShown(true);
+		setShowDrawer((prev) => ({ panel: "refactor", seq: (prev?.seq ?? 0) + 1 }));
+		revealPanel("refactor");
+		// A window never moved opens at the top of the graph, between the docks,
+		// rather than over the Project panel.
+		onLayout((l) => {
+			const panel = l.panels.refactor;
+			const start = DEFAULT_LAYOUT.panels.refactor.frame;
+			if (!panel.floating || panel.frame.x !== start.x || panel.frame.y !== start.y) return l;
+			const x = Math.max(start.x, Math.round((window.innerWidth - panel.frame.w) / 2));
+			return {
+				...l,
+				panels: { ...l.panels, refactor: { ...panel, frame: { ...panel.frame, x } } },
+			};
+		});
+	}, [refactorShown, layout.panels.refactor.open, revealPanel, onLayout]);
 
 	/** The selection preview, which is opened deliberately and never sits open. */
 	const [previewOpen, setPreviewOpen] = useState(false);
@@ -1148,7 +1176,7 @@ export function App() {
 		onMapCompiled: setMapOutcomes,
 	});
 
-	const { locked, presets, promotePin, realign, spawn, spawnComment, splitOrRecombine } =
+	const { locked, presets, promotePin, realign, refactor, spawn, spawnComment, splitOrRecombine } =
 		useGraphCommands({
 			editor,
 			project,
@@ -1373,6 +1401,8 @@ export function App() {
 										inFunction={editor.graph !== null}
 										onAddNode={addNodeAtCentre}
 										onRealign={realign}
+										onRefactor={toggleRefactor}
+										refactorOpen={refactorShown && layout.panels.refactor.open}
 										onPreview={() => setPreviewOpen(true)}
 									/>
 								) : null}
@@ -1613,6 +1643,19 @@ export function App() {
 									store.edit((s) => ({ ...s, target: value }));
 								}}
 								onTypecheck={(value) => store.edit((s) => ({ ...s, typecheck: value }))}
+							/>
+						) : undefined,
+					refactor:
+						refactorShown && graphOpen && editor.script ? (
+							<RefactorPanel
+								script={editor.script}
+								graph={editor.graph}
+								selection={editor.selection}
+								locked={locked}
+								realignAfter={prefs.realignAfterRefactor}
+								onRealign={realign}
+								onChange={refactor}
+								onRealignAfter={(value) => updatePrefs({ realignAfterRefactor: value })}
 							/>
 						) : undefined,
 					properties:

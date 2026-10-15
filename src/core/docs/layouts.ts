@@ -1035,7 +1035,7 @@ export const EDITOR_LAYOUT: LayoutSpec = {
 				{
 					items: TOOLS_CLUSTER,
 					name: "Graph tools",
-					what: "Add node, Realign and Preview.",
+					what: "Add node, Refactor and Preview.",
 				},
 				{
 					apart: true,

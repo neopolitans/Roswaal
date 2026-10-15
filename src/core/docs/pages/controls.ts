@@ -195,6 +195,31 @@ export function controlsPage(): DocPage {
 			{
 				t: "p",
 				text:
+					"The toolbar's **Refactor** button opens a panel with Realign and three changes " +
+					"that rewire a graph without changing its Luau. Drag it into the right dock to keep " +
+					"it under the Inspector.",
+			},
+			{
+				t: "table",
+				head: ["Change", "What it does"],
+				rows: [
+					[
+						"**Split into rows**",
+						"Puts a Sequence after the graph's start and cuts its chain into rows by width.",
+					],
+					["**A Get per reader**", "Gives each node that reads a Get its own copy."],
+					["**Share Gets**", "Makes Gets of the same thing one, read by every reader."],
+				],
+			},
+			{
+				t: "p",
+				text:
+					"With several nodes selected, the Get changes act on those alone. **Realign after " +
+					"each change** lays out what a change touched.",
+			},
+			{
+				t: "p",
+				text:
 					"Right-click a node and choose **Pin** to keep it where it is: Realign lays the rest " +
 					"out round it. A pinned node has a dashed ring and a pin in its corner.",
 			},

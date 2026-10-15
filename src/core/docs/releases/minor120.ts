@@ -9,6 +9,21 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.183.0",
+		date: "2026-10-15",
+		headline: "Realign moves into a Refactor panel, with Split into rows and two ways to wire Gets.",
+		affects: ["editor", "docs"],
+		added: [
+			"**The Refactor panel.** The toolbar's Refactor button opens it at the top of the graph; drag it into the right dock to keep it under the Inspector. It holds Realign and three changes that leave the compiled Luau as it was.",
+			"**Split into rows.** Puts a Sequence after the graph's start and cuts its chain into rows by width, as an import does.",
+			"**A Get per reader and Share Gets.** The first gives each node that reads a Get its own copy; the second makes Gets of the same thing one. With several nodes selected, they act on those alone.",
+			"**Realign after each change.** On to start: a change lays out what it touched.",
+		],
+		changed: [
+			"**The toolbar's Realign button is now Refactor.** Ctrl+Shift+L still realigns, and Realign stays in the phone's More menu.",
+		],
+	},
+	{
 		version: "0.182.0",
 		date: "2026-10-15",
 		headline: "Realign lays a graph out along its flow, a node can be pinned, and a comment can keep its nodes as placed.",

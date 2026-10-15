@@ -278,6 +278,10 @@ export type DocumentBarProps =
 			inFunction: boolean;
 			onAddNode: () => void;
 			onRealign: () => void;
+			/** Shows the Refactor panel, or hides it when it is showing. */
+			onRefactor: () => void;
+			/** The Refactor panel is showing. */
+			refactorOpen: boolean;
 			onPreview: () => void;
 	  };
 
@@ -331,11 +335,11 @@ export function DocumentBar(props: DocumentBarProps) {
 				<Icon name="search" size={16} />
 			</button>
 			<button
-				className="tb icon-only"
-				disabled={props.locked}
-				title="Realign — lay the graph out along its flow (Ctrl+Shift+L). With several nodes selected, only those move; a pinned node stays put."
-				aria-label="Realign the graph"
-				onClick={props.onRealign}
+				className={cx("tb icon-only", props.refactorOpen && "on")}
+				title="Refactor — Realign (Ctrl+Shift+L), Split into rows, and Gets shared or one per reader"
+				aria-label="Refactor"
+				aria-pressed={props.refactorOpen}
+				onClick={props.onRefactor}
 			>
 				<Icon name="layout" size={16} />
 			</button>

@@ -175,6 +175,8 @@ export interface Preferences {
 	 * same width. A node and its picture are never two different sizes.
 	 */
 	wideNodes: boolean;
+	/** The Refactor panel realigns what it changed after each change. */
+	realignAfterRefactor: boolean;
 	/**
 	 * Whether a new operator pill starts out bracketing its expression.
 	 *
@@ -397,6 +399,7 @@ export const DEFAULTS: Preferences = {
 	// Truncating is what nodes already did, so the default changes nothing for
 	// anybody who does not go looking for it.
 	wideNodes: false,
+	realignAfterRefactor: true,
 	logicParens: false,
 	castNames: false,
 	concatInterpolate: false,
@@ -468,6 +471,10 @@ export function readPreferences(): Preferences {
 			? (stored.wheel as WheelChoice)
 			: DEFAULTS.wheel,
 		wideNodes: typeof stored.wideNodes === "boolean" ? stored.wideNodes : DEFAULTS.wideNodes,
+		realignAfterRefactor:
+			typeof stored.realignAfterRefactor === "boolean"
+				? stored.realignAfterRefactor
+				: DEFAULTS.realignAfterRefactor,
 		logicParens:
 			typeof stored.logicParens === "boolean" ? stored.logicParens : DEFAULTS.logicParens,
 		castNames: typeof stored.castNames === "boolean" ? stored.castNames : DEFAULTS.castNames,
