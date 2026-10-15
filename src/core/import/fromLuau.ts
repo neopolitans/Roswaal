@@ -21,8 +21,8 @@ import { CODE_FACE } from "../codeFace.js";
 import { isFieldName } from "../compiler/luau.js";
 import { viewOf } from "../functionGraph.js";
 import { titleHeight } from "../layout/flow.js";
-import type { Binding, Block, Expr, FunctionBody, Stat } from "../luau/ast.js";
 import { fits } from "../luau/argumentTypes.js";
+import type { Binding, Block, Expr, FunctionBody, Stat } from "../luau/ast.js";
 import { classOfCall, eventsOf, methodsOf } from "../luau/infer.js";
 import { lineIndex, tokenize } from "../luau/lexer.js";
 import { parseChunk } from "../luau/parser.js";
@@ -32,8 +32,8 @@ import { COMPOUND_NODES } from "../nodes/compound.js";
 import { FUNCTION_NODES } from "../nodes/flow.js";
 import { BUILTIN_NODES, createRegistry, type Registry } from "../nodes/index.js";
 import { isInstanceClass, isService, isSubclassOf } from "../roblox.js";
-import type { ServiceMethod } from "../robloxMembers.js";
 import { valueProperties } from "../robloxEngine.js";
+import type { ServiceMethod } from "../robloxMembers.js";
 import { propertiesOf } from "../robloxProperties.js";
 import {
 	type Comment,

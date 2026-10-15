@@ -6,8 +6,8 @@
  * layout never depends on when React commits.
  */
 
-import type { Registry } from "../core/nodes/index.js";
 import { codeFaceOf, codeFacePinY } from "../core/codeFace.js";
+import type { Registry } from "../core/nodes/index.js";
 import { execReach, pinCentreY, pinRow } from "../core/pinLayout.js";
 import type { GraphNode } from "../core/schema.js";
 import { NODE } from "./layers.js";
@@ -97,9 +97,7 @@ export function pinPosition(
 	const face = pinRow(list, index) >= 0 ? codeFaceOf(def, node, inputs, outputs) : undefined;
 	return {
 		x: side === "in" ? node.x - reach : node.x + nodeWidth(def, node, wide) + reach,
-		y:
-			node.y +
-			(face ? codeFacePinY(head, face) : pinCentreY(list, index, head, NODE.rowHeight)),
+		y: node.y + (face ? codeFacePinY(head, face) : pinCentreY(list, index, head, NODE.rowHeight)),
 	};
 }
 

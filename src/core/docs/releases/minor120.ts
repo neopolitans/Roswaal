@@ -34,7 +34,7 @@ export const RELEASES_0_120: Release[] = [
 		added: [
 			"**Argument types are checked.** A method called on something whose type is known, given a value of a type it does not take, is underlined in the code editor and in a file opened to read, and listed in Problems against the node.",
 			"**Imports type more values.** A handler's parameters take the event's types, a property its class's type, and Instance.new and FindFirstChildOfClass the class they name, so more method calls become nodes.",
-			"**A service named otherwise is declared.** local RS = game:GetService(\"ReplicatedStorage\") becomes a declared service that keeps the name RS, shown as RS in Services.",
+			'**A service named otherwise is declared.** local RS = game:GetService("ReplicatedStorage") becomes a declared service that keeps the name RS, shown as RS in Services.',
 		],
 		changed: [
 			"**A method given an argument its pin does not take stays as code.** The check then says why.",
@@ -59,7 +59,7 @@ export const RELEASES_0_120: Release[] = [
 		headline: "An import makes nodes of method calls on objects whose type it knows.",
 		affects: ["editor", "docs"],
 		added: [
-			"**Method calls as nodes.** part:Destroy(), remote:FireAllClients(1), folder:WaitForChild(\"Shared\") and the like import as their own nodes when the importer knows what they are called on: a service, a name with a type written beside it, workspace, or the result of another node.",
+			'**Method calls as nodes.** part:Destroy(), remote:FireAllClients(1), folder:WaitForChild("Shared") and the like import as their own nodes when the importer knows what they are called on: a service, a name with a type written beside it, workspace, or the result of another node.',
 			"**Service methods as Service Functions.** A call on a service that the engine catalogue lists, such as RunService:IsServer(), imports as a Service Function. An enum argument written as Enum.KeyCode.W is set by its member's name.",
 			"**workspace as an Instance node.** A bare workspace imports as the Instance node set to workspace.",
 		],
@@ -67,7 +67,7 @@ export const RELEASES_0_120: Release[] = [
 			"**A method on anything else stays Call Method.** A table may have a method of any name, so an object of unknown type keeps the generic node.",
 		],
 		fixed: [
-			"**No extra brackets round a call made on a bracketed value.** A chain such as (script.Parent :: Instance):WaitForChild(\"A\"):GetChildren() compiles as written.",
+			'**No extra brackets round a call made on a bracketed value.** A chain such as (script.Parent :: Instance):WaitForChild("A"):GetChildren() compiles as written.',
 			"**No added cast in an imported graph.** Find First Child Of Class and the other class reads no longer add a cast the file did not have.",
 		],
 	},
@@ -77,7 +77,7 @@ export const RELEASES_0_120: Release[] = [
 		headline: "An imported file's GetService lines become the graph's services.",
 		affects: ["editor", "docs"],
 		added: [
-			"**Services from GetService.** On import, each line such as local Players = game:GetService(\"Players\") at the top of the file becomes one of the graph's services. Reads of it are Get Service nodes, and a handler connected to one of its events reads it through Get Event.",
+			'**Services from GetService.** On import, each line such as local Players = game:GetService("Players") at the top of the file becomes one of the graph\'s services. Reads of it are Get Service nodes, and a handler connected to one of its events reads it through Get Event.',
 			"**A box for their comments.** Comments on those lines go in a box of their own above Script Start, and compile back above the services.",
 			"**The import report counts them.** Services declared: N.",
 		],
@@ -88,7 +88,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.183.0",
 		date: "2026-10-15",
-		headline: "Realign moves into a Refactor panel, with Split into rows and two ways to wire Gets.",
+		headline:
+			"Realign moves into a Refactor panel, with Split into rows and two ways to wire Gets.",
 		affects: ["editor", "docs"],
 		added: [
 			"**The Refactor panel.** The toolbar's Refactor button opens it at the top of the graph; drag it into the right dock to keep it under the Inspector. It holds Realign and three changes that leave the compiled Luau as it was.",
@@ -103,7 +104,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.182.0",
 		date: "2026-10-15",
-		headline: "Realign lays a graph out along its flow, a node can be pinned, and a comment can keep its nodes as placed.",
+		headline:
+			"Realign lays a graph out along its flow, a node can be pinned, and a comment can keep its nodes as placed.",
 		affects: ["editor", "docs"],
 		added: [
 			"**Pin a node.** Right-click a node and choose Pin: Realign leaves it where it is and lays the rest out round it. A pinned node has a dashed teal ring and a pin in its corner.",
@@ -128,7 +130,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.180.1",
 		date: "2026-10-15",
-		headline: "The tour's hover slide stays open on a tap, and its menu slide opens a folder's menu.",
+		headline:
+			"The tour's hover slide stays open on a tap, and its menu slide opens a folder's menu.",
 		affects: ["docs"],
 		fixed: [
 			"**A tapped name on the tour's hover slide stays open.** On a touch screen it closed as soon as the finger lifted, and tapping a second name or the card closed it. A tap elsewhere closes it.",
@@ -144,12 +147,15 @@ export const RELEASES_0_120: Release[] = [
 			"**Values sit under the step before the one that reads them.** The steps of a row close up to one gap apart, and each value's wire runs up into its reader. The first step on a row, and a step a comment box holds, keep their values to their left.",
 			"**Rows are cut by width, not by count.** Tidy, Modern and Node-Prioritized fill each row on the Sequence up to 2,400 px, cut at a blank line where one falls in the second half. A Require stays on the row of the variable it sets, a loop counts its body's width, and an if still ends its row. A file or function that fits on one row has no Sequence.",
 		],
-		fixed: ["**The tour's import slide says comments become comment boxes.** It said they were not kept."],
+		fixed: [
+			"**The tour's import slide says comments become comment boxes.** It said they were not kept.",
+		],
 	},
 	{
 		version: "0.179.0",
 		date: "2026-10-15",
-		headline: "Node-Prioritized imports as much as it can as nodes, and Tidy keeps tables as code again.",
+		headline:
+			"Node-Prioritized imports as much as it can as nodes, and Tidy keeps tables as code again.",
 		affects: ["editor"],
 		added: [
 			"**Node-Prioritized, a fourth way to import.** It lays a file out as Tidy does and puts as much as it can in nodes, a table written out as Make Dictionary among them.",
@@ -161,7 +167,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.178.1",
 		date: "2026-10-15",
-		headline: "A module returning a frozen table written over several lines compiles, and the Code panel drags by its tab strip.",
+		headline:
+			"A module returning a frozen table written over several lines compiles, and the Code panel drags by its tab strip.",
 		affects: ["editor"],
 		fixed: [
 			"**A return of a frozen table written over several lines compiles.** An imported `return table.freeze({ ... })` left the table's first lines behind, and the file did not parse.",
@@ -171,7 +178,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.178.0",
 		date: "2026-10-15",
-		headline: "Import selection as graphs, and Import folder as graphs, read many Luau files at once.",
+		headline:
+			"Import selection as graphs, and Import folder as graphs, read many Luau files at once.",
 		affects: ["editor"],
 		added: [
 			"**Import selection as graphs.** With several files selected, the Project panel's menu imports every hand-written Luau file among them, with one choice of settings.",
@@ -198,14 +206,15 @@ export const RELEASES_0_120: Release[] = [
 		headline: "Import builds a table written out with Make Dictionary in Tidy and Modern.",
 		affects: ["editor"],
 		added: [
-			"**Tables import as Make Dictionary.** `{ Speed = 16, Name = \"Scout\" }` is a row for each entry, a value written typed in and one worked out wired, and a table inside it a Make Dictionary of its own. It compiles back as the file had it: on one line or a key to a line, brackets kept, and the last comma as it was.",
-			"**Verbatim keeps tables as code.** So do lists, tables mixing `name =` with `[\"name\"] =`, tables with more than 24 entries, and tables with a comment inside.",
+			'**Tables import as Make Dictionary.** `{ Speed = 16, Name = "Scout" }` is a row for each entry, a value written typed in and one worked out wired, and a table inside it a Make Dictionary of its own. It compiles back as the file had it: on one line or a key to a line, brackets kept, and the last comma as it was.',
+			'**Verbatim keeps tables as code.** So do lists, tables mixing `name =` with `["name"] =`, tables with more than 24 entries, and tables with a comment inside.',
 		],
 	},
 	{
 		version: "0.175.0",
 		date: "2026-10-14",
-		headline: "Freeze, Clone, Find, Sort and the rest of the table library are nodes, and import uses them.",
+		headline:
+			"Freeze, Clone, Find, Sort and the rest of the table library are nodes, and import uses them.",
 		affects: ["editor", "docs"],
 		added: [
 			"**More of the table library.** Freeze, Is Frozen, Clone, Clear, Find, Sort and Table Concat join Insert and Remove.",
@@ -213,7 +222,7 @@ export const RELEASES_0_120: Release[] = [
 		],
 		fixed: [
 			"**Import reads a library call made for its value as its node.** `math.floor(x)` and `string.lower(s)` inside an expression stayed as code.",
-			"**A call may leave off the arguments its node marks optional.** `table.concat(names)` and `table.concat(names, \", \")` are both Table Concat.",
+			'**A call may leave off the arguments its node marks optional.** `table.concat(names)` and `table.concat(names, ", ")` are both Table Concat.',
 		],
 	},
 	{
@@ -230,7 +239,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.173.0",
 		date: "2026-10-14",
-		headline: "Import draws type aliases as Declare Type, and loops over what a call gives as For Each.",
+		headline:
+			"Import draws type aliases as Declare Type, and loops over what a call gives as For Each.",
 		affects: ["editor"],
 		added: [
 			"**A type alias imports as Declare Type.** `type Shot = { ... }` and `export type` become Declare Type where the file has them, with the definition written as it was, comments and all. One with type parameters stays as code.",
@@ -248,13 +258,14 @@ export const RELEASES_0_120: Release[] = [
 			"**Import draws both.** `x += 1` becomes the setter `x = 1` would, with its operator, and `local a, b = f()` becomes one call with a result for each name, each read wired to its own.",
 		],
 		fixed: [
-			"**Import keeps a key written in brackets.** `t[\"name\"] = v` came back as `t.name = v`.",
+			'**Import keeps a key written in brackets.** `t["name"] = v` came back as `t.name = v`.',
 		],
 	},
 	{
 		version: "0.171.0",
 		date: "2026-10-14",
-		headline: "Import draws event handlers and threads as nodes, and New Thread runs a body on one.",
+		headline:
+			"Import draws event handlers and threads as nodes, and New Thread runs a body on one.",
 		affects: ["editor", "docs"],
 		added: [
 			"**Event handlers import as Connect Event and Connect Once.** `:Connect(function(player) ... end)` and `:Once` become the node, the handler's parameters its pins and its body on Body. `local conn = ...:Connect(...)` names the node, and what reads `conn` is wired to its Connection.",
@@ -314,7 +325,7 @@ export const RELEASES_0_120: Release[] = [
 		affects: ["editor", "docs"],
 		added: [
 			"**A call the library has a node for imports as that node.** print, warn, error, assert, require, task.wait, table.insert, Instance.new and the other calls a library node writes become that node rather than Call Function on a Luau Expression. A file that declares its own print keeps calling it.",
-			"**A local set to such a call keeps it as a step.** `local part = Instance.new(\"Part\")` imports as Instance.new and Declare Local, and compiles back as the one line.",
+			'**A local set to such a call keeps it as a step.** `local part = Instance.new("Part")` imports as Instance.new and Declare Local, and compiles back as the one line.',
 			"**Print and Warn take any number of values.** Add one with the + in the header; each is written after a comma, as print takes them. Graphs with one value are unchanged.",
 		],
 		fixed: [
@@ -324,7 +335,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.168.1",
 		date: "2026-10-14",
-		headline: "Three of the front page's tour slides fit an iPad Mini, and a phone's graph name is out from under the bar.",
+		headline:
+			"Three of the front page's tour slides fit an iPad Mini, and a phone's graph name is out from under the bar.",
 		affects: ["editor", "docs"],
 		fixed: [
 			"**From the DataModel stacks on an iPad.** The tree and Code Block sat over each other, and the filter field was cut off. They stack when the slide is narrower than both.",

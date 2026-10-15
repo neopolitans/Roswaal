@@ -712,7 +712,10 @@ const MENU_ROWS = [
 		key: "folder",
 		// Greeter.luau is in it, written by hand: the folder imports as graphs.
 		menu: () =>
-			fileMenu({ kind: "directory" }, { ...MENU_HOST(false), importMany: { from: "folder", files: 1 } }),
+			fileMenu(
+				{ kind: "directory" },
+				{ ...MENU_HOST(false), importMany: { from: "folder", files: 1 } },
+			),
 	},
 	{ name: "Greeter.luau", key: "luau", menu: () => fileMenu({ kind: "luau" }, MENU_HOST(false)) },
 	{

@@ -475,7 +475,8 @@ export function previewPinY(
 	if (preview.display === "operator") return previewRowY(preview, g, index);
 	const pins = side === "in" ? preview.inputs : preview.outputs;
 	// On a code face the body's pins sit level with its first line.
-	if (preview.face && pinRow(pins, index) >= 0) return codeFacePinY(headHeight(preview, g), preview.face);
+	if (preview.face && pinRow(pins, index) >= 0)
+		return codeFacePinY(headHeight(preview, g), preview.face);
 	return pinCentreY(pins, index, headHeight(preview, g), g.rowHeight);
 }
 
@@ -879,7 +880,11 @@ function drawFace(face: CodeFace, head: number, width: number): string {
 	const first = y + CODE_FACE.border + CODE_FACE.padY;
 	if (face.empty) {
 		parts.push(
-			text(x + w / 2, first + 9, face.empty, { size: 12, fill: "var(--fg-faint, #8a919c)", anchor: "middle" }),
+			text(x + w / 2, first + 9, face.empty, {
+				size: 12,
+				fill: "var(--fg-faint, #8a919c)",
+				anchor: "middle",
+			}),
 		);
 		return parts.join("");
 	}

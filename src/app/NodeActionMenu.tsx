@@ -11,9 +11,9 @@
 
 import type { Registry } from "../core/nodes/index.js";
 import type { NodeScript } from "../core/schema.js";
+import { setPinned } from "./edits.js";
 import { Menu } from "./Menu.jsx";
 import type { MenuEntry } from "./menuModel.js";
-import { setPinned } from "./edits.js";
 import { promotionsFor } from "./promote.js";
 import { store } from "./store.js";
 

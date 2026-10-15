@@ -183,11 +183,10 @@ export function useAutosave(context: AutosaveContext): Autosave {
 				return;
 			}
 
-			const verdict = diskVerdict(
-				serialiseScript(disk),
-				lastWritten.current.get(path) ?? [],
-				{ ...open, text: serialiseScript(open.script) },
-			);
+			const verdict = diskVerdict(serialiseScript(disk), lastWritten.current.get(path) ?? [], {
+				...open,
+				text: serialiseScript(open.script),
+			});
 			if (verdict === "ours") return;
 			if (verdict === "later") {
 				setTimeout(() => void followDiskRef.current(type, path), 400);

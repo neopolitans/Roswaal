@@ -8,6 +8,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { type CodeFace, codeFaceHeight, codeFaceOf, codeFacePinY } from "../core/codeFace.js";
 import { CODE_MARKS, GLYPH_STROKE, GLYPH_VIEW_BOX, GLYPHS, nodeGlyph } from "../core/nodeGlyphs.js";
 import { FUNCTION_NODES, signatureOf, signatureTypes } from "../core/nodes/flow.js";
 import { entryIndex, type GrowthRule } from "../core/nodes/growth.js";
@@ -15,14 +16,12 @@ import { nodeTitle } from "../core/nodes/index.js";
 import { castsResult, resultCastOf } from "../core/nodes/resultCast.js";
 import { pinTypeOf, pinTypeText } from "../core/nodes/variables.js";
 import { operatorSymbol } from "../core/operatorLayout.js";
-import { type CodeFace, codeFaceHeight, codeFaceOf, codeFacePinY } from "../core/codeFace.js";
 import { bodyRows, onHeader } from "../core/pinLayout.js";
 import { CLASS_OPTIONS, classGroup, TYPE_OPTIONS, typeGroup } from "../core/roblox.js";
 import type { GraphNode, Literal, NodeDef, PinDef } from "../core/schema.js";
 import { typeChip, typeFamily } from "../core/typeFamily.js";
 import { requestCodeEdit } from "./codeEditRequests.js";
 import { cx } from "./cx.js";
-import { highlightLuau } from "./highlight.js";
 import {
 	compactLabel,
 	compactWidth,
@@ -34,6 +33,7 @@ import {
 	operatorLayoutOf,
 	resolvePins,
 } from "./geometry.js";
+import { highlightLuau } from "./highlight.js";
 import { Icon } from "./icons.jsx";
 import { LAYER, NODE } from "./layers.js";
 import { nodeColor, pinColor } from "./palette.js";
@@ -273,42 +273,52 @@ function NodeViewInner(props: NodeViewProps) {
 				<div className="node-face-body" style={{ height: codeFaceHeight(face) }}>
 					{bodyIn[0] && (
 						<span className="node-face-pin in" style={{ top: codeFacePinY(head, face) - head }}>
-							{pinTarget(props, bodyIn[0], "in", renderPin(props, bodyIn[0], "in", undefined, true))}
+							{pinTarget(
+								props,
+								bodyIn[0],
+								"in",
+								renderPin(props, bodyIn[0], "in", undefined, true),
+							)}
 						</span>
 					)}
 					<CodeFaceView face={face} props={props} inputs={inputs} />
 					{bodyOut[0] && (
 						<span className="node-face-pin out" style={{ top: codeFacePinY(head, face) - head }}>
-							{pinTarget(props, bodyOut[0], "out", renderPin(props, bodyOut[0], "out", undefined, true))}
+							{pinTarget(
+								props,
+								bodyOut[0],
+								"out",
+								renderPin(props, bodyOut[0], "out", undefined, true),
+							)}
 						</span>
 					)}
 				</div>
 			)}
 			{!face && rows > 0 && (
-			<div className="rows" style={{ height: rows * NODE.rowHeight + NODE.footer }}>
-				{Array.from({ length: rows }, (_, i) => (
-					<div className="row" key={i}>
-						<span className="side left">
-							{bodyIn[i] &&
-								pinTarget(
-									props,
-									bodyIn[i],
-									"in",
-									renderPin(props, bodyIn[i], "in", removable.get(`in:${bodyIn[i].id}`)),
-								)}
-						</span>
-						<span className="side right">
-							{bodyOut[i] &&
-								pinTarget(
-									props,
-									bodyOut[i],
-									"out",
-									renderPin(props, bodyOut[i], "out", removable.get(`out:${bodyOut[i].id}`)),
-								)}
-						</span>
-					</div>
-				))}
-			</div>
+				<div className="rows" style={{ height: rows * NODE.rowHeight + NODE.footer }}>
+					{Array.from({ length: rows }, (_, i) => (
+						<div className="row" key={i}>
+							<span className="side left">
+								{bodyIn[i] &&
+									pinTarget(
+										props,
+										bodyIn[i],
+										"in",
+										renderPin(props, bodyIn[i], "in", removable.get(`in:${bodyIn[i].id}`)),
+									)}
+							</span>
+							<span className="side right">
+								{bodyOut[i] &&
+									pinTarget(
+										props,
+										bodyOut[i],
+										"out",
+										renderPin(props, bodyOut[i], "out", removable.get(`out:${bodyOut[i].id}`)),
+									)}
+							</span>
+						</div>
+					))}
+				</div>
 			)}
 			{props.growth?.canAdd && (
 				<button

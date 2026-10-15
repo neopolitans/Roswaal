@@ -34,7 +34,6 @@ import {
 import { Canvas } from "./Canvas.jsx";
 import { CanvasStrip, frameNode } from "./CanvasStrip.jsx";
 import { PanelHead } from "./Cards.jsx";
-import { RefactorPanel } from "./RefactorPanel.jsx";
 import { CodePanel, type CodeTab, codeTabKey, codeValue } from "./CodePanel.jsx";
 import { CompileToast } from "./CompileToast.jsx";
 import { type CodeOpenRequest, onCodeEditRequest } from "./codeEditRequests.js";
@@ -82,6 +81,7 @@ import { readPreferences, wheelAction } from "./preferences.js";
 import { SiteBanner } from "./previewBuild.jsx";
 import { setProjectAliases } from "./projectAliases.js";
 import { setProjectFunctions, setProjectTypes } from "./projectTypes.js";
+import { RefactorPanel } from "./RefactorPanel.jsx";
 import { forget, lastProject, remember } from "./recents.js";
 import { previewSelection } from "./SelectionPreview.jsx";
 import { SourceView } from "./SourceView.jsx";

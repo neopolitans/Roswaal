@@ -5,13 +5,12 @@
  */
 
 import { describe, expect, it } from "vitest";
-
+import { pinPosition } from "../src/app/geometry.js";
 import { CODE_FACE, codeFaceOf, codeFacePinY, codeFaceWidth } from "../src/core/codeFace.js";
 import { nodeBounds, resolvePins } from "../src/core/nodeBox.js";
 import { NODE } from "../src/core/nodeMetrics.js";
 import { createRegistry } from "../src/core/nodes/index.js";
 import type { GraphNode } from "../src/core/schema.js";
-import { pinPosition } from "../src/app/geometry.js";
 
 const registry = createRegistry();
 

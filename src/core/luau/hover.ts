@@ -29,6 +29,7 @@ import {
 	mergeDocs,
 	withRelated,
 } from "./docComment.js";
+import { bareTypeName, typeOfExpr } from "./exprType.js";
 import { type LuauFile, luauFile } from "./file.js";
 import {
 	chainOf,
@@ -45,7 +46,6 @@ import {
 	takesClassName,
 	typeOfValue,
 } from "./infer.js";
-import { bareTypeName, typeOfExpr } from "./exprType.js";
 import { type InstanceNode, instanceAt } from "./instances.js";
 import type { Token } from "./lexer.js";
 import { isRequire } from "./requires.js";
