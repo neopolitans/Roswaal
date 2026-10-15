@@ -456,14 +456,22 @@ export async function inspectFolder(root: string): Promise<{
  * and straight from source with `tsx`, which does not.
  *
  * Null when neither finds one, which is a real case — an npm install that
- * packed the CLI and not the examples — and the panel then offers no demos
+ * packed the CLI and not the examples, or the packaged binary, which has no
+ * module path at all — and the panel then offers no demos
  * rather than paths that are not there.
  */
 function installRoot(): string | null {
 	const declared = process.env.ROSWAAL_HOME;
 	if (declared && fs.existsSync(path.join(declared, "examples"))) return declared;
 
-	let at = path.dirname(fileURLToPath(import.meta.url));
+	let at: string;
+	try {
+		at = path.dirname(fileURLToPath(import.meta.url));
+	} catch {
+		// The packaged binary is one CommonJS file, where import.meta is empty:
+		// there is no module on disk to walk up from, and no demos beside it.
+		return null;
+	}
 	for (let up = 0; up < 6; up += 1) {
 		if (fs.existsSync(path.join(at, "examples"))) return at;
 		const parent = path.dirname(at);

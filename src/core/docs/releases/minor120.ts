@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.186.3",
+		date: "2026-10-15",
+		headline: "The packaged app answers the demos question instead of failing it.",
+		affects: ["editor"],
+		fixed: [
+			"**No demos, not an error.** The macOS and Windows downloads have no demo projects beside them, and asking for the list failed with an error the editor quietly ignored. It now answers that there are none, and taking a demo says this copy has none to give.",
+		],
+	},
+	{
 		version: "0.186.2",
 		date: "2026-10-15",
 		headline: "A value no longer offers its datatype's constants.",
