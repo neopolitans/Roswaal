@@ -147,8 +147,8 @@
     {
       "id": "1c2a9814-e935-4760-8f78-8df8a07d69a3",
       "def": "value.expression",
-      "x": -251,
-      "y": 2433,
+      "x": -355,
+      "y": 2419,
       "graph": "f827bd83-f29f-482f-abca-019949b28bfa",
       "literals": {
         "code": {
@@ -804,13 +804,13 @@
     {
       "id": "9dd042c7-44fe-44fc-8dc8-5ddf6b52ac58",
       "def": "value.expression",
-      "x": -246,
-      "y": 2556,
+      "x": -347,
+      "y": 2546,
       "graph": "f827bd83-f29f-482f-abca-019949b28bfa",
       "literals": {
         "code": {
           "t": "raw",
-          "v": "if hull.CFrame:PointToObjectSpace(leftTrack.Position.X) < 0 then 1 else -1"
+          "v": "if hull.CFrame:PointToObjectSpace(leftTrack.Position).X < 0 then 1 else -1"
         }
       }
     },
@@ -1300,8 +1300,8 @@
     {
       "id": "e869febb-837a-43d7-8bb7-6903c70f55fd",
       "def": "value.expression",
-      "x": -252,
-      "y": 2320,
+      "x": -335,
+      "y": 2312,
       "graph": "f827bd83-f29f-482f-abca-019949b28bfa",
       "literals": {
         "code": {
