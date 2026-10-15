@@ -38,6 +38,7 @@ import {
 	instanceProblems,
 } from "../core/luau/instances.js";
 import { nodeTitle, type Registry, resolveNodePins } from "../core/nodes/index.js";
+import { ownTable } from "../core/ownTable.js";
 import type { GraphNode, NodeScript } from "../core/schema.js";
 import { api } from "./api.js";
 import { PanelHead } from "./Cards.jsx";
@@ -111,11 +112,11 @@ export type CodeKind = LuauFragment;
  * formula bar has it -- for a Luau Expression, and <T>, a type parameter as
  * Luau writes one, for a type written out.
  */
-export const CODE_MARKS: Record<string, { mark: string; name: string }> = {
+export const CODE_MARKS: Record<string, { mark: string; name: string }> = ownTable({
 	block: { mark: "{ }", name: "Code Block" },
 	expression: { mark: "ƒx", name: "Luau Expression" },
 	type: { mark: "<T>", name: "Type" },
-};
+});
 
 /** A tab's mark. The type's brackets are drawn quieter than its T. */
 function CodeMark({ kind }: { kind: CodeKind }) {

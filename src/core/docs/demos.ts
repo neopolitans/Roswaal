@@ -25,6 +25,7 @@
 
 import { compile } from "../compiler/index.js";
 import type { Registry } from "../nodes/index.js";
+import { own } from "../ownTable.js";
 import type { NodeScript, ScriptModule } from "../schema.js";
 import { DEMO_LAYOUT } from "./demoLayout.gen.js";
 import { G, num, str } from "./examples.js";
@@ -50,7 +51,7 @@ const lune = (alias: string): ScriptModule => ({
  * demo can gain a node and still draw before anybody has opened the project.
  */
 function arranged(slug: string, script: NodeScript): NodeScript {
-	const at = DEMO_LAYOUT[slug];
+	const at = own(DEMO_LAYOUT, slug);
 	if (!at) return script;
 	return {
 		...script,

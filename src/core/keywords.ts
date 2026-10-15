@@ -17,8 +17,10 @@
  * keyword table that starts taking those is a table nobody can predict.
  */
 
+import { ownTable } from "./ownTable.js";
+
 /** Node ids for a piece of Luau, best first. */
-export const LUAU_KEYWORDS: Readonly<Record<string, readonly string[]>> = {
+export const LUAU_KEYWORDS: Readonly<Record<string, readonly string[]>> = ownTable({
 	// Logic, which is where this started: the pills say what they write.
 	and: ["logic.and"],
 	or: ["logic.or"],
@@ -75,7 +77,7 @@ export const LUAU_KEYWORDS: Readonly<Record<string, readonly string[]>> = {
 	// The two that are a call rather than syntax, and are typed as often.
 	require: ["module.requirePath"],
 	print: ["debug.print"],
-};
+});
 
 /**
  * The nodes a query names outright, in the order they should be offered.

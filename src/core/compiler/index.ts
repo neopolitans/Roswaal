@@ -2,6 +2,7 @@
 
 import { retypeClassReads } from "../classReads.js";
 import { headersByNode } from "../comments.js";
+import { isStackOverflow } from "../errorMessage.js";
 import { checkLuau } from "../luau/check.js";
 import type { SpecifierContext } from "../modules.js";
 import type { Registry } from "../nodes/index.js";
@@ -56,6 +57,30 @@ export function compile(
 	source: NodeScript,
 	registry: Registry,
 	options: CompileOptions = {},
+): CompileResult {
+	// The compiler stops at `MAX_GRAPH_DEPTH` and the parser at `MAX_DEPTH`, so
+	// this is the net under them: a graph or its code that still goes too deep
+	// for some part of the compiler is an error in the graph, not a crash.
+	try {
+		return compileScript(source, registry, options);
+	} catch (error) {
+		if (!isStackOverflow(error)) throw error;
+		return {
+			code: "",
+			diagnostics: [{ severity: "error", message: "This graph is nested too deeply to compile." }],
+			sourceMap: [],
+			sourceHash: "",
+			outputHash: "",
+			fileName: outputFileName(source),
+			ok: false,
+		};
+	}
+}
+
+function compileScript(
+	source: NodeScript,
+	registry: Registry,
+	options: CompileOptions,
 ): CompileResult {
 	// Hashed as saved; compiled with every wired Class Name followed and every
 	// Script Function on its function's current signature, so a file edited by

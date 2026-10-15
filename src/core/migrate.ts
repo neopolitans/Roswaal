@@ -7,6 +7,7 @@
 
 import { assignMembership } from "./functionGraph.js";
 import { RENAMED_NODES, type Registry } from "./nodes/index.js";
+import { ownTable } from "./ownTable.js";
 import {
 	emptyScript,
 	type Link,
@@ -44,7 +45,7 @@ export interface MigrationResult {
 const DICTIONARY_ROWS = 24;
 
 /** Pins that changed id, keyed by node type. */
-const RENAMED_PINS: Record<string, Record<string, string>> = {
+const RENAMED_PINS: Record<string, Record<string, string>> = ownTable({
 	"roblox.getService": { result: "service" },
 	// A dictionary's rows are one Key Value Pair pin each now, split into Key
 	// and Value. The wires and the typed-in values move onto the split parts;
@@ -71,13 +72,13 @@ const RENAMED_PINS: Record<string, Record<string, string>> = {
 			"string.concat",
 		].map((id) => [id, { a: "a0", b: "a1" }]),
 	),
-};
+});
 
 /** The Index nodes, and the Key node each becomes when its key is a name. */
-const KEYED: Record<string, string> = {
+const KEYED: Record<string, string> = ownTable({
 	"table.set": "table.setKey",
 	"table.get": "table.getKey",
-};
+});
 
 /**
  * Nodes that used to sit in the execution chain and are now pure, and what to
@@ -85,10 +86,10 @@ const KEYED: Record<string, string> = {
  * side are spliced together rather than dropped — otherwise a graph would
  * silently lose the rest of its flow.
  */
-const BECAME_PURE: Record<string, string> = {
+const BECAME_PURE: Record<string, string> = ownTable({
 	"roblox.getService": "Get Service",
 	"roblox.findFirstChild": "Find First Child",
-};
+});
 
 /**
  * Which typechecking mode a graph on disk asks for.

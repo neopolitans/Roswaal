@@ -9,6 +9,7 @@
  * and ATTRIBUTIONS.md. Deprecated members are left out of all of it.
  */
 
+import { ownTable } from "./ownTable.js";
 import { ENGINE, type EngineParam, signatureText } from "./robloxEngine.js";
 
 export interface DatatypeStatic {
@@ -75,40 +76,48 @@ function staticsOf(name: string): DatatypeStatic[] {
 	];
 }
 
-export const DATATYPE_STATICS: Record<string, readonly DatatypeStatic[]> = Object.fromEntries(
-	Object.keys(ENGINE.datatypes)
-		.map((name) => [name, staticsOf(name)] as const)
-		.filter(([, list]) => list.length > 0),
+export const DATATYPE_STATICS: Record<string, readonly DatatypeStatic[]> = ownTable(
+	Object.fromEntries(
+		Object.keys(ENGINE.datatypes)
+			.map((name) => [name, staticsOf(name)] as const)
+			.filter(([, list]) => list.length > 0),
+	),
 );
 
-export const CLASS_SUMMARIES: Record<string, string> = Object.fromEntries(
-	Object.entries(ENGINE.classes)
-		.filter(([, c]) => c.summary !== "")
-		.map(([name, c]) => [name, c.summary]),
+export const CLASS_SUMMARIES: Record<string, string> = ownTable(
+	Object.fromEntries(
+		Object.entries(ENGINE.classes)
+			.filter(([, c]) => c.summary !== "")
+			.map(([name, c]) => [name, c.summary]),
+	),
 );
 
-export const DATATYPE_SUMMARIES: Record<string, string> = Object.fromEntries(
-	Object.entries(ENGINE.datatypes)
-		.filter(([, d]) => d.summary !== "")
-		.map(([name, d]) => [name, d.summary]),
+export const DATATYPE_SUMMARIES: Record<string, string> = ownTable(
+	Object.fromEntries(
+		Object.entries(ENGINE.datatypes)
+			.filter(([, d]) => d.summary !== "")
+			.map(([name, d]) => [name, d.summary]),
+	),
 );
 
 /** Each class's own methods, not inherited ones, by class name. */
-export const CLASS_METHODS: Record<string, readonly ClassMethod[]> = Object.fromEntries(
-	Object.entries(ENGINE.classes)
-		.map(
-			([name, c]) =>
-				[
-					name,
-					c.methods
-						.filter((m) => !m.deprecated)
-						.map((m) => ({
-							name: m.name,
-							detail: signatureText(m.params),
-							returns: m.returns,
-							summary: m.summary,
-						})),
-				] as const,
-		)
-		.filter(([, list]) => list.length > 0),
+export const CLASS_METHODS: Record<string, readonly ClassMethod[]> = ownTable(
+	Object.fromEntries(
+		Object.entries(ENGINE.classes)
+			.map(
+				([name, c]) =>
+					[
+						name,
+						c.methods
+							.filter((m) => !m.deprecated)
+							.map((m) => ({
+								name: m.name,
+								detail: signatureText(m.params),
+								returns: m.returns,
+								summary: m.summary,
+							})),
+					] as const,
+			)
+			.filter(([, list]) => list.length > 0),
+	),
 );

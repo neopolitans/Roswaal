@@ -33,22 +33,90 @@ export function rowsByWidth(
 	sequences: ReadonlySet<string>,
 	width = ROW_WIDTH,
 ): NodeScript {
-	let out = script;
-	for (const id of sequences) out = regroup(out, registry, id, width);
-	return out;
+	// Indexed once for all of them, and the changes made at the end. Each
+	// Sequence holds a file's or a function's body, so none stands in another's
+	// row: each changes only its own wires, which no other one reads, and a
+	// file of many functions is not indexed again for each.
+	const graph = indexed(script, registry);
+	const edits: Edits = { removed: new Set(), added: [], counts: new Map(), dropped: new Map() };
+	for (const id of sequences) regroup(graph, id, width, edits);
+	if (edits.removed.size === 0 && edits.added.length === 0) return script;
+	const nodes = script.nodes
+		.filter((n) => !edits.dropped.has(n.id))
+		.map((n) => {
+			const count = edits.counts.get(n.id);
+			return count === undefined ? n : { ...n, config: { ...n.config, count } };
+		});
+	const links = script.links
+		.filter((l) => !edits.removed.has(l))
+		.map((l) => {
+			const first = edits.dropped.get(l.to.node);
+			return first === undefined ? l : { ...l, to: { node: first, pin: "in" } };
+		});
+	return { ...script, nodes, links: [...links, ...edits.added] };
 }
 
-function regroup(script: NodeScript, registry: Registry, seqId: string, width: number): NodeScript {
+/** What cutting the rows changes, gathered from every Sequence. */
+interface Edits {
+	removed: Set<Link>;
+	added: Link[];
+	/** A Sequence's new number of rows. */
+	counts: Map<string, number>;
+	/** A Sequence left with one row, taken out: the row's first statement, which takes its place. */
+	dropped: Map<string, string>;
+}
+
+/** The script's nodes and wires, looked up by node, and what is asked of each node. */
+function indexed(script: NodeScript, registry: Registry) {
 	const byId = new Map(script.nodes.map((n) => [n.id, n]));
-	const seq = byId.get(seqId);
-	if (!seq || seq.def !== "flow.sequence") return script;
+	// Asked of a Sequence for every row it starts, and it has an output a
+	// row: worked out once a node, not once a question.
+	const outsOf = new Map<string, string[]>();
 	const execOuts = (n: GraphNode): string[] => {
+		const known = outsOf.get(n.id);
+		if (known) return known;
 		const def = registry.get(n.def);
-		if (!def) return [];
-		return resolvePins(def, n.config, n.literals)
-			.outputs.filter((p) => p.kind === "exec")
-			.map((p) => p.id);
+		const outs = def
+			? resolvePins(def, n.config, n.literals)
+					.outputs.filter((p) => p.kind === "exec")
+					.map((p) => p.id)
+			: [];
+		outsOf.set(n.id, outs);
+		return outs;
 	};
+	const from = new Map<string, Link>();
+	const into = new Map<string, Link[]>();
+	const outOf = new Map<string, Link[]>();
+	for (const l of script.links) {
+		from.set(`${l.from.node}/${l.from.pin}`, l);
+		const ins = into.get(l.to.node);
+		if (ins) ins.push(l);
+		else into.set(l.to.node, [l]);
+		const outs = outOf.get(l.from.node);
+		if (outs) outs.push(l);
+		else outOf.set(l.from.node, [l]);
+	}
+	const widths = new Map<string, number>();
+	const w = (id: string) => {
+		let known = widths.get(id);
+		if (known === undefined) {
+			known = nodeBounds(byId.get(id) as GraphNode, registry, true).w + GAP_X;
+			widths.set(id, known);
+		}
+		return known;
+	};
+	return { byId, execOuts, from, into, outOf, w };
+}
+
+function regroup(
+	graph: ReturnType<typeof indexed>,
+	seqId: string,
+	width: number,
+	edits: Edits,
+): void {
+	const { byId, execOuts, from, into, outOf, w } = graph;
+	const seq = byId.get(seqId);
+	if (!seq || seq.def !== "flow.sequence") return;
 	/** The exec output a statement carries the flow on from, if it has one. */
 	const carryPin = (n: GraphNode): string | undefined => {
 		const outs = execOuts(n);
@@ -56,8 +124,6 @@ function regroup(script: NodeScript, registry: Registry, seqId: string, width: n
 		if (n.def === "flow.branch" || n.def === "flow.sequence") return undefined;
 		return outs.includes("completed") ? "completed" : outs.includes("then") ? "then" : undefined;
 	};
-	const from = new Map<string, Link>();
-	for (const l of script.links) from.set(`${l.from.node}/${l.from.pin}`, l);
 	const linkFrom = (id: string, pin: string) => from.get(`${id}/${pin}`);
 
 	// Every statement on every row, in order; a Branch ends a row.
@@ -78,11 +144,8 @@ function regroup(script: NodeScript, registry: Registry, seqId: string, width: n
 			at = next?.to.node;
 		}
 	}
-	if (units.length === 0) return script;
+	if (units.length === 0) return;
 
-	const w = (id: string) => nodeBounds(byId.get(id) as GraphNode, registry, true).w + GAP_X;
-	const into = new Map<string, Link[]>();
-	for (const l of script.links) into.set(l.to.node, [...(into.get(l.to.node) ?? []), l]);
 	const isValue = (n: GraphNode | undefined) =>
 		n !== undefined && execOuts(n).length === 0 && n.def !== "script.begin";
 	/** How wide a value and the values feeding it lay out, in columns to its left. */
@@ -98,9 +161,7 @@ function regroup(script: NodeScript, registry: Registry, seqId: string, width: n
 	};
 	const feeds = (a: string, b: string) => {
 		const outs = execOuts(byId.get(a) as GraphNode);
-		return script.links.some(
-			(l) => l.from.node === a && l.to.node === b && !outs.includes(l.from.pin),
-		);
+		return (outOf.get(a) ?? []).some((l) => l.to.node === b && !outs.includes(l.from.pin));
 	};
 	/** How far a loop's body or a handler runs on beside it: its statements end to end. */
 	const reach = (id: string): number => {
@@ -152,7 +213,7 @@ function regroup(script: NodeScript, registry: Registry, seqId: string, width: n
 	}
 	if (row.length > 0) rows.push(row);
 
-	const links = script.links.filter((l) => !removed.has(l));
+	for (const l of removed) edits.removed.add(l);
 	// New wires take ids of the Sequence's own, which no other wire has.
 	let made = 0;
 	const wire = (from: Link["from"], to: Link["to"]): Link => ({
@@ -163,25 +224,17 @@ function regroup(script: NodeScript, registry: Registry, seqId: string, width: n
 	const chainRow = (r: { id: string }[]) => {
 		for (let j = 0; j + 1 < r.length; j++) {
 			const pin = carryPin(byId.get(r[j].id) as GraphNode);
-			if (pin) links.push(wire({ node: r[j].id, pin }, { node: r[j + 1].id, pin: "in" }));
+			if (pin) edits.added.push(wire({ node: r[j].id, pin }, { node: r[j + 1].id, pin: "in" }));
 		}
 	};
 	rows.forEach(chainRow);
 	if (rows.length === 1) {
 		// One row: no Sequence. What fed it feeds the row.
-		return {
-			...script,
-			nodes: script.nodes.filter((n) => n.id !== seq.id),
-			links: links.map((l) =>
-				l.to.node === seq.id ? { ...l, to: { node: rows[0][0].id, pin: "in" } } : l,
-			),
-		};
+		edits.dropped.set(seq.id, rows[0][0].id);
+		return;
 	}
 	rows.forEach((r, i) => {
-		links.push(wire({ node: seq.id, pin: `s${i}` }, { node: r[0].id, pin: "in" }));
+		edits.added.push(wire({ node: seq.id, pin: `s${i}` }, { node: r[0].id, pin: "in" }));
 	});
-	const nodes = script.nodes.map((n) =>
-		n.id === seq.id ? { ...n, config: { ...n.config, count: rows.length } } : n,
-	);
-	return { ...script, nodes, links };
+	edits.counts.set(seq.id, rows.length);
 }

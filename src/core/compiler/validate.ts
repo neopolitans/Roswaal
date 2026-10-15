@@ -8,6 +8,7 @@
  */
 
 import { creatableInstead, isCreatable } from "../creatable.js";
+import { isStackOverflow } from "../errorMessage.js";
 import { bindsParameters } from "../functionBody.js";
 import { crossingLinks, graphExists } from "../functionGraph.js";
 import { argumentProblems } from "../luau/argumentTypes.js";
@@ -26,6 +27,7 @@ import {
 	paramRefOf,
 	variableRefOf,
 } from "../nodes/variables.js";
+import { ownTable } from "../ownTable.js";
 import { isService, isSubclassOf } from "../roblox.js";
 import {
 	ENGINE_TYPES,
@@ -83,7 +85,7 @@ export function offTargetNames(script: NodeScript, registry: Registry, target: T
 }
 
 /** How a target is named in a message. */
-const TARGET_NAMES: Record<Target, string> = { roblox: "Roblox", lune: "Lune" };
+const TARGET_NAMES: Record<string, string> = ownTable({ roblox: "Roblox", lune: "Lune" });
 
 /** Data types that flow into anything, in either direction. */
 const UNIVERSAL = new Set(["any", "wildcard"]);
@@ -596,7 +598,7 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 			}
 			// A method given an argument of a type it does not take.
 			if (!named || problems.length > 0) continue;
-			for (const problem of argumentProblems(literal.v, kind, named)) {
+			for (const problem of argumentsOf(literal.v, kind, named)) {
 				out.push({
 					severity: "warning",
 					message: `${problem.message} (line ${problem.line} of this node's code)`,
@@ -723,6 +725,23 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 	}
 
 	return out;
+}
+
+/**
+ * `argumentProblems`, which only warns: code that is too deep for it to read
+ * gives no warnings, rather than stopping the compile.
+ */
+function argumentsOf(
+	src: string,
+	kind: "block" | "expression",
+	named: ReadonlyMap<string, string>,
+): ReturnType<typeof argumentProblems> {
+	try {
+		return argumentProblems(src, kind, named);
+	} catch (error) {
+		if (isStackOverflow(error)) return [];
+		throw error;
+	}
 }
 
 /**

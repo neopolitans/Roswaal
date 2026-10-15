@@ -25,6 +25,7 @@ import express from "express";
 
 import { CSP_HEADER } from "../core/csp.js";
 import { DEMO_PROJECTS } from "../core/demoProjects.js";
+import { ownTable } from "../core/ownTable.js";
 import type { Target } from "../core/schema.js";
 import { chooseDirectory, NoPickerError } from "./browse.js";
 import { githubZipball } from "./download.js";
@@ -595,7 +596,7 @@ function embeddedAsset(name: string): Buffer | null {
 }
 
 /** What a browser should be told each kind of file is. */
-const CONTENT_TYPES: Record<string, string> = {
+const CONTENT_TYPES: Record<string, string> = ownTable({
 	".html": "text/html; charset=utf-8",
 	".js": "text/javascript; charset=utf-8",
 	".css": "text/css; charset=utf-8",
@@ -606,7 +607,7 @@ const CONTENT_TYPES: Record<string, string> = {
 	".ico": "image/x-icon",
 	".map": "application/json; charset=utf-8",
 	".txt": "text/plain; charset=utf-8",
-};
+});
 
 /**
  * Serve the editor out of the binary, if this is a build that carries it.

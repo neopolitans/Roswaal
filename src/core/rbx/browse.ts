@@ -8,6 +8,7 @@
  * and nothing more.
  */
 
+import { ownTable } from "../ownTable.js";
 import { ENGINE, type EngineProperty } from "../robloxEngine.js";
 import { type Prop, type RbxDocument, type RbxInstance, SCRIPT_CLASSES, text } from "./dom.js";
 
@@ -192,11 +193,11 @@ export function classGlyph(
 }
 
 /** Stored under one name, shown under Studio's. */
-const RENAMED: Record<string, string> = {
+const RENAMED: Record<string, string> = ownTable({
 	Color3uint8: "Color",
 	formFactorRaw: "FormFactor",
 	MaterialVariantSerialized: "MaterialVariant",
-};
+});
 
 /** Kept in the file for Studio's own bookkeeping; nothing a developer reads. */
 const INTERNAL = new Set([

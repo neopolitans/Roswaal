@@ -11,7 +11,9 @@
 import { isPageLink, parseInline } from "./markup.js";
 
 export function escapeHtml(text: string): string {
-	return text
+	// Text from a pack or a graph is typed as a string, not checked as one:
+	// anything else is written as its text rather than throwing.
+	return String(text)
 		.replace(/&/g, "&amp;")
 		.replace(/</g, "&lt;")
 		.replace(/>/g, "&gt;")

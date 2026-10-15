@@ -94,6 +94,11 @@ class Stop extends Error {}
  * Luau itself gives up at about a thousand; half that is past anything written
  * by hand or generated, and leaves room on the smaller stacks a browser gives
  * a worker.
+ *
+ * Chains count too. `a.b.c`, `f()()`, `x:f():g()`, `1 + 2 + 3` and `v :: T
+ * :: U` are read in a loop rather than by recursion, but the tree they make
+ * is as deep as they are long, and everything that walks the tree afterwards
+ * recurses. So no chain may stand taller than this either.
  */
 export const MAX_DEPTH = 500;
 
@@ -106,6 +111,8 @@ class Parser {
 	private depth = 0;
 	/** Reported once: each spot past the limit is skipped, but one error says why. */
 	private tooDeep = false;
+	/** How tall each link of a chain stands, so a chain is measured once, not on every link. */
+	private readonly heights = new Map<object, number>();
 	readonly errors: Diagnostic[] = [];
 
 	/** `all` is every token of the source, as `tokenize` gives them; it is not changed. */
@@ -213,19 +220,51 @@ class Parser {
 	 * and the block it is in carries on from the next statement.
 	 */
 	private nested<T>(read: () => T): T {
-		if (this.depth >= MAX_DEPTH) {
-			if (!this.tooDeep) {
-				this.tooDeep = true;
-				this.fail(`This is nested more than ${MAX_DEPTH} deep, which is too deep to read.`);
-			}
-			throw new Stop();
-		}
+		if (this.depth >= MAX_DEPTH) this.stopTooDeep();
 		this.depth++;
 		try {
 			return read();
 		} finally {
 			this.depth--;
 		}
+	}
+
+	private stopTooDeep(): never {
+		if (!this.tooDeep) {
+			this.tooDeep = true;
+			this.fail(`This is nested more than ${MAX_DEPTH} deep, which is too deep to read.`);
+		}
+		throw new Stop();
+	}
+
+	/**
+	 * A new link of a chain, as long as the tree under it is no taller than
+	 * `MAX_DEPTH`. Its earlier links are measured already, so only what the
+	 * new link adds (an argument, an operand) is walked, and each part of a
+	 * chain is walked once.
+	 */
+	private link<T extends object>(node: T): T {
+		const height = this.height(node);
+		if (height > MAX_DEPTH) this.stopTooDeep();
+		this.heights.set(node, height);
+		return node;
+	}
+
+	/**
+	 * How many objects deep `value` goes. Everything it walks was read within
+	 * `MAX_DEPTH` of nesting, and stops at the links already measured, so it
+	 * cannot run the stack out itself.
+	 */
+	private height(value: object): number {
+		const known = this.heights.get(value);
+		if (known !== undefined) return known;
+		let tallest = 0;
+		const parts = value as Record<string, unknown>;
+		for (const key in parts) {
+			const part = parts[key];
+			if (typeof part === "object" && part !== null) tallest = Math.max(tallest, this.height(part));
+		}
+		return Array.isArray(value) ? tallest : tallest + 1;
 	}
 
 	private block(): Block {
@@ -693,7 +732,7 @@ class Parser {
 			if (!power || power[0] <= limit) return left;
 			this.next();
 			const right = this.expr(power[1]);
-			left = { kind: "binary", op: op.text, left, right, ...this.span(start) };
+			left = this.link<Expr>({ kind: "binary", op: op.text, left, right, ...this.span(start) });
 		}
 	}
 
@@ -703,7 +742,7 @@ class Parser {
 		let value = this.simple();
 		while (this.accept("::")) {
 			const type = this.type();
-			value = { kind: "cast", value, type, ...this.span(start) };
+			value = this.link<Expr>({ kind: "cast", value, type, ...this.span(start) });
 		}
 		return value;
 	}
@@ -858,20 +897,26 @@ class Parser {
 		for (;;) {
 			if (this.accept(".")) {
 				const name = this.expectName("a field name after the dot");
-				value = { kind: "index", object: value, name, ...this.span(start) };
+				value = this.link<Expr>({ kind: "index", object: value, name, ...this.span(start) });
 			} else if (this.is("[")) {
 				this.next();
 				const key = this.expr();
 				this.expect("]", "to close the index");
-				value = { kind: "indexExpr", object: value, key, ...this.span(start) };
+				value = this.link<Expr>({ kind: "indexExpr", object: value, key, ...this.span(start) });
 			} else if (this.is(":") && this.isName(undefined, 1)) {
 				this.next();
 				const method = this.expectName("a method name");
 				const args = this.callArgs();
-				value = { kind: "methodCall", object: value, method, args, ...this.span(start) };
+				value = this.link<Expr>({
+					kind: "methodCall",
+					object: value,
+					method,
+					args,
+					...this.span(start),
+				});
 			} else if (this.is("(") || this.is("{") || this.peek().kind === "string") {
 				const args = this.callArgs();
-				value = { kind: "call", callee: value, args, ...this.span(start) };
+				value = this.link<Expr>({ kind: "call", callee: value, args, ...this.span(start) });
 			} else {
 				return value;
 			}
@@ -912,7 +957,8 @@ class Parser {
 	private optionalType(): TypeNode {
 		const start = this.peek().start;
 		let type = this.simpleType();
-		while (this.accept("?")) type = { kind: "optional", inner: type, ...this.span(start) };
+		while (this.accept("?"))
+			type = this.link<TypeNode>({ kind: "optional", inner: type, ...this.span(start) });
 		return type;
 	}
 
@@ -1045,7 +1091,8 @@ class Parser {
 	/** Carries on a type already begun: `?`, then `|` or `&` members. */
 	private continueType(start: number, first: TypeNode): TypeNode {
 		let type = first;
-		while (this.accept("?")) type = { kind: "optional", inner: type, ...this.span(start) };
+		while (this.accept("?"))
+			type = this.link<TypeNode>({ kind: "optional", inner: type, ...this.span(start) });
 		const separator = this.is("|") ? "|" : this.is("&") ? "&" : undefined;
 		if (!separator) return type;
 		const types = [type];

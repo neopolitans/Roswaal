@@ -529,7 +529,9 @@ function fit(text: string, max: number, size: number, mono = false): string {
 }
 
 export function escapeXml(text: string): string {
-	return text
+	// Text from a pack or a graph is typed as a string, not checked as one:
+	// anything else is written as its text rather than throwing.
+	return String(text)
 		.replace(/&/g, "&amp;")
 		.replace(/</g, "&lt;")
 		.replace(/>/g, "&gt;")

@@ -12,6 +12,7 @@
 
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import { nodeTitle, type Registry } from "../core/nodes/index.js";
+import { ownTable } from "../core/ownTable.js";
 import type { Comment, GraphNode, NodeDef, NodeScript } from "../core/schema.js";
 import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
@@ -82,7 +83,7 @@ function docsHref(nodeId: string): string {
 }
 
 /** The glyph in a node's badge, by what the node is about. */
-const CATEGORY_ICON: Record<string, IconName> = {
+const CATEGORY_ICON: Record<string, IconName> = ownTable({
 	Engine: "instance",
 	"Engine Types": "instance",
 	Instances: "instance",
@@ -93,7 +94,7 @@ const CATEGORY_ICON: Record<string, IconName> = {
 	Networking: "external",
 	Debug: "terminal",
 	Lune: "codeFile",
-};
+});
 
 function badgeIcon(def: NodeDef): IconName {
 	if (FUNCTION_NODES.has(def.id)) return "function";

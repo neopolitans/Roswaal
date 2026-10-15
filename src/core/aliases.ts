@@ -28,8 +28,10 @@
  * every variable in the graph to answer to "Read Variable".
  */
 
+import { ownTable } from "./ownTable.js";
+
 /** Node id → other names for it, as a person would type them. */
-export const NODE_ALIASES: Readonly<Record<string, readonly string[]>> = {
+export const NODE_ALIASES: Readonly<Record<string, readonly string[]>> = ownTable({
 	"function.entry": ["Define Function", "Declare Function at Top", "Hoisted Function"],
 	"function.declareHere": ["Define Function", "Local Function"],
 	"function.get": ["Function Reference"],
@@ -83,7 +85,7 @@ export const NODE_ALIASES: Readonly<Record<string, readonly string[]>> = {
 	"task.spawn": ["Run Async", "New Thread"],
 	"debug.print": ["Log"],
 	"debug.error": ["Throw"],
-};
+});
 
 /**
  * How well `query` matches one of `defId`'s aliases, or 0.

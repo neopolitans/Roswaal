@@ -24,7 +24,7 @@
 
 import { VERSION } from "../cli/version.js";
 import { fromBase64, toBase64 } from "../core/base64.js";
-import { graphNameOf, importLuau } from "../core/import/fromLuau.js";
+import { graphNameOf, importLuau, LARGEST_IMPORT } from "../core/import/fromLuau.js";
 import type { ImportMode, TopLevelLocals } from "../core/import/modes.js";
 import { emptyFilesystemMap, emptyMap, type NodeMap } from "../core/nodemap.js";
 import {
@@ -688,6 +688,11 @@ export class ApiSession {
 				const { name, scriptClass } = graphNameOf(fileName);
 				const relPath = importGraphPath(project, luauPath);
 				const source = await readText(project, luauPath);
+				if (source.length > LARGEST_IMPORT)
+					throw new HttpError(
+						422,
+						`${fileName} is larger than ${LARGEST_IMPORT / 1024 / 1024} MiB, more than Roswaal imports as a graph.`,
+					);
 				// Whether anything is there is asked apart from reading it. A graph
 				// that cannot be read -- not JSON, or from a newer Roswaal -- is
 				// still somebody's graph, not a free path.

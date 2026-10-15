@@ -13,9 +13,10 @@
  * derived class, so `Part.Parent` is found on Instance.
  */
 
+import { own, ownTable } from "./ownTable.js";
 import { CLASS_PARENTS } from "./robloxData.js";
 
-export const NILABLE_PROPERTIES: Readonly<Record<string, readonly string[]>> = {
+export const NILABLE_PROPERTIES: Readonly<Record<string, readonly string[]>> = ownTable({
 	Beam: ["Attachment0", "Attachment1"],
 	BillboardGui: ["Adornee"],
 	Camera: ["CameraSubject"],
@@ -44,7 +45,7 @@ export const NILABLE_PROPERTIES: Readonly<Record<string, readonly string[]>> = {
 	VehicleSeat: ["Occupant"],
 	ViewportFrame: ["CurrentCamera"],
 	WeldConstraint: ["Part0", "Part1"],
-};
+});
 
 /** Whether a property read off this class can be `nil`. */
 export function nilableProperty(className: string, property: string): boolean {
@@ -53,7 +54,7 @@ export function nilableProperty(className: string, property: string): boolean {
 	while (current !== undefined && !walked.has(current)) {
 		walked.add(current);
 		if (NILABLE_PROPERTIES[current]?.includes(property)) return true;
-		current = CLASS_PARENTS[current];
+		current = own(CLASS_PARENTS, current);
 	}
 	return false;
 }

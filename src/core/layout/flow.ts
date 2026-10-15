@@ -138,9 +138,19 @@ export function layoutFlow(
 
 	const into = new Map<string, Link>();
 	const outOf = new Map<string, Link>();
+	// Every wire at each end of a node, for the questions asked of each node
+	// left over at the end: one node's wires, not all of them each time.
+	const allInto = new Map<string, Link[]>();
+	const allOutOf = new Map<string, Link[]>();
 	for (const link of view.links) {
 		into.set(`${link.to.node}/${link.to.pin}`, link);
 		outOf.set(`${link.from.node}/${link.from.pin}`, link);
+		const ins = allInto.get(link.to.node);
+		if (ins) ins.push(link);
+		else allInto.set(link.to.node, [link]);
+		const outs = allOutOf.get(link.from.node);
+		if (outs) outs.push(link);
+		else allOutOf.set(link.from.node, [link]);
 	}
 
 	const placed = new Map<string, { x: number; y: number }>();
@@ -249,22 +259,38 @@ export function layoutFlow(
 		// What is on this lane so far, which a tucked value keeps clear of; a
 		// comment's box among it, grown as each of its steps is placed.
 		const taken: Rect[] = [];
+		// How far right `taken` reaches, up to each one: a spot need not look at
+		// the start of a long lane, which is all behind it.
+		const reach: number[] = [];
+		const take = (rect: Rect) => {
+			taken.push(rect);
+			reach.push(Math.max(reach.at(-1) ?? Number.NEGATIVE_INFINITY, rect.x + rect.w));
+		};
 		const boxes = new Map<string, Rect>();
 		const tuckUnder = (ids: string[], readerX: number) => {
 			for (const k of ids) {
 				const kid = treeSize(k);
 				const spot: Rect = { x: Math.max(readerX - TUCK - kid.w, x), y: y + DROP, ...kid };
+				// The first of `taken` that reaches far enough right to touch it.
+				let lo = 0;
+				let hi = taken.length;
+				while (lo < hi) {
+					const mid = (lo + hi) >> 1;
+					if (reach[mid] + GAP_Y / 2 <= spot.x) lo = mid + 1;
+					else hi = mid;
+				}
 				// Below whatever it would land on.
 				for (let again = true; again; ) {
 					again = false;
-					for (const other of taken) {
+					for (let i = lo; i < taken.length; i++) {
+						const other = taken[i];
 						if (!overlaps(spot, other, GAP_Y / 2)) continue;
 						spot.y = other.y + other.h + GAP_Y;
 						again = true;
 					}
 				}
 				placeTree(k, spot.x + kid.w, spot.y);
-				taken.push(spot);
+				take(spot);
 				bottom = Math.max(bottom, spot.y + spot.h);
 			}
 		};
@@ -282,7 +308,7 @@ export function layoutFlow(
 				}
 				moved.set(kept.id, { dx, dy });
 				const block: Rect = { ...kept.rect, x: kept.rect.x + dx, y: kept.rect.y + dy };
-				taken.push(block);
+				take(block);
 				right = Math.max(right, block.x + block.w);
 				bottom = Math.max(bottom, block.y + block.h);
 				// Values from outside it go under it.
@@ -314,7 +340,7 @@ export function layoutFlow(
 			const tuck = taken.length > 0 && inputs.ids.length > 0 && inBox === undefined;
 			const nodeX = tuck ? cursor : cursor + (inputs.w > 0 ? inputs.w + GAP_X : 0);
 			placed.set(id, { x: nodeX, y });
-			taken.push({ x: nodeX, y, w: own.w, h: own.h });
+			take({ x: nodeX, y, w: own.w, h: own.h });
 			if (tuck) {
 				tuckUnder(inputs.ids, nodeX);
 			} else {
@@ -324,7 +350,7 @@ export function layoutFlow(
 					top += treeSize(k).h + GAP_Y;
 				}
 				if (inputs.h > 0)
-					taken.push({ x: nodeX - GAP_X - inputs.w, y: y + DROP, w: inputs.w, h: inputs.h });
+					take({ x: nodeX - GAP_X - inputs.w, y: y + DROP, w: inputs.w, h: inputs.h });
 				// A comment's box goes round its statement's steps and their
 				// values: the next statement's values keep out of it.
 				if (inBox !== undefined) {
@@ -338,9 +364,11 @@ export function layoutFlow(
 						grown.x = Math.min(grown.x, extent.x);
 						grown.w = far - grown.x;
 						grown.h = lowest - grown.y;
+						// Taken again at its new width, so `reach` counts it.
+						take(grown);
 					} else {
 						boxes.set(inBox, extent);
-						taken.push(extent);
+						take(extent);
 					}
 				}
 			}
@@ -378,8 +406,8 @@ export function layoutFlow(
 	// as they were; then any step left over, from a loop of steps.
 	const byPlace = (a: GraphNode, b: GraphNode) => a.y - b.y || a.x - b.x;
 	const execIn = (id: string) =>
-		view.links.some((l) => {
-			if (l.to.node !== id || placed.has(l.from.node)) return false;
+		(allInto.get(id) ?? []).some((l) => {
+			if (placed.has(l.from.node)) return false;
 			const from = byId.get(l.from.node);
 			return (
 				from !== undefined &&
@@ -399,7 +427,7 @@ export function layoutFlow(
 	// (`return table.freeze(M)`), else a tree from the value nothing reads.
 	let x = ORIGIN.x;
 	const readers = (id: string) =>
-		view.links.filter((l) => l.from.node === id && byId.has(l.to.node)).map((l) => l.to.node);
+		(allOutOf.get(id) ?? []).filter((l) => byId.has(l.to.node)).map((l) => l.to.node);
 	const values = view.nodes.filter((n) => !placed.has(n.id));
 	// A value another value still to be placed reads goes in that one's tree.
 	const roots = values.filter(
@@ -408,8 +436,7 @@ export function layoutFlow(
 	for (const node of [...roots.sort(byPlace), ...values.sort(byPlace)]) {
 		if (placed.has(node.id)) continue;
 		const tree = treeSize(node.id);
-		const step = view.links
-			.filter((l) => l.to.node === node.id)
+		const step = (allInto.get(node.id) ?? [])
 			.map((l) => byId.get(l.from.node))
 			.find((n) => n && isExec(n) && placed.has(n.id) && execTargets(n.id).length === 0);
 		const stepAt = step && placed.get(step.id);

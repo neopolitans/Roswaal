@@ -11,12 +11,13 @@
  */
 
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
+import { ownTable } from "../core/ownTable.js";
 import { isInstanceClass } from "../core/roblox.js";
 import type { NodeDef } from "../core/schema.js";
 
 const FLOW_RED = "#a93b2c";
 
-const CATEGORY_COLORS: Record<string, string> = {
+const CATEGORY_COLORS: Record<string, string> = ownTable({
 	Flow: "#5a6474",
 	Events: "#a1622c",
 	Variables: "#2f6f8f",
@@ -51,7 +52,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 	// crossing point, not another kind of value.
 	"Z-Up Conversions": "#6b7a3a",
 	Custom: "#4f6480",
-};
+});
 
 /**
  * Datatype colours, which beat the category colour when a node has one.
@@ -66,7 +67,7 @@ const CATEGORY_COLORS: Record<string, string> = {
  * Each is near its type's pin colour without matching it, so a node reads as
  * "about vectors" while the pin still reads as "is a vector".
  */
-const SUBCATEGORY_COLORS: Record<string, string> = {
+const SUBCATEGORY_COLORS: Record<string, string> = ownTable({
 	Vector3: "#3c7f8f",
 	Vector2: "#35707e",
 	CFrame: "#8a5a2c",
@@ -80,7 +81,7 @@ const SUBCATEGORY_COLORS: Record<string, string> = {
 	// describing a value, so it sits apart from the rest.
 	TweenInfo: "#7a5a9b",
 	Tween: "#6a4f9b",
-};
+});
 
 /**
  * Takes the fields it actually reads rather than a whole `NodeDef`, so the
@@ -115,7 +116,7 @@ export function isFlowBoundary(def: NodeDef): boolean {
  * is a boolean, green is a number, magenta is a string, blue is an object,
  * gold is a vector.
  */
-const TYPE_COLORS: Record<string, string> = {
+const TYPE_COLORS: Record<string, string> = ownTable({
 	// A flow triangle is drawn in its wire's colour, which every scheme sets
 	// close to its text: dark on a light canvas, light on a dark one. The pale
 	// grey it used to be all but disappeared against a light node body.
@@ -153,7 +154,7 @@ const TYPE_COLORS: Record<string, string> = {
 	Tween: "#8a63c4",
 	RBXScriptSignal: "#c4453f",
 	RBXScriptConnection: "#9c5a55",
-};
+});
 
 export function pinColor(given: string | undefined, kind: "exec" | "data"): string {
 	if (kind === "exec") return TYPE_COLORS.exec;

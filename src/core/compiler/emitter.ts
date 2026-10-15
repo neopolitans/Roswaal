@@ -65,6 +65,19 @@ import { GraphIndex, type ResolvedNode } from "./graph.js";
 import { hashString } from "./hash.js";
 import { isAccessPath, isIdentifier, isLuauName, literalToLuau, NameScope, paren } from "./luau.js";
 
+/**
+ * How deep a graph may nest: bodies inside bodies (a Branch in a Branch's True),
+ * and values read from values (an Add feeding an Add), counted together.
+ *
+ * Both are walked by recursion, and each level is a dozen calls, so a graph
+ * nested a few thousand deep would run the stack out. Each level is also a
+ * block or a bracket in the Luau written, which the parser reads back within
+ * its own `MAX_DEPTH` (500), and Luau within about a thousand. Two hundred is
+ * far past any graph made by hand, and leaves the rest of that room for what a
+ * Code Block or a template adds inside the deepest one.
+ */
+export const MAX_GRAPH_DEPTH = 200;
+
 export class Emitter {
 	index: GraphIndex;
 	names = new NameScope();
@@ -86,6 +99,10 @@ export class Emitter {
 	diagnostics: Diagnostic[] = [];
 	/** Guards against an exec wire looping back and emitting forever. */
 	execStack = new Set<string>();
+	/** How many walks and values the one being emitted is inside. See `MAX_GRAPH_DEPTH`. */
+	private depth = 0;
+	/** Said once: past the limit every part is left out, but one error says why. */
+	private tooDeep = false;
 	/**
 	 * Whether the statement just emitted ends its block.
 	 *
@@ -435,6 +452,34 @@ export class Emitter {
 	// -- execution walk ----------------------------------------------------
 
 	walk(startId: string | undefined, scope: Scope): boolean {
+		if (!this.deeper(startId)) return false;
+		try {
+			return this.walkChain(startId, scope);
+		} finally {
+			this.depth--;
+		}
+	}
+
+	/**
+	 * One level deeper, when there is room: past `MAX_GRAPH_DEPTH` it says so,
+	 * once and at the node, and the caller leaves that part out.
+	 */
+	private deeper(nodeId: string | undefined): boolean {
+		if (this.depth >= MAX_GRAPH_DEPTH) {
+			if (!this.tooDeep) {
+				this.tooDeep = true;
+				this.error(
+					`This is nested more than ${MAX_GRAPH_DEPTH} deep, which is too deep to compile.`,
+					nodeId,
+				);
+			}
+			return false;
+		}
+		this.depth++;
+		return true;
+	}
+
+	private walkChain(startId: string | undefined, scope: Scope): boolean {
 		// Nodes stay on the stack for the whole chain, not just their own
 		// emission, so a wire back into an earlier node is caught rather than
 		// emitted forever. Nested walks (branch and loop bodies) see the outer
@@ -679,6 +724,15 @@ export class Emitter {
 		scope: Scope,
 		consumer: ResolvedNode,
 	): string {
+		if (!this.deeper(nodeId)) return "nil";
+		try {
+			return this.outputOf(nodeId, pinId, scope, consumer);
+		} finally {
+			this.depth--;
+		}
+	}
+
+	private outputOf(nodeId: string, pinId: string, scope: Scope, consumer: ResolvedNode): string {
 		const bound = scope.lookup(`${nodeId}/${pinId}`);
 		if (bound) return bound;
 

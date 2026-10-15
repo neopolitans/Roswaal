@@ -11,6 +11,7 @@
  * that service (`players:GetPlayerByUserId(`).
  */
 
+import { own } from "../ownTable.js";
 import { ENGINE, type EngineParam } from "../robloxEngine.js";
 import { SERVICE_METHODS } from "../robloxMembers.js";
 import { classOfGlobal, heldBy, membersInCode, methodsOf, type TableMember } from "./infer.js";
@@ -110,7 +111,7 @@ export function signatureAt(
 			? heldBy(local.typeText, local.value).className
 			: classOfGlobal(owner.text);
 		const method = className
-			? SERVICE_METHODS[className]?.find((m) => m.name === name.text)
+			? own(SERVICE_METHODS, className)?.find((m) => m.name === name.text)
 			: undefined;
 		if (!method) {
 			// Any class's method, found up the hierarchy: `existing:IsA(`.

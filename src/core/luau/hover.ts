@@ -15,6 +15,8 @@
  * draws what this returns.
  */
 
+import { isStackOverflow } from "../errorMessage.js";
+import { ownTable } from "../ownTable.js";
 import { CLASSES, DATATYPES, LIBRARIES, LUAU_GLOBALS, ROBLOX_GLOBALS } from "../robloxData.js";
 import { ENGINE, signatureText, valueProperties } from "../robloxEngine.js";
 import { nilableProperty } from "../robloxNilable.js";
@@ -122,12 +124,12 @@ const LIBRARY_SET = new Set(LIBRARIES);
 /** What an expression is read behind when it does not parse as statements. */
 const AS_VALUE = "return ";
 
-const GLOBAL_CLASSES: Readonly<Record<string, string>> = {
+const GLOBAL_CLASSES: Readonly<Record<string, string>> = ownTable({
 	game: "DataModel",
 	workspace: "Workspace",
 	script: "LuaSourceContainer",
 	plugin: "Plugin",
-};
+});
 
 /**
  * A global nobody declared: Roblox's, Luau's, or a library. Asked only once
@@ -286,12 +288,30 @@ export function hoverAt(
 	modules: ReadonlyMap<string, ModuleInfo> = new Map(),
 	locals: ReadonlyMap<string, string> = new Map(),
 ): Hover | null {
+	// The parser keeps the tree within reach of the stack; a reader of it that
+	// still goes too deep gives no hover, rather than throwing at the pointer.
+	try {
+		return hoverIn(src, pos, roblox, tableMembers, modules, locals);
+	} catch (error) {
+		if (isStackOverflow(error)) return null;
+		throw error;
+	}
+}
+
+function hoverIn(
+	src: string,
+	pos: number,
+	roblox: boolean,
+	tableMembers: ReadonlyMap<string, TableMember[]>,
+	modules: ReadonlyMap<string, ModuleInfo>,
+	locals: ReadonlyMap<string, string>,
+): Hover | null {
 	const file = luauFile(src);
 	// A Luau Expression's field holds an expression, which as statements may
 	// not parse at all -- `if a then 1 else -1` -- and then nothing around
 	// the pointer could be read. Read it as the value it is.
 	if (file.errors.length > 0 && luauFile(`${AS_VALUE}${src}`).errors.length === 0) {
-		const hover = hoverAt(
+		const hover = hoverIn(
 			`${AS_VALUE}${src}`,
 			pos + AS_VALUE.length,
 			roblox,
@@ -753,7 +773,7 @@ function bareName(ask: Ask): Hover | null {
  * Creator Documentation, which documents them as pages of a guide rather than
  * as entries with a summary to quote.
  */
-const LUAU_TYPES: Readonly<Record<string, string>> = {
+const LUAU_TYPES: Readonly<Record<string, string>> = ownTable({
 	number: "A number: whole or fractional, as Luau stores every number.",
 	string: "Text: a sequence of characters, such as a name or a message.",
 	boolean: "true or false.",
@@ -762,7 +782,7 @@ const LUAU_TYPES: Readonly<Record<string, string>> = {
 	thread: "A coroutine: a function that can pause partway and be resumed.",
 	buffer: "A fixed-size block of raw bytes.",
 	nil: "No value at all.",
-};
+});
 
 /**
  * What a pin's type is, for the card a node's type chip opens: the same card

@@ -15,6 +15,7 @@
  * value holds would be a completion list that lies.
  */
 
+import { own, ownTable } from "../ownTable.js";
 import { isService } from "../roblox.js";
 import { CLASS_PARENTS, CLASSES } from "../robloxData.js";
 import { ENGINE, type EngineClass, type EngineEvent } from "../robloxEngine.js";
@@ -70,11 +71,11 @@ export function classOfTypeText(text: string | undefined): string | undefined {
 }
 
 /** Calls that find an instance by name: the class is not known, but it is one. */
-const INSTANCE_FINDERS: Record<string, string> = {
+const INSTANCE_FINDERS: Record<string, string> = ownTable({
 	FindFirstChild: "Instance?",
 	FindFirstAncestor: "Instance?",
 	WaitForChild: "Instance",
-};
+});
 
 /**
  * The class a name that is not a local stands for: a service reached by its
@@ -102,7 +103,7 @@ export function methodsOf(className: string): (ClassMethod & { from: string })[]
 			seen.add(method.name);
 			out.push({ ...method, from: current });
 		}
-		current = CLASS_PARENTS[current];
+		current = own(CLASS_PARENTS, current);
 	}
 	return out;
 }

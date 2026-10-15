@@ -189,6 +189,81 @@ export function viewOf(script: NodeScript, graph: GraphId): NodeScript {
 }
 
 /**
+ * `viewOf` for each of `graphs`, from one pass over the script rather than one
+ * a graph: an imported file can open thousands of graphs.
+ */
+export function viewsOf(script: NodeScript, graphs: readonly GraphId[]): Map<GraphId, NodeScript> {
+	const parts = new Map<GraphId, { nodes: GraphNode[]; links: Link[]; comments: Comment[] }>();
+	for (const graph of graphs) parts.set(graph, { nodes: [], links: [], comments: [] });
+	const byId = new Map<string, GraphNode>();
+	for (const node of script.nodes) {
+		byId.set(node.id, node);
+		// The graphs it can be drawn in: `presenceIn` says which of them it is.
+		const own = FUNCTION_NODES.has(node.def) ? [node.id, graphOf(node)] : [graphOf(node)];
+		for (const graph of new Set(own)) {
+			const presence = presenceIn(node, graph);
+			const part = parts.get(graph);
+			if (!presence || !part) continue;
+			part.nodes.push(
+				presence === "whole"
+					? node
+					: {
+							...node,
+							...positionIn(node, graph),
+							config: { ...node.config, [PRESENCE]: presence },
+						},
+			);
+		}
+	}
+	for (const link of script.links) {
+		const from = byId.get(link.from.node);
+		const to = byId.get(link.to.node);
+		if (!from || !to) continue;
+		const graph = sideGraph(from, link.from.pin, "out");
+		if (sideGraph(to, link.to.pin, "in") === graph) parts.get(graph)?.links.push(link);
+	}
+	for (const c of script.comments) parts.get(graphOf(c))?.comments.push(c);
+	const out = new Map<GraphId, NodeScript>();
+	for (const [graph, part] of parts) out.set(graph, { ...script, ...part });
+	return out;
+}
+
+/** `mergeLayout` for several graphs' views at once, in one pass over the script. */
+export function mergeLayouts(
+	script: NodeScript,
+	views: ReadonlyMap<GraphId, NodeScript>,
+): NodeScript {
+	const placed = new Map<string, { graph: GraphId; x: number; y: number }[]>();
+	const boxes = new Map<string, Comment>();
+	for (const [graph, view] of views) {
+		for (const n of view.nodes) {
+			const at = placed.get(n.id);
+			if (at) at.push({ graph, x: n.x, y: n.y });
+			else placed.set(n.id, [{ graph, x: n.x, y: n.y }]);
+		}
+		for (const c of view.comments) boxes.set(c.id, c);
+	}
+	let changed = false;
+	const nodes = script.nodes.map((node) => {
+		let out = node;
+		for (const moved of placed.get(node.id) ?? []) {
+			const was = positionIn(out, moved.graph);
+			if (was.x === moved.x && was.y === moved.y) continue;
+			changed = true;
+			out = placeIn(out, moved.graph, { x: moved.x, y: moved.y });
+		}
+		return out;
+	});
+	const comments = script.comments.map((c) => {
+		const box = boxes.get(c.id);
+		if (!box || (box.x === c.x && box.y === c.y && box.w === c.w && box.h === c.h)) return c;
+		changed = true;
+		return { ...c, x: box.x, y: box.y, w: box.w, h: box.h };
+	});
+	return changed ? { ...script, nodes, links: script.links, comments } : script;
+}
+
+/**
  * Writes positions and comment boxes from an edited view back into the script.
  *
  * For tools that rearrange what is on screen — Realign, align — and are written

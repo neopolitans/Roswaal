@@ -5,6 +5,7 @@
  * the documentation read it, and nothing that stores or compiles a graph does.
  */
 
+import { ownTable } from "./ownTable.js";
 import { ENGINE_TYPES } from "./schema.js";
 
 /**
@@ -39,10 +40,10 @@ import { ENGINE_TYPES } from "./schema.js";
 export const ROBLOX_NAMED_CATEGORIES = true;
 
 /** What a category is called on screen, which is not what it is keyed by. */
-const CATEGORY_LABELS: Record<string, string> = {
+const CATEGORY_LABELS: Record<string, string> = ownTable({
 	Engine: "Roblox",
 	[ENGINE_TYPES]: "Roblox Types",
-};
+});
 
 /**
  * A category as a reader should see it.

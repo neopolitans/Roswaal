@@ -137,12 +137,13 @@ export function propertiesOf(className: string): readonly ClassProperty[] {
 	let current: string | undefined = className;
 	while (current !== undefined && !walked.has(current)) {
 		walked.add(current);
-		for (const property of CLASS_PROPERTIES[current] ?? []) {
+		// Own keys only: a name such as \`constructor\` is no class.
+		for (const property of Object.hasOwn(CLASS_PROPERTIES, current) ? CLASS_PROPERTIES[current] : []) {
 			if (seen.has(property.name)) continue;
 			seen.add(property.name);
 			out.push(property);
 		}
-		current = CLASS_PARENTS[current];
+		current = Object.hasOwn(CLASS_PARENTS, current) ? CLASS_PARENTS[current] : undefined;
 	}
 
 	resolved.set(className, out);

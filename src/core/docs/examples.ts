@@ -16,6 +16,7 @@
  * Keep them small. The reader is looking up one node, not reading a program.
  */
 
+import { ownTable } from "../ownTable.js";
 import type { Literal, NodeConfig, NodeScript } from "../schema.js";
 import { emptyScript } from "../schema.js";
 import { partPinId } from "../structs.js";
@@ -180,7 +181,7 @@ function printAfter(g: G, from: string, pin: string, text: string, row = 0): str
 
 // ---------------------------------------------------------------------------
 
-export const CURATED: Record<string, () => NodeScript> = {
+export const CURATED: Record<string, () => NodeScript> = ownTable({
 	"script.begin": () => {
 		const g = new G();
 		const begin = g.node("script.begin");
@@ -677,7 +678,7 @@ export const CURATED: Record<string, () => NodeScript> = {
 		printAfter(g, knot, "then", "Away we go");
 		return g.out();
 	},
-};
+});
 
 /** Notes that belong with a curated example rather than with the node itself. */
 /**
@@ -1221,7 +1222,7 @@ export const GUIDE_SCENES: Record<string, () => NodeScript> = {
 	},
 };
 
-export const EXAMPLE_NOTES: Record<string, string> = {
+export const EXAMPLE_NOTES: Record<string, string> = ownTable({
 	"flow.reroute":
 		"A knot compiles to nothing at all — this is the same code you would get without it.",
 	"flow.rerouteExec":
@@ -1235,4 +1236,4 @@ export const EXAMPLE_NOTES: Record<string, string> = {
 	"module.requirePath": "Requires hoist alongside services, and asking twice reuses the one local.",
 	"script.end":
 		"Look at what is not there: Script End emits nothing. Falling off the end of a script does the same thing, so it is optional — it is worth placing only to say out loud that the flow stops here.",
-};
+});

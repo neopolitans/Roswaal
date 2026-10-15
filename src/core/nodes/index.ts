@@ -1,5 +1,6 @@
 /** Node registry: built-ins plus any custom packs loaded from disk. */
 
+import { ownTable } from "../ownTable.js";
 import { CLASS_OPTIONS } from "../roblox.js";
 import type { GraphNode, Literal, NodeConfig, NodeDef, PinDef } from "../schema.js";
 import { ENGINE_TYPES } from "../schema.js";
@@ -48,7 +49,7 @@ export const BUILTIN_NODES: NodeDef[] = withRuntimes([
  * written by an earlier build still opens instead of showing a wall of
  * "unknown node type".
  */
-export const RENAMED_NODES: Record<string, string> = {
+export const RENAMED_NODES: Record<string, string> = ownTable({
 	"var.declare": "local.declare",
 	"var.set": "local.set",
 	// Shipped as "Define Type" in 0.19.2, renamed to "Declare Type" the same day
@@ -57,7 +58,7 @@ export const RENAMED_NODES: Record<string, string> = {
 	// Both older ids meant the hoisting one, so that is where they land.
 	"type.define": "type.declareTop",
 	"type.declare": "type.declareTop",
-};
+});
 
 /**
  * Node ids taken out of the library, and what to say to a graph still using one.
@@ -65,11 +66,11 @@ export const RENAMED_NODES: Record<string, string> = {
  * Such a graph does not compile either way. This is what makes it say why,
  * rather than asking after a node pack that was never missing.
  */
-export const REMOVED_NODES: Record<string, string> = {
+export const REMOVED_NODES: Record<string, string> = ownTable({
 	"instance.findFirstDescendant":
 		"Find First Descendant was removed in 0.25.0, because Roblox has deprecated it. " +
 		"Use Find First Child with Recursive set.",
-};
+});
 
 export type Registry = Map<string, NodeDef>;
 

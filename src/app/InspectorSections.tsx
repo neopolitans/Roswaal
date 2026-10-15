@@ -40,6 +40,7 @@ import { nodeTitle, resolveNodePins } from "../core/nodes/index.js";
 import { CAST_MODES, CAST_NODES, castModeOf, threadWhen } from "../core/nodes/library.js";
 import { castsResult, RESULT_CAST } from "../core/nodes/resultCast.js";
 import { isConstLocal, localNameOf, pinTypeText } from "../core/nodes/variables.js";
+import { ownTable } from "../core/ownTable.js";
 import { packLuau } from "../core/packs.js";
 import {
 	eventOf,
@@ -1229,13 +1230,13 @@ function KeyStyle({ node }: { node: GraphNode }) {
 }
 
 /** An empty value of each kind the Value field offers. */
-const BLANK: Record<string, Literal> = {
+const BLANK: Record<string, Literal> = ownTable({
 	string: { t: "string", v: "" },
 	number: { t: "number", v: 0 },
 	boolean: { t: "boolean", v: false },
 	raw: { t: "raw", v: "nil" },
 	nil: { t: "nil" },
-};
+});
 
 /**
  * A Key Value Pair's key and value, in the panel as well as on the node.
@@ -1245,13 +1246,13 @@ const BLANK: Record<string, Literal> = {
  * say what kind of value it is, which a row's one field cannot.
  */
 /** The plain kinds a typed-in value can be, as the picker lists them. */
-const VALUE_KINDS: Record<string, string> = {
+const VALUE_KINDS: Record<string, string> = ownTable({
 	string: "String",
 	number: "Number",
 	boolean: "Boolean",
 	raw: "Luau",
 	nil: "nil",
-};
+});
 
 /**
  * What a value can be chosen from: a kind to type in, or a local or script

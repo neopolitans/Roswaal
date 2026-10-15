@@ -43,6 +43,7 @@ import {
 	ownerOf,
 	splitCallText,
 } from "./callNodes.js";
+import { own } from "./ownTable.js";
 import { CLASS_OPTIONS, isService, ROBLOX_SERVICES } from "./roblox.js";
 import { SERVICE_METHODS, type ServiceMethod } from "./robloxMembers.js";
 import type { Literal, NodeConfig, PinDef } from "./schema.js";
@@ -57,7 +58,7 @@ export const SERVICES_WITH_METHODS: string[] = ROBLOX_SERVICES.filter(
 );
 
 export function methodsOfService(service: string): readonly ServiceMethod[] {
-	return SERVICE_METHODS[service] ?? [];
+	return own(SERVICE_METHODS, service) ?? [];
 }
 
 export function serviceMethod(

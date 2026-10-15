@@ -13,6 +13,7 @@
  * `binary.ts`, so the two readers leave out the same things.
  */
 
+import { ownTable } from "../ownTable.js";
 import { ENGINE } from "../robloxEngine.js";
 import {
 	asRbxError,
@@ -34,7 +35,13 @@ export interface XmlElement {
 	end: number;
 }
 
-const ENTITIES: Record<string, string> = { lt: "<", gt: ">", amp: "&", quot: '"', apos: "'" };
+const ENTITIES: Record<string, string> = ownTable({
+	lt: "<",
+	gt: ">",
+	amp: "&",
+	quot: '"',
+	apos: "'",
+});
 
 function decodeEntities(s: string): string {
 	if (!s.includes("&")) return s;

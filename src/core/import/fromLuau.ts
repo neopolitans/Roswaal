@@ -19,7 +19,8 @@
 
 import { CODE_FACE } from "../codeFace.js";
 import { isFieldName } from "../compiler/luau.js";
-import { viewOf } from "../functionGraph.js";
+import { isStackOverflow } from "../errorMessage.js";
+import { viewOf, viewsOf } from "../functionGraph.js";
 import { titleHeight } from "../layout/flow.js";
 import { fits } from "../luau/argumentTypes.js";
 import type { Binding, Block, Expr, FunctionBody, Stat } from "../luau/ast.js";
@@ -171,6 +172,8 @@ const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 class Importer {
 	private nodes: GraphNode[] = [];
+	/** The same nodes by id: looked up for nearly every statement, so not searched for. */
+	private byId = new Map<string, GraphNode>();
 	private links: Link[] = [];
 	private count = 0;
 	private stats = 0;
@@ -180,6 +183,8 @@ class Importer {
 	private column = new Map<string, number>();
 	/** The script variables file-level locals became. */
 	readonly variables: ScriptVariable[] = [];
+	/** The variables' names, asked of every file-level local. */
+	private readonly variableNames = new Set<string>();
 
 	constructor(
 		private readonly src: string,
@@ -201,6 +206,30 @@ class Importer {
 		return `${this.prefix}-${this.count}`;
 	}
 
+	/** Where each line starts, made once: a file can be one long line of statements. */
+	private starts?: number[];
+
+	/**
+	 * The line `offset` is on: where it starts, and where its newline is (-1 on
+	 * the last line). Searched for, rather than scanned to from `offset`, so a
+	 * file of many statements is not read again for each one.
+	 */
+	private lineAt(offset: number): { start: number; eol: number } {
+		if (!this.starts) {
+			this.starts = [0];
+			for (let i = 0; i < this.src.length; i++) if (this.src[i] === "\n") this.starts.push(i + 1);
+		}
+		const starts = this.starts;
+		let lo = 0;
+		let hi = starts.length - 1;
+		while (lo < hi) {
+			const mid = (lo + hi + 1) >> 1;
+			if (starts[mid] <= offset) lo = mid;
+			else hi = mid - 1;
+		}
+		return { start: starts[lo], eol: lo + 1 < starts.length ? starts[lo + 1] - 1 : -1 };
+	}
+
 	private text(span: { start: number; end: number }): string {
 		this.keptSpans.push(span);
 		return this.src.slice(span.start, span.end);
@@ -213,7 +242,7 @@ class Importer {
 	 */
 	private kept(span: { start: number; end: number }): string {
 		this.keptSpans.push(span);
-		const lineStart = this.src.lastIndexOf("\n", span.start - 1) + 1;
+		const lineStart = this.lineAt(span.start).start;
 		const indent = /^[ \t]*/.exec(this.src.slice(lineStart, span.start))?.[0] ?? "";
 		const text = applyEdits(this.src, span, this.edits);
 		if (!indent) return text;
@@ -237,7 +266,9 @@ class Importer {
 		extra: Partial<GraphNode> = {},
 	): string {
 		const id = this.id();
-		this.nodes.push({ id, def, x: at.x, y: at.y, ...(graph ? { graph } : {}), ...extra });
+		const node: GraphNode = { id, def, x: at.x, y: at.y, ...(graph ? { graph } : {}), ...extra };
+		this.nodes.push(node);
+		this.byId.set(id, node);
 		if (this.origin) this.origins.set(id, this.origin);
 		return id;
 	}
@@ -273,16 +304,22 @@ class Importer {
 						v.args.some((a) => a.kind === "function"),
 				));
 		if (!holds.includes(stat.kind) && !handler) return { start: stat.start, end: stat.end };
-		const eol = this.src.indexOf("\n", stat.start);
+		const { eol } = this.lineAt(stat.start);
 		return { start: stat.start, end: eol === -1 ? stat.end : eol };
 	}
 
 	private link(from: { node: string; pin: string }, to: { node: string; pin: string }): void {
-		this.links.push({ id: this.id(), from, to });
+		const link = { id: this.id(), from, to };
+		this.links.push(link);
+		const key = `${from.node}/${from.pin}`;
+		if (!this.firstFrom.has(key)) this.firstFrom.set(key, link);
 	}
 
+	/** The first wire out of each pin, by `node/pin`, for finding what a pin leads to. */
+	private readonly firstFrom = new Map<string, Link>();
+
 	private nodeById(id: string): GraphNode {
-		const node = this.nodes.find((n) => n.id === id);
+		const node = this.byId.get(id);
 		if (!node) throw new Error(`The importer lost node ${id}`);
 		return node;
 	}
@@ -549,14 +586,21 @@ class Importer {
 
 	/** Whether the file has a blank line between `stat` and the statement before it. */
 	private blankBefore(body: Block, stat: Stat): boolean {
-		const i = body.indexOf(stat);
-		const previous = body[i - 1];
+		let place = this.places.get(body);
+		if (!place) {
+			place = new Map(body.map((s, i) => [s, i]));
+			this.places.set(body, place);
+		}
+		const previous = body[(place.get(stat) ?? 0) - 1];
 		return previous !== undefined && /\n[ \t]*\n/.test(this.src.slice(previous.end, stat.start));
 	}
 
+	/** Where each statement is in its block, asked of every statement. */
+	private readonly places = new WeakMap<Block, Map<Stat, number>>();
+
 	/** Keeps a blank line before the statement chained from `tail`. */
 	private markBlank(tail: Tail): void {
-		const link = this.links.find((l) => l.from.node === tail.node && l.from.pin === tail.pin);
+		const link = this.firstFrom.get(`${tail.node}/${tail.pin}`);
 		if (!link) return;
 		const node = this.nodeById(link.to.node);
 		node.config = { ...node.config, blankBefore: true };
@@ -797,28 +841,43 @@ class Importer {
 	): { text: string; style?: CommentStyle; count: number } | undefined {
 		if (this.comments.length === 0) return undefined;
 		const endLine = this.lineOf(Math.max(stat.start, stat.end - 1));
+		// The comments are in file order, so each search starts where the
+		// statement is rather than going through every comment for each one.
+		const firstFrom = (offset: number) => {
+			let lo = 0;
+			let hi = this.comments.length;
+			while (lo < hi) {
+				const mid = (lo + hi) >> 1;
+				if (this.comments[mid].end <= offset) lo = mid + 1;
+				else hi = mid;
+			}
+			return lo;
+		};
 		// Above: the comments between this statement and the code before it,
 		// leaving out one on that code's own line, which belongs to it.
 		const above: typeof this.comments = [];
-		for (let i = this.comments.length - 1; i >= 0; i--) {
+		for (let i = firstFrom(stat.start) - 1; i >= 0; i--) {
 			const c = this.comments[i];
-			if (c.end > stat.start || this.taken.has(i)) continue;
+			// One another statement took is code between: none further up is this one's.
+			if (this.taken.has(i)) break;
 			const next = above.length === 0 ? stat.start : above[0].start;
 			if (/\S/.test(this.src.slice(c.end, next))) break;
-			const before = this.src.slice(0, c.start).replace(/[ \t]+$/, "");
-			if (before !== "" && !before.endsWith("\n")) break;
+			// Only spaces before it on its own line.
+			if (/[^ \t]/.test(this.src.slice(this.lineAt(c.start).start, c.start))) break;
 			above.unshift(c);
 			this.taken.add(i);
 		}
-		// After: one on the statement's own last line.
-		const after = this.comments.findIndex(
-			(c, i) =>
-				!this.taken.has(i) &&
-				c.start >= stat.end &&
-				c.line === endLine &&
-				!/\S/.test(this.src.slice(stat.end, c.start)),
-		);
-		const trailing = after === -1 ? undefined : this.comments[after];
+		// After: one on the statement's own last line, the first comment after it.
+		const after = firstFrom(stat.end);
+		const candidate = this.comments[after];
+		const trailing =
+			candidate !== undefined &&
+			!this.taken.has(after) &&
+			candidate.start >= stat.end &&
+			candidate.line === endLine &&
+			!/\S/.test(this.src.slice(stat.end, candidate.start))
+				? candidate
+				: undefined;
 		if (trailing) this.taken.add(after);
 		if (above.length === 0 && !trailing) return undefined;
 
@@ -850,10 +909,22 @@ class Importer {
 
 	/** Comments no statement took: at the end of a block, with nothing after them. */
 	untakenComments(): number {
-		return this.comments.filter(
-			(c, i) =>
-				!this.taken.has(i) && !this.keptSpans.some((s) => s.start <= c.start && c.end <= s.end),
-		).length;
+		// By where they start, with the furthest any of them up to each reaches:
+		// a comment is inside one when the last to start before it reaches past it.
+		const spans = [...this.keptSpans].sort((a, b) => a.start - b.start);
+		const reach: number[] = [];
+		for (const span of spans) reach.push(Math.max(reach.at(-1) ?? -1, span.end));
+		const inKept = (c: { start: number; end: number }) => {
+			let lo = 0;
+			let hi = spans.length;
+			while (lo < hi) {
+				const mid = (lo + hi) >> 1;
+				if (spans[mid].start <= c.start) lo = mid + 1;
+				else hi = mid;
+			}
+			return lo > 0 && reach[lo - 1] >= c.end;
+		};
+		return this.comments.filter((c, i) => !this.taken.has(i) && !inKept(c)).length;
 	}
 
 	private statement(
@@ -903,7 +974,8 @@ class Importer {
 				// Initialize Variable. A name declared twice at that level is two
 				// locals, which one variable cannot be, so the second stays local.
 				const fileLevel = !scope.parent && this.locals === "variable";
-				if (fileLevel && !this.variables.some((v) => v.name === binding.name)) {
+				if (fileLevel && !this.variableNames.has(binding.name)) {
+					this.variableNames.add(binding.name);
 					const variable = `${this.prefix}-var${this.variables.length + 1}`;
 					this.variables.push({
 						id: variable,
@@ -998,8 +1070,7 @@ class Importer {
 				let first = true;
 				for (const clause of stat.clauses) {
 					// An `elseif` is its own line, and its Branch stands for that line.
-					const eol = this.src.indexOf("\n", clause.condition.start);
-					const lineStart = this.src.lastIndexOf("\n", clause.condition.start - 1) + 1;
+					const { start: lineStart, eol } = this.lineAt(clause.condition.start);
 					this.origin = { start: lineStart, end: eol === -1 ? clause.condition.end : eol };
 					const at = this.place(graph, row);
 					const id = this.node("flow.branch", graph, at);
@@ -2015,7 +2086,36 @@ function registry(): Registry {
 	return builtIn;
 }
 
+/**
+ * The largest file Import as graph takes, in characters: for Luau, which is
+ * nearly all ASCII, about its size in bytes.
+ *
+ * Importing takes time in step with the file's length, and a file is read and
+ * imported whole, with nothing else answered meanwhile. A script written by
+ * hand is tens of KiB; a graph made from this much is past reading already,
+ * and it is imported in a few seconds.
+ */
+export const LARGEST_IMPORT = 2 * 1024 * 1024;
+
 export function importLuau(file: string, options: ImportOptions): ImportResult {
+	if (file.length > LARGEST_IMPORT) {
+		return {
+			ok: false,
+			error: `It is larger than ${LARGEST_IMPORT / 1024 / 1024} MiB, more than Roswaal imports as a graph.`,
+		};
+	}
+	// The parser keeps the tree within `MAX_DEPTH`, and the importer follows
+	// the tree: this is the net under that, so a file too deep for some part
+	// of it is refused as one, rather than failing the import with a crash.
+	try {
+		return importFrom(file, options);
+	} catch (error) {
+		if (!isStackOverflow(error)) throw error;
+		return { ok: false, error: "It is nested too deeply to import." };
+	}
+}
+
+function importFrom(file: string, options: ImportOptions): ImportResult {
 	// Code kept as text goes into the graph as written, and a checkout on
 	// Windows writes it with CRLF; the compiler writes LF.
 	const src = file.replace(/\r\n?/g, "\n");
@@ -2205,12 +2305,22 @@ function commentBoxes(
 ): Comment[] {
 	const reg = registry();
 	const byId = new Map<string, GraphNode>();
-	for (const graph of [
-		null,
-		...script.nodes.filter((n) => FUNCTION_NODES.has(n.def)).map((n) => n.id),
-	]) {
-		for (const node of viewOf(script, graph).nodes)
+	const graphs = [null, ...script.nodes.filter((n) => FUNCTION_NODES.has(n.def)).map((n) => n.id)];
+	for (const [graph, view] of viewsOf(script, graphs)) {
+		for (const node of view.nodes)
 			if (!byId.has(`${graph}/${node.id}`)) byId.set(`${graph}/${node.id}`, node);
+	}
+	// The wires at each end of each node, so a box looks at its own nodes'
+	// wires rather than at every wire in the file.
+	const into = new Map<string, Link[]>();
+	const outOf = new Map<string, Link[]>();
+	for (const link of script.links) {
+		const ins = into.get(link.to.node);
+		if (ins) ins.push(link);
+		else into.set(link.to.node, [link]);
+		const outs = outOf.get(link.from.node);
+		if (outs) outs.push(link);
+		else outOf.set(link.from.node, [link]);
 	}
 	return boxes.flatMap((box, i) => {
 		// The box holds the statement's row: its first node, what runs on from
@@ -2220,16 +2330,20 @@ function commentBoxes(
 		const own = new Set(box.nodes);
 		const rowY = nodeOf(box.head)?.y;
 		const held = new Set([box.head]);
-		for (let grew = true; grew; ) {
-			grew = false;
-			for (const link of script.links) {
-				const { node: from } = link.from;
-				const { node: to } = link.to;
-				if (held.has(to) && own.has(from) && !held.has(from)) held.add(from);
-				else if (held.has(from) && own.has(to) && !held.has(to) && nodeOf(to)?.y === rowY)
-					held.add(to);
-				else continue;
-				grew = true;
+		const reached = [box.head];
+		while (reached.length > 0) {
+			const at = reached.pop() as string;
+			for (const { from } of into.get(at) ?? []) {
+				if (own.has(from.node) && !held.has(from.node)) {
+					held.add(from.node);
+					reached.push(from.node);
+				}
+			}
+			for (const { to } of outOf.get(at) ?? []) {
+				if (own.has(to.node) && !held.has(to.node) && nodeOf(to.node)?.y === rowY) {
+					held.add(to.node);
+					reached.push(to.node);
+				}
 			}
 		}
 		const rects = [...held]

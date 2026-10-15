@@ -13,6 +13,7 @@
 
 import { luauFile } from "./luau/file.js";
 import { moduleExports } from "./luau/requires.js";
+import { ownTable } from "./ownTable.js";
 
 export type WallyRealm = "shared" | "server" | "dev";
 
@@ -23,11 +24,11 @@ export const REALM_DIRS: Record<WallyRealm, string> = {
 	dev: "DevPackages",
 };
 
-const SECTIONS: Record<string, WallyRealm> = {
+const SECTIONS: Record<string, WallyRealm> = ownTable({
 	dependencies: "shared",
 	"server-dependencies": "server",
 	"dev-dependencies": "dev",
-};
+});
 
 export interface WallyDependency {
 	/** The name the project requires it by: the key in `wally.toml`. */

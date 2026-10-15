@@ -29,6 +29,7 @@
 import type { LogicCompile, LogicGraph } from "../../core/compiler/logic.js";
 import { parseNodePack } from "../../core/nodes/index.js";
 import type { LogicShape } from "../../core/nodes/logic.js";
+import { ownTable } from "../../core/ownTable.js";
 import type { Literal, NodeDef, PinDef, Target } from "../../core/schema.js";
 
 /** A node as a pack stores it: its definition, and its logic graph when it has one. */
@@ -163,7 +164,7 @@ export function targetsOf(draft: Draft, compiled?: LogicCompile | null): Target[
 	return out;
 }
 
-const TARGET_NAME: Record<Target, string> = { roblox: "Roblox", lune: "Lune" };
+const TARGET_NAME: Record<string, string> = ownTable({ roblox: "Roblox", lune: "Lune" });
 
 /** "Roblox only", "Roblox and Lune": how a set of targets is said in a problem. */
 export function targetsText(targets: readonly Target[] | null): string {

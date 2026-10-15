@@ -14,6 +14,7 @@
  */
 
 import { FUNCTION_NODES } from "./nodes/flow.js";
+import { ownTable } from "./ownTable.js";
 
 /** The grid every glyph is drawn on, and the stroke it is drawn with there. */
 export const GLYPH_VIEW_BOX = "0 0 24 24";
@@ -82,7 +83,7 @@ export const GLYPHS = {
 export type GlyphName = keyof typeof GLYPHS;
 
 /** By category key — the key, not the label `categoryLabel` shows. */
-export const CATEGORY_GLYPHS: Record<string, GlyphName> = {
+export const CATEGORY_GLYPHS: Record<string, GlyphName> = ownTable({
 	Flow: "flow",
 	Events: "events",
 	Variables: "variables",
@@ -105,10 +106,10 @@ export const CATEGORY_GLYPHS: Record<string, GlyphName> = {
 	"Z-Up Conversions": "conversions",
 	Tags: "tags",
 	Attributes: "attributes",
-};
+});
 
 /** A datatype's own glyph beats its category's, as its colour does. */
-const BY_SUBCATEGORY: Record<string, GlyphName> = {
+const BY_SUBCATEGORY: Record<string, GlyphName> = ownTable({
 	Vector3: "vector3",
 	Vector2: "vector2",
 	CFrame: "cframe",
@@ -118,7 +119,7 @@ const BY_SUBCATEGORY: Record<string, GlyphName> = {
 	UDim2: "udim",
 	TweenInfo: "tween",
 	Tween: "tween",
-};
+});
 
 /**
  * Which glyph a node's tab carries. Takes the fields it reads, as `nodeColor`

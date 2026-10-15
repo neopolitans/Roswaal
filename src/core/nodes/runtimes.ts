@@ -40,6 +40,7 @@
  */
 
 import { LUNE_ROBLOX_DATATYPES } from "../luneApi.js";
+import { ownTable } from "../ownTable.js";
 import { ENGINE_TYPES, type NodeDef, type Target } from "../schema.js";
 
 /**
@@ -74,7 +75,7 @@ export type Runtime = "luau" | "roblox" | "lune";
  * Everything else is **base Luau**: the language, its standard library, and the
  * shapes Roswaal builds out of them.
  */
-export const CATEGORY_RUNTIME: Record<string, Runtime> = {
+export const CATEGORY_RUNTIME: Record<string, Runtime> = ownTable({
 	// The language, and what Roswaal makes out of it.
 	Flow: "luau",
 	Variables: "luau",
@@ -110,7 +111,7 @@ export const CATEGORY_RUNTIME: Record<string, Runtime> = {
 	Players: "roblox",
 	Time: "roblox",
 	"Z-Up Conversions": "roblox",
-};
+});
 
 /**
  * Nodes that disagree with the category they are filed under.
@@ -120,7 +121,7 @@ export const CATEGORY_RUNTIME: Record<string, Runtime> = {
  * `coroutine`, and seven scattered `targets: ["roblox"]` lines are seven
  * chances to miss one.
  */
-export const NODE_RUNTIME: Record<string, Runtime> = {
+export const NODE_RUNTIME: Record<string, Runtime> = ownTable({
 	/**
 	 * `task` is Roblox's scheduler. Lune has one too and it is **not a global**
 	 * — its own changelog records the globals for `fs`, `net`, `process`,
@@ -141,7 +142,7 @@ export const NODE_RUNTIME: Record<string, Runtime> = {
 
 	/** Requires a ModuleScript by instance path, which is a DataModel idea. */
 	"module.requirePath": "roblox",
-};
+});
 
 /**
  * What each runtime is called where a person reads it.

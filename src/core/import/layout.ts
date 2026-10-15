@@ -8,7 +8,7 @@
  * drawn afterwards, round where those steps went.
  */
 
-import { type GraphId, mergeLayout, viewOf } from "../functionGraph.js";
+import { type GraphId, mergeLayouts, viewsOf } from "../functionGraph.js";
 import { applyFlow, layoutFlow } from "../layout/flow.js";
 import { FUNCTION_NODES } from "../nodes/flow.js";
 import type { Registry } from "../nodes/index.js";
@@ -29,15 +29,16 @@ export function layoutImport(
 	 */
 	boxed: ReadonlyMap<string, string> = new Map(),
 ): NodeScript {
-	let out = script;
 	const graphs: GraphId[] = [
 		null,
 		...script.nodes.filter((n) => FUNCTION_NODES.has(n.def)).map((n) => n.id),
 	];
-	for (const graph of graphs) {
-		const view = viewOf(out, graph);
+	// Each graph's layout moves only what is drawn in it, so every view can be
+	// taken from the script as it was, and the moves written back together.
+	const laid = new Map<GraphId, NodeScript>();
+	for (const [graph, view] of viewsOf(script, graphs)) {
 		const result = layoutFlow(view, registry, graph, { headed, boxed });
-		out = mergeLayout(out, graph, applyFlow(view, result));
+		laid.set(graph, applyFlow(view, result));
 	}
-	return out;
+	return mergeLayouts(script, laid);
 }

@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.186.7",
+		security: true,
+		date: "2026-10-15",
+		headline:
+			"Long chains are reported instead of failing, import keeps pace with long files, and any name gets a colour.",
+		affects: ["editor"],
+		fixed: [
+			"**Long chains, read.** A chain of calls, fields or operators longer than 500 is reported as nested too deeply, and a graph nested past 200 is one error at the node where it does, rather than a compile, hover or import that fails.",
+			"**Import in step with the file.** Import as graph no longer slows down sharply on long files, and takes a file of up to 2 MiB.",
+			"**Any name, a colour.** A pack category or pin type named `constructor` or `toString` is drawn in the colour any unknown name gets.",
+		],
+	},
+	{
 		version: "0.186.6",
 		security: true,
 		date: "2026-10-15",
