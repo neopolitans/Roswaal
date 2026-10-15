@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.180.0",
+		date: "2026-10-15",
+		headline: "Imported graphs tuck values under the step before and cut their rows by width.",
+		affects: ["editor"],
+		changed: [
+			"**Values sit under the step before the one that reads them.** The steps of a row close up to one gap apart, and each value's wire runs up into its reader. The first step on a row, and a step a comment box holds, keep their values to their left.",
+			"**Rows are cut by width, not by count.** Tidy, Modern and Node-Prioritized fill each row on the Sequence up to 2,400 px, cut at a blank line where one falls in the second half. A Require stays on the row of the variable it sets, a loop counts its body's width, and an if still ends its row. A file or function that fits on one row has no Sequence.",
+		],
+		fixed: ["**The tour's import slide says comments become comment boxes.** It said they were not kept."],
+	},
+	{
 		version: "0.179.0",
 		date: "2026-10-15",
 		headline: "Node-Prioritized imports as much as it can as nodes, and Tidy keeps tables as code again.",

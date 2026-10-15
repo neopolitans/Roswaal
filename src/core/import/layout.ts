@@ -6,9 +6,12 @@
  * and Sequence -- so it lays that shape out directly rather than handing the
  * graph to the editor's general tidy-up, which has to guess.
  *
- * - A chain of statements runs left to right on one row: a **lane**.
- * - The values a statement reads sit in columns to its left, *below* the lane,
- *   so the execution wire into the statement passes above them, never through.
+ * - A chain of statements runs left to right on one row: a **lane**, the
+ *   statements one gap apart.
+ * - The values a statement reads sit below the lane, under the step before it,
+ *   so the execution wire passes above them and their wires run up and to the
+ *   right into their reader (0.180.0). The first statement on a lane, and one a
+ *   comment heads, keep theirs in columns to their left.
  * - A node with several exec outputs (Branch, a loop, Sequence) starts a lane
  *   for each to its right, one under another in pin order: True then False,
  *   Body then Completed, Then 1, Then 2, ...
@@ -34,10 +37,26 @@ const DROP = 64;
 /** Where a graph's first node goes. */
 const ORIGIN = { x: 80, y: 160 };
 
+/** How far left of its reader a tucked value's right edge sits. */
+const TUCK = 20;
+/** The room a comment's box leaves round what it holds, as `commentBoxes` draws it. */
+const BOX_PAD = 18;
+
 interface Box {
 	w: number;
 	h: number;
 }
+
+interface Rect extends Box {
+	x: number;
+	y: number;
+}
+
+const overlaps = (a: Rect, b: Rect, margin = 0) =>
+	a.x < b.x + b.w + margin &&
+	b.x < a.x + a.w + margin &&
+	a.y < b.y + b.h + margin &&
+	b.y < a.y + a.h + margin;
 
 /** Lays out every graph of an imported script. */
 export function layoutImport(
@@ -48,6 +67,11 @@ export function layoutImport(
 	 * row is lowered by it, so the title sits in a gap of its own.
 	 */
 	headed: ReadonlyMap<string, number> = new Map(),
+	/**
+	 * The nodes each comment box goes round, by the statement it heads. No
+	 * value is tucked into a box, and a step in one keeps its values to its left.
+	 */
+	boxed: ReadonlyMap<string, string> = new Map(),
 ): NodeScript {
 	let out = script;
 	const graphs: GraphId[] = [
@@ -56,7 +80,7 @@ export function layoutImport(
 	];
 	for (const graph of graphs) {
 		const view = viewOf(out, graph);
-		out = mergeLayout(out, graph, layoutView(view, registry, graph, headed));
+		out = mergeLayout(out, graph, layoutView(view, registry, graph, headed, boxed));
 	}
 	return out;
 }
@@ -66,6 +90,7 @@ function layoutView(
 	registry: Registry,
 	graph: GraphId,
 	headed: ReadonlyMap<string, number>,
+	boxed: ReadonlyMap<string, string>,
 ): NodeScript {
 	const byId = new Map(view.nodes.map((n) => [n.id, n]));
 	const size = new Map<string, Box>();
@@ -185,19 +210,69 @@ function layoutView(
 		let cursor = x;
 		let right = x;
 		let bottom = y;
+		// What is on this lane so far, which a tucked value keeps clear of; a
+		// comment's box among it, grown as each of its steps is placed.
+		const taken: Rect[] = [];
+		const boxes = new Map<string, Rect>();
 		while (at && !placed.has(at)) {
 			const id: string = at;
 			const inputs = inputsOf(id);
-			const nodeX = cursor + (inputs.w > 0 ? inputs.w + GAP_X : 0);
-			placed.set(id, { x: nodeX, y });
 			const own = box(id);
-			let top = y + DROP;
-			for (const k of inputs.ids) {
-				placeTree(k, nodeX - GAP_X, top);
-				top += treeSize(k).h + GAP_Y;
+			// A statement's values go under the step before it, and the steps
+			// close up to one gap apart. The first on a lane has no step before
+			// it, and a step in a comment's box keeps its values to its left, so
+			// the box does not reach back under the step before.
+			const inBox = boxed.get(id);
+			const tuck = taken.length > 0 && inputs.ids.length > 0 && inBox === undefined;
+			const nodeX = tuck ? cursor : cursor + (inputs.w > 0 ? inputs.w + GAP_X : 0);
+			placed.set(id, { x: nodeX, y });
+			taken.push({ x: nodeX, y, w: own.w, h: own.h });
+			if (tuck) {
+				for (const k of inputs.ids) {
+					const size = treeSize(k);
+					const spot: Rect = { x: Math.max(nodeX - TUCK - size.w, x), y: y + DROP, ...size };
+					// Below whatever it would land on.
+					for (let moved = true; moved; ) {
+						moved = false;
+						for (const other of taken) {
+							if (!overlaps(spot, other, GAP_Y / 2)) continue;
+							spot.y = other.y + other.h + GAP_Y;
+							moved = true;
+						}
+					}
+					placeTree(k, spot.x + size.w, spot.y);
+					taken.push(spot);
+					bottom = Math.max(bottom, spot.y + spot.h);
+				}
+			} else {
+				let top = y + DROP;
+				for (const k of inputs.ids) {
+					placeTree(k, nodeX - GAP_X, top);
+					top += treeSize(k).h + GAP_Y;
+				}
+				if (inputs.h > 0)
+					taken.push({ x: nodeX - GAP_X - inputs.w, y: y + DROP, w: inputs.w, h: inputs.h });
+				// A comment's box goes round its statement's steps and their
+				// values: the next statement's values keep out of it.
+				if (inBox !== undefined) {
+					const left = nodeX - (inputs.w > 0 ? inputs.w + GAP_X : 0) - BOX_PAD;
+					const low = Math.max(y + own.h, inputs.h > 0 ? y + DROP + inputs.h : y) + BOX_PAD;
+					const extent = { x: left, y, w: nodeX + own.w + BOX_PAD - left, h: low - y };
+					const grown = boxes.get(inBox);
+					if (grown) {
+						const right = Math.max(grown.x + grown.w, extent.x + extent.w);
+						const lowest = Math.max(grown.y + grown.h, extent.y + extent.h);
+						grown.x = Math.min(grown.x, extent.x);
+						grown.w = right - grown.x;
+						grown.h = lowest - grown.y;
+					} else {
+						boxes.set(inBox, extent);
+						taken.push(extent);
+					}
+				}
 			}
 			right = Math.max(right, nodeX + own.w);
-			bottom = Math.max(bottom, y + own.h, inputs.h > 0 ? y + DROP + inputs.h : y);
+			bottom = Math.max(bottom, y + own.h, inputs.h > 0 && !tuck ? y + DROP + inputs.h : y);
 			const next = execTargets(id);
 			if (next.length === 1) {
 				cursor = nodeX + own.w + GAP_X;

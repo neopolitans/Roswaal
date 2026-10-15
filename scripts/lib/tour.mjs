@@ -1362,7 +1362,7 @@ export const SLIDES = [
 			["0.171.0", "event handlers and threads"],
 		],
 		doc: "docs/project-panel.html",
-		body: "<strong>Import as graph</strong> turns a <code>.luau</code> file's statements into nodes; what has no node yet stays as Luau text. Still in progress: comments are not kept yet, so test what you import.",
+		body: "<strong>Import as graph</strong> turns a <code>.luau</code> file's statements into nodes; what has no node yet stays as Luau text, and comments become comment boxes. Still in progress, so test what you import.",
 		keys: "<kbd>Right-click</kbd> a <code>.luau</code> file",
 		tryThis:
 			"Tap a line of either file, or a node, to see what it became. Verbatim keeps one chain, Tidy cuts it into rows, and Modern writes the <code>and … or</code> line as an if-expression.",

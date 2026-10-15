@@ -40,6 +40,7 @@ import {
 	type Target,
 } from "../schema.js";
 import { layoutImport } from "./layout.js";
+import { rowsByWidth } from "./rows.js";
 import {
 	applyEdits,
 	type Edit,
@@ -222,6 +223,8 @@ class Importer {
 	private origin: { start: number; end: number } | undefined;
 	/** Every node's span of source, for `Origins`. */
 	readonly origins = new Map<string, { start: number; end: number }>();
+	/** The Sequences this import made to hold rows, which `rowsByWidth` cuts by width. */
+	readonly rowSequences = new Set<string>();
 
 	/**
 	 * What of a statement its own nodes stand for: all of a simple one, and
@@ -467,6 +470,12 @@ class Importer {
 		row: number,
 		fn: FunctionContext | undefined,
 		module: boolean,
+		/**
+		 * A file's or a function's own body. Outside Verbatim it always starts
+		 * on a Sequence, whose rows are then cut by width (`rows.ts`); one left
+		 * with a single row is taken out again.
+		 */
+		top = false,
 	): Tail | null {
 		const segments = this.segments(body);
 		const lastStat = body[body.length - 1];
@@ -480,12 +489,14 @@ class Importer {
 			}
 			return at;
 		};
-		if (segments.length < 2 || tail === null) return run(body, tail);
+		const rows = this.paragraphs && top && body.length >= 2;
+		if ((segments.length < 2 && !rows) || tail === null) return run(body, tail);
 		// Several runs: one Sequence, a run on each output, in order. Each is
 		// a row of its own on the canvas.
 		const id = this.node("flow.sequence", graph, this.place(graph, row), {
 			config: { count: segments.length },
 		});
+		if (this.paragraphs) this.rowSequences.add(id);
 		this.chain(tail, id);
 		let at: Tail | null = null;
 		for (const [i, seg] of segments.entries()) at = run(seg, { node: id, pin: `s${i}` });
@@ -1468,6 +1479,7 @@ class Importer {
 			0,
 			{ node: id, returns: sig.returns },
 			false,
+			true,
 		);
 		this.asNodes += 1;
 		return { node: id, pin: "then" };
@@ -1583,12 +1595,25 @@ export function importLuau(file: string, options: ImportOptions): ImportResult {
 		0,
 		undefined,
 		options.scriptClass === "ModuleScript",
+		true,
 	);
 	const { nodes, links } = importer.result();
-	const built = { ...script, variables: importer.variables, nodes: [begin, ...nodes], links };
+	const built = rowsByWidth(
+		{ ...script, variables: importer.variables, nodes: [begin, ...nodes], links },
+		registry(),
+		importer.rowSequences,
+	);
 	// Laid out twice when there are comments: once to learn how wide each box
 	// is, and so how tall its title wraps, then with that room above each row.
-	const first = layoutImport(built, registry());
+	// The first pass knows which statements a comment heads, so they lay out
+	// the same way in both.
+	const boxed = new Map(importer.boxes.flatMap((b) => b.nodes.map((n) => [n, b.head] as const)));
+	const first = layoutImport(
+		built,
+		registry(),
+		new Map(importer.boxes.map((b) => [b.head, 0])),
+		boxed,
+	);
 	const rooms = new Map<string, number>();
 	if (importer.boxes.length > 0) {
 		for (const [i, box] of commentBoxes(first, importer.boxes, prefix, new Map()).entries())
@@ -1597,11 +1622,13 @@ export function importLuau(file: string, options: ImportOptions): ImportResult {
 				Math.max(rooms.get(importer.boxes[i].head) ?? 0, titleHeight(box.text, box.w) + BOX_GAP),
 			);
 	}
-	const laid = rooms.size > 0 ? layoutImport(built, registry(), rooms) : first;
+	const laid = importer.boxes.length > 0 ? layoutImport(built, registry(), rooms, boxed) : first;
 	const commented = { ...laid, comments: commentBoxes(laid, importer.boxes, prefix, rooms) };
 	const lineOf = lineIndex(src);
 	const origins: Origins = {};
+	const kept = new Set(built.nodes.map((n) => n.id));
 	for (const [id, span] of importer.origins) {
+		if (!kept.has(id)) continue;
 		origins[id] = {
 			from: lineOf(span.start).line,
 			to: lineOf(Math.max(span.start, span.end - 1)).line,
