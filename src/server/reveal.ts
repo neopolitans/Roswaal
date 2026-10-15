@@ -13,6 +13,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import { HttpError } from "./errors.js";
+import { findOnPath, windowsProgram } from "./programs.js";
 
 export async function revealInFileManager(absolutePath: string): Promise<void> {
 	const stat = await fs.stat(absolutePath).catch(() => null);
@@ -26,8 +27,12 @@ export async function revealInFileManager(absolutePath: string): Promise<void> {
 	switch (process.platform) {
 		case "win32":
 			// explorer.exe returns a non-zero exit code even when it succeeds, so
-			// its result is deliberately not checked.
-			detach("explorer.exe", isDirectory ? [absolutePath] : ["/select,", absolutePath]);
+			// its result is deliberately not checked. By its full path, since a
+			// bare name is looked for in the daemon's working directory first.
+			detach(
+				windowsProgram("explorer.exe"),
+				isDirectory ? [absolutePath] : ["/select,", absolutePath],
+			);
 			return;
 		case "darwin":
 			// `-R` for a folder too, which selects it in Finder. Plain `open` on a
@@ -113,7 +118,7 @@ async function findVsCode(): Promise<Launcher | null> {
 
 	if (process.platform === "win32") {
 		for (const stem of ["code", "code-insiders", "codium", "cursor"]) {
-			const script = await onPath(`${stem}.cmd`);
+			const script = findOnPath(`${stem}.cmd`);
 			if (script) {
 				// <install>/bin/code.cmd -> <install>/Code.exe
 				const exe = await firstThere(
@@ -122,7 +127,7 @@ async function findVsCode(): Promise<Launcher | null> {
 				);
 				if (exe) return { name: path.basename(exe, ".exe"), command: exe, args: [] };
 			}
-			const direct = await onPath(`${stem}.exe`);
+			const direct = findOnPath(`${stem}.exe`);
 			if (direct) return { name: stem, command: direct, args: [] };
 		}
 		// The default per-user install, which does not put anything on PATH
@@ -139,18 +144,8 @@ async function findVsCode(): Promise<Launcher | null> {
 	// Elsewhere `code` is an ELF binary or a script with a shebang, either of
 	// which `spawn` runs directly.
 	for (const stem of ["code", "code-insiders", "codium", "cursor"]) {
-		const found = await onPath(stem);
+		const found = findOnPath(stem);
 		if (found) return { name: stem, command: found, args: [] };
-	}
-	return null;
-}
-
-/** Looks up one filename across PATH, without asking a shell to do it. */
-async function onPath(filename: string): Promise<string | null> {
-	const dirs = (process.env.PATH ?? "").split(path.delimiter).filter(Boolean);
-	for (const dir of dirs) {
-		const candidate = path.join(dir, filename);
-		if (await isThere(candidate)) return candidate;
 	}
 	return null;
 }

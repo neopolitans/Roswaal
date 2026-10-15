@@ -7,7 +7,7 @@
  * selects it in Finder, for a folder as for a file.
  */
 
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -54,5 +54,21 @@ describe("on macOS", () => {
 		await mkdir(folder);
 		await revealInFileManager(folder);
 		expect(spawned).toEqual([{ command: "open", args: ["-R", folder] }]);
+	});
+});
+
+describe("on Windows", () => {
+	beforeEach(() => {
+		Object.defineProperty(process, "platform", { value: "win32" });
+	});
+
+	it("starts Explorer by its full path, never by a name the working folder could answer", async () => {
+		const file = path.join(base, "Main.server.luau");
+		await writeFile(file, "");
+		await revealInFileManager(file);
+		expect(spawned).toHaveLength(1);
+		expect(path.win32.isAbsolute(spawned[0].command)).toBe(true);
+		expect(spawned[0].command.toLowerCase()).toMatch(/\\explorer\.exe$/);
+		expect(spawned[0].args).toEqual(["/select,", file]);
 	});
 });

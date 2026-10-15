@@ -25,6 +25,8 @@ import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 
+import { findOnPath, windowsProgram } from "./programs.js";
+
 /**
  * True while a dialog is on screen.
  *
@@ -231,8 +233,11 @@ async function windowsPicker(start?: string): Promise<string | null> {
 		"$owner.Dispose()",
 	].join("\n");
 
+	// By its full path, since a bare name is looked for in the daemon's working
+	// directory first.
+	const powershell = windowsProgram("System32", "WindowsPowerShell", "v1.0", "powershell.exe");
 	return run(
-		"powershell.exe",
+		powershell,
 		["-NoProfile", "-NonInteractive", "-STA", "-EncodedCommand", encodeCommand(script)],
 		{
 			...process.env,
@@ -278,9 +283,10 @@ async function macPicker(start?: string): Promise<string | null> {
  * at all, and that is a `NoPickerError` rather than a hang.
  */
 async function linuxPicker(start?: string): Promise<string | null> {
-	if (await onPath("zenity")) {
+	const zenity = findOnPath("zenity");
+	if (zenity) {
 		return run(
-			"zenity",
+			zenity,
 			[
 				"--file-selection",
 				"--directory",
@@ -290,12 +296,9 @@ async function linuxPicker(start?: string): Promise<string | null> {
 			process.env,
 		);
 	}
-	if (await onPath("kdialog")) {
-		return run(
-			"kdialog",
-			["--getexistingdirectory", start ?? process.env.HOME ?? "."],
-			process.env,
-		);
+	const kdialog = findOnPath("kdialog");
+	if (kdialog) {
+		return run(kdialog, ["--getexistingdirectory", start ?? process.env.HOME ?? "."], process.env);
 	}
 	throw new NoPickerError(
 		"No folder picker is installed on the machine running the daemon. " +
@@ -347,18 +350,4 @@ async function isDirectory(target: string): Promise<boolean> {
 		(s) => s.isDirectory(),
 		() => false,
 	);
-}
-
-/** Looks up one command across PATH without asking a shell to do it. */
-async function onPath(filename: string): Promise<boolean> {
-	for (const dir of (process.env.PATH ?? "").split(path.delimiter).filter(Boolean)) {
-		if (
-			await fs.access(path.join(dir, filename)).then(
-				() => true,
-				() => false,
-			)
-		)
-			return true;
-	}
-	return false;
 }

@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.203.2",
+		security: true,
+		date: "2026-11-04",
+		headline: "StyLua, Node, Explorer and PowerShell are started by their full paths.",
+		fixed: [
+			"**Programs by their full paths.** StyLua and Node are found in PATH's absolute folders outside the project, and Explorer and Windows PowerShell in the Windows folder.",
+		],
+	},
+	{
 		version: "0.203.1",
 		date: "2026-10-20",
 		headline: "The documentation site carries the hidden theme's face.",

@@ -14,12 +14,16 @@ import { spawnSync } from "node:child_process";
 
 import { indentUnit, type RoswaalConfig } from "../core/schema.js";
 import type { Formatted } from "./filesystem.js";
+import { findOnPath } from "./programs.js";
 
 /**
- * The stylua command that starts, once one has: `null` when none does, and
- * `undefined` until somebody has looked.
+ * The stylua that starts for the project at `root`, once one has: `command`
+ * is its absolute path, or `null` when none does.
+ *
+ * Kept per project, because the lookup skips PATH entries inside the project,
+ * and a daemon that opens another project must look again.
  */
-let styluaCommand: string | null | undefined;
+let stylua: { root: string; command: string | null } | undefined;
 
 /**
  * Runs stylua over generated code when it is available.
@@ -40,7 +44,8 @@ export function formatLuau(
 	code: string,
 	config?: Pick<RoswaalConfig, "indentStyle" | "indentWidth">,
 ): Formatted {
-	if (styluaCommand === null) return { code };
+	const known = stylua?.root === cwd ? stylua.command : undefined;
+	if (known === null) return { code };
 
 	// The indentation setting, handed to stylua as arguments.
 	//
@@ -60,29 +65,28 @@ export function formatLuau(
 			]
 		: [];
 
-	// Each candidate is tried without a shell. Going through one would resolve
-	// the .cmd shim for us, but it also means the arguments are concatenated
-	// rather than passed, which Node now warns about — and we do not need it.
-	const candidates = styluaCommand
-		? [styluaCommand]
-		: process.platform === "win32"
-			? ["stylua.exe", "stylua.cmd", "stylua.bat"]
-			: ["stylua"];
-
-	for (const command of candidates) {
-		const run = spawnSync(command, [...indent, "-"], { cwd, input: code, encoding: "utf8" });
-		if (run.error) continue;
-		styluaCommand = command;
-		if (run.status === 0 && typeof run.stdout === "string" && run.stdout !== "") {
-			return { code: run.stdout };
-		}
-		return { code, unformatted: refusal(run.stderr, run.status) };
-	}
+	// Found on PATH and started by its absolute path, without a shell, and
+	// never from the project folder: the project is the working directory, so
+	// a bare name would let a `stylua.exe` beside `roswaal.json` answer instead.
+	// The working directory is still the project's, for stylua's own search
+	// for `stylua.toml`.
+	//
+	// Only the .exe on Windows. Node will not start a .cmd or .bat without a
+	// shell, and a shell would concatenate the arguments rather than pass them.
+	const command =
+		known ?? findOnPath(process.platform === "win32" ? "stylua.exe" : "stylua", { outside: cwd });
+	const run = command
+		? spawnSync(command, [...indent, "-"], { cwd, input: code, encoding: "utf8" })
+		: null;
 
 	// Remembered, so a project without stylua does not pay for the lookup on
 	// every single file it compiles.
-	if (styluaCommand === undefined) styluaCommand = null;
-	return { code };
+	stylua = { root: cwd, command: run && !run.error ? command : null };
+	if (!run || run.error) return { code };
+	if (run.status === 0 && typeof run.stdout === "string" && run.stdout !== "") {
+		return { code: run.stdout };
+	}
+	return { code, unformatted: refusal(run.stderr, run.status) };
 }
 
 /**

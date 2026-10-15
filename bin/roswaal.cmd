@@ -22,8 +22,19 @@ if not exist "%ROSWAAL_ENTRY%" (
   exit /b 1
 )
 
-where node >nul 2>&1
-if errorlevel 1 (
+rem  Node, by its full path, and never from the current folder. cmd looks for a
+rem  bare name there before PATH, and the current folder is wherever roswaal
+rem  was run -- often a project somebody else made. where.exe is named in full
+rem  for the same reason, and an answer in this folder is skipped even if the
+rem  setting below is not honoured.
+set "NoDefaultCurrentDirectoryInExePath=1"
+set "ROSWAAL_HERE=%CD%"
+if not "%ROSWAAL_HERE:~-1%"=="\" set "ROSWAAL_HERE=%ROSWAAL_HERE%\"
+set "ROSWAAL_NODE="
+for /f "delims=" %%N in ('"%SystemRoot%\System32\where.exe" node.exe 2^>nul') do (
+  if not defined ROSWAAL_NODE if /i not "%%~dpN"=="%ROSWAAL_HERE%" set "ROSWAAL_NODE=%%~fN"
+)
+if not defined ROSWAAL_NODE (
   echo roswaal: could not find Node.
   echo   Install Node 20 or newer, or put it on your PATH.
   exit /b 1
@@ -39,4 +50,4 @@ rem  Ending the batch ends its setlocal too, so nothing set above reaches
 rem  Node, and nothing leaks into a cmd that called this. Node needs nothing
 rem  from here: the working directory is still the user's, and the exit code
 rem  is Node's, because it is the last thing that runs.
-(goto) 2>nul & node "%ROSWAAL_ENTRY%" %*
+(goto) 2>nul & "%ROSWAAL_NODE%" "%ROSWAAL_ENTRY%" %*
