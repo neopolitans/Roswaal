@@ -77,7 +77,12 @@ export interface GraphCommandsContext {
 	setPreviewOpen: React.Dispatch<React.SetStateAction<boolean>>;
 	setDocsJump: React.Dispatch<React.SetStateAction<boolean>>;
 	compiling: boolean;
-	runCompile: (path: string | undefined, write: boolean, force?: boolean) => Promise<void>;
+	runCompile: (
+		path: string | undefined,
+		write: boolean,
+		force?: boolean,
+		asked?: boolean,
+	) => Promise<void>;
 	runCompileMap: (path: string | undefined, force?: boolean) => Promise<void>;
 	source: SourceDoc | null;
 	mapDoc: MapDocument | null;
@@ -567,7 +572,7 @@ export function useGraphCommands(context: GraphCommandsContext) {
 			if (mod && e.key.toLowerCase() === "s") {
 				e.preventDefault();
 				if (mapDoc) void runCompileMap(mapDoc.path);
-				else if (!source && editor.path) void runCompile(editor.path, true);
+				else if (!source && editor.path) void runCompile(editor.path, true, false, true);
 				return;
 			}
 			// The documentation, from wherever you are in the editor. It opens the

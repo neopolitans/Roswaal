@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.185.1",
+		date: "2026-10-15",
+		headline: "Compiling a graph over a file Roswaal did not write shows what changes first.",
+		affects: ["editor"],
+		changed: [
+			"**Compile shows what changes.** Compiling a graph whose file Roswaal did not write, or one edited by hand, opens the changes line by line and asks before overwriting. It was a Not written notice, with Overwrite in the status panel. A compile on save still leaves the file and says so.",
+		],
+	},
+	{
 		version: "0.185.0",
 		date: "2026-10-15",
 		headline: "An import makes nodes of method calls on objects whose type it knows.",

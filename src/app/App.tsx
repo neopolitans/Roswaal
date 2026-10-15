@@ -1064,8 +1064,16 @@ export function App() {
 
 	runCompileMapRef.current = runCompileMap;
 
+	/** Opens the overwrite question for a file a compile left alone; see `overwriteWith`. */
+	const overwriteRef = useRef<((outcome: CompileOutcome) => Promise<void>) | null>(null);
+	/**
+	 * Compiles one graph, or the project. `asked`: the developer compiled this
+	 * graph themselves, so a file it would overwrite is shown and asked about
+	 * at once, rather than left for the status panel. A compile on save asks
+	 * nothing.
+	 */
 	const runCompile = useCallback(
-		async (path: string | undefined, write: boolean, force = false) => {
+		async (path: string | undefined, write: boolean, force = false, asked = false) => {
 			setBusy(write ? "Compiling…" : "Checking…");
 			setCompiling(true);
 			try {
@@ -1089,7 +1097,9 @@ export function App() {
 						tone: "ok",
 					});
 				} else if (one?.skipped) {
-					showToast({ title: "Not written", detail: one.skipped, tone: "warn" });
+					const failed = one.diagnostics.some((d) => d.severity === "error");
+					if (asked && !failed) void overwriteRef.current?.(one);
+					else showToast({ title: "Not written", detail: one.skipped, tone: "warn" });
 				}
 			} catch (err) {
 				notify("Something went wrong", errorMessage(err));
@@ -1136,6 +1146,7 @@ export function App() {
 		},
 		[ask, runCompile],
 	);
+	overwriteRef.current = overwriteWith;
 
 	/**
 	 * Writes `roswaal.json` and takes the daemon's answer as the truth.
@@ -1422,7 +1433,7 @@ export function App() {
 									busy={busy}
 									hasPath={editor.path !== null}
 									onCompile={() => {
-										if (editor.path) void runCompile(editor.path, true);
+										if (editor.path) void runCompile(editor.path, true, false, true);
 									}}
 								/>
 							) : undefined

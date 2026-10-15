@@ -967,7 +967,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 							]
 						: []),
 					...findings.map((f) => `Line ${f.line}: ${f.message}`),
-					`${entry.name} is unchanged; compiling over it asks for force.`,
+					`${entry.name} is unchanged; compiling over it shows what changes and asks first.`,
 				];
 				notify(`${entry.name} ${again ? "reimported" : "imported"}`, lines.join(" "));
 			} catch (err) {
@@ -1068,7 +1068,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 					`${asNodes} of ${statements} statements are nodes.`,
 					...(again > 0 ? [`Imported again over their graphs: ${again}.`] : []),
 					...failed.map((f) => `Not imported, ${f}`),
-					"The files are unchanged; compiling over them asks for force.",
+					"The files are unchanged; compiling over one shows what changes and asks first.",
 				].join(" "),
 			);
 		},
