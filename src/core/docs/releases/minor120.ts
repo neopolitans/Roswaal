@@ -9,6 +9,24 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.185.0",
+		date: "2026-10-15",
+		headline: "An import makes nodes of method calls on objects whose type it knows.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Method calls as nodes.** part:Destroy(), remote:FireAllClients(1), folder:WaitForChild(\"Shared\") and the like import as their own nodes when the importer knows what they are called on: a service, a name with a type written beside it, workspace, or the result of another node.",
+			"**Service methods as Service Functions.** A call on a service that the engine catalogue lists, such as RunService:IsServer(), imports as a Service Function. An enum argument written as Enum.KeyCode.W is set by its member's name.",
+			"**workspace as an Instance node.** A bare workspace imports as the Instance node set to workspace.",
+		],
+		changed: [
+			"**A method on anything else stays Call Method.** A table may have a method of any name, so an object of unknown type keeps the generic node.",
+		],
+		fixed: [
+			"**No extra brackets round a call made on a bracketed value.** A chain such as (script.Parent :: Instance):WaitForChild(\"A\"):GetChildren() compiles as written.",
+			"**No added cast in an imported graph.** Find First Child Of Class and the other class reads no longer add a cast the file did not have.",
+		],
+	},
+	{
 		version: "0.184.0",
 		date: "2026-10-15",
 		headline: "An imported file's GetService lines become the graph's services.",

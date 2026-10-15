@@ -802,9 +802,11 @@ export class Emitter {
 		// the file says so too, as `Class?`, so a typechecked file and the graph
 		// agree about what the value is. Only where annotations are written at
 		// all: Default writes none, and a cast would be the one annotation in it.
+		// Nor in a graph imported as written, whose file had no cast there.
 		const typed = src.outputs.find((p) => p.id === pinId)?.type;
 		if (
 			this.annotates &&
+			!this.script.asWritten &&
 			NILABLE_CLASS_READS.has(src.def.id) &&
 			typed !== undefined &&
 			typed !== "Instance" &&

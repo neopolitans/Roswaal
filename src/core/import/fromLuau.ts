@@ -25,10 +25,12 @@ import type { Binding, Block, Expr, FunctionBody, Stat } from "../luau/ast.js";
 import { lineIndex, tokenize } from "../luau/lexer.js";
 import { parseChunk } from "../luau/parser.js";
 import { visitBlock } from "../luau/visit.js";
-import { nodeBounds } from "../nodeBox.js";
+import { nodeBounds, resolvePins } from "../nodeBox.js";
 import { COMPOUND_NODES } from "../nodes/compound.js";
 import { FUNCTION_NODES } from "../nodes/flow.js";
 import { BUILTIN_NODES, createRegistry, type Registry } from "../nodes/index.js";
+import { isInstanceClass, isService, isSubclassOf } from "../roblox.js";
+import type { ServiceMethod } from "../robloxMembers.js";
 import {
 	type Comment,
 	type CommentStyle,
@@ -42,6 +44,7 @@ import {
 	type ScriptVariable,
 	type Target,
 } from "../schema.js";
+import { SERVICE_CALL, SERVICE_VALUE, serviceMethod } from "../serviceCalls.js";
 import { layoutImport } from "./layout.js";
 import {
 	applyEdits,
@@ -53,7 +56,7 @@ import {
 	type TopLevelLocals,
 } from "./modes.js";
 import { rowsByWidth } from "./rows.js";
-import { type CallTemplate, callTemplates, matchCall } from "./templates.js";
+import { type CallTemplate, callTemplates, matchCall, matchMethod } from "./templates.js";
 
 export interface ImportOptions {
 	/** The graph's name: the file's, without `.server`, `.client` or `.luau`. */
@@ -103,11 +106,12 @@ export type ImportResult =
 
 /** What a name means where it is read. */
 type Ref =
-	| { kind: "local"; node: string; name: string; type?: string }
+	/** `known`: the type its value is known to have, where none is written. */
+	| { kind: "local"; node: string; name: string; type?: string; known?: string }
 	| { kind: "param"; fn: string; name: string; type?: string }
 	| { kind: "pin"; node: string; pin: string }
 	| { kind: "function"; node: string; name: string; params: Sig[]; returns: Sig[] }
-	| { kind: "variable"; id: string; name: string; type?: string }
+	| { kind: "variable"; id: string; name: string; type?: string; known?: string }
 	/** One of the script's services, read with Get Service. */
 	| { kind: "service"; name: string }
 	/** Declared by a statement kept as code: read back as its text. */
@@ -427,6 +431,21 @@ class Importer {
 						config: { function: ref.node, name: ref.name },
 					});
 					return { kind: "wire", node: id, pin: "fn" };
+				}
+				if (!ref && e.name === "workspace" && this.target === "roblox") {
+					const id = this.node("roblox.instancePath", graph, below(0));
+					this.literal(id, "root", { t: "string", v: "workspace" });
+					this.literal(id, "path", { t: "string", v: "" });
+					return { kind: "wire", node: id, pin: "instance" };
+				}
+				return this.luau(e, graph, below(0));
+			}
+			case "methodCall": {
+				// A method that only reads, on an object of a type the importer knows.
+				const method = this.methodMatch(e, scope, ["expr"]);
+				if (method) {
+					const made = this.methodNode(method, e, scope, graph, below(0));
+					if (made.result) return { kind: "wire", node: made.id, pin: made.result };
 				}
 				return this.luau(e, graph, below(0));
 			}
@@ -874,6 +893,7 @@ class Importer {
 				}
 				const at = this.place(graph, row);
 				const type = this.typeText(binding);
+				const known = !type && stat.values[0] ? this.knownType(stat.values[0], scope) : undefined;
 				// A file-level local is a script variable, declared where it was by
 				// Initialize Variable. A name declared twice at that level is two
 				// locals, which one variable cannot be, so the second stays local.
@@ -895,7 +915,13 @@ class Importer {
 					else if (stat.values[0])
 						this.feed(this.expr(stat.values[0], scope, graph, at), { node: id, pin: "value" });
 					this.chain(step?.tail ?? tail, id);
-					scope.set(binding.name, { kind: "variable", id: variable, name: binding.name, type });
+					scope.set(binding.name, {
+						kind: "variable",
+						id: variable,
+						name: binding.name,
+						type,
+						...(known ? { known } : {}),
+					});
 					return counted({ node: id, pin: "then" });
 				}
 				const id = this.node("local.declare", graph, at, type ? { config: { type } } : {});
@@ -905,7 +931,13 @@ class Importer {
 				else if (stat.values[0])
 					this.feed(this.expr(stat.values[0], scope, graph, at), { node: id, pin: "value" });
 				this.chain(step?.tail ?? tail, id);
-				scope.set(binding.name, { kind: "local", node: id, name: binding.name, type });
+				scope.set(binding.name, {
+					kind: "local",
+					node: id,
+					name: binding.name,
+					type,
+					...(known ? { known } : {}),
+				});
 				return counted({ node: id, pin: "then" });
 			}
 
@@ -1228,6 +1260,14 @@ class Importer {
 			this.asNodes += 1;
 			return { node: id, pin: "then" };
 		}
+		const method =
+			call.kind === "methodCall" ? this.methodMatch(call, scope, ["statement", "call"]) : undefined;
+		if (method && call.kind === "methodCall") {
+			const { id } = this.methodNode(method, call, scope, graph, at);
+			this.chain(tail, id);
+			this.asNodes += 1;
+			return { node: id, pin: "then" };
+		}
 		let id: string;
 		if (call.kind === "methodCall") {
 			id = this.node("call.method", graph, at, { config: { args: call.args.length } });
@@ -1457,6 +1497,141 @@ class Importer {
 		return matchCall(libraryTemplates(), callee, call.args.length, kinds, this.target);
 	}
 
+	/**
+	 * The type an expression is known to have, without making anything: a
+	 * service, a type written beside a name, `workspace`, or what the node a
+	 * call becomes gives back. Undefined where it is not known, which leaves
+	 * a method called on it as Call Method.
+	 */
+	private knownType(e: Expr, scope: Scope): string | undefined {
+		switch (e.kind) {
+			case "paren":
+				return this.knownType(e.inner, scope);
+			case "cast":
+				return simpleType(this.src.slice(e.type.start, e.type.end));
+			case "name": {
+				const ref = scope.get(e.name);
+				if (!ref)
+					return e.name === "workspace" && this.target === "roblox" ? "Workspace" : undefined;
+				if (ref.kind === "service") return ref.name;
+				if (ref.kind === "local" || ref.kind === "variable")
+					return simpleType(ref.type) ?? ref.known;
+				if (ref.kind === "param") return simpleType(ref.type);
+				if (ref.kind === "pin") return this.outputType(this.nodeById(ref.node), ref.pin);
+				return undefined;
+			}
+			case "call": {
+				const template = this.libraryCall(e, scope, ["expr", "call"]);
+				return template ? templateReturns(template) : undefined;
+			}
+			case "methodCall": {
+				// `game:GetService("Players")`, as an aliased service local has it.
+				const service = scope.get("game") ? undefined : getServiceName(e);
+				if (service) return service;
+				return this.methodMatch(e, scope, ["expr", "call", "statement"], true)?.returns;
+			}
+			default:
+				return undefined;
+		}
+	}
+
+	/** The type of a node's output, as its pins stand. */
+	private outputType(node: GraphNode, pin: string): string | undefined {
+		const def = registry().get(node.def);
+		if (!def) return undefined;
+		const type = resolvePins(def, node.config, node.literals).outputs.find(
+			(p) => p.id === pin,
+		)?.type;
+		return simpleType(type);
+	}
+
+	/**
+	 * The node a method call becomes, when the type of what it is called on
+	 * is known: a library node whose receiver pin takes that type, else, on a
+	 * service, a Service Function for a method the engine catalogue has. A
+	 * value-only context (`expr`) takes only a method that reads; `typing`
+	 * asks only what it would give back.
+	 */
+	private methodMatch(
+		call: Extract<Expr, { kind: "methodCall" }>,
+		scope: Scope,
+		kinds: readonly CallTemplate["kind"][],
+		typing = false,
+	): MethodMatch | undefined {
+		if (call.args.some((a) => a.kind === "function" || a.kind === "varargs")) return undefined;
+		const known = this.knownType(call.object, scope);
+		if (!known) return undefined;
+		const name = call.method.name;
+		const template = matchMethod(
+			libraryTemplates(),
+			name,
+			call.args.length,
+			kinds,
+			this.target,
+			(pinType) => takes(known, pinType),
+		);
+		if (template) return { kind: "template", template, returns: templateReturns(template) };
+		if (this.target !== "roblox" || !isService(known)) return undefined;
+		const method = serviceMethod(known, name);
+		if (!method) return undefined;
+		const required = method.params.filter((p) => !p.optional).length;
+		if (call.args.length < required || call.args.length > method.params.length) return undefined;
+		// An enum argument is set by its member's name; one written any other
+		// way than `Enum.Kind.Member` stays as code.
+		const enums = method.params.map((p, i) =>
+			p.enum && i < call.args.length ? enumMember(call.args[i], p.enum, scope) : undefined,
+		);
+		if (method.params.some((p, i) => p.enum && i < call.args.length && enums[i] === undefined))
+			return undefined;
+		const value = kinds.length === 1 && kinds[0] === "expr";
+		if (value && !method.pure && !typing) return undefined;
+		if (!value && kinds.length === 1 && kinds[0] === "call" && method.pure) return undefined;
+		return {
+			kind: "service",
+			service: known,
+			method,
+			def: value ? SERVICE_VALUE : SERVICE_CALL,
+			enums,
+			returns: simpleType(method.returns),
+		};
+	}
+
+	/** The node for a matched method call, the object on its receiver and the arguments on their pins. */
+	private methodNode(
+		match: MethodMatch,
+		call: Extract<Expr, { kind: "methodCall" }>,
+		scope: Scope,
+		graph: string | undefined,
+		at: { x: number; y: number },
+	): { id: string; result?: string } {
+		if (match.kind === "template") {
+			const id = this.libraryNode(match.template, call, scope, graph, at);
+			const def = match.template.def;
+			const result = (def.compilesTo as { result?: string }).result ?? firstOutputOrNone(def);
+			return { id, ...(result ? { result } : {}) };
+		}
+		const id = this.node(match.def, graph, at, {
+			config: { service: match.service, method: match.method.name },
+		});
+		// The service by name is the hoisted local, which needs no wire.
+		const object = call.object;
+		const byName =
+			object.kind === "name" &&
+			scope.get(object.name)?.kind === "service" &&
+			object.name === match.service;
+		if (!byName) this.feed(this.expr(object, scope, graph, at), { node: id, pin: "service" });
+		call.args.forEach((arg, i) => {
+			const member = match.enums[i];
+			if (member !== undefined) this.literal(id, `a${i}`, { t: "string", v: member });
+			else
+				this.feed(this.expr(arg, scope, graph, { x: at.x, y: at.y + 70 * (i + 1) }), {
+					node: id,
+					pin: `a${i}`,
+				});
+		});
+		return { id, ...(match.method.returns ? { result: "result" } : {}) };
+	}
+
 	/** A library node for a matched call, its arguments on the template's pins. */
 	private libraryNode(
 		template: CallTemplate,
@@ -1465,7 +1640,7 @@ class Importer {
 		graph: string | undefined,
 		at: { x: number; y: number },
 	): string {
-		if (call.kind !== "call")
+		if (call.kind !== "call" && call.kind !== "methodCall")
 			throw new Error("The importer matched a template to something not a call.");
 		const extra = call.args.length - template.pins.length;
 		const id = this.node(
@@ -1474,6 +1649,8 @@ class Importer {
 			at,
 			extra > 0 && template.variadic ? { config: { args: extra } } : {},
 		);
+		if (call.kind === "methodCall" && template.receiver)
+			this.feed(this.expr(call.object, scope, graph, at), { node: id, pin: template.receiver });
 		call.args.forEach((arg, i) => {
 			const after = i - template.pins.length;
 			const pin =
@@ -1499,6 +1676,17 @@ class Importer {
 		at: { x: number; y: number },
 	): { tail: Tail; value: Value } | undefined {
 		if (!value) return undefined;
+		if (value.kind === "methodCall") {
+			const method = this.methodMatch(value, scope, ["call"]);
+			if (!method) return undefined;
+			const made = this.methodNode(method, value, scope, graph, { x: at.x - 260, y: at.y });
+			if (!made.result) return undefined;
+			this.chain(tail, made.id);
+			return {
+				tail: { node: made.id, pin: "then" },
+				value: { kind: "wire", node: made.id, pin: made.result },
+			};
+		}
 		const template = this.libraryCall(value, scope, ["call"]);
 		if (!template) return undefined;
 		const id = this.libraryNode(template, value, scope, graph, { x: at.x - 260, y: at.y });
@@ -1662,6 +1850,61 @@ function declaredServices(body: Block): { names: string[]; stats: Set<Stat> } {
 		if (s.kind === "localFunction") declared.add(s.name.name);
 	}
 	return { names, stats };
+}
+
+/** What a method call was matched to, and the type it gives back. */
+type MethodMatch =
+	| { kind: "template"; template: CallTemplate; returns?: string }
+	| {
+			kind: "service";
+			service: string;
+			method: ServiceMethod;
+			def: string;
+			/** The member name each enum argument was written with. */
+			enums: (string | undefined)[];
+			returns?: string;
+	  };
+
+/** A type that is one name, as an object's type is: `Player`, `BasePart?`. Else undefined. */
+function simpleType(text: string | undefined): string | undefined {
+	const name = text?.trim().replace(/\?$/, "");
+	return name && IDENT.test(name) && name !== "any" ? name : undefined;
+}
+
+/** Whether a receiver pin of `pinType` takes an object known to be a `known`. */
+function takes(known: string, pinType: string): boolean {
+	if (pinType === "any") return false;
+	if (known === pinType || isSubclassOf(known, pinType)) return true;
+	return pinType === "Instance" && (isInstanceClass(known) || isService(known));
+}
+
+/** The type a template's node gives back, where it is one name. */
+function templateReturns(template: CallTemplate): string | undefined {
+	const def = template.def;
+	const pin = (def.compilesTo as { result?: string }).result ?? firstOutputOrNone(def);
+	return simpleType(def.outputs.find((p) => p.id === pin)?.type);
+}
+
+/** A node's first data output, or undefined for one that gives nothing back. */
+function firstOutputOrNone(def: NodeDef): string | undefined {
+	return def.outputs.find((p) => p.kind === "data")?.id;
+}
+
+/** The service `game:GetService("Name")` asks for. */
+function getServiceName(e: Extract<Expr, { kind: "methodCall" }>): string | undefined {
+	if (e.method.name !== "GetService" || e.object.kind !== "name" || e.object.name !== "game")
+		return undefined;
+	const arg = e.args.length === 1 ? e.args[0] : undefined;
+	const name = arg?.kind === "string" ? SIMPLE_STRING.exec(arg.raw)?.[2] : undefined;
+	return name && IDENT.test(name) ? name : undefined;
+}
+
+/** The member `Enum.Kind.Member` names, when it is written so and is of `kind`. */
+function enumMember(e: Expr, kind: string, scope: Scope): string | undefined {
+	if (e.kind !== "index" || e.object.kind !== "index") return undefined;
+	const root = e.object.object;
+	if (root.kind !== "name" || root.name !== "Enum" || scope.get("Enum")) return undefined;
+	return e.object.name.name === kind ? e.name.name : undefined;
 }
 
 /** The service a `local Players = game:GetService("Players")` declares, named as it is. */

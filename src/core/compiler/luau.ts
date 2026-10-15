@@ -301,7 +301,13 @@ function isPrefixExpression(expr: string): boolean {
 	if (/^(true|false|nil)\b/.test(e)) return false;
 	if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(e)) return true;
 	if (/^[A-Za-z_][A-Za-z0-9_]*[.:[(]/.test(e) && isBalancedChain(e)) return true;
-	return e.startsWith("(") && closesAtEnd(e);
+	if (!e.startsWith("(")) return false;
+	if (closesAtEnd(e)) return true;
+	// A group with a chain after it: `(x :: T):WaitForChild("A")`.
+	const close = groupEnd(e);
+	if (close === -1) return false;
+	const chain = e.slice(close + 1);
+	return /^[.:[(]/.test(chain) && isBalancedChain(chain);
 }
 
 /**

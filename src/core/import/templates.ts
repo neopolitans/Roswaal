@@ -8,9 +8,10 @@
  * the template puts it in. Only the plain shapes are read: a dotted callee and
  * a list of pins, with variadic arguments after them (`$more`, `$args`) or
  * the node's optional pins (`$opt`), which a call may leave off from the end.
- * Method templates (`$in.instance:Destroy()`) are left alone, because a method
- * of that name on a table that is not an Instance would become a node that
- * says it is one.
+ * Method templates (`$in.instance:Destroy()`) are keyed `:Destroy` and match
+ * only an object whose type the importer knows and the receiver pin takes
+ * (0.185.0): a method of that name on a table that is not an Instance would
+ * otherwise become a node that says it is one.
  *
  * A callee is matched only when the file has no local of that name: a script
  * that declares its own `print` calls that, not the global.
@@ -29,9 +30,12 @@ export interface CallTemplate {
 	variadic: boolean;
 	/** The optional pins that may follow the fixed ones, in order. */
 	optional: string[];
+	/** A method's: the pin the object it is called on goes to. */
+	receiver?: string;
 }
 
 const CALL = /^([A-Za-z_][\w]*(?:\.[A-Za-z_][\w]*)*)\((.*)\)$/;
+const METHOD = /^\$in\.([A-Za-z_]\w*):([A-Za-z_]\w*)\((.*)\)$/;
 const PIN = /^\$in\.([A-Za-z_]\w*)$/;
 const PIN_THEN_MORE = /^\$in\.([A-Za-z_]\w*)\$more$/;
 const PIN_THEN_OPT = /^\$in\.([A-Za-z_]\w*)\$opt$/;
@@ -40,18 +44,37 @@ const PIN_THEN_OPT = /^\$in\.([A-Za-z_]\w*)\$opt$/;
 function readTemplate(
 	template: string,
 	def: NodeDef,
-): { callee: string; pins: string[]; variadic: boolean; optional: string[] } | null {
+): {
+	callee: string;
+	pins: string[];
+	variadic: boolean;
+	optional: string[];
+	receiver?: string;
+} | null {
 	// The variadic markers carry a separator in brackets; read as one word
 	// each, so the arguments split on their commas alone.
-	const call = CALL.exec(
-		template
-			.trim()
-			.replaceAll("$more(, )", "$more")
-			.replaceAll("$args(, )", "$args")
-			.replaceAll("$opt(, )", "$opt"),
-	);
+	const text = template
+		.trim()
+		.replaceAll("$more(, )", "$more")
+		.replaceAll("$args(, )", "$args")
+		.replaceAll("$opt(, )", "$opt");
+	const method = METHOD.exec(text);
+	if (method) {
+		const [, receiver, name, inside] = method;
+		const args = readArgs(`:${name}`, inside, def);
+		return args && { ...args, receiver };
+	}
+	const call = CALL.exec(text);
 	if (!call) return null;
-	const [, callee, inside] = call;
+	return readArgs(call[1], call[2], def);
+}
+
+/** The pins a template's arguments go to. */
+function readArgs(
+	callee: string,
+	inside: string,
+	def: NodeDef,
+): { callee: string; pins: string[]; variadic: boolean; optional: string[] } | null {
 	if (inside.trim() === "") return { callee, pins: [], variadic: false, optional: [] };
 	if (inside.trim() === "$args") return { callee, pins: [], variadic: true, optional: [] };
 	const parts = inside.split(", ");
@@ -95,7 +118,14 @@ export function callTemplates(defs: readonly NodeDef[]): Map<string, CallTemplat
 		const read = readTemplate(template, def);
 		if (!read) continue;
 		const list = out.get(read.callee) ?? [];
-		list.push({ def, kind, pins: read.pins, variadic: read.variadic, optional: read.optional });
+		list.push({
+			def,
+			kind,
+			pins: read.pins,
+			variadic: read.variadic,
+			optional: read.optional,
+			...(read.receiver ? { receiver: read.receiver } : {}),
+		});
 		out.set(read.callee, list);
 	}
 	return out;
@@ -122,4 +152,29 @@ export function matchCall(
 				: args >= t.pins.length && args <= t.pins.length + t.optional.length),
 	);
 	return fits.sort((a, b) => kinds.indexOf(a.kind) - kinds.indexOf(b.kind))[0];
+}
+
+/**
+ * The template a method call with `args` arguments matches, as `matchCall`,
+ * among those whose receiver pin takes an object of the type `takes` is
+ * asked about: the type the receiver pin is declared with.
+ */
+export function matchMethod(
+	templates: Map<string, CallTemplate[]>,
+	method: string,
+	args: number,
+	kinds: readonly CallTemplate["kind"][],
+	target: Target,
+	takes: (pinType: string) => boolean,
+): CallTemplate | undefined {
+	const typed = new Map([
+		[
+			`:${method}`,
+			(templates.get(`:${method}`) ?? []).filter((t) => {
+				const pin = t.def.inputs.find((p) => p.id === t.receiver);
+				return pin?.type !== undefined && takes(pin.type);
+			}),
+		],
+	]);
+	return matchCall(typed, `:${method}`, args, kinds, target);
 }
