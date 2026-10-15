@@ -211,7 +211,6 @@ export function App() {
 
 	/** The selection preview, which is opened deliberately and never sits open. */
 	const [previewOpen, setPreviewOpen] = useState(false);
-	const alignExec = prefs.alignExec;
 
 	const [mapOutcomes, setMapOutcomes] = useState<MapOutcome[]>([]);
 	// Generated files whose graph has moved or gone. Rojo cannot tell they are
@@ -1149,36 +1148,28 @@ export function App() {
 		onMapCompiled: setMapOutcomes,
 	});
 
-	const {
-		locked,
-		presets,
-		promotePin,
-		realign,
-		spawn,
-		spawnComment,
-		splitOrRecombine,
-		toggleAlignExec,
-	} = useGraphCommands({
-		editor,
-		project,
-		registry,
-		prefs,
-		updatePrefs,
-		ask,
-		dialogOpen,
-		clipboard,
-		setHasClip,
-		pointerAt,
-		menu,
-		setMenu,
-		setPreviewOpen,
-		setDocsJump,
-		compiling,
-		runCompile,
-		runCompileMap,
-		source,
-		mapDoc,
-	});
+	const { locked, presets, promotePin, realign, spawn, spawnComment, splitOrRecombine } =
+		useGraphCommands({
+			editor,
+			project,
+			registry,
+			prefs,
+			updatePrefs,
+			ask,
+			dialogOpen,
+			clipboard,
+			setHasClip,
+			pointerAt,
+			menu,
+			setMenu,
+			setPreviewOpen,
+			setDocsJump,
+			compiling,
+			runCompile,
+			runCompileMap,
+			source,
+			mapDoc,
+		});
 
 	const {
 		createGraphIn,
@@ -1378,12 +1369,10 @@ export function App() {
 									<DocumentBar
 										kind="graph"
 										locked={locked}
-										alignExec={alignExec}
 										selected={editor.selection.size}
 										inFunction={editor.graph !== null}
 										onAddNode={addNodeAtCentre}
 										onRealign={realign}
-										onToggleAlignExec={toggleAlignExec}
 										onPreview={() => setPreviewOpen(true)}
 									/>
 								) : null}
@@ -1412,10 +1401,8 @@ export function App() {
 							graphOpen
 								? graphMenuEntries({
 										locked,
-										alignExec,
 										onAddNode: addNodeAtCentre,
 										onRealign: realign,
-										onToggleAlignExec: toggleAlignExec,
 										onPreview: () => setPreviewOpen(true),
 									})
 								: undefined

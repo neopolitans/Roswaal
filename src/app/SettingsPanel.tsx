@@ -522,29 +522,6 @@ function CanvasSettings({ prefs, onPrefs }: SettingsPanelProps) {
 					</div>
 				</Row>
 
-				<Row
-					label="Realign"
-					help="Straighten lines a run of nodes up along its wire. Columns is a plain grid."
-				>
-					<div className="segmented">
-						{/* The same word the toolbar button uses. One name for one thing —
-					    and it is short enough not to wrap, which a two-line half of a
-					    segmented control does at this column width. */}
-						<button
-							className={prefs.alignExec ? "on" : ""}
-							onClick={() => onPrefs({ alignExec: true })}
-						>
-							Straighten
-						</button>
-						<button
-							className={!prefs.alignExec ? "on" : ""}
-							onClick={() => onPrefs({ alignExec: false })}
-						>
-							Columns
-						</button>
-					</div>
-				</Row>
-
 				<Row label="Node corners" help="Getters and reroute knots keep their shapes either way.">
 					<div className="segmented">
 						<button

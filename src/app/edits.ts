@@ -1344,6 +1344,18 @@ export function addComment(
 	return { script: { ...script, comments: [...script.comments, comment] }, id };
 }
 
+/** Pins a node, so Realign leaves it where it is, or unpins it. */
+export function setPinned(script: NodeScript, id: string, pinned: boolean): NodeScript {
+	return {
+		...script,
+		nodes: script.nodes.map((n) => {
+			if (n.id !== id) return n;
+			const { pinned: _was, ...rest } = n;
+			return pinned ? { ...rest, pinned: true } : rest;
+		}),
+	};
+}
+
 export function updateComment(script: NodeScript, id: string, patch: Partial<Comment>): NodeScript {
 	return {
 		...script,
@@ -1386,7 +1398,7 @@ export function commentContents(
  * is drawn in at all, and at which of its two positions -- so the answer comes
  * from the same place the canvas draws from rather than from a second guess.
  */
-function containedBy(view: NodeScript, registry: Registry, comment: Comment): Set<string> {
+export function containedBy(view: NodeScript, registry: Registry, comment: Comment): Set<string> {
 	const out = new Set<string>();
 	const box: Rect = { x: comment.x, y: comment.y, w: comment.w, h: comment.h };
 	for (const node of view.nodes) {

@@ -922,7 +922,6 @@ const PROJECT_CLUSTER: ToolbarItem[] = [
 const TOOLS_CLUSTER: ToolbarItem[] = [
 	{ t: "icon", icon: "search" },
 	{ t: "icon", icon: "layout" },
-	{ t: "icon", icon: "straighten", on: true },
 	{ t: "icon", icon: "terminal" },
 ];
 const COMPILE_CLUSTER: ToolbarItem[] = [
@@ -1036,7 +1035,7 @@ export const EDITOR_LAYOUT: LayoutSpec = {
 				{
 					items: TOOLS_CLUSTER,
 					name: "Graph tools",
-					what: "Add node, Realign, Straighten and Preview.",
+					what: "Add node, Realign and Preview.",
 				},
 				{
 					apart: true,

@@ -1165,7 +1165,6 @@ function openGraph(tab: Documented): ToolbarGroup[] {
 		items: [
 			{ t: "icon", icon: "search" },
 			{ t: "icon", icon: "layout" },
-			{ t: "icon", icon: "straighten", on: true },
 			{ t: "icon", icon: "terminal" },
 		],
 	};
@@ -1369,17 +1368,8 @@ export const GRAPH_BAR: ToolbarSpec = {
 					icon: "layout",
 					name: "Realign",
 					what:
-						"Tidies the graph into columns — `Ctrl` + `Shift` + `L`. With several " +
-						"nodes selected, only those move.",
-				},
-				{
-					t: "icon",
-					icon: "straighten",
-					on: true,
-					name: "Straighten",
-					what:
-						"A setting on Realign rather than an action: lit, each node lines up on " +
-						"the execution wire arriving at it instead of on a plain column.",
+						"Lays the graph out along its flow — `Ctrl` + `Shift` + `L`. With several " +
+						"nodes selected, only those move; a pinned node stays put.",
 				},
 				{
 					t: "icon",
@@ -2294,7 +2284,6 @@ export const MORE_MENU_PHONE: ToolbarSpec = {
 					...as(GRAPH_BAR, "Add node", HOLD_TO_ADD),
 				},
 				{ t: "button", text: "Realign", icon: "layout", ...as(GRAPH_BAR, "Realign") },
-				{ t: "button", text: "Straighten", icon: "straighten", ...as(GRAPH_BAR, "Straighten") },
 				{ t: "button", text: "Preview", icon: "terminal", ...as(GRAPH_BAR, "Preview") },
 			],
 		},
@@ -2372,7 +2361,6 @@ export const GRAPH_BAR_TABLET: ToolbarSpec = {
 			items: [
 				{ t: "icon", icon: "search", ...as(GRAPH_BAR, "Add node", HOLD_TO_ADD) },
 				{ t: "icon", icon: "layout", ...as(GRAPH_BAR, "Realign") },
-				{ t: "icon", icon: "straighten", on: true, ...as(GRAPH_BAR, "Straighten") },
 				{ t: "icon", icon: "terminal", ...as(GRAPH_BAR, "Preview") },
 			],
 		},
@@ -2386,7 +2374,7 @@ export const GRAPH_BAR_PHONE: ToolbarSpec = {
 	title: "The open graph, on a phone",
 	summary:
 		"Its tab, and the list of the others. **Add node** and **Preview** are in **More**; " +
-		"Realign and Straighten are not on a phone.",
+		"Realign is not on a phone.",
 	chrome: "float",
 	groups: [
 		{

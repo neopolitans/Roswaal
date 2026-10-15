@@ -9,6 +9,21 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.182.0",
+		date: "2026-10-15",
+		headline: "Realign lays a graph out along its flow, a node can be pinned, and a comment can keep its nodes as placed.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Pin a node.** Right-click a node and choose Pin: Realign leaves it where it is and lays the rest out round it. A pinned node has a dashed teal ring and a pin in its corner.",
+			"**Preserve nodes on Realign.** Tick it in a comment's Inspector, and Realign moves the comment and what it holds as one block, with what it holds as you placed it.",
+		],
+		changed: [
+			"**Realign lays the graph out along its flow, as an import does.** Each run of steps sits along a row, its values under the step before, and the graph's start stays where it was. With several nodes selected, only those move. A comment box is fitted back round what it holds. It replaces the column layout.",
+			"**Right-clicking a node opens its menu.** Pin, any promotions, and Add Node Here, which opens the palette.",
+			"**Straighten is gone.** The setting, its toolbar button and Node Design's button: the new layout lines each row up along its wire.",
+		],
+	},
+	{
 		version: "0.181.0",
 		date: "2026-10-15",
 		headline: "Statements an import keeps as code one after another share a Code Block.",

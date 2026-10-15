@@ -147,6 +147,8 @@
 	--tree-folder-packages: #7048c0;
 
 	--select: #ff9c2e;
+	/* A pinned node's ring and pin: not the selection's orange, not a warning's amber. */
+	--pin: #2fbfa8;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1953,6 +1955,33 @@ button.tb.primary:hover:not(:disabled) {
    being selected, not a different state, and a new hue on the canvas is one
    more thing to learn the meaning of. Restated for the capsule and the knot
    further down, where their own rules would otherwise win. */
+/* A pinned node: Realign leaves it where it is. A dashed ring of its own
+   colour, standing off the node so a selection's outline still shows inside
+   it, and a pin in the corner the problem badge does not use. */
+.node.node--pinned {
+	outline: 2px dashed var(--pin);
+	outline-offset: 5px;
+}
+
+.node .node-pin {
+	position: absolute;
+	top: -10px;
+	left: -10px;
+	width: 20px;
+	height: 20px;
+	display: grid;
+	place-items: center;
+	border-radius: 50%;
+	background: color-mix(in srgb, var(--pin) 80%, transparent);
+	color: rgb(255 255 255 / 0.85);
+	pointer-events: none;
+	z-index: 1;
+}
+
+.node .node-pin svg {
+	transform: rotate(-30deg);
+}
+
 .node.node--selected.node--anchor {
 	box-shadow: 0 0 0 4px var(--select), var(--node-shadow);
 }

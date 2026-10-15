@@ -259,7 +259,6 @@ describe("the check itself", () => {
 		expect(drawnFrom([GRAPH_MENU])).toEqual([
 			{ glyphs: ["search"], labels: ["Add node"] },
 			{ glyphs: ["layout"], labels: ["Realign"] },
-			{ glyphs: ["straighten"], labels: ["Straighten"] },
 			{ glyphs: ["terminal"], labels: ["Preview"] },
 		]);
 	});

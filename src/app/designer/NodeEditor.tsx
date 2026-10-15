@@ -145,8 +145,6 @@ export interface NodeEditorProps {
 	notify: Notify;
 	/** The page's preferences, which the logic canvas draws with. */
 	prefs: Preferences;
-	/** Changes preferences, as the page's settings panel does. */
-	onPrefs: (patch: Partial<Preferences>) => void;
 }
 
 export function NodeEditor({
@@ -164,7 +162,6 @@ export function NodeEditor({
 	toolbarSlot = null,
 	actionsSlot = null,
 	prefs,
-	onPrefs,
 }: NodeEditorProps) {
 	const [draft, setDraft] = useState<Draft>(() =>
 		original ? draftOf(original) : newDraft(namespace, otherIds),
@@ -1103,7 +1100,6 @@ export function NodeEditor({
 							target={target ?? "roblox"}
 							onChange={onLogicChange}
 							prefs={prefs}
-							onPrefs={onPrefs}
 							tools={
 								<>
 									{!split && !logicUp && modeSwitch}

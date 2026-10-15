@@ -52,11 +52,7 @@ export function settingsPage(): DocPage {
 						"Where graphs and Luau live, how a graph compiles, and indentation",
 					],
 					["**Node packs**", "`roswaal.json`", "The directories scanned for node packs"],
-					[
-						"**Canvas**",
-						"This browser",
-						"The grid, wires, node corners, Realign, and what scrolling does",
-					],
+					["**Canvas**", "This browser", "The grid, wires, node corners, and what scrolling does"],
 					[
 						"**Nodes**",
 						"This browser",
@@ -174,10 +170,6 @@ export function settingsPage(): DocPage {
 					[
 						"Theme",
 						"The colour scheme, or **Follow the system** — which is the absence of a theme rather than a scheme of its own, so the app keeps changing with your OS.",
-					],
-					[
-						"Realign",
-						"Whether Realign straightens the execution spine or tidies into plain columns. A habit of reading rather than a property of the graph, which is why two people sharing a repository do not have to agree about it.",
 					],
 					[
 						"Wires",

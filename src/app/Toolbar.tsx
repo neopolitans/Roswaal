@@ -272,14 +272,12 @@ export type DocumentBarProps =
 			kind: "graph";
 			/** The graph is being compiled and must not be edited. */
 			locked: boolean;
-			alignExec: boolean;
 			/** How many nodes are selected; none previews the graph on screen. */
 			selected: number;
 			/** A function's graph is on screen, so an empty selection previews it. */
 			inFunction: boolean;
 			onAddNode: () => void;
 			onRealign: () => void;
-			onToggleAlignExec: () => void;
 			onPreview: () => void;
 	  };
 
@@ -290,18 +288,12 @@ export type DocumentBarProps =
 export function graphMenuEntries(
 	props: Pick<
 		Extract<DocumentBarProps, { kind: "graph" }>,
-		"locked" | "alignExec" | "onAddNode" | "onRealign" | "onToggleAlignExec" | "onPreview"
+		"locked" | "onAddNode" | "onRealign" | "onPreview"
 	>,
 ): MenuEntry[] {
 	return [
 		{ label: "Add node", icon: "search", disabled: props.locked, run: props.onAddNode },
 		{ label: "Realign", icon: "layout", disabled: props.locked, run: props.onRealign },
-		{
-			label: "Straighten",
-			icon: "straighten",
-			checked: props.alignExec,
-			run: props.onToggleAlignExec,
-		},
 		{ label: "Preview", icon: "terminal", run: props.onPreview },
 	];
 }
@@ -341,24 +333,11 @@ export function DocumentBar(props: DocumentBarProps) {
 			<button
 				className="tb icon-only"
 				disabled={props.locked}
-				title="Realign — tidy the graph into columns (Ctrl+Shift+L). With several nodes selected, only those move."
+				title="Realign — lay the graph out along its flow (Ctrl+Shift+L). With several nodes selected, only those move; a pinned node stays put."
 				aria-label="Realign the graph"
 				onClick={props.onRealign}
 			>
 				<Icon name="layout" size={16} />
-			</button>
-			<button
-				className={cx("tb icon-only", props.alignExec && "on")}
-				aria-pressed={props.alignExec}
-				aria-label="Straighten"
-				title={
-					props.alignExec
-						? "Straighten — Realign lines each node up on the execution wire arriving at it. Click to tidy into plain columns instead."
-						: "Straighten — Realign tidies into plain columns. Click to line each node up on the execution wire arriving at it."
-				}
-				onClick={props.onToggleAlignExec}
-			>
-				<Icon name="straighten" size={16} />
 			</button>
 			{/* With a selection it picks out what those nodes produced; without
 			    one it is the whole script. `P` does the same. */}

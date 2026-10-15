@@ -56,8 +56,6 @@ export interface PackViewProps {
 	notify: Notify;
 	/** The page's preferences, which the open node's logic canvas draws with. */
 	prefs: Preferences;
-	/** Changes preferences, as the page's settings panel does. */
-	onPrefs: (patch: Partial<Preferences>) => void;
 	/** Where the open node's own actions go: a cluster of the window's chrome. */
 	actionsSlot?: HTMLElement | null;
 }
@@ -71,7 +69,6 @@ export function PackView({
 	notify,
 	actionsSlot = null,
 	prefs,
-	onPrefs,
 }: PackViewProps) {
 	const [defs, setDefs] = useState<NodeDef[] | null>(null);
 	// Each node's saved logic graph, by id, which the loader's defs leave out.
@@ -408,7 +405,6 @@ export function PackView({
 					onDirty={onDirty}
 					notify={notify}
 					prefs={prefs}
-					onPrefs={onPrefs}
 					toolbarSlot={compact ? slot : null}
 					actionsSlot={actionsSlot}
 				/>

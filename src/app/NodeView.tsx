@@ -209,6 +209,7 @@ function NodeViewInner(props: NodeViewProps) {
 				"node",
 				def.pure && "node--pure",
 				selected && "node--selected",
+				node.pinned && "node--pinned",
 				props.anchor && "node--anchor",
 				props.errorCount && "node--has-error",
 				!face && rows === 0 && "node--head-only",
@@ -219,6 +220,7 @@ function NodeViewInner(props: NodeViewProps) {
 			onDoubleClick={props.onOpen ? () => props.onOpen!(node.id) : undefined}
 			onContextMenu={(e) => props.onContextMenu(e as unknown as ReactPointerEvent, node.id)}
 		>
+			{node.pinned && <PinMark />}
 			{props.errorCount > 0 && <span className="badge-count">{props.errorCount}</span>}
 			{props.errorCount === 0 && props.warningCount > 0 && (
 				<span className="badge-count warn" title="Needs attention — see the Inspector">
@@ -439,6 +441,7 @@ function renderReroute(
 			className={cx(
 				"node node--reroute",
 				selected && "node--selected",
+				node.pinned && "node--pinned",
 				props.anchor && "node--anchor",
 			)}
 			data-node-id={node.id}
@@ -453,10 +456,20 @@ function renderReroute(
 			onPointerDown={(e) => props.onNodePointerDown(e, node.id)}
 			onContextMenu={(e) => props.onContextMenu(e as unknown as ReactPointerEvent, node.id)}
 		>
+			{node.pinned && <PinMark />}
 			{input && renderPin(props, input, "in")}
 			{output && renderPin(props, output, "out")}
 			{hangingChip(output ?? input)}
 		</div>
+	);
+}
+
+/** The pin in a pinned node's corner: Realign leaves this one where it is. */
+function PinMark() {
+	return (
+		<span className="node-pin" title="Pinned: Realign leaves it where it is" aria-hidden="true">
+			<Icon name="pin" size={12} />
+		</span>
 	);
 }
 
@@ -499,6 +512,7 @@ function renderCapsule(props: NodeViewProps, def: NodeDef, output: PinDef | unde
 			className={cx(
 				"node node--capsule",
 				selected && "node--selected",
+				node.pinned && "node--pinned",
 				props.anchor && "node--anchor",
 				props.errorCount && "node--has-error",
 			)}
@@ -513,6 +527,7 @@ function renderCapsule(props: NodeViewProps, def: NodeDef, output: PinDef | unde
 			onPointerDown={(e) => props.onNodePointerDown(e, node.id)}
 			onContextMenu={(e) => props.onContextMenu(e as unknown as ReactPointerEvent, node.id)}
 		>
+			{node.pinned && <PinMark />}
 			{props.errorCount > 0 && <span className="badge-count">{props.errorCount}</span>}
 			{props.errorCount === 0 && props.warningCount > 0 && (
 				<span className="badge-count warn" title="Needs attention — see the Inspector">
@@ -549,6 +564,7 @@ function renderOperator(
 			className={cx(
 				"node node--operator",
 				selected && "node--selected",
+				node.pinned && "node--pinned",
 				props.anchor && "node--anchor",
 				props.errorCount && "node--has-error",
 			)}
@@ -565,6 +581,7 @@ function renderOperator(
 			onPointerDown={(e) => props.onNodePointerDown(e, node.id)}
 			onContextMenu={(e) => props.onContextMenu(e as unknown as ReactPointerEvent, node.id)}
 		>
+			{node.pinned && <PinMark />}
 			{props.errorCount > 0 && <span className="badge-count">{props.errorCount}</span>}
 			{props.errorCount === 0 && props.warningCount > 0 && (
 				<span className="badge-count warn" title="Needs attention — see the Inspector">

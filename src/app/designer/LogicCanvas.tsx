@@ -39,7 +39,6 @@ import {
 } from "../../core/nodes/logic.js";
 import type { NodeConfig, NodeDef, NodeScript, Target } from "../../core/schema.js";
 import { Canvas } from "../Canvas.jsx";
-import { cx } from "../cx.js";
 import {
 	addComment,
 	addNode,
@@ -107,12 +106,10 @@ export interface LogicCanvasProps {
 	tools?: ReactNode;
 	/**
 	 * The page's preferences. The canvas draws with the editor's: wire style,
-	 * wide nodes, the wheel, the touch bar, and Straighten -- a habit set on a
-	 * graph holds on a node's logic too.
+	 * wide nodes, the wheel and the touch bar -- a habit set on a graph holds
+	 * on a node's logic too.
 	 */
 	prefs: Preferences;
-	/** Changes preferences, as the page's settings panel does. */
-	onPrefs: (patch: Partial<Preferences>) => void;
 }
 
 export function LogicCanvas({
@@ -123,14 +120,13 @@ export function LogicCanvas({
 	onChange,
 	tools,
 	prefs,
-	onPrefs,
 }: LogicCanvasProps) {
 	const editor = useEditor();
 	const [menu, setMenu] = useState<MenuAnchor | null>(null);
-	const { alignExec, wideNodes } = prefs;
+	const { wideNodes } = prefs;
 	const container = useRef<HTMLDivElement>(null);
 
-	// Tidies into columns: the selection when there is more than one node in it, else everything.
+	// Lays out along the flow: the selection when there is more than one node in it, else everything.
 	const realign = useCallback(() => {
 		const state = store.getSnapshot();
 		const script = state.script;
@@ -139,8 +135,8 @@ export function LogicCanvas({
 			[...state.selection].filter((id) => script.nodes.some((n) => n.id === id)),
 		);
 		const only = selected.size > 1 ? selected : undefined;
-		store.edit((s) => autoLayout(s, registry, { only, alignExec, wideNodes }));
-	}, [registry, alignExec, wideNodes]);
+		store.edit((s) => autoLayout(s, registry, { only, wideNodes }));
+	}, [registry, wideNodes]);
 
 	// Opens the node menu in the middle of what the canvas is showing.
 	const menuAtCentre = useCallback(() => {
@@ -387,23 +383,11 @@ export function LogicCanvas({
 					</button>
 					<button
 						className="tb icon-only"
-						title="Realign — tidy into columns (Ctrl+Shift+L). With several nodes selected, only those move. A aligns the selection."
+						title="Realign — lay the logic out along its flow (Ctrl+Shift+L). With several nodes selected, only those move. A aligns the selection."
 						aria-label="Realign the logic"
 						onClick={realign}
 					>
 						<Icon name="layout" size={16} />
-					</button>
-					<button
-						className={cx("tb", alignExec && "on")}
-						aria-pressed={alignExec}
-						title={
-							alignExec
-								? "Realign lines each node up on the execution wire arriving at it. Click to tidy into plain columns instead."
-								: "Realign tidies into plain columns. Click to line each node up on the execution wire arriving at it."
-						}
-						onClick={() => onPrefs({ alignExec: !alignExec })}
-					>
-						Straighten
 					</button>
 					{tools}
 				</ToolGroup>

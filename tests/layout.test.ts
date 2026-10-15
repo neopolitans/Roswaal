@@ -1,109 +1,156 @@
 /**
- * Auto-layout, and specifically the execution-pin alignment pass.
+ * Realign on the flow layout (0.182.0).
  *
- * The plain column tidy is a heuristic and asserting on its exact output would
- * make it unimprovable. What is worth pinning down is the alignment pass, which
- * makes a precise promise — a node sits where its incoming execution wire comes
- * out flat — and a sweep that has to break that promise safely when two nodes
- * want the same height.
+ * It replaced the column layout: a chain of steps runs along a row from the
+ * graph's entry, each step's values tucked under the step before, and the
+ * graph does not jump -- its entry stays where it was, or a pinned node does.
+ * A selection is laid out and put back where it was, a comment is fitted back
+ * round what it held, and one marked Preserve nodes on Realign moves as one
+ * block with what it holds as it was placed.
  */
 
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
-import { nodeBounds, pinPosition } from "../src/app/geometry.js";
+import { commentContents } from "../src/app/edits.js";
+import { nodeBounds } from "../src/app/geometry.js";
 import { autoLayout } from "../src/app/layout.js";
+import { viewOf } from "../src/core/functionGraph.js";
 import { createRegistry } from "../src/core/nodes/index.js";
 import type { NodeScript } from "../src/core/schema.js";
 import { Builder } from "./helpers.js";
 
 const registry = createRegistry();
 
-/** World Y of one pin, after a layout has moved things around. */
-function pinY(script: NodeScript, nodeId: string, pin: string, side: "in" | "out"): number {
-	const node = script.nodes.find((n) => n.id === nodeId)!;
-	return pinPosition(node, registry, pin, side)!.y;
+const at = (script: NodeScript, id: string) => script.nodes.find((n) => n.id === id)!;
+const box = (script: NodeScript, id: string) => nodeBounds(at(script, id), registry);
+
+/** Script Start, three prints, and a value the second reads -- strewn about. */
+function strewn() {
+	const b = new Builder();
+	const start = b.node("script.begin", { x: 40, y: 60 });
+	const first = b.node("debug.print", { x: 700, y: 400 });
+	const second = b.node("debug.print", { x: 90, y: 900 });
+	const third = b.node("debug.print", { x: 1300, y: 20 });
+	const value = b.node("math.floor", { x: 1000, y: 1200 });
+	b.link(start, "then", first, "in");
+	b.link(first, "then", second, "in");
+	b.link(second, "then", third, "in");
+	b.link(value, "result", second, "value");
+	return { b, start, first, second, third, value };
 }
 
-function nodeAt(script: NodeScript, id: string) {
-	const node = script.nodes.find((n) => n.id === id)!;
-	return { node, box: nodeBounds(node, registry) };
-}
+const overlapping = (script: NodeScript) => {
+	const boxes = script.nodes.map((n) => nodeBounds(n, registry));
+	let count = 0;
+	for (let i = 0; i < boxes.length; i++)
+		for (let j = i + 1; j < boxes.length; j++) {
+			const a = boxes[i];
+			const c = boxes[j];
+			if (a.x < c.x + c.w && c.x < a.x + a.w && a.y < c.y + c.h && c.y < a.y + a.h) count++;
+		}
+	return count;
+};
 
-describe("execution pin alignment", () => {
-	/**
-	 * Script Start is one row tall and Destroy is two, so centring their columns
-	 * against each other leaves the two execution pins at different heights.
-	 * That is exactly the staircase the pass exists to remove.
-	 */
-	it("puts a node where its incoming execution wire comes out flat", () => {
-		const b = new Builder();
-		const begin = b.node("script.begin");
-		const destroy = b.node("roblox.destroy");
-		b.link(begin, "then", destroy, "in");
-
-		const aligned = autoLayout(b.build(), registry, { alignExec: true });
-
-		expect(pinY(aligned, destroy, "in", "in")).toBe(pinY(aligned, begin, "then", "out"));
+describe("Realign", () => {
+	it("keeps the entry where it was and lays the steps along one row", () => {
+		const { b, start, first, second, third } = strewn();
+		const out = autoLayout(b.build(), registry, { graph: null });
+		expect(at(out, start)).toMatchObject({ x: 40, y: 60 });
+		const row = [first, second, third].map((id) => at(out, id));
+		expect(new Set(row.map((n) => n.y)).size).toBe(1);
+		expect(row[0].x).toBeLessThan(row[1].x);
+		expect(row[1].x).toBeLessThan(row[2].x);
+		expect(overlapping(out)).toBe(0);
 	});
 
-	it("leaves that staircase alone when the option is off", () => {
-		const b = new Builder();
-		const begin = b.node("script.begin");
-		const destroy = b.node("roblox.destroy");
-		b.link(begin, "then", destroy, "in");
-
-		const plain = autoLayout(b.build(), registry, { alignExec: false });
-
-		// Not a demand that it be wrong — a demand that the two modes differ, so
-		// a pass that silently did nothing would fail here rather than pass both.
-		expect(pinY(plain, destroy, "in", "in")).not.toBe(pinY(plain, begin, "then", "out"));
+	it("tucks a step's value under the step before it", () => {
+		const { b, first, second, value } = strewn();
+		const out = autoLayout(b.build(), registry, { graph: null });
+		const v = box(out, value);
+		expect(v.x + v.w).toBeLessThanOrEqual(at(out, second).x);
+		expect(v.y).toBeGreaterThan(at(out, first).y);
 	});
 
-	/**
-	 * A Branch's two execution outputs are one row apart, but the nodes they feed
-	 * are far taller than a row. Both ask for a height 24px apart; only one can
-	 * have it, and the other must end up clear rather than on top of it.
-	 */
-	it("resolves two nodes competing for the same height without overlapping them", () => {
-		const b = new Builder();
-		const begin = b.node("script.begin");
-		const branch = b.node("flow.branch");
-		const onTrue = b.node("local.set");
-		const onFalse = b.node("roblox.destroy");
-		b.link(begin, "then", branch, "in");
-		b.link(branch, "true", onTrue, "in");
-		b.link(branch, "false", onFalse, "in");
-
-		const aligned = autoLayout(b.build(), registry, { alignExec: true });
-
-		// The upper claim is the one that survives: True leaves the Branch above
-		// False, so it is swept first and gets the height it asked for.
-		expect(pinY(aligned, onTrue, "in", "in")).toBe(pinY(aligned, branch, "true", "out"));
-
-		const upper = nodeAt(aligned, onTrue);
-		const lower = nodeAt(aligned, onFalse);
-		expect(lower.node.y).toBeGreaterThanOrEqual(upper.node.y + upper.box.h);
+	it("leaves a pinned node where it is, and lays the rest out round it", () => {
+		const { b, start, second } = strewn();
+		const script = b.build();
+		at(script, second).pinned = true;
+		const out = autoLayout(script, registry, { graph: null });
+		expect(at(out, second)).toMatchObject({ x: 90, y: 900 });
+		expect(at(out, start).y).toBe(900);
 	});
 
-	/**
-	 * A loop wires an exec output backwards into something to its left. Following
-	 * that wire would drag a node up onto the node it feeds, so the pass has to
-	 * ignore it — and, more importantly, must not hang trying.
-	 */
-	it("ignores execution wires that point backwards", () => {
+	it("lays a selection out where it was, and leaves the rest alone", () => {
+		const { b, start, first, second, third } = strewn();
+		const script = b.build();
+		const only = new Set([first, second, third]);
+		const out = autoLayout(script, registry, { graph: null, only });
+		expect(at(out, start)).toMatchObject({ x: 40, y: 60 });
+		const before = Math.min(...[...only].map((id) => box(script, id).x));
+		const after = Math.min(...[...only].map((id) => box(out, id).x));
+		expect(after).toBe(before);
+	});
+
+	it("fits a comment back round what it held", () => {
+		const { b, second } = strewn();
+		const script = b.build({
+			comments: [{ id: "c1", x: 60, y: 860, w: 300, h: 200, text: "The second print" }],
+		});
+		const out = autoLayout(script, registry, { graph: null });
+		expect([...commentContents(out, registry, "c1")]).toEqual([second]);
+	});
+
+	it("moves a box marked Preserve nodes on Realign as one, with what it holds as placed", () => {
+		const { b, second, value } = strewn();
+		const script = b.build({
+			comments: [{ id: "kept", x: 60, y: 860, w: 1300, h: 560, text: "As placed", preserve: true }],
+		});
+		const out = autoLayout(script, registry, { graph: null });
+		const dx = at(out, second).x - at(script, second).x;
+		const dy = at(out, second).y - at(script, second).y;
+		expect(at(out, value).x - at(script, value).x).toBe(dx);
+		expect(at(out, value).y - at(script, value).y).toBe(dy);
+		const kept = out.comments.find((c) => c.id === "kept")!;
+		expect({ x: kept.x - 60, y: kept.y - 860, w: kept.w, h: kept.h }).toEqual({
+			x: dx,
+			y: dy,
+			w: 1300,
+			h: 560,
+		});
+	});
+
+	it("lays out a graph of values with no steps, nothing over anything", () => {
 		const b = new Builder();
-		const begin = b.node("script.begin");
-		const loop = b.node("flow.while");
-		const body = b.node("roblox.destroy");
-		b.link(begin, "then", loop, "in");
-		b.link(loop, "body", body, "in");
-		b.link(body, "then", loop, "in");
+		const a = b.node("math.floor", { x: 0, y: 0 });
+		const c = b.node("math.floor", { x: 0, y: 0 });
+		const d = b.node("math.floor", { x: 0, y: 0 });
+		b.link(a, "result", c, "a");
+		b.link(c, "result", d, "a");
+		const out = autoLayout(b.build(), registry, {});
+		expect(overlapping(out)).toBe(0);
+		expect(at(out, a).x).toBeLessThan(at(out, c).x);
+		expect(at(out, c).x).toBeLessThan(at(out, d).x);
+	});
 
-		const aligned = autoLayout(b.build(), registry, { alignExec: true });
-
-		expect(aligned.nodes).toHaveLength(3);
-		for (const node of aligned.nodes) {
-			expect(Number.isFinite(node.x)).toBe(true);
-			expect(Number.isFinite(node.y)).toBe(true);
+	it("puts nothing over anything on M103's graphs", () => {
+		const dir = path.join(__dirname, "../examples/m103/graph/.roswaal/scripts");
+		for (const file of [
+			"ServerScriptService/Source/Main.nodescript",
+			"ReplicatedStorage/Tank/Occupancy.nodescript",
+			"ReplicatedStorage/Tank/Rig.nodescript",
+		]) {
+			const script = JSON.parse(readFileSync(path.join(dir, file), "utf8")) as NodeScript;
+			const graphs = [
+				null,
+				...script.nodes.filter((n) => n.def === "function.declareHere").map((n) => n.id),
+			];
+			for (const graph of graphs) {
+				const view = viewOf(script, graph);
+				const out = autoLayout(view, registry, { graph });
+				expect(overlapping(out), `${file} ${graph ?? "main"}`).toBe(0);
+			}
 		}
 	});
 });

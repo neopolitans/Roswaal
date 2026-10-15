@@ -88,7 +88,6 @@ export function useGraphCommands(context: GraphCommandsContext) {
 		project,
 		registry,
 		prefs,
-		updatePrefs,
 		ask,
 		dialogOpen,
 		clipboard,
@@ -104,7 +103,6 @@ export function useGraphCommands(context: GraphCommandsContext) {
 		source,
 		mapDoc,
 	} = context;
-	const alignExec = prefs.alignExec;
 	// Laying out has to use the width the canvas is drawing, or columns spaced
 	// by the fixed width overlap the wider nodes sitting in them.
 	const wideNodes = prefs.wideNodes;
@@ -363,9 +361,9 @@ export function useGraphCommands(context: GraphCommandsContext) {
 		);
 		const only = selected.size > 1 ? selected : undefined;
 		store.edit((s) =>
-			mergeLayout(s, graph, autoLayout(viewOf(s, graph), registry, { only, alignExec, wideNodes })),
+			mergeLayout(s, graph, autoLayout(viewOf(s, graph), registry, { only, wideNodes, graph })),
 		);
-	}, [registry, alignExec, wideNodes]);
+	}, [registry, wideNodes]);
 
 	/**
 	 * Deletes a selection, asking first when a function in it takes its graph
@@ -469,10 +467,6 @@ export function useGraphCommands(context: GraphCommandsContext) {
 		},
 		[registry, ask],
 	);
-
-	const toggleAlignExec = useCallback(() => {
-		updatePrefs({ alignExec: !alignExec });
-	}, [alignExec, updatePrefs]);
 
 	/**
 	 * The graph is read-only because it is being compiled.
@@ -658,6 +652,5 @@ export function useGraphCommands(context: GraphCommandsContext) {
 		spawn,
 		spawnComment,
 		splitOrRecombine,
-		toggleAlignExec,
 	};
 }

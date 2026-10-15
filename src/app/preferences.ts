@@ -79,9 +79,6 @@ export const FILTER_SUMMARY: Record<MenuFilter, string> = {
 export const PREFERENCES_KEY = "roswaal.preferences";
 const KEY = PREFERENCES_KEY;
 
-/** The key the Straighten toggle used before preferences existed. */
-const LEGACY_ALIGN_EXEC = "roswaal.alignExec";
-
 export interface Preferences {
 	/**
 	 * The colour scheme by name, or `null` to follow the operating system.
@@ -92,8 +89,6 @@ export interface Preferences {
 	 * so deleting a theme from a fork cannot brick the editor.
 	 */
 	theme: string | null;
-	/** Realign straightens the execution spine rather than making plain columns. */
-	alignExec: boolean;
 	/**
 	 * How long after the last edit a graph is written, in milliseconds.
 	 *
@@ -390,7 +385,6 @@ export const PREVIEW_SCALE = { min: 0.5, max: 3, step: 0.25 } as const;
 
 export const DEFAULTS: Preferences = {
 	theme: null,
-	alignExec: true,
 	autosaveMs: 600,
 	reopenLastProject: true,
 	wireStyle: "curved",
@@ -444,7 +438,6 @@ export function readPreferences(): Preferences {
 
 	const prefs: Preferences = {
 		theme: typeof stored.theme === "string" ? stored.theme : DEFAULTS.theme,
-		alignExec: typeof stored.alignExec === "boolean" ? stored.alignExec : legacyAlignExec(),
 		autosaveMs:
 			typeof stored.autosaveMs === "number" &&
 			AUTOSAVE_CHOICES.some((c) => c.ms === stored.autosaveMs)
@@ -505,22 +498,6 @@ export function readPreferences(): Preferences {
 		layout: readLayout(stored.layout),
 	};
 	return prefs;
-}
-
-/**
- * The one preference that predates this file.
- *
- * Read rather than migrated on write, so a developer who had Straighten off
- * keeps it off without anything having to run at the right moment. The old key
- * is left where it is: removing it would break nothing, and would also mean
- * this could not be undone by rolling back a version.
- */
-function legacyAlignExec(): boolean {
-	try {
-		return localStorage.getItem(LEGACY_ALIGN_EXEC) !== "off";
-	} catch {
-		return DEFAULTS.alignExec;
-	}
 }
 
 /** Writes preferences back. Silent on failure, for the same reason reading is. */

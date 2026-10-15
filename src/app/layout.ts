@@ -1,29 +1,40 @@
 /**
- * Tidying a graph up.
+ * Realign: tidying a graph up with the flow layout (`core/layout/flow.ts`),
+ * the same layout an import gets (0.182.0).
  *
- * A layered left-to-right layout, which is the shape a visual-scripting graph
- * already wants: values flow rightwards into the things that consume them, and
- * execution reads like a sentence. Nodes are ranked by how far they are from
- * something with no inputs, then ordered within each rank to keep wires from
- * crossing more than they must.
+ * It follows execution from the graph's entry: a chain of steps runs along a
+ * row, each step's values tucked under the step before, and a node with
+ * several ways on starts a lane for each to its right. What the entry does not
+ * reach is set out below.
  *
- * This is a tidy-up, not a canonical form. It does not try to be clever about
- * long edges or produce the same answer as any particular published algorithm;
- * it tries to turn a graph you have been dragging around for an hour back into
- * something readable, without moving it somewhere you have to go and find.
+ * - The graph does not jump: its entry stays where it was, or a pinned node
+ *   does, and the rest is laid out round it. Any other pinned node stays put.
+ * - A selection of several nodes is laid out on its own and put back where
+ *   the selection was.
+ * - A comment box is fitted back round what it held, its title in a gap of its
+ *   own above its row; one marked Preserve nodes on Realign moves as one block
+ *   with what it holds where it was put.
+ *
+ * It replaced 0.178.0's column layout, which ranked every node by the longest
+ * run of wires into it, data and execution alike.
  */
 
+import type { GraphId } from "../core/functionGraph.js";
+import {
+	applyFlow,
+	BOX_PAD,
+	type KeptBox,
+	layoutFlow,
+	type Rect,
+	titleHeight,
+} from "../core/layout/flow.js";
 import type { Registry } from "../core/nodes/index.js";
-import type { GraphNode, NodeScript, PinKind } from "../core/schema.js";
-import { commentContents } from "./edits.js";
-import { nodeBounds, pinPosition, resolvePins } from "./geometry.js";
+import type { Comment, NodeScript } from "../core/schema.js";
+import { containedBy } from "./edits.js";
+import { nodeBounds, resolvePins } from "./geometry.js";
 
-/** Horizontal gap between ranks, and vertical gap between nodes in a rank. */
-const GAP_X = 90;
-const GAP_Y = 34;
-/** Breathing room left around a comment's contents when it is re-fitted. */
-const COMMENT_PAD = 26;
-const COMMENT_HEADER = 44;
+/** The gap left between a comment's title and the row above it. */
+const TITLE_GAP = 12;
 
 export interface LayoutOptions {
 	/**
@@ -33,327 +44,178 @@ export interface LayoutOptions {
 	 */
 	only?: ReadonlySet<string>;
 	/**
-	 * Line each node up with the execution wire arriving at it, so a run of
-	 * steps reads as one horizontal line rather than a staircase.
-	 */
-	alignExec?: boolean;
-	/**
-	 * Nodes are being drawn wide enough for their headers.
-	 *
-	 * Columns are spaced by the widest node in them, so laying out at the fixed
-	 * width while the canvas draws a wider one would overlap them. Only the
-	 * width matters here: a pin's height, and so every vertical decision below,
-	 * is the same either way.
+	 * Nodes are being drawn wide enough for their headers, so the layout
+	 * measures them at that width.
 	 */
 	wideNodes?: boolean;
+	/**
+	 * The graph on screen, by its entry: null for the file's own, a function's
+	 * id for its graph. Absent, the entry is the node that starts the graph.
+	 */
+	graph?: GraphId;
 }
 
-/** Repositions nodes into ranked columns. */
+/** Lays the view out, or the selection in it. */
 export function autoLayout(
-	script: NodeScript,
+	view: NodeScript,
 	registry: Registry,
 	options: LayoutOptions = {},
 ): NodeScript {
-	const { only, alignExec = false, wideNodes = false } = options;
-	const subject = script.nodes.filter((n) => !only || only.has(n.id));
-	if (subject.length < 2) return script;
-
+	const { only, wideNodes = false } = options;
+	const subject = only ? view.nodes.filter((n) => only.has(n.id)) : view.nodes;
+	if (subject.length < 2) return view;
 	const ids = new Set(subject.map((n) => n.id));
-	const original = boundsOf(subject, registry, wideNodes);
 
-	// Comment membership is captured before anything moves, so each comment can
-	// be re-fitted around the same nodes afterwards rather than being left
-	// behind enclosing empty canvas.
+	// What each comment holds, before anything moves. Only the comments wholly
+	// inside what is being laid out take part.
 	const members = new Map<string, Set<string>>();
-	for (const comment of script.comments) {
-		members.set(comment.id, commentContents(script, registry, comment.id));
+	for (const comment of view.comments) {
+		const held = [...containedBy(view, registry, comment)].filter((id) => ids.has(id));
+		const nodes = held.filter((id) => view.nodes.some((n) => n.id === id));
+		if (nodes.length > 0) members.set(comment.id, new Set(nodes));
 	}
-
-	const edges = script.links
-		.filter((l) => ids.has(l.from.node) && ids.has(l.to.node) && l.from.node !== l.to.node)
-		.map((l) => ({ from: l.from.node, to: l.to.node }));
-
-	const rank = rankNodes(
-		subject.map((n) => n.id),
-		edges,
-	);
-	const columns = groupByRank(
-		subject.map((n) => n.id),
-		rank,
-	);
-	orderWithinColumns(columns, edges, script, rank);
-
-	// -- placement ---------------------------------------------------------
-	const placed = new Map<string, { x: number; y: number }>();
-	let x = 0;
-
-	for (const column of columns) {
-		let y = 0;
-		let widest = 0;
-		for (const id of column) {
-			const node = script.nodes.find((n) => n.id === id)!;
-			const box = nodeBounds(node, registry, wideNodes);
-			placed.set(id, { x, y });
-			y += box.h + GAP_Y;
-			widest = Math.max(widest, box.w);
-		}
-		x += widest + GAP_X;
-	}
-
-	// Centre each column vertically against the tallest, so a short column of
-	// pure inputs sits beside the middle of what it feeds rather than the top.
-	const columnHeights = columns.map((column) =>
-		column.reduce((total, id) => {
-			const node = script.nodes.find((n) => n.id === id)!;
-			return total + nodeBounds(node, registry).h + GAP_Y;
-		}, -GAP_Y),
-	);
-	const tallest = Math.max(0, ...columnHeights);
-	columns.forEach((column, index) => {
-		const offset = (tallest - columnHeights[index]) / 2;
-		for (const id of column) {
-			const at = placed.get(id)!;
-			placed.set(id, { x: at.x, y: at.y + offset });
-		}
-	});
-
-	if (alignExec) alignToExecPins(columns, placed, script, registry, rank);
-
-	const nodes = script.nodes.map((node) => {
-		const at = placed.get(node.id);
-		if (!at) return node;
-		return {
-			...node,
-			x: Math.round(original.x + at.x),
-			y: Math.round(original.y + at.y),
-		};
-	});
-
-	const moved: NodeScript = { ...script, nodes };
-	return { ...moved, comments: refitComments(moved, registry, members, wideNodes) };
-}
-
-// ---------------------------------------------------------------------------
-
-interface Edge {
-	from: string;
-	to: string;
-}
-
-/**
- * Longest-path rank for each node.
- *
- * Relaxed iteratively rather than by topological sort, because a graph being
- * edited may well contain a cycle — an illegal one the compiler will complain
- * about, but not a reason for the tidy button to throw. The pass count bounds
- * the work; a cycle simply stops improving.
- */
-function rankNodes(ids: string[], edges: Edge[]): Map<string, number> {
-	const rank = new Map(ids.map((id) => [id, 0]));
-
-	for (let pass = 0; pass < ids.length; pass++) {
-		let changed = false;
-		for (const edge of edges) {
-			const next = (rank.get(edge.from) ?? 0) + 1;
-			if (next > (rank.get(edge.to) ?? 0)) {
-				rank.set(edge.to, next);
-				changed = true;
+	const scope: NodeScript = only
+		? {
+				...view,
+				nodes: subject,
+				links: view.links.filter((l) => ids.has(l.from.node) && ids.has(l.to.node)),
+				comments: view.comments.filter((c) => members.has(c.id)),
 			}
-		}
-		if (!changed) break;
-	}
-	return rank;
-}
+		: view;
+	const byId = new Map(scope.nodes.map((n) => [n.id, n]));
+	const isStep = (id: string) => {
+		const node = byId.get(id);
+		const def = node && registry.get(node.def);
+		if (!node || !def) return false;
+		const pins = resolvePins(def, node.config, node.literals);
+		return [...pins.inputs, ...pins.outputs].some((p) => p.kind === "exec");
+	};
+	const rectOf = (c: Comment): Rect => ({ x: c.x, y: c.y, w: c.w, h: c.h });
+	const inside = (a: Rect, b: Rect) =>
+		a.x >= b.x && a.y >= b.y && a.x + a.w <= b.x + b.w && a.y + a.h <= b.y + b.h;
 
-function groupByRank(ids: string[], rank: Map<string, number>): string[][] {
-	const max = Math.max(0, ...ids.map((id) => rank.get(id) ?? 0));
-	const columns: string[][] = Array.from({ length: max + 1 }, () => []);
-	for (const id of ids) columns[rank.get(id) ?? 0].push(id);
-	return columns;
-}
+	// Boxes kept as drawn: the outermost marked one, and every comment in it.
+	const preserved = scope.comments.filter((c) => c.preserve && members.has(c.id));
+	const outermost = preserved.filter(
+		(c) => !preserved.some((o) => o !== c && inside(rectOf(c), rectOf(o))),
+	);
+	const kept: KeptBox[] = outermost.map((c) => ({
+		id: c.id,
+		nodes: members.get(c.id) as Set<string>,
+		rect: rectOf(c),
+	}));
+	const keptNodes = new Set(kept.flatMap((k) => [...k.nodes]));
+	const keptComments = new Map(
+		outermost.map((c) => [
+			c.id,
+			scope.comments.filter((o) => o === c || inside(rectOf(o), rectOf(c))).map((o) => o.id),
+		]),
+	);
+	const moving = new Set([...keptComments.values()].flat());
 
-/**
- * Orders each column by the average position of what feeds it — the barycentre
- * heuristic. One forward pass is enough here: it is the difference between
- * wires that cross constantly and wires that mostly do not, and a second pass
- * buys little on graphs this size.
- */
-function orderWithinColumns(
-	columns: string[][],
-	edges: Edge[],
-	script: NodeScript,
-	rank: Map<string, number>,
-): void {
-	const originalY = new Map(script.nodes.map((n) => [n.id, n.y]));
-	const incoming = new Map<string, string[]>();
-	for (const edge of edges) {
-		const list = incoming.get(edge.to);
-		if (list) list.push(edge.from);
-		else incoming.set(edge.to, [edge.from]);
-	}
-
-	// The first column has nothing feeding it, so it keeps the vertical order
-	// the author already put it in.
-	columns[0]?.sort((a, b) => (originalY.get(a) ?? 0) - (originalY.get(b) ?? 0));
-
-	const positionIn = new Map<string, number>();
-	columns[0]?.forEach((id, index) => positionIn.set(id, index));
-
-	for (let i = 1; i < columns.length; i++) {
-		const column = columns[i];
-		const barycentre = new Map<string, number>();
-
-		for (const id of column) {
-			const parents = (incoming.get(id) ?? []).filter(
-				(parent) => (rank.get(parent) ?? 0) < i && positionIn.has(parent),
+	// The rest: room above each box's first step for its title, and its steps
+	// kept clear of tucked values; a box round values only lowers the value
+	// its reader outside the box reads.
+	const headed = new Map<string, number>();
+	const boxed = new Map<string, string>();
+	const valueRooms = new Map<string, number>();
+	const refitted = scope.comments.filter((c) => members.has(c.id) && !moving.has(c.id));
+	// Smallest first, so a step in two boxes counts as in the inner one.
+	for (const c of [...refitted].sort((a, b) => a.w * a.h - b.w * b.h)) {
+		const held = [...(members.get(c.id) as Set<string>)].filter((id) => !keptNodes.has(id));
+		const room = titleHeight(c.text, c.w) + TITLE_GAP;
+		const steps = held.filter(isStep);
+		if (steps.length === 0) {
+			const root = held.find((id) =>
+				scope.links.some((l) => l.from.node === id && !held.includes(l.to.node)),
 			);
-			barycentre.set(
-				id,
-				parents.length === 0
-					? Number.POSITIVE_INFINITY
-					: parents.reduce((total, p) => total + positionIn.get(p)!, 0) / parents.length,
-			);
+			if (root) valueRooms.set(root, Math.max(valueRooms.get(root) ?? 0, room));
+			continue;
 		}
-
-		column.sort((a, b) => {
-			const difference = barycentre.get(a)! - barycentre.get(b)!;
-			// Nodes with nothing above them keep their old order rather than
-			// being shuffled arbitrarily.
-			if (Number.isNaN(difference) || difference === 0) {
-				return (originalY.get(a) ?? 0) - (originalY.get(b) ?? 0);
-			}
-			return difference;
-		});
-		column.forEach((id, index) => positionIn.set(id, index));
+		const head = steps.reduce((a, b) => ((byId.get(b)?.x ?? 0) < (byId.get(a)?.x ?? 0) ? b : a));
+		headed.set(head, Math.max(headed.get(head) ?? 0, room));
+		for (const s of steps) if (!boxed.has(s)) boxed.set(s, c.id);
 	}
-}
 
-/**
- * Straightens the execution spine.
- *
- * Ranked columns put a node in the right column but at whatever height the
- * stacking happened to leave it, so a run of steps reads as a staircase.
- * Lining the execution pins up instead turns the flow through a graph into one
- * horizontal line the eye can follow without hopping.
- *
- * This runs after placement rather than replacing it. Each node asks to sit
- * where its incoming execution wire would come out flat; a downward sweep then
- * resolves the overlaps that asking creates, so the request is a preference and
- * not a promise. A node with no execution input keeps the height its column
- * gave it.
- *
- * Both pin positions come from `pinPosition`, the same function the wire router
- * uses — so "flat" here means exactly what a flat wire means when one is drawn,
- * and a change to header or row height cannot make the two disagree.
- */
-function alignToExecPins(
-	columns: string[][],
-	placed: Map<string, { x: number; y: number }>,
-	script: NodeScript,
-	registry: Registry,
-	rank: Map<string, number>,
-): void {
-	const byId = new Map(script.nodes.map((n) => [n.id, n]));
-
-	for (let i = 1; i < columns.length; i++) {
-		const wanted = new Map<string, number>();
-
-		for (const id of columns[i]) {
-			const node = byId.get(id);
-			const at = placed.get(id);
-			if (!node || !at) continue;
-
-			const link = script.links.find(
-				(l) =>
-					l.to.node === id &&
-					placed.has(l.from.node) &&
-					// A loop-back points rightwards, and following one would drag a
-					// node up onto something it feeds. Only settled columns count.
-					(rank.get(l.from.node) ?? 0) < i &&
-					pinKind(node, registry, l.to.pin, "in") === "exec",
-			);
-			if (!link) continue;
-
-			const source = byId.get(link.from.node);
-			const sourceAt = placed.get(link.from.node);
-			if (!source || !sourceAt) continue;
-
-			const out = pinPosition({ ...source, ...sourceAt }, registry, link.from.pin, "out");
-			const into = pinPosition({ ...node, ...at }, registry, link.to.pin, "in");
-			if (out && into) wanted.set(id, at.y + (out.y - into.y));
-		}
-
-		if (wanted.size === 0) continue;
-
-		// Sweep downward: each node takes the height it asked for, or the first
-		// one below that clears its neighbour. Ordering by the request rather
-		// than by the old position is what stops the sweep from shunting an
-		// eager node past the one it was trying to line up with.
-		const order = [...columns[i]].sort(
-			(a, b) => (wanted.get(a) ?? placed.get(a)!.y) - (wanted.get(b) ?? placed.get(b)!.y),
-		);
-
-		let cursor = -Infinity;
-		for (const id of order) {
-			const at = placed.get(id)!;
-			const node = byId.get(id);
-			if (!node) continue;
-			const y = Math.max(wanted.get(id) ?? at.y, cursor);
-			placed.set(id, { x: at.x, y });
-			cursor = y + nodeBounds(node, registry).h + GAP_Y;
-		}
-	}
-}
-
-/** The kind of one named pin, or undefined if the node has no such pin. */
-function pinKind(
-	node: GraphNode,
-	registry: Registry,
-	pinId: string,
-	side: "in" | "out",
-): PinKind | undefined {
-	const def = registry.get(node.def);
-	if (!def) return undefined;
-	const { inputs, outputs } = resolvePins(def, node.config, node.literals);
-	return (side === "in" ? inputs : outputs).find((p) => p.id === pinId)?.kind;
-}
-
-/**
- * Grows each comment back around the nodes it held before the tidy-up.
- *
- * Takes the width the canvas is drawing at for the reason the columns do: a
- * comment re-fitted around wide nodes using the fixed width would be drawn too
- * small and clip the very nodes it is meant to enclose.
- */
-function refitComments(
-	script: NodeScript,
-	registry: Registry,
-	members: Map<string, Set<string>>,
-	wide = false,
-): NodeScript["comments"] {
-	return script.comments.map((comment) => {
-		const held = members.get(comment.id);
-		if (!held || held.size === 0) return comment;
-
-		const inside = script.nodes.filter((n) => held.has(n.id));
-		if (inside.length === 0) return comment;
-
-		const box = boundsOf(inside, registry, wide);
-		return {
-			...comment,
-			x: Math.round(box.x - COMMENT_PAD),
-			y: Math.round(box.y - COMMENT_HEADER),
-			w: Math.round(box.w + COMMENT_PAD * 2),
-			h: Math.round(box.h + COMMENT_HEADER + COMMENT_PAD),
-		};
+	const entryNode = scope.nodes.find((n) => registry.get(n.def)?.role === "entry");
+	const graph: GraphId =
+		options.graph !== undefined
+			? options.graph
+			: entryNode && entryNode.def !== "script.begin"
+				? entryNode.id
+				: null;
+	const result = layoutFlow(scope, registry, graph, {
+		headed,
+		boxed,
+		valueRooms,
+		kept,
+		wide: wideNodes,
 	});
+	let laid = applyFlow(scope, result, keptComments);
+
+	// Each comment back round what it held, its title in the room left for it.
+	laid = {
+		...laid,
+		comments: laid.comments.map((c) => {
+			if (moving.has(c.id) || !members.has(c.id)) return c;
+			const held = laid.nodes.filter((n) => members.get(c.id)?.has(n.id));
+			const boxes = held.map((n) => nodeBounds(n, registry, wideNodes));
+			const left = Math.min(...boxes.map((b) => b.x)) - BOX_PAD;
+			const right = Math.max(...boxes.map((b) => b.x + b.w)) + BOX_PAD;
+			const top = Math.min(...boxes.map((b) => b.y));
+			const low = Math.max(...boxes.map((b) => b.y + b.h)) + BOX_PAD;
+			const title = titleHeight(c.text, right - left);
+			return {
+				...c,
+				x: Math.round(left),
+				y: Math.round(top - title),
+				w: Math.round(right - left),
+				h: Math.round(low - top + title),
+			};
+		}),
+	};
+
+	// Where it all goes: kept where the pinned node, or the entry, was; a
+	// selection over where it was.
+	const now = new Map(laid.nodes.map((n) => [n.id, n]));
+	const pinned = scope.nodes.filter((n) => n.pinned).sort((a, b) => a.y - b.y || a.x - b.x);
+	let dx = 0;
+	let dy = 0;
+	const anchor = only
+		? undefined
+		: (pinned[0] ?? (entryNode && graph === null ? entryNode : byId.get(graph ?? "")));
+	if (anchor && now.has(anchor.id)) {
+		const at = now.get(anchor.id) as { x: number; y: number };
+		dx = anchor.x - at.x;
+		dy = anchor.y - at.y;
+	} else {
+		const before = boundsOf(scope.nodes, registry, wideNodes);
+		const after = boundsOf(laid.nodes, registry, wideNodes);
+		dx = before.x - after.x;
+		dy = before.y - after.y;
+	}
+	const stays = new Set(pinned.map((n) => n.id));
+	const nodes = view.nodes.map((n) => {
+		if (!ids.has(n.id)) return n;
+		// Every pinned node stays exactly where it was.
+		if (stays.has(n.id)) return n;
+		const at = now.get(n.id) ?? n;
+		return { ...n, x: Math.round(at.x + dx), y: Math.round(at.y + dy) };
+	});
+	const placedComments = new Map(laid.comments.map((c) => [c.id, c]));
+	const comments = view.comments.map((c) => {
+		const at = placedComments.get(c.id);
+		if (!at || !members.has(c.id)) return c;
+		return { ...at, x: Math.round(at.x + dx), y: Math.round(at.y + dy) };
+	});
+	return { ...view, nodes, comments };
 }
 
-function boundsOf(nodes: NodeScript["nodes"], registry: Registry, wide = false) {
-	let minX = Infinity,
-		minY = Infinity,
-		maxX = -Infinity,
-		maxY = -Infinity;
+function boundsOf(nodes: NodeScript["nodes"], registry: Registry, wide = false): Rect {
+	let minX = Infinity;
+	let minY = Infinity;
+	let maxX = -Infinity;
+	let maxY = -Infinity;
 	for (const node of nodes) {
 		const box = nodeBounds(node, registry, wide);
 		minX = Math.min(minX, box.x);

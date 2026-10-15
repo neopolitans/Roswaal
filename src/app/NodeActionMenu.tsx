@@ -1,19 +1,19 @@
 /**
- * The node context menu, for a node that has something to promote.
+ * The node context menu: a small menu about *that node*, asked the way a pin's
+ * is, with the palette one entry away for when the next node is what you
+ * wanted after all.
  *
- * Right-clicking a node otherwise opens the palette, which answers "what node
- * do I want next". A node that can move to the Variables panel -- a Get
- * Service, a require, a local, a named result -- has a question of its own,
- * asked the way a pin's is: a small menu about *that node*, with the palette
- * one entry away for when the next node is what you wanted after all.
- *
- * The wording is the familiar one, as the pin menu's is: "Promote to Variable".
+ * Every node can be pinned, so Realign leaves it where it is (0.182.0). A node
+ * that can move to the Variables panel -- a Get Service, a require, a local, a
+ * named result -- can also be promoted, in the familiar words the pin menu
+ * uses: "Promote to Variable".
  */
 
 import type { Registry } from "../core/nodes/index.js";
 import type { NodeScript } from "../core/schema.js";
 import { Menu } from "./Menu.jsx";
 import type { MenuEntry } from "./menuModel.js";
+import { setPinned } from "./edits.js";
 import { promotionsFor } from "./promote.js";
 import { store } from "./store.js";
 
@@ -52,7 +52,21 @@ export function NodeActionMenu({
 			at={target.screen}
 			label={title}
 			className="node-action-menu"
-			sections={[{ entries: promote }, { entries: [{ label: "Add Node Here…", run: onAddNode }] }]}
+			sections={[
+				{
+					entries: [
+						{
+							label: node?.pinned ? "Unpin" : "Pin",
+							title: node?.pinned
+								? "Realign lays this node out with the rest again."
+								: "Realign leaves this node where it is, and lays the rest out round it.",
+							run: () => store.edit((s) => setPinned(s, target.nodeId, !node?.pinned)),
+						},
+					],
+				},
+				{ entries: promote },
+				{ entries: [{ label: "Add Node Here…", run: onAddNode }] },
+			]}
 			onClose={onClose}
 		/>
 	);

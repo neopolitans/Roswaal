@@ -182,9 +182,27 @@ export function controlsPage(): DocPage {
 			{
 				t: "note",
 				kind: "info",
+				text: "Nothing moves sideways, and comments stay put. **Realign** lays the graph out again.",
+			},
+			{ t: "h", level: 2, text: "Realign" },
+			{
+				t: "p",
 				text:
-					"Nothing moves sideways — a node's column says when it runs. Use **Realign** to " +
-					"rebuild the columns. Comments stay put.",
+					"`Ctrl` + `Shift` + `L` lays the graph on screen out along its flow, as an import " +
+					"lays out a file: each run of steps along a row, its values under the step before, " +
+					"and the graph's start where it was. With several nodes selected, only those move.",
+			},
+			{
+				t: "p",
+				text:
+					"Right-click a node and choose **Pin** to keep it where it is: Realign lays the rest " +
+					"out round it. A pinned node has a dashed ring and a pin in its corner.",
+			},
+			{
+				t: "p",
+				text:
+					"A comment box is fitted back round what it holds. Tick **Preserve nodes on Realign** " +
+					"in its Inspector to keep what it holds as you placed it, and move the box as one.",
 			},
 			{ t: "h", level: 2, text: "The canvas" },
 			{

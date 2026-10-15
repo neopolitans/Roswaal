@@ -20,6 +20,7 @@
 import { CODE_FACE } from "../codeFace.js";
 import { isFieldName } from "../compiler/luau.js";
 import { viewOf } from "../functionGraph.js";
+import { titleHeight } from "../layout/flow.js";
 import type { Binding, Block, Expr, FunctionBody, Stat } from "../luau/ast.js";
 import { lineIndex, tokenize } from "../luau/lexer.js";
 import { parseChunk } from "../luau/parser.js";
@@ -41,7 +42,6 @@ import {
 	type Target,
 } from "../schema.js";
 import { layoutImport } from "./layout.js";
-import { rowsByWidth } from "./rows.js";
 import {
 	applyEdits,
 	type Edit,
@@ -51,6 +51,7 @@ import {
 	modernEdits,
 	type TopLevelLocals,
 } from "./modes.js";
+import { rowsByWidth } from "./rows.js";
 import { type CallTemplate, callTemplates, matchCall } from "./templates.js";
 
 export interface ImportOptions {
@@ -1724,13 +1725,7 @@ const BOX_GAP = 12;
  * wraps it at 16px a line inside 5px of padding. Characters are taken a
  * little wide, so a title is given a line too many rather than one too few.
  */
-export function titleHeight(text: string, width: number): number {
-	const perLine = Math.max(8, Math.floor((width - 16) / 7.4));
-	const lines = text
-		.split("\n")
-		.reduce((n, line) => n + Math.max(1, Math.ceil(line.length / perLine)), 0);
-	return 10 + 16 * lines + BOX_PAD;
-}
+export { titleHeight };
 
 /**
  * A comment box around each commented statement's nodes, as they were laid

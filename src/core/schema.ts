@@ -420,6 +420,8 @@ export interface GraphNode {
 	 * `x` and `y` are where it sits in the flow it is declared in.
 	 */
 	inner?: { x: number; y: number };
+	/** Stays where it is through Realign, which lays the rest out round it. Layout only. */
+	pinned?: true;
 }
 
 export interface PinRef {
@@ -453,6 +455,11 @@ export interface Comment {
 	 * comment takes. Set by an import, to write back what the file wrote.
 	 */
 	style?: CommentStyle;
+	/**
+	 * Realign moves the box and what it holds as one block, with what it holds
+	 * where it was put. Layout only.
+	 */
+	preserve?: true;
 }
 
 export type CommentStyle = "lines" | "doc" | "docBlock";

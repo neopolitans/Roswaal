@@ -277,6 +277,7 @@ export function serialiseScript(script: NodeScript): string {
 				...(n.graph ? { graph: n.graph } : {}),
 				...(n.inner ? { inner: { x: round(n.inner.x), y: round(n.inner.y) } } : {}),
 				...(n.label ? { label: n.label } : {}),
+				...(n.pinned ? { pinned: true } : {}),
 				...(n.literals && Object.keys(n.literals).length ? { literals: sortKeys(n.literals) } : {}),
 				...(n.config && Object.keys(n.config).length
 					? { config: sortKeys(n.config as Record<string, unknown>) }
@@ -297,6 +298,7 @@ export function serialiseScript(script: NodeScript): string {
 				...(c.color ? { color: c.color } : {}),
 				...(c.graph ? { graph: c.graph } : {}),
 				...(c.style ? { style: c.style } : {}),
+				...(c.preserve ? { preserve: true } : {}),
 			})),
 	};
 	return JSON.stringify(ordered, null, 2) + "\n";

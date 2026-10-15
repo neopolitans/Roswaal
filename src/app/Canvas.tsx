@@ -72,7 +72,6 @@ import { type Growth, NodeView, type PinDragState } from "./NodeView.jsx";
 import { configText, functionNameOf } from "./nodeConfig.js";
 import { ProblemNotes, problemsByNode } from "./ProblemNotes.jsx";
 import { commentColor, pinColor } from "./palette.js";
-import { promotionsFor } from "./promote.js";
 import { store, useEditor, useView } from "./store.js";
 import { showToast } from "./Toast.jsx";
 
@@ -146,8 +145,8 @@ export interface CanvasProps {
 	) => void;
 	onRequestPinMenu: (screen: Vec, nodeId: string, pin: PinDef, side: "in" | "out") => void;
 	/**
-	 * A node with something to promote: its own small menu, as a pin has.
-	 * Absent, or for any other node, a right-click opens the palette.
+	 * A node's own small menu, as a pin has: pin it, promote it, or add a node
+	 * there. Absent, a right-click on a node opens the palette.
 	 */
 	onRequestNodeMenu?: (screen: Vec, world: Vec, nodeId: string) => void;
 	onEditCode: (nodeId: string, pin: PinDef, value: string) => void;
@@ -1487,7 +1486,7 @@ export function Canvas({
 							if (!selection.has(id)) store.select([id]);
 							const screen = { x: e.clientX, y: e.clientY };
 							const world = toWorld(e.clientX, e.clientY);
-							if (onRequestNodeMenu && promotionsFor(whole, registry, id).length > 0) {
+							if (onRequestNodeMenu) {
 								// Stopped here, as a pin's is, or the canvas opens the palette on top.
 								e.preventDefault();
 								e.stopPropagation();

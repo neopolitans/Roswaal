@@ -243,6 +243,23 @@ function CommentInspector({ comment, locked }: { comment: Comment; locked?: bool
 						}}
 					/>
 				</Field>
+
+				<label
+					className="check-row"
+					title="Realign moves this comment and what it holds as one block, with what it holds where you put it."
+				>
+					<input
+						type="checkbox"
+						checked={comment.preserve === true}
+						disabled={locked}
+						onChange={(e) =>
+							store.edit((s) =>
+								updateComment(s, comment.id, { preserve: e.target.checked ? true : undefined }),
+							)
+						}
+					/>
+					<span>Preserve nodes on Realign</span>
+				</label>
 			</div>
 		</div>
 	);
