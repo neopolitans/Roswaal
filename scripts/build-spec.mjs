@@ -9,6 +9,8 @@
  * one is the latest. Drafts that have been superseded are not rebuilt here --
  * their source has moved on -- but kept, as published, in the roswaal-spec
  * repository, and named in `ROSWAAL_SPEC_DRAFTS` so the switcher lists them.
+ * The workflow that lays them in puts the policy into their pages
+ * (`build-policy.mjs`), as this does into its own.
  */
 
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -29,6 +31,8 @@ import { renderSpecSite } from "../src/core/docs/technical/specSite.ts";
 import { createRegistry } from "../src/core/nodes/index.ts";
 import { themeTokens } from "../src/core/theme.ts";
 import { BUILTIN_THEMES } from "../src/core/themeData.ts";
+
+import { withPolicyThroughout } from "./lib/policy.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const out = join(root, "dist-spec");
@@ -151,7 +155,11 @@ async function main() {
 		await writeFile(join(tree.dir, "spec.js"), js, "utf8");
 	}
 
-	console.log(`specification: Draft ${SPEC_DRAFT}, ${pages} pages -> dist-spec/`);
+	// Every page carries the site's Content-Security-Policy, as roswaal.app's
+	// do: spec.roswaal.app is on GitHub Pages too, which sends no headers.
+	await withPolicyThroughout(out);
+
+	console.log(`specification: Draft ${SPEC_DRAFT}, ${pages} pages with the policy -> dist-spec/`);
 }
 
 await main();

@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.186.6",
+		security: true,
+		date: "2026-10-15",
+		headline: "The specification's pages carry the site's security policy.",
+		affects: ["docs"],
+		fixed: [
+			"**The specification's pages carry the site's security policy.** Every page at spec.roswaal.app, archived drafts included, now runs under the same Content-Security-Policy as roswaal.app.",
+			"**Dependencies updated.** Four packages move up a patch version each.",
+		],
+	},
+	{
 		version: "0.186.5",
 		security: true,
 		date: "2026-10-15",

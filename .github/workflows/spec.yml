@@ -18,10 +18,10 @@ on:
         type: string
         default: neopolitans/Roswaal
 
+# Read-only, except for `deploy`, which alone publishes: the build -- `npm ci`
+# and the build scripts -- never holds that right.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -96,6 +96,12 @@ jobs:
             cp -R "$draft" "roswaal/dist-spec/$(basename "$draft")"
           done
 
+      # The archived drafts' pages get the Content-Security-Policy the current
+      # draft's already carry. A page that has it is left as it is.
+      - name: Put the policy in every page
+        working-directory: roswaal
+        run: npm run build:policy -- dist-spec
+
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: roswaal/dist-spec
@@ -103,6 +109,10 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    # Publishing to Pages, and proving to it which branch this run is from.
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}

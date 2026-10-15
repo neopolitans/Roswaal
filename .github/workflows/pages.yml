@@ -28,12 +28,11 @@ on:
         type: string
         default: ""
 
-# The token is minted for this run and scoped to publishing. Nothing here needs
-# to write to the repository.
+# The token is minted for this run, and reads. Nothing here writes to the
+# repository, and only `deploy` publishes: it alone is given the right to, so
+# the build -- `npm ci`, the tests and every build script -- never holds it.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # One deploy at a time, and a newer one waits rather than cancelling: a
 # half-finished deploy that loses to a cancellation leaves the site as it was,
@@ -115,6 +114,10 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    # Publishing to Pages, and proving to it which branch this run is from.
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}

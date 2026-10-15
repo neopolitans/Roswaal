@@ -11,11 +11,14 @@
  * cached for weeks by whatever fetched it. `build-pages.mjs` copies `site/`
  * into the site's root.
  *
- * Needs Playwright, which the build does not: `npx playwright install webkit`
- * once, and run with it on the module path.
+ * Needs Playwright, which the build does not, at the one version named below:
+ * `npm i --no-save playwright@1.63.0` and `npx playwright install webkit`
+ * once. Pinned because the pictures it draws ship on every site, and a
+ * version npm happened to serve that day is not something to ship.
  */
 
 import { mkdir, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -28,15 +31,26 @@ const pages = join(root, "dist-pages");
 const out = join(root, "site");
 
 // Named through a variable: Playwright is not one of the build's dependencies,
-// so there is nothing for the type checker to find, and that is the point.
+// so there is nothing for the type checker to find, and that is the point. It
+// is kept out of them so `npm ci` does not fetch it for every build in CI, for
+// a script somebody runs by hand. The version is the one whose WebKit drew the
+// pictures in `site/`; change it on purpose, and redraw them when you do.
 const PLAYWRIGHT = "playwright";
+const PLAYWRIGHT_VERSION = "1.63.0";
+const INSTALL =
+	`\`npm i --no-save ${PLAYWRIGHT}@${PLAYWRIGHT_VERSION}\` and ` +
+	"`npx playwright install webkit`";
 let webkit;
 try {
 	({ webkit } = await import(PLAYWRIGHT));
 } catch {
+	throw new Error(`build-social needs Playwright. Install it (${INSTALL}) and run again.`);
+}
+const found = createRequire(import.meta.url)(`${PLAYWRIGHT}/package.json`).version;
+if (found !== PLAYWRIGHT_VERSION) {
 	throw new Error(
-		"build-social needs Playwright. Install it (`npm i --no-save playwright` and " +
-			"`npx playwright install webkit`) and run again.",
+		`build-social draws with Playwright ${PLAYWRIGHT_VERSION}, and ${found} is installed. ` +
+			`Install that one (${INSTALL}) and run again.`,
 	);
 }
 

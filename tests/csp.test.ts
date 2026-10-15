@@ -2,12 +2,18 @@
  * The policy every page runs under, and the pages it is put into.
  *
  * The daemon sends it as a header; the website carries it as a `<meta>` tag,
- * added to every page as the site is assembled (`build-pages.mjs`). One policy,
- * so the two cannot drift apart.
+ * added to every page as the site is assembled (`build-pages.mjs`), and the
+ * specification the same way (`build-spec.mjs`, and `build-policy.mjs` for
+ * the archived drafts). One policy, so they cannot drift apart.
  */
 
-import { describe, expect, it } from "vitest";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
+import { describe, expect, it } from "vitest";
+// @ts-expect-error -- build tooling, plain JS, no declarations to import.
+import { withPolicyThroughout } from "../scripts/lib/policy.mjs";
 import { CSP_HEADER, CSP_META, withCspMeta } from "../src/core/csp.js";
 import { SECURITY_HEADERS } from "../src/server/app.js";
 
@@ -66,5 +72,25 @@ describe("a page given the policy", () => {
 
 	it("refuses a page with nowhere to carry it", () => {
 		expect(() => withCspMeta("<p>no head</p>")).toThrow();
+	});
+});
+
+describe("a folder of pages given the policy", () => {
+	it("puts it into every page at any depth, once, and leaves other files alone", async () => {
+		const dir = await mkdtemp(join(tmpdir(), "roswaal-policy-"));
+		try {
+			await mkdir(join(dir, "0.1", "types"), { recursive: true });
+			await writeFile(join(dir, "index.html"), PAGE, "utf8");
+			await writeFile(join(dir, "0.1", "types", "index.html"), withCspMeta(PAGE), "utf8");
+			await writeFile(join(dir, "spec.css"), "body {}", "utf8");
+
+			expect(await withPolicyThroughout(dir)).toBe(2);
+			for (const page of ["index.html", join("0.1", "types", "index.html")]) {
+				expect(await readFile(join(dir, page), "utf8"), page).toBe(withCspMeta(PAGE));
+			}
+			expect(await readFile(join(dir, "spec.css"), "utf8")).toBe("body {}");
+		} finally {
+			await rm(dir, { recursive: true, force: true });
+		}
 	});
 });

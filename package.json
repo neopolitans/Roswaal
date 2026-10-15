@@ -1,6 +1,6 @@
 {
   "name": "roswaal",
-  "version": "0.186.5",
+  "version": "0.186.6",
   "private": true,
   "license": "0BSD",
   "type": "module",
@@ -28,6 +28,7 @@
     "build:lune": "node scripts/build-lune.mjs",
     "build:docs": "tsx scripts/build-docs.mjs",
     "build:spec": "tsx scripts/build-spec.mjs",
+    "build:policy": "tsx scripts/build-policy.mjs",
     "docs:reviews": "tsx scripts/docs-reviews.mjs",
     "docs:coverage": "tsx scripts/docs-coverage.mjs",
     "demo:lune": "tsx scripts/build-lune-demo.mjs",
