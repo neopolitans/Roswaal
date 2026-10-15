@@ -63,6 +63,61 @@ describe("the workflows' rights", () => {
 	});
 });
 
+/**
+ * Each job's lines, by name, and the workflow's own lines before `jobs:` as
+ * `top`.
+ */
+function jobsOf(text: string): Map<string, string[]> {
+	const jobs = new Map<string, string[]>([["top", []]]);
+	let inJobs = false;
+	let job = "top";
+	for (const line of text.split("\n")) {
+		if (/^\S/.test(line) && !line.startsWith("#")) {
+			inJobs = /^jobs:\s*$/.test(line);
+			if (!inJobs) job = "top";
+		}
+		const key = /^ {2}([\w-]+):\s*$/.exec(line);
+		if (inJobs && key) {
+			job = key[1];
+			jobs.set(job, []);
+		}
+		jobs.get(job)?.push(line);
+	}
+	return jobs;
+}
+
+describe("the right to write to the repository", () => {
+	const files = readdirSync(WORKFLOWS).filter((f) => f.endsWith(".yml"));
+
+	it("is never the workflow's as a whole", () => {
+		for (const file of files) {
+			const top = jobsOf(workflow(file)).get("top") ?? [];
+			expect(
+				top.filter((line) => /^\s*contents:\s*write\b/.test(line)),
+				file,
+			).toEqual([]);
+		}
+	});
+
+	it("is held only by jobs that install and run nothing from npm", () => {
+		for (const file of files) {
+			for (const [job, lines] of jobsOf(workflow(file))) {
+				if (!lines.some((line) => /^\s*contents:\s*write\b/.test(line))) continue;
+				const npm = lines.filter((line) => /\bnpm\b|\bnpx\b|setup-node@/.test(line));
+				expect(npm, `${file}: ${job}`).toEqual([]);
+			}
+		}
+	});
+
+	it("is still given to the release's two jobs", () => {
+		const jobs = jobsOf(workflow("release.yml"));
+		const writes = [...jobs]
+			.filter(([, lines]) => lines.some((line) => /^\s*contents:\s*write\b/.test(line)))
+			.map(([job]) => job);
+		expect(writes).toEqual(["release", "attach"]);
+	});
+});
+
 describe("the specification's workflow", () => {
 	const text = workflow("spec.yml");
 

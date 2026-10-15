@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.186.8",
+		security: true,
+		date: "2026-10-15",
+		headline: "The release workflow builds without the right to write to the repository.",
+		fixed: [
+			"**Builds read; one job attaches.** The macOS and Windows binaries are built by jobs that can only read the repository, and handed to a separate job that attaches them to the release.",
+		],
+	},
+	{
 		version: "0.186.7",
 		security: true,
 		date: "2026-10-15",

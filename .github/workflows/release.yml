@@ -23,10 +23,12 @@ on:
         required: true
         type: string
 
-# Attaching files to a release is a write to the repository's contents, and
-# that is all this does.
+# Read-only, except for the two jobs that touch the release: making the draft
+# and attaching the zips. Neither installs or runs anything from npm, so the
+# build -- `npm ci` and every script it runs -- never holds the right to write
+# to the repository. The zips go from the builds to `attach` as artifacts.
 permissions:
-  contents: write
+  contents: read
 
 # One run per tag at a time: two would race to replace each other's files.
 concurrency:
@@ -42,6 +44,9 @@ jobs:
   release:
     name: Check the tag and the release
     runs-on: ubuntu-latest
+    # Makes the draft release when there is none yet.
+    permissions:
+      contents: write
     steps:
       # Every action by the commit it is, not a tag that can be moved: the
       # comment says which release that commit was.
@@ -128,8 +133,34 @@ jobs:
             (cd dist-binary && zip -9 "../$asset" "${{ matrix.binary }}" THIRD-PARTY-NOTICES.txt)
           fi
 
-      - name: Attach it to the release
-        shell: bash
+      # Handed to `attach`, which holds the right this job does not.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ matrix.asset }}
+          path: ${{ env.ASSET }}
+          if-no-files-found: error
+          retention-days: 1
+
+  attach:
+    name: Attach the binaries to the release
+    needs: [release, binaries]
+    # Whatever was built is attached, as when each build attached its own: one
+    # platform failing does not keep the other's binary from the release.
+    if: ${{ !cancelled() && needs.release.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: assets
+          merge-multiple: true
+
+      - name: Attach them to the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$TAG" "$ASSET" --repo "$GITHUB_REPOSITORY" --clobber
+        run: |
+          shopt -s nullglob
+          zips=(assets/roswaal-"${TAG#v}"-*.zip)
+          [ ${#zips[@]} -gt 0 ] || { echo "::error::No binary was built to attach."; exit 1; }
+          gh release upload "$TAG" "${zips[@]}" --repo "$GITHUB_REPOSITORY" --clobber
