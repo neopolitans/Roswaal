@@ -12,6 +12,7 @@ import type { TreeEntry } from "./api.js";
 import { cx } from "./cx.js";
 import { NOT_HERE, useHostCan } from "./host.js";
 import { Icon, type IconName } from "./icons.jsx";
+import { importableLuau } from "./importable.js";
 import { Menu } from "./Menu.jsx";
 import { depthStyle, SectionHead } from "./PanelParts.jsx";
 import { fileMenu, packageMenu, type TreeAction } from "./treeMenus.js";
@@ -127,22 +128,8 @@ export const ProjectTree = memo(function ProjectTree({
 	/** The rows Import as graphs reads: the selection, or the folder the menu is on. */
 	const manyFrom = (entry: TreeEntry): ReadonlySet<string> =>
 		multiple(entry) ? selected : new Set([entry.path]);
-	/**
-	 * Hand-written Luau among `paths`, a folder giving everything under it:
-	 * what Import as graphs takes. Wally's folders are someone else's code.
-	 */
-	const importable = (paths: ReadonlySet<string>): TreeEntry[] => {
-		const out: TreeEntry[] = [];
-		const visit = (entry: TreeEntry, inside: boolean) => {
-			if (entry.role === "packages") return;
-			const taken = inside || paths.has(entry.path);
-			if (taken && entry.kind === "luau" && !entry.generatedFrom && !out.includes(entry))
-				out.push(entry);
-			for (const child of entry.children ?? []) visit(child, taken);
-		};
-		for (const entry of tree) visit(entry, false);
-		return out;
-	};
+	/** Hand-written Luau among `paths`, a folder giving everything under it. */
+	const importable = (paths: ReadonlySet<string>): TreeEntry[] => importableLuau(tree, paths);
 	const [dropTarget, setDropTarget] = useState<string | null>(null);
 
 	// The two halves of a Roswaal project, shown as two rather than as a flat

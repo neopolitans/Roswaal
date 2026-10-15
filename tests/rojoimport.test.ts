@@ -16,7 +16,7 @@ import {
 	type NodeMap,
 	serialiseMap,
 } from "../src/core/nodemap.js";
-import { formatLike, projectToMap, sameProject } from "../src/core/rojoImport.js";
+import { formatLike, projectPaths, projectToMap, sameProject } from "../src/core/rojoImport.js";
 import {
 	compileMap,
 	findRojoProjects,
@@ -189,12 +189,13 @@ describe("importing into a project", () => {
 	it("lists the project files, and which a map already writes", async () => {
 		await project(GAME);
 		const opened = await openProject(root);
+		const paths = ["assets", "src/client", "src/server", "src/shared"];
 		expect(await findRojoProjects(opened)).toEqual([
-			{ file: "default.project.json", mappedBy: null },
+			{ file: "default.project.json", mappedBy: null, paths },
 		]);
 		const { mapPath } = await importRojoProject(opened, "default.project.json");
 		expect(await findRojoProjects(opened)).toEqual([
-			{ file: "default.project.json", mappedBy: mapPath },
+			{ file: "default.project.json", mappedBy: mapPath, paths },
 		]);
 		await expect(importRojoProject(opened, "default.project.json")).rejects.toThrow(
 			/already written/,
@@ -212,5 +213,39 @@ describe("importing into a project", () => {
 		})) as { mapPath: string; takenOver: boolean };
 		expect(out.takenOver).toBe(true);
 		expect(out.mapPath).toMatch(/Orchard\.nodemap$/);
+	});
+});
+
+describe("the folders a project file syncs", () => {
+	it("are every $path in the tree, sorted", () => {
+		expect(projectPaths(GAME)).toEqual(["assets", "src/client", "src/server", "src/shared"]);
+	});
+
+	it("count Rojo's optional form, and are written one way", () => {
+		const tree = {
+			$className: "DataModel",
+			A: { $path: "./src/a/" },
+			B: { $path: { optional: "src/b" } },
+			C: { $path: "src\\c" },
+			D: { $path: "src/a" },
+		};
+		expect(projectPaths({ tree })).toEqual(["src/a", "src/b", "src/c"]);
+	});
+
+	it("leave out a path outside the project, and the project itself", () => {
+		const tree = {
+			$className: "DataModel",
+			Up: { $path: "../elsewhere" },
+			Abs: { $path: "/etc" },
+			Drive: { $path: "C:/Games" },
+			Here: { $path: "." },
+			Kept: { $path: "src" },
+		};
+		expect(projectPaths({ tree })).toEqual(["src"]);
+	});
+
+	it("are none for a file that is not a project", () => {
+		expect(projectPaths(undefined)).toEqual([]);
+		expect(projectPaths({ name: "No tree" })).toEqual([]);
 	});
 });

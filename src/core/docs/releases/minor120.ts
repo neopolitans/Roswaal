@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.188.0",
+		date: "2026-10-16",
+		headline: "Import Rojo project can read the project's Luau into graphs as well.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Project File Only, or + Luau as Graphs.** Import Rojo project asks which: the project file as a node map, with the Luau left hand-written, or the map and then every hand-written Luau file in the folders it syncs, as graphs with one set of settings and one summary. A project file a map already writes can still have its Luau imported.",
+		],
+		changed: [
+			"**Browse… offers it too.** Opening a folder with Browse… offers a Rojo project file no map writes, as Open folder and Open .zip already did.",
+		],
+	},
+	{
 		version: "0.187.0",
 		date: "2026-10-15",
 		headline: "A compile says when StyLua did not format a file.",

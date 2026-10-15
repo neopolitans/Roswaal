@@ -16,6 +16,7 @@ import {
 	api,
 	type NewProjectChoice,
 	type ProjectInfo,
+	type RojoProject,
 	type TreeEntry,
 	type WallyOutcome,
 } from "./api.js";
@@ -30,6 +31,7 @@ import {
 	readPlace,
 	readZip,
 } from "./host.js";
+import { importableLuau } from "./importable.js";
 import { setBeforeLeaving } from "./pages.js";
 import type { SaveQueue } from "./saveQueue.js";
 import { store } from "./store.js";
@@ -100,99 +102,148 @@ export function useProjectActions(context: ProjectActionsContext) {
 	const onTreeOpen = useCallback((entry: TreeEntry) => void openEntry(entry), [openEntry]);
 
 	/**
+	 * Import as graphs over many files, reached from here because it is
+	 * declared further down. `rojo` is a whole Rojo project's import, whose
+	 * summary leads with the map.
+	 */
+	const importManyRef = useRef<(entries: TreeEntry[], rojo?: { lead: string }) => Promise<boolean>>(
+		async () => false,
+	);
+
+	/**
+	 * Which project file to import, and how much of it, in one form. A
+	 * project can have a file per place, so several are a dropdown, with
+	 * `default.project.json` first as the one Rojo reads unasked.
+	 *
+	 * The file only is a node map, and the project's Luau stays hand-written,
+	 * which the tree already lists; with Luau as graphs, the map and then every
+	 * hand-written Luau file in the folders it syncs, read into graphs.
+	 */
+	const pickRojoImport = useCallback(
+		async (projects: RojoProject[], offered?: "zip" | "folder") => {
+			const sorted = [...projects].sort(
+				(a, b) =>
+					Number(b.file === "default.project.json") - Number(a.file === "default.project.json") ||
+					a.file.localeCompare(b.file),
+			);
+			const where = offered ? `The ${offered}` : "This project";
+			const answer = await ask({
+				kind: "form",
+				title: "Import Rojo project",
+				message:
+					(sorted.length === 1
+						? `${where} has ${sorted[0].file}${sorted[0].mappedBy ? `, which ${sorted[0].mappedBy} writes already` : ""}.`
+						: `${where} has ${sorted.length} Rojo project files.`) +
+					" Its Luau stays hand-written unless you import it as graphs, and no file is changed.",
+				fields: [
+					...(sorted.length > 1
+						? [
+								{
+									id: "file",
+									kind: "select" as const,
+									label: "Project file",
+									value: sorted[0].file,
+									options: sorted.map((p) => ({ value: p.file, label: p.file })),
+								},
+							]
+						: []),
+					{
+						id: "scope",
+						kind: "choice",
+						label: "Import",
+						value: "file",
+						options: [
+							{ value: "file", label: "Project File Only" },
+							{ value: "whole", label: "Project File + Luau as Graphs" },
+						],
+					},
+				],
+				confirmLabel: "Import",
+			});
+			if (typeof answer !== "string") return null;
+			const chosen = JSON.parse(answer) as FormAnswers;
+			const file = sorted.length > 1 ? String(chosen.file) : sorted[0].file;
+			return {
+				project: sorted.find((p) => p.file === file) ?? sorted[0],
+				whole: chosen.scope === "whole",
+			};
+		},
+		[ask],
+	);
+
+	/**
 	 * Project → Import Rojo project…: a `*.project.json` in the root, read into
-	 * a node map, which is then opened. The file itself is not changed.
+	 * a node map, which is then opened, and with the whole project, its Luau
+	 * read into graphs. The project file and the Luau are not changed.
 	 *
 	 * `offered` is the same, asked unprompted after a zip or a folder opens
 	 * with a project file no map writes: it says where the file came from, and
 	 * says nothing at all when there is none.
 	 */
-	/**
-	 * Which of several project files to import, from a dropdown: a project can
-	 * have a file per place, and a row of buttons does not stretch to that.
-	 * `default.project.json` comes first, as it is the one Rojo reads unasked.
-	 */
-	const pickProjectFile = useCallback(
-		async (files: string[], offered?: "zip" | "folder") => {
-			const sorted = [...files].sort(
-				(a, b) =>
-					Number(b === "default.project.json") - Number(a === "default.project.json") ||
-					a.localeCompare(b),
-			);
-			const answer = await ask({
-				kind: "form",
-				title: "Import Rojo project",
-				message:
-					`${offered ? `The ${offered}` : "This project"} has ${files.length} Rojo project files. ` +
-					"Pick one to read into a node map; the file is not changed.",
-				fields: [
-					{
-						id: "file",
-						kind: "select",
-						label: "Project file",
-						value: sorted[0],
-						options: sorted.map((file) => ({ value: file, label: file })),
-					},
-				],
-				confirmLabel: "Import",
-			});
-			return typeof answer === "string" ? String((JSON.parse(answer) as FormAnswers).file) : null;
-		},
-		[ask],
-	);
-
 	const importRojo = useCallback(
 		async (offered?: "zip" | "folder") => {
 			try {
 				const { projects } = await api.rojoProjects();
 				const open = projects.filter((p) => !p.mappedBy);
 				if (open.length === 0 && offered) return;
-				if (open.length === 0) {
+				if (projects.length === 0) {
 					notify(
 						"No Rojo project to import",
-						projects.length > 0
-							? `${projects.map((p) => p.file).join(", ")} ${projects.length === 1 ? "is" : "are"} already written by a map.`
-							: "There is no *.project.json in the project's root folder.",
+						"There is no *.project.json in the project's root folder.",
 					);
 					return;
 				}
-				const file =
-					open.length === 1
-						? (await ask({
-								kind: "confirm",
-								title: "Import Rojo project",
-								message: offered
-									? `The ${offered} has ${open[0].file}. Read it into a node map, so Roswaal knows where things live? The file is not changed.`
-									: `Read ${open[0].file} into a node map? The file is not changed.`,
-								confirmLabel: "Import",
-							})) === true
-							? open[0].file
-							: null
-						: await pickProjectFile(
-								open.map((p) => p.file),
-								offered,
-							);
-				if (!file) return;
-				const out = await api.importRojo(file);
+				// A file a map already writes can still have its Luau imported.
+				const picked = await pickRojoImport(offered ? open : projects, offered);
+				if (!picked) return;
+				const { project: chosen, whole } = picked;
+				if (chosen.mappedBy && !whole) {
+					notify("Already imported", `${chosen.file} is written by ${chosen.mappedBy} already.`);
+					return;
+				}
+
+				let lead: string;
+				let mapPath: string;
+				if (chosen.mappedBy) {
+					mapPath = chosen.mappedBy;
+					lead = `${chosen.file} already has its map.`;
+				} else {
+					const out = await api.importRojo(chosen.file);
+					mapPath = out.mapPath;
+					lead =
+						(out.takenOver
+							? `The map writes ${out.file} now. Compiling leaves the file as it is until the map changes.`
+							: `${out.file} is left as it is: the map would write it differently. Compile the map with force to take it over.`) +
+						(out.problems.length > 0 ? ` ${out.problems.join(" ")}` : "");
+				}
 				await refreshTree();
-				await openEntry({
-					path: out.mapPath,
-					name: out.mapPath.split("/").pop()!,
-					kind: "nodemap",
-				});
-				const kept = out.problems.length > 0 ? ` ${out.problems.join(" ")}` : "";
-				notify(
-					"Rojo project imported",
-					(out.takenOver
-						? `The map writes ${out.file} now. Compiling leaves the file as it is until the map changes.`
-						: `${out.file} is left as it is: the map would write it differently. Compile the map with force to take it over.`) +
-						kept,
-				);
+				await openEntry({ path: mapPath, name: mapPath.split("/").pop()!, kind: "nodemap" });
+				if (!whole) {
+					notify("Rojo project imported", lead);
+					return;
+				}
+
+				// Read from the daemon, not the tree in hand: the map was just added.
+				const { tree } = await api.tree();
+				const entries = importableLuau(tree, new Set(chosen.paths));
+				if (entries.length === 0) {
+					notify(
+						"Rojo project imported",
+						`${lead} The folders it syncs hold no hand-written Luau to import.`,
+					);
+					return;
+				}
+				if (!(await importManyRef.current(entries, { lead }))) {
+					notify(
+						"Rojo project imported",
+						`${lead} Its Luau was not imported; Import folder as graphs does that later.`,
+					);
+				}
 			} catch (err) {
 				notify("Could not import the Rojo project", errorMessage(err));
 			}
 		},
-		[ask, notify, refreshTree, openEntry, pickProjectFile],
+		[notify, refreshTree, openEntry, pickRojoImport],
 	);
 
 	/**
@@ -978,19 +1029,19 @@ export function useProjectActions(context: ProjectActionsContext) {
 	);
 
 	/**
-	 * Import selection as graphs, and Import folder as graphs: hand-written
-	 * Luau files, each read into a graph with the same settings. A file
-	 * imported before is imported over its graph, as Reimport does. Each
+	 * Hand-written Luau files, each read into a graph with the same settings.
+	 * A file imported before is imported over its graph, as Reimport does. Each
 	 * file's runtime is the one its requires say, else the project's.
+	 *
+	 * `rojo`: the files of a whole Rojo project, whose map is already open and
+	 * whose summary leads this one's. False when the settings were cancelled.
 	 */
-	const importLuauFiles = useCallback(
-		async (entries: TreeEntry[]) => {
-			if (entries.length === 0) return;
-			if (entries.length === 1) return importLuauFile(entries[0]);
+	const importMany = useCallback(
+		async (entries: TreeEntry[], rojo?: { lead: string }): Promise<boolean> => {
 			const again = entries.filter((e) => e.graph).length;
 			const answer = await ask({
 				kind: "form",
-				title: `Import ${entries.length} Luau files as graphs?`,
+				title: `Import ${entries.length} Luau file${entries.length === 1 ? "" : "s"} as graphs?`,
 				message:
 					"Turning Luau into a graph can be made safer but never certain. Test the graphs before you rely on them." +
 					(again > 0
@@ -1029,7 +1080,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 				confirmLabel: "Import",
 				icon: "graph",
 			});
-			if (typeof answer !== "string") return;
+			if (typeof answer !== "string") return false;
 			const chosen = JSON.parse(answer) as FormAnswers;
 			const locals = chosen.locals === "local" ? "local" : "variable";
 			const mode = modeOf(chosen.mode);
@@ -1060,23 +1111,41 @@ export function useProjectActions(context: ProjectActionsContext) {
 					// An open tab of a graph imported over shows the new one.
 					if (store.isOpen(out.path)) store.reload(out.path, out.script);
 				} catch (err) {
-					failed.push(`${entry.name}: ${errorMessage(err)}`);
+					// By path from a whole project, where every folder can have an init.luau.
+					failed.push(`${rojo ? entry.path : entry.name}: ${errorMessage(err)}`);
 				}
 			}
 			await refreshTree();
-			if (first) store.open(first.path, first.script);
+			// A whole project's map is open already, and is the place to start.
+			if (first && !rojo) store.open(first.path, first.script);
 			const done = entries.length - failed.length;
 			notify(
-				`${done} of ${entries.length} files imported`,
+				rojo ? "Rojo project imported" : `${done} of ${entries.length} files imported`,
 				[
+					...(rojo ? [rojo.lead, `${done} of ${entries.length} Luau files are graphs now.`] : []),
 					`${asNodes} of ${statements} statements are nodes.`,
 					...(replaced > 0 ? [`Imported again over their graphs: ${replaced}.`] : []),
 					...failed.map((f) => `Not imported, ${f}`),
 					"The files are unchanged; compiling over one shows what changes and asks first.",
 				].join(" "),
 			);
+			return true;
 		},
-		[ask, notify, refreshTree, importLuauFile],
+		[ask, notify, refreshTree],
+	);
+	importManyRef.current = importMany;
+
+	/**
+	 * Import selection as graphs, and Import folder as graphs. One file is
+	 * Import as graph, with its own report.
+	 */
+	const importLuauFiles = useCallback(
+		async (entries: TreeEntry[]) => {
+			if (entries.length === 0) return;
+			if (entries.length === 1) return importLuauFile(entries[0]);
+			await importMany(entries);
+		},
+		[importLuauFile, importMany],
 	);
 
 	const onTreeNewFolder = useCallback(

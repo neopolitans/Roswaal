@@ -8,7 +8,7 @@
 import { serialiseScript } from "../core/compiler/index.js";
 import { migrateScript } from "../core/migrate.js";
 import { compileNodeMap, isFilesystemMap, type NodeMap, serialiseMap } from "../core/nodemap.js";
-import { parseProject, projectToMap, sameProject } from "../core/rojoImport.js";
+import { parseProject, projectPaths, projectToMap, sameProject } from "../core/rojoImport.js";
 import { type NodeScript, SCHEMA_VERSION } from "../core/schema.js";
 import type { OpenProject } from "./config.js";
 import { UserError } from "./errors.js";
@@ -106,6 +106,8 @@ function assertExtension(relPath: string, extension: string, kind: string): void
 export interface RojoProjectFile {
 	file: string;
 	mappedBy: string | null;
+	/** The folders it syncs, project-relative: what importing the whole project reads. */
+	paths: string[];
 }
 
 /** The `*.project.json` files in the project's root, for Import Rojo project. */
@@ -118,7 +120,14 @@ export async function findRojoProjects(project: OpenProject): Promise<RojoProjec
 		const map = await readMap(project, mapPath).catch(() => null);
 		if (map && !isFilesystemMap(map)) owners.set(toPosix(map.output), mapPath);
 	}
-	return names.map((file) => ({ file, mappedBy: owners.get(file) ?? null }));
+	const out: RojoProjectFile[] = [];
+	for (const file of names) {
+		// A file that is not JSON syncs nothing, and importing it says why.
+		const text = await fs.readFile(safeJoin(project.root, file), "utf8").catch(() => null);
+		const paths = text === null ? [] : projectPaths(parseProject(text));
+		out.push({ file, mappedBy: owners.get(file) ?? null, paths });
+	}
+	return out;
 }
 
 export interface RojoImportOutcome {

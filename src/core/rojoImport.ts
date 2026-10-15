@@ -34,6 +34,39 @@ const isObject = (v: unknown): v is Record<string, unknown> =>
 	typeof v === "object" && v !== null && !Array.isArray(v);
 
 /**
+ * Every `$path` a project file syncs, as written, relative to the file's
+ * folder, without a leading `./` or a trailing slash: what importing the whole
+ * project reads as graphs. Rojo's `{ "optional": "…" }` form counts; a path
+ * leading out of the folder does not.
+ */
+export function projectPaths(json: unknown): string[] {
+	const found = new Set<string>();
+	const visit = (raw: Record<string, unknown>) => {
+		const stated = raw.$path;
+		const path =
+			typeof stated === "string"
+				? stated
+				: isObject(stated) && typeof stated.optional === "string"
+					? stated.optional
+					: undefined;
+		if (path !== undefined) {
+			const tidy = path
+				.replace(/\\/g, "/")
+				.replace(/^(\.\/)+/, "")
+				.replace(/\/+$/, "");
+			const outside =
+				tidy === ".." || tidy.startsWith("../") || tidy.startsWith("/") || /^[A-Za-z]:/.test(tidy);
+			if (tidy !== "" && tidy !== "." && !outside) found.add(tidy);
+		}
+		for (const [key, value] of Object.entries(raw)) {
+			if (!key.startsWith("$") && isObject(value)) visit(value);
+		}
+	};
+	if (isObject(json) && isObject(json.tree)) visit(json.tree);
+	return [...found].sort((a, b) => a.localeCompare(b));
+}
+
+/**
  * `json` is the parsed project file; `output` is where it lives, which becomes
  * the map's output so compiling writes the same file.
  */

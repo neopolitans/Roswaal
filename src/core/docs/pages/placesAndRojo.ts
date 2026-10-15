@@ -83,7 +83,16 @@ export function placesAndRojoPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"In the web app, **Open .zip…** and **Open folder…** offer the same when there is a " +
+					"It asks which. **Project File Only** is the map, and your Luau stays hand-written, " +
+					"as the tree already lists it. **Project File + Luau as Graphs** is the map and then " +
+					"every hand-written `.luau` in the folders the file syncs, read into graphs with one " +
+					"set of [Import as graph](project-panel) settings. Wally's packages are left out, and " +
+					"the `.luau` files are not changed.",
+			},
+			{
+				t: "p",
+				text:
+					"**Browse…**, **Open .zip…** and **Open folder…** offer the same when there is a " +
 					"project file no map writes, with a list to pick from when there are several. A place " +
 					"file in the zip or folder is found too.",
 			},

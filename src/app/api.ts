@@ -56,6 +56,15 @@ export interface TreeEntry {
 	missing?: boolean;
 }
 
+/** A Rojo project file in the project's root. */
+export interface RojoProject {
+	file: string;
+	/** The node map that writes it, if one does. */
+	mappedBy: string | null;
+	/** The folders it syncs, project-relative. */
+	paths: string[];
+}
+
 export interface ProjectInfo {
 	root: string;
 	config: RoswaalConfig;
@@ -346,9 +355,11 @@ export const api = {
 	/** A GitHub repository vendored into Packages/. The daemon's alone. */
 	wallyGithub: (repo: string, alias?: string) =>
 		post<WallyOutcome>("/api/wally/github", { repo, ...(alias ? { alias } : {}) }),
-	/** The `*.project.json` files in the project's root, and the maps that write them. */
-	rojoProjects: () =>
-		request<{ projects: { file: string; mappedBy: string | null }[] }>("/api/rojo/projects"),
+	/**
+	 * The `*.project.json` files in the project's root, the maps that write
+	 * them, and the folders each syncs.
+	 */
+	rojoProjects: () => request<{ projects: RojoProject[] }>("/api/rojo/projects"),
 	/** Reads a Rojo project file into a node map. */
 	importRojo: (file: string) =>
 		post<{ file: string; mapPath: string; takenOver: boolean; problems: string[] }>(

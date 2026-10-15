@@ -616,6 +616,9 @@ export function App() {
 		[loadProject, notify, saves],
 	);
 
+	/** Import Rojo project, which the project actions further down provide. */
+	const offerRojo = useRef<(offered?: "zip" | "folder") => Promise<void>>(async () => undefined);
+
 	/**
 	 * The folder dialog, then whatever comes back.
 	 *
@@ -627,6 +630,7 @@ export function App() {
 	 */
 	const browseForProject = useCallback(async () => {
 		let chosen: string | null;
+		let opened: boolean;
 		try {
 			chosen = (await api.browseForProject()).path;
 		} catch (err) {
@@ -659,10 +663,12 @@ export function App() {
 			});
 			if (yes !== true) return;
 			store.closeAll();
-			await loadProject(chosen, true);
-			return;
+			opened = await loadProject(chosen, true);
+		} else {
+			opened = await switchProject(chosen);
 		}
-		await switchProject(chosen);
+		// As Open folder does: a Rojo project no map writes yet is offered.
+		if (opened) await offerRojo.current("folder");
 	}, [ask, loadProject, notify, switchProject]);
 
 	/**
@@ -1285,6 +1291,7 @@ export function App() {
 	});
 
 	followMoveRef.current = followMove;
+	offerRojo.current = importRojo;
 
 	// -- render ------------------------------------------------------------
 
