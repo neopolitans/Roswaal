@@ -106,6 +106,22 @@ export function readingLuauPage(): DocPage {
 				kind: "info",
 				text: "Instance checks are for Roblox. A Lune script has no DataModel to check against.",
 			},
+
+			{ t: "h", level: 2, text: "Arguments" },
+			{
+				t: "p",
+				text:
+					"A method called on something whose type is known is checked against what Roblox " +
+					"says it takes: `hull.CFrame:PointToObjectSpace(part.Position.X)` hands a number to a " +
+					"method that takes a Vector3, and is underlined. It shows in the code editor, in a file " +
+					"you open to read, and in the Problems list for the node that holds the code.",
+			},
+			{
+				t: "p",
+				text:
+					"Types come from the code, from the graph's typed names and from the engine " +
+					"catalogue. Where a type is not known, nothing is said.",
+			},
 		],
 	};
 }

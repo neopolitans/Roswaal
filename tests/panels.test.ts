@@ -17,6 +17,7 @@ import { describe, expect, it } from "vitest";
 
 import {
 	cardsIn,
+	clampFrame,
 	clampLayout,
 	closePanel,
 	DEFAULT_FRAME,
@@ -185,6 +186,30 @@ describe("clamping to the window", () => {
 
 	it("leaves a layout that already fits completely alone", () => {
 		expect(clampLayout(base(), WIDE.w, WIDE.h)).toEqual(base());
+	});
+
+	it("brings a window left off a smaller screen back inside it", () => {
+		const layout = base();
+		layout.panels.code = {
+			...layout.panels.code,
+			floating: true,
+			frame: { x: 1700, y: 950, w: 560, h: 360 },
+		};
+		const { frame } = clampLayout(layout, 1280, 800).panels.code;
+		expect(frame.x + frame.w).toBeLessThanOrEqual(1280);
+		expect(frame.y + frame.h).toBeLessThanOrEqual(800);
+		expect(frame.w).toBe(560);
+	});
+
+	it("shrinks a window larger than the screen, and leaves one inside it alone", () => {
+		expect(clampFrame({ x: -40, y: 10, w: 900, h: 300 }, 744, 1133)).toEqual({
+			x: 0,
+			y: 10,
+			w: 744,
+			h: 300,
+		});
+		const inside = { x: 20, y: 30, w: 300, h: 200 };
+		expect(clampFrame(inside, 1280, 800)).toBe(inside);
 	});
 
 	it("caps the bottom dock against the window's height", () => {

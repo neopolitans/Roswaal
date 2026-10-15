@@ -9,6 +9,24 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.186.0",
+		date: "2026-10-15",
+		headline: "Code is checked for arguments of the wrong type, and an import knows more types.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Argument types are checked.** A method called on something whose type is known, given a value of a type it does not take, is underlined in the code editor and in a file opened to read, and listed in Problems against the node.",
+			"**Imports type more values.** A handler's parameters take the event's types, a property its class's type, and Instance.new and FindFirstChildOfClass the class they name, so more method calls become nodes.",
+			"**A service named otherwise is declared.** local RS = game:GetService(\"ReplicatedStorage\") becomes a declared service that keeps the name RS, shown as RS in Services.",
+		],
+		changed: [
+			"**A method given an argument its pin does not take stays as code.** The check then says why.",
+		],
+		fixed: [
+			"**A window left off a smaller screen comes back.** A floating panel placed outside the window, such as the Code panel, moves back inside it.",
+			"**Hover in a Luau Expression.** It describes members read off a property, such as PointToObjectSpace in hull.CFrame:PointToObjectSpace, and reads a value written as an if expression.",
+		],
+	},
+	{
 		version: "0.185.1",
 		date: "2026-10-15",
 		headline: "Compiling a graph over a file Roswaal did not write shows what changes first.",

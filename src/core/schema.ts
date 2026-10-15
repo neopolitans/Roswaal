@@ -567,6 +567,13 @@ export interface NodeScript {
 	 */
 	services?: string[];
 	/**
+	 * The local a declared service is bound to, by service, where it is not
+	 * the service's own name: `{ ReplicatedStorage: "RS" }` writes
+	 * `local RS = game:GetService("ReplicatedStorage")`, and Get Service for it
+	 * reads `RS`. Set by an import from the file's own name for it.
+	 */
+	serviceNames?: Record<string, string>;
+	/**
 	 * Names and types are written as the graph gives them, as the Luau it
 	 * was imported from had them: a name is never renumbered or tidied
 	 * (`_unused`, `self`, a shadowing `n`), and a type is written whatever

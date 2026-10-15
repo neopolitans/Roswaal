@@ -22,6 +22,8 @@ import { isFieldName } from "../compiler/luau.js";
 import { viewOf } from "../functionGraph.js";
 import { titleHeight } from "../layout/flow.js";
 import type { Binding, Block, Expr, FunctionBody, Stat } from "../luau/ast.js";
+import { fits } from "../luau/argumentTypes.js";
+import { classOfCall, eventsOf, methodsOf } from "../luau/infer.js";
 import { lineIndex, tokenize } from "../luau/lexer.js";
 import { parseChunk } from "../luau/parser.js";
 import { visitBlock } from "../luau/visit.js";
@@ -31,6 +33,8 @@ import { FUNCTION_NODES } from "../nodes/flow.js";
 import { BUILTIN_NODES, createRegistry, type Registry } from "../nodes/index.js";
 import { isInstanceClass, isService, isSubclassOf } from "../roblox.js";
 import type { ServiceMethod } from "../robloxMembers.js";
+import { ENGINE } from "../robloxEngine.js";
+import { propertiesOf } from "../robloxProperties.js";
 import {
 	type Comment,
 	type CommentStyle,
@@ -109,10 +113,11 @@ type Ref =
 	/** `known`: the type its value is known to have, where none is written. */
 	| { kind: "local"; node: string; name: string; type?: string; known?: string }
 	| { kind: "param"; fn: string; name: string; type?: string }
-	| { kind: "pin"; node: string; pin: string }
+	/** `known`: a handler parameter's type, from the event it is connected to. */
+	| { kind: "pin"; node: string; pin: string; known?: string }
 	| { kind: "function"; node: string; name: string; params: Sig[]; returns: Sig[] }
 	| { kind: "variable"; id: string; name: string; type?: string; known?: string }
-	/** One of the script's services, read with Get Service. */
+	/** One of the script's services, read with Get Service; `name` is the service. */
 	| { kind: "service"; name: string }
 	/** Declared by a statement kept as code: read back as its text. */
 	| { kind: "text" };
@@ -1339,7 +1344,12 @@ class Importer {
 		this.feed(this.signal(call.object, scope, graph, at), { node: id, pin: "signal" });
 		this.chain(tail, id);
 		const inner = new Scope(scope);
-		params.forEach((p, i) => inner.set(p.name, { kind: "pin", node: id, pin: `p${i}` }));
+		// What the event hands each parameter, where the file wrote no type.
+		const event = this.eventOf(call.object, scope);
+		params.forEach((p, i) => {
+			const known = p.type ? undefined : simpleType(event?.params[i]?.type);
+			inner.set(p.name, { kind: "pin", node: id, pin: `p${i}`, ...(known ? { known } : {}) });
+		});
 		this.block(
 			func.body,
 			{ node: id, pin: "body" },
@@ -1363,12 +1373,7 @@ class Importer {
 		graph: string | undefined,
 		near: { x: number; y: number },
 	): Value {
-		if (
-			e.kind === "index" &&
-			e.object.kind === "name" &&
-			scope.get(e.object.name)?.kind === "service" &&
-			IDENT.test(e.name.name)
-		) {
+		if (e.kind === "index" && this.eventOf(e, scope)) {
 			const at = { x: near.x - 240, y: near.y + 90 };
 			const id = this.node("roblox.getEvent", graph, at);
 			this.literal(id, "event", { t: "string", v: e.name.name });
@@ -1517,10 +1522,33 @@ class Importer {
 				if (ref.kind === "local" || ref.kind === "variable")
 					return simpleType(ref.type) ?? ref.known;
 				if (ref.kind === "param") return simpleType(ref.type);
-				if (ref.kind === "pin") return this.outputType(this.nodeById(ref.node), ref.pin);
+				if (ref.kind === "pin")
+					return ref.known ?? this.outputType(this.nodeById(ref.node), ref.pin);
 				return undefined;
 			}
+			case "index": {
+				// A signal, or a property the engine catalogue types.
+				if (this.eventOf(e, scope)) return "RBXScriptSignal";
+				const owner = this.knownType(e.object, scope);
+				if (!owner) return undefined;
+				// A datatype's own: `part.Position.X` is a number.
+				const field = ENGINE.datatypes[owner]?.properties.find((p) => p.name === e.name.name);
+				if (field) return simpleType(field.type);
+				if (!(isInstanceClass(owner) || isService(owner))) return undefined;
+				const property = propertiesOf(owner).find((p) => p.name === e.name.name);
+				return property && !property.enum ? simpleType(property.type) : undefined;
+			}
+			case "binary": {
+				// `player.Character or player.CharacterAdded:Wait()`: both sides agree.
+				if (e.op !== "or") return undefined;
+				const left = this.knownType(e.left, scope);
+				return left && left === this.knownType(e.right, scope) ? left : undefined;
+			}
 			case "call": {
+				if (!scope.get("Instance")) {
+					const named = classOfCall(e);
+					if (named) return named;
+				}
 				const template = this.libraryCall(e, scope, ["expr", "call"]);
 				return template ? templateReturns(template) : undefined;
 			}
@@ -1528,11 +1556,29 @@ class Importer {
 				// `game:GetService("Players")`, as an aliased service local has it.
 				const service = scope.get("game") ? undefined : getServiceName(e);
 				if (service) return service;
-				return this.methodMatch(e, scope, ["expr", "call", "statement"], true)?.returns;
+				// `player.CharacterAdded:Wait()` gives back what the event hands over.
+				const event = e.method.name === "Wait" ? this.eventOf(e.object, scope) : undefined;
+				if (event) return simpleType(event.params[0]?.type);
+				const owner = this.knownType(e.object, scope);
+				if (!owner) return undefined;
+				// A call that names its class, on an object known to be an instance.
+				const named = isInstanceClass(owner) || isService(owner) ? classOfCall(e) : undefined;
+				if (named) return named;
+				const matched = this.methodMatch(e, scope, ["expr", "call", "statement"], true)?.returns;
+				if (matched) return matched;
+				return simpleType(methodsOf(owner).find((m) => m.name === e.method.name)?.returns);
 			}
 			default:
 				return undefined;
 		}
+	}
+
+	/** The engine event `obj.Event` reads, when the type of `obj` is known and has it. */
+	private eventOf(e: Expr, scope: Scope): ReturnType<typeof eventsOf>[number] | undefined {
+		if (e.kind !== "index" || !IDENT.test(e.name.name)) return undefined;
+		const owner = this.knownType(e.object, scope);
+		if (!owner || !(isInstanceClass(owner) || isService(owner))) return undefined;
+		return eventsOf(owner).find((event) => event.name === e.name.name);
 	}
 
 	/** The type of a node's output, as its pins stand. */
@@ -1570,7 +1616,17 @@ class Importer {
 			this.target,
 			(pinType) => takes(known, pinType),
 		);
-		if (template) return { kind: "template", template, returns: templateReturns(template) };
+		// An argument known to be of a type its pin does not take stays as
+		// code, where the check says so, rather than a wire into the wrong pin.
+		const misfit =
+			template &&
+			call.args.some((arg, i) => {
+				const pin = template.def.inputs.find((p) => p.id === template.pins[i]);
+				const given = pin?.type ? this.knownType(arg, scope) : undefined;
+				return given !== undefined && pin?.type !== undefined && fits(pin.type, given) === false;
+			});
+		if (template && !misfit)
+			return { kind: "template", template, returns: templateReturns(template) };
 		if (this.target !== "roblox" || !isService(known)) return undefined;
 		const method = serviceMethod(known, name);
 		if (!method) return undefined;
@@ -1617,8 +1673,10 @@ class Importer {
 		const object = call.object;
 		const byName =
 			object.kind === "name" &&
-			scope.get(object.name)?.kind === "service" &&
-			object.name === match.service;
+			(() => {
+				const ref = scope.get(object.name);
+				return ref?.kind === "service" && ref.name === match.service;
+			})();
 		if (!byName) this.feed(this.expr(object, scope, graph, at), { node: id, pin: "service" });
 		call.args.forEach((arg, i) => {
 			const member = match.enums[i];
@@ -1650,7 +1708,7 @@ class Importer {
 			extra > 0 && template.variadic ? { config: { args: extra } } : {},
 		);
 		if (call.kind === "methodCall" && template.receiver)
-			this.feed(this.expr(call.object, scope, graph, at), { node: id, pin: template.receiver });
+			this.feed(this.signal(call.object, scope, graph, at), { node: id, pin: template.receiver });
 		call.args.forEach((arg, i) => {
 			const after = i - template.pins.length;
 			const pin =
@@ -1813,14 +1871,20 @@ function returnsValues(body: Block): boolean {
 /** The graph's name and script class, from a `.luau` file's name. */
 /**
  * The file's services: each `local Players = game:GetService("Players")` at
- * the top level of the file, the local named as its service and never
- * assigned again. The compiler writes those lines itself, first in the file,
- * for a script that declares them. One named otherwise (`local RS =
- * game:GetService("ReplicatedStorage")`), with a type written beside it, or
- * after a local of its name, stays a variable, its name as written.
+ * the top level of the file, never assigned again. The compiler writes those
+ * lines itself, first in the file, for a script that declares them. One named
+ * otherwise (`local RS = game:GetService("ReplicatedStorage")`) keeps its
+ * name, in `locals`. One with a type written beside it, a second local for a
+ * service already declared, or one after a local of its name stays a
+ * variable, its name as written.
  */
-function declaredServices(body: Block): { names: string[]; stats: Set<Stat> } {
+function declaredServices(body: Block): {
+	names: string[];
+	locals: Record<string, string>;
+	stats: Set<Stat>;
+} {
 	const names: string[] = [];
+	const locals: Record<string, string> = {};
 	const stats = new Set<Stat>();
 	// A file that declares its own `game` means something else by it.
 	const ownGame = body.some(
@@ -1828,7 +1892,7 @@ function declaredServices(body: Block): { names: string[]; stats: Set<Stat> } {
 			(s.kind === "local" && s.names.some((n) => n.name === "game")) ||
 			(s.kind === "localFunction" && s.name.name === "game"),
 	);
-	if (ownGame) return { names, stats };
+	if (ownGame) return { names, locals, stats };
 	const assigned = new Set<string>();
 	visitBlock(body, {
 		stat(s) {
@@ -1841,15 +1905,21 @@ function declaredServices(body: Block): { names: string[]; stats: Set<Stat> } {
 	});
 	const declared = new Set<string>();
 	for (const s of body) {
-		const service = s.kind === "local" ? serviceLocal(s) : undefined;
-		if (service && !declared.has(service) && !assigned.has(service)) {
-			names.push(service);
+		const found = s.kind === "local" ? serviceLocal(s) : undefined;
+		if (
+			found &&
+			!names.includes(found.service) &&
+			!declared.has(found.local) &&
+			!assigned.has(found.local)
+		) {
+			names.push(found.service);
+			if (found.local !== found.service) locals[found.service] = found.local;
 			stats.add(s);
 		}
 		if (s.kind === "local") for (const n of s.names) declared.add(n.name);
 		if (s.kind === "localFunction") declared.add(s.name.name);
 	}
-	return { names, stats };
+	return { names, locals, stats };
 }
 
 /** What a method call was matched to, and the type it gives back. */
@@ -1907,8 +1977,10 @@ function enumMember(e: Expr, kind: string, scope: Scope): string | undefined {
 	return e.object.name.name === kind ? e.name.name : undefined;
 }
 
-/** The service a `local Players = game:GetService("Players")` declares, named as it is. */
-function serviceLocal(s: Extract<Stat, { kind: "local" }>): string | undefined {
+/** The service a `local Players = game:GetService("Players")` declares, and the local it binds. */
+function serviceLocal(
+	s: Extract<Stat, { kind: "local" }>,
+): { service: string; local: string } | undefined {
 	if (s.names.length !== 1 || s.values.length !== 1 || s.attributes.length > 0) return undefined;
 	const [binding] = s.names;
 	const value = s.values[0];
@@ -1918,7 +1990,7 @@ function serviceLocal(s: Extract<Stat, { kind: "local" }>): string | undefined {
 		return undefined;
 	const arg = value.args[0];
 	const name = arg.kind === "string" ? SIMPLE_STRING.exec(arg.raw)?.[2] : undefined;
-	return name === binding.name && IDENT.test(name) ? name : undefined;
+	return name && IDENT.test(name) ? { service: name, local: binding.name } : undefined;
 }
 
 export function graphNameOf(fileName: string): { name: string; scriptClass: ScriptClass } {
@@ -1970,7 +2042,8 @@ export function importLuau(file: string, options: ImportOptions): ImportResult {
 	importer.collectComments();
 	const services = options.target === "roblox" ? declaredServices(parsed.value) : undefined;
 	const top = new Scope();
-	for (const name of services?.names ?? []) top.set(name, { kind: "service", name });
+	for (const name of services?.names ?? [])
+		top.set(services?.locals[name] ?? name, { kind: "service", name });
 	const script: NodeScript = {
 		...emptyScript(options.name, `${prefix}-graph`),
 		scriptClass: options.scriptClass,
@@ -1978,6 +2051,9 @@ export function importLuau(file: string, options: ImportOptions): ImportResult {
 		typecheck: typecheckOf(src),
 		asWritten: true,
 		...(services && services.names.length > 0 ? { services: services.names } : {}),
+		...(services && Object.keys(services.locals).length > 0
+			? { serviceNames: services.locals }
+			: {}),
 		importedAs: {
 			mode,
 			locals: options.locals ?? "variable",

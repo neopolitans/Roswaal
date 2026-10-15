@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import {
 	COMPACT_QUERY,
+	clampFrames,
 	clampLayout,
 	type DockSide,
 	floatPanel,
@@ -79,9 +80,13 @@ export function useLayoutPrefs(): LayoutPrefs {
 			setPrefs((current) =>
 				// A phone draws the docks as drawers, so there is nothing to make
 				// room for -- and clamping would shrink the sizes kept for a
-				// wider window down to what fits beside a 320px graph.
+				// wider window down to what fits beside a 320px graph. Its
+				// windows still come back on screen.
 				window.matchMedia(COMPACT_QUERY).matches
-					? current
+					? {
+							...current,
+							layout: clampFrames(current.layout, window.innerWidth, window.innerHeight),
+						}
 					: {
 							...current,
 							layout: clampLayout(current.layout, window.innerWidth, window.innerHeight),

@@ -82,6 +82,45 @@ describe("a method on an object of a known type", () => {
 	});
 });
 
+describe("a type the engine catalogue gives", () => {
+	it("types a handler's parameters by its event, and a property by its class", () => {
+		const script = roundTrip([
+			'local Players = game:GetService("Players")',
+			"",
+			"Players.PlayerAdded:Connect(function(player)",
+			"\tlocal character = player.Character or player.CharacterAdded:Wait()",
+			'\tlocal humanoid = character:FindFirstChildOfClass("Humanoid")',
+			"\tprint(humanoid)",
+			"end)",
+		]);
+		expect(defs(script)).toEqual(
+			expect.arrayContaining(["instance.findFirstChildOfClass", "roblox.getEvent"]),
+		);
+	});
+
+	it("types what Instance.new makes, and a datatype property on it", () => {
+		const script = roundTrip([
+			'local part = Instance.new("Part")',
+			"print(part.Position:Dot(Vector3.yAxis))",
+			"part:Destroy()",
+		]);
+		expect(defs(script)).toEqual(expect.arrayContaining(["vector3.dot", "roblox.destroy"]));
+	});
+
+	it("reads a typed instance's event with Get Event", () => {
+		const script = roundTrip([
+			"local function watch(part: BasePart)",
+			"\tpart.Touched:Connect(function(hit)",
+			"\t\thit:Destroy()",
+			"\tend)",
+			"end",
+		]);
+		const event = script.nodes.find((n) => n.def === "roblox.getEvent");
+		expect(event?.literals?.event).toEqual({ t: "string", v: "Touched" });
+		expect(defs(script)).toContain("roblox.destroy");
+	});
+});
+
 describe("a method on a service", () => {
 	it("is a Service Function for one the catalogue has", () => {
 		const script = roundTrip([

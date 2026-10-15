@@ -27,6 +27,7 @@ import { Annotation, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { argumentProblems } from "../core/luau/argumentTypes.js";
 import { checkLuau, type LuauFragment } from "../core/luau/check.js";
 import type { ModuleInfo } from "../core/luau/hover.js";
 import type { TableMember } from "../core/luau/infer.js";
@@ -490,6 +491,15 @@ function CodeField({ shown, tab, script, registry, graphPath, locked, onApply }:
 	);
 	const typesRef = useRef(types);
 	typesRef.current = types;
+	// Arguments of a type their method does not take: a warning, said at the
+	// foot once the code parses, as the underline says it in the code.
+	const cautions = useMemo(
+		() =>
+			kind === "type" || problems.length > 0 || script?.target === "lune"
+				? []
+				: argumentProblems(text, kind, new Map([...types].map(([name, t]) => [name, t.type]))),
+		[kind, problems, script?.target, text, types],
+	);
 	const instanceNames = useMemo(
 		() => graphInstanceLocals(script, registry, nodeId),
 		[script, registry, nodeId],
@@ -575,12 +585,22 @@ function CodeField({ shown, tab, script, registry, graphPath, locked, onApply }:
 							members: allMembers,
 							modules: () => modulesRef.current,
 							instances: () => instancesRef.current,
+							locals: () => new Map([...typesRef.current].map(([name, t]) => [name, t.type])),
 						},
 						signature: true,
-						warnings: (code) =>
-							instancesRef.current && targetRef.current !== "lune"
+						warnings: (code) => [
+							...(instancesRef.current && targetRef.current !== "lune"
 								? instanceProblems(code, instancesRef.current.root, instancesRef.current.self)
-								: [],
+								: []),
+							// An argument of a type the method does not take.
+							...(kind !== "type" && targetRef.current !== "lune"
+								? argumentProblems(
+										code,
+										kind,
+										new Map([...typesRef.current].map(([name, t]) => [name, t.type])),
+									)
+								: []),
+						],
 						extra: [
 							EditorView.updateListener.of((update) => {
 								if (!update.docChanged) return;
@@ -640,10 +660,21 @@ function CodeField({ shown, tab, script, registry, graphPath, locked, onApply }:
 			<div className="code-body" ref={host} />
 			{/* What matters at the right: on the foot the status pill can lie
 			    over this line's start. */}
-			<div className={cx("code-status", problems.length > 0 && "bad")}>
+			<div
+				className={cx(
+					"code-status",
+					problems.length > 0 && "bad",
+					problems.length === 0 && cautions.length > 0 && "warn",
+				)}
+			>
 				<span className="code-note">Applied as you type · Ctrl+Z undoes it</span>
 				<span style={{ flex: 1 }} />
-				{problems.length === 0 ? (
+				{problems.length === 0 && cautions.length > 0 ? (
+					<span className="code-verdict">
+						{cautions[0].message} <span className="where">line {cautions[0].line}</span>
+						{cautions.length > 1 && ` (+${cautions.length - 1} more)`}
+					</span>
+				) : problems.length === 0 ? (
 					<span className="code-verdict">
 						<span className="code-ok" aria-hidden="true" /> No problems
 					</span>

@@ -45,6 +45,7 @@ import {
 	takesClassName,
 	typeOfValue,
 } from "./infer.js";
+import { bareTypeName, typeOfExpr } from "./exprType.js";
 import { type InstanceNode, instanceAt } from "./instances.js";
 import type { Token } from "./lexer.js";
 import { isRequire } from "./requires.js";
@@ -118,6 +119,9 @@ const LIBRARY_SET = new Set(LIBRARIES);
  * The globals that are instances, and what class each is. `script` is
  * whichever script it is written in, so it is the class all three share.
  */
+/** What an expression is read behind when it does not parse as statements. */
+const AS_VALUE = "return ";
+
 const GLOBAL_CLASSES: Readonly<Record<string, string>> = {
 	game: "DataModel",
 	workspace: "Workspace",
@@ -253,6 +257,8 @@ interface Ask {
 	roblox: boolean;
 	tableMembers: ReadonlyMap<string, TableMember[]>;
 	modules: ReadonlyMap<string, ModuleInfo>;
+	/** What the graph says each name in scope holds, by its type as written. */
+	locals: ReadonlyMap<string, string>;
 }
 
 /** Where a name stands, read off the nodes around it. */
@@ -269,7 +275,8 @@ type Place =
  * `tableMembers` is what the graph puts on its tables, for code typed into a
  * graph: functions a Declare Function attaches to a table variable. A file on
  * its own has no graph, and its own `function Table.name` statements are read
- * from the text.
+ * from the text. `locals` is what the graph says the names in scope hold,
+ * `hull` → `BasePart`, for code that reads a node's result by name.
  */
 export function hoverAt(
 	src: string,
@@ -277,8 +284,25 @@ export function hoverAt(
 	roblox = true,
 	tableMembers: ReadonlyMap<string, TableMember[]> = new Map(),
 	modules: ReadonlyMap<string, ModuleInfo> = new Map(),
+	locals: ReadonlyMap<string, string> = new Map(),
 ): Hover | null {
 	const file = luauFile(src);
+	// A Luau Expression's field holds an expression, which as statements may
+	// not parse at all -- `if a then 1 else -1` -- and then nothing around
+	// the pointer could be read. Read it as the value it is.
+	if (file.errors.length > 0 && luauFile(`${AS_VALUE}${src}`).errors.length === 0) {
+		const hover = hoverAt(
+			`${AS_VALUE}${src}`,
+			pos + AS_VALUE.length,
+			roblox,
+			tableMembers,
+			modules,
+			locals,
+		);
+		return (
+			hover && { ...hover, from: hover.from - AS_VALUE.length, to: hover.to - AS_VALUE.length }
+		);
+	}
 	// A class written as the string a call is given: `Instance.new("Part")`.
 	const quoted = roblox
 		? file.tokens.find((t) => t.kind === "string" && t.start < pos && pos < t.end)
@@ -296,6 +320,7 @@ export function hoverAt(
 		roblox,
 		tableMembers,
 		modules,
+		locals,
 	};
 	const place = placeOf(nodesAt(file.block, token.start), token);
 	switch (place.kind) {
@@ -478,6 +503,22 @@ function afterDot(ask: Ask, place: Extract<Place, { kind: "field" }>): Hover | n
 		if (about) return about;
 	}
 
+	// Off something whose type is known some other way: a property of a
+	// property (`hull.CFrame.Position`), or a name the graph has typed.
+	if (
+		roblox &&
+		!local &&
+		place.object &&
+		(place.object.kind !== "name" || ask.locals.has(owner ?? ""))
+	) {
+		const type = typeOfObject(ask, place.object);
+		const about = type
+			? (memberOfClass(CLASS_SET.has(type) ? type : undefined, word, from, to) ??
+				datatypeProperty(type, word, from, to))
+			: undefined;
+		if (about) return about;
+	}
+
 	// A function or field put on the table: `function Occupancy.value(…)`
 	// in the file, or a Declare Function the graph wires onto it. The
 	// owner may be a chain: `Promise.prototype.andThen`.
@@ -523,6 +564,35 @@ function afterDot(ask: Ask, place: Extract<Place, { kind: "field" }>): Hover | n
 			? `${owner}.${word}: ${item.detail}`
 			: `${owner}.${word}${item.detail}`;
 	return { from, to, code, role: item.kind, summary: item.summary, link: datatypeLink(owner) };
+}
+
+/**
+ * The type an expression before a dot or colon is known to hold, as one name:
+ * a local the file or the graph types, a global, and a property of either,
+ * followed along the chain -- `hull.CFrame` is a CFrame.
+ */
+function typeOfObject(ask: Ask, expr: Expr): string | undefined {
+	return typeOfExpr(expr, ask.src, (name) => {
+		const local = localNamed(ask.src, name);
+		if (local) return heldBy(local.typeText, local.value).className ?? bareTypeName(local.typeText);
+		const graph = ask.locals.get(name.name);
+		if (graph !== undefined) return bareTypeName(graph);
+		return classOfGlobal(name.name) ?? GLOBAL_CLASSES[name.name];
+	});
+}
+
+/** A datatype's property, read with a dot: `hull.CFrame.Position`. */
+function datatypeProperty(type: string, word: string, from: number, to: number): Hover | undefined {
+	const property = ENGINE.datatypes[type]?.properties.find((p) => p.name === word);
+	if (!property) return undefined;
+	return {
+		from,
+		to,
+		code: `${type}.${word}: ${property.type || "unknown"}`,
+		role: "property",
+		summary: property.summary,
+		link: datatypeLink(type),
+	};
 }
 
 /** A property or event of a class, read with a dot off an instance of it. */
@@ -572,14 +642,21 @@ function afterColon(ask: Ask, place: Extract<Place, { kind: "method" }>): Hover 
 		if (method) return aboutMember(place.chain, method, from, to);
 	}
 	if (!ask.roblox || !place.call) return null;
-	const owner = lastName(place.object);
-	const local = localNamed(src, place.object);
-	const className = local
-		? heldBy(local.typeText, local.value).className
-		: owner
-			? (classOfGlobal(owner) ?? GLOBAL_CLASSES[owner])
-			: undefined;
-	const method = className ? methodsOf(className).find((m) => m.name === word) : undefined;
+	const type = place.object ? typeOfObject(ask, place.object) : undefined;
+	if (!type) return null;
+	// A datatype's own: `hull.CFrame:PointToObjectSpace(…)`.
+	const datatype = ENGINE.datatypes[type]?.methods.find((m) => m.name === word && !m.deprecated);
+	if (datatype) {
+		return {
+			from,
+			to,
+			code: `${type}:${word}${signatureText(datatype.params)}${datatype.returns ? ` → ${datatype.returns}` : ""}`,
+			role: "method",
+			summary: datatype.summary,
+			link: datatypeLink(type),
+		};
+	}
+	const method = CLASS_SET.has(type) ? methodsOf(type).find((m) => m.name === word) : undefined;
 	if (!method) return null;
 	return {
 		from,

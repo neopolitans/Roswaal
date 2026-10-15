@@ -19,6 +19,7 @@ export function luauHover(
 	getMembers: () => ReadonlyMap<string, TableMember[]> = () => new Map(),
 	getModules: () => ReadonlyMap<string, ModuleInfo> = () => new Map(),
 	getInstances: () => { root: InstanceNode; self?: string[] } | null = () => null,
+	getLocals: () => ReadonlyMap<string, string> = () => new Map(),
 ): Extension {
 	return hoverTooltip(
 		(view, pos) => {
@@ -29,7 +30,7 @@ export function luauHover(
 			const instances = roblox ? getInstances() : null;
 			const hover =
 				(instances && instanceHover(text, pos, instances.root, instances.self)) ??
-				hoverAt(text, pos, roblox, getMembers(), getModules());
+				hoverAt(text, pos, roblox, getMembers(), getModules(), getLocals());
 			if (!hover) return null;
 			return {
 				pos: hover.from,

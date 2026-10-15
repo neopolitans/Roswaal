@@ -26,6 +26,7 @@ import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { useEffect, useRef, useState } from "react";
 
+import { argumentProblems } from "../core/luau/argumentTypes.js";
 import type { ModuleInfo } from "../core/luau/hover.js";
 import type { TableMember } from "../core/luau/infer.js";
 import { type InstanceNode, indexFromOutline, instanceProblems } from "../core/luau/instances.js";
@@ -145,8 +146,14 @@ export function SourceView({ doc, onOpenGraph, onEdit, onReveal }: SourceViewPro
 		const known = instances;
 		view.current?.dispatch({
 			effects: warnings.current.reconfigure(
-				known && targetOfSource(doc.text) !== "lune"
-					? [lintGutter(), luauWarnings((text) => instanceProblems(text, known.root, known.self))]
+				targetOfSource(doc.text) !== "lune"
+					? [
+							lintGutter(),
+							luauWarnings((text) => [
+								...(known ? instanceProblems(text, known.root, known.self) : []),
+								...argumentProblems(text, "block"),
+							]),
+						]
 					: [],
 			),
 		});

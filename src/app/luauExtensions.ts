@@ -59,6 +59,8 @@ export interface LuauContext {
 	modules?: () => ReadonlyMap<string, ModuleInfo>;
 	/** The DataModel the project knows, and where this code runs from. */
 	instances?: () => { root: InstanceNode; self?: string[] } | null;
+	/** What the graph says each name in scope holds, by type as written. */
+	locals?: () => ReadonlyMap<string, string>;
 }
 
 export interface LuauExtensionOptions {
@@ -197,7 +199,9 @@ export function luauExtensions(options: LuauExtensionOptions = {}): Extension[] 
 	extensions.push(luauLanguage, syntaxHighlighting(luauHighlight));
 	if (lint) extensions.push(luauLint(lint));
 	if (hover) {
-		extensions.push(luauHover(hover.target, hover.members, hover.modules, hover.instances));
+		extensions.push(
+			luauHover(hover.target, hover.members, hover.modules, hover.instances, hover.locals),
+		);
 		if (signature) extensions.push(luauSignature(hover.target, hover.members));
 	}
 	if (warnings) extensions.push(luauWarnings(warnings));

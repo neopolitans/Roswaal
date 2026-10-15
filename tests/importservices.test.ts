@@ -1,12 +1,13 @@
 /**
- * Services an import declares (0.184.0).
+ * Services an import declares (0.184.0; named otherwise, 0.186.0).
  *
  * `local Players = game:GetService("Players")` at the top level of a file
  * becomes one of the script's services rather than a variable: the compiler
  * writes the line itself, first in the file, reads of it are Get Service,
- * and a handler connected to one of its events reads it with Get Event. A
- * local named otherwise, typed, assigned again or in a Lune file stays as it
- * was.
+ * and a handler connected to one of its events reads it with Get Event. One
+ * named otherwise (`local RS = ...`) keeps its name. A typed one, one
+ * assigned again, a second for the same service, or one in a Lune file stays
+ * as it was.
  */
 
 import { describe, expect, it } from "vitest";
@@ -80,6 +81,28 @@ describe("a service the file gets", () => {
 	});
 });
 
+describe("a service named otherwise", () => {
+	const src = [
+		'local Players = game:GetService("Players")',
+		'local RS = game:GetService("ReplicatedStorage")',
+		"",
+		'local remote = RS:WaitForChild("Ping")',
+		"print(remote, RS)",
+		"",
+	].join("\n");
+
+	it("is declared, and keeps the name the file gave it", () => {
+		const { script } = imported(src);
+		expect(script.services).toEqual(["Players", "ReplicatedStorage"]);
+		expect(script.serviceNames).toEqual({ ReplicatedStorage: "RS" });
+		expect(script.variables.map((v) => v.name)).toEqual(["remote"]);
+	});
+
+	it("compiles back to the file, in its order", () => {
+		expect(body(imported(src).script)).toBe(src);
+	});
+});
+
 describe("a comment on a service line", () => {
 	it("is kept in a box of its own above everything else", () => {
 		const src = [
@@ -112,10 +135,19 @@ describe("a comment on a service line", () => {
 });
 
 describe("a service local that stays a variable", () => {
-	it("is named otherwise than its service", () => {
-		const { script } = imported('local RS = game:GetService("ReplicatedStorage")\nprint(RS)\n');
-		expect(script.services).toBeUndefined();
-		expect(script.variables.map((v) => v.name)).toEqual(["RS"]);
+	it("is a second local for a service already declared", () => {
+		const src = [
+			'local Players = game:GetService("Players")',
+			'local P = game:GetService("Players")',
+			"",
+			"print(Players, P)",
+			"",
+		].join("\n");
+		const { script } = imported(src);
+		expect(script.services).toEqual(["Players"]);
+		expect(script.variables.map((v) => v.name)).toEqual(["P"]);
+		// The declared services are written first, a blank line after them.
+		expect(body(script)).toBe(src.replace("\nlocal P", "\n\nlocal P"));
 	});
 
 	it("has a type written beside it", () => {

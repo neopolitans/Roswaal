@@ -209,6 +209,7 @@ export function VariablesPanel({
 							<ServiceRow
 								key={name}
 								name={name}
+								local={script.serviceNames?.[name]}
 								onDelete={() => store.edit((s) => deleteService(s, name))}
 							/>
 						))}
@@ -582,7 +583,16 @@ function DataModelDrop({
 }
 
 /** One declared service: drag it for a Get Service, or remove it. */
-function ServiceRow({ name, onDelete }: { name: string; onDelete: () => void }) {
+function ServiceRow({
+	name,
+	local,
+	onDelete,
+}: {
+	name: string;
+	/** The local it is bound to, where not its own name. */
+	local?: string;
+	onDelete: () => void;
+}) {
 	function onDragStart(e: DragEvent) {
 		e.dataTransfer.setData("application/x-roswaal-service", JSON.stringify({ service: name }));
 		e.dataTransfer.effectAllowed = "copy";
@@ -597,8 +607,10 @@ function ServiceRow({ name, onDelete }: { name: string; onDelete: () => void }) 
 				onDragStart={onDragStart}
 			>
 				<span className="swatch" style={{ background: pinColor(name, "data") }} />
-				<span className="name">{name}</span>
-				<span className="type">{isService(name) ? "service" : "not a listed service"}</span>
+				<span className="name">{local ?? name}</span>
+				<span className="type">
+					{local ? name : isService(name) ? "service" : "not a listed service"}
+				</span>
 				<RowDelete name={name} onDelete={onDelete} />
 			</div>
 		</div>

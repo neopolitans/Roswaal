@@ -380,7 +380,36 @@ export function clampLayout(layout: Layout, width: number, height: number): Layo
 		docks.bottom = { ...docks.bottom, size: Math.min(docks.bottom.size, most) };
 	}
 
-	return { ...layout, docks };
+	return clampFrames({ ...layout, docks }, width, height);
+}
+
+/**
+ * Every window back inside a window of `width` by `height`: one placed on a
+ * larger screen, or before this one was made smaller, has no title bar left
+ * on screen to drag it back by. The same layout when all already are.
+ */
+export function clampFrames(layout: Layout, width: number, height: number): Layout {
+	let panels = layout.panels;
+	for (const id of PANEL_IDS) {
+		const frame = panels[id].frame;
+		const inside = clampFrame(frame, width, height);
+		if (inside !== frame) panels = { ...panels, [id]: { ...panels[id], frame: inside } };
+	}
+	return panels === layout.panels ? layout : { ...layout, panels };
+}
+
+/**
+ * A window's frame, moved and if need be shrunk to lie inside a window of
+ * `width` by `height`. The same frame when it already does.
+ */
+export function clampFrame(frame: PanelFrame, width: number, height: number): PanelFrame {
+	if (width <= 0 || height <= 0) return frame;
+	const w = Math.max(Math.min(frame.w, width), Math.min(MIN_FLOAT.w, width));
+	const h = Math.max(Math.min(frame.h, height), Math.min(MIN_FLOAT.h, height));
+	const x = Math.min(Math.max(frame.x, 0), Math.max(0, width - w));
+	const y = Math.min(Math.max(frame.y, 0), Math.max(0, height - h));
+	if (x === frame.x && y === frame.y && w === frame.w && h === frame.h) return frame;
+	return { x, y, w, h };
 }
 
 /**

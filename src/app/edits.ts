@@ -1623,9 +1623,13 @@ export function addService(script: NodeScript, name: string): NodeScript {
  */
 export function deleteService(script: NodeScript, name: string): NodeScript {
 	const services = (script.services ?? []).filter((s) => s !== name);
-	if (services.length > 0) return { ...script, services };
-	const { services: _gone, ...rest } = script;
-	return rest;
+	const { [name]: _named, ...names } = script.serviceNames ?? {};
+	const { services: _gone, serviceNames: _names, ...rest } = script;
+	return {
+		...rest,
+		...(services.length > 0 ? { services } : {}),
+		...(Object.keys(names).length > 0 ? { serviceNames: names } : {}),
+	};
 }
 
 // ---------------------------------------------------------------------------

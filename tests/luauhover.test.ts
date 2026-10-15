@@ -211,3 +211,35 @@ describe("globals and libraries", () => {
 		expect(over("game", 0, src, false)).toBeNull();
 	});
 });
+
+describe("a member off a chain or a graph's local", () => {
+	const src = "if hull.CFrame:PointToObjectSpace(leftTrack.Position).X < 0 then 1 else -1";
+	const at = (word: string) => src.indexOf(word) + 1;
+	const graph = new Map([
+		["hull", "BasePart"],
+		["leftTrack", "BasePart?"],
+	]);
+
+	it("finds a datatype's method on a property of a name the graph types", () => {
+		const hover = hoverAt(src, at("PointToObjectSpace"), true, new Map(), new Map(), graph);
+		expect(hover).toMatchObject({ role: "method" });
+		expect(hover?.code).toContain("CFrame:PointToObjectSpace(");
+		expect(hover?.link?.href).toContain("/datatypes/CFrame");
+	});
+
+	it("finds a class's property on a name the graph types", () => {
+		const hover = hoverAt(src, at("CFrame"), true, new Map(), new Map(), graph);
+		expect(hover?.code).toContain("CFrame");
+		expect(hover?.role).toBe("property");
+	});
+
+	it("follows a chain off a local the file types", () => {
+		const file = "local part: BasePart = workspace.Baseplate\nprint(part.CFrame:Inverse())";
+		const hover = hoverAt(file, file.indexOf("Inverse") + 1);
+		expect(hover?.code).toContain("CFrame:Inverse(");
+	});
+
+	it("says nothing about a name nothing types", () => {
+		expect(hoverAt(src, at("PointToObjectSpace"))).toBeNull();
+	});
+});

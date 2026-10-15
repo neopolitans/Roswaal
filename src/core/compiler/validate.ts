@@ -10,6 +10,7 @@
 import { creatableInstead, isCreatable } from "../creatable.js";
 import { bindsParameters } from "../functionBody.js";
 import { crossingLinks, graphExists } from "../functionGraph.js";
+import { argumentProblems } from "../luau/argumentTypes.js";
 import { checkLuau } from "../luau/check.js";
 import { LUNE_ROBLOX_DATATYPES } from "../luneApi.js";
 import { callOf, moduleOf, specifierFor } from "../luneCalls.js";
@@ -527,13 +528,25 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 	// Parsed as what each one is: Code Block is statements, and everything
 	// else — a Luau Expression, code typed into a pin — is one value, which is
 	// what makes `local x = 1` in a Luau Expression the error it always was.
+	const named = script.target === "roblox" ? nameTypes(script) : undefined;
 	for (const node of script.nodes) {
 		for (const [pinId, literal] of Object.entries(node.literals ?? {})) {
 			if (literal.t !== "raw" || literal.v.trim() === "") continue;
 			const kind = node.def === "code.custom" && pinId === "code" ? "block" : "expression";
-			for (const problem of checkLuau(literal.v, kind)) {
+			const problems = checkLuau(literal.v, kind);
+			for (const problem of problems) {
 				out.push({
 					severity: "error",
+					message: `${problem.message} (line ${problem.line} of this node's code)`,
+					node: node.id,
+					pin: pinId,
+				});
+			}
+			// A method given an argument of a type it does not take.
+			if (!named || problems.length > 0) continue;
+			for (const problem of argumentProblems(literal.v, kind, named)) {
+				out.push({
+					severity: "warning",
 					message: `${problem.message} (line ${problem.line} of this node's code)`,
 					node: node.id,
 					pin: pinId,
@@ -657,5 +670,44 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 		}
 	}
 
+	return out;
+}
+
+/**
+ * What the graph says each name holds, for code that reads a name: script
+ * variables, and the names Get Local, Get Variable, Get Parameter and Declare
+ * Local are typed with. By name across the whole graph, as code is read; a
+ * name given two different types is left out.
+ */
+function nameTypes(script: NodeScript): Map<string, string> {
+	const out = new Map<string, string>();
+	const clashes = new Set<string>();
+	const add = (name: unknown, type: unknown) => {
+		if (typeof name !== "string" || typeof type !== "string" || type === "" || type === "any")
+			return;
+		const had = out.get(name);
+		if (had !== undefined && had !== type) clashes.add(name);
+		else out.set(name, type);
+	};
+	for (const variable of script.variables) add(variable.name, variable.type);
+	for (const node of script.nodes) {
+		const config = (node.config ?? {}) as {
+			name?: unknown;
+			type?: unknown;
+			param?: unknown;
+			params?: unknown;
+		};
+		// A function's parameters, as its declaration types them.
+		if (FUNCTION_NODES.has(node.def) && Array.isArray(config.params))
+			for (const param of config.params as { name?: unknown; type?: unknown }[])
+				add(param?.name, param?.type);
+		if (node.def === "local.get" || node.def === "variable.get") add(config.name, config.type);
+		else if (node.def === "function.getParam") add(config.param, config.type);
+		else if (node.def === "local.declare") {
+			const name = node.literals?.name;
+			add(name?.t === "string" ? name.v : undefined, config.type);
+		}
+	}
+	for (const name of clashes) out.delete(name);
 	return out;
 }

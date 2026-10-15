@@ -267,7 +267,8 @@ export function scopeCompletions(script: NodeScript | null): Completion[] {
 	};
 
 	// Declared first in the file, so first here: the services, then the modules.
-	for (const service of script.services ?? []) add(service, "class", "declared service");
+	for (const service of script.services ?? [])
+		add(script.serviceNames?.[service] ?? service, "class", "declared service");
 	for (const module of script.modules ?? []) {
 		if (module.specifier.trim() !== "" && module.name.trim() !== "")
 			add(module.name, "namespace", "declared module");
@@ -828,7 +829,10 @@ export function graphInstanceLocals(
 			services.add(service.v);
 	}
 	for (const service of services)
-		out.push({ name: toIdentifier(service, "value"), path: [service] });
+		out.push({
+			name: toIdentifier(script.serviceNames?.[service] ?? service, "value"),
+			path: [service],
+		});
 	return out;
 }
 

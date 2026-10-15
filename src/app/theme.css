@@ -5210,6 +5210,10 @@ button.start-tile:disabled {
 	color: var(--danger);
 }
 
+.code-status.warn {
+	color: var(--warning);
+}
+
 .code-status .where {
 	color: var(--fg-faint);
 }

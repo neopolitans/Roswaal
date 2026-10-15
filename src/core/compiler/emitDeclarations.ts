@@ -257,7 +257,8 @@ export function declareServices(e: Emitter): void {
 					"will say at run time whether it exists.",
 			);
 		}
-		e.services.set(name, e.names.uniqueForFile(name, "service"));
+		const local = e.script.serviceNames?.[name]?.trim() || name;
+		e.services.set(name, e.names.uniqueForFile(local, "service"));
 	}
 }
 
