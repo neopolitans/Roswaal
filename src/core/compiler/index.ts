@@ -257,7 +257,15 @@ export function serialiseScript(script: NodeScript): string {
 		...((script.services ?? []).length > 0 ? { services: script.services } : {}),
 		...(script.asWritten === true ? { asWritten: true } : {}),
 		...(script.importedAs
-			? { importedAs: { mode: script.importedAs.mode, locals: script.importedAs.locals } }
+			? {
+					importedAs: {
+						mode: script.importedAs.mode,
+						locals: script.importedAs.locals,
+						...(script.importedAs.codeRuns !== undefined
+							? { codeRuns: script.importedAs.codeRuns }
+							: {}),
+					},
+				}
 			: {}),
 		nodes: [...script.nodes]
 			.sort((a, b) => a.id.localeCompare(b.id))

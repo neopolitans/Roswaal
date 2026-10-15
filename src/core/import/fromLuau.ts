@@ -17,6 +17,7 @@
  * caller decides where the graph goes and whether one is already there.
  */
 
+import { CODE_FACE } from "../codeFace.js";
 import { isFieldName } from "../compiler/luau.js";
 import { viewOf } from "../functionGraph.js";
 import type { Binding, Block, Expr, FunctionBody, Stat } from "../luau/ast.js";
@@ -63,6 +64,11 @@ export interface ImportOptions {
 	locals?: TopLevelLocals;
 	/** How the graph reads; every mode behaves the same. See `modes.ts`. */
 	mode?: ImportMode;
+	/**
+	 * Statements kept as code one after another share a Code Block, up to the
+	 * lines its face shows. Tidy and Modern only; on unless asked otherwise.
+	 */
+	codeRuns?: boolean;
 }
 
 export interface ImportReport {
@@ -171,6 +177,8 @@ class Importer {
 		private readonly target: Target = "roblox",
 		/** Node-Prioritized: a table written out is built with Make Dictionary. */
 		private readonly tables = false,
+		/** Statements kept as code one after another share a Code Block. */
+		private readonly codeRuns = false,
 	) {}
 
 	private id(): string {
@@ -477,13 +485,14 @@ class Importer {
 		 */
 		top = false,
 	): Tail | null {
-		const segments = this.segments(body);
+		const segments = this.segments(body, top);
 		const lastStat = body[body.length - 1];
 		const run = (stats: Stat[], from: Tail | null): Tail | null => {
 			let at = from;
 			for (const stat of stats) {
 				if (at === null) break;
 				const before = at;
+				if (this.blankBefore(body, stat)) this.blankStats.add(stat);
 				at = this.stat(stat, at, scope, graph, row, fn, module && stat === lastStat && !fn);
 				if (this.blankBefore(body, stat)) this.markBlank(before);
 			}
@@ -527,7 +536,7 @@ class Importer {
 	 * where the file has a blank line when it can be, so a long function reads
 	 * down the canvas in paragraphs rather than off its edge.
 	 */
-	private segments(body: Block): Stat[][] {
+	private segments(body: Block, top = false): Stat[][] {
 		// Runs an if-statement ends: these must be cut.
 		const hard: Stat[][] = [[]];
 		for (const stat of body) {
@@ -535,7 +544,8 @@ class Importer {
 			if (stat.kind === "if") hard.push([]);
 		}
 		if (hard[hard.length - 1].length === 0) hard.pop();
-		if (!this.paragraphs) return hard;
+		// A file's or a function's own rows are cut by width afterwards (`rows.ts`).
+		if (!this.paragraphs || top) return hard;
 		const out: Stat[][] = [];
 		for (const run of hard) {
 			if (run.length <= ROW) {
@@ -566,7 +576,12 @@ class Importer {
 		this.link(tail, { node: nodeId, pin });
 	}
 
-	/** A statement kept as its text. */
+	/**
+	 * A statement kept as its text. With `codeRuns`, it joins the Code Block
+	 * the statement before it made, when that block has room for it on its
+	 * face. A statement with a comment starts a block, so its comment heads
+	 * the run that follows it, as a comment over a paragraph does.
+	 */
 	private custom(
 		stat: Stat,
 		tail: Tail,
@@ -575,11 +590,32 @@ class Importer {
 		kind: string,
 	): Tail {
 		this.code(kind);
+		const text = this.kept(stat);
+		const block = this.codeRuns && tail.pin === "then" ? this.openBlocks.get(tail.node) : undefined;
+		if (block && !this.commentedStats.has(stat)) {
+			const node = this.nodeById(tail.node);
+			const joined = `${block.text}${this.blankStats.has(stat) ? "\n\n" : "\n"}${text}`;
+			if (joined.split("\n").length <= CODE_FACE.lines) {
+				node.literals = { ...node.literals, code: { t: "raw", v: joined } };
+				block.text = joined;
+				const span = this.origins.get(tail.node);
+				if (span) this.origins.set(tail.node, { start: span.start, end: stat.end });
+				return tail;
+			}
+		}
 		const id = this.node("code.custom", graph, this.place(graph, row));
-		this.literal(id, "code", { t: "raw", v: this.kept(stat) });
+		this.literal(id, "code", { t: "raw", v: text });
 		this.chain(tail, id);
+		if (this.codeRuns) this.openBlocks.set(id, { text });
 		return { node: id, pin: "then" };
 	}
+
+	/** Code Blocks a following statement kept as code may join, and their text so far. */
+	private readonly openBlocks = new Map<string, { text: string }>();
+	/** Statements with a comment, which start a Code Block rather than join one. */
+	private readonly commentedStats = new Set<Stat>();
+	/** Statements the file has a blank line before, which a joined block keeps. */
+	private readonly blankStats = new Set<Stat>();
 
 	private stat(
 		stat: Stat,
@@ -593,6 +629,7 @@ class Importer {
 		const outer = this.origin;
 		this.origin = this.head(stat);
 		const comment = this.commentsOf(stat);
+		if (comment) this.commentedStats.add(stat);
 		const first = this.nodes.length;
 		const links = this.links.length;
 		this.inner.push(new Set());
@@ -1017,7 +1054,13 @@ class Importer {
 				const link = this.links
 					.slice(before)
 					.find((l) => l.from.node === tail.node && l.from.pin === tail.pin);
-				const node = link ? this.nodeById(link.to.node) : undefined;
+				// No new wire when it joined the Code Block before it.
+				const joined = !link && result?.node === tail.node && result.pin === tail.pin;
+				const node = link
+					? this.nodeById(link.to.node)
+					: joined
+						? this.nodeById(tail.node)
+						: undefined;
 				if (node && COMPOUND_NODES.has(node.def)) {
 					node.config = { ...node.config, op: stat.op };
 				} else if (node?.def === "code.custom") {
@@ -1566,6 +1609,7 @@ export function importLuau(file: string, options: ImportOptions): ImportResult {
 	}
 	const prefix = options.idPrefix ?? `imp${Math.random().toString(36).slice(2, 8)}`;
 	const mode = options.mode ?? "tidy";
+	const codeRuns = (options.codeRuns ?? true) && (mode === "tidy" || mode === "modern");
 	const edits = mode === "modern" ? modernEdits(parsed.value, src) : [];
 	const importer: Importer = new Importer(
 		src,
@@ -1575,6 +1619,7 @@ export function importLuau(file: string, options: ImportOptions): ImportResult {
 		mode !== "verbatim",
 		options.target,
 		mode === "nodes",
+		codeRuns,
 	);
 	importer.collectComments();
 	const script: NodeScript = {
@@ -1583,7 +1628,11 @@ export function importLuau(file: string, options: ImportOptions): ImportResult {
 		target: options.target,
 		typecheck: typecheckOf(src),
 		asWritten: true,
-		importedAs: { mode, locals: options.locals ?? "variable" },
+		importedAs: {
+			mode,
+			locals: options.locals ?? "variable",
+			...(mode === "tidy" || mode === "modern" ? { codeRuns } : {}),
+		},
 	};
 	const beginId = `${prefix}-begin`;
 	const begin: GraphNode = { id: beginId, def: "script.begin", x: 0, y: 120 };

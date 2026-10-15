@@ -380,6 +380,8 @@ export const api = {
 			target?: Target;
 			/** Over the graph an earlier import of this file made. */
 			replace?: boolean;
+			/** Statements kept as code share Code Blocks. */
+			codeRuns?: boolean;
 		} = {},
 	) =>
 		post<{ path: string; script: NodeScript; report: ImportReport }>("/api/script/import", {

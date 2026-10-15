@@ -679,6 +679,8 @@ export class ApiSession {
 					target?: Target;
 					/** Import over the graph an earlier import of this file made. */
 					replace?: boolean;
+					/** Statements kept as code share Code Blocks. */
+					codeRuns?: boolean;
 				}>(req);
 				const luauPath = need(body.path, "path");
 				const fileName = path.posix.basename(luauPath);
@@ -711,6 +713,7 @@ export class ApiSession {
 					target: body.target ?? project.config.target,
 					locals: body.locals,
 					mode: body.mode,
+					...(body.codeRuns !== undefined ? { codeRuns: body.codeRuns } : {}),
 					idPrefix: newId().slice(0, 8),
 				});
 				if (!result.ok)

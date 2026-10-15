@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.181.0",
+		date: "2026-10-15",
+		headline: "Statements an import keeps as code one after another share a Code Block.",
+		affects: ["editor"],
+		added: [
+			"**One Code Block for a run of code.** In Tidy and Modern, statements kept as code one after another go in one Code Block, up to the six lines its face shows; a longer run starts another. A blank line between them stays, and a statement with a comment starts a block of its own.",
+			"**A setting in the import dialog.** Keep code that runs on in one Code Block is on to start; turn it off for a block each. Verbatim and Node-Prioritized always keep a block each, and Reimport starts from what the graph was given.",
+		],
+	},
+	{
 		version: "0.180.1",
 		date: "2026-10-15",
 		headline: "The tour's hover slide stays open on a tap, and its menu slide opens a folder's menu.",

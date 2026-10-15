@@ -568,6 +568,8 @@ export interface NodeScript {
 	importedAs?: {
 		mode: "verbatim" | "tidy" | "modern" | "nodes";
 		locals: "variable" | "local";
+		/** Statements kept as code shared Code Blocks. Tidy and Modern only. */
+		codeRuns?: boolean;
 	};
 	nodes: GraphNode[];
 	links: Link[];

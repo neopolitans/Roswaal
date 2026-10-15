@@ -88,8 +88,8 @@ export type FormField =
 			kind: "check";
 			label: string;
 			value: boolean;
-			/** Only offered while another field has this answer. */
-			when?: { id: string; value: string };
+			/** Only offered while another field has this answer, or one of these. */
+			when?: { id: string; value: string | string[] };
 	  };
 
 export type FormAnswers = Record<string, string | boolean>;
@@ -125,8 +125,12 @@ export function Dialog({ request, resolve }: PendingDialog) {
 	const [answers, setAnswers] = useState<FormAnswers>(() =>
 		request.kind === "form" ? Object.fromEntries(request.fields.map((f) => [f.id, f.value])) : {},
 	);
-	const offered = (field: FormField) =>
-		field.kind !== "check" || !field.when || answers[field.when.id] === field.when.value;
+	const offered = (field: FormField) => {
+		if (field.kind !== "check" || !field.when) return true;
+		const wanted = field.when.value;
+		const given = answers[field.when.id];
+		return Array.isArray(wanted) ? wanted.includes(String(given)) : given === wanted;
+	};
 	const input = useRef<HTMLInputElement>(null);
 
 	useEffect(() => {

@@ -53,6 +53,20 @@ export interface ProjectActionsContext {
 	setIntroOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
+/**
+ * Whether statements kept as code share Code Blocks: offered for Tidy and
+ * Modern, the modes that do it, starting from what the graph was given before.
+ */
+function codeRunsField(before: boolean | undefined): FormField {
+	return {
+		id: "codeRuns",
+		kind: "check",
+		label: "Keep code that runs on in one Code Block",
+		value: before ?? true,
+		when: { id: "mode", value: ["tidy", "modern"] },
+	};
+}
+
 /** The import mode a dialog's answer names; Tidy for anything else. */
 function modeOf(answer: unknown): ImportMode {
 	return answer === "verbatim" || answer === "modern" || answer === "nodes" ? answer : "tidy";
@@ -902,6 +916,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 							{ value: "nodes", label: "Node-Prioritized" },
 						],
 					},
+					codeRunsField(before?.codeRuns),
 					...(conflict
 						? [
 								{
@@ -932,6 +947,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 							: "lune"
 						: (detected ?? undefined),
 					...(again ? { replace: true } : {}),
+					codeRuns: chosen.codeRuns === true,
 				});
 				await refreshTree();
 				store.open(out.path, out.script);
@@ -1007,6 +1023,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 							{ value: "nodes", label: "Node-Prioritized" },
 						],
 					},
+					codeRunsField(undefined),
 				],
 				confirmLabel: "Import",
 				icon: "graph",
@@ -1030,6 +1047,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 						mode,
 						...(target ? { target } : {}),
 						...(entry.graph ? { replace: true } : {}),
+						codeRuns: chosen.codeRuns === true,
 					});
 					statements += out.report.statements;
 					asNodes += out.report.asNodes;
