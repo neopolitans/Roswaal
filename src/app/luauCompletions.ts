@@ -46,7 +46,7 @@ import {
 	CLASSES as ROBLOX_CLASSES,
 	ROBLOX_GLOBALS,
 } from "../core/robloxData.js";
-import { ENGINE, signatureText } from "../core/robloxEngine.js";
+import { ENGINE, signatureText, valueProperties } from "../core/robloxEngine.js";
 import { nilableProperty } from "../core/robloxNilable.js";
 import { propertiesOf } from "../core/robloxProperties.js";
 import { DATATYPE_STATICS } from "../core/robloxStatics.js";
@@ -142,7 +142,7 @@ function typedDotMembers(held: GraphType, roblox: boolean): Completion[] {
 	if (className) return classMembers(className);
 	const datatype = roblox ? datatypeOf(held.type) : undefined;
 	if (datatype) {
-		return ENGINE.datatypes[datatype].properties
+		return valueProperties(datatype)
 			.filter((p) => !p.deprecated)
 			.map((p) => ({ label: p.name, type: "property", detail: p.type, info: p.summary }));
 	}
@@ -162,9 +162,7 @@ function memberTypeOf(type: string, name: string): string | undefined {
 		return eventsOf(className).some((e) => e.name === name) ? "RBXScriptSignal" : undefined;
 	}
 	const datatype = datatypeOf(type);
-	const property = datatype
-		? ENGINE.datatypes[datatype].properties.find((p) => p.name === name)
-		: undefined;
+	const property = datatype ? valueProperties(datatype).find((p) => p.name === name) : undefined;
 	return property?.type ? bareType(property.type) : undefined;
 }
 

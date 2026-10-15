@@ -93,6 +93,18 @@ export interface EngineCatalogue {
 
 export const ENGINE = data as unknown as EngineCatalogue;
 
+/**
+ * A datatype's properties as read off a value of it: `v.X`, `v.Magnitude`.
+ * The documentation lists the constants (`Vector3.zero`, `CFrame.identity`)
+ * among the properties too, and those are read off the name, not a value.
+ */
+export function valueProperties(datatype: string): EngineProperty[] {
+	const found = ENGINE.datatypes[datatype];
+	if (!found) return [];
+	const constants = new Set(found.constants.map((c) => c.name));
+	return found.properties.filter((p) => !constants.has(p.name));
+}
+
 /** `(className: string, parent: Instance?)` */
 export function signatureText(params: readonly EngineParam[]): string {
 	return `(${params.map((p) => `${p.name}: ${p.type || "any"}`).join(", ")})`;

@@ -294,3 +294,18 @@ describe("members of what a call gives back", () => {
 		expect(offered("thing:Get().|", types)).not.toContain("Magnitude");
 	});
 });
+
+describe("a datatype's constants", () => {
+	it("are offered after its name, not after a value of it", () => {
+		const types: GraphTypes = new Map([
+			["offset", { type: "Vector3" }],
+			["pose", { type: "CFrame" }],
+		]);
+		const onValue = offered("offset.|", types);
+		expect(onValue).toEqual(expect.arrayContaining(["X", "Magnitude"]));
+		expect(onValue).not.toEqual(expect.arrayContaining(["zero"]));
+		expect(onValue).not.toContain("xAxis");
+		expect(offered("pose.|", types)).not.toContain("identity");
+		expect(offered("Vector3.|", types)).toEqual(expect.arrayContaining(["zero", "xAxis"]));
+	});
+});

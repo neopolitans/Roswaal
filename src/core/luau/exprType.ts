@@ -13,7 +13,7 @@
  */
 
 import { CLASSES, DATATYPES } from "../robloxData.js";
-import { ENGINE } from "../robloxEngine.js";
+import { ENGINE, valueProperties } from "../robloxEngine.js";
 import { propertiesOf } from "../robloxProperties.js";
 import type { Expr } from "./ast.js";
 import { classOfCall, methodsOf } from "./infer.js";
@@ -146,7 +146,7 @@ export function typeOfExpr(expr: Expr, src: string, nameType: NameType): string 
 			const name = expr.name.name;
 			if (CLASS_SET.has(owner))
 				return bareTypeName(propertiesOf(owner).find((p) => p.name === name)?.type);
-			return bareTypeName(ENGINE.datatypes[owner]?.properties.find((p) => p.name === name)?.type);
+			return bareTypeName(valueProperties(owner).find((p) => p.name === name)?.type);
 		}
 		case "call": {
 			// `Vector3.new(…)`, `CFrame.lookAt(…)`: a datatype's constructor.

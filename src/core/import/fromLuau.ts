@@ -33,7 +33,7 @@ import { FUNCTION_NODES } from "../nodes/flow.js";
 import { BUILTIN_NODES, createRegistry, type Registry } from "../nodes/index.js";
 import { isInstanceClass, isService, isSubclassOf } from "../roblox.js";
 import type { ServiceMethod } from "../robloxMembers.js";
-import { ENGINE } from "../robloxEngine.js";
+import { valueProperties } from "../robloxEngine.js";
 import { propertiesOf } from "../robloxProperties.js";
 import {
 	type Comment,
@@ -1532,7 +1532,7 @@ class Importer {
 				const owner = this.knownType(e.object, scope);
 				if (!owner) return undefined;
 				// A datatype's own: `part.Position.X` is a number.
-				const field = ENGINE.datatypes[owner]?.properties.find((p) => p.name === e.name.name);
+				const field = valueProperties(owner).find((p) => p.name === e.name.name);
 				if (field) return simpleType(field.type);
 				if (!(isInstanceClass(owner) || isService(owner))) return undefined;
 				const property = propertiesOf(owner).find((p) => p.name === e.name.name);

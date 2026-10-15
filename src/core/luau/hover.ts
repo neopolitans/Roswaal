@@ -16,7 +16,7 @@
  */
 
 import { CLASSES, DATATYPES, LIBRARIES, LUAU_GLOBALS, ROBLOX_GLOBALS } from "../robloxData.js";
-import { ENGINE, signatureText } from "../robloxEngine.js";
+import { ENGINE, signatureText, valueProperties } from "../robloxEngine.js";
 import { nilableProperty } from "../robloxNilable.js";
 import { propertiesOf } from "../robloxProperties.js";
 import { CLASS_SUMMARIES, DATATYPE_STATICS, DATATYPE_SUMMARIES } from "../robloxStatics.js";
@@ -583,7 +583,7 @@ function typeOfObject(ask: Ask, expr: Expr): string | undefined {
 
 /** A datatype's property, read with a dot: `hull.CFrame.Position`. */
 function datatypeProperty(type: string, word: string, from: number, to: number): Hover | undefined {
-	const property = ENGINE.datatypes[type]?.properties.find((p) => p.name === word);
+	const property = valueProperties(type).find((p) => p.name === word);
 	if (!property) return undefined;
 	return {
 		from,

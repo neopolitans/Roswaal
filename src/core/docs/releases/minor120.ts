@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.186.2",
+		date: "2026-10-15",
+		headline: "A value no longer offers its datatype's constants.",
+		affects: ["editor"],
+		fixed: [
+			"**Constants after a name only.** A dot after a Vector3 or a CFrame value no longer offers zero, one, xAxis or identity; Vector3. and CFrame. still do.",
+		],
+	},
+	{
 		version: "0.186.1",
 		date: "2026-10-15",
 		headline: "The code editor offers the members of what a call gives back.",
