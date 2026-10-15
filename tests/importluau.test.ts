@@ -741,6 +741,31 @@ describe("importing from the project tree", () => {
 			}),
 		).rejects.toThrow(/is compiled from/);
 	});
+
+	/**
+	 * A graph that cannot be read is still a graph: a merge left markers in it,
+	 * or a newer Roswaal wrote it. Neither is a free path, asked to replace or
+	 * not, and the file is left exactly as it was.
+	 */
+	it("never imports over a graph it cannot read", async () => {
+		const api = await session();
+		const graph = path.join(root, ".roswaal/scripts/Shared/Greeter.nodescript");
+		await mkdir(path.dirname(graph), { recursive: true });
+		for (const text of [
+			"<<<<<<< HEAD\nnot a graph\n",
+			`${JSON.stringify({ schemaVersion: 999, kind: "script", name: "Greeter" })}\n`,
+		]) {
+			await writeFile(graph, text);
+			for (const replace of [false, true]) {
+				await expect(
+					api.handle("POST", "/script/import", {
+						body: { path: "src/Shared/Greeter.luau", replace },
+					}),
+				).rejects.toMatchObject({ status: 409, message: /cannot be read as a graph/ });
+				expect(await readFile(graph, "utf8")).toBe(text);
+			}
+		}
+	});
 });
 
 interface TreeLike {

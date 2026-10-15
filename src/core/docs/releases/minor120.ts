@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.186.5",
+		security: true,
+		date: "2026-10-15",
+		headline:
+			"The daemon answers its API only as written, and Import as graph keeps a graph it cannot read.",
+		affects: ["editor"],
+		fixed: [
+			"**API paths as written.** The daemon answers its API only at paths spelled in lower case, as the editor sends them, and checks where a request came from however its path is spelled.",
+			"**Import as graph keeps a graph it cannot read.** A graph file at the import's path that does not read as a graph, such as one from a newer Roswaal, is no longer replaced; the import says so and leaves it as it was.",
+		],
+	},
+	{
 		version: "0.186.4",
 		security: true,
 		date: "2026-10-15",

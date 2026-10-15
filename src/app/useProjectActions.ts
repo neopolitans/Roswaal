@@ -1035,6 +1035,9 @@ export function useProjectActions(context: ProjectActionsContext) {
 			const mode = modeOf(chosen.mode);
 			let statements = 0;
 			let asNodes = 0;
+			// Counted as they succeed: a graph the daemon would not import over is
+			// among the failures, not the replaced.
+			let replaced = 0;
 			let first: { path: string; script: NodeScript } | undefined;
 			const failed: string[] = [];
 			for (const entry of entries) {
@@ -1052,6 +1055,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 					});
 					statements += out.report.statements;
 					asNodes += out.report.asNodes;
+					if (entry.graph) replaced++;
 					first ??= out;
 					// An open tab of a graph imported over shows the new one.
 					if (store.isOpen(out.path)) store.reload(out.path, out.script);
@@ -1066,7 +1070,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 				`${done} of ${entries.length} files imported`,
 				[
 					`${asNodes} of ${statements} statements are nodes.`,
-					...(again > 0 ? [`Imported again over their graphs: ${again}.`] : []),
+					...(replaced > 0 ? [`Imported again over their graphs: ${replaced}.`] : []),
 					...failed.map((f) => `Not imported, ${f}`),
 					"The files are unchanged; compiling over one shows what changes and asks first.",
 				].join(" "),

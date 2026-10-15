@@ -230,6 +230,10 @@ export interface Daemon {
  */
 export function createDaemon(): Daemon {
 	const app = express();
+	// Express matches a route in any case by default, which gives every API
+	// path a second spelling the connection guard has to know about. Set
+	// before the first route: the router reads it once, when it is made.
+	app.set("case sensitive routing", true);
 	const dynamic = new DynamicCompiler();
 	const session: ApiSession = new ApiSession({
 		capabilities: hostCapabilities(),
@@ -268,6 +272,15 @@ export function createDaemon(): Daemon {
 }
 
 /**
+ * Which requests are for the API, as the connection guard sees them.
+ *
+ * Without regard to case, though routes are matched as written: a path the
+ * guard reads as a page must never be one a handler answers, and erring wide
+ * costs only a refused `/API` that nothing serves anyway.
+ */
+const API_PATH = /^\/api(\/|$)/i;
+
+/**
  * Before anything is parsed, so a refused request costs a header read.
  *
  * There is no `cors()`, and none is needed: in development Vite proxies `/api`
@@ -285,7 +298,7 @@ function guardConnections(app: express.Express, trusted: () => ReadonlySet<strin
 				host: req.headers.host,
 				origin: req.headers.origin,
 				fetchSite: req.header("sec-fetch-site"),
-				api: req.path === "/api" || req.path.startsWith("/api/"),
+				api: API_PATH.test(req.path),
 			},
 			trusted(),
 		);

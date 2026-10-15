@@ -37,6 +37,7 @@ import { type RbxDocument, RbxError, type RbxInstance, readRbx } from "../core/r
 import { type PlaceReport, planPlaceUpdate } from "../core/rbx/placeExport.js";
 import { emptyScript, type NodeDef, type NodeScript, type Target } from "../core/schema.js";
 import { errorMessage, HttpError, UserError } from "./errors.js";
+import { exists } from "./files.js";
 import { path } from "./host.js";
 import { createProject } from "./newProject.js";
 import { importGraphPath } from "./outputs.js";
@@ -687,7 +688,16 @@ export class ApiSession {
 				const { name, scriptClass } = graphNameOf(fileName);
 				const relPath = importGraphPath(project, luauPath);
 				const source = await readText(project, luauPath);
-				const existing = await readScript(project, relPath).catch(() => null);
+				// Whether anything is there is asked apart from reading it. A graph
+				// that cannot be read -- not JSON, or from a newer Roswaal -- is
+				// still somebody's graph, not a free path.
+				const taken = await exists(safeJoin(project.root, relPath));
+				const existing = taken ? await readScript(project, relPath).catch(() => null) : null;
+				if (taken && !existing)
+					throw new HttpError(
+						409,
+						`${relPath} is there but cannot be read as a graph, so it is not imported over. Move or rename it first.`,
+					);
 				if (existing && !body.replace)
 					throw new HttpError(
 						409,

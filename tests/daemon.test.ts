@@ -346,7 +346,9 @@ async function through(
 		}) as ServerResponse["write"];
 		res.end = ((chunk?: string | Uint8Array) => {
 			if (chunk) chunks.push(Buffer.from(chunk));
-			resolve({ status: res.statusCode, body: JSON.parse(Buffer.concat(chunks).toString("utf8")) });
+			// Express's own 404 is a page, not JSON: an empty body stands for it.
+			const text = Buffer.concat(chunks).toString("utf8");
+			resolve({ status: res.statusCode, body: res.statusCode === 404 ? {} : JSON.parse(text) });
 			return res;
 		}) as ServerResponse["end"];
 		app(req, res);
@@ -367,5 +369,28 @@ describe("a daemon, before it listens", () => {
 		expect(refused.status).toBe(409);
 		expect(refused.body).toEqual({ error: "No project is open. Open one first." });
 		expect((await through(app, "GET", "/api/health", { host: "evil.example" })).status).toBe(403);
+	});
+
+	/**
+	 * An `<img>` on another site pointed at the API, in whatever case. Express
+	 * matched routes without regard to case, so `/API/health` was the API to
+	 * the router and a page to the guard.
+	 */
+	it("refuses the API to another site however the path is spelled", async () => {
+		const { app } = createDaemon();
+		const crossSite = { "sec-fetch-site": "cross-site" };
+		for (const url of ["/api/health", "/API/health", "/Api/export", "/api/health/"]) {
+			expect((await through(app, "GET", url, crossSite)).status, url).toBe(403);
+		}
+	});
+
+	it("answers its own pages, and only at the path as written", async () => {
+		const { app } = createDaemon();
+		const sameOrigin = { "sec-fetch-site": "same-origin" };
+		const health = await through(app, "GET", "/api/health", sameOrigin);
+		expect(health.status).toBe(200);
+		expect(health.body).toMatchObject({ ok: true });
+		// No second spelling of the API: with no editor mounted, nothing answers.
+		expect((await through(app, "GET", "/API/health", sameOrigin)).status).toBe(404);
 	});
 });
