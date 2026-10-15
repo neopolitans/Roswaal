@@ -299,6 +299,7 @@ export function serialiseScript(script: NodeScript): string {
 				...(c.graph ? { graph: c.graph } : {}),
 				...(c.style ? { style: c.style } : {}),
 				...(c.preserve ? { preserve: true } : {}),
+				...(c.services ? { services: true } : {}),
 			})),
 	};
 	return JSON.stringify(ordered, null, 2) + "\n";

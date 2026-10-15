@@ -9,6 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.184.0",
+		date: "2026-10-15",
+		headline: "An imported file's GetService lines become the graph's services.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Services from GetService.** On import, each line such as local Players = game:GetService(\"Players\") at the top of the file becomes one of the graph's services. Reads of it are Get Service nodes, and a handler connected to one of its events reads it through Get Event.",
+			"**A box for their comments.** Comments on those lines go in a box of their own above Script Start, and compile back above the services.",
+			"**The import report counts them.** Services declared: N.",
+		],
+		changed: [
+			"**Service lines are written first.** The compiler writes declared services at the top of the file, so one the file had further down moves up.",
+		],
+	},
+	{
 		version: "0.183.0",
 		date: "2026-10-15",
 		headline: "Realign moves into a Refactor panel, with Split into rows and two ways to wire Gets.",

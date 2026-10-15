@@ -460,6 +460,11 @@ export interface Comment {
 	 * where it was put. Layout only.
 	 */
 	preserve?: true;
+	/**
+	 * Written above the script's services, which have no nodes for a box to
+	 * hold. Set by an import on the comments its service lines had.
+	 */
+	services?: true;
 }
 
 export type CommentStyle = "lines" | "doc" | "docBlock";

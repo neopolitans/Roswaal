@@ -325,6 +325,15 @@ export function claimModuleName(
 export function flushPreamble(e: Emitter): void {
 	if (e.services.size === 0 && e.requires.size === 0) return;
 
+	// The comments the file had on its service lines, from the box an
+	// import kept them in.
+	const note = e.options.comments
+		? e.script.comments.find((c) => c.services && !c.graph && c.text.trim() !== "")
+		: undefined;
+	if (note && e.services.size > 0) {
+		for (const line of commentLines(note.text, note.style))
+			e.preamble.push({ text: line, indent: 0 });
+	}
 	for (const [service, ident] of e.services) {
 		e.preamble.push({
 			text: `local ${ident} = game:GetService(${quoteString(service)})`,

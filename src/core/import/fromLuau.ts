@@ -24,6 +24,7 @@ import { titleHeight } from "../layout/flow.js";
 import type { Binding, Block, Expr, FunctionBody, Stat } from "../luau/ast.js";
 import { lineIndex, tokenize } from "../luau/lexer.js";
 import { parseChunk } from "../luau/parser.js";
+import { visitBlock } from "../luau/visit.js";
 import { nodeBounds } from "../nodeBox.js";
 import { COMPOUND_NODES } from "../nodes/compound.js";
 import { FUNCTION_NODES } from "../nodes/flow.js";
@@ -89,6 +90,8 @@ export interface ImportReport {
 	 * with nothing after it to describe.
 	 */
 	comments: { kept: number; moved: number; dropped: number };
+	/** `local Players = game:GetService("Players")` lines that became the script's services. */
+	services: number;
 }
 
 /** The lines of the file a node was made from, first and last, counting from 1. */
@@ -105,6 +108,8 @@ type Ref =
 	| { kind: "pin"; node: string; pin: string }
 	| { kind: "function"; node: string; name: string; params: Sig[]; returns: Sig[] }
 	| { kind: "variable"; id: string; name: string; type?: string }
+	/** One of the script's services, read with Get Service. */
+	| { kind: "service"; name: string }
 	/** Declared by a statement kept as code: read back as its text. */
 	| { kind: "text" };
 
@@ -288,7 +293,7 @@ class Importer {
 		this.codeKinds.set(kind, (this.codeKinds.get(kind) ?? 0) + 1);
 	}
 
-	report(): Omit<ImportReport, "findings" | "rewrites" | "comments"> {
+	report(): Omit<ImportReport, "findings" | "rewrites" | "comments" | "services"> {
 		return {
 			statements: this.stats,
 			asNodes: this.asNodes,
@@ -405,6 +410,11 @@ class Importer {
 						config: { variable: ref.id, name: ref.name, ...(ref.type ? { type: ref.type } : {}) },
 					});
 					return { kind: "wire", node: id, pin: "value" };
+				}
+				if (ref?.kind === "service") {
+					const id = this.node("roblox.getService", graph, below(0));
+					this.literal(id, "service", { t: "string", v: ref.name });
+					return { kind: "wire", node: id, pin: "service" };
 				}
 				if (ref?.kind === "param") {
 					const id = this.node("function.getParam", graph, below(0), {
@@ -801,6 +811,17 @@ class Importer {
 			...(style ? { style } : {}),
 			count: above.length + (trailing ? 1 : 0),
 		};
+	}
+
+	/**
+	 * The comments on statements that make no node -- the file's service
+	 * lines -- as one text, for a box of their own.
+	 */
+	commentsOn(stats: Stat[]): { text: string; style?: CommentStyle } | undefined {
+		const parts = stats.flatMap((stat) => this.commentsOf(stat) ?? []);
+		if (parts.length === 0) return undefined;
+		const style = parts.length > 1 ? "lines" : parts[0].style;
+		return { text: parts.map((p) => p.text).join("\n"), ...(style ? { style } : {}) };
 	}
 
 	/** Comments no statement took: at the end of a block, with nothing after them. */
@@ -1275,7 +1296,7 @@ class Importer {
 			config: { params },
 			...(name ? { label: name } : {}),
 		});
-		this.feed(this.expr(call.object, scope, graph, at), { node: id, pin: "signal" });
+		this.feed(this.signal(call.object, scope, graph, at), { node: id, pin: "signal" });
 		this.chain(tail, id);
 		const inner = new Scope(scope);
 		params.forEach((p, i) => inner.set(p.name, { kind: "pin", node: id, pin: `p${i}` }));
@@ -1289,6 +1310,32 @@ class Importer {
 			false,
 		);
 		return id;
+	}
+
+	/**
+	 * The signal a handler is connected to. One read off a service,
+	 * `Players.PlayerAdded`, is Get Event on Get Service; anything else is as
+	 * `expr` makes it.
+	 */
+	private signal(
+		e: Expr,
+		scope: Scope,
+		graph: string | undefined,
+		near: { x: number; y: number },
+	): Value {
+		if (
+			e.kind === "index" &&
+			e.object.kind === "name" &&
+			scope.get(e.object.name)?.kind === "service" &&
+			IDENT.test(e.name.name)
+		) {
+			const at = { x: near.x - 240, y: near.y + 90 };
+			const id = this.node("roblox.getEvent", graph, at);
+			this.literal(id, "event", { t: "string", v: e.name.name });
+			this.feed(this.expr(e.object, scope, graph, at), { node: id, pin: "instance" });
+			return { kind: "wire", node: id, pin: "result" };
+		}
+		return this.expr(e, scope, graph, near);
 	}
 
 	/**
@@ -1576,6 +1623,61 @@ function returnsValues(body: Block): boolean {
 }
 
 /** The graph's name and script class, from a `.luau` file's name. */
+/**
+ * The file's services: each `local Players = game:GetService("Players")` at
+ * the top level of the file, the local named as its service and never
+ * assigned again. The compiler writes those lines itself, first in the file,
+ * for a script that declares them. One named otherwise (`local RS =
+ * game:GetService("ReplicatedStorage")`), with a type written beside it, or
+ * after a local of its name, stays a variable, its name as written.
+ */
+function declaredServices(body: Block): { names: string[]; stats: Set<Stat> } {
+	const names: string[] = [];
+	const stats = new Set<Stat>();
+	// A file that declares its own `game` means something else by it.
+	const ownGame = body.some(
+		(s) =>
+			(s.kind === "local" && s.names.some((n) => n.name === "game")) ||
+			(s.kind === "localFunction" && s.name.name === "game"),
+	);
+	if (ownGame) return { names, stats };
+	const assigned = new Set<string>();
+	visitBlock(body, {
+		stat(s) {
+			if (s.kind === "assign")
+				for (const t of s.targets) if (t.kind === "name") assigned.add(t.name);
+			if (s.kind === "compoundAssign" && s.target.kind === "name") assigned.add(s.target.name);
+			if (s.kind === "functionStat" && s.path.length === 1 && !s.method)
+				assigned.add(s.path[0].name);
+		},
+	});
+	const declared = new Set<string>();
+	for (const s of body) {
+		const service = s.kind === "local" ? serviceLocal(s) : undefined;
+		if (service && !declared.has(service) && !assigned.has(service)) {
+			names.push(service);
+			stats.add(s);
+		}
+		if (s.kind === "local") for (const n of s.names) declared.add(n.name);
+		if (s.kind === "localFunction") declared.add(s.name.name);
+	}
+	return { names, stats };
+}
+
+/** The service a `local Players = game:GetService("Players")` declares, named as it is. */
+function serviceLocal(s: Extract<Stat, { kind: "local" }>): string | undefined {
+	if (s.names.length !== 1 || s.values.length !== 1 || s.attributes.length > 0) return undefined;
+	const [binding] = s.names;
+	const value = s.values[0];
+	if (binding.type || value.kind !== "methodCall" || value.method.name !== "GetService")
+		return undefined;
+	if (value.object.kind !== "name" || value.object.name !== "game" || value.args.length !== 1)
+		return undefined;
+	const arg = value.args[0];
+	const name = arg.kind === "string" ? SIMPLE_STRING.exec(arg.raw)?.[2] : undefined;
+	return name === binding.name && IDENT.test(name) ? name : undefined;
+}
+
 export function graphNameOf(fileName: string): { name: string; scriptClass: ScriptClass } {
 	const base = fileName.replace(/\.luau?$/i, "");
 	if (/\.server$/i.test(base))
@@ -1623,24 +1725,29 @@ export function importLuau(file: string, options: ImportOptions): ImportResult {
 		codeRuns,
 	);
 	importer.collectComments();
+	const services = options.target === "roblox" ? declaredServices(parsed.value) : undefined;
+	const top = new Scope();
+	for (const name of services?.names ?? []) top.set(name, { kind: "service", name });
 	const script: NodeScript = {
 		...emptyScript(options.name, `${prefix}-graph`),
 		scriptClass: options.scriptClass,
 		target: options.target,
 		typecheck: typecheckOf(src),
 		asWritten: true,
+		...(services && services.names.length > 0 ? { services: services.names } : {}),
 		importedAs: {
 			mode,
 			locals: options.locals ?? "variable",
 			...(mode === "tidy" || mode === "modern" ? { codeRuns } : {}),
 		},
 	};
+	const serviceNote = services ? importer.commentsOn([...services.stats]) : undefined;
 	const beginId = `${prefix}-begin`;
 	const begin: GraphNode = { id: beginId, def: "script.begin", x: 0, y: 120 };
 	importer.block(
-		parsed.value,
+		services ? parsed.value.filter((stat) => !services.stats.has(stat)) : parsed.value,
 		{ node: beginId, pin: "then" },
-		new Scope(),
+		top,
 		undefined,
 		0,
 		undefined,
@@ -1673,7 +1780,9 @@ export function importLuau(file: string, options: ImportOptions): ImportResult {
 			);
 	}
 	const laid = importer.boxes.length > 0 ? layoutImport(built, registry(), rooms, boxed) : first;
-	const commented = { ...laid, comments: commentBoxes(laid, importer.boxes, prefix, rooms) };
+	const boxes = commentBoxes(laid, importer.boxes, prefix, rooms);
+	if (serviceNote) boxes.push(serviceBox(laid, boxes, serviceNote, prefix));
+	const commented = { ...laid, comments: boxes };
 	const lineOf = lineIndex(src);
 	const origins: Origins = {};
 	const kept = new Set(built.nodes.map((n) => n.id));
@@ -1684,12 +1793,17 @@ export function importLuau(file: string, options: ImportOptions): ImportResult {
 			to: lineOf(Math.max(span.start, span.end - 1)).line,
 		};
 	}
+	const declared = services?.names.length ?? 0;
+	const counts = importer.report();
 	return {
 		ok: true,
 		origins,
 		script: commented,
 		report: {
-			...importer.report(),
+			...counts,
+			statements: counts.statements + declared,
+			asNodes: counts.asNodes + declared,
+			services: declared,
 			findings: findLikelyBugs(parsed.value, src),
 			rewrites: edits.length,
 			comments: {
@@ -1732,6 +1846,37 @@ export { titleHeight };
  * out: the compiler writes a box's text above the first of them, which is
  * where the file had it.
  */
+/**
+ * The comments on the file's service lines, which make no node to draw them
+ * round: a box of their own above everything else in the file's graph, at
+ * Script Start's left edge.
+ */
+function serviceBox(
+	script: NodeScript,
+	boxes: readonly Comment[],
+	note: { text: string; style?: CommentStyle },
+	prefix: string,
+): Comment {
+	const reg = registry();
+	const own = viewOf(script, null);
+	const rects = own.nodes.map((n) => nodeBounds(n, reg, true));
+	const begin = own.nodes.find((n) => n.def === "script.begin");
+	const left = (begin ? nodeBounds(begin, reg, true).x : 0) - BOX_PAD;
+	const top = Math.min(...rects.map((r) => r.y), ...boxes.filter((b) => !b.graph).map((b) => b.y));
+	const w = 320;
+	const h = titleHeight(note.text, w) + BOX_PAD * 2;
+	return {
+		id: `${prefix}-services`,
+		x: Math.round(left),
+		y: Math.round(top - BOX_GAP - h),
+		w,
+		h: Math.round(h),
+		text: note.text,
+		...(note.style ? { style: note.style } : {}),
+		services: true,
+	};
+}
+
 function commentBoxes(
 	script: NodeScript,
 	boxes: Importer["boxes"],
