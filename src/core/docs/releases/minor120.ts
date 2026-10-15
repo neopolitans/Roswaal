@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.180.1",
+		date: "2026-10-15",
+		headline: "The tour's hover slide stays open on a tap, and its menu slide opens a folder's menu.",
+		affects: ["docs"],
+		fixed: [
+			"**A tapped name on the tour's hover slide stays open.** On a touch screen it closed as soon as the finger lifted, and tapping a second name or the card closed it. A tap elsewhere closes it.",
+			"**The tour's menu slide opens a folder's menu.** A folder of graphs offers New graph and New map; a folder of Luau you wrote offers Import folder as graphs.",
+		],
+	},
+	{
 		version: "0.180.0",
 		date: "2026-10-15",
 		headline: "Imported graphs tuck values under the step before and cut their rows by width.",

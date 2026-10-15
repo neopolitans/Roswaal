@@ -693,6 +693,11 @@ function windowsDemo() {
  */
 const MENU_ROWS = [
 	{
+		name: "scripts",
+		key: "graphFolder",
+		menu: () => fileMenu({ kind: "directory" }, MENU_HOST(true)),
+	},
+	{
 		name: "Events.nodescript",
 		key: "graph",
 		menu: () => fileMenu({ kind: "nodescript" }, MENU_HOST(true)),
@@ -701,6 +706,13 @@ const MENU_ROWS = [
 		name: "wally.toml",
 		key: "wally",
 		menu: () => packageMenu({ kind: "wally" }, MENU_HOST(false)),
+	},
+	{
+		name: "Shared",
+		key: "folder",
+		// Greeter.luau is in it, written by hand: the folder imports as graphs.
+		menu: () =>
+			fileMenu({ kind: "directory" }, { ...MENU_HOST(false), importMany: { from: "folder", files: 1 } }),
 	},
 	{ name: "Greeter.luau", key: "luau", menu: () => fileMenu({ kind: "luau" }, MENU_HOST(false)) },
 	{
@@ -732,7 +744,14 @@ const MENU_TREE = {
 			items: [
 				{ t: "treeSection", text: "Graph Content" },
 				{ t: "treeRow", label: ".roswaal", depth: 0, twist: "open", icon: "folderOpen" },
-				{ t: "treeRow", label: "scripts", depth: 1, twist: "open", icon: "folderOpen" },
+				{
+					t: "treeRow",
+					label: "scripts",
+					name: "scripts",
+					depth: 1,
+					twist: "open",
+					icon: "folderOpen",
+				},
 				{
 					t: "treeRow",
 					label: "Events.nodescript",
@@ -770,6 +789,7 @@ const MENU_TREE = {
 				{
 					t: "treeRow",
 					label: "Shared",
+					name: "Shared",
 					depth: 1,
 					twist: "open",
 					icon: "folderOpenFilled",
@@ -841,7 +861,7 @@ function menuDemo() {
             <div class="tour-menu-tree">${tree}</div>
             <div class="tour-menu-col">${menus}</div>
           </div>
-          <p class="tour-readout" aria-live="polite">Right-click a row, or press <kbd>Enter</kbd> on it: each kind of file has its own menu.</p>
+          <p class="tour-readout" aria-live="polite">Right-click a row, or press <kbd>Enter</kbd> on it: each kind of row has its own menu.</p>
         </div>`;
 }
 
@@ -1385,13 +1405,13 @@ export const SLIDES = [
 	{
 		key: "menu",
 		tab: "Menus",
-		title: "A menu for each kind of file",
+		title: "A menu for each kind of row",
 		since: "0.144.0",
 		doc: "docs/controls.html",
-		body: "Every context menu is the same menu: it opens over everything, stays on screen, and is divided where its entries are different kinds of thing. What it offers depends on what you opened it on: a graph, Wally's file, Luau you wrote, or Luau Roswaal writes.",
+		body: "Every context menu is the same menu: it opens over everything, stays on screen, and is divided where its entries are different kinds of thing. What it offers depends on what you opened it on: a folder, a graph, Wally's file, Luau you wrote, or Luau Roswaal writes.",
 		keys: "<kbd>Right-click</kbd>, then <kbd>↑</kbd> <kbd>↓</kbd> <kbd>Enter</kbd> <kbd>Esc</kbd>",
 		tryThis:
-			"Right-click each file in the tree. Only Luau you wrote offers <strong>Import as graph</strong>, and only wally.toml offers packages.",
+			"Right-click each row in the tree. Only Luau you wrote, and a folder holding some, offer to import it as graphs, and only wally.toml offers packages.",
 	},
 ];
 
@@ -2285,14 +2305,33 @@ export const TOUR_SCRIPT = `(() => {
       card.style.top = top + "px";
     };
     const hide = () => { leaving = setTimeout(() => { card.hidden = true; for (const s of demo.querySelectorAll(".tour-sym.on")) s.classList.remove("on"); }, 260); };
+    // A mouse opens a name by resting on it and closes it by leaving. A finger
+    // opens one by tapping and closes it by tapping elsewhere: a touch "leaves"
+    // the moment it lifts, which would close the card as soon as it opened.
+    const byMouse = (event) => event.pointerType === "mouse";
+    const keeps = (to) => to instanceof Element && (to.closest(".tour-sym") || card.contains(to));
+    // A press in the demo blurs the name before anything takes focus: on the
+    // card, or a name beside it, that is not leaving.
+    let pressing = false;
+    demo.addEventListener("pointerdown", () => {
+      pressing = true;
+      setTimeout(() => { pressing = false; }, 500);
+    }, true);
     for (const sym of demo.querySelectorAll(".tour-sym")) {
-      sym.addEventListener("pointerenter", () => show(sym));
+      sym.addEventListener("pointerenter", (event) => { if (byMouse(event)) show(sym); });
+      sym.addEventListener("pointerup", (event) => { if (!byMouse(event)) show(sym); });
       sym.addEventListener("focus", () => show(sym));
-      sym.addEventListener("pointerleave", hide);
-      sym.addEventListener("blur", hide);
+      sym.addEventListener("pointerleave", (event) => { if (byMouse(event)) hide(); });
+      sym.addEventListener("blur", (event) => { if (!pressing && !keeps(event.relatedTarget)) hide(); });
     }
     card.addEventListener("pointerenter", () => clearTimeout(leaving));
-    card.addEventListener("pointerleave", hide);
+    card.addEventListener("pointerleave", (event) => { if (byMouse(event)) hide(); });
+    document.addEventListener("pointerdown", (event) => {
+      if (byMouse(event) || card.hidden || keeps(event.target)) return;
+      clearTimeout(leaving);
+      card.hidden = true;
+      for (const s of demo.querySelectorAll(".tour-sym.on")) s.classList.remove("on");
+    });
     code.addEventListener("scroll", () => { if (!settling) card.hidden = true; });
     demo.addEventListener("keydown", (event) => { if (event.key === "Escape") card.hidden = true; });
     // Drawn open in the markup; placed beside its name once there is a layout.
