@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.186.1",
+		date: "2026-10-15",
+		headline: "The code editor offers the members of what a call gives back.",
+		affects: ["editor"],
+		fixed: [
+			"**Members after a call.** A dot or colon after a call or a bracket, as in hull.CFrame:PointToObjectSpace(p).X, offers the members of what the call gives back when its type is known. It offered only globals.",
+		],
+	},
+	{
 		version: "0.186.0",
 		date: "2026-10-15",
 		headline: "Code is checked for arguments of the wrong type, and an import knows more types.",

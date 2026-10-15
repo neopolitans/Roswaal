@@ -12,6 +12,7 @@
 import type { Completion, CompletionContext, CompletionResult } from "@codemirror/autocomplete";
 import { toIdentifier } from "../core/compiler/luau.js";
 import { isCreatable } from "../core/creatable.js";
+import { bareTypeName, expressionBefore, typeOfExpr } from "../core/luau/exprType.js";
 import {
 	classCallBefore,
 	classOfGlobal,
@@ -540,6 +541,36 @@ export function luauCompletionSource(
 						validFor: /^\w*$/,
 					};
 				}
+			}
+		}
+
+		// After a call or a bracket: `cf:PointToObjectSpace(p).` offers what
+		// the call gives back, a Vector3's members, when its type is known.
+		const afterCall = roblox ? context.matchBefore(/[)\]]\s*[.:]\w*$/) : null;
+		if (afterCall) {
+			const [, separator, typed] = /([.:])(\w*)$/.exec(afterCall.text)!;
+			const at = afterCall.to - typed.length - 1;
+			const doc = context.state.doc.toString();
+			const found = expressionBefore(doc, at);
+			const types = getTypes();
+			const type = found
+				? typeOfExpr(found.expr, doc.slice(found.start, at), (name) => {
+						const local = localsAt(doc, found.start + name.start).find((n) => n.name === name.name);
+						if (local)
+							return heldBy(local.typeText, local.value).className ?? bareTypeName(local.typeText);
+						const graph = types.get(name.name);
+						if (graph) return bareTypeName(graph.type);
+						return (
+							classOfGlobal(name.name) ??
+							(name.name === "script" ? "LuaSourceContainer" : undefined)
+						);
+					})
+				: undefined;
+			if (type !== undefined) {
+				const options =
+					separator === "." ? typedDotMembers({ type }, roblox) : typedColonMembers({ type });
+				if (options.length > 0)
+					return { from: afterCall.to - typed.length, options, validFor: /^\w*$/ };
 			}
 		}
 

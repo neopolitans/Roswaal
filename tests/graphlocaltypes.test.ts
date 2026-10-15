@@ -269,3 +269,28 @@ describe("a node not wired in yet", () => {
 		expect(speed?.detail).not.toContain("once wired");
 	});
 });
+
+describe("members of what a call gives back", () => {
+	const types: GraphTypes = new Map([
+		["hull", { type: "BasePart" }],
+		["leftTrack", { type: "BasePart?" }],
+	]);
+
+	it("offers a Vector3's after a datatype method's call", () => {
+		const src = "if hull.CFrame:PointToObjectSpace(leftTrack.Position).| < 0 then 1 else -1";
+		expect(offered(src, types)).toEqual(expect.arrayContaining(["X", "Y", "Z", "Magnitude"]));
+	});
+
+	it("offers a class's after a class method's call, and methods after a colon", () => {
+		expect(offered('hull:FindFirstChildOfClass("Humanoid").|', types)).toEqual(
+			expect.arrayContaining(["Health", "WalkSpeed"]),
+		);
+		expect(offered("hull.CFrame:Inverse():|", types)).toEqual(
+			expect.arrayContaining(["PointToObjectSpace", "Lerp"]),
+		);
+	});
+
+	it("offers nothing typed when the call's type is not known", () => {
+		expect(offered("thing:Get().|", types)).not.toContain("Magnitude");
+	});
+});
