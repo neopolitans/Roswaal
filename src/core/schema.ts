@@ -202,6 +202,32 @@ export type Literal =
 	/** Verbatim Luau. The escape hatch; never quoted or sanitised. */
 	| { t: "raw"; v: string };
 
+/**
+ * Whether a literal's value is the kind its `t` says it is.
+ *
+ * A graph file is JSON anybody can write, and `{ "t": "number", "v": "..." }`
+ * saves as easily as a number. Everything that writes a literal goes by its
+ * `t`, so one whose value is something else is refused, against its node,
+ * rather than written as whatever its value turns out to be.
+ */
+export function literalFits(literal: unknown): literal is Literal {
+	if (typeof literal !== "object" || literal === null) return false;
+	const { t, v } = literal as { t?: unknown; v?: unknown };
+	switch (t) {
+		case "nil":
+			return true;
+		case "boolean":
+			return typeof v === "boolean";
+		case "number":
+			return typeof v === "number";
+		case "string":
+		case "raw":
+			return typeof v === "string";
+		default:
+			return false;
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Node definitions
 // ---------------------------------------------------------------------------

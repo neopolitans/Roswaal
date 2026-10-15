@@ -7,7 +7,7 @@ import {
 	type Token,
 	tokenize,
 } from "../luau/lexer.js";
-import type { Literal } from "../schema.js";
+import { type Literal, literalFits } from "../schema.js";
 import { quoteString } from "./quote.js";
 
 /**
@@ -222,6 +222,10 @@ function numberLiteral(n: number): string {
 }
 
 export function literalToLuau(lit: Literal): string {
+	// `validate` refuses a literal whose value is not its kind, against the node
+	// that holds it, so a graph holding one never writes a file. This is for
+	// whatever reaches here anyway: written as nothing, not as its value.
+	if (!literalFits(lit)) return "nil";
 	switch (lit.t) {
 		case "nil":
 			return "nil";

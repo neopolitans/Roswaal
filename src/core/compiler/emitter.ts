@@ -31,7 +31,7 @@ import {
 	NILABLE_CLASS_READS,
 	resultNamesOf,
 } from "../nodes/library.js";
-import { castCall, castsResult } from "../nodes/resultCast.js";
+import { castCall, castsResult, resultCastOf } from "../nodes/resultCast.js";
 import { type Comment, type NodeScript, PAIR, type PinDef } from "../schema.js";
 import {
 	modeOf,
@@ -53,6 +53,7 @@ import {
 	emitTypes,
 	emitVariables,
 	flushPreamble,
+	isTypeExpression,
 	PROVIDED_GLOBALS,
 } from "./emitDeclarations.js";
 import { emitBuiltin } from "./emitFlow.js";
@@ -821,7 +822,24 @@ export class Emitter {
 	/** A pure call's result, with the cast its node asks for. See `resultCast.ts`. */
 	private castResult(src: ResolvedNode, pinId: string, expr: string): string {
 		if (pinId !== "result" || !castsResult(src.def)) return expr;
-		return castCall(expr, src.node.config);
+		return castCall(expr, this.resultCastFor(src));
+	}
+
+	/**
+	 * The type a call's result is cast to, when its node asks for one.
+	 *
+	 * Written after `::` as it stands, so it is held to what every other
+	 * annotation is: one line that parses as a type and nothing more. Anything
+	 * else is refused on the node rather than written.
+	 */
+	resultCastFor(r: ResolvedNode): string | undefined {
+		const cast = resultCastOf(r.node.config);
+		if (cast === undefined || isTypeExpression(cast)) return cast;
+		this.error(
+			`"${oneLine(cast)}" is not a Luau type, so this call's result cannot be cast to it.`,
+			r.node.id,
+		);
+		return undefined;
 	}
 
 	/**

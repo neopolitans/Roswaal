@@ -18,7 +18,7 @@ import { CODE_MARKS } from "./nodeGlyphs.js";
 import { NODE } from "./nodeMetrics.js";
 import { typeDeclarationOf } from "./nodes/flow.js";
 import { onHeader } from "./pinLayout.js";
-import type { GraphNode, Literal, NodeDef, PinDef } from "./schema.js";
+import { type GraphNode, type Literal, literalFits, type NodeDef, type PinDef } from "./schema.js";
 
 /** The face's numbers, which `theme.css` repeats as `.code-face`. Change both. */
 export const CODE_FACE = {
@@ -58,7 +58,11 @@ export interface CodeFace {
 /** The text a code pin holds, typed in or its default. */
 function codeText(pin: PinDef, literals: Record<string, Literal> | undefined): string {
 	const literal = literals?.[pin.id] ?? pin.default;
-	return literal && (literal.t === "raw" || literal.t === "string") ? literal.v : "";
+	// What the compiler writes for a code pin, and nothing else, so the face
+	// never shows a box empty while the file gets code.
+	return literal && (literal.t === "raw" || literal.t === "string") && literalFits(literal)
+		? literal.v
+		: "";
 }
 
 /** Code as the face shows it: blank lines at either end dropped, tabs as two spaces. */

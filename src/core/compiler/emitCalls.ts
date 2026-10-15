@@ -9,7 +9,7 @@
 import { argPinId } from "../callNodes.js";
 import { callOf, luneFunction, moduleOf, specifierFor } from "../luneCalls.js";
 import { LUAU_PRIMITIVES } from "../luneTypes.js";
-import { castCall, castsResult, resultCastOf } from "../nodes/resultCast.js";
+import { castCall, castsResult } from "../nodes/resultCast.js";
 import { isInstanceClass as isRobloxClass, isSubclassOf } from "../roblox.js";
 import { DATATYPES } from "../robloxData.js";
 import type { NodeConfig, PinDef } from "../schema.js";
@@ -208,11 +208,9 @@ export function writeCall(
 	// takes its type from it, so it needs no annotation of its own. A call
 	// nobody reads is a statement, which a cast cannot be.
 	const cast =
-		consumed && resultPin === "result" && castsResult(r.def)
-			? resultCastOf(r.node.config)
-			: undefined;
+		consumed && resultPin === "result" && castsResult(r.def) ? e.resultCastFor(r) : undefined;
 	if (cast !== undefined) {
-		rendered = castCall(rendered, r.node.config);
+		rendered = castCall(rendered, cast);
 		how = { ...how, typed: false };
 	}
 	const next = e.index.execTarget(r.node.id, "then");

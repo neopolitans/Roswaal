@@ -78,8 +78,10 @@ export function retypedResult(outputs: PinDef[], config: NodeConfig | undefined)
 	);
 }
 
-/** `rendered :: Type`, for a call whose result is cast. */
-export function castCall(rendered: string, config: NodeConfig | undefined): string {
-	const cast = resultCastOf(config);
+/**
+ * `rendered :: Type`, for a call whose result is cast. The compiler checks the
+ * cast is a type before it gets here: see `Emitter.resultCastFor`.
+ */
+export function castCall(rendered: string, cast: string | undefined): string {
 	return cast === undefined ? rendered : `${rendered} :: ${cast}`;
 }

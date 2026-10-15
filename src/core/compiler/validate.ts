@@ -30,6 +30,7 @@ import { isService, isSubclassOf } from "../roblox.js";
 import {
 	ENGINE_TYPES,
 	type GraphNode,
+	literalFits,
 	type NodeScript,
 	PAIR,
 	type PinDef,
@@ -40,6 +41,16 @@ import { declaredTypeFields } from "../typeFields.js";
 import type { Diagnostic } from "./emit.js";
 import { GraphIndex } from "./graph.js";
 import { isFieldName, notAName } from "./luau.js";
+
+/** What is wrong with a literal `literalFits` refused, as the rest of a sentence. */
+function misfit(literal: unknown): string {
+	const t =
+		typeof literal === "object" && literal !== null ? (literal as { t?: unknown }).t : undefined;
+	if (t === "raw") return "is saved as code, but is not text.";
+	if (t === "boolean" || t === "number" || t === "string")
+		return `is saved as a ${t}, but is not one.`;
+	return "is not a value Roswaal can read.";
+}
 
 /**
  * The nodes in a graph written only for targets other than `target`: what
@@ -220,7 +231,10 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 		)
 			continue;
 		const literal = node.literals?.className;
-		const name = literal && (literal.t === "string" || literal.t === "raw") ? literal.v.trim() : "";
+		const name =
+			(literal?.t === "string" || literal?.t === "raw") && literalFits(literal)
+				? literal.v.trim()
+				: "";
 		if (name === "" || isCreatable(name)) continue;
 		const instead = creatableInstead(name);
 		out.push({
@@ -518,6 +532,44 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 		}
 	}
 
+	// -- literals ----------------------------------------------------------
+	//
+	// A literal is written by its kind, so one holding a value of another kind
+	// -- text saved as a number, which the canvas draws as an empty number box
+	// -- would be written as that text. The editor never saves one; a file
+	// written by hand can, so it is refused here, on its pin. A pin's default is
+	// its definition's, which a node pack writes, and is held to the same rule.
+	for (const r of index.all()) {
+		for (const [pinId, literal] of Object.entries(r.node.literals ?? {})) {
+			if (literal === undefined || literal === null || literalFits(literal)) continue;
+			const pin = r.inputs.find((p) => p.id === pinId);
+			out.push({
+				severity: "error",
+				message: `The value on "${pin?.name || pinId}" ${misfit(literal)} Type it in again.`,
+				node: r.node.id,
+				pin: pinId,
+			});
+		}
+		for (const pin of r.inputs) {
+			if (pin.default === undefined || literalFits(pin.default)) continue;
+			out.push({
+				severity: "error",
+				message:
+					`The default of "${pin.name || pin.id}" ${misfit(pin.default)} ` +
+					`Check where "${r.def.title}" is defined.`,
+				node: r.node.id,
+				pin: pin.id,
+			});
+		}
+	}
+	for (const variable of script.variables ?? []) {
+		if (variable.default === undefined || literalFits(variable.default)) continue;
+		out.push({
+			severity: "error",
+			message: `The starting value of "${variable.name}" ${misfit(variable.default)} Set it again in the Variables panel.`,
+		});
+	}
+
 	// -- hand-written Luau -------------------------------------------------
 	//
 	// Raw literals land in the output verbatim, so a mistake here breaks the
@@ -531,7 +583,7 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 	const named = script.target === "roblox" ? nameTypes(script) : undefined;
 	for (const node of script.nodes) {
 		for (const [pinId, literal] of Object.entries(node.literals ?? {})) {
-			if (literal.t !== "raw" || literal.v.trim() === "") continue;
+			if (!literalFits(literal) || literal.t !== "raw" || literal.v.trim() === "") continue;
 			const kind = node.def === "code.custom" && pinId === "code" ? "block" : "expression";
 			const problems = checkLuau(literal.v, kind);
 			for (const problem of problems) {

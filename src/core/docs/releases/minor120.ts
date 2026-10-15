@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.186.4",
+		security: true,
+		date: "2026-10-15",
+		headline:
+			"Values, comments, casts and names in a graph are checked before they are written as Luau.",
+		affects: ["editor"],
+		fixed: [
+			"**Comments and values are written as what they are.** A doc comment whose text holds `]=]` is written at a level that keeps all of it a comment, and a typed-in value saved as a number or a true/false that is not one is reported on its pin.",
+			"**Casts, field types and module function names are checked before they are written.** A call's result cast and each Declare Type field type must be one Luau type, and a module's function must be called by a name; anything else is reported on the node.",
+		],
+	},
+	{
 		version: "0.186.3",
 		date: "2026-10-15",
 		headline: "The packaged app answers the demos question instead of failing it.",

@@ -6,6 +6,7 @@
  */
 
 import { argPinId } from "../callNodes.js";
+import { oneLine } from "../comments.js";
 import { checkSpecifier } from "../modules.js";
 import { isMethod, RECEIVER, signatureOf } from "../nodes/flow.js";
 import {
@@ -28,7 +29,7 @@ import type { Scope } from "./emitScope.js";
 import { callArguments } from "./emitTemplates.js";
 import type { Emitter } from "./emitter.js";
 import type { ResolvedNode } from "./graph.js";
-import { parenPrefix, quoteString, toIdentifier } from "./luau.js";
+import { isFieldName, parenPrefix, quoteString, toIdentifier } from "./luau.js";
 
 /**
  * Pure builtins whose expression is a call: a Service, Lune or Script Function
@@ -432,6 +433,13 @@ export function scriptCall(e: Emitter, src: ResolvedNode, scope: Scope): string 
 					"is no longer in the graph or declared in the Variables panel.",
 				src.node.id,
 			);
+			return "nil";
+		}
+		// Written after the module's local as it stands, so it has to be a
+		// name. After `.` and after `:` alike that is a field name: `type` is
+		// one, as `Rig:type()` is a method call Luau takes.
+		if (!isFieldName(ref.name)) {
+			e.error(`"${oneLine(ref.name)}" is not the name of a function in that module.`, src.node.id);
 			return "nil";
 		}
 		callee = `${parenPrefix(local)}${ref.method ? ":" : "."}${ref.name}`;

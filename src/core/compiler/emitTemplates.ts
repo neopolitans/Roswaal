@@ -6,7 +6,7 @@
  * Functions of the `Emitter` they write through; see `emitter.ts`.
  */
 
-import type { Literal, NodeConfig, PinDef } from "../schema.js";
+import { type Literal, literalFits, type NodeConfig, type PinDef } from "../schema.js";
 import { partPinId } from "../structs.js";
 import { type Scope, VARIADIC_PIN } from "./emitScope.js";
 import type { Emitter } from "./emitter.js";
@@ -446,7 +446,19 @@ export function renderTemplate(
 					return modifier === "ident" ? "_invalid" : "";
 				}
 				const lit: Literal | undefined = r.node.literals?.[pinId] ?? pin.default;
-				const text = lit === undefined || lit.t === "nil" ? "" : String(lit.v);
+				// Only text, which is all the node's face shows: code the canvas
+				// draws as an empty box must not be code in the file. A value that
+				// is not its own kind is `validate`'s to report.
+				if (literalFits(lit) && (lit.t === "boolean" || lit.t === "number")) {
+					e.error(
+						`"${pin.name || pinId}" on "${r.def.title}" holds a ${lit.t}, ` +
+							"and only text typed into it is written.",
+						r.node.id,
+						pinId,
+					);
+					return modifier === "ident" ? "_invalid" : "";
+				}
+				const text = (lit?.t === "raw" || lit?.t === "string") && literalFits(lit) ? lit.v : "";
 				return modifier === "ident" ? toIdentifier(text, "field") : text;
 			}
 

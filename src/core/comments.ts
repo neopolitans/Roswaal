@@ -107,15 +107,16 @@ export function headersByNode(script: NodeScript, registry: Registry): Map<strin
  * `--[[ ... ]]` ends at the first `]]`, so a header mentioning `t[a[1]]` would
  * close the comment early and leave the rest of it as code. Luau allows any
  * number of `=` between the brackets, and the closer has to match — so the
- * level is the smallest that does not appear in the text.
+ * level is the smallest that does not appear in the text, counting up from
+ * `from` when the bracket has a least level of its own.
  *
  * Nobody will ever see level 1. It exists because the alternative is generating
  * a file that does not parse, from a comment somebody wrote in good faith.
  */
-export function bracketLevel(text: string): number {
+export function bracketLevel(text: string, from = 0): number {
 	// No ceiling: a text holding every closer up to some level is answered by
 	// the next one, and a text cannot hold more closers than it has characters.
-	for (let level = 0; ; level++) {
+	for (let level = from; ; level++) {
 		if (!text.includes(`]${"=".repeat(level)}]`)) return level;
 	}
 }
@@ -156,8 +157,10 @@ export function commentLines(text: string, style?: CommentStyle): string[] {
 	if (style === "lines") return lines.map((line) => `-- ${line}`.trimEnd());
 	if (style === "doc") return lines.map((line) => `--- ${line}`.trimEnd());
 	if (style === "docBlock") {
-		// A doc block is `--[=[`, so its level is at least one.
-		const eq = "=".repeat(Math.max(1, bracketLevel(text)));
+		// A doc block is `--[=[`, so its level is at least one. The search starts
+		// there: raising a level found from zero could land on a closer the
+		// text holds, which would end the comment partway through it.
+		const eq = "=".repeat(bracketLevel(text, 1));
 		return [`--[${eq}[`, ...lines.map((line) => (line === "" ? "" : `\t${line}`)), `]${eq}]`];
 	}
 	if (lines.length === 1) return [`-- ${lines[0]}`.trimEnd()];

@@ -6,7 +6,7 @@
  * Functions of the `Emitter` they write through; see `emitter.ts`.
  */
 
-import { commentLines } from "../comments.js";
+import { commentLines, oneLine } from "../comments.js";
 import { bodyPinOf } from "../functionBody.js";
 import { checkLuau } from "../luau/check.js";
 import { checkSpecifier, parseInstancePath, renderInstancePath } from "../modules.js";
@@ -123,7 +123,7 @@ export function luauType(t: string | undefined): string {
  * unclosed brackets, an assignment, two words side by side (`2 bad`). One line
  * and no comments, still: this is written into an annotation mid-line.
  */
-function isTypeExpression(t: string): boolean {
+export function isTypeExpression(t: string): boolean {
 	const text = t.trim();
 	if (text === "" || text.includes("\n") || text.includes("--")) return false;
 	return checkLuau(text, "type").length === 0;
@@ -395,9 +395,16 @@ export function resolveRoot(e: Emitter, root: string): string {
  * and has been said against the node.
  */
 export function typeDefinition(e: Emitter, declaration: TypeDeclaration, nodeId: string): string {
+	// No fields is a node that was made before the field list existed, or one
+	// somebody typed into and then switched away from; either way its
+	// written definition is what it means, and it is checked as one. Nothing
+	// typed at all is left to the caller, which says what is missing.
+	const written = declaration.shape === "written" || declaration.fields.length === 0;
+	if (written && declaration.shape !== "written" && declaration.definition.trim() === "") return "";
+
 	// Written out is pasted in as it stands, so an unclosed brace here breaks
 	// the file somewhere after it. Said against the node, like Code Block.
-	if (declaration.shape === "written") {
+	if (written) {
 		const problem = checkLuau(declaration.definition, "type")[0];
 		if (problem) {
 			e.error(`${problem.message} (line ${problem.line} of this type's definition)`, nodeId);
@@ -405,11 +412,6 @@ export function typeDefinition(e: Emitter, declaration: TypeDeclaration, nodeId:
 		}
 		return declaration.definition;
 	}
-
-	// No fields is a node that was made before the field list existed, or one
-	// somebody typed into and then switched away from; either way its
-	// written definition is what it means.
-	if (declaration.fields.length === 0) return declaration.definition;
 
 	const parts: string[] = [];
 	for (const field of declaration.fields) {
@@ -419,6 +421,12 @@ export function typeDefinition(e: Emitter, declaration: TypeDeclaration, nodeId:
 		}
 		if (!isFieldName(field.name)) {
 			e.error(notAName(field.name, "a field"), nodeId);
+			return "";
+		}
+		// Written after the name as it stands, so it has to be a type, one
+		// line of it, as every other annotation does.
+		if (!isTypeExpression(field.type)) {
+			e.error(`The type of "${field.name}" is not a Luau type: "${oneLine(field.type)}".`, nodeId);
 			return "";
 		}
 		parts.push(`${field.name}: ${field.type}`);
