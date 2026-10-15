@@ -81,24 +81,118 @@ export async function chooseDirectory(startIn?: string): Promise<string | null> 
 }
 
 /**
- * Windows PowerShell's `FolderBrowserDialog`.
+ * The folder picker Explorer itself uses, from C#.
+ *
+ * Windows PowerShell 5.1 runs on .NET Framework, whose `FolderBrowserDialog`
+ * is the tree of folders from Windows XP; the newer .NET draws the Explorer
+ * picker, but cannot be counted on to be installed. This asks Windows for that
+ * picker directly, `IFileOpenDialog` with `FOS_PICKFOLDERS`, which every
+ * version since Vista has. `null` is a cancel.
+ */
+export const WINDOWS_PICKER_SOURCE = `
+using System;
+using System.Runtime.InteropServices;
+
+[ComImport, Guid("DC1C5A9C-E88A-4dde-A5A1-60F82A20AEF7")]
+internal class RoswaalFileOpenDialog {}
+
+[ComImport, Guid("43826D1E-E718-42EE-BC55-A1E261C37BFE"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+internal interface IRoswaalShellItem {
+	void BindToHandler(IntPtr pbc, ref Guid bhid, ref Guid riid, out IntPtr ppv);
+	void GetParent(out IRoswaalShellItem ppsi);
+	void GetDisplayName(uint sigdnName, [MarshalAs(UnmanagedType.LPWStr)] out string ppszName);
+	void GetAttributes(uint sfgaoMask, out uint psfgaoAttribs);
+	void Compare(IRoswaalShellItem psi, uint hint, out int piOrder);
+}
+
+[ComImport, Guid("42f85136-db7e-439c-85f1-e4075d135fc8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+internal interface IRoswaalFileDialog {
+	[PreserveSig] int Show(IntPtr hwndOwner);
+	void SetFileTypes(uint cFileTypes, IntPtr rgFilterSpec);
+	void SetFileTypeIndex(uint iFileType);
+	void GetFileTypeIndex(out uint piFileType);
+	void Advise(IntPtr pfde, out uint pdwCookie);
+	void Unadvise(uint dwCookie);
+	void SetOptions(uint fos);
+	void GetOptions(out uint pfos);
+	void SetDefaultFolder(IRoswaalShellItem psi);
+	void SetFolder(IRoswaalShellItem psi);
+	void GetFolder(out IRoswaalShellItem ppsi);
+	void GetCurrentSelection(out IRoswaalShellItem ppsi);
+	void SetFileName([MarshalAs(UnmanagedType.LPWStr)] string pszName);
+	void GetFileName([MarshalAs(UnmanagedType.LPWStr)] out string pszName);
+	void SetTitle([MarshalAs(UnmanagedType.LPWStr)] string pszTitle);
+	void SetOkButtonLabel([MarshalAs(UnmanagedType.LPWStr)] string pszText);
+	void SetFileNameLabel([MarshalAs(UnmanagedType.LPWStr)] string pszLabel);
+	void GetResult(out IRoswaalShellItem ppsi);
+	void AddPlace(IRoswaalShellItem psi, int fdap);
+	void SetDefaultExtension([MarshalAs(UnmanagedType.LPWStr)] string pszDefaultExtension);
+	void Close(int hr);
+	void SetClientGuid(ref Guid guid);
+	void ClearClientData();
+	void SetFilter(IntPtr pFilter);
+}
+
+public static class RoswaalFolderPicker {
+	[DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
+	private static extern void SHCreateItemFromParsingName(
+		string pszPath, IntPtr pbc, ref Guid riid, out IRoswaalShellItem ppv);
+
+	private const uint PICK_FOLDERS = 0x20;
+	private const uint FORCE_FILESYSTEM = 0x40;
+	private const uint PATH_MUST_EXIST = 0x800;
+	private const uint FILESYSTEM_PATH = 0x80058000;
+
+	public static string Pick(IntPtr owner, string title, string start) {
+		IRoswaalFileDialog dialog = (IRoswaalFileDialog)new RoswaalFileOpenDialog();
+		uint options;
+		dialog.GetOptions(out options);
+		dialog.SetOptions(options | PICK_FOLDERS | FORCE_FILESYSTEM | PATH_MUST_EXIST);
+		dialog.SetTitle(title);
+		if (!String.IsNullOrEmpty(start)) {
+			try {
+				Guid iid = typeof(IRoswaalShellItem).GUID;
+				IRoswaalShellItem folder;
+				SHCreateItemFromParsingName(start, IntPtr.Zero, ref iid, out folder);
+				dialog.SetFolder(folder);
+			} catch {
+				// A starting folder is a convenience; the picker opens anyway.
+			}
+		}
+		if (dialog.Show(owner) != 0) return null;
+		IRoswaalShellItem item;
+		dialog.GetResult(out item);
+		string path;
+		item.GetDisplayName(FILESYSTEM_PATH, out path);
+		return path;
+	}
+}
+`;
+
+/**
+ * Explorer's folder picker, and the older `FolderBrowserDialog` if that cannot
+ * be loaded -- a machine whose policy refuses `Add-Type`, say.
  *
  * `-STA` because the dialog is a COM component and will not open on an MTA
  * thread. `-NoProfile` because a developer's profile can print a banner, and
- * anything on stdout would be read here as part of the path.
+ * anything on stdout would be read here as part of the path. The path is
+ * written as UTF-8, so a folder named in any script comes back as it is.
+ *
+ * The script goes as `-EncodedCommand`: the picker's C# is full of double
+ * quotes, which do not survive being passed through `-Command` on Windows.
  *
  * The starting directory arrives as `ROSWAAL_BROWSE_START` in the environment
  * rather than inside the script text — see the note at the top of this file.
  */
 async function windowsPicker(start?: string): Promise<string | null> {
 	const script = [
+		"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8",
+		// An encoded command reports progress on stderr, which reads as a failure.
+		"$ProgressPreference = 'SilentlyContinue'",
 		"Add-Type -AssemblyName System.Windows.Forms",
 		// `System.Drawing` for the owner's Point and Size; not loaded by default.
 		"Add-Type -AssemblyName System.Drawing",
-		"$d = New-Object System.Windows.Forms.FolderBrowserDialog",
-		"$d.Description = 'Choose a folder to open as a Roswaal project'",
-		"$d.ShowNewFolderButton = $true",
-		"if ($env:ROSWAAL_BROWSE_START) { $d.SelectedPath = $env:ROSWAAL_BROWSE_START }",
+		"$title = 'Choose a folder to open as a Roswaal project'",
 		// A top-most owner, so the dialog opens in front of the browser rather
 		// than behind it where nobody finds it.
 		//
@@ -120,17 +214,38 @@ async function windowsPicker(start?: string): Promise<string | null> {
 		"$owner.Size = New-Object System.Drawing.Size(1, 1)",
 		"$owner.Show()",
 		"$owner.Activate()",
-		"if ($d.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) {",
-		"  [Console]::Out.Write($d.SelectedPath)",
+		"$modern = $true",
+		"try { Add-Type -TypeDefinition $env:ROSWAAL_PICKER_SOURCE -ErrorAction Stop } catch { $modern = $false }",
+		"if ($modern) {",
+		"  $chosen = [RoswaalFolderPicker]::Pick($owner.Handle, $title, $env:ROSWAAL_BROWSE_START)",
+		"} else {",
+		"  $d = New-Object System.Windows.Forms.FolderBrowserDialog",
+		"  $d.Description = $title",
+		"  $d.ShowNewFolderButton = $true",
+		"  if ($env:ROSWAAL_BROWSE_START) { $d.SelectedPath = $env:ROSWAAL_BROWSE_START }",
+		"  $chosen = $null",
+		"  if ($d.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) { $chosen = $d.SelectedPath }",
 		"}",
+		"if ($chosen) { [Console]::Out.Write($chosen) }",
 		"$owner.Close()",
 		"$owner.Dispose()",
 	].join("\n");
 
-	return run("powershell.exe", ["-NoProfile", "-NonInteractive", "-STA", "-Command", script], {
-		...process.env,
-		...(start ? { ROSWAAL_BROWSE_START: start } : {}),
-	});
+	return run(
+		"powershell.exe",
+		["-NoProfile", "-NonInteractive", "-STA", "-EncodedCommand", encodeCommand(script)],
+		{
+			...process.env,
+			// The C# rides in the environment too, so the command stays short.
+			ROSWAAL_PICKER_SOURCE: WINDOWS_PICKER_SOURCE,
+			...(start ? { ROSWAAL_BROWSE_START: start } : {}),
+		},
+	);
+}
+
+/** What `-EncodedCommand` takes: the script as UTF-16LE, in base64. */
+export function encodeCommand(script: string): string {
+	return Buffer.from(script, "utf16le").toString("base64");
 }
 
 /**

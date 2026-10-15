@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.188.1",
+		date: "2026-10-16",
+		headline: "Browse… on Windows opens Explorer's folder picker.",
+		affects: ["editor"],
+		changed: [
+			"**Explorer's folder picker.** Browse… and the other folder choices on Windows open the picker Explorer uses, in place of the older tree of folders, which stays as the fallback.",
+			"**A dialog already open is said.** Asking for a folder while the dialog is still open says so, as it may be behind another window.",
+		],
+		fixed: [
+			"**Folder names in any script.** A folder chosen on Windows whose name is not in English letters comes back as it is.",
+		],
+	},
+	{
 		version: "0.188.0",
 		date: "2026-10-16",
 		headline: "Import Rojo project can read the project's Luau into graphs as well.",

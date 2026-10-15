@@ -31,6 +31,7 @@ import { DEMO_PROJECTS, type DemoProject } from "../core/demoProjects.js";
 import { RUNTIME_LABEL } from "../core/nodes/runtimes.js";
 import { api } from "./api.js";
 import { cx } from "./cx.js";
+import { chooseFolder } from "./folderDialog.js";
 import type { RememberedFolder } from "./host.js";
 import { Icon } from "./icons.jsx";
 import { isPlainClick } from "./ModeStrip.jsx";
@@ -288,8 +289,7 @@ export function IntroPanel(props: IntroPanelProps) {
 	const take = (demo: DemoProject) => {
 		setBusy(demo.dir);
 		setTrouble(null);
-		void api
-			.browseForProject()
+		void chooseFolder()
 			.then(({ path: into }) => {
 				if (into === null) {
 					setBusy(null);

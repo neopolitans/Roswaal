@@ -33,6 +33,7 @@ import { packTargets, runsOn } from "../../core/packs.js";
 import type { NodeDef, Target } from "../../core/schema.js";
 import { api, type PackFile } from "../api.js";
 import { cx } from "../cx.js";
+import { chooseFolder } from "../folderDialog.js";
 import { NOT_HERE, useHostCan } from "../host.js";
 import { Icon } from "../icons.jsx";
 import { Menu } from "../Menu.jsx";
@@ -265,7 +266,7 @@ export function PackBrowser({
 
 	const startImport = async () => {
 		try {
-			const { path: root } = await api.browseForProject();
+			const { path: root } = await chooseFolder();
 			if (!root) return;
 			const scanned = await api.scanPacks(root);
 			if (scanned.packs.length === 0) {
@@ -667,7 +668,7 @@ export function PackBrowser({
 									label: "Copy to another project…",
 									icon: "external",
 									run: act(async () => {
-										const { path: root } = await api.browseForProject();
+										const { path: root } = await chooseFolder();
 										if (!root) return;
 										await api.exportPack(menuPack.path, root);
 										notify(`${menuPack.name} was copied to ${root}.`);

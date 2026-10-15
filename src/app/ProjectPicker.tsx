@@ -10,6 +10,7 @@ import type { Target } from "../core/schema.js";
 import { api, type NewProjectChoice, type ProjectLook } from "./api.js";
 import { cx } from "./cx.js";
 import { FloatingTools, ToolGroup } from "./FloatingTools.jsx";
+import { chooseFolder } from "./folderDialog.js";
 import { useHostCan, useHostFailure } from "./host.js";
 import { Icon } from "./icons.jsx";
 import { guardLeave, IS_STATIC_HOST, pageHref, pagesShareTab, pageTarget } from "./pages.js";
@@ -198,7 +199,7 @@ export function ProjectPicker({
 	const browse = async () => {
 		setBrowsing(true);
 		try {
-			const { path: chosen } = await api.browseForProject(typed || undefined);
+			const { path: chosen } = await chooseFolder(typed || undefined);
 			if (chosen) setRoot(chosen);
 		} catch (err) {
 			setNoPicker(errorMessage(err));
@@ -215,7 +216,7 @@ export function ProjectPicker({
 	const take = async (demo: DemoProject) => {
 		setTaking(demo.dir);
 		try {
-			const { path: into } = await api.browseForProject();
+			const { path: into } = await chooseFolder();
 			if (into === null) return;
 			const { root: copy } = await api.duplicateDemo(demo.dir, into);
 			onOpen(copy);

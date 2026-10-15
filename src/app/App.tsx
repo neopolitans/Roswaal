@@ -51,6 +51,7 @@ import {
 	setConfig as setNodeConfig,
 } from "./edits.js";
 import { FloatingTools, ToolGroup } from "./FloatingTools.jsx";
+import { chooseFolder } from "./folderDialog.js";
 import { GraphSettings } from "./GraphSettings.jsx";
 import { GraphTabs } from "./GraphTabs.jsx";
 import {
@@ -632,7 +633,7 @@ export function App() {
 		let chosen: string | null;
 		let opened: boolean;
 		try {
-			chosen = (await api.browseForProject()).path;
+			chosen = (await chooseFolder()).path;
 		} catch (err) {
 			// No dialog on this machine — a daemon over SSH, a container. Typing
 			// the path is the fallback the shell has always had.
