@@ -120,20 +120,26 @@ export function useProjectActions(context: ProjectActionsContext) {
 	 * hand-written Luau file in the folders it syncs, read into graphs.
 	 */
 	const pickRojoImport = useCallback(
-		async (projects: RojoProject[], offered?: "zip" | "folder") => {
+		async (projects: RojoProject[], offered?: "zip" | "folder", besides: RojoProject[] = []) => {
 			const sorted = [...projects].sort(
 				(a, b) =>
 					Number(b.file === "default.project.json") - Number(a.file === "default.project.json") ||
 					a.file.localeCompare(b.file),
 			);
 			const where = offered ? `The ${offered}` : "This project";
+			const mapName = (p: RojoProject) => p.mappedBy?.split("/").pop() ?? "";
+			// A second project file read as the first one again: said, as it was not.
+			const others =
+				besides.length > 0
+					? `, besides ${besides.map((p) => `${p.file}, which ${mapName(p)} writes`).join(" and ")}`
+					: "";
 			const answer = await ask({
 				kind: "form",
 				title: "Import Rojo project",
 				message:
 					(sorted.length === 1
-						? `${where} has ${sorted[0].file}${sorted[0].mappedBy ? `, which ${sorted[0].mappedBy} writes already` : ""}.`
-						: `${where} has ${sorted.length} Rojo project files.`) +
+						? `${where} has ${sorted[0].file}${sorted[0].mappedBy ? `, which ${mapName(sorted[0])} writes already` : ""}${others}.`
+						: `${where} has ${sorted.length} Rojo project files${others}.`) +
 					" Its Luau stays hand-written unless you import it as graphs, and no file is changed.",
 				fields: [
 					...(sorted.length > 1
@@ -143,7 +149,10 @@ export function useProjectActions(context: ProjectActionsContext) {
 									kind: "select" as const,
 									label: "Project file",
 									value: sorted[0].file,
-									options: sorted.map((p) => ({ value: p.file, label: p.file })),
+									options: sorted.map((p) => ({
+										value: p.file,
+										label: p.mappedBy ? `${p.file} (${mapName(p)})` : p.file,
+									})),
 								},
 							]
 						: []),
@@ -194,7 +203,11 @@ export function useProjectActions(context: ProjectActionsContext) {
 					return;
 				}
 				// A file a map already writes can still have its Luau imported.
-				const picked = await pickRojoImport(offered ? open : projects, offered);
+				const picked = await pickRojoImport(
+					offered ? open : projects,
+					offered,
+					offered ? projects.filter((p) => p.mappedBy) : [],
+				);
 				if (!picked) return;
 				const { project: chosen, whole } = picked;
 				if (chosen.mappedBy && !whole) {

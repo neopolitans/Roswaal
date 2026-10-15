@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.188.2",
+		date: "2026-10-16",
+		headline: "A second Rojo project file's map is named after the file.",
+		affects: ["editor"],
+		fixed: [
+			"**A second project file is told apart.** Its map is named after the file, such as Game serve beside Game, rather than Game 2. The offer to import one says which project files already have a map.",
+		],
+	},
+	{
 		version: "0.188.1",
 		date: "2026-10-16",
 		headline: "Browse… on Windows opens Explorer's folder picker.",

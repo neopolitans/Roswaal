@@ -202,6 +202,21 @@ describe("importing into a project", () => {
 		);
 	});
 
+	it("names a second project file's map after the file, not with a number", async () => {
+		// default and serve, as many projects have, both naming the game.
+		await project(GAME);
+		await writeFile(path.join(root, "serve.project.json"), JSON.stringify(GAME, null, "\t"));
+		const opened = await openProject(root);
+		const first = await importRojoProject(opened, "default.project.json");
+		const second = await importRojoProject(opened, "serve.project.json");
+		expect(first.mapPath).toMatch(/\/Orchard\.nodemap$/);
+		expect(second.mapPath).toMatch(/\/Orchard serve\.nodemap$/);
+		expect((await findRojoProjects(opened)).map((p) => p.mappedBy)).toEqual([
+			first.mapPath,
+			second.mapPath,
+		]);
+	});
+
 	it("is reached through the routes both hosts answer", async () => {
 		await project(GAME);
 		const session = new ApiSession({});

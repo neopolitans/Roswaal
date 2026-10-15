@@ -170,17 +170,24 @@ export async function importRojoProject(
 		makeId: () => globalThis.crypto.randomUUID(),
 	});
 	const base = graphName(map.name) || graphName(stem) || "project";
-	let mapPath = path.posix.join(project.config.sourceDir, `${base}.nodemap`);
-	for (
-		let n = 2;
-		await fs.access(safeJoin(project.root, mapPath)).then(
+	// A second project file usually has the first one's name -- `default` and
+	// `serve`, say -- so its map is told apart by the file, not by a number
+	// that reads as a copy of the first.
+	const byFile = graphName(stem);
+	const names = [base, ...(byFile && byFile !== base ? [`${base} ${byFile}`] : [])];
+	const taken = (candidate: string) =>
+		fs.access(safeJoin(project.root, candidate)).then(
 			() => true,
 			() => false,
 		);
-		n++
-	) {
-		mapPath = path.posix.join(project.config.sourceDir, `${base} ${n}.nodemap`);
+	const pathOf = (name: string) => path.posix.join(project.config.sourceDir, `${name}.nodemap`);
+	let mapPath = pathOf(names[0]);
+	for (const name of names.slice(1)) {
+		if (!(await taken(mapPath))) break;
+		mapPath = pathOf(name);
 	}
+	const last = names[names.length - 1];
+	for (let n = 2; await taken(mapPath); n++) mapPath = pathOf(`${last} ${n}`);
 	await writeMap(project, mapPath, map);
 
 	const same = sameProject(json, JSON.parse(compileNodeMap(map).json));
