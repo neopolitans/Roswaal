@@ -1107,12 +1107,14 @@ export const EDITOR_LAYOUT_TOUCH: LayoutSpec = {
 		"The editor on a tablet held sideways, with the Inspector slid out and nothing selected.",
 	device: "tablet",
 	columns: "10px 64px minmax(0, 1fr) 340px 10px",
-	rows: "10px 38px 10px minmax(0, 1fr) 62px 10px",
+	// The card above the action row, as on a phone: on the same row, the two
+	// overlapped on an iPad held upright.
+	rows: "10px 38px 10px minmax(0, 1fr) 62px 10px 38px 10px",
 	regions: [
 		{
 			name: "The graph",
 			kind: "canvas",
-			at: [1, 7, 1, 6],
+			at: [1, 9, 1, 6],
 			watermark: ["Script", "Events"],
 			what: "One finger pans and two pinch; press and hold to select a group. Tap with two fingers to undo, three to redo. The rest is on [Controls](controls).",
 		},
@@ -1161,7 +1163,7 @@ export const EDITOR_LAYOUT_TOUCH: LayoutSpec = {
 		{
 			name: "A card, slid out",
 			kind: "drawer",
-			at: [4, 6, 4, 5],
+			at: [4, 8, 4, 5],
 			align: "start",
 			card: { t: "graphSettings", graph: "Events", scriptClass: "Script", nodes: 6, functions: 0 },
 			what: "Project, Variables and the Inspector come out over the graph one side at a time. Tap the graph beside one to put it away.",
@@ -1174,15 +1176,14 @@ export const EDITOR_LAYOUT_TOUCH: LayoutSpec = {
 			at: [5, 6, 3, 4],
 			place: "start",
 			card: { t: "status", errors: 0, warnings: 1, entry: WARNING },
-			what: "As on a computer, beside the side strip.",
+			what: "Above the action row, beside the side strip.",
 		},
 		{
 			name: "Action row",
 			kind: "float",
 			// Centred on the screen, as the real one is, not in the middle column.
-			at: [5, 6, 1, 6],
+			at: [7, 8, 1, 6],
 			place: "center",
-			align: "end",
 			card: {
 				t: "bottomBar",
 				cards: false,

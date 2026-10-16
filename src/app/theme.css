@@ -13874,15 +13874,24 @@ p.licence-meta,
 }
 
 /* On a tablet the cards' buttons are on the top clusters, so the bar is the
-   selection's actions alone, and only while there is a bar of them. */
+   selection's actions alone, and only while there is a bar of them. Spelled
+   as specifically as the rule that draws the bar's buttons, which otherwise
+   wins and put both cards' buttons back on every iPad. */
 @media (min-width: 700px) {
-	.drawer-toggles .drawer-toggle {
+	.drawer-toggles button.tb.icon-only.drawer-toggle {
 		display: none;
 	}
 
 	.drawer-toggles:not(:has(.touch-bar)) {
 		display: none;
 	}
+}
+
+/* While the bar is up, the status pill stands above it, as it does on a phone:
+   beside it on an iPad held upright, the two overlapped, and an open card
+   covered the bar either way up. */
+.workspace.compact:has(.drawer-toggles .touch-bar) .dock.bottom {
+	bottom: calc(var(--edge) * 2 + var(--hit) + 8px + env(safe-area-inset-bottom, 0px));
 }
 
 .touch-bar {

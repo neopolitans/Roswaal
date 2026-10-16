@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.188.4",
+		date: "2026-10-16",
+		headline: "On an iPad, Script analysis and the action row no longer overlap.",
+		affects: ["editor", "docs"],
+		fixed: [
+			"**Script analysis above the action row.** On a touch screen the card sits above the row along the bottom while the row is showing, so neither covers the other, folded or open, either way up.",
+			"**The action row on an iPad.** It holds the selection's actions alone again; the buttons for the side cards are on the top row.",
+		],
+	},
+	{
 		version: "0.188.3",
 		date: "2026-10-16",
 		headline: "The tablet and phone pictures in the docs match the editor.",

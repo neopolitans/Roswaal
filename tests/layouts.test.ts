@@ -172,6 +172,10 @@ describe("the tablet, as measured", () => {
 		expect(region("Script analysis").at[2]).toBe(strip.at[3]);
 	});
 
+	it("puts Script analysis above the action row, so neither covers the other", () => {
+		expect(region("Script analysis").at[1]).toBeLessThan(region("Action row").at[0]);
+	});
+
 	it("centres the action row on the whole screen", () => {
 		// Tracks, counting `minmax(0, 1fr)` as one.
 		const columns =
