@@ -1014,6 +1014,9 @@ export function App() {
 		setWalkIsCheck(true);
 		setChecking("Checking…");
 		try {
+			// The graphs as they are on screen, edits not yet saved included.
+			await saves.flushAll();
+			for (const { path: open, script } of store.unsaved()) await api.writeScript(open, script);
 			const { results } = await api.compile({ write: false });
 			noteOutcomes(results, true);
 		} catch (err) {
@@ -1021,7 +1024,7 @@ export function App() {
 		} finally {
 			setChecking(null);
 		}
-	}, [noteOutcomes, notify]);
+	}, [noteOutcomes, notify, saves]);
 
 	/** A problem clicked: its graph opened, if it is not the open one, and the node framed. */
 	const goToProblem = useCallback(
@@ -1179,6 +1182,11 @@ export function App() {
 			setCompiling(true);
 			try {
 				if (!path) setWalkIsCheck(false);
+				// What is on screen, not what was last saved: a compile asked for
+				// straight after an edit read the file from before it, and listed the
+				// error just fixed until the next one.
+				await saves.flushAll();
+				for (const { path: open, script } of store.unsaved()) await api.writeScript(open, script);
 				const { results } = await api.compile({ path, write, force });
 				setOutcomes(results);
 				if (write) noteOutcomes(results, !path);
@@ -1214,7 +1222,7 @@ export function App() {
 				setCompiling(false);
 			}
 		},
-		[refreshTree, warnUnformatted, noteOutcomes],
+		[refreshTree, warnUnformatted, noteOutcomes, saves],
 	);
 
 	/**

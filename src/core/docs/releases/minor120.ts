@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.189.1",
+		date: "2026-10-16",
+		headline: "A compile or Check straight after an edit reads the graph as it is on screen.",
+		affects: ["editor"],
+		fixed: [
+			"**Compiling what you see.** Compile script, Compile project and Check save every edit first, where a compile asked for straight after one read the file from before it, and Script analysis showed the old result until the next compile.",
+		],
+	},
+	{
 		version: "0.189.0",
 		date: "2026-10-16",
 		headline: "Script analysis shows This Script and Project, each with its count.",
