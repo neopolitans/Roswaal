@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.188.7",
+		date: "2026-10-16",
+		headline:
+			"On an iPad and an iPhone, the editor stays in place after the keyboard in every case.",
+		affects: ["editor"],
+		fixed: [
+			"**The window back in place.** Any shift of the editor's window while the keyboard is down is put back at once, where 0.188.5 caught only the keyboard closing and the screen turning.",
+		],
+	},
+	{
 		version: "0.188.6",
 		date: "2026-10-16",
 		headline:

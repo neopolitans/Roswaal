@@ -63,18 +63,24 @@ export function installKeyboardSettle(target: Window = window): void {
 		if (field && "parentElement" in field) focused = field;
 	});
 
+	// A box that scrolled while the keyboard was down: put back from there.
+	let scrolled: Element | null = null;
+
 	let pending = 0;
 	const later = (delay: number) => {
 		target.clearTimeout(pending);
 		pending = target.setTimeout(() => {
 			if (keyboardUp(target.visualViewport?.height, target.innerHeight)) return;
+			const overflowOf = (box: Scrolled) => {
+				const style = target.getComputedStyle(box as unknown as Element);
+				return `${style.overflowY} ${style.overflowX}`;
+			};
+			if (scrolled) settle(scrolled as unknown as Scrolled, target, overflowOf);
+			scrolled = null;
 			settle(
 				(focused as unknown as Scrolled | null) ?? (target.document.body as unknown as Scrolled),
 				target,
-				(box) => {
-					const style = target.getComputedStyle(box as unknown as Element);
-					return `${style.overflowY} ${style.overflowX}`;
-				},
+				overflowOf,
 			);
 		}, delay);
 	};
@@ -85,4 +91,19 @@ export function installKeyboardSettle(target: Window = window): void {
 	// A turn lays the page out again, with whatever shift it had.
 	target.addEventListener("orientationchange", () => later(300));
 	target.addEventListener("resize", () => later(150));
+	// And any scroll of the page, or of a box that never scrolls on purpose,
+	// while the keyboard is down: nothing in the editor asks for one, but iOS
+	// left the window shifted in ways the four above did not catch. Heard
+	// while capturing, as a box's scroll does not bubble; while the keyboard
+	// is up, iOS is left to show the caret.
+	target.document.addEventListener(
+		"scroll",
+		(event) => {
+			if (keyboardUp(target.visualViewport?.height, target.innerHeight)) return;
+			const box = event.target;
+			if (box instanceof Element) scrolled = box;
+			later(60);
+		},
+		{ capture: true, passive: true },
+	);
 }
