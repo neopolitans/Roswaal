@@ -227,6 +227,8 @@ export interface Preferences {
 	 * have to scroll two years of a private project to find it.
 	 */
 	showPreReleaseNotes: boolean;
+	/** Which scope Script analysis shows: the open graph, or the whole project. */
+	analysisScope: "script" | "project";
 	/**
 	 * What the node menu is narrowed to, or `null` for everything.
 	 *
@@ -406,6 +408,7 @@ export const DEFAULTS: Preferences = {
 	functionTabs: "full",
 	docsFont: "system",
 	showPreReleaseNotes: false,
+	analysisScope: "script",
 	// Everything the target allows, which is what the menu did before there was
 	// a filter at all.
 	nodeFilter: null,
@@ -495,6 +498,10 @@ export function readPreferences(): Preferences {
 			typeof stored.showPreReleaseNotes === "boolean"
 				? stored.showPreReleaseNotes
 				: DEFAULTS.showPreReleaseNotes,
+		analysisScope:
+			stored.analysisScope === "script" || stored.analysisScope === "project"
+				? stored.analysisScope
+				: DEFAULTS.analysisScope,
 		docsFont: DOCS_FONTS.some((f) => f.font === stored.docsFont)
 			? (stored.docsFont as DocsFont)
 			: DEFAULTS.docsFont,

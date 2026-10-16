@@ -26,7 +26,14 @@ const TOAST_LINGER_MS = 4000;
  * It floats over the canvas rather than taking space from it, because it is
  * temporary and the graph underneath is what you were looking at.
  */
-export function CompileToast({ progress }: { progress: CompileStep[] }) {
+export function CompileToast({
+	progress,
+	check = false,
+}: {
+	progress: CompileStep[];
+	/** A Check rather than a compile: nothing is written, so a failure is a graph with errors. */
+	check?: boolean;
+}) {
 	const [showing, setShowing] = useState(false);
 
 	const walking = progress.find((step) => step.state === "working");
@@ -56,7 +63,7 @@ export function CompileToast({ progress }: { progress: CompileStep[] }) {
 		[
 			wrote > 0 ? `${wrote} written` : null,
 			skipped > 0 ? `${skipped} skipped` : null,
-			failed > 0 ? `${failed} failed` : null,
+			failed > 0 ? (check ? `${failed} with errors` : `${failed} failed`) : null,
 		]
 			.filter(Boolean)
 			.join(" · ") || `${settled.length} checked`;
@@ -72,7 +79,15 @@ export function CompileToast({ progress }: { progress: CompileStep[] }) {
 			aria-live="polite"
 		>
 			<div className="head">
-				<span className="what">{walking ? "Compiling project" : "Compiled"}</span>
+				<span className="what">
+					{walking
+						? check
+							? "Checking project"
+							: "Compiling project"
+						: check
+							? "Checked"
+							: "Compiled"}
+				</span>
 				<span className="count">
 					{walking ? `${walking.index} of ${total}` : `${settled.length} files`}
 				</span>

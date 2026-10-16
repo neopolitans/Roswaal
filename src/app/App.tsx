@@ -21,6 +21,7 @@ import { BUILTIN_NODES, createRegistry } from "../core/nodes/index.js";
 import { indentUnit, type NodeDef, type RoswaalConfig } from "../core/schema.js";
 import { unformattedGroups, unformattedMessage, unformattedWhat } from "../core/unformatted.js";
 import { AliasDocument } from "./AliasDocument.jsx";
+import { analyseProject, graphLabel, mergeOutcomes } from "./analysis.js";
 import {
 	api,
 	type CompileOutcome,
@@ -177,6 +178,30 @@ export function App() {
 	const [pinMenu, setPinMenu] = useState<PinMenuTarget | null>(null);
 	const [nodeMenu, setNodeMenu] = useState<NodeMenuTarget | null>(null);
 	const [outcomes, setOutcomes] = useState<CompileOutcome[]>([]);
+	/**
+	 * Every graph as the last project compile or Check saw it, for Script
+	 * analysis's Project scope; a graph compiled on its own since is merged in.
+	 */
+	const [checked, setChecked] = useState<{ outcomes: CompileOutcome[]; at: number } | null>(null);
+	const [checking, setChecking] = useState<string | null>(null);
+	/** Whether the walk the progress card shows was a Check: it says so, and that nothing was written. */
+	const [walkIsCheck, setWalkIsCheck] = useState(false);
+	/** Graphs saved since that check: what is listed of them is older. */
+	const [editedSince, setEditedSince] = useState<ReadonlySet<string>>(new Set());
+	/** A compile's outcomes, for the Project scope: all of them, or one graph's. */
+	const noteOutcomes = useCallback((results: CompileOutcome[], whole: boolean) => {
+		if (whole) {
+			setChecked({ outcomes: results, at: Date.now() });
+			setEditedSince(new Set());
+			return;
+		}
+		setChecked((was) => (was ? { ...was, outcomes: mergeOutcomes(was.outcomes, results) } : was));
+		setEditedSince((was) => {
+			const next = new Set(was);
+			for (const r of results) next.delete(r.scriptPath);
+			return next;
+		});
+	}, []);
 	// The walk of the current project compile, one entry per file. Empty
 	// between compiles, and it holds the last walk until the next one starts.
 	const [progress, setProgress] = useState<CompileStep[]>([]);
@@ -850,6 +875,7 @@ export function App() {
 			};
 			if (detail.outcome) {
 				setOutcomes([detail.outcome]);
+				noteOutcomes([detail.outcome], false);
 				// When StyLua starts refusing, or says something new; every save
 				// would be every few seconds.
 				const said = detail.outcome.written ? (detail.outcome.unformatted ?? null) : null;
@@ -896,7 +922,7 @@ export function App() {
 		});
 
 		return () => stream.close();
-	}, [project?.root, notify, loadProject, warnUnformatted]);
+	}, [project?.root, notify, loadProject, warnUnformatted, noteOutcomes]);
 
 	const refreshTree = useCallback(async () => {
 		const { tree, place } = await api.tree();
@@ -973,6 +999,43 @@ export function App() {
 			}
 		},
 		[notify],
+	);
+
+	// -- Script analysis -----------------------------------------------------
+
+	// Another project's graphs are not this one's.
+	useEffect(() => {
+		setChecked(null);
+		setEditedSince(new Set());
+	}, [project?.root]);
+
+	/** Check: every graph compiled and nothing written, for the Project scope. */
+	const runCheck = useCallback(async () => {
+		setWalkIsCheck(true);
+		setChecking("Checking…");
+		try {
+			const { results } = await api.compile({ write: false });
+			noteOutcomes(results, true);
+		} catch (err) {
+			notify("Could not check the project", errorMessage(err));
+		} finally {
+			setChecking(null);
+		}
+	}, [noteOutcomes, notify]);
+
+	/** A problem clicked: its graph opened, if it is not the open one, and the node framed. */
+	const goToProblem = useCallback(
+		async (path: string, nodeId?: string) => {
+			if (path !== editor.path) await openGraphPath(path);
+			if (!nodeId) return;
+			setCodeFull(false);
+			// A frame later, so a graph just opened is the one revealed in.
+			requestAnimationFrame(() => {
+				store.reveal(nodeId);
+				requestAnimationFrame(() => frameNode(nodeId, registry));
+			});
+		},
+		[openGraphPath, registry, editor.path],
 	);
 
 	/**
@@ -1115,8 +1178,10 @@ export function App() {
 			setBusy(write ? "Compiling…" : "Checking…");
 			setCompiling(true);
 			try {
+				if (!path) setWalkIsCheck(false);
 				const { results } = await api.compile({ path, write, force });
 				setOutcomes(results);
+				if (write) noteOutcomes(results, !path);
 				setStatusOpen(true);
 				if (write) await refreshTree();
 				// One graph compiled: say what it wrote, where you are looking.
@@ -1149,7 +1214,7 @@ export function App() {
 				setCompiling(false);
 			}
 		},
-		[refreshTree, warnUnformatted],
+		[refreshTree, warnUnformatted, noteOutcomes],
 	);
 
 	/**
@@ -1226,6 +1291,7 @@ export function App() {
 		runCompile,
 		hostCompilesOnSave,
 		onMapCompiled: setMapOutcomes,
+		onGraphSaved: (path) => setEditedSince((was) => new Set(was).add(path)),
 	});
 
 	const { locked, presets, promotePin, realign, refactor, spawn, spawnComment, splitOrRecombine } =
@@ -1310,9 +1376,6 @@ export function App() {
 			world: { x: (400 - view.x) / view.zoom, y: (240 - view.y) / view.zoom },
 		});
 	};
-	const errorCount = diagnostics.filter((d) => d.severity === "error").length;
-	const warningCount = diagnostics.length - errorCount;
-
 	return (
 		<div className={cx("app", arriving && "arriving")}>
 			{/* Above everything, including the toolbar: a build that may be
@@ -1764,14 +1827,33 @@ export function App() {
 						<StatusPanel
 							open={statusOpen}
 							onToggle={() => setStatusOpen((v) => !v)}
+							scope={prefs.analysisScope}
+							onScope={(analysisScope) => {
+								updatePrefs({ analysisScope });
+								setStatusOpen(true);
+							}}
 							busy={busy}
-							errorCount={errorCount}
-							warningCount={warningCount}
+							graph={editor.path ? graphLabel(editor.path) : null}
+							graphPath={editor.path ?? null}
 							diagnostics={diagnostics}
-							outcomes={outcomes}
-							mapOutcomes={mapOutcomes}
-							orphans={orphans}
-							unsynced={unsynced}
+							outcome={
+								editor.path
+									? (outcomes.find((o) => o.scriptPath === editor.path) ??
+										checked?.outcomes.find((o) => o.scriptPath === editor.path))
+									: undefined
+							}
+							project={analyseProject({
+								outcomes: checked?.outcomes ?? [],
+								mapOutcomes,
+								orphans,
+								unsynced,
+								packErrors: project.packErrors,
+								edited: editedSince,
+							})}
+							checkedAt={checked?.at ?? null}
+							checking={checking}
+							onCheck={() => void runCheck()}
+							onGoTo={(path, nodeId) => void goToProblem(path, nodeId)}
 							onRemoveOrphans={async () => {
 								const ok = await ask({
 									kind: "confirm",
@@ -1788,14 +1870,13 @@ export function App() {
 								setOrphans([]);
 								await refreshTree();
 							}}
-							packErrors={project.packErrors}
 							onForce={(outcome) => void overwriteWith(outcome)}
 						/>
 					),
 				}}
 				floating={
 					<>
-						<CompileToast progress={progress} />
+						<CompileToast progress={progress} check={walkIsCheck} />
 					</>
 				}
 				centre={

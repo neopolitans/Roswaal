@@ -114,7 +114,7 @@ export function readingLuauPage(): DocPage {
 					"A method called on something whose type is known is checked against what Roblox " +
 					"says it takes: `hull.CFrame:PointToObjectSpace(part.Position.X)` hands a number to a " +
 					"method that takes a Vector3, and is underlined. It shows in the code editor, in a file " +
-					"you open to read, and in the Problems list for the node that holds the code.",
+					"you open to read, and in Script analysis for the node that holds the code.",
 			},
 			{
 				t: "p",

@@ -147,10 +147,13 @@ export async function compileScript(
 	});
 
 	// Formatting happens before the output hash is stamped, so the hash always
-	// describes the bytes that actually land on disk.
-	const formatted = project.config.format
-		? formatLuau(project.root, result.code, project.config)
-		: { code: result.code };
+	// describes the bytes that actually land on disk. Only for a write: a check
+	// of every graph has nothing to lay out, and StyLua once per graph was most
+	// of what it cost.
+	const formatted =
+		project.config.format && opts.write
+			? formatLuau(project.root, result.code, project.config)
+			: { code: result.code };
 	const code = stampOutputHash(formatted.code);
 
 	const outcome: CompileOutcome = {

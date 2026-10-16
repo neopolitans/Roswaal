@@ -27,6 +27,8 @@ export interface AutosaveContext {
 	hostCompilesOnSave: { readonly current: boolean };
 	/** A map Dynamic mode compiled after saving it: what it said. */
 	onMapCompiled?: (results: MapOutcome[]) => void;
+	/** A graph just written: what was checked of it is older now. */
+	onGraphSaved?: (path: string) => void;
 }
 
 export interface Autosave {
@@ -104,11 +106,15 @@ export function useAutosave(context: AutosaveContext): Autosave {
 	 * clean graph took it: a recombined pin came apart on its own.
 	 */
 	const lastWritten = useRef(new Map<string, string[]>());
+	const graphSaved = useRef(context.onGraphSaved);
+	graphSaved.current = context.onGraphSaved;
 	const writeGraph = useCallback(async (path: string, script: NodeScript) => {
 		const recent = lastWritten.current.get(path) ?? [];
 		lastWritten.current.set(path, [...recent, serialiseScript(script)].slice(-16));
 		await api.writeScript(path, script);
 		store.markSaved(path, script);
+		// Before the compile that may follow, which then counts as the newer.
+		graphSaved.current?.(path);
 		compileAfterSave.current(path);
 	}, []);
 	useEffect(() => {

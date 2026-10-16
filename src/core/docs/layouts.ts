@@ -87,8 +87,11 @@ export type LayoutCard =
 	| { t: "variables" }
 	/** The Inspector with nothing selected: `GraphSettings`. */
 	| { t: "graphSettings"; graph: string; scriptClass: string; nodes: number; functions: number }
-	/** The status pill: `StatusPanel`'s bar and its first entry. */
-	| { t: "status"; errors: number; warnings: number; entry?: string }
+	/**
+	 * Script analysis: `StatusPanel`'s bar in This Script, open on its first
+	 * entry when there is one. `graph` is the open graph's name.
+	 */
+	| { t: "status"; errors: number; warnings: number; entry?: string; graph?: string }
 	/** The side strip, along the bottom or down the left edge: `CanvasStrip`. */
 	| { t: "strip"; vertical?: boolean }
 	/** The bar along the bottom on a touch screen: `Workspace`'s, with `TouchBar`'s actions. */
@@ -377,20 +380,39 @@ function cardHtml(card: LayoutCard, art: ToolbarArt, preview?: PreviewOptions): 
 					`<p class="summary">Select a node for its settings. With nothing selected, these are the graph's.</p>` +
 					`</div></div>`,
 			);
-		case "status":
-			// Script analysis has no header: its bar is one.
+		case "status": {
+			// Script analysis has no header: its bar is one. Drawn in This Script,
+			// as the editor opens it, with the project's count beside it.
+			const graph = escapeXml(card.graph ?? "Events");
+			const total = card.errors + card.warnings;
+			const word = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
+			const badge =
+				total === 0
+					? `<span class="badge clean">✓</span>`
+					: `<span class="badge ${card.errors ? "error" : "warning"}">${total}</span>`;
+			const scope = (on: boolean, long: string, short: string) =>
+				`<span class="scope-tab" role="tab" aria-selected="${on}"><span class="long">${long}</span><span class="short">${short}</span>${badge}</span>`;
+			const split =
+				total === 0
+					? "No problems"
+					: [
+							card.errors ? `<span class="err">${word(card.errors, "error")}</span>` : "",
+							card.warnings ? `<span class="warn">${word(card.warnings, "warning")}</span>` : "",
+						]
+							.filter(Boolean)
+							.join(" · ");
 			return dock(
 				`<section class="card card-analysis headless"><div class="panel panel-analysis card-body"><div class="status">` +
-					`<div class="bar" aria-expanded="${card.entry ? "true" : "false"}">` +
-					(card.errors || card.warnings
-						? `<span class="count ${card.errors ? "error" : "none"}">${card.errors} error${card.errors === 1 ? "" : "s"}</span>` +
-							`<span class="count ${card.warnings ? "warning" : "none"}">${card.warnings} warning${card.warnings === 1 ? "" : "s"}</span>`
-						: `<span class="sev-mark ok">\u2713</span><span class="status-state">No problems</span>` +
-							`<span class="count none">0 errors \u00b7 0 warnings</span>`) +
-					`<span class="spacer" style="flex:1"></span>${glyphHtml("chevron", 14, art).replace('class="icon"', 'class="icon status-fold"')}</div>` +
-					`${card.entry ? `<div class="list"><div class="entry warning"><span class="sev">warning</span><span>${escapeXml(card.entry)}</span></div></div>` : ""}` +
+					`<div class="bar"><span class="scopes" role="tablist">${scope(true, "This Script", "Script")}${scope(false, "Project", "Project")}</span>` +
+					`<span class="spacer"></span><span class="status-text">${graph}</span>` +
+					`<span class="tb icon-only status-fold-button" aria-expanded="${card.entry ? "true" : "false"}">${glyphHtml("chevron", 14, art).replace('class="icon"', 'class="icon status-fold"')}</span></div>` +
+					(card.entry
+						? `<div class="summary">${split} in <b>${graph}</b></div>` +
+							`<div class="list"><div class="entry warning"><span class="sev">warning</span><span class="msg">${escapeXml(card.entry)}</span></div></div>`
+						: "") +
 					`</div></div></section>`,
 			);
+		}
 		case "strip": {
 			// Laid out as the editor lays it out on that kind of screen. The
 			// stylesheet decides by the *reader's* pointer, so the picture of
@@ -1001,7 +1023,7 @@ export const EDITOR_LAYOUT: LayoutSpec = {
 	device: "desktop",
 	columns: "10px 352px minmax(0, 1fr) 290px 8px",
 	// The two cards share the column three to two, down to the status pill.
-	rows: "10px 38px 10px 451px 8px 301px minmax(0, 1fr) 62px 7px",
+	rows: "10px 38px 10px 451px 8px 301px minmax(0, 1fr) 110px 7px",
 	regions: [
 		{
 			name: "The graph",
@@ -1078,7 +1100,7 @@ export const EDITOR_LAYOUT: LayoutSpec = {
 			at: [8, 9, 2, 4],
 			place: "start",
 			card: { t: "status", errors: 0, warnings: 1, entry: WARNING },
-			what: "Errors and warnings in the open graph. The bar folds the list away.",
+			what: "This Script and Project, each with its count; Check reads every graph without writing. The button at the end folds the list away.",
 		},
 		{
 			name: "Side strip",
@@ -1109,7 +1131,7 @@ export const EDITOR_LAYOUT_TOUCH: LayoutSpec = {
 	columns: "10px 64px minmax(0, 1fr) 340px 10px",
 	// The card above the action row, as on a phone: on the same row, the two
 	// overlapped on an iPad held upright.
-	rows: "10px 38px 10px minmax(0, 1fr) 62px 10px 38px 10px",
+	rows: "10px 38px 10px minmax(0, 1fr) 110px 10px 38px 10px",
 	regions: [
 		{
 			name: "The graph",
@@ -1210,7 +1232,7 @@ export const EDITOR_LAYOUT_PHONE: LayoutSpec = {
 	summary: "The editor on a phone, with a graph open and nothing selected.",
 	device: "phone",
 	columns: "6px minmax(0, 1fr) 6px",
-	rows: "10px 40px minmax(0, 1fr) 62px 10px 38px 12px",
+	rows: "10px 40px minmax(0, 1fr) 110px 10px 38px 12px",
 	regions: [
 		{
 			name: "The graph",

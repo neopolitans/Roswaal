@@ -328,7 +328,7 @@ export function buildingAndRojoPage(): DocPage {
 				t: "note",
 				kind: "warn",
 				text:
-					"A graph in a folder no map syncs is listed in Script analysis as **unsynced**: " +
+					"A graph in a folder no map syncs is listed in Script analysis, under **Project**, as **unsynced**: " +
 					"its Luau is written, but Rojo never sees it.",
 			},
 

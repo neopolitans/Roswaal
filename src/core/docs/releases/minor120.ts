@@ -9,6 +9,21 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.189.0",
+		date: "2026-10-16",
+		headline: "Script analysis shows This Script and Project, each with its count.",
+		affects: ["editor", "docs"],
+		added: [
+			"**This Script and Project.** Script analysis has two scopes, each with its count in the bar: the open graph, and every graph in the project with the project's own files, such as stale output, folders no map syncs, packs and StyLua. A problem in another graph opens it at the node.",
+			"**Check.** Under Project, Check reads every graph without writing anything. A project compile refreshes the list as well, and a graph saved since is marked as older.",
+		],
+		changed: [
+			"**A fold button.** The bar folds with the button at its end rather than with any click on it. On a touch screen each of its controls is a finger wide, and on a phone the two scopes fill the bar.",
+			"**A check without StyLua.** A compile that writes nothing no longer runs StyLua over every graph.",
+			"**The compile card on a touch screen.** It sits under the top row, clear of the bar along the bottom.",
+		],
+	},
+	{
 		version: "0.188.7",
 		date: "2026-10-16",
 		headline:

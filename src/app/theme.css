@@ -3345,66 +3345,26 @@ button.tb.primary:hover:not(:disabled) {
 .status {
 	border-top: 1px solid var(--border);
 	background: var(--bg-panel);
-	max-height: 190px;
+	max-height: 260px;
 	display: flex;
 	flex-direction: column;
 }
 
+/* The bar: the two scopes, each with its health, then one status, Check and
+   the fold. Folding is the button's, not the bar's: a tap on a scope used to
+   fold the card on its way through. */
 .status .bar {
 	display: flex;
 	align-items: center;
 	gap: 8px;
 	/* Room on the right for the undock button, as the headings have. */
-	padding: 5px 34px 5px 10px;
+	padding: 4px 34px 4px 6px;
+	min-height: 32px;
 	font-size: var(--text-md);
-	cursor: pointer;
 }
 
-.status .status-state {
-	font-weight: 650;
-}
-
-.status .status-fold {
-	flex: none;
-	color: var(--fg-faint);
-	transform: rotate(-90deg);
-	transition: transform 120ms;
-}
-
-.status .bar[aria-expanded="true"] .status-fold {
-	transform: none;
-}
-
-/* The counts as chips: red and amber when there are any. */
-.status .bar .count {
-	padding: 1px 8px;
-	border-radius: 999px;
-	font-size: var(--text-xs);
-	font-weight: 600;
-	font-variant-numeric: tabular-nums;
-	white-space: nowrap;
-}
-
-.status .bar .count.error {
-	background: color-mix(in srgb, var(--danger) 14%, transparent);
-	color: var(--danger);
-}
-
-.status .bar .count.warning {
-	background: color-mix(in srgb, var(--warning) 16%, transparent);
-	color: var(--warning);
-}
-
-.status .bar .count.none {
-	padding: 1px 0;
-	font-weight: 400;
-	color: var(--fg-faint);
-}
-
-/* One line however narrow the card: in a side dock No problems and "0 of 1
-   written" wrapped, and the bar grew a row. The state and the counts keep
-   their words; what was written, or the quiet counts beside No problems,
-   give way first. */
+/* One line however narrow the card: the scopes keep their words, and the
+   status gives way first. */
 .status .bar > * {
 	flex: none;
 	white-space: nowrap;
@@ -3412,14 +3372,144 @@ button.tb.primary:hover:not(:disabled) {
 
 .status .bar > .spacer {
 	flex: 1 1 0;
+	min-width: 4px;
 }
 
-.status .bar .status-state + .count.none,
-.status .bar .status-written {
+.status .scopes {
+	display: inline-flex;
+	gap: 2px;
+	padding: 2px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	background: var(--bg-input);
+}
+
+.status .scope-tab {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	min-height: 22px;
+	padding: 1px 5px 1px 9px;
+	border: 0;
+	border-radius: var(--radius-xs);
+	background: none;
+	color: var(--fg-muted);
+	font: inherit;
+	cursor: pointer;
+}
+
+.status .scope-tab[aria-selected="true"] {
+	background: color-mix(in srgb, var(--accent) 20%, transparent);
+	color: var(--fg);
+	font-weight: 600;
+}
+
+.status .scope-tab .short {
+	display: none;
+}
+
+/* A scope's count in the colour of its worst: red, amber, or a tick. */
+.status .badge {
+	display: inline-grid;
+	place-items: center;
+	min-width: 18px;
+	height: 16px;
+	padding: 0 5px;
+	border-radius: 999px;
+	box-sizing: border-box;
+	font: 700 10px/1 system-ui, sans-serif;
+	font-variant-numeric: tabular-nums;
+	color: #fff;
+}
+
+.status .badge.error {
+	background: var(--danger);
+}
+
+.status .badge.warning {
+	background: var(--warning);
+}
+
+.status .badge.clean {
+	background: var(--ok);
+}
+
+.status .badge.unknown {
+	background: var(--bg-active);
+	color: var(--fg-muted);
+}
+
+.status .bar .status-text {
 	flex: 0 1 auto;
 	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
+	color: var(--fg-muted);
+	font-size: var(--text-sm);
+}
+
+.status .status-check {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	min-height: 22px;
+	padding: 0 8px;
+	font-size: var(--text-sm);
+}
+
+.status .status-check.spin svg {
+	animation: status-spin 0.8s linear infinite;
+}
+
+@keyframes status-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.status .status-fold-button {
+	color: var(--fg-faint);
+}
+
+.status .status-fold {
+	transform: rotate(-90deg);
+	transition: transform 120ms;
+}
+
+.status .status-fold-button[aria-expanded="true"] .status-fold {
+	transform: none;
+}
+
+/* The split, under the bar: what the badges counted, in words. */
+.status .summary {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0 4px;
+	padding: 4px 10px;
+	border-top: 1px solid var(--border);
+	color: var(--fg-muted);
+	font-size: var(--text-sm);
+}
+
+.status .summary b {
+	color: var(--fg);
+	font-weight: 600;
+}
+
+.status .summary .err {
+	color: var(--danger);
+	font-weight: 600;
+}
+
+.status .summary .warn {
+	color: var(--warning);
+	font-weight: 600;
+}
+
+/* Said in the bar, except on a phone. */
+.status .summary-status {
+	display: none;
 }
 
 /* In a side dock the card is as tall as its list (see \`DockCards\`), and a
@@ -3500,6 +3590,193 @@ button.tb.primary:hover:not(:disabled) {
 	color: var(--fg-muted);
 	font: var(--text-xs) / 1.5 "Cascadia Mono", Consolas, monospace;
 	white-space: nowrap;
+}
+
+.status .entry .msg {
+	min-width: 0;
+}
+
+.status .entry .where.link {
+	cursor: pointer;
+	text-decoration: underline;
+}
+
+/* The Project scope: a heading per graph, its problems under it. */
+.status .group + .group {
+	margin-top: 2px;
+}
+
+.status .group-head {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 6px;
+	border-radius: var(--radius-xs);
+	font-size: var(--text-sm);
+	cursor: pointer;
+}
+
+.status .group-head:hover {
+	background: var(--bg-hover);
+}
+
+.status .group-chev {
+	flex: none;
+	color: var(--fg-faint);
+	transition: transform 120ms;
+}
+
+.status .group[data-open="false"] .group-chev {
+	transform: rotate(-90deg);
+}
+
+.status .group[data-open="false"] .group-body {
+	display: none;
+}
+
+.status .group-glyph {
+	flex: none;
+	color: var(--accent);
+}
+
+.status .group-head .name {
+	font-weight: 650;
+}
+
+.status .group-head .path {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--fg-faint);
+	font: var(--text-xs) / 1.5 "Cascadia Mono", Consolas, monospace;
+}
+
+.status .group-head .open-here {
+	flex: none;
+	color: var(--accent);
+	font-size: var(--text-xs);
+}
+
+.status .group-head .chips {
+	margin-left: auto;
+	flex: none;
+}
+
+.status .group-body {
+	padding-left: 16px;
+}
+
+.status .stale-note {
+	margin: 0 6px 2px 22px;
+	color: var(--warning);
+	font-size: var(--text-xs);
+}
+
+.status .clean-line {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 6px;
+	color: var(--fg-muted);
+	font-size: var(--text-sm);
+}
+
+/* On a touch screen every target a finger can land on: the bar 44 high, its
+   controls 32. The pictures of a tablet and a phone in the docs are drawn at
+   the same sizes. */
+.workspace.compact .status .bar,
+.docs-layout-screen:is(.dev-tablet, .dev-phone) .status .bar {
+	min-height: 44px;
+	gap: 6px;
+	font-size: var(--text-lg);
+}
+
+.workspace.compact .status .scope-tab,
+.docs-layout-screen:is(.dev-tablet, .dev-phone) .status .scope-tab {
+	min-height: 32px;
+	padding: 4px 8px 4px 12px;
+}
+
+.workspace.compact .status .badge,
+.docs-layout-screen:is(.dev-tablet, .dev-phone) .status .badge {
+	min-width: 20px;
+	height: 18px;
+	font-size: 11px;
+}
+
+.workspace.compact .status :is(.status-check, .status-fold-button),
+.docs-layout-screen:is(.dev-tablet, .dev-phone) .status :is(.status-check, .status-fold-button) {
+	min-width: var(--hit);
+	min-height: 32px;
+	justify-content: center;
+}
+
+.workspace.compact .status :is(.entry, .group-head),
+.docs-layout-screen:is(.dev-tablet, .dev-phone) .status :is(.entry, .group-head) {
+	padding: 7px 8px;
+	font-size: var(--text-md);
+}
+
+/* A phone: the scopes fill the bar under their short names, Check is its
+   glyph, and the status moves under the bar. */
+@media (max-width: 699px) {
+	.workspace.compact .status .scopes {
+		flex: 1 1 auto;
+	}
+
+	.workspace.compact .status .scope-tab {
+		flex: 1 1 0;
+		justify-content: center;
+	}
+
+	.workspace.compact .status .scope-tab .long,
+	.workspace.compact .status .bar :is(.status-text, .spacer) {
+		display: none;
+	}
+
+	.workspace.compact .status .scope-tab .short,
+	.workspace.compact .status .summary-status {
+		display: inline;
+	}
+
+	.workspace.compact .status .status-check .tb-label {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+}
+
+.docs-layout-screen.dev-phone .status .scopes {
+	flex: 1 1 auto;
+}
+
+.docs-layout-screen.dev-phone .status .scope-tab {
+	flex: 1 1 0;
+	justify-content: center;
+}
+
+.docs-layout-screen.dev-phone .status .scope-tab .long,
+.docs-layout-screen.dev-phone .status .bar :is(.status-text, .spacer) {
+	display: none;
+}
+
+.docs-layout-screen.dev-phone .status .scope-tab .short,
+.docs-layout-screen.dev-phone .status .summary-status {
+	display: inline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.status :is(.status-fold, .group-chev) {
+		transition: none;
+	}
+
+	.status .status-check.spin svg {
+		animation: none;
+	}
 }
 
 /* ------------------------------------------------------------------ misc */
@@ -10354,6 +10631,15 @@ a.docs-minor-row .aside {
 	font-size: var(--text-sm);
 	cursor: pointer;
 	z-index: 5;
+}
+
+/* On a touch screen the bottom is the bar, Script analysis and the Code panel,
+   and the card lay over them; under the top row the graph is all there is. */
+.workspace.compact .compile-toast {
+	top: var(--chrome-top);
+	bottom: auto;
+	right: var(--edge);
+	max-width: calc(100% - var(--edge) * 2);
 }
 
 .compile-toast .head {
