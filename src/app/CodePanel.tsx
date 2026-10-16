@@ -364,11 +364,13 @@ export function CodePanel(props: CodePanelProps) {
 				    these two are for the code, which is not showing. */}
 				{current && (
 					<button
-						className="tb code-head-action"
+						className="tb with-icon code-head-action"
 						title="Select this node on the graph, and bring it into view"
 						onClick={() => props.onGoTo(current.nodeId)}
 					>
-						Go to node
+						{/* Drawn only on a touch screen, where the words give way: see `code-head-action`. */}
+						<Icon name="locate" size={14} className="tb-icon-when-narrow" />
+						<span className="tb-label">Go to node</span>
 					</button>
 				)}
 				<button
@@ -382,7 +384,7 @@ export function CodePanel(props: CodePanelProps) {
 					onClick={props.onToggleFull}
 				>
 					<Icon name={full ? "collapseContent" : "expandContent"} size={14} />
-					{full ? "Back to the foot" : "Full view"}
+					<span className="tb-label">{full ? "Back to the foot" : "Full view"}</span>
 				</button>
 			</PanelHead>
 

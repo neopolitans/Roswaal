@@ -157,6 +157,9 @@ export const ICONS = {
 	panelRight:
 		"M200-160q-33 0-56.5-23.5T120-240v-480q0-33 23.5-56.5T200-800h560q33 0 56.5 23.5T840-720v480q0 33-23.5 56.5T760-160H200Zm0-80h360v-480H200v480Z",
 	/* The Code panel's full view, in and out: Material's open_in_full and close_fullscreen. */
+	/* Go to node: a ring with its four sights, as a centre line. */
+	locate:
+		"M480-720A240 240 0 1 0 480-240A240 240 0 1 0 480-720M480-880V-720M480-240V-80M80-480H240M720-480H880",
 	expandContent: "M120-120v-320h80v184l504-504H520v-80h320v320h-80v-184L256-200h184v80H120Z",
 	collapseContent:
 		"M120-120v-80h184L80-424l56-56 224 224v-184h80v320H120Zm416-416v-320h80v184l224-224 56 56-224 224h184v80H536Z",
@@ -221,4 +224,5 @@ export const STROKED: Partial<Record<string, number>> = {
 	plus: 72,
 	minus: 72,
 	fit: 72,
+	locate: 72,
 };

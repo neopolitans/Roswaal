@@ -252,6 +252,36 @@ export function wirePath(from: Vec, to: Vec, style: WireStyle = "curved"): strin
 	return polyline(manhattan(from, to), 0);
 }
 
+/**
+ * A box every wire between these ends is drawn inside: the ends, a curve's
+ * control points (the curve never leaves their hull), and `pad` for the
+ * routes that turn and for the stroke. `null` with no wires.
+ *
+ * The wires' layer is sized to it. Drawn in a one-pixel box that overflowed,
+ * Safari painted only the parts of them it judged that box to reach, and a
+ * wire across a comment stopped short of its node.
+ */
+export function wireBounds(ends: readonly { a: Vec; b: Vec }[], pad = 160): Rect | null {
+	if (ends.length === 0) return null;
+	let minX = Number.POSITIVE_INFINITY;
+	let minY = Number.POSITIVE_INFINITY;
+	let maxX = Number.NEGATIVE_INFINITY;
+	let maxY = Number.NEGATIVE_INFINITY;
+	for (const { a, b } of ends) {
+		const slack = Math.max(NODE.wireSlack, Math.abs(b.x - a.x) * 0.4);
+		minX = Math.min(minX, a.x, b.x, b.x - slack);
+		maxX = Math.max(maxX, a.x, b.x, a.x + slack);
+		minY = Math.min(minY, a.y, b.y);
+		maxY = Math.max(maxY, a.y, b.y);
+	}
+	return {
+		x: Math.floor(minX - pad),
+		y: Math.floor(minY - pad),
+		w: Math.ceil(maxX - minX + pad * 2),
+		h: Math.ceil(maxY - minY + pad * 2),
+	};
+}
+
 export function rectsIntersect(a: Rect, b: Rect): boolean {
 	return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }

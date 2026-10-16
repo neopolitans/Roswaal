@@ -5010,6 +5010,28 @@ button.start-tile:disabled {
 	display: none;
 }
 
+/* On a touch screen the two are their glyphs, so the tab keeps its name: on
+   a phone the words left a few letters of it. The words stay as the buttons'
+   names, and each is a finger wide. */
+.workspace.compact .code-head-action .tb-icon-when-narrow {
+	display: inline-block;
+}
+
+.workspace.compact .code-head-action {
+	min-width: var(--hit);
+	justify-content: center;
+	padding-inline: 0;
+}
+
+.workspace.compact .code-head-action .tb-label {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
 .code-tab-list {
 	flex: none;
 	align-self: center;

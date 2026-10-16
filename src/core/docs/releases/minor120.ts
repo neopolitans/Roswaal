@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.188.6",
+		date: "2026-10-16",
+		headline:
+			"The Code panel keeps its tab's name on a touch screen, and wires across a comment draw whole on an iPad.",
+		affects: ["editor"],
+		changed: [
+			"**Go to node and Full view as their glyphs.** On a touch screen the two are icon buttons, so the tab keeps its name; the words stay as their names. Go to node has a glyph of its own.",
+		],
+		fixed: [
+			"**Wires across a comment.** On an iPad a wire could stop part-way across a comment box and pick up again at its edge. The wires' layer is now sized to hold them.",
+		],
+	},
+	{
 		version: "0.188.5",
 		date: "2026-10-16",
 		headline:

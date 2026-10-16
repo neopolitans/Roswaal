@@ -65,6 +65,7 @@ import {
 	type Vec,
 	type View,
 	type WireStyle,
+	wireBounds,
 	wirePath,
 } from "./geometry.js";
 import { GRID, LAYER, NODE, ZOOM } from "./layers.js";
@@ -352,6 +353,18 @@ export function Canvas({
 	);
 
 	const nodesById = useMemo(() => new Map(script.nodes.map((n) => [n.id, n])), [script.nodes]);
+
+	// Each wire's two ends, worked out once: the wires are drawn between them,
+	// and the wires' layer is sized to hold them all.
+	const wireEnds = script.links.flatMap((link) => {
+		const fromNode = nodesById.get(link.from.node);
+		const toNode = nodesById.get(link.to.node);
+		if (!fromNode || !toNode) return [];
+		const a = pinPosition(fromNode, registry, link.from.pin, "out", wideNodes);
+		const b = pinPosition(toNode, registry, link.to.pin, "in", wideNodes);
+		return a && b ? [{ link, a, b }] : [];
+	});
+	const wireBox = wireBounds(wireEnds);
 
 	const growth = useMemo(() => {
 		const map = new Map<string, Growth>();
@@ -1357,14 +1370,22 @@ export function Canvas({
 					/>
 				))}
 
-				<svg className="wires" style={{ zIndex: LAYER.wire }}>
-					{script.links.map((link) => {
-						const fromNode = nodesById.get(link.from.node);
-						const toNode = nodesById.get(link.to.node);
-						if (!fromNode || !toNode) return null;
-						const a = pinPosition(fromNode, registry, link.from.pin, "out", wideNodes);
-						const b = pinPosition(toNode, registry, link.to.pin, "in", wideNodes);
-						if (!a || !b) return null;
+				<svg
+					className="wires"
+					style={{
+						zIndex: LAYER.wire,
+						// A box the wires are inside, rather than one pixel they overflow:
+						// see `wireBounds`. The view box keeps them in graph coordinates.
+						...(wireBox && {
+							left: wireBox.x,
+							top: wireBox.y,
+							width: wireBox.w,
+							height: wireBox.h,
+						}),
+					}}
+					viewBox={wireBox ? `${wireBox.x} ${wireBox.y} ${wireBox.w} ${wireBox.h}` : undefined}
+				>
+					{wireEnds.map(({ link, a, b }) => {
 						const fromPin = pinDefOf(registry, script, link.from, "out");
 						const toPin = pinDefOf(registry, script, link.to, "in");
 						const isExec = fromPin?.kind === "exec";
