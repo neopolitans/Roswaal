@@ -1169,15 +1169,18 @@ export const EDITOR_LAYOUT_TOUCH: LayoutSpec = {
 		{
 			name: "Script analysis",
 			kind: "panel",
-			at: [5, 6, 2, 4],
+			// Beside the side strip's column, not under it: on a touch screen the
+			// card keeps to the right of the strip.
+			at: [5, 6, 3, 4],
 			place: "start",
 			card: { t: "status", errors: 0, warnings: 1, entry: WARNING },
-			what: "As on a computer.",
+			what: "As on a computer, beside the side strip.",
 		},
 		{
 			name: "Action row",
 			kind: "float",
-			at: [5, 6, 3, 4],
+			// Centred on the screen, as the real one is, not in the middle column.
+			at: [5, 6, 1, 6],
 			place: "center",
 			align: "end",
 			card: {
@@ -1707,6 +1710,14 @@ const PROJECT_MENU_WEB: ToolbarItem[] = [
 	{ t: "button", text: "Start again", icon: "refresh" },
 ];
 
+/**
+ * The Project menu in the web app on an iPad. Safari has no folder picker, so
+ * the web app offers no Open folder there.
+ */
+const PROJECT_MENU_TABLET: ToolbarItem[] = PROJECT_MENU_WEB.filter(
+	(item) => !(item.t === "button" && item.text === "Open folder…"),
+);
+
 /** The installed editor, on a computer, before the mark is pressed. */
 export const WALK_EDITOR: LayoutSpec = { ...EDITOR_LAYOUT, id: "walk-editor" };
 
@@ -1803,7 +1814,7 @@ export const WALK_PROJECTS_TABLET: LayoutSpec = withProjects(
 export const WALK_PROJECT_MENU_TABLET: LayoutSpec = withProjects(
 	WALK_TABLET,
 	"walk-project-menu-tablet",
-	{ ...PROJECTS_WEB, menu: PROJECT_MENU_WEB },
+	{ ...PROJECTS_WEB, menu: PROJECT_MENU_TABLET },
 );
 
 /** Every window a walkthrough draws, for the tests that hold them to the icon set. */

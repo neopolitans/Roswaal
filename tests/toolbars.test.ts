@@ -42,6 +42,8 @@ import {
 	DESIGNER_BAR_BROWSER,
 	DOCS_BAR,
 	DOCS_SITE_BAR,
+	DOCS_SITE_BAR_PHONE,
+	DOCS_SITE_BAR_TOUCH,
 	EDITOR_BAR,
 	EDITOR_BAR_BROWSER,
 	FUNCTIONS_PANEL,
@@ -153,6 +155,28 @@ describe("the toolbar specs", () => {
 	});
 
 	/**
+	 * Measured on the built site at each width: floating clusters, search before
+	 * Contents, and on a phone one row without Source and with the short Try it.
+	 */
+	it("draws the published header as the site lays it out at each width", () => {
+		const order = (bar: ToolbarSpec) => legendOf(bar).map((item) => item.name);
+		for (const bar of [DOCS_SITE_BAR, DOCS_SITE_BAR_TOUCH, DOCS_SITE_BAR_PHONE]) {
+			expect(bar.chrome, bar.id).toBe("float");
+			expect(
+				bar.groups.some((group) => group.row),
+				bar.id,
+			).toBe(false);
+		}
+		expect(order(DOCS_SITE_BAR)).toContain("Search the docs");
+		const touch = order(DOCS_SITE_BAR_TOUCH);
+		expect(touch.indexOf("Search")).toBeLessThan(touch.indexOf("Contents"));
+		const phone = order(DOCS_SITE_BAR_PHONE);
+		expect(phone.indexOf("Search")).toBeLessThan(phone.indexOf("Contents"));
+		expect(phone).toContain("Try it");
+		expect(phone).not.toContain("Source");
+	});
+
+	/**
 	 * Settings is on both docs headers, and on both it is the gear alone, as it
 	 * is in the editor and Node Design: one glyph for one thing in every window.
 	 */
@@ -211,7 +235,12 @@ describe("drawing one", () => {
 
 	/** A page header spells its flexible gap `grow`; the other two `spacer`. */
 	it("uses the header's own spacer on a window header", () => {
-		const docs = TOOLBARS.find((bar) => bar.id === "docs-site-bar")!;
+		// No bar is drawn as a header since the published one became clusters,
+		// but the drawing still can be; the site's bar, recast, shows it.
+		const docs: ToolbarSpec = {
+			...TOOLBARS.find((bar) => bar.id === "docs-site-bar")!,
+			chrome: "head",
+		};
 		const html = toolbarHtml(docs, art);
 
 		expect(html).toContain('class="docs-page-head"');

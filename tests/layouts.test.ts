@@ -153,3 +153,38 @@ describe("The Interface", () => {
 		}
 	});
 });
+
+/**
+ * The tablet as the real editor draws it, measured with touch input at an iPad
+ * Mini's size: the analysis card keeps to the right of the side strip, the
+ * action row is centred on the screen, and the web app's menu has no Open
+ * folder, as Safari has no folder picker.
+ */
+describe("the tablet, as measured", () => {
+	const region = (name: string) => {
+		const found = layouts.EDITOR_LAYOUT_TOUCH.regions.find((r) => r.name === name);
+		if (!found) throw new Error(`no region ${name}`);
+		return found;
+	};
+
+	it("puts Script analysis beside the side strip's column, not under it", () => {
+		const strip = region("Side strip");
+		expect(region("Script analysis").at[2]).toBe(strip.at[3]);
+	});
+
+	it("centres the action row on the whole screen", () => {
+		// Tracks, counting `minmax(0, 1fr)` as one.
+		const columns =
+			layouts.EDITOR_LAYOUT_TOUCH.columns.match(/(?:[^\s(]+|\([^)]*\))+/g)?.length ?? 0;
+		const row = region("Action row");
+		expect([row.at[2], row.at[3], row.place]).toEqual([1, columns + 1, "center"]);
+	});
+
+	it("leaves Open folder out of the web app's menu on a tablet", () => {
+		const menuOf = (spec: (typeof layouts)["WALK_PROJECT_MENU_TABLET"]) =>
+			JSON.stringify(spec.regions.map((r) => r.card));
+		expect(menuOf(layouts.WALK_PROJECT_MENU_TABLET)).not.toContain("Open folder");
+		expect(menuOf(layouts.WALK_PROJECT_MENU_TABLET)).toContain("Open .zip");
+		expect(menuOf(layouts.WALK_PROJECT_MENU_WEB)).toContain("Open folder");
+	});
+});

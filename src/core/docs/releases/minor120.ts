@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.188.3",
+		date: "2026-10-16",
+		headline: "The tablet and phone pictures in the docs match the editor.",
+		affects: ["docs"],
+		fixed: [
+			"**Tablet pictures.** Script analysis sits beside the side strip and the action row is centred on the screen, in The interface and Getting started.",
+			"**No Open folder on an iPad.** Getting started's tablet steps leave it out of the Project menu, as Safari has no folder picker.",
+			"**The documentation's header, as it is.** Drawn as floating clusters with search before Contents on a computer, a tablet and a phone, and on a phone in one row with Try it and no Source.",
+		],
+	},
+	{
 		version: "0.188.2",
 		date: "2026-10-16",
 		headline: "A second Rojo project file's map is named after the file.",

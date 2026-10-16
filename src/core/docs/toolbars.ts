@@ -1803,9 +1803,12 @@ export const DOCS_SITE_BAR: ToolbarSpec = {
 	title: "The published documentation's top bar",
 	summary:
 		"Across the top of these pages on the project site, where there is no daemon behind them.",
-	chrome: "head",
+	// Floating clusters, as `html.ts` writes the header since the floating
+	// redesign: drawn as one bar, it had lost the search between them.
+	chrome: "float",
 	groups: [
 		{
+			wrap: "mark-group",
 			items: [
 				{
 					t: "mark",
@@ -1820,6 +1823,18 @@ export const DOCS_SITE_BAR: ToolbarSpec = {
 			],
 		},
 		{ wrap: "mode-strip", items: [modes("docs")] },
+		{
+			wrap: "search-group",
+			items: [
+				{
+					t: "button",
+					text: "Search the docs",
+					icon: "search",
+					name: "Search the docs",
+					what: "Every page and every node; `Ctrl` + `K` opens the same search.",
+				},
+			],
+		},
 		{
 			apart: true,
 			items: [
@@ -2524,11 +2539,12 @@ export const DOCS_SITE_BAR_TOUCH: ToolbarSpec = {
 	device: "tablet",
 	title: "The published documentation's header, on a touch screen",
 	summary:
-		"The web app's header, with the contents behind a button rather than holding a column, " +
-		"and a button for search.",
-	chrome: "head",
+		"The computer's header, with search as a button and the contents behind a button " +
+		"rather than holding a column.",
+	chrome: "float",
 	groups: [
 		{
+			wrap: "mark-group",
 			items: [
 				{
 					t: "mark",
@@ -2536,18 +2552,30 @@ export const DOCS_SITE_BAR_TOUCH: ToolbarSpec = {
 					tint: "preview",
 					...as(DOCS_SITE_BAR, "The mark"),
 				},
-				{ t: "modes", on: "docs", ...as(DOCS_SITE_BAR, "Editor, Design and Docs") },
-				{
-					t: "button",
-					text: "Contents",
-					name: "Contents",
-					what: "Slides the contents out over the page. Tap beside them to put them away.",
-				},
+			],
+		},
+		{
+			wrap: "mode-strip",
+			items: [{ t: "modes", on: "docs", ...as(DOCS_SITE_BAR, "Editor, Design and Docs") }],
+		},
+		{
+			wrap: "search-group",
+			items: [
 				{
 					t: "icon",
 					icon: "search",
 					name: "Search",
 					what: "The search `Ctrl` + `K` opens, for a screen with no keyboard.",
+				},
+			],
+		},
+		{
+			items: [
+				{
+					t: "button",
+					text: "Contents",
+					name: "Contents",
+					what: "Slides the contents out over the page. Tap beside them to put them away.",
 				},
 			],
 		},
@@ -2561,15 +2589,16 @@ export const DOCS_SITE_BAR_TOUCH: ToolbarSpec = {
 	],
 };
 
-/** The published documentation's header on a phone: the touch header, in two rows. */
+/** The published documentation's header on a phone: one row, as `theme.css` keeps it. */
 export const DOCS_SITE_BAR_PHONE: ToolbarSpec = {
 	id: "docs-site-bar-phone",
 	device: "phone",
 	title: "The published documentation's header, on a phone",
-	summary: "The tablet's header in two rows: the mark, Contents and search, then the rest.",
-	chrome: "head",
+	summary: "One row: the mark, search and Contents, then Try it and Settings. Source is left out.",
+	chrome: "float",
 	groups: [
 		{
+			wrap: "mark-group",
 			items: [
 				{
 					t: "mark",
@@ -2582,29 +2611,26 @@ export const DOCS_SITE_BAR_PHONE: ToolbarSpec = {
 						"On a phone the page glyph beside it says this is Docs.",
 					),
 				},
-				{ t: "button", text: "Contents", ...as(DOCS_SITE_BAR_TOUCH, "Contents") },
-				{ t: "icon", icon: "search", ...as(DOCS_SITE_BAR_TOUCH, "Search") },
 			],
 		},
 		{
-			row: true,
+			wrap: "search-group",
+			items: [{ t: "icon", icon: "search", ...as(DOCS_SITE_BAR_TOUCH, "Search") }],
+		},
+		{ items: [{ t: "button", text: "Contents", ...as(DOCS_SITE_BAR_TOUCH, "Contents") }] },
+		{
+			apart: true,
 			items: [
 				{
 					t: "button",
-					text: "Try it in your browser",
-					name: "Try it in your browser",
-					where: "second row",
+					text: "Try it",
+					name: "Try it",
 					what:
 						"The editor, running in a tab, on a project kept in this browser. No install " +
 						"and no daemon — and no access to a folder on your machine unless you hand " +
 						`one over. ${SAME_TAB} Wider screens have the mode strip instead.`,
 				},
-				{ t: "button", text: "Source", ...as(DOCS_SITE_BAR, "Source", undefined, "second row") },
-				{
-					t: "icon",
-					icon: "settings",
-					...as(DOCS_SITE_BAR, "Settings", undefined, "second row, at the end"),
-				},
+				{ t: "icon", icon: "settings", ...as(DOCS_SITE_BAR, "Settings", undefined, "at the end") },
 			],
 		},
 	],
