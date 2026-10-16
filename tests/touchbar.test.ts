@@ -41,6 +41,15 @@ describe("the bar on a touch screen", () => {
 		expect(outranks(specificity(hide ?? ""), specificity(draw))).toBe(true);
 	});
 
+	it("stands the Code panel a row above the lifted pill, on a tablet and a phone", () => {
+		const tablet = css.match(
+			/\.workspace\.compact:has\(\.drawer-toggles \.touch-bar\) \.dock\.foot \{\s*bottom: ([^;]+);/,
+		);
+		expect(tablet?.[1]).toContain("var(--hit) * 2");
+		const phone = css.match(/@media \(max-width: 699px\) \{\s*\.dock\.foot \{\s*bottom: ([^;]+);/);
+		expect(phone?.[1]).toContain("var(--hit) * 2");
+	});
+
 	it("stands the status pill above the bar while the bar is up", () => {
 		const rule = css.match(
 			/\.workspace\.compact:has\(\.drawer-toggles \.touch-bar\) \.dock\.bottom \{\s*bottom: ([^;]+);/,

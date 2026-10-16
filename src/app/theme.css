@@ -13894,6 +13894,27 @@ p.licence-meta,
 	bottom: calc(var(--edge) * 2 + var(--hit) + 8px + env(safe-area-inset-bottom, 0px));
 }
 
+/* And the Code panel's strip stands a row above the lifted pill, as it stands
+   above the pill's row everywhere else: on the same row, the pill lay over the
+   code being typed. A phone lifts the pill always, so it lifts the strip too. */
+.workspace.compact:has(.drawer-toggles .touch-bar) .dock.foot {
+	bottom: calc(var(--edge) * 3 + var(--hit) * 2 + 14px + env(safe-area-inset-bottom, 0px));
+}
+
+.workspace.compact:has(.drawer-toggles .touch-bar) .dock.foot:not(.full) {
+	max-height: calc(100% - var(--chrome-top) - var(--edge) * 4 - var(--hit) * 2 - 14px);
+}
+
+@media (max-width: 699px) {
+	.dock.foot {
+		bottom: calc(var(--edge) * 3 + var(--hit) * 2 + 14px + env(safe-area-inset-bottom, 0px));
+	}
+
+	.dock.foot:not(.full) {
+		max-height: calc(100% - var(--chrome-top) - var(--edge) * 4 - var(--hit) * 2 - 14px);
+	}
+}
+
 .touch-bar {
 	display: flex;
 	align-items: center;

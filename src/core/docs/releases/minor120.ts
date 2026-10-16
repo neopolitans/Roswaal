@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.188.5",
+		date: "2026-10-16",
+		headline:
+			"On an iPad and an iPhone, the Code panel and the keyboard leave the editor where it was.",
+		affects: ["editor"],
+		fixed: [
+			"**The Code panel above Script analysis.** On a touch screen the Code panel stands a row above the Script analysis card, which no longer lies over the code being typed.",
+			"**The page back after the keyboard.** Once the on-screen keyboard closes, or the screen turns, the editor is put back where it was, where it had stayed shifted up with its controls off the screen until every code tab was closed.",
+		],
+	},
+	{
 		version: "0.188.4",
 		date: "2026-10-16",
 		headline: "On an iPad, Script analysis and the action row no longer overlap.",

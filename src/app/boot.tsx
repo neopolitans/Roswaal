@@ -17,6 +17,7 @@ import { DesignerPage } from "./DesignerPage.jsx";
 import { DocsPage } from "./DocsPage.jsx";
 import { ErrorBoundary } from "./ErrorBoundary.jsx";
 import { loadCapabilities } from "./host.js";
+import { installKeyboardSettle } from "./keyboardSettle.js";
 import { installFavicon } from "./logo.jsx";
 import { PageHost } from "./pageHost.jsx";
 import { readPreferences } from "./preferences.js";
@@ -53,6 +54,10 @@ export function bootEditor(): void {
 	// Long press and double tap, for the right-click and double-click every
 	// panel is built around. See `touch.ts`.
 	installTouchGestures();
+
+	// The page put back where it was after the on-screen keyboard has gone.
+	// See `keyboardSettle.ts`.
+	installKeyboardSettle();
 
 	// The colour scheme, before anything renders.
 	//
