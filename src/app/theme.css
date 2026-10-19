@@ -6558,6 +6558,53 @@ select.place-edit-field {
 	font-weight: 400;
 }
 
+/* A vector's components, or a CFrame's position and orientation: a small
+   field each, named above it, and a row a part of the CFrame. */
+.place-fields {
+	display: grid;
+	gap: 6px;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.place-fields-row {
+	display: grid;
+	gap: 2px;
+}
+
+.place-fields-label {
+	font-size: var(--text-sm);
+	color: var(--fg-muted);
+	font-weight: 400;
+}
+
+.place-fields-grid {
+	display: grid;
+	grid-auto-flow: column;
+	grid-auto-columns: minmax(0, 1fr);
+	gap: 4px;
+}
+
+.place-fields-grid.place-fields-four {
+	grid-auto-flow: row;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.place-field {
+	display: grid;
+	gap: 1px;
+	min-width: 0;
+}
+
+.place-field > span {
+	font-size: var(--text-xs);
+	color: var(--fg-faint);
+	font-weight: 400;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
 /* Why a change was not made, under the row it was made in. */
 .place-prop-refused {
 	grid-column: 1 / -1;

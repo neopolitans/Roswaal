@@ -7,9 +7,10 @@
  * goes out as the bytes it came in as. An XML place has the text of the one
  * property element replaced and the rest of the file left as written.
  *
- * Only simple values -- true or false, numbers, text, enums, colours and
- * BrickColors -- and only properties the engine lets a script set: not read
- * only, hidden or deprecated, and writable at no security level. `Name` and
+ * True or false, numbers, text, enums, colours and BrickColors; vectors,
+ * sizes and UDims, a field a component; and CFrames, as a position and an
+ * orientation in degrees. Only properties the engine lets a script set: not
+ * read only, hidden or deprecated, and writable at no security level. `Name` and
  * `Source` are left out: a name is what the project's files find an instance
  * by, and a script's source is its project file's to write.
  *
@@ -30,12 +31,39 @@ import {
 	u32,
 	zigzag,
 } from "./chunks.js";
-import { type Prop, type PropType, type RbxDocument, RbxError, type RbxInstance } from "./dom.js";
+import {
+	type CFrameValue,
+	type Prop,
+	type PropType,
+	type RbxDocument,
+	RbxError,
+	type RbxInstance,
+} from "./dom.js";
 import { readRbx } from "./index.js";
+import { float32Text } from "./serialize.js";
 import { parseXml, type XmlElement } from "./xml.js";
 
-/** How a value is edited: a box to tick, a number, text, a list, a colour. */
-export type EditKind = "bool" | "int" | "number" | "string" | "enum" | "color" | "brickcolor";
+/**
+ * How a value is edited: a box to tick, a number, text, a list, a colour, a
+ * field a component, or a CFrame's position and orientation.
+ */
+export type EditKind =
+	| "bool"
+	| "int"
+	| "number"
+	| "string"
+	| "enum"
+	| "color"
+	| "brickcolor"
+	| "vector"
+	| "cframe";
+
+/** A CFrame as Studio's Properties shows it: where it is, and how it is turned. */
+export interface CFrameEdit {
+	position: number[];
+	/** Degrees about X, Y and Z, applied Y, then X, then Z. */
+	orientation: number[];
+}
 
 /** A property that may be changed, and its value as the editor edits it. */
 export interface PropertyEdit {
@@ -44,9 +72,15 @@ export interface PropertyEdit {
 	kind: EditKind;
 	/**
 	 * By kind: a boolean; a number for `int`, `number`, `enum` and
-	 * `brickcolor`; text for `string`; `[r, g, b]` from 0 to 255 for `color`.
+	 * `brickcolor`; text for `string`; `[r, g, b]` from 0 to 255 for `color`;
+	 * the components for `vector`, in `fields`' order; a `CFrameEdit` for
+	 * `cframe`.
 	 */
-	value: boolean | number | string | number[];
+	value: boolean | number | string | number[] | CFrameEdit;
+	/** For a vector, what each component is called: X, Y, Z; Scale, Offset. */
+	fields?: string[];
+	/** For a vector, which components are whole numbers: a UDim's offset. */
+	whole?: boolean[];
 	/** For an enum, its name. */
 	enum?: string;
 	/** For an enum, the items it may be set to: the current one, and every one not deprecated. */
@@ -138,12 +172,73 @@ export function editFor(
 			return type === "Color3" ? { stored, kind: "color", value: [...(v as number[])] } : undefined;
 		case "BrickColor":
 			return type === "BrickColor" ? { stored, kind: "brickcolor", value: v as number } : undefined;
-		default:
-			return undefined;
+		case "CFrame": {
+			if (type !== "CFrame") return undefined;
+			const cf = v as CFrameValue;
+			return {
+				stored,
+				kind: "cframe",
+				value: { position: [...cf.position], orientation: orientationOf(cf.rotation) },
+			};
+		}
+		default: {
+			const vector = VECTORS[prop.type];
+			if (!vector || type !== vector.engine) return undefined;
+			return {
+				stored,
+				kind: "vector",
+				value: [...(v as number[])],
+				fields: vector.fields,
+				...(vector.whole ? { whole: vector.whole } : {}),
+			};
+		}
 	}
 }
 
 const to255 = (c: number) => Math.max(0, Math.min(255, Math.round(c)));
+
+/** The kinds of vector, by how the file stores them: the engine's name and each component's. */
+const VECTORS: Partial<Record<PropType, { engine: string; fields: string[]; whole?: boolean[] }>> =
+	{
+		Vector3: { engine: "Vector3", fields: ["X", "Y", "Z"] },
+		Vector2: { engine: "Vector2", fields: ["X", "Y"] },
+		UDim: { engine: "UDim", fields: ["Scale", "Offset"], whole: [false, true] },
+		UDim2: {
+			engine: "UDim2",
+			fields: ["X Scale", "X Offset", "Y Scale", "Y Offset"],
+			whole: [false, true, false, true],
+		},
+		NumberRange: { engine: "NumberRange", fields: ["Min", "Max"] },
+		Rect: { engine: "Rect", fields: ["Min X", "Min Y", "Max X", "Max Y"] },
+	};
+
+const DEG = 180 / Math.PI;
+
+/** Studio's Orientation: a rotation, row-major, as degrees about X, Y and Z, applied Y, X, Z. */
+export function orientationOf(r: readonly number[]): number[] {
+	const rx = Math.asin(Math.max(-1, Math.min(1, -r[5])));
+	const ry = Math.atan2(r[2], r[8]);
+	const rz = Math.atan2(r[3], r[4]);
+	return [rx * DEG, ry * DEG, rz * DEG];
+}
+
+/** The rotation an orientation in degrees is: about Y, then X, then Z. Row-major. */
+export function rotationOf([x, y, z]: readonly number[]): number[] {
+	const [cx, sx] = [Math.cos(x / DEG), Math.sin(x / DEG)];
+	const [cy, sy] = [Math.cos(y / DEG), Math.sin(y / DEG)];
+	const [cz, sz] = [Math.cos(z / DEG), Math.sin(z / DEG)];
+	return [
+		cy * cz + sy * sx * sz,
+		-cy * sz + sy * sx * cz,
+		sy * cx,
+		cx * sz,
+		cx * cz,
+		-sx,
+		-sy * cz + cy * sx * sz,
+		sy * sz + cy * sx * cz,
+		cy * cx,
+	];
+}
 
 /**
  * The new value in the form the place stores it, from what the editor sent.
@@ -198,6 +293,40 @@ export function storedValue(edit: PropertyEdit, prop: Prop, input: unknown): unk
 			if (!whole(input) || input < 1 || input > 0xffff)
 				throw new RbxError(`${name} is a BrickColor number`);
 			return input;
+		case "vector": {
+			const fields = edit.fields ?? [];
+			if (
+				!Array.isArray(input) ||
+				input.length !== fields.length ||
+				!input.every((n) => typeof n === "number" && Number.isFinite(n))
+			)
+				throw new RbxError(`${name} is ${fields.length} numbers: ${fields.join(", ")}`);
+			edit.whole?.forEach((isWhole, i) => {
+				if (isWhole && (!whole(input[i]) || input[i] < INT32_MIN || input[i] > INT32_MAX))
+					throw new RbxError(`${name}'s ${fields[i]} is a whole number`);
+			});
+			if (prop.type === "NumberRange" && input[0] > input[1])
+				throw new RbxError(`${name}'s Min is above its Max`);
+			return [...input];
+		}
+		case "cframe": {
+			const given = input as Partial<CFrameEdit> | null;
+			const three = (v: unknown): v is number[] =>
+				Array.isArray(v) &&
+				v.length === 3 &&
+				v.every((n) => typeof n === "number" && Number.isFinite(n));
+			if (!given || typeof given !== "object" || !three(given.position))
+				throw new RbxError(`${name}'s Position is three numbers: X, Y, Z`);
+			if (given.orientation !== undefined && !three(given.orientation))
+				throw new RbxError(`${name}'s Orientation is three numbers of degrees: X, Y, Z`);
+			// Turned only when an orientation was given: a position alone keeps the
+			// rotation exactly, rather than as it rounds through degrees.
+			const was = prop.value as CFrameValue;
+			return {
+				position: [given.position[0], given.position[1], given.position[2]],
+				rotation: given.orientation ? rotationOf(given.orientation) : [...was.rotation],
+			} satisfies CFrameValue;
+		}
 	}
 }
 
@@ -205,9 +334,16 @@ export function storedValue(edit: PropertyEdit, prop: Prop, input: unknown): unk
 function same(type: PropType, a: unknown, b: unknown): boolean {
 	if (a instanceof Uint8Array && b instanceof Uint8Array)
 		return a.length === b.length && a.every((x, i) => x === b[i]);
+	// Floats as the file holds them: 32 bits, whichever format read them.
+	const numbers = (x: readonly number[], y: readonly number[]) =>
+		x.length === y.length && x.every((n, i) => Math.fround(n) === Math.fround(y[i]));
+	if (type === "CFrame") {
+		const [p, q] = [a as CFrameValue, b as CFrameValue];
+		return numbers(p.position, q.position) && numbers(p.rotation, q.rotation);
+	}
 	if (Array.isArray(a) && Array.isArray(b)) {
-		const round = type === "Color3" ? Math.fround : (n: number) => n;
-		return a.length === b.length && a.every((x, i) => round(x) === round(b[i]));
+		if (type === "Color3uint8") return a.length === b.length && a.every((x, i) => x === b[i]);
+		return numbers(a, b);
 	}
 	if (type === "Float32") return Math.fround(a as number) === Math.fround(b as number);
 	return a === b;
@@ -255,15 +391,38 @@ const TYPE_BYTE: Partial<Record<PropType, number>> = {
 	Int32: 3,
 	Float32: 4,
 	Float64: 5,
+	UDim: 6,
+	UDim2: 7,
 	BrickColor: 11,
 	Color3: 12,
+	Vector2: 13,
+	Vector3: 14,
+	CFrame: 16,
 	Enum: 18,
+	NumberRange: 23,
+	Rect: 24,
 	Color3uint8: 26,
 	Int64: 27,
 };
 
 /** Bytes a value takes, for the fixed-size types. */
-const SIZE: Record<number, number> = { 2: 1, 3: 4, 4: 4, 5: 8, 11: 4, 12: 12, 18: 4, 26: 3, 27: 8 };
+const SIZE: Record<number, number> = {
+	2: 1,
+	3: 4,
+	4: 4,
+	5: 8,
+	6: 8,
+	7: 16,
+	11: 4,
+	12: 12,
+	13: 8,
+	14: 12,
+	18: 4,
+	23: 8,
+	24: 16,
+	26: 3,
+	27: 8,
+};
 
 const bits = new DataView(new ArrayBuffer(8));
 
@@ -339,6 +498,7 @@ function patch(
 	value: unknown,
 ): Uint8Array {
 	if (type === 1) return patchString(data, base, slot, count, value as Uint8Array);
+	if (type === 16) return patchCFrame(data, base, slot, count, value as CFrameValue);
 	if (data.length !== base + count * SIZE[type])
 		throw new RbxError("a property chunk is not the length its values need");
 	const out = data.slice();
@@ -363,11 +523,38 @@ function patch(
 		case 18:
 			putTransposed(out, base, count, slot, (value as number) >>> 0);
 			break;
+		// Floats a component at a time, each component's run after the last.
 		case 12:
+		case 13:
+		case 14:
+		case 24:
 			(value as number[]).forEach((c, i) =>
 				putTransposed(out, base + i * 4 * count, count, slot, rotated(c)),
 			);
 			break;
+		case 6: {
+			const [scale, offset] = value as number[];
+			putTransposed(out, base, count, slot, rotated(scale));
+			putTransposed(out, base + 4 * count, count, slot, zigzag(offset));
+			break;
+		}
+		case 7: {
+			// Stored X scale, Y scale, then X offset, Y offset.
+			const [xs, xo, ys, yo] = value as number[];
+			putTransposed(out, base, count, slot, rotated(xs));
+			putTransposed(out, base + 4 * count, count, slot, rotated(ys));
+			putTransposed(out, base + 8 * count, count, slot, zigzag(xo));
+			putTransposed(out, base + 12 * count, count, slot, zigzag(yo));
+			break;
+		}
+		case 23: {
+			// Two little-endian floats a value, one value after another.
+			const view = new DataView(out.buffer, out.byteOffset, out.byteLength);
+			const [min, max] = value as number[];
+			view.setFloat32(base + 8 * slot, min, true);
+			view.setFloat32(base + 8 * slot + 4, max, true);
+			break;
+		}
 		case 26:
 			(value as number[]).forEach((c, i) => {
 				out[base + i * count + slot] = c;
@@ -383,6 +570,49 @@ function patch(
 			break;
 		}
 	}
+	return out;
+}
+
+/**
+ * CFrames are a rotation each -- a byte naming one of the 24 square turns, or
+ * 0 and the whole matrix -- then every X, every Y and every Z. The rotations
+ * are not all one size, so the chunk is rebuilt: the changed one as its
+ * matrix, the others as the bytes they were.
+ */
+function patchCFrame(
+	data: Uint8Array,
+	base: number,
+	slot: number,
+	count: number,
+	value: CFrameValue,
+): Uint8Array {
+	const rotations: Uint8Array[] = [];
+	let at = base;
+	for (let i = 0; i < count; i++) {
+		if (at >= data.length) throw new RbxError("a property chunk ends in the middle of a value");
+		const size = data[at] === 0 ? 37 : 1;
+		rotations.push(data.subarray(at, at + size));
+		at += size;
+	}
+	if (data.length - at !== 12 * count)
+		throw new RbxError("a property chunk is not the length its values need");
+	const matrix = new Uint8Array(37);
+	const view = new DataView(matrix.buffer);
+	value.rotation.forEach((c, i) => view.setFloat32(1 + 4 * i, c, true));
+	rotations[slot] = matrix;
+
+	const head = base + rotations.reduce((sum, r) => sum + r.length, 0);
+	const out = new Uint8Array(head + 12 * count);
+	out.set(data.subarray(0, base), 0);
+	let o = base;
+	for (const r of rotations) {
+		out.set(r, o);
+		o += r.length;
+	}
+	out.set(data.subarray(at), head);
+	value.position.forEach((c, i) =>
+		putTransposed(out, head + i * 4 * count, count, slot, rotated(c)),
+	);
 	return out;
 }
 
@@ -432,7 +662,65 @@ const ELEMENT: Partial<Record<PropType, string>> = {
 	BrickColor: "BrickColor",
 	Color3: "Color3",
 	Color3uint8: "Color3uint8",
+	Vector2: "Vector2",
+	Vector3: "Vector3",
+	UDim: "UDim",
+	UDim2: "UDim2",
+	NumberRange: "NumberRange",
+	Rect: "Rect2D",
+	CFrame: "CoordinateFrame",
 };
+
+const R = ["R00", "R01", "R02", "R10", "R11", "R12", "R20", "R21", "R22"];
+
+/** The child elements a type keeps its components in, and each one's text. */
+function childFields(type: PropType, value: unknown): [string, string][] | undefined {
+	const f = float32Text;
+	const v = value as number[];
+	switch (type) {
+		case "Vector3":
+			return [
+				["X", f(v[0])],
+				["Y", f(v[1])],
+				["Z", f(v[2])],
+			];
+		case "Vector2":
+			return [
+				["X", f(v[0])],
+				["Y", f(v[1])],
+			];
+		case "UDim":
+			return [
+				["S", f(v[0])],
+				["O", String(v[1])],
+			];
+		case "UDim2":
+			return [
+				["XS", f(v[0])],
+				["XO", String(v[1])],
+				["YS", f(v[2])],
+				["YO", String(v[3])],
+			];
+		case "CFrame": {
+			const cf = value as CFrameValue;
+			return [
+				["X", f(cf.position[0])],
+				["Y", f(cf.position[1])],
+				["Z", f(cf.position[2])],
+				...R.map((n, i): [string, string] => [n, f(cf.rotation[i])]),
+			];
+		}
+		default:
+			return undefined;
+	}
+}
+
+/** One splice per child, each its component's text; undefined when any child is missing. */
+function spliceChildren(el: XmlElement, fields: [string, string][]) {
+	const found = fields.map(([n]) => el.children.find((c) => c.name === n));
+	if (!found.every(Boolean)) return undefined;
+	return found.map((c, i) => ({ start: c!.start, end: c!.end, text: fields[i][1] }));
+}
 
 const escapeText = (s: string) =>
 	s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -463,6 +751,41 @@ function writeXml(
 	if (link) {
 		const url = new TextDecoder().decode(value as Uint8Array);
 		splices.push(content(source, el, url ? `<url>${escapeText(url)}</url>` : "<null></null>"));
+	} else if (childFields(type, value)) {
+		// Each component's own element, so the file keeps its layout; written
+		// out whole only when one is missing.
+		const fields = childFields(type, value)!;
+		const each = spliceChildren(el, fields);
+		if (each) splices.push(...each);
+		else splices.push(content(source, el, fields.map(([n, t]) => `<${n}>${t}</${n}>`).join("")));
+	} else if (type === "Rect") {
+		const [x0, y0, x1, y1] = (value as number[]).map(float32Text);
+		const ends = ["min", "max"].map((n) => el.children.find((c) => c.name === n));
+		const each = ends.every(Boolean)
+			? [
+					spliceChildren(ends[0]!, [
+						["X", x0],
+						["Y", y0],
+					]),
+					spliceChildren(ends[1]!, [
+						["X", x1],
+						["Y", y1],
+					]),
+				]
+			: [];
+		if (each.length && each.every(Boolean))
+			splices.push(...each.flat().filter((s) => s !== undefined));
+		else
+			splices.push(
+				content(
+					source,
+					el,
+					`<min><X>${x0}</X><Y>${y0}</Y></min><max><X>${x1}</X><Y>${y1}</Y></max>`,
+				),
+			);
+	} else if (type === "NumberRange") {
+		const [min, max] = (value as number[]).map(float32Text);
+		splices.push(content(source, el, `${min} ${max} `));
 	} else if (type === "Color3") {
 		const rgb = (value as number[]).map(String);
 		const parts = ["R", "G", "B"].map((n) => el.children.find((c) => c.name === n));

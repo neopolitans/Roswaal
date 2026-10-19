@@ -11,7 +11,7 @@
 import { ownTable } from "../ownTable.js";
 import { ENGINE, type EngineProperty, findProperty } from "../robloxEngine.js";
 import { type Prop, type RbxDocument, type RbxInstance, SCRIPT_CLASSES, text } from "./dom.js";
-import { editFor, type PropertyEdit } from "./edit.js";
+import { editFor, orientationOf, type PropertyEdit } from "./edit.js";
 
 /**
  * The tree, depth first: each node is `[class, name, parent, flags]`, the
@@ -230,18 +230,9 @@ const hex = (rgb: number[]) =>
 		)
 		.join("");
 
-/** Studio's Orientation: the rotation as degrees about X, Y and Z, applied Y, X, Z. */
-function orientation(r: number[]): number[] {
-	const deg = 180 / Math.PI;
-	const rx = Math.asin(Math.max(-1, Math.min(1, -r[5])));
-	const ry = Math.atan2(r[2], r[8]);
-	const rz = Math.atan2(r[3], r[4]);
-	return [rx * deg, ry * deg, rz * deg];
-}
-
 function cframe(value: { position: number[]; rotation: number[] }): string {
 	const at = value.position.map(num).join(", ");
-	const turned = orientation(value.rotation);
+	const turned = orientationOf(value.rotation);
 	return turned.every((d) => Math.abs(d) < 0.0005)
 		? at
 		: `${at} · turned ${turned.map(num).join(", ")}°`;

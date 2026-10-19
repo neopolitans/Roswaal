@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.193.0",
+		date: "2026-10-19",
+		headline: "Properties changes vectors, sizes, UDim2s and CFrames.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Vectors, sizes and UDims.** Vector3, Vector2, UDim, UDim2, NumberRange and Rect values change a field a component, named as Studio names them: X, Y, Z; Scale and Offset.",
+			"**CFrames as Position and Orientation.** In degrees, turned about Y, then X, then Z as Studio turns them. Changing only the position keeps the rotation exactly.",
+		],
+	},
+	{
 		version: "0.192.1",
 		date: "2026-10-19",
 		headline:

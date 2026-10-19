@@ -115,8 +115,18 @@ function defaultFor(type: number): unknown {
 		case 21:
 			return [];
 		case 12:
+		case 14:
 		case 26:
 			return [0, 0, 0];
+		case 6:
+		case 13:
+		case 23:
+			return [0, 0];
+		case 7:
+		case 24:
+			return [0, 0, 0, 0];
+		case 16:
+			return { position: [0, 0, 0], rotation: [1, 0, 0, 0, 1, 0, 0, 0, 1] };
 		default:
 			return 0;
 	}
@@ -147,6 +157,52 @@ function writeValues(w: Writer, type: number, values: unknown[]): void {
 		case 18:
 			w.interleaved(values as number[]);
 			return;
+		case 13:
+		case 14:
+		case 24: {
+			// Vector2, Vector3, Rect: a run of rotated floats a component.
+			const n = type === 13 ? 2 : type === 14 ? 3 : 4;
+			for (let k = 0; k < n; k++) w.interleaved(values.map((v) => rotate((v as number[])[k])));
+			return;
+		}
+		case 6:
+			// UDim: every scale, then every offset.
+			w.interleaved(values.map((v) => rotate((v as number[])[0])));
+			w.interleaved(values.map((v) => zigzag((v as number[])[1])));
+			return;
+		case 7:
+			// UDim2, held as [X scale, X offset, Y scale, Y offset]: the scales, then the offsets.
+			w.interleaved(values.map((v) => rotate((v as number[])[0])));
+			w.interleaved(values.map((v) => rotate((v as number[])[2])));
+			w.interleaved(values.map((v) => zigzag((v as number[])[1])));
+			w.interleaved(values.map((v) => zigzag((v as number[])[3])));
+			return;
+		case 23:
+			// NumberRange: two little-endian floats a value.
+			for (const v of values) {
+				const b = new DataView(new ArrayBuffer(8));
+				b.setFloat32(0, (v as number[])[0], true);
+				b.setFloat32(4, (v as number[])[1], true);
+				w.bytes(new Uint8Array(b.buffer));
+			}
+			return;
+		case 16: {
+			// CFrame: a rotation each -- `id` for one of the square turns, or 0 and
+			// the matrix -- then every X, every Y, every Z.
+			const frames = values as { position: number[]; rotation: number[]; id?: number }[];
+			for (const f of frames) {
+				if (f.id) {
+					w.u8(f.id);
+					continue;
+				}
+				w.u8(0);
+				const b = new DataView(new ArrayBuffer(36));
+				f.rotation.forEach((c, i) => b.setFloat32(i * 4, c, true));
+				w.bytes(new Uint8Array(b.buffer));
+			}
+			for (let k = 0; k < 3; k++) w.interleaved(frames.map((f) => rotate(f.position[k])));
+			return;
+		}
 		case 26: {
 			// Color3uint8: all the reds, then the greens, then the blues.
 			for (let k = 0; k < 3; k++) w.bytes(Uint8Array.from(values.map((v) => (v as number[])[k])));

@@ -20,7 +20,7 @@ import {
 	type PlaceInstanceInfo,
 	type PlaceProperty,
 } from "../core/rbx/browse.js";
-import type { PropertyEdit } from "../core/rbx/edit.js";
+import type { CFrameEdit, PropertyEdit } from "../core/rbx/edit.js";
 import { api, type PlaceTree } from "./api.js";
 import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
@@ -756,6 +756,152 @@ function parseField(
 
 const hexOf = (rgb: number[]) => `#${rgb.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
 
+/** A component as it is first put in its field: whole, or a float to the digits it holds. */
+const componentText = (n: number, whole: boolean) =>
+	whole ? String(n) : String(Number(n.toPrecision(7)));
+
+/** The degrees of an orientation, to the thousandth Properties shows. */
+const degrees = (n: number) => {
+	const r = Math.round(n * 1000) / 1000;
+	return Object.is(r, -0) ? 0 : r;
+};
+
+interface FieldRow {
+	/** "Position" or "Orientation", for a CFrame; a vector's one row has none. */
+	label?: string;
+	fields: string[];
+	texts: string[];
+	whole: boolean[];
+}
+
+/**
+ * A vector's components, or a CFrame's position and orientation, a field
+ * each. Enter in any of them writes them all, Escape puts them back, and
+ * leaving the group writes them. A CFrame's orientation is sent only when it
+ * was changed, so moving a part keeps its rotation exactly.
+ */
+function FieldsEditor({
+	property,
+	edit,
+	commit,
+	onDone,
+}: {
+	property: PlaceProperty;
+	edit: PropertyEdit;
+	commit: (value: unknown) => Promise<void>;
+	onDone: () => void;
+}) {
+	const group = useRef<HTMLDivElement>(null);
+	const settled = useRef(false);
+	const [why, setWhy] = useState<string | null>(null);
+
+	const rows: FieldRow[] =
+		edit.kind === "cframe"
+			? (() => {
+					const cf = edit.value as CFrameEdit;
+					return [
+						{
+							label: "Position",
+							fields: ["X", "Y", "Z"],
+							texts: cf.position.map((n) => componentText(n, false)),
+							whole: [false, false, false],
+						},
+						{
+							label: "Orientation",
+							fields: ["X", "Y", "Z"],
+							texts: cf.orientation.map((n) => String(degrees(n))),
+							whole: [false, false, false],
+						},
+					];
+				})()
+			: [
+					{
+						fields: edit.fields ?? [],
+						texts: (edit.value as number[]).map((n, i) => componentText(n, !!edit.whole?.[i])),
+						whole: (edit.fields ?? []).map((_, i) => !!edit.whole?.[i]),
+					},
+				];
+	const initial = rows.flatMap((row) => row.texts);
+
+	const finish = () => {
+		if (settled.current || !group.current) return;
+		const texts = [...group.current.querySelectorAll("input")].map((input) => input.value.trim());
+		if (texts.every((t, i) => t === initial[i])) {
+			settled.current = true;
+			onDone();
+			return;
+		}
+		const labels = rows.flatMap((row) =>
+			row.fields.map((f) => (row.label ? `${row.label} ${f}` : f)),
+		);
+		const wholes = rows.flatMap((row) => row.whole);
+		const numbers: number[] = [];
+		for (const [i, t] of texts.entries()) {
+			const n = Number(t);
+			if (t === "" || !Number.isFinite(n)) return setWhy(`${labels[i]} is a number`);
+			if (wholes[i] && !Number.isInteger(n)) return setWhy(`${labels[i]} is a whole number`);
+			numbers.push(n);
+		}
+		settled.current = true;
+		onDone();
+		if (edit.kind === "cframe") {
+			const turned = texts.slice(3).some((t, i) => t !== initial[3 + i]);
+			void commit({
+				position: numbers.slice(0, 3),
+				...(turned ? { orientation: numbers.slice(3, 6) } : {}),
+			});
+		} else {
+			void commit(numbers);
+		}
+	};
+
+	let first = true;
+	return (
+		<div
+			ref={group}
+			className="place-fields"
+			onBlur={(e) => {
+				if (!group.current?.contains(e.relatedTarget as Node | null)) finish();
+			}}
+			onKeyDown={(e) => {
+				if (e.key === "Enter") finish();
+				else if (e.key === "Escape") {
+					settled.current = true;
+					onDone();
+				}
+			}}
+		>
+			{rows.map((row) => (
+				<div className="place-fields-row" key={row.label ?? "value"}>
+					{row.label && <span className="place-fields-label">{row.label}</span>}
+					<div className={cx("place-fields-grid", row.fields.length === 4 && "place-fields-four")}>
+						{row.fields.map((field, i) => {
+							const focus = first;
+							first = false;
+							return (
+								<label className="place-field" key={field}>
+									<span>{field}</span>
+									<input
+										className="tb place-edit-field"
+										autoFocus={focus}
+										defaultValue={row.texts[i]}
+										inputMode="decimal"
+										spellCheck={false}
+										aria-label={`${property.name} ${row.label ? `${row.label} ` : ""}${field}`}
+										onFocus={(e) => e.currentTarget.select()}
+										onChange={() => setWhy(null)}
+									/>
+								</label>
+							);
+						})}
+					</div>
+				</div>
+			))}
+			{why && <span className="place-prop-refused">{why}</span>}
+		</div>
+	);
+}
+
 /**
  * A value that can be changed: a box to tick, a list to pick from, or the
  * value itself to click and type over. Enter or leaving the field writes it;
@@ -813,6 +959,24 @@ function PropEditor({
 				<i aria-hidden>{on ? "✓" : ""}</i>
 				{String(on)}
 			</button>
+		);
+	}
+
+	if (edit.kind === "vector" || edit.kind === "cframe") {
+		if (!editing) {
+			return (
+				<button className="place-edit" disabled={busy} onClick={start}>
+					<PropValue value={property.value} />
+				</button>
+			);
+		}
+		return (
+			<FieldsEditor
+				property={property}
+				edit={edit}
+				commit={commit}
+				onDone={() => setEditing(false)}
+			/>
 		);
 	}
 

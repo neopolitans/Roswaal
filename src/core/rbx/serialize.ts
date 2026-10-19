@@ -439,7 +439,7 @@ const escapeXml = (s: string) =>
 	s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /** The shortest text that reads back as the same 32-bit float. */
-function float32(v: number): string {
+export function float32Text(v: number): string {
 	if (Number.isNaN(v)) return "NAN";
 	if (!Number.isFinite(v)) return v > 0 ? "INF" : "-INF";
 	const f = Math.fround(v);
@@ -456,7 +456,7 @@ function float64(v: number): string {
 	return String(v);
 }
 
-const fields = (names: readonly string[], values: readonly number[], f = float32) =>
+const fields = (names: readonly string[], values: readonly number[], f = float32Text) =>
 	names.map((n, i) => `<${n}>${f(values[i])}</${n}>`).join("");
 
 function base64(bytes: Uint8Array): string {
@@ -514,7 +514,7 @@ function xmlProperty(
 		case "Int64":
 			return el("int64", String(v));
 		case "Float32":
-			return el("float", float32(v as number));
+			return el("float", float32Text(v as number));
 		case "Float64":
 			return el("double", float64(v as number));
 		case "Enum":
@@ -547,16 +547,16 @@ function xmlProperty(
 				v ? `<CFrame>${cframeXml(v as CFrameValue)}</CFrame>` : "",
 			);
 		case "UDim":
-			return el("UDim", `<S>${float32(tuple[0])}</S><O>${tuple[1]}</O>`);
+			return el("UDim", `<S>${float32Text(tuple[0])}</S><O>${tuple[1]}</O>`);
 		case "UDim2": {
 			const [xs, xo, ys, yo] = tuple;
 			return el(
 				"UDim2",
-				`<XS>${float32(xs)}</XS><XO>${xo}</XO><YS>${float32(ys)}</YS><YO>${yo}</YO>`,
+				`<XS>${float32Text(xs)}</XS><XO>${xo}</XO><YS>${float32Text(ys)}</YS><YO>${yo}</YO>`,
 			);
 		}
 		case "NumberRange":
-			return el("NumberRange", `${float32(tuple[0])} ${float32(tuple[1])} `);
+			return el("NumberRange", `${float32Text(tuple[0])} ${float32Text(tuple[1])} `);
 		case "Rect":
 			return el(
 				"Rect2D",
