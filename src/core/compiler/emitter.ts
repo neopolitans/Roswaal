@@ -229,6 +229,15 @@ export class Emitter {
 		// Services were collected during the walk above; they belong at the top,
 		// below the flags, the way a hand-written Roblox file has them.
 		flushPreamble(this);
+		// The body's first line was written with nothing before it in its block,
+		// so a bracket opening it took no `;` -- but the services above it are
+		// statements, and `local Workspace = game:GetService("Workspace")` then
+		// `(Workspace.Baseplate :: Part).Anchored = true` is one call to Luau.
+		const first = this.out.find((line) => line.text !== "" && !line.comment);
+		if (first && first.indent === 0 && first.text.startsWith("(")) {
+			if (this.preamble.some((line) => line.text !== "" && !line.comment))
+				first.text = `;${first.text}`;
+		}
 
 		const lines = [...this.preamble, ...this.out];
 		const body = this.render(lines);

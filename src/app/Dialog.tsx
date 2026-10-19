@@ -100,6 +100,13 @@ export type DialogResult = string | boolean | null;
 export interface PendingDialog {
 	request: DialogRequest;
 	resolve: (result: DialogResult) => void;
+	/**
+	 * Which question this is, for the key it is drawn under. A question that
+	 * replaced another in the same render was drawn by the same component, with
+	 * the first one's answers: the New project form opened over the notice
+	 * Add Place left up, and named the project "undefined".
+	 */
+	id?: number;
 }
 
 /** The colour a kind of question is drawn in, and its glyph unless it names one. */

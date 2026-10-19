@@ -139,7 +139,7 @@ export function Overlays(props: OverlaysProps) {
 			{/* Above the rest on purpose: a confirm is usually asked *by* one of
 			    them, and an answer that opened behind the question would be a
 			    dead application. */}
-			{props.dialog && <Dialog {...props.dialog} />}
+			{props.dialog && <Dialog key={props.dialog.id} {...props.dialog} />}
 
 			{props.menu && props.script && (
 				<NodeMenu

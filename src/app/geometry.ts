@@ -76,7 +76,7 @@ export function pinPosition(
 	}
 
 	// A capsule has one pin, on the right, halfway down.
-	if (isCompact(def)) {
+	if (isCompact(def, node)) {
 		return {
 			x: node.x + compactWidth(def, node),
 			y: node.y + NODE.compactHeight / 2,
@@ -85,7 +85,7 @@ export function pinPosition(
 
 	// A pill's inputs run down its left; its one result sits on the right, level
 	// with the middle of the pill rather than with a row.
-	if (isOperator(def)) {
+	if (isOperator(def, node)) {
 		const layout = operatorLayoutOf(def, node.config, node.literals);
 		return side === "in"
 			? { x: node.x, y: node.y + layout.rowsTop + index * NODE.rowHeight + NODE.rowHeight / 2 }

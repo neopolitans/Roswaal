@@ -9,6 +9,7 @@ import { argPinId } from "../callNodes.js";
 import { oneLine } from "../comments.js";
 import { checkSpecifier } from "../modules.js";
 import { isMethod, RECEIVER, signatureOf } from "../nodes/flow.js";
+import { instancePathClass } from "../nodes/library.js";
 import {
 	functionRefOf,
 	localRefOf,
@@ -254,7 +255,9 @@ function instancePath(e: Emitter, src: ResolvedNode): string {
 	// Inline, not hoisted: indexing is cheap, and the ordinary
 	// multi-consumer rule already binds it to a local when it is read
 	// more than once.
-	return renderPath(resolveRoot(e, root), path);
+	const expr = renderPath(resolveRoot(e, root), path);
+	const cls = instancePathClass(src.node.config);
+	return cls ? `(${expr} :: ${cls})` : expr;
 }
 
 /**

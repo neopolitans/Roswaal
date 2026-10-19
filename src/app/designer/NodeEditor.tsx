@@ -707,7 +707,7 @@ export function NodeEditor({
 					<Icon name="remove" size={15} />
 				</button>
 			)}
-			{dialog && createPortal(<Dialog {...dialog} />, document.body)}
+			{dialog && createPortal(<Dialog key={dialog.id} {...dialog} />, document.body)}
 		</>
 	);
 

@@ -49,7 +49,7 @@ import {
 	codeFaceWidth,
 } from "../codeFace.js";
 import { tokenize } from "../luau/lexer.js";
-import { rowsWidth } from "../nodeBox.js";
+import { rowsWidth, splitsOutput } from "../nodeBox.js";
 import { CODE_MARK_ROLE, CODE_MARKS, GLYPH_STROKE, GLYPHS, nodeGlyph } from "../nodeGlyphs.js";
 import { nodeTitle, type Registry, resolveNodePins } from "../nodes/index.js";
 import {
@@ -249,6 +249,14 @@ export interface PreviewOptions {
 // Building a preview from a definition
 // ---------------------------------------------------------------------------
 
+/** A capsule or a pill with its result split is drawn as an ordinary node, as the canvas draws it. */
+function shownDisplay(def: NodeDef, node: Pick<GraphNode, "config">): NodePreview["display"] {
+	const display = def.display ?? "normal";
+	return (display === "compact" || display === "operator") && splitsOutput(node)
+		? "normal"
+		: display;
+}
+
 /**
  * A node as it is drawn when you drop it on the canvas.
  *
@@ -280,7 +288,7 @@ export function previewOf(
 		subcategory: def.subcategory,
 		role: def.role,
 		pure: def.pure === true,
-		display: def.display ?? "normal",
+		display: shownDisplay(def, { config }),
 		operator: operatorOf(def, inputs, config),
 		latent: def.latent === true,
 		inputs: inputs.map((p) => previewPin(p, "in")),
@@ -1304,7 +1312,7 @@ export function previewOfPlaced(
 		subcategory: def.subcategory,
 		role: def.role,
 		pure: def.pure === true,
-		display: def.display ?? "normal",
+		display: shownDisplay(def, node),
 		operator: operatorOf(def, inputs, config, node.literals),
 		latent: def.latent === true,
 		inputs: inputs.map((pin) => ({

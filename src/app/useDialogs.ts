@@ -27,6 +27,7 @@ export function useDialogs(): Dialogs {
 	 */
 	const answerDialog = useRef<((result: DialogResult) => void) | null>(null);
 	const dialogOpen = useRef(false);
+	const asked = useRef(0);
 	const ask = useCallback((request: DialogRequest): Promise<DialogResult> => {
 		answerDialog.current?.(null);
 		return new Promise((resolve) => {
@@ -39,7 +40,7 @@ export function useDialogs(): Dialogs {
 			};
 			answerDialog.current = answer;
 			dialogOpen.current = true;
-			setDialog({ request, resolve: answer });
+			setDialog({ request, resolve: answer, id: ++asked.current });
 		});
 	}, []);
 

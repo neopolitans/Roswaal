@@ -77,6 +77,30 @@ function sortedRoots(doc: RbxDocument): RbxInstance[] {
 	return [...doc.roots].sort((a, b) => rank(a) - rank(b) || byName.compare(a.name, b.name));
 }
 
+/**
+ * The class of the instance at a root and dotted path, as the Instance node
+ * names one -- `Workspace` and `Tank.Hull` -- when the place holds it there.
+ * Nothing for `script`, which is where the script runs rather than a place in
+ * the file, or for a path the place does not have.
+ */
+export function classAtPath(outline: PlaceOutline, root: string, path: string): string | undefined {
+	const steps = path
+		.split(".")
+		.map((s) => s.trim())
+		.filter(Boolean);
+	const start = root === "game" ? steps.shift() : root === "workspace" ? "Workspace" : root;
+	if (start === undefined) return root === "game" ? "DataModel" : undefined;
+	if (start === "script" || start === "shared") return undefined;
+	const childOf = (parent: number, name: string) =>
+		outline.nodes.findIndex(([, n, p]) => p === parent && n === name);
+	let at = childOf(-1, start);
+	for (const step of steps) {
+		if (at < 0) return undefined;
+		at = childOf(at, step);
+	}
+	return at < 0 ? undefined : outline.classes[outline.nodes[at][0]];
+}
+
 /** The outline, and the instances in the order its indices name them. */
 export function outlinePlace(doc: RbxDocument): { outline: PlaceOutline; order: RbxInstance[] } {
 	const classes: string[] = [];

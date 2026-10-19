@@ -9,6 +9,22 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.197.0",
+		date: "2026-10-19",
+		headline:
+			"An Instance node is cast to the class the place holds, and a split getter shows every part.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Instance nodes typed from the place.** An Instance node dropped from Properties, or one whose path you type and the place holds, is cast to that instance's class. Its output is a Part rather than any Instance, so Get Member, Set Property and the read-only marks know what it is.",
+		],
+		fixed: [
+			"**The lock on Get Member.** A Get Member reading a read-only property shows a lock beside its type.",
+			"**A split getter shows every part.** A Get Member or a getter with its result split is drawn with a row for each part, and named for the member it reads, where it showed one pin.",
+			"**A second new project in the browser.** New project opened over a notice started with no name and refused to make the project; it opens with its defaults again.",
+			"**A statement opening with a bracket.** The first one below the services no longer runs into the GetService line above it, which Luau read as one call.",
+		],
+	},
+	{
 		version: "0.196.0",
 		date: "2026-10-19",
 		headline:

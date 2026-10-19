@@ -81,6 +81,7 @@ import { ProjectTree } from "./ProjectTree.jsx";
 import { setEditorOpener, setPageReady, switchMode, useOnShown, useShowing } from "./pageHost.jsx";
 import { IS_STATIC_HOST, openHome, openPage } from "./pages.js";
 import { cardOf, DEFAULT_LAYOUT, foldCard, type PanelId, reopenPanel, showTab } from "./panels.js";
+import { readOutline, rememberOutline } from "./placeOutline.js";
 import { readPreferences, wheelAction } from "./preferences.js";
 import { SiteBanner } from "./previewBuild.jsx";
 import { setProjectAliases } from "./projectAliases.js";
@@ -511,6 +512,12 @@ export function App() {
 	useEffect(() => {
 		if (!codeShown) setCodeFull(false);
 	}, [codeShown]);
+	// The place's outline, for the class at an Instance node's path: none for
+	// another project's place, then this one's, read once in the background.
+	useEffect(() => {
+		rememberOutline(null);
+		if (project?.place) readOutline();
+	}, [project?.root, project?.place]);
 	// Ctrl+Shift+Enter: full view in and out, wherever the focus is.
 	const showing = useShowing();
 	useEffect(() => {

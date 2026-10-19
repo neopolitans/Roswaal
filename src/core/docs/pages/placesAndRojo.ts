@@ -203,7 +203,7 @@ export function placesAndRojoPage(): DocPage {
 				rows: [
 					[
 						"A property",
-						"An **Instance** node at the instance's path, wired into **Get Member**, typed as the property is",
+						"An **Instance** node at the instance's path, cast to its class, wired into **Get Member**, typed as the property is",
 					],
 					[
 						"A property, with `Ctrl` held as you drop",

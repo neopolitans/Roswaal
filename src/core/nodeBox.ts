@@ -23,6 +23,7 @@ import {
 } from "./operatorLayout.js";
 import { bodyRows, onHeader } from "./pinLayout.js";
 import type { GraphNode, Literal, NodeConfig, NodeDef, PinDef } from "./schema.js";
+import { splitsOf } from "./structs.js";
 import { typeChip } from "./typeFamily.js";
 
 export interface Rect {
@@ -59,8 +60,19 @@ export function resolvePins(
  * The capsule form node editors use for a variable getter: no header, no rows,
  * one output on the right. Only for nodes whose whole meaning is their name.
  */
-export function isCompact(def: NodeDef | undefined): boolean {
-	return def?.display === "compact";
+export function isCompact(def: NodeDef | undefined, node?: Pick<GraphNode, "config">): boolean {
+	return def?.display === "compact" && !(node && splitsOutput(node));
+}
+
+/**
+ * Whether a node's result is split into its parts. A capsule and a pill draw
+ * one result: split, a `.AssemblyCenterOfMass` is three pins, and the node is
+ * drawn as an ordinary one with a row for each -- where it showed only one.
+ */
+export function splitsOutput(node: Pick<GraphNode, "config">): boolean {
+	return Object.entries(splitsOf(node.config)).some(
+		([key, mode]) => key.startsWith("out:") && mode,
+	);
 }
 
 /** A knot in a wire: a dot with one pin either side and no chrome at all. */
@@ -68,9 +80,9 @@ export function isReroute(def: NodeDef | undefined): boolean {
 	return def?.display === "reroute";
 }
 
-/** A comparison or a logical operator, drawn as its expression. */
-export function isOperator(def: NodeDef | undefined): boolean {
-	return def?.display === "operator";
+/** A comparison or a logical operator, drawn as its expression, unless its result is split. */
+export function isOperator(def: NodeDef | undefined, node?: Pick<GraphNode, "config">): boolean {
+	return def?.display === "operator" && !(node && splitsOutput(node));
 }
 
 /**
@@ -234,7 +246,7 @@ export function nodeBounds(node: GraphNode, registry: Registry, wide = false): R
 	if (isReroute(def)) {
 		return { x: node.x, y: node.y, w: NODE.rerouteSize, h: NODE.rerouteSize };
 	}
-	if (isCompact(def)) {
+	if (isCompact(def, node)) {
 		return {
 			x: node.x,
 			y: node.y,
@@ -242,7 +254,7 @@ export function nodeBounds(node: GraphNode, registry: Registry, wide = false): R
 			h: NODE.compactHeight,
 		};
 	}
-	if (isOperator(def)) {
+	if (isOperator(def, node)) {
 		const layout = operatorLayoutOf(def, node.config, node.literals);
 		return { x: node.x, y: node.y, w: layout.width, h: layout.height };
 	}

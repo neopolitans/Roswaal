@@ -21,6 +21,7 @@ import type { Diagnostic } from "../core/compiler/index.js";
 import { type GraphId, viewOf } from "../core/functionGraph.js";
 import { instanceClassInto } from "../core/members.js";
 import { type Registry, resolveNodePins } from "../core/nodes/index.js";
+import { isInstanceClass } from "../core/roblox.js";
 import { readOnlyToScripts } from "../core/robloxEngine.js";
 import { nilableProperty } from "../core/robloxNilable.js";
 import { propertiesOf } from "../core/robloxProperties.js";
@@ -75,6 +76,7 @@ import { type Growth, NodeView, type PinDragState } from "./NodeView.jsx";
 import { configText, functionNameOf } from "./nodeConfig.js";
 import { ProblemNotes, problemsByNode } from "./ProblemNotes.jsx";
 import { commentColor, pinColor } from "./palette.js";
+import { placeClassAt } from "./placeOutline.js";
 import { store, useEditor, useView } from "./store.js";
 import { showToast } from "./Toast.jsx";
 
@@ -919,9 +921,12 @@ export function Canvas({
 
 	const onLiteralChange = useCallback(
 		(nodeId: string, pinId: string, value: Literal | undefined) => {
-			store.edit((s) => setLiteral(s, nodeId, pinId, value));
+			store.edit((s) => {
+				const next = setLiteral(s, nodeId, pinId, value);
+				return pinId === "root" || pinId === "path" ? withFoundClass(next, nodeId, registry) : next;
+			});
 		},
-		[],
+		[registry],
 	);
 
 	// -- comments ----------------------------------------------------------
@@ -1157,6 +1162,9 @@ export function Canvas({
 						);
 						let next = setLiteral(at.script, at.id, "root", { t: "string", v: path[0] });
 						next = setLiteral(next, at.id, "path", { t: "string", v: path.slice(1).join(".") });
+						// Typed as what Properties says it is, which the place holds.
+						if (className && isInstanceClass(className))
+							next = setConfig(next, at.id, { className });
 						if (!reader) {
 							queueMicrotask(() => store.select([at.id]));
 							return next;
@@ -1510,7 +1518,9 @@ export function Canvas({
 						ownerClass={
 							node.def === "roblox.setProperty"
 								? instanceClassInto({ script, registry }, node.id, "instance")
-								: undefined
+								: node.def === "value.member"
+									? instanceClassInto({ script, registry }, node.id, "object")
+									: undefined
 						}
 						connected={connectedPins}
 						drag={wireDrag}
@@ -1707,4 +1717,22 @@ const NO_PINS: ReadonlySet<string> = new Set();
 function faultPins(list: readonly Diagnostic[] | undefined): ReadonlySet<string> {
 	if (!list?.some((d) => d.pin)) return NO_PINS;
 	return new Set(list.flatMap((d) => (d.pin ? [d.pin] : [])));
+}
+
+/**
+ * An Instance node whose root or path just changed, typed as the class the
+ * place holds there, or as any Instance again when the place has nothing
+ * there. Left as it is when that is already what it says.
+ */
+function withFoundClass(script: NodeScript, nodeId: string, registry: Registry): NodeScript {
+	const node = script.nodes.find((n) => n.id === nodeId);
+	if (node?.def !== "roblox.instancePath") return script;
+	const text = (pin: string) => {
+		const literal =
+			node.literals?.[pin] ?? registry.get(node.def)?.inputs.find((p) => p.id === pin)?.default;
+		return literal?.t === "string" ? literal.v.trim() : "";
+	};
+	const found = placeClassAt(text("root"), text("path"));
+	if (found === node.config?.className) return script;
+	return setConfig(script, nodeId, { className: found });
 }

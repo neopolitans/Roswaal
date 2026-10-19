@@ -13,11 +13,13 @@ import { CODE_MARKS, GLYPH_STROKE, GLYPH_VIEW_BOX, GLYPHS, nodeGlyph } from "../
 import { FUNCTION_NODES, signatureOf, signatureTypes } from "../core/nodes/flow.js";
 import { entryIndex, type GrowthRule } from "../core/nodes/growth.js";
 import { nodeTitle } from "../core/nodes/index.js";
+import { instancePathClass, memberNameOf } from "../core/nodes/library.js";
 import { castsResult, resultCastOf } from "../core/nodes/resultCast.js";
 import { pinTypeOf, pinTypeText } from "../core/nodes/variables.js";
 import { operatorSymbol } from "../core/operatorLayout.js";
 import { bodyRows, onHeader } from "../core/pinLayout.js";
 import { CLASS_OPTIONS, classGroup, TYPE_OPTIONS, typeGroup } from "../core/roblox.js";
+import { readOnlyToScripts } from "../core/robloxEngine.js";
 import type { GraphNode, Literal, NodeDef, PinDef } from "../core/schema.js";
 import { typeChip, typeFamily } from "../core/typeFamily.js";
 import { requestCodeEdit } from "./codeEditRequests.js";
@@ -73,7 +75,10 @@ export interface NodeViewProps {
 	errorCount: number;
 	/** Pins a problem names, whose labels are marked. */
 	faultPins?: ReadonlySet<string>;
-	/** Set Property's: the class of the Instance wired in, for its property picker. */
+	/**
+	 * The class of the Instance wired in: Set Property's, for its property
+	 * picker, and Get Member's, for the lock on a read-only member.
+	 */
 	ownerClass?: string;
 	/**
 	 * Warnings on this node, drawn only when there are no errors.
@@ -181,8 +186,8 @@ function NodeViewInner(props: NodeViewProps) {
 	const { inputs, outputs } = resolvePins(def, node.config, node.literals);
 
 	if (isReroute(def)) return renderReroute(props, inputs[0], outputs[0]);
-	if (isCompact(def)) return renderCapsule(props, def, outputs[0]);
-	if (isOperator(def)) return renderOperator(props, def, inputs, outputs[0]);
+	if (isCompact(def, node)) return renderCapsule(props, def, outputs[0]);
+	if (isOperator(def, node)) return renderOperator(props, def, inputs, outputs[0]);
 
 	// The flow in and the flow on ride the header; every other pin has a row.
 	const headIn = onHeader(inputs) ? inputs[0] : undefined;
@@ -487,8 +492,8 @@ function PinMark() {
 }
 
 /** Whether a node's output type hangs under it rather than sitting by its pin. */
-function hangsChip(def: NodeDef | undefined): boolean {
-	return isReroute(def) || isCompact(def) || isOperator(def);
+function hangsChip(def: NodeDef | undefined, node?: Pick<GraphNode, "config">): boolean {
+	return isReroute(def) || isCompact(def, node) || isOperator(def, node);
 }
 
 /**
@@ -496,16 +501,20 @@ function hangsChip(def: NodeDef | undefined): boolean {
  * on it, as a problem note hangs under a node. Only for a type that says
  * something: an unwired knot is `any`, which a chip would only announce.
  */
-function hangingChip(pin: PinDef | undefined) {
+function hangingChip(pin: PinDef | undefined, readOnly = false) {
 	if (!pin || pin.kind !== "data") return null;
 	const text = typeChip(undefined, pin.type);
 	if (!text) return null;
 	return (
 		<span
-			className="type-chip hanging-type"
+			className={cx("type-chip hanging-type", readOnly && "type-chip--read-only")}
 			style={{ "--pin": pinColor(pin.type, "data") } as React.CSSProperties}
 			{...typeCardHandlers(pin.type!)}
 		>
+			{/* A member a script can read and not set, as the menus mark it. */}
+			{readOnly && (
+				<Icon name="lock" size={9} title="Read-only: a script can read it, not set it." />
+			)}
 			{text}
 		</span>
 	);
@@ -644,7 +653,12 @@ function renderOperator(
 					{renderPin(props, output, "out")}
 				</span>
 			)}
-			{hangingChip(output)}
+			{hangingChip(
+				output,
+				def.id === "value.member" &&
+					props.ownerClass !== undefined &&
+					readOnlyToScripts(props.ownerClass, memberNameOf(node.config)),
+			)}
 		</div>
 	);
 }
@@ -719,10 +733,15 @@ function renderPin(
 
 	// A call's result cast where it is made shows the claim on the pin, in the
 	// Cast pill's own spelling, so a cast reads the same wherever it is written.
-	const cast =
-		side === "out" && pin.id === "result" && props.def && castsResult(props.def)
-			? resultCastOf(node.config)
+	const found =
+		side === "out" && node.def === "roblox.instancePath"
+			? instancePathClass(node.config)
 			: undefined;
+	const cast =
+		found ??
+		(side === "out" && pin.id === "result" && props.def && castsResult(props.def)
+			? resultCastOf(node.config)
+			: undefined);
 	const castMark = cast ? (
 		<span
 			className="cast-mark"
@@ -740,7 +759,7 @@ function renderPin(
 	// and one drawn there sat on the knot's pin, cut a getter's name short and
 	// covered a pill's symbol.
 	const chipText =
-		side === "out" && pin.kind === "data" && !cast && !hangsChip(props.def)
+		side === "out" && pin.kind === "data" && !cast && !hangsChip(props.def, props.node)
 			? typeChip(pin.name, pin.type)
 			: null;
 	const chip = chipText ? (

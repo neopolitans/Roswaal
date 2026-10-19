@@ -706,6 +706,25 @@ const BRICK_COLORS = [
 ];
 
 /** Declare Local's inputs, shared by the definition and its pin derivation. */
+/** The Instance node's root and path. */
+const INSTANCE_PATH_INPUTS: PinDef[] = [
+	{
+		...str("root", "In", "ReplicatedStorage"),
+		options: PATH_ROOTS,
+		description: "Where the path starts: a service, or game / script / workspace.",
+	},
+	{
+		...str("path", "Path", "Modules.Combat"),
+		description: "Dotted path from the root. Names that are not identifiers are bracketed for you.",
+	},
+];
+
+/** The class an Instance node was found as in the place, which its output is cast to. */
+export function instancePathClass(config: NodeConfig | undefined): string | undefined {
+	const value = config?.className;
+	return typeof value === "string" && isInstanceClass(value) ? value : undefined;
+}
+
 const LOCAL_INPUTS: PinDef[] = [
 	exec("in"),
 	/**
@@ -3046,20 +3065,16 @@ export const LIBRARY_NODES: NodeDef[] = [
 			"An instance reached by path, e.g. Modules.Combat under ReplicatedStorage. Errors at runtime if it is not there yet — use Wait For Child when it might not be.",
 		pure: true,
 		targets: ["roblox"],
-		inputs: [
-			{
-				...str("root", "In", "ReplicatedStorage"),
-				options: PATH_ROOTS,
-				description: "Where the path starts: a service, or game / script / workspace.",
-			},
-			{
-				...str("path", "Path", "Modules.Combat"),
-				description:
-					"Dotted path from the root. Names that are not identifiers are bracketed for you.",
-			},
-		],
+		inputs: INSTANCE_PATH_INPUTS,
 		outputs: [d("instance", "", "Instance")],
 		compilesTo: { kind: "builtin", handler: "instance.path" },
+		// The class the place holds at the path, where the editor found one:
+		// dropped from Properties, or a path typed that the place has. Written
+		// as a cast, so the Luau says it as the wire does.
+		derivePins: (config) => ({
+			inputs: INSTANCE_PATH_INPUTS,
+			outputs: [d("instance", "", instancePathClass(config) ?? "Instance")],
+		}),
 	},
 	/**
 	 * Require at Top: a module by the string its runtime resolves.
@@ -3189,6 +3204,12 @@ export const LIBRARY_NODES: NodeDef[] = [
 		 * else -- not the wire, not the graph, and so not the type of what is
 		 * on the other end of it.
 		 */
+		// The member it reads, as the pill writes it: what a split one, drawn as
+		// an ordinary node with a header, is called there.
+		defaultLabel: (config) => {
+			const member = memberNameOf(config);
+			return member ? `.${member}` : "";
+		},
 		derivePins: (config) => ({
 			inputs: [d("object", "", "any")],
 			outputs: [

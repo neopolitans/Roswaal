@@ -2461,6 +2461,13 @@ button.tb.primary:hover:not(:disabled) {
 	max-width: 120px;
 }
 
+/* A member a script can read and not set: a lock before its type, as the menus have it. */
+.node .type-chip.type-chip--read-only {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+}
+
 .node .type-chip:hover {
 	box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--pin) 70%, transparent);
 }

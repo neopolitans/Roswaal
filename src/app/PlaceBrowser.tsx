@@ -27,6 +27,7 @@ import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
 import { depthStyle, Ident, SectionHead } from "./PanelParts.jsx";
+import { rememberOutline } from "./placeOutline.js";
 
 /** Mirrors `TUCKED` in core/rbx/browse.ts, which the editor does not bundle. */
 const TUCKED = 1;
@@ -114,6 +115,7 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 				}
 				stampRef.current = answer.stamp;
 				setPlace(answer);
+				rememberOutline(answer.outline);
 				setProblem(null);
 			}
 		} catch (err) {
