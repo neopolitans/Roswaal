@@ -18,6 +18,7 @@ import { collectMaps, readMap } from "./documents.js";
 import { fs, path } from "./host.js";
 import { mappedOutputFolders } from "./mapFolders.js";
 import { generatedIndex, importGraphPath } from "./outputs.js";
+import { PLACE_BACKUPS } from "./place.js";
 import { safeJoin, tidyPath, toPosix } from "./paths.js";
 
 /**
@@ -37,7 +38,16 @@ export interface TreeEntry {
 	 * entries: not files, so a package's `path` is a name, and `target` is the
 	 * file it opens.
 	 */
-	kind: "directory" | "nodescript" | "nodemap" | "luau" | "luaurc" | "wally" | "package";
+	kind:
+		| "directory"
+		| "nodescript"
+		| "nodemap"
+		| "luau"
+		| "luaurc"
+		| "wally"
+		| "package"
+		| "place"
+		| "model";
 	/** Set on generated Luau: the graph it came from. */
 	generatedFrom?: string;
 	/**
@@ -252,6 +262,8 @@ async function walk(
 
 		if (entry.isDirectory()) {
 			if (TREE_SKIP.has(entry.name)) continue;
+			// Copies of the place kept before a property change: history, not content.
+			if (rel === PLACE_BACKUPS) continue;
 			const children = await walk(root, abs, generated, keepEmptyUnder, mapped);
 			const keep =
 				children.length > 0 ||
@@ -310,5 +322,8 @@ function classify(name: string): TreeEntry["kind"] | null {
 	// decides which graphs it applies to, and a tree is the one place that says
 	// so without having to explain it.
 	if (name === ".luaurc") return "luaurc";
+	// The place Studio opens, and models a node map points at: what Rojo builds from.
+	if (/\.rbxlx?$/i.test(name)) return "place";
+	if (/\.rbxmx?$/i.test(name)) return "model";
 	return null;
 }

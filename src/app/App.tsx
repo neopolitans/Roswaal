@@ -978,6 +978,28 @@ export function App() {
 	/** The directory a file is in, project-relative. */
 	const dirOf = (filePath: string) => filePath.split("/").slice(0, -1).join("/");
 
+	/** Adds Studio's starting place to a project that has none, and shows it in DataModel. */
+	const addPlace = useCallback(async () => {
+		try {
+			const { file } = await api.newPlace();
+			await refreshTree();
+			setProjectView("datamodel");
+			setPlaceSeen(true);
+			notify("Place added", `${file}: a baseplate, a spawn and the usual services, as a new project starts with.`);
+		} catch (err) {
+			notify("No place was added", errorMessage(err));
+		}
+	}, [notify, refreshTree]);
+
+	/**
+	 * What opening a place from the tree needs, as it is now: `openEntry` is
+	 * made once, so it reads these rather than the first render's.
+	 */
+	const placeContext = useRef<{
+		place: string | null | undefined;
+		setConfig: (patch: Partial<RoswaalConfig>) => Promise<void>;
+	}>({ place: null, setConfig: async () => {} });
+
 	const openEntry = useCallback(async (entry: TreeEntry): Promise<void> => {
 		// A package listed under wally.toml opens the module a require of it reaches.
 		if (entry.kind === "package") {
@@ -989,7 +1011,29 @@ export function App() {
 				});
 			return;
 		}
-		if (entry.kind === "wally") return;
+		if (entry.kind === "wally" || entry.kind === "model") return;
+		// The project's place opens in DataModel; another one can become it.
+		if (entry.kind === "place") {
+			const { place, setConfig: saveConfig } = placeContext.current;
+			if (entry.path === place) {
+				setProjectView("datamodel");
+				setPlaceSeen(true);
+				return;
+			}
+			const yes = await ask({
+				kind: "confirm",
+				title: `Use ${entry.name} as the project's place?`,
+				message:
+					"DataModel, Properties and Export read it from then on. It is set as `place` in roswaal.json.",
+				confirmLabel: "Use It",
+			});
+			if (yes === true) {
+				await saveConfig({ place: entry.path });
+				setProjectView("datamodel");
+				setPlaceSeen(true);
+			}
+			return;
+		}
 		// Each opens in a tab of its own, beside the graphs, and leaves them open.
 		if (entry.kind === "luaurc") {
 			const { files } = await api.luaurcFiles();
@@ -1325,6 +1369,7 @@ export function App() {
 		},
 		[project, refreshTree, notify, onProjectChanged],
 	);
+	placeContext.current = { place: project?.place, setConfig };
 
 	const { writeGraph, followDiskRef } = useAutosave({
 		saves,
@@ -1495,6 +1540,13 @@ export function App() {
 									{
 										// Into the project, and out of it.
 										entries: [
+											// A Roblox project with no place can start one, as a new project does.
+											project.config.target === "roblox" &&
+												!project.place && {
+													label: "Add a place",
+													icon: "build",
+													run: () => void addPlace(),
+												},
 											{ label: "Import Rojo project…", icon: "map", run: () => void importRojo() },
 											{ label: "Export…", icon: "copy", run: () => setExportOpen(true) },
 										],

@@ -405,7 +405,7 @@ function cardHtml(card: LayoutCard, art: ToolbarArt, preview?: PreviewOptions): 
 				`<section class="card card-analysis headless"><div class="panel panel-analysis card-body"><div class="status">` +
 					`<div class="bar"><span class="scopes" role="tablist">${scope(true, "This Script", "Script")}${scope(false, "Project", "Project")}</span>` +
 					`<span class="spacer"></span><span class="status-text">${graph}</span>` +
-					`<span class="tb icon-only status-fold-button" aria-expanded="${card.entry ? "true" : "false"}">${glyphHtml("chevron", 14, art).replace('class="icon"', 'class="icon status-fold"')}</span></div>` +
+					`<button type="button" class="tb icon-only status-fold-button" aria-expanded="${card.entry ? "true" : "false"}"${INERT}>${glyphHtml("chevron", 14, art).replace('class="icon"', 'class="icon status-fold"')}</button></div>` +
 					(card.entry
 						? `<div class="summary">${split} in <b>${graph}</b></div>` +
 							`<div class="list"><div class="entry warning"><span class="sev">warning</span><span class="msg">${escapeXml(card.entry)}</span></div></div>`
@@ -956,6 +956,7 @@ const COMPILE_CLUSTER: ToolbarItem[] = [
 const WINDOWS_CLUSTER: ToolbarItem[] = [
 	{ t: "icon", icon: "panelRight", on: true },
 	{ t: "divider" },
+	{ t: "icon", icon: "export" },
 	{ t: "icon", icon: "settings" },
 ];
 const PALETTE: ToolbarItem[] = [
@@ -1022,8 +1023,9 @@ export const EDITOR_LAYOUT: LayoutSpec = {
 	summary: "The editor on a computer, with a graph open and nothing selected.",
 	device: "desktop",
 	columns: "10px 352px minmax(0, 1fr) 290px 8px",
-	// The two cards share the column three to two, down to the status pill.
-	rows: "10px 38px 10px 451px 8px 301px minmax(0, 1fr) 110px 7px",
+	// The two cards share the column three to two, down to Script analysis,
+	// which is as tall as it is: fixed heights left it cut off at the foot.
+	rows: "10px 38px 10px minmax(0, 3fr) 8px minmax(0, 2fr) 8px auto 7px",
 	regions: [
 		{
 			name: "The graph",
@@ -1067,8 +1069,8 @@ export const EDITOR_LAYOUT: LayoutSpec = {
 				},
 				{
 					items: WINDOWS_CLUSTER,
-					name: "Inspector and Settings",
-					what: "The button for the Inspector's card, then Settings. Every button is on [Toolbars](toolbars).",
+					name: "Inspector, Export and Settings",
+					what: "The button for the Inspector's card, then Export and Settings. Every button is on [Toolbars](toolbars).",
 				},
 			],
 		},
@@ -1131,7 +1133,7 @@ export const EDITOR_LAYOUT_TOUCH: LayoutSpec = {
 	columns: "10px 64px minmax(0, 1fr) 340px 10px",
 	// The card above the action row, as on a phone: on the same row, the two
 	// overlapped on an iPad held upright.
-	rows: "10px 38px 10px minmax(0, 1fr) 110px 10px 38px 10px",
+	rows: "10px 38px 10px minmax(0, 1fr) auto 10px 38px 10px",
 	regions: [
 		{
 			name: "The graph",
@@ -1168,8 +1170,8 @@ export const EDITOR_LAYOUT_TOUCH: LayoutSpec = {
 				},
 				{
 					items: WINDOWS_CLUSTER,
-					name: "Inspector and Settings",
-					what: "The Inspector slides out from the right. Held upright, Settings is in **More**.",
+					name: "Inspector, Export and Settings",
+					what: "The Inspector slides out from the right. Held upright, Export stays beside it and Settings is in **More**.",
 				},
 			],
 		},
@@ -1232,7 +1234,7 @@ export const EDITOR_LAYOUT_PHONE: LayoutSpec = {
 	summary: "The editor on a phone, with a graph open and nothing selected.",
 	device: "phone",
 	columns: "6px minmax(0, 1fr) 6px",
-	rows: "10px 40px minmax(0, 1fr) 110px 10px 38px 12px",
+	rows: "10px 40px minmax(0, 1fr) auto 10px 38px 12px",
 	regions: [
 		{
 			name: "The graph",

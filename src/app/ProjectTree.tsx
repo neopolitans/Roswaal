@@ -27,6 +27,9 @@ const KIND_ICONS: Record<Exclude<TreeEntry["kind"], "directory">, IconName> = {
 	// The project's other settings file for what it requires, so the same gear.
 	wally: "settings",
 	package: "instance",
+	// A place is a whole game, so the cube the compile buttons use; a model is one instance.
+	place: "build",
+	model: "instance",
 };
 
 /** Listed from `wally.toml` rather than found on disk: no menu, no drag, no rename. */

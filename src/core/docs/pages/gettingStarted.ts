@@ -303,9 +303,9 @@ export function gettingStartedPage(): DocPage {
 							{
 								t: "p",
 								text:
-									"**Export…** in the same menu takes the project out as a zip, with its place file if " +
-									"it has one, or the place file alone. Folders you have opened are listed in the panel, " +
-									"to reopen with a click.",
+									"**Export**, beside Settings in the top bar, takes the project out as a zip, with " +
+									"its place file if it has one, or the place file alone, as `.rbxl` or Legacy " +
+									"`.rbxlx`. Folders you have opened are listed in the panel, to reopen with a click.",
 							},
 						],
 					},
@@ -348,7 +348,7 @@ export function gettingStartedPage(): DocPage {
 							{
 								t: "p",
 								text:
-									"**Project → Export…** saves it back to Files as a zip. The panels slide out over " +
+									"**Export**, left of **More** in the top bar, saves it back to Files as a zip. The panels slide out over " +
 									"the graph, and the edits a keyboard makes are buttons under it: " +
 									"[The Interface](the-interface) shows where things are, and " +
 									"[Controls](controls) has the gestures. An iPad Mini is the smallest screen it " +

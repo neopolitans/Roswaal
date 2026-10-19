@@ -39,7 +39,16 @@ export interface TreeEntry {
 	path: string;
 	name: string;
 	/** `wally` is `wally.toml` and `package` a dependency under it; see the daemon's copy. */
-	kind: "directory" | "nodescript" | "nodemap" | "luau" | "luaurc" | "wally" | "package";
+	kind:
+		| "directory"
+		| "nodescript"
+		| "nodemap"
+		| "luau"
+		| "luaurc"
+		| "wally"
+		| "package"
+		| "place"
+		| "model";
 	generatedFrom?: string;
 	/** On hand-written Luau already imported: the graph Reimport replaces. */
 	graph?: string;
@@ -373,6 +382,8 @@ export const api = {
 			"/api/rojo/import",
 			{ file },
 		),
+	/** Adds the place a new project starts with to a project that has none. */
+	newPlace: () => post<{ file: string }>("/api/place/new", {}),
 	/** The place as a tree of names and classes, for the DataModel browser. */
 	place: () => request<PlaceTree>("/api/place"),
 	/** One instance of the place, its properties as text. */

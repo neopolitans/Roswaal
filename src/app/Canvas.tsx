@@ -1346,6 +1346,20 @@ export function Canvas({
 				)}
 			</div>
 
+			{/* A graph with nothing in it yet says how to start one: the node menu
+			    is a right-click, or a press and hold on a touch screen, and
+			    neither is something a newcomer sees. A new graph has its Script
+			    Start or Module Exports already, so that one node still counts as
+			    nothing; the hint is gone with the next. */}
+			{script.nodes.length <= 1 &&
+				script.nodes.every((n) => n.def === "script.begin" || n.def === "module.exports") &&
+				script.comments.length === 0 && (
+					<div className="canvas-start-hint" style={{ zIndex: LAYER.watermark }}>
+						<span className="when-pointer">Right-click to create nodes</span>
+						<span className="when-touch">Press and hold to create nodes</span>
+					</div>
+				)}
+
 			<div className="world" style={worldStyle}>
 				{commentsByArea(script.comments).map((comment, index) => (
 					<CommentView

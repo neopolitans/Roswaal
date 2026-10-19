@@ -82,6 +82,9 @@ describe("the canvas stacking order", () => {
 			// The ring under a held finger, drawn at the marquee's layer because
 			// it is where a marquee is about to start.
 			"canvas-hold": "marquee",
+			// How to make the first node, on an empty graph: with the watermark,
+			// under the world it is gone from once anything is in it.
+			"canvas-start-hint": "watermark",
 		};
 
 		const positioned: string[] = [];

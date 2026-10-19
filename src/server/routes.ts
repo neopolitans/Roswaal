@@ -26,7 +26,9 @@ import { VERSION } from "../cli/version.js";
 import { fromBase64, toBase64 } from "../core/base64.js";
 import { graphNameOf, importLuau, LARGEST_IMPORT } from "../core/import/fromLuau.js";
 import type { ImportMode, TopLevelLocals } from "../core/import/modes.js";
+import { NEW_PLACE_FILE } from "../core/newProject.js";
 import { emptyFilesystemMap, emptyMap, type NodeMap } from "../core/nodemap.js";
+import { blankPlaceBytes, blankPlaceXml } from "../core/rbx/blankPlace.js";
 import {
 	describeInstance,
 	fingerprint,
@@ -41,7 +43,8 @@ import { convertPlace, leftOutOf, placeFormatOf } from "../core/rbx/serialize.js
 import { emptyScript, type NodeDef, type NodeScript, type Target } from "../core/schema.js";
 import { errorMessage, HttpError, UserError } from "./errors.js";
 import { exists } from "./files.js";
-import { path } from "./host.js";
+import { fs, path } from "./host.js";
+import { makeGraphFolders } from "./mapFolders.js";
 import { createProject } from "./newProject.js";
 import { importGraphPath } from "./outputs.js";
 import { toPosix } from "./paths.js";
@@ -247,6 +250,10 @@ export class ApiSession {
 	/** Opens a project and tells the host, which is the only way `current` moves. */
 	private async open(root: string, switched: boolean): Promise<OpenProject> {
 		this.current = await openProject(root);
+		// A project opened with a map of its own -- one imported from Rojo, one
+		// made elsewhere -- gets the graph folders its synced folders want, as a
+		// new project starts with. A folder that cannot be written opens anyway.
+		if (switched) await makeGraphFolders(this.current).catch(() => []);
 		this.hooks.projectChanged?.(this.current, { switched });
 		return this.current;
 	}
@@ -473,6 +480,31 @@ export class ApiSession {
 			},
 
 			/**
+			 * Adds a place to a project that has none: the place a new project
+			 * starts with, at `place.rbxl` -- or at the file roswaal.json's
+			 * `place` names, in that file's format, when it is not there yet.
+			 * A 409 when the project has a place already, or is for Lune.
+			 */
+			"POST /place/new": async () => {
+				const project = this.project();
+				if (project.config.target !== "roblox")
+					throw new HttpError(
+						409,
+						"A Lune project has no place: there is no DataModel to put one in.",
+					);
+				if (await findPlaceFile(project.root, project.config))
+					throw new HttpError(409, "The project has a place file already.");
+				const file = project.config.place ?? NEW_PLACE_FILE;
+				const abs = safeJoin(project.root, file);
+				await fs.mkdir(path.dirname(abs), { recursive: true });
+				await fs.writeFile(
+					abs,
+					/\.rbxlx$/i.test(file) ? new TextEncoder().encode(blankPlaceXml()) : blankPlaceBytes(),
+				);
+				return { file };
+			},
+
+			/**
 			 * Changes one property of one instance, in the place file itself.
 			 * Only a property the instance's answer offers an `edit` for, with a
 			 * value that property can hold; anything else is a 422 saying why,
@@ -694,7 +726,10 @@ export class ApiSession {
 					"file",
 					"Which project file? Pass its `file`.",
 				);
-				return importRojoProject(this.project(), file);
+				const imported = await importRojoProject(this.project(), file);
+				// The map's synced folders get their graph folders, as a new project's do.
+				await makeGraphFolders(this.project()).catch(() => []);
+				return imported;
 			},
 		};
 	}

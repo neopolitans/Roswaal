@@ -88,6 +88,30 @@ export async function makeSyncedFolders(project: OpenProject, map: NodeMap): Pro
 	return made;
 }
 
+/**
+ * Makes the graph folder of every synced folder that is on disk and has none:
+ * `.roswaal/scripts/Shared` for a map that syncs `src/Shared`. What a new
+ * project starts with, and what a project imported from Rojo, or opened with
+ * a map of its own, did not get. The output folders themselves are left
+ * alone: those are Rojo's, and a missing one is the map's to report.
+ */
+export async function makeGraphFolders(project: OpenProject): Promise<string[]> {
+	const made: string[] = [];
+	for (const mapPath of await collectMaps(project)) {
+		const map = await readMap(project, mapPath).catch(() => null);
+		if (!map) continue;
+		for (const folder of syncedFolders(project, map)) {
+			const output = await fs.stat(safeJoin(project.root, folder.output)).catch(() => null);
+			if (!output?.isDirectory()) continue;
+			const graphs = safeJoin(project.root, folder.graphs);
+			if (await fs.stat(graphs).catch(() => null)) continue;
+			await fs.mkdir(graphs, { recursive: true });
+			made.push(toPosix(folder.graphs));
+		}
+	}
+	return made;
+}
+
 /** The output folders any map in the project syncs, which tidying up must leave. */
 export async function mappedOutputFolders(project: OpenProject): Promise<Set<string>> {
 	const out = new Set<string>();

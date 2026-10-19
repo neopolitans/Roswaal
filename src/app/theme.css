@@ -1898,6 +1898,40 @@ button.tb.primary:hover:not(:disabled) {
 	line-height: 1.2;
 }
 
+/* On a graph with nothing in it: how to make the first node, at the top
+   centre under the top row of clusters, as a solid card over the grid. */
+.canvas .canvas-start-hint {
+	position: absolute;
+	top: calc(var(--chrome-top, 58px) + 14px);
+	left: 50%;
+	transform: translateX(-50%);
+	padding: 7px 16px;
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	background: var(--bg-panel);
+	box-shadow: var(--shadow-raised);
+	color: var(--fg-muted);
+	font-size: var(--text-md);
+	font-weight: 600;
+	white-space: nowrap;
+	pointer-events: none;
+	user-select: none;
+}
+
+.canvas .canvas-start-hint .when-touch {
+	display: none;
+}
+
+@media (hover: none) and (pointer: coarse) {
+	.canvas .canvas-start-hint .when-pointer {
+		display: none;
+	}
+
+	.canvas .canvas-start-hint .when-touch {
+		display: inline;
+	}
+}
+
 .canvas .watermark small {
 	font-size: var(--text-sm);
 	font-weight: 600;
@@ -6243,10 +6277,12 @@ button.tb.primary.danger:hover:not(:disabled) {
 	min-height: 0;
 }
 
+/* The filter, as wide as the tree's rows under it, and clear of the card's
+   heading above. */
 .place-browser-head {
 	display: flex;
 	gap: 6px;
-	padding: 0 12px 6px;
+	padding: 6px 7px;
 	flex: none;
 }
 

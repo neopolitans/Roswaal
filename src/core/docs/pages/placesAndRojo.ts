@@ -140,7 +140,7 @@ export function placesAndRojoPage(): DocPage {
 				text:
 					"In the web app, **Project → Open place…** does the same, and asks the same questions " +
 					"with the counts in front of you. The place is kept with the project, and " +
-					"**Export…** includes it.",
+					"**Export** includes it.",
 			},
 
 			{ t: "h", level: 2, text: "Browsing the place" },

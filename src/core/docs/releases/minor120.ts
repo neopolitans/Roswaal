@@ -9,6 +9,23 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.195.0",
+		date: "2026-10-19",
+		headline:
+			"A project can add a place, places and models show in the tree, and a new graph says how to create nodes.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Add a place.** A Roblox project with no place gets one from the Project menu: the baseplate a new project starts with. A place file in the tree opens in DataModel, or can be made the project's place.",
+			"**A start hint on a new graph.** A graph with only its Script Start or Module Exports shows how to create nodes at the top of the canvas: right-click, or press and hold on a touch screen.",
+		],
+		fixed: [
+			"**Places and models in the tree.** Compile Content lists .rbxl, .rbxlx, .rbxm and .rbxmx files, and leaves out the backups Properties keeps.",
+			"**Graph folders for synced folders.** Opening a project with a node map, or importing one from Rojo, makes the matching folders under .roswaal/scripts.",
+			"**The DataModel filter's spacing.** The filter has room above it and lines up with the rows below it.",
+			"**Export in the docs.** The Interface, Getting started and Places and Rojo projects pages show the Export button beside Settings, and the editor drawings show the whole Script analysis card, with no scrollbar.",
+		],
+	},
+	{
 		version: "0.194.0",
 		date: "2026-10-19",
 		headline:
