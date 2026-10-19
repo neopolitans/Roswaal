@@ -72,6 +72,17 @@ describe("putting the page back", () => {
 		expect(list.scrollTop).toBe(1200);
 	});
 
+	it("leaves a text field's own scroll, which shows the caret", () => {
+		// Typed past its width: the field scrolled to keep the caret in sight,
+		// and was put back to the start a moment later.
+		const root = box("html", "hidden hidden", null);
+		const workspace = box("workspace", "hidden hidden", root, 640);
+		const field = { ...box("field", "clip clip", workspace), scrollLeft: 88, tagName: "INPUT" };
+		expect(settle(field, page(), (b) => (b as Box).overflow)).toBe(1);
+		expect(field.scrollLeft).toBe(88);
+		expect(workspace.scrollTop).toBe(0);
+	});
+
 	it("scrolls the page itself back to the top", () => {
 		const shifted = page();
 		shifted.scrollY = 420;

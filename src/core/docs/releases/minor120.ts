@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.195.1",
+		date: "2026-10-19",
+		headline:
+			"Values line up on a node, text fields keep the caret in view, and a wire offers the functions that take it.",
+		affects: ["editor"],
+		fixed: [
+			"**Values in one column.** A node's typed-in values line up down the node when the output beside one of them shows its type, as Concatenate's does.",
+			"**Text fields keep the caret in view.** Text typed past a field's width stays scrolled to the caret, where the field went back to the start a moment later.",
+			"**Functions off a wire.** A wire dragged off a value offers the graph's functions that take it, as Call and Call for value.",
+			"**The node menu at the drop.** A search that narrows the node menu brings it back beside where the wire was dropped or the canvas was right-clicked.",
+		],
+	},
+	{
 		version: "0.195.0",
 		date: "2026-10-19",
 		headline:

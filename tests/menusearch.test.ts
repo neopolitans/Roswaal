@@ -189,3 +189,64 @@ describe("a type name typed off a value", async () => {
 		expect(search("motor6d", sources, from)[0]?.title).toBe("Cast to Motor6D");
 	});
 });
+
+/**
+ * A function by its name, off a value its parameter takes.
+ *
+ * Dragged off a Motor6D, `drives` -- a local function taking one -- matched
+ * nothing: the wire's narrowing judged Call Function by its definition, which
+ * has no parameter pins until it is pointed at a function.
+ */
+describe("a function called with the dragged value", async () => {
+	const { callPresets, libraryItems, narrowItems, reachableDefs, searchMenu } = await import(
+		"../src/app/menuSearch.js"
+	);
+	const { createRegistry: makeRegistry } = await import("../src/core/nodes/index.js");
+	const registry = makeRegistry();
+	const drives = {
+		id: "drives",
+		def: "function.declareHere",
+		config: {
+			name: "drives",
+			params: [{ name: "joint", type: "Motor6D" }],
+			returns: [{ name: "result", type: "string" }],
+		},
+	};
+	const from = {
+		ref: { node: "traverse", pin: "value" },
+		side: "out" as const,
+		pin: { id: "value", name: "", kind: "data" as const, type: "Motor6D" },
+	};
+	const all = libraryItems(registry, "roblox", callPresets({ nodes: [drives] }));
+	const items = narrowItems(all, reachableDefs(registry, from), null);
+	const found = (query: string) =>
+		searchMenu(
+			query,
+			{ items, services: [], lune: [], names: [], draggedService: [], draggedMembers: [] },
+			from,
+		).map((item) => item.title);
+
+	it("is offered as a call, and as a call for its value", () => {
+		expect(found("drives")).toEqual(
+			expect.arrayContaining(["Call drives", "Call drives for value"]),
+		);
+	});
+
+	it("is not offered off a value it cannot take", () => {
+		const text = { ...from, pin: { ...from.pin, type: "boolean" } };
+		const narrowed = narrowItems(all, reachableDefs(registry, text), null);
+		const titles = searchMenu(
+			"drives",
+			{
+				items: narrowed,
+				services: [],
+				lune: [],
+				names: [],
+				draggedService: [],
+				draggedMembers: [],
+			},
+			text,
+		).map((item) => item.title);
+		expect(titles).not.toContain("Call drives");
+	});
+});

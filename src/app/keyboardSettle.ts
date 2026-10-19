@@ -11,7 +11,8 @@
  *
  * A box that is meant to scroll -- the docs, a list -- is left as it is: only
  * the page and hidden-overflow boxes are reset, and those never scroll on
- * purpose.
+ * purpose. A text field is left too: its overflow reads as clipped, but its
+ * scroll is the browser keeping the caret in sight as you type.
  */
 
 /**
@@ -26,7 +27,11 @@ interface Scrolled {
 	scrollTop: number;
 	scrollLeft: number;
 	parentElement: Scrolled | null;
+	tagName?: string;
 }
+
+/** A field that scrolls its own text to show the caret. */
+const TEXT_FIELD = /^(input|textarea|select)$/i;
 
 /**
  * Puts back what the keyboard scrolled: the page, and every hidden-overflow
@@ -41,6 +46,7 @@ export function settle(
 	let moved = 0;
 	for (let box = from; box; box = box.parentElement) {
 		if (box.scrollTop === 0 && box.scrollLeft === 0) continue;
+		if (TEXT_FIELD.test(box.tagName ?? "")) continue;
 		const overflow = overflowOf(box);
 		if (!/\b(hidden|clip)\b/.test(overflow)) continue;
 		box.scrollTop = 0;

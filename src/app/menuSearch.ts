@@ -274,8 +274,13 @@ export function narrowItems(
 	reachable: ReadonlySet<string> | null,
 	runtime: MenuFilter | null,
 ): MenuItem[] {
+	// An entry with pins or a config of its own -- Call drives, Get health --
+	// is not its definition's shape: Call Function has no parameters until it
+	// is pointed at one. `searchMenu` judges those by the pins they arrive with.
 	const byWire =
-		reachable === null ? [...items] : items.filter((item) => reachable.has(item.def.id));
+		reachable === null
+			? [...items]
+			: items.filter((item) => item.pins || item.config || reachable.has(item.def.id));
 	return runtime === null ? byWire : byWire.filter((item) => item.runtime === runtime);
 }
 

@@ -117,12 +117,22 @@ export function usePlacement(ref: RefObject<HTMLElement | null>, anchor: MenuAnc
 	useLayoutEffect(() => {
 		const menu = ref.current;
 		if (!menu) return;
-		const size = { width: menu.offsetWidth, height: menu.offsetHeight };
-		const view = { width: innerWidth, height: innerHeight };
-		const at = isPoint(anchor)
-			? fitOnScreen(anchor, size, view)
-			: hangFrom(anchor.element.getBoundingClientRect(), size, view, anchor);
-		setPlaced({ key, element, at });
+		const place = () => {
+			const size = { width: menu.offsetWidth, height: menu.offsetHeight };
+			const view = { width: innerWidth, height: innerHeight };
+			const at = isPoint(anchor)
+				? fitOnScreen(anchor, size, view)
+				: hangFrom(anchor.element.getBoundingClientRect(), size, view, anchor);
+			setPlaced({ key, element, at });
+		};
+		place();
+		// A menu opened at a point is placed again as its list grows or shrinks:
+		// the palette, flipped above a wire dropped low in the window, came to
+		// float well above the drop once a search had narrowed it to one entry.
+		if (!isPoint(anchor) || typeof ResizeObserver === "undefined") return;
+		const watch = new ResizeObserver(place);
+		watch.observe(menu);
+		return () => watch.disconnect();
 	}, [ref, key, element]);
 	return placed?.key === key && placed.element === element ? placed.at : roughly(anchor);
 }

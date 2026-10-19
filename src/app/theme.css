@@ -2124,6 +2124,18 @@ button.tb.primary:hover:not(:disabled) {
 
 .node .rows {
 	position: relative;
+	/* One output column for every row, as wide as the widest output: a pin
+	   with its type chip is wider than the lane a row reserves, and the values
+	   of that row then sat left of the ones below it. */
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-content: start;
+}
+
+.node .rows > .row {
+	grid-column: 1 / -1;
+	display: grid;
+	grid-template-columns: subgrid;
 }
 
 .node .row {
