@@ -190,17 +190,21 @@ function readValue(
 			// ContentId only: newer Content properties are their own type in
 			// binary, and a string there would be the wrong one.
 			const declared = findProperty(className, el.attrs.name ?? "")?.type;
-			// A property newer than the catalogue goes by what it holds: a
-			// `<uri>` or `<null>` is a Content, a `<url>` an asset link.
+			// One the catalogue does not list goes by what it holds, and then by
+			// its name: a `<uri>` is a Content, and a `<null>`, which both kinds
+			// write, is one only for a name in Roblox's newer `...Content` form.
+			// Studio opens neither the wrong way round from .rbxl: a Decal's
+			// hidden TexturePack is an asset link, its EmissiveMaskContent not.
 			const isContent =
 				declared === "Content" ||
-				(declared === undefined && !el.children.some((c) => c.name === "url"));
+				(declared === undefined &&
+					(el.children.some((c) => c.name === "uri") || /Content$/.test(el.attrs.name ?? "")));
 			if (isContent) {
 				const uri = el.children.find((c) => c.name === "uri");
 				if (uri) return ["Content", { source: 1, uri: uri.text.trim() }];
 				return el.children.some((c) => c.name === "null") ? ["Content", { source: 0 }] : undefined;
 			}
-			if (declared !== "ContentId") return undefined;
+			if (declared !== "ContentId" && declared !== undefined) return undefined;
 			const url = el.children.find((c) => c.name === "url");
 			if (url) return ["String", utf8.encode(url.text.trim())];
 			if (el.children.some((c) => c.name === "null")) return ["String", new Uint8Array(0)];
@@ -209,7 +213,11 @@ function readValue(
 		case "bool":
 			return ["Bool", t.trim() === "true"];
 		case "int":
-			return ["Int32", num(t)];
+			// Studio writes a BrickColor property -- a SpawnLocation's TeamColor --
+			// as a plain int in XML, and its binary keeps it as a BrickColor.
+			return findProperty(className, el.attrs.name ?? "")?.type === "BrickColor"
+				? ["BrickColor", num(t)]
+				: ["Int32", num(t)];
 		case "int64": {
 			const digits = t.trim() || "0";
 			if (!/^-?\d+$/.test(digits))

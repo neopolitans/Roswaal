@@ -18,6 +18,8 @@
  * it holds the new value and every instance the old one did.
  */
 
+import { toBase64 } from "../base64.js";
+import { md5 } from "../md5.js";
 import { isInstanceClass, isSubclassOf } from "../roblox.js";
 import type { EngineProperty } from "../robloxEngine.js";
 import { ENGINE } from "../robloxEngine.js";
@@ -94,6 +96,8 @@ export interface PropertyEdit {
 	 * `value` is the name of what it points at now, or empty for nothing.
 	 */
 	refClass?: string;
+	/** An attribute rather than a property: `stored` is its name, and the change goes to `AttributesSerialize`. */
+	attribute?: true;
 }
 
 /** Never changed here, whatever the engine allows. */
@@ -415,6 +419,168 @@ export function writeProperty(
 	return out;
 }
 
+/**
+ * The properties a place may lack, which Studio writes for every instance,
+ * and the type it writes each as: Tags are shared, since most are the same.
+ */
+export const ADDED_IF_MISSING: ReadonlyMap<string, "String" | "SharedString"> = new Map([
+	["AttributesSerialize", "String"],
+	["Tags", "SharedString"],
+]);
+
+/**
+ * The place with an empty String property `stored` on every instance of
+ * `className`: what Studio writes as each instance's AttributesSerialize and
+ * Tags, and a place written without them lacks. The one value is then written
+ * over it as any other is.
+ */
+export function withEmptyString(
+	given: Uint8Array,
+	doc: RbxDocument,
+	className: string,
+	stored: string,
+	type: "String" | "SharedString" = "String",
+): Uint8Array {
+	if (doc.format === "binary") {
+		// A shared one points every instance at the empty entry of the table.
+		const { bytes, index } =
+			type === "SharedString" ? withShared(given, new Uint8Array(0)) : { bytes: given, index: 0 };
+		const parts: Uint8Array[] = [bytes.subarray(0, FIRST_CHUNK)];
+		let found: { classId: number; count: number } | null = null;
+		let added = false;
+		for (const chunk of readChunks(bytes)) {
+			if (chunk.name === "INST") {
+				const data = chunkData(chunk);
+				const nameLength = u32(data, 4);
+				const name = new TextDecoder().decode(data.subarray(8, 8 + nameLength));
+				if (name === className)
+					found = { classId: u32(data, 0), count: u32(data, 8 + nameLength + 1) };
+			}
+			// Every class's properties come before the parents.
+			if (chunk.name === "PRNT" && found && !added) {
+				const label = utf8.encode(stored);
+				const prop = new Uint8Array(8 + label.length + 1 + 4 * found.count);
+				putU32(prop, 0, found.classId);
+				putU32(prop, 4, label.length);
+				prop.set(label, 8);
+				prop[8 + label.length] = TYPE_BYTE[type]!;
+				if (type === "SharedString")
+					for (let slot = 0; slot < found.count; slot++)
+						putTransposed(prop, 8 + label.length + 1, found.count, slot, index);
+				parts.push(sealChunk("PROP", prop));
+				added = true;
+			}
+			parts.push(chunk.whole);
+		}
+		if (!added) throw new RbxError(`the file has no ${className} to give ${stored}`);
+		const out = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0));
+		let o = 0;
+		for (const part of parts) {
+			out.set(part, o);
+			o += part.length;
+		}
+		return out;
+	}
+
+	let source = new TextDecoder().decode(given);
+	const key = type === "SharedString" ? sharedKey(new Uint8Array(0)) : "";
+	if (type === "SharedString") source = withSharedXml(source, key, new Uint8Array(0));
+	const element =
+		type === "SharedString"
+			? `<SharedString name="${stored}">${key}</SharedString>`
+			: `<BinaryString name="${stored}"></BinaryString>`;
+	const at: number[] = [];
+	const visit = (el: XmlElement) => {
+		if (el.name === "Item" && el.attrs.class === className) {
+			const props = el.children.find((c) => c.name === "Properties");
+			if (props && !props.children.some((c) => c.attrs.name === stored)) at.push(props.end);
+		}
+		el.children.forEach(visit);
+	};
+	visit(parseXml(source));
+	let out = source;
+	for (const end of at.sort((a, b) => b - a))
+		out = `${out.slice(0, end)}${element}${out.slice(end)}`;
+	return utf8.encode(out);
+}
+
+/** The key a shared string is filed under here: its MD5. Studio's own keys are only names. */
+function sharedKey(value: Uint8Array): string {
+	return toBase64(md5(value));
+}
+
+/**
+ * The binary place with `value` in its table of shared strings, and where it
+ * is: the entry already holding it, or a new one at the end. A place with no
+ * table gets one before its instances, where Studio writes it.
+ */
+function withShared(bytes: Uint8Array, value: Uint8Array): { bytes: Uint8Array; index: number } {
+	const chunks = readChunks(bytes);
+	const table = chunks.find((c) => c.name === "SSTR");
+	const entries: { hash: Uint8Array; value: Uint8Array }[] = [];
+	if (table) {
+		const data = chunkData(table);
+		const count = u32(data, 4);
+		let p = 8;
+		for (let i = 0; i < count; i++) {
+			const hash = data.subarray(p, p + 16);
+			const length = u32(data, p + 16);
+			entries.push({ hash, value: data.subarray(p + 20, p + 20 + length) });
+			p += 20 + length;
+		}
+	}
+	const known = entries.findIndex(
+		(e) => e.value.length === value.length && e.value.every((b, i) => b === value[i]),
+	);
+	if (known !== -1) return { bytes, index: known };
+	entries.push({ hash: md5(value), value });
+
+	const size = 8 + entries.reduce((sum, e) => sum + 20 + e.value.length, 0);
+	const data = new Uint8Array(size);
+	putU32(data, 4, entries.length);
+	let p = 8;
+	for (const e of entries) {
+		data.set(e.hash.subarray(0, 16), p);
+		putU32(data, p + 16, e.value.length);
+		data.set(e.value, p + 20);
+		p += 20 + e.value.length;
+	}
+	const sealed = sealChunk("SSTR", data);
+	const parts: Uint8Array[] = [bytes.subarray(0, FIRST_CHUNK)];
+	let placed = false;
+	for (const chunk of chunks) {
+		if (chunk.name === "SSTR") {
+			parts.push(sealed);
+			placed = true;
+			continue;
+		}
+		if (!placed && chunk.name === "INST") {
+			parts.push(sealed);
+			placed = true;
+		}
+		parts.push(chunk.whole);
+	}
+	const out = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0));
+	let o = 0;
+	for (const part of parts) {
+		out.set(part, o);
+		o += part.length;
+	}
+	return { bytes: out, index: entries.length - 1 };
+}
+
+/** The XML place with `value` filed under `key` in its SharedStrings, made if there are none. */
+function withSharedXml(source: string, key: string, value: Uint8Array): string {
+	const roblox = parseXml(source).children.find((c) => c.name === "roblox");
+	if (!roblox) throw new RbxError("not a Roblox XML place: there is no <roblox> element");
+	const table = roblox.children.find((c) => c.name === "SharedStrings");
+	if (table?.children.some((c) => c.attrs.md5 === key)) return source;
+	const entry = `<SharedString md5="${key}">${toBase64(value)}</SharedString>`;
+	const at = table ? table.end : roblox.end;
+	const text = table ? entry : `<SharedStrings>${entry}</SharedStrings>`;
+	return `${source.slice(0, at)}${text}${source.slice(at)}`;
+}
+
 // ---------------------------------------------------------------------------
 // Binary
 // ---------------------------------------------------------------------------
@@ -439,6 +605,7 @@ const TYPE_BYTE: Partial<Record<PropType, number>> = {
 	Ref: 19,
 	Color3uint8: 26,
 	Int64: 27,
+	SharedString: 28,
 };
 
 /** Bytes a value takes, for the fixed-size types. */
@@ -455,6 +622,7 @@ const SIZE: Record<number, number> = {
 	14: 12,
 	18: 4,
 	19: 4,
+	28: 4,
 	23: 8,
 	24: 16,
 	26: 3,
@@ -484,6 +652,12 @@ function writeBinary(
 ): Uint8Array {
 	const typeByte = TYPE_BYTE[type];
 	if (typeByte === undefined) throw new RbxError(`a ${type} value is not written here`);
+	// A shared string is an index into the place's table, which takes the value first.
+	if (type === "SharedString") {
+		const shared = withShared(bytes, value as Uint8Array);
+		bytes = shared.bytes;
+		value = shared.index;
+	}
 	const parts: Uint8Array[] = [bytes.subarray(0, FIRST_CHUNK)];
 	/** The instance's class, and where it stands among that class's instances. */
 	let target: { classId: number; slot: number; count: number } | null = null;
@@ -542,6 +716,10 @@ function patch(
 	switch (type) {
 		case 2:
 			out[base + slot] = value ? 1 : 0;
+			break;
+		case 28:
+			// Where the value is in the place's table of shared strings.
+			putTransposed(out, base, count, slot, value as number);
 			break;
 		case 19: {
 			// Each referent is the difference from the one before, so the run is
@@ -715,6 +893,7 @@ const ELEMENT: Partial<Record<PropType, string>> = {
 	Rect: "Rect2D",
 	CFrame: "CoordinateFrame",
 	Ref: "Ref",
+	SharedString: "SharedString",
 };
 
 const R = ["R00", "R01", "R02", "R10", "R11", "R12", "R20", "R21", "R22"];
@@ -788,13 +967,23 @@ function writeXml(
 	const props = item?.children.find((c) => c.name === "Properties");
 	const el = props?.children.find((c) => c.attrs.name === stored);
 	if (!el) throw new RbxError(`the file stores no ${stored} for this instance`);
-	// An asset link is a String to the reader, kept in a Content element.
+	// An asset link is a String to the reader, kept in a Content element;
+	// attributes and tags are too, kept as base64 in a BinaryString.
 	const link = type === "String" && el.name === "Content";
-	if (el.name !== ELEMENT[type] && !link)
+	const binary = type === "String" && el.name === "BinaryString";
+	if (el.name !== ELEMENT[type] && !link && !binary)
 		throw new RbxError(`${stored} is not stored as a ${type}`);
 
+	if (type === "SharedString") {
+		// The key in the element, the value in the table at the end of the file.
+		const key = sharedKey(value as Uint8Array);
+		const keyed = `${source.slice(0, el.start)}${key}${source.slice(el.end)}`;
+		return utf8.encode(withSharedXml(keyed, key, value as Uint8Array));
+	}
 	const splices: { start: number; end: number; text: string }[] = [];
-	if (link) {
+	if (binary) {
+		splices.push(content(source, el, toBase64(value as Uint8Array)));
+	} else if (link) {
 		const url = new TextDecoder().decode(value as Uint8Array);
 		splices.push(content(source, el, url ? `<url>${escapeText(url)}</url>` : "<null></null>"));
 	} else if (childFields(type, value)) {

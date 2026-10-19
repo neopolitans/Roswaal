@@ -10,6 +10,7 @@
 
 import { ownTable } from "../ownTable.js";
 import { ENGINE, type EngineProperty, findProperty } from "../robloxEngine.js";
+import { attributeEdit, attributeEntries } from "./attributes.js";
 import {
 	type ContentValue,
 	type FontValue,
@@ -20,7 +21,6 @@ import {
 	SCRIPT_CLASSES,
 	text,
 } from "./dom.js";
-
 import { editFor, orientationOf, type PropertyEdit } from "./edit.js";
 
 /** Enum.FontWeight's names, by value. */
@@ -174,6 +174,10 @@ export interface PlaceInstanceInfo {
 	/** The class's one-line description from the engine documentation. */
 	summary?: string;
 	properties: PlaceProperty[];
+	/** Its attributes can be added to and removed from: the file keeps them, in a form read here. */
+	attributes?: true;
+	/** Its tags can be added to and removed from: the file keeps a Tags property for it. */
+	tags?: true;
 }
 
 /** Studio's Properties headings, in its order; anything else after, by name. */
@@ -441,8 +445,17 @@ export function describeInstance(
 		}
 	}
 	const attributes = inst.props.get("AttributesSerialize")?.value;
-	if (attributes instanceof Uint8Array && attributes.length > 4)
-		properties.push(...readAttributes(attributes));
+	if (attributes instanceof Uint8Array && attributes.length > 4) {
+		// Each with how it is changed, where the list is one this can rewrite.
+		const entries = new Map((attributeEntries(attributes) ?? []).map((e) => [e.name, e]));
+		for (const attribute of readAttributes(attributes)) {
+			const entry = entries.get(attribute.name);
+			const edit = entry ? attributeEdit(entry) : undefined;
+			properties.push(edit ? { ...attribute, edit } : attribute);
+		}
+	}
+	// None stored is none yet: the property is added as the first one is.
+	const rewritable = !(attributes instanceof Uint8Array) || attributeEntries(attributes) !== null;
 
 	const path: string[] = [];
 	for (let cur: RbxInstance | null = inst; cur; cur = cur.parent) path.unshift(cur.name);
@@ -454,6 +467,8 @@ export function describeInstance(
 		path,
 		...(summary ? { summary } : {}),
 		properties: properties.sort((a, b) => byName.compare(a.name, b.name)),
+		...(rewritable ? { attributes: true as const } : {}),
+		tags: true as const,
 	};
 }
 

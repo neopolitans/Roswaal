@@ -9,6 +9,21 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.199.0",
+		date: "2026-10-19",
+		headline:
+			"Properties changes attributes and tags, and a Legacy place saved as .rbxl opens in Studio.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Attributes in Properties.** An attribute's value is changed as a property's is; Add on the Attributes heading adds one as text, a number, true or false, a Vector3 or a Color3, and the × beside one removes it. Roblox's own RBX attributes are shown and left as they are.",
+			"**Tags in Properties.** Add on the Tags heading adds a tag, and the × on one removes it, kept in the place as Studio keeps tags.",
+			"**Attributes and tags in a new place.** A new project's place keeps an empty list of each for every instance, as Studio's does; a place without them gets them the first time one is added.",
+		],
+		fixed: [
+			"**A Legacy place saved as .rbxl.** Studio opens it: a hidden asset link, a BrickColor written as a number and a script's Source are kept as Studio's binary keeps them, where Studio refused the place.",
+		],
+	},
+	{
 		version: "0.198.0",
 		date: "2026-10-19",
 		headline: "Properties changes references.",

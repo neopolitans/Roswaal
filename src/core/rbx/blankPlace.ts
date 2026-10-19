@@ -295,7 +295,16 @@ function build(spec: Spec, parent: RbxInstance | null, all: RbxInstance[]): RbxI
 		name,
 		parent,
 		children: [],
-		props: new Map(Object.entries({ Name: text(name), ...spec.props })),
+		// Attributes and tags, empty, as Studio writes them for every instance:
+		// where there are none, Properties has nothing to add one to.
+		props: new Map(
+			Object.entries({
+				Name: text(name),
+				...spec.props,
+				AttributesSerialize: text(""),
+				Tags: { type: "SharedString", value: new Uint8Array(0) } satisfies Prop,
+			}),
+		),
 		service: spec.service === true,
 	};
 	all.push(inst);

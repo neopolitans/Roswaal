@@ -1939,6 +1939,7 @@ export function App() {
 								editable={prefs.modifyDataModel}
 								confirmEdit={confirmPlaceEdit}
 								onWritten={onPlaceWritten}
+								ask={ask}
 							/>
 						) : undefined,
 					code:

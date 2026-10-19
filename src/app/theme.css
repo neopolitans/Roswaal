@@ -6592,6 +6592,11 @@ button.tb.primary.danger:hover:not(:disabled) {
 	cursor: grab;
 }
 
+/* An attribute with its ×, in a column of its own beside the value. */
+.place-prop.place-prop--removable {
+	grid-template-columns: minmax(0, 46%) minmax(0, 1fr) auto;
+}
+
 .place-prop:hover {
 	background: var(--bg-hover);
 }
@@ -6854,11 +6859,35 @@ select.place-edit-field {
 }
 
 .place-tag {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
 	padding: 1px 6px;
 	border: 1px solid var(--border);
 	border-radius: var(--radius-xs);
 	font-size: var(--text-sm);
 	color: var(--fg-muted);
+}
+
+/* The × that takes a tag or an attribute away, with Modify DataModel Instances on. */
+.place-tag-remove,
+.place-prop-remove {
+	flex: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 2px;
+	border: 0;
+	border-radius: var(--radius-xs);
+	background: none;
+	color: var(--fg-faint);
+	cursor: pointer;
+}
+
+.place-tag-remove:hover,
+.place-prop-remove:hover {
+	background: var(--bg-hover);
+	color: var(--danger);
 }
 
 /* iOS zooms the page onto a field under 16px when it takes focus. */

@@ -91,7 +91,9 @@ const TYPE_BYTE: Record<string, number> = {
 	ColorSequence: 22,
 	PhysicalProperties: 25,
 	SharedString: 28,
-	ProtectedString: 29,
+	// A script's Source, which Studio's binary keeps as a plain String whatever
+	// the XML called it: given 29, Studio refused the place it was in.
+	ProtectedString: 1,
 	Font: 32,
 	SecurityCapabilities: 33,
 	Content: 34,

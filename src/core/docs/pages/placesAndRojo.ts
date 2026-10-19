@@ -186,8 +186,9 @@ export function placesAndRojoPage(): DocPage {
 						"True or false, numbers, text, enums, colours and BrickColors; vectors, sizes, UDims, " +
 							"UDim2s, ranges and rects, a field a component; CFrames, as a Position and an " +
 							"Orientation in degrees; and references, picked from the place's instances of the " +
-							"class they take. On properties a script can set",
-						"Names, scripts' source, attributes and tags",
+							"class they take. On properties a script can set. Attributes and tags too, added " +
+							"and removed with the + and × beside them",
+						"Names and scripts' source",
 					],
 				],
 			},

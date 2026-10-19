@@ -406,6 +406,25 @@ export const api = {
 			property,
 			value,
 		}),
+	/** Changes, adds or removes one attribute in the place file: `value`, `add` with a type, or `remove`. */
+	placeAttribute: (
+		stamp: string,
+		index: number,
+		change: { name: string; value?: unknown; add?: string; remove?: boolean },
+	) =>
+		post<{ stamp: string; instance: PlaceInstanceInfo; backup?: string }>("/api/place/attribute", {
+			stamp,
+			index,
+			...change,
+		}),
+	/** Adds or removes one tag in the place file. */
+	placeTag: (stamp: string, index: number, tag: string, remove = false) =>
+		post<{ stamp: string; instance: PlaceInstanceInfo; backup?: string }>("/api/place/tag", {
+			stamp,
+			index,
+			tag,
+			remove,
+		}),
 	customNodes: () => request<{ custom: NodeDef[]; errors: string[] }>("/api/nodes"),
 
 	readScript: (path: string) =>

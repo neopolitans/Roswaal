@@ -28,6 +28,19 @@ import { graphNameOf, importLuau, LARGEST_IMPORT } from "../core/import/fromLuau
 import type { ImportMode, TopLevelLocals } from "../core/import/modes.js";
 import { NEW_PLACE_FILE } from "../core/newProject.js";
 import { emptyFilesystemMap, emptyMap, type NodeMap } from "../core/nodemap.js";
+import {
+	type AttributeEntry,
+	attributeEntries,
+	attributeNameProblem,
+	attributeValue,
+	defaultAttribute,
+	encodeAttributes,
+	encodeTags,
+	NEW_ATTRIBUTE_TYPES,
+	robloxOwn,
+	tagProblem,
+	tagsOf,
+} from "../core/rbx/attributes.js";
 import { blankPlaceBytes, blankPlaceXml } from "../core/rbx/blankPlace.js";
 import {
 	describeInstance,
@@ -36,7 +49,7 @@ import {
 	type PlaceOutline,
 	propertyEdit,
 } from "../core/rbx/browse.js";
-import { storedValue, writeProperty } from "../core/rbx/edit.js";
+import { ADDED_IF_MISSING, storedValue, withEmptyString, writeProperty } from "../core/rbx/edit.js";
 import { type RbxDocument, RbxError, type RbxInstance, readRbx } from "../core/rbx/index.js";
 import { type PlaceReport, planPlaceUpdate } from "../core/rbx/placeExport.js";
 import { convertPlace, leftOutOf, placeFormatOf } from "../core/rbx/serialize.js";
@@ -282,6 +295,66 @@ export class ApiSession {
 			packErrors: project.packErrors,
 			tree: await buildTree(project),
 			place: await findPlaceFile(project.root, project.config),
+		};
+	}
+
+	/**
+	 * One change written into the project's place: the instance at `index` in
+	 * the version `stamp` names, the stored property and value `change` gives
+	 * for it, a backup first unless this session wrote the file last, and the
+	 * instance as it now is. A 409 when the place has changed since `stamp`.
+	 */
+	private async changePlace(
+		body: { stamp?: string; index?: number },
+		change: (inst: RbxInstance, loaded: LoadedPlace) => { stored: string; value: unknown },
+	) {
+		const project = this.project();
+		const file = await findPlaceFile(project.root, project.config);
+		if (!file) throw new HttpError(404, "The project has no place file.");
+		const stamp = need(text(body.stamp), "stamp");
+		const before = await readPlaceBytes(project, file);
+		const loaded = await this.loadPlace(project, file);
+		if (stamp !== loaded.stamp || loaded.stamp !== `${file}:${fingerprint(before)}`)
+			throw new HttpError(409, "The place file has changed. Reload it.");
+		const inst = typeof body.index === "number" ? loaded.order[body.index] : undefined;
+		if (!inst) throw new HttpError(404, `No instance ${body.index} in the place.`);
+
+		let after: Uint8Array;
+		try {
+			const { stored, value } = change(inst, loaded);
+			// A place that keeps no attributes or tags for the class gets the
+			// empty property Studio would have written, and then the value.
+			let bytes = before;
+			let doc = loaded.doc;
+			let target = inst;
+			const missing = ADDED_IF_MISSING.get(stored);
+			if (!inst.props.has(stored) && missing) {
+				bytes = withEmptyString(before, loaded.doc, inst.className, stored, missing);
+				doc = readRbx(bytes);
+				const again = doc.instances.find((other) => other.ref === inst.ref);
+				if (!again) throw new RbxError(`"${inst.name}" was lost giving it ${stored}`);
+				target = again;
+			}
+			after = writeProperty(bytes, doc, target, stored, value);
+		} catch (err) {
+			if (err instanceof RbxError) throw new HttpError(422, errorMessage(err));
+			throw err;
+		}
+		const key = path.join(project.root, file);
+		const backup = await writePlaceFile(
+			project,
+			file,
+			before,
+			after,
+			this.placeWrites.get(key) !== loaded.stamp,
+		);
+		const now = await this.loadPlace(project, file);
+		this.placeWrites.set(key, now.stamp);
+		const index = now.order.findIndex((other) => other.ref === inst.ref);
+		return {
+			stamp: now.stamp,
+			instance: describeInstance(now.order[index], index, (other) => now.index.get(other)),
+			...(backup ? { backup } : {}),
 		};
 	}
 
@@ -552,52 +625,88 @@ export class ApiSession {
 			 * the same, since no name changes.
 			 */
 			"POST /place/property": async (req) => {
-				const project = this.project();
-				const file = await findPlaceFile(project.root, project.config);
-				if (!file) throw new HttpError(404, "The project has no place file.");
 				const body = fields<{ stamp: string; index: number; property: string; value: unknown }>(
 					req,
 				);
-				const stamp = need(text(body.stamp), "stamp");
 				const property = need(text(body.property), "property");
-				const before = await readPlaceBytes(project, file);
-				const loaded = await this.loadPlace(project, file);
-				if (stamp !== loaded.stamp || loaded.stamp !== `${file}:${fingerprint(before)}`)
-					throw new HttpError(409, "The place file has changed. Reload it.");
-				const inst = typeof body.index === "number" ? loaded.order[body.index] : undefined;
-				if (!inst) throw new HttpError(404, `No instance ${body.index} in the place.`);
-				const edit = propertyEdit(inst, property);
-				if (!edit) throw new HttpError(422, `${property} cannot be changed here.`);
-
-				let after: Uint8Array;
-				try {
+				return this.changePlace(body, (inst, loaded) => {
+					const edit = propertyEdit(inst, property);
+					if (!edit) throw new HttpError(422, `${property} cannot be changed here.`);
 					const value = storedValue(
 						edit,
 						inst.props.get(property)!,
 						body.value,
 						(index) => loaded.order[index],
 					);
-					after = writeProperty(before, loaded.doc, inst, property, value);
-				} catch (err) {
-					if (err instanceof RbxError) throw new HttpError(422, errorMessage(err));
-					throw err;
-				}
-				const key = path.join(project.root, file);
-				const backup = await writePlaceFile(
-					project,
-					file,
-					before,
-					after,
-					this.placeWrites.get(key) !== loaded.stamp,
-				);
-				const now = await this.loadPlace(project, file);
-				this.placeWrites.set(key, now.stamp);
-				const index = now.order.findIndex((other) => other.ref === inst.ref);
-				return {
-					stamp: now.stamp,
-					instance: describeInstance(now.order[index], index, (other) => now.index.get(other)),
-					...(backup ? { backup } : {}),
-				};
+					return { stored: property, value };
+				});
+			},
+
+			/**
+			 * Changes, adds or removes one attribute, in the place file itself:
+			 * `value` for a new value, `add` with a type to add one, `remove`.
+			 * The whole list is written back, every other attribute as it was.
+			 */
+			"POST /place/attribute": async (req) => {
+				const body = fields<{
+					stamp: string;
+					index: number;
+					name: string;
+					value?: unknown;
+					add?: string;
+					remove?: boolean;
+				}>(req);
+				const name = text(body.name) ?? "";
+				return this.changePlace(body, (inst) => {
+					const blob = inst.props.get("AttributesSerialize")?.value;
+					const entries = blob instanceof Uint8Array ? attributeEntries(blob) : [];
+					if (!entries)
+						throw new HttpError(
+							422,
+							`The place keeps no attributes Roswaal can rewrite for ${inst.name}.`,
+						);
+					let next: AttributeEntry[];
+					if (robloxOwn(name))
+						throw new HttpError(422, `${name} is Roblox’s own, and is left as it is.`);
+					if (body.remove === true) {
+						if (!entries.some((e) => e.name === name))
+							throw new HttpError(404, `No attribute ${name}.`);
+						next = entries.filter((e) => e.name !== name);
+					} else if (body.add !== undefined) {
+						const type = NEW_ATTRIBUTE_TYPES[body.add];
+						if (type === undefined)
+							throw new HttpError(422, `An attribute is not added as a ${body.add}.`);
+						const problem = attributeNameProblem(name);
+						if (problem) throw new HttpError(422, problem);
+						if (entries.some((e) => e.name === name))
+							throw new HttpError(409, `${inst.name} has an attribute ${name} already.`);
+						next = [...entries, { name, type, value: defaultAttribute(type) }];
+					} else {
+						const entry = entries.find((e) => e.name === name);
+						if (!entry) throw new HttpError(404, `No attribute ${name}.`);
+						next = entries.map((e) =>
+							e === entry ? { ...e, value: attributeValue(e, body.value) } : e,
+						);
+					}
+					return { stored: "AttributesSerialize", value: encodeAttributes(next) };
+				});
+			},
+
+			/** Adds or removes one tag, in the place file itself. */
+			"POST /place/tag": async (req) => {
+				const body = fields<{ stamp: string; index: number; tag: string; remove?: boolean }>(req);
+				const tag = (body.tag ?? "").trim();
+				return this.changePlace(body, (inst) => {
+					const blob = inst.props.get("Tags")?.value;
+					const tags = blob instanceof Uint8Array ? tagsOf(blob) : [];
+					if (body.remove === true) {
+						if (!tags.includes(tag)) throw new HttpError(404, `${inst.name} is not tagged ${tag}.`);
+						return { stored: "Tags", value: encodeTags(tags.filter((t) => t !== tag)) };
+					}
+					const problem = tagProblem(tag, tags);
+					if (problem) throw new HttpError(422, problem);
+					return { stored: "Tags", value: encodeTags([...tags, tag]) };
+				});
 			},
 
 			/**

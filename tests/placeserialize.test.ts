@@ -84,7 +84,10 @@ function expectSame(a: RbxInstance[], b: RbxInstance[]) {
 		expect([...now.props.keys()]).toEqual(expect.arrayContaining([...was.props.keys()]));
 		for (const [name, prop] of was.props) {
 			const got = now.props.get(name)!;
-			expect(got.type, name).toBe(prop.type);
+			// Studio's binary keeps a script's Source as a plain String, and
+			// refused a place that gave it the ProtectedString type.
+			const kept = prop.type === "ProtectedString" && got.type === "String" ? prop.type : got.type;
+			expect(kept, name).toBe(prop.type);
 			if (prop.type === "Ref") {
 				expect((got.value as RbxInstance | null)?.name ?? null, name).toBe(
 					(prop.value as RbxInstance | null)?.name ?? null,

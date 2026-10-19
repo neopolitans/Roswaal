@@ -27,8 +27,9 @@ import { api, type PlaceTree } from "./api.js";
 import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
-import { depthStyle, Ident, SectionHead } from "./PanelParts.jsx";
+import { AddButton, depthStyle, Ident, SectionHead } from "./PanelParts.jsx";
 import { currentOutline, rememberOutline } from "./placeOutline.js";
+import type { Dialogs } from "./useDialogs.js";
 import { ValuePicker } from "./ValuePicker.jsx";
 
 /** Mirrors `TUCKED` in core/rbx/browse.ts, which the editor does not bundle. */
@@ -395,11 +396,14 @@ export interface PlacePropertiesProps {
 	confirmEdit?: (target: PlaceTarget) => Promise<boolean>;
 	/** A change was written: the place's new version, and the backup kept first, if one was. */
 	onWritten?: (stamp: string, backup?: string) => void;
+	/** For an attribute's name and type, and a tag's name, as one is added. */
+	ask?: Dialogs["ask"];
 }
 
 /** The Properties panel: one instance of the place, read from the host. */
 export const PlaceProperties = memo(function PlaceProperties(props: PlacePropertiesProps) {
-	const { target, onPick, onOpenFile, graphFor, onClose, editable, confirmEdit, onWritten } = props;
+	const { target, onPick, onOpenFile, graphFor, onClose, editable, confirmEdit, onWritten, ask } =
+		props;
 	const [info, setInfo] = useState<PlaceInstanceInfo | null>(null);
 	const [problem, setProblem] = useState<string | null>(null);
 	/** The property being written, and the last change refused, by property name. */
@@ -418,30 +422,93 @@ export const PlaceProperties = memo(function PlaceProperties(props: PlacePropert
 		async () => (confirmEdit ? confirmEdit(target) : false),
 		[confirmEdit, target],
 	);
-	const commit = useCallback(
-		async (property: PlaceProperty, value: unknown) => {
-			if (!property.edit) return;
-			setBusy(property.name);
+	/** One change written, under `label` for its busy mark and its refusal. */
+	const run = useCallback(
+		async (
+			label: string,
+			write: (
+				stamp: string,
+			) => Promise<{ stamp: string; instance: PlaceInstanceInfo; backup?: string }>,
+		) => {
+			setBusy(label);
 			setRefused(null);
 			try {
-				const answer = await api.placeProperty(
-					stamp.current,
-					target.index,
-					property.edit.stored,
-					value,
-				);
+				const answer = await write(stamp.current);
 				writtenStamps.add(answer.stamp);
 				stamp.current = answer.stamp;
 				setInfo(answer.instance);
 				if (answer.backup) setBackup(answer.backup);
 				onWritten?.(answer.stamp, answer.backup);
 			} catch (err) {
-				setRefused({ name: property.name, message: errorMessage(err) });
+				setRefused({ name: label, message: errorMessage(err) });
 			} finally {
 				setBusy(null);
 			}
 		},
-		[target.index, onWritten],
+		[onWritten],
+	);
+	const commit = useCallback(
+		async (property: PlaceProperty, value: unknown) => {
+			const edit = property.edit;
+			if (!edit) return;
+			await run(property.name, (s) =>
+				edit.attribute
+					? api.placeAttribute(s, target.index, { name: edit.stored, value })
+					: api.placeProperty(s, target.index, edit.stored, value),
+			);
+		},
+		[run, target.index],
+	);
+	const addAttribute = useCallback(async () => {
+		if (!ask || !(await begin())) return;
+		const answer = await ask({
+			kind: "form",
+			title: "Add an attribute",
+			message: `Added to ${target.name} in the place file, with Studio's default value.`,
+			fields: [
+				{ id: "name", kind: "text", label: "Name", value: "" },
+				{
+					id: "type",
+					kind: "choice",
+					label: "Type",
+					value: "string",
+					options: ["string", "number", "boolean", "Vector3", "Color3"].map((value) => ({
+						value,
+						label: value,
+					})),
+				},
+			],
+			confirmLabel: "Add",
+		});
+		if (typeof answer !== "string") return;
+		const { name, type } = JSON.parse(answer) as { name?: string; type?: string };
+		await run(ATTRIBUTES, (s) =>
+			api.placeAttribute(s, target.index, { name: String(name ?? "").trim(), add: type }),
+		);
+	}, [ask, begin, run, target.index, target.name]);
+	const removeAttribute = useCallback(
+		async (name: string) => {
+			if (await begin())
+				await run(name, (s) => api.placeAttribute(s, target.index, { name, remove: true }));
+		},
+		[begin, run, target.index],
+	);
+	const addTag = useCallback(async () => {
+		if (!ask || !(await begin())) return;
+		const tag = await ask({
+			kind: "prompt",
+			title: "Add a tag",
+			label: "Tag",
+			hint: `Added to ${target.name} in the place file.`,
+			confirmLabel: "Add",
+		});
+		if (typeof tag === "string") await run(TAGS, (s) => api.placeTag(s, target.index, tag));
+	}, [ask, begin, run, target.index, target.name]);
+	const removeTag = useCallback(
+		async (tag: string) => {
+			if (await begin()) await run(TAGS, (s) => api.placeTag(s, target.index, tag, true));
+		},
+		[begin, run, target.index],
 	);
 
 	useEffect(() => {
@@ -521,7 +588,18 @@ export const PlaceProperties = memo(function PlaceProperties(props: PlacePropert
 						onPick={onPick}
 						path={target.path}
 						className={target.className}
-						edits={editable ? { busy, refused, begin, commit } : undefined}
+						edits={
+							editable
+								? {
+										busy,
+										refused,
+										begin,
+										commit,
+										...(info.attributes && ask ? { addAttribute, removeAttribute } : {}),
+										...(info.tags && ask ? { addTag, removeTag } : {}),
+									}
+								: undefined
+						}
 					/>
 				) : (
 					<p className="place-note">Reading…</p>
@@ -622,7 +700,17 @@ interface Edits {
 	refused: { name: string; message: string } | null;
 	begin: () => Promise<boolean>;
 	commit: (property: PlaceProperty, value: unknown) => Promise<void>;
+	/** Where the place keeps attributes Roswaal can rewrite: adding and removing them. */
+	addAttribute?: () => Promise<void>;
+	removeAttribute?: (name: string) => Promise<void>;
+	/** Where the place keeps the instance's tags. */
+	addTag?: () => Promise<void>;
+	removeTag?: (tag: string) => Promise<void>;
 }
+
+/** The busy and refusal labels for changes that are not one property's. */
+const ATTRIBUTES = "::attributes";
+const TAGS = "::tags";
 
 function Properties({
 	properties,
@@ -637,10 +725,20 @@ function Properties({
 	className: string;
 	edits?: Edits;
 }) {
-	const groups = useMemo(() => groupProperties(properties), [properties]);
+	const groups = useMemo(() => {
+		const found = groupProperties(properties);
+		// Shown empty where one can be added, so there is somewhere to add it.
+		for (const [category, can] of [
+			["Attributes", edits?.addAttribute],
+			["Tags", edits?.addTag],
+		] as const) {
+			if (can && !found.some(([c]) => c === category)) found.push([category, []]);
+		}
+		return found;
+	}, [properties, edits?.addAttribute, edits?.addTag]);
 	const [shut, setShut] = useState<ReadonlySet<string>>(new Set());
 
-	if (properties.length === 0) return <p className="place-note">No properties Roswaal reads.</p>;
+	if (groups.length === 0) return <p className="place-note">No properties Roswaal reads.</p>;
 	return (
 		<div className="place-groups">
 			{groups.map(([category, list]) => (
@@ -657,19 +755,51 @@ function Properties({
 								return next;
 							})
 						}
-					/>
+					>
+						{category === "Attributes" && edits?.addAttribute && (
+							<AddButton title="Add an attribute" onClick={() => void edits.addAttribute?.()} />
+						)}
+						{category === "Tags" && edits?.addTag && (
+							<AddButton title="Add a tag" onClick={() => void edits.addTag?.()} />
+						)}
+					</SectionHead>
+					{edits?.refused &&
+						((category === "Attributes" && edits.refused.name === ATTRIBUTES) ||
+							(category === "Tags" && edits.refused.name === TAGS)) && (
+							<p className="place-prop-refused" role="alert">
+								{edits.refused.message}
+							</p>
+						)}
 					{shut.has(category) ? null : category === "Tags" ? (
 						<div className="place-tags">
 							{list.map((p) => (
 								<span className="place-tag" key={p.name}>
 									{p.name}
+									{edits?.removeTag && (
+										<button
+											className="place-tag-remove"
+											title={`Remove the tag ${p.name}`}
+											aria-label={`Remove the tag ${p.name}`}
+											disabled={edits.busy !== null}
+											onClick={() => void edits.removeTag?.(p.name)}
+										>
+											<Icon name="close" size={10} />
+										</button>
+									)}
 								</span>
 							))}
 						</div>
 					) : (
 						list.map((p) => (
 							<div
-								className={cx("place-prop", edits && p.edit && "place-prop-editable")}
+								className={cx(
+									"place-prop",
+									edits && p.edit && "place-prop-editable",
+									category === "Attributes" &&
+										edits?.removeAttribute &&
+										!/^RBX/i.test(p.name) &&
+										"place-prop--removable",
+								)}
 								key={p.name}
 								title={
 									category !== "Attributes" && readOnlyToScripts(className, p.name)
@@ -712,6 +842,17 @@ function Properties({
 										</>
 									)}
 								</span>
+								{category === "Attributes" && edits?.removeAttribute && !/^RBX/i.test(p.name) && (
+									<button
+										className="place-prop-remove"
+										title={`Remove the attribute ${p.name}`}
+										aria-label={`Remove the attribute ${p.name}`}
+										disabled={edits.busy !== null}
+										onClick={() => void edits.removeAttribute?.(p.name)}
+									>
+										<Icon name="close" size={11} />
+									</button>
+								)}
 								{edits?.refused?.name === p.name && (
 									<span className="place-prop-refused" role="alert">
 										{edits.refused.message}
