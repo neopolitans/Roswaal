@@ -354,6 +354,42 @@ export function App() {
 
 	const { dialog, dialogOpen, ask, notify } = useDialogs();
 
+	/** The version of the place a property change last wrote, for the browser to read. */
+	const [placeWritten, setPlaceWritten] = useState<string | null>(null);
+	/** Place files a property change has been agreed to this session. */
+	const placeEditsAgreed = useRef(new Set<string>());
+	/**
+	 * Asks before the first property change to a place: it is written into
+	 * the place file, which Studio may have open.
+	 */
+	const confirmPlaceEdit = useCallback(
+		async (target: PlaceTarget) => {
+			const file = project?.place;
+			if (!file) return false;
+			if (placeEditsAgreed.current.has(file)) return true;
+			const yes = await ask({
+				kind: "confirm",
+				title: `Change properties in ${file}?`,
+				message:
+					"Each change is written into the place file as you make it. A copy of the file " +
+					"as it is now goes in .roswaal/backups first.",
+				points: [
+					target.studio
+						? "Studio has this place open. Its next save puts back the values it has, so close it first."
+						: "If Studio has this place open, its next save puts back the values it has.",
+				],
+				confirmLabel: "Change Properties",
+			});
+			if (yes === true) placeEditsAgreed.current.add(file);
+			return yes === true;
+		},
+		[ask, project?.place],
+	);
+	const onPlaceWritten = useCallback((stamp: string) => {
+		setPlaceInspect((shown) => (shown ? { ...shown, stamp } : shown));
+		setPlaceWritten(stamp);
+	}, []);
+
 	/**
 	 * The notice for files StyLua left as emitted. Written, so it is a warning
 	 * and not a failure; what StyLua said is a click away.
@@ -1642,6 +1678,7 @@ export function App() {
 										onInspect={onPlaceInspect}
 										inspecting={placeInspect?.index ?? null}
 										reveal={placeReveal}
+										written={placeWritten}
 									/>
 								</div>
 							)}
@@ -1790,6 +1827,9 @@ export function App() {
 								onOpenFile={onPlaceOpenFile}
 								graphFor={placeGraphFor}
 								onClose={onPlaceClose}
+								editable={prefs.modifyDataModel}
+								confirmEdit={confirmPlaceEdit}
+								onWritten={onPlaceWritten}
 							/>
 						) : undefined,
 					code:

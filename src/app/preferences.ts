@@ -230,6 +230,11 @@ export interface Preferences {
 	/** Which scope Script analysis shows: the open graph, or the whole project. */
 	analysisScope: "script" | "project";
 	/**
+	 * The Properties panel changes the place file's properties, rather than
+	 * only showing them. Off until asked for: it writes a file Studio owns.
+	 */
+	modifyDataModel: boolean;
+	/**
 	 * What the node menu is narrowed to, or `null` for everything.
 	 *
 	 * On top of the filter the graph's own target already applies, not instead
@@ -409,6 +414,7 @@ export const DEFAULTS: Preferences = {
 	docsFont: "system",
 	showPreReleaseNotes: false,
 	analysisScope: "script",
+	modifyDataModel: false,
 	// Everything the target allows, which is what the menu did before there was
 	// a filter at all.
 	nodeFilter: null,
@@ -502,6 +508,10 @@ export function readPreferences(): Preferences {
 			stored.analysisScope === "script" || stored.analysisScope === "project"
 				? stored.analysisScope
 				: DEFAULTS.analysisScope,
+		modifyDataModel:
+			typeof stored.modifyDataModel === "boolean"
+				? stored.modifyDataModel
+				: DEFAULTS.modifyDataModel,
 		docsFont: DOCS_FONTS.some((f) => f.font === stored.docsFont)
 			? (stored.docsFont as DocsFont)
 			: DEFAULTS.docsFont,

@@ -756,6 +756,19 @@ function WorkspaceSettings({ prefs, onPrefs }: SettingsPanelProps) {
 				</Row>
 			</Group>
 
+			<Group title="DataModel">
+				<Row
+					label="Modify DataModel Instances"
+					help="Change values in Properties. Each change is written into the place file, after a backup."
+				>
+					<Toggle
+						on={prefs.modifyDataModel}
+						onChange={(on) => onPrefs({ modifyDataModel: on })}
+						label={prefs.modifyDataModel ? "Properties can be changed" : "Properties are read-only"}
+					/>
+				</Row>
+			</Group>
+
 			<Group title="Starting">
 				<Row label="On opening Roswaal" help="Which project this tab starts on.">
 					<Toggle

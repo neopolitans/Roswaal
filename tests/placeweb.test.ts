@@ -99,6 +99,43 @@ describe("a place imported in the browser", () => {
 	});
 });
 
+describe("a property changed in the browser", () => {
+	it("is written into the volume's place, after a backup there", async () => {
+		const root = "/Changed";
+		const place = buildPlace(
+			[
+				service("Workspace", [
+					{ className: "Part", name: "Floor", props: { Anchored: { type: 2, value: false } } },
+				]),
+			],
+			"zstd",
+		);
+		await volume.mkdir(root, { recursive: true });
+		await volume.writeFile(`${root}/roswaal.json`, JSON.stringify({ schemaVersion: 1 }), "utf8");
+		await volume.writeFile(`${root}/place.rbxl`, place);
+		const { ApiSession } = await import("../src/server/routes.js");
+		const session = new ApiSession({});
+		await session.openAt(root);
+		const tree = (await session.handle("GET", "/place")) as {
+			stamp: string;
+			outline: { nodes: [number, string, number, number][] };
+		};
+		const index = tree.outline.nodes.findIndex(([, n]) => n === "Floor");
+		const before = volume.binaryStamp;
+		const answer = (await session.handle("POST", "/place/property", {
+			body: { stamp: tree.stamp, index, property: "Anchored", value: true },
+		})) as { backup: string };
+		const floor = readRbx(await volume.readFile(`${root}/place.rbxl`)).instances.find(
+			(i) => i.name === "Floor",
+		);
+		expect(floor?.props.get("Anchored")?.value).toBe(true);
+		expect(Array.from(await volume.readFile(`${root}/${answer.backup}`))).toEqual(
+			Array.from(place),
+		);
+		expect(volume.binaryStamp).toBeGreaterThan(before);
+	});
+});
+
 describe("keeping a place across a reload", () => {
 	beforeEach(() => vi.useFakeTimers());
 	afterEach(() => vi.useRealTimers());

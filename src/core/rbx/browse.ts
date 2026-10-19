@@ -11,6 +11,7 @@
 import { ownTable } from "../ownTable.js";
 import { ENGINE, type EngineProperty } from "../robloxEngine.js";
 import { type Prop, type RbxDocument, type RbxInstance, SCRIPT_CLASSES, text } from "./dom.js";
+import { editFor, type PropertyEdit } from "./edit.js";
 
 /**
  * The tree, depth first: each node is `[class, name, parent, flags]`, the
@@ -113,6 +114,8 @@ export interface PlaceProperty {
 	color?: string;
 	/** For a reference: the index of the instance it points at. */
 	ref?: number;
+	/** How it is changed, for a property the engine lets a script set and of a simple kind. */
+	edit?: PropertyEdit;
 }
 
 export interface PlaceInstanceInfo {
@@ -339,6 +342,13 @@ function formatValue(
 	return { value: "" };
 }
 
+/** How an instance's stored property is changed, or undefined when it is not. */
+export function propertyEdit(inst: RbxInstance, stored: string): PropertyEdit | undefined {
+	const prop = inst.props.get(stored);
+	if (!prop || INTERNAL.has(stored)) return undefined;
+	return editFor(stored, prop, engineProperty(inst.className, RENAMED[stored] ?? stored));
+}
+
 /** Everything the browser shows about one instance. */
 export function describeInstance(
 	inst: RbxInstance,
@@ -350,11 +360,13 @@ export function describeInstance(
 		if (INTERNAL.has(stored)) continue;
 		const engine = engineProperty(inst.className, RENAMED[stored] ?? stored);
 		const name = engine?.name ?? RENAMED[stored] ?? stored;
+		const edit = editFor(stored, prop, engine);
 		properties.push({
 			name,
 			type: prop.type,
 			category: engine?.category || "Other",
 			...formatValue(prop, stored, engine, indexOf),
+			...(edit ? { edit } : {}),
 		});
 	}
 	const tags = inst.props.get("Tags")?.value;

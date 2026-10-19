@@ -158,10 +158,40 @@ export function placesAndRojoPage(): DocPage {
 					"Double-click or double-tap an instance to open the **Properties** panel on the right: " +
 					"its properties, tags and attributes under Studio's headings. While it is open it follows " +
 					"what you pick, and a reference goes to what it names. For a script a project file " +
-					"writes, **Open** opens that file, and its graph when one generates it. The browser " +
-					"only reads the place.",
+					"writes, **Open** opens that file, and its graph when one generates it.",
 			},
 			{ t: "toolbar", bar: PROPERTIES_PANEL },
+
+			{ t: "h", level: 2, text: "Changing properties" },
+			{
+				t: "p",
+				text:
+					"Turn on **Settings → Workspace → Modify DataModel Instances** and Properties changes " +
+					"values as well as showing them. Click a value to type over it, tick a box, pick from a " +
+					"list, or pick a colour from its swatch. `Enter` writes it; `Esc` puts it back.",
+			},
+			{
+				t: "p",
+				text:
+					"Each change is written into the place file straight away. The first one asks, and a " +
+					"copy of the file as it was goes in `.roswaal/backups` first, and again whenever the " +
+					"file has changed since Roswaal last wrote it.",
+			},
+			{
+				t: "table",
+				head: ["Can be changed", "Not yet"],
+				rows: [
+					[
+						"True or false, numbers, text, enums, colours and BrickColors, on properties a script can set",
+						"Names, scripts' source, positions, sizes, CFrames, UDim2s and references",
+					],
+				],
+			},
+			{
+				t: "note",
+				kind: "warn",
+				text: "**Close the place in Studio first.** Studio's next save puts back the values it has.",
+			},
 
 			{ t: "h", level: 2, text: "Dragging onto a graph" },
 			{

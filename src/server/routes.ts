@@ -32,7 +32,9 @@ import {
 	fingerprint,
 	outlinePlace,
 	type PlaceOutline,
+	propertyEdit,
 } from "../core/rbx/browse.js";
+import { storedValue, writeProperty } from "../core/rbx/edit.js";
 import { type RbxDocument, RbxError, type RbxInstance, readRbx } from "../core/rbx/index.js";
 import { type PlaceReport, planPlaceUpdate } from "../core/rbx/placeExport.js";
 import { emptyScript, type NodeDef, type NodeScript, type Target } from "../core/schema.js";
@@ -93,6 +95,7 @@ import {
 	writeConfig,
 	writeLuaurcFile,
 	writeMap,
+	writePlaceFile,
 	writeScript,
 } from "./project.js";
 import { fields, need, optionalQuery, query, type RouteRequest, realmOf, text } from "./request.js";
@@ -199,6 +202,14 @@ export class ApiSession {
 	 * would cost more than every answer together.
 	 */
 	private place: LoadedPlace | null = null;
+
+	/**
+	 * The stamp of each place file as a property change last wrote it. A
+	 * change to a file that still holds what was written needs no new backup;
+	 * one that has changed since -- Studio saved it, or it was never written
+	 * here -- is copied first.
+	 */
+	private placeWrites = new Map<string, string>();
 
 	readonly routes: Readonly<Record<string, RouteHandler>>;
 
@@ -448,7 +459,71 @@ export class ApiSession {
 					const i = loaded.index.get(inst);
 					if (i !== undefined) scripts[i] = owner;
 				});
-				return { file, stamp: loaded.stamp, outline: loaded.outline, scripts };
+				// Studio keeps a lock file beside a place it has open.
+				const studio = await exists(path.join(project.root, `${file}.lock`));
+				return {
+					file,
+					stamp: loaded.stamp,
+					outline: loaded.outline,
+					scripts,
+					...(studio ? { studio } : {}),
+				};
+			},
+
+			/**
+			 * Changes one property of one instance, in the place file itself.
+			 * Only a property the instance's answer offers an `edit` for, with a
+			 * value that property can hold; anything else is a 422 saying why,
+			 * and the file is left as it was. A 409 when the place has changed
+			 * since `stamp`.
+			 *
+			 * The file as it was is copied under `.roswaal/backups/` first,
+			 * unless it still holds what the last change here wrote. Answers
+			 * with the new stamp and the instance as it now is: the outline is
+			 * the same, since no name changes.
+			 */
+			"POST /place/property": async (req) => {
+				const project = this.project();
+				const file = await findPlaceFile(project.root, project.config);
+				if (!file) throw new HttpError(404, "The project has no place file.");
+				const body = fields<{ stamp: string; index: number; property: string; value: unknown }>(
+					req,
+				);
+				const stamp = need(text(body.stamp), "stamp");
+				const property = need(text(body.property), "property");
+				const before = await readPlaceBytes(project, file);
+				const loaded = await this.loadPlace(project, file);
+				if (stamp !== loaded.stamp || loaded.stamp !== `${file}:${fingerprint(before)}`)
+					throw new HttpError(409, "The place file has changed. Reload it.");
+				const inst = typeof body.index === "number" ? loaded.order[body.index] : undefined;
+				if (!inst) throw new HttpError(404, `No instance ${body.index} in the place.`);
+				const edit = propertyEdit(inst, property);
+				if (!edit) throw new HttpError(422, `${property} cannot be changed here.`);
+
+				let after: Uint8Array;
+				try {
+					const value = storedValue(edit, inst.props.get(property)!, body.value);
+					after = writeProperty(before, loaded.doc, inst, property, value);
+				} catch (err) {
+					if (err instanceof RbxError) throw new HttpError(422, errorMessage(err));
+					throw err;
+				}
+				const key = path.join(project.root, file);
+				const backup = await writePlaceFile(
+					project,
+					file,
+					before,
+					after,
+					this.placeWrites.get(key) !== loaded.stamp,
+				);
+				const now = await this.loadPlace(project, file);
+				this.placeWrites.set(key, now.stamp);
+				const index = now.order.findIndex((other) => other.ref === inst.ref);
+				return {
+					stamp: now.stamp,
+					instance: describeInstance(now.order[index], index, (other) => now.index.get(other)),
+					...(backup ? { backup } : {}),
+				};
 			},
 
 			/**

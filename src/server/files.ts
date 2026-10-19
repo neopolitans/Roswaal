@@ -83,15 +83,22 @@ export async function walkFiles(root: string, options: WalkOptions = {}): Promis
  * refused rename falls back to an ordinary write rather than losing the save.
  */
 export async function writeTextAtomically(abs: string, text: string): Promise<void> {
+	return writeFileAtomically(abs, text);
+}
+
+/** `writeTextAtomically` for any file: text, or bytes such as a place. */
+export async function writeFileAtomically(abs: string, data: string | Uint8Array): Promise<void> {
+	const write = (target: string) =>
+		typeof data === "string" ? fs.writeFile(target, data, "utf8") : fs.writeFile(target, data);
 	const temporary = `${abs}.${Math.random().toString(36).slice(2, 10)}.tmp`;
-	await fs.writeFile(temporary, text, "utf8");
+	await write(temporary);
 	try {
 		await fs.rename(temporary, abs);
 	} catch (error) {
 		await fs.rm(temporary, { force: true });
 		const code = (error as { code?: unknown }).code;
 		if (code !== "EPERM" && code !== "EACCES" && code !== "EBUSY") throw error;
-		await fs.writeFile(abs, text, "utf8");
+		await write(abs);
 	}
 }
 

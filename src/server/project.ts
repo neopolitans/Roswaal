@@ -83,10 +83,12 @@ export { entryPath, safeJoin } from "./paths.js";
 export {
 	exportPlace,
 	findPlaceFile,
+	PLACE_BACKUPS,
 	type PlaceExport,
 	placeEntries,
 	placeReport,
 	readPlaceBytes,
+	writePlaceFile,
 	writePlaceImport,
 } from "./place.js";
 export { buildTree, type FolderRole, resolveWallyPackage, type TreeEntry } from "./tree.js";

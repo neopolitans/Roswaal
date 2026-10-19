@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.190.0",
+		date: "2026-10-19",
+		headline: "Properties can change values in the place file, behind a setting.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Modify DataModel Instances.** With it on in Settings → Workspace, Properties changes true or false, number, text, enum, colour and BrickColor values on any property a script can set. Each change is written into the place file, and the first asks. A copy of the file as it was goes in `.roswaal/backups` first.",
+			"**Studio's lock noticed.** While Studio has the place open, Properties says that Studio's next save puts back the values it has.",
+		],
+	},
+	{
 		version: "0.189.1",
 		date: "2026-10-16",
 		headline: "A compile or Check straight after an edit reads the graph as it is on screen.",

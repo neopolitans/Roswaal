@@ -114,6 +114,9 @@ function defaultFor(type: number): unknown {
 			return "00".repeat(16);
 		case 21:
 			return [];
+		case 12:
+		case 26:
+			return [0, 0, 0];
 		default:
 			return 0;
 	}
@@ -133,9 +136,22 @@ function writeValues(w: Writer, type: number, values: unknown[]): void {
 		case 4:
 			w.interleaved(values.map((v) => rotate(v as number)));
 			return;
+		case 5:
+			for (const v of values) {
+				const b = new DataView(new ArrayBuffer(8));
+				b.setFloat64(0, v as number, true);
+				w.bytes(new Uint8Array(b.buffer));
+			}
+			return;
+		case 11:
 		case 18:
 			w.interleaved(values as number[]);
 			return;
+		case 26: {
+			// Color3uint8: all the reds, then the greens, then the blues.
+			for (let k = 0; k < 3; k++) w.bytes(Uint8Array.from(values.map((v) => (v as number[])[k])));
+			return;
+		}
 		case 21:
 			// NumberSequence: a count, then time/value/envelope floats, per value.
 			for (const v of values) {

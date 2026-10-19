@@ -6403,6 +6403,120 @@ button.tb.primary.danger:hover:not(:disabled) {
 	background: color-mix(in srgb, var(--accent) 26%, transparent);
 }
 
+/* With Modify DataModel Instances on: a value that can be changed reads as
+   the value still, with a box round it on hover, and turns into its field. */
+.place-edit {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	max-width: 100%;
+	min-height: 20px;
+	margin: 0 -5px;
+	padding: 0 5px;
+	border: 1px solid transparent;
+	border-radius: var(--radius-xs);
+	background: none;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+	overflow-wrap: anywhere;
+	cursor: text;
+}
+
+.place-edit:hover:not(:disabled) {
+	border-color: var(--border-strong);
+	background: var(--bg);
+}
+
+.place-bool.place-edit {
+	cursor: pointer;
+}
+
+.place-edit:disabled {
+	opacity: 0.6;
+}
+
+.place-edit-field {
+	width: 100%;
+	min-width: 0;
+	height: 22px;
+	padding: 0 5px;
+	font-size: var(--text-md);
+}
+
+select.place-edit-field {
+	padding: 0 2px;
+}
+
+.place-prop-editable {
+	cursor: default;
+}
+
+.place-prop-editable .place-prop-value {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	min-width: 0;
+}
+
+/* The swatch is the picker. */
+.place-colour {
+	flex: none;
+	width: 16px;
+	height: 16px;
+	padding: 0;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-xs);
+	background: none;
+	cursor: pointer;
+}
+
+.place-colour::-webkit-color-swatch-wrapper {
+	padding: 0;
+}
+
+/* Apart: a browser drops a whole rule over a pseudo-element it does not know. */
+.place-colour::-webkit-color-swatch {
+	border: 0;
+	border-radius: 1px;
+}
+
+.place-colour::-moz-color-swatch {
+	border: 0;
+	border-radius: 1px;
+}
+
+.place-empty {
+	color: var(--fg-faint);
+	font-style: italic;
+	font-weight: 400;
+}
+
+/* Why a change was not made, under the row it was made in. */
+.place-prop-refused {
+	grid-column: 1 / -1;
+	color: var(--danger);
+	font-size: var(--text-sm);
+	font-weight: 400;
+}
+
+.place-studio {
+	color: var(--warning);
+}
+
+/* A finger needs room: the field and the box are touch targets. */
+@media (pointer: coarse) {
+	.place-edit,
+	.place-edit-field {
+		min-height: 32px;
+	}
+
+	.place-colour {
+		width: 28px;
+		height: 28px;
+	}
+}
+
 .place-tags {
 	display: flex;
 	flex-wrap: wrap;
@@ -6420,7 +6534,8 @@ button.tb.primary.danger:hover:not(:disabled) {
 
 /* iOS zooms the page onto a field under 16px when it takes focus. */
 @media (pointer: coarse) {
-	.place-filter {
+	.place-filter,
+	.place-edit-field {
 		font-size: 16px;
 	}
 }

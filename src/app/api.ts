@@ -80,7 +80,14 @@ export interface ProjectInfo {
  */
 export type PlaceTree =
 	| { file: null }
-	| { file: string; stamp: string; outline: PlaceOutline; scripts: Record<number, string> };
+	| {
+			file: string;
+			stamp: string;
+			outline: PlaceOutline;
+			scripts: Record<number, string>;
+			/** Studio has the place open: its lock file is beside it. */
+			studio?: boolean;
+	  };
 
 /** A node pack on disk. The daemon's copy is in `src/server/project.ts`. */
 /** What is at a path: whether it is a project, and if so what kind. */
@@ -373,6 +380,18 @@ export const api = {
 		request<PlaceInstanceInfo>(
 			`/api/place/instance?stamp=${encodeURIComponent(stamp)}&index=${index}`,
 		),
+	/**
+	 * Changes one property of one instance in the place file itself. Answers
+	 * with the place's new stamp, the instance as it now is, and the backup
+	 * kept first, when one was.
+	 */
+	placeProperty: (stamp: string, index: number, property: string, value: unknown) =>
+		post<{ stamp: string; instance: PlaceInstanceInfo; backup?: string }>("/api/place/property", {
+			stamp,
+			index,
+			property,
+			value,
+		}),
 	customNodes: () => request<{ custom: NodeDef[]; errors: string[] }>("/api/nodes"),
 
 	readScript: (path: string) =>

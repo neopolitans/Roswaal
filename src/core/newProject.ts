@@ -140,6 +140,9 @@ const GITIGNORE = `# Roblox Studio lock files
 /*.rbxlx.lock
 /*.rbxl.lock
 
+# Copies of the place kept before a property change
+/.roswaal/backups/
+
 sourcemap.json
 `;
 

@@ -23,7 +23,7 @@ import { compileMap, type MapOutcome } from "./compile.js";
 import { type OpenProject, openProject, writeConfig } from "./config.js";
 import { collectMaps, readMap } from "./documents.js";
 import { errorMessage, UserError } from "./errors.js";
-import { walkFiles } from "./files.js";
+import { exists, walkFiles, writeFileAtomically } from "./files.js";
 import { fs, path } from "./host.js";
 import { safeJoin, toPosix } from "./paths.js";
 
@@ -33,7 +33,8 @@ import { safeJoin, toPosix } from "./paths.js";
  * `place` in roswaal.json when it is set and the file is there. Otherwise a
  * `.rbxl` or `.rbxlx` in the root: `place.rbxl` first, as Rojo projects
  * conventionally keep one, then the first by name. A place is data the
- * project reads; nothing is written into it unless an export is asked for.
+ * project reads; nothing is written into it unless an export is asked for,
+ * or a property is changed in the DataModel browser.
  */
 export async function findPlaceFile(root: string, config: RoswaalConfig): Promise<string | null> {
 	if (config.place) {
@@ -82,6 +83,43 @@ export async function writePlaceImport(
 /** A place file's bytes, by its project-relative path. */
 export async function readPlaceBytes(project: OpenProject, file: string): Promise<Uint8Array> {
 	return fs.readFile(safeJoin(project.root, file));
+}
+
+/** Where copies of a place are kept before a property change, project-relative. */
+export const PLACE_BACKUPS = ".roswaal/backups";
+
+/**
+ * Writes a changed place over the project's place file, and when `backUp`,
+ * first keeps `before` -- the file as it was -- under `PLACE_BACKUPS`, named
+ * after the place and the time, and never over an earlier one. Returns the backup's project-relative path.
+ */
+export async function writePlaceFile(
+	project: OpenProject,
+	file: string,
+	before: Uint8Array,
+	after: Uint8Array,
+	backUp: boolean,
+	now = new Date(),
+): Promise<string | undefined> {
+	let backup: string | undefined;
+	if (backUp) {
+		const ext = /\.rbxlx?$/i.exec(file)?.[0] ?? "";
+		const base = path.posix.basename(file, ext);
+		// The time where the developer is, as they would read it off their clock.
+		const two = (n: number) => String(n).padStart(2, "0");
+		const time =
+			`${now.getFullYear()}${two(now.getMonth() + 1)}${two(now.getDate())}-` +
+			`${two(now.getHours())}${two(now.getMinutes())}${two(now.getSeconds())}`;
+		backup = `${PLACE_BACKUPS}/${base}.${time}${ext}`;
+		// Two in the same second are two backups, not one over the other.
+		for (let n = 2; await exists(safeJoin(project.root, backup)); n++)
+			backup = `${PLACE_BACKUPS}/${base}.${time}-${n}${ext}`;
+		const abs = safeJoin(project.root, backup);
+		await fs.mkdir(path.dirname(abs), { recursive: true });
+		await fs.writeFile(abs, before);
+	}
+	await writeFileAtomically(safeJoin(project.root, file), after);
+	return backup;
 }
 
 /** A project's place with its scripts written in, and what was and was not. */

@@ -2,9 +2,13 @@
  * The DataModel browser: the project's place as Studio's Explorer shows it.
  * And, in a panel of its own, the properties of an instance opened from it.
  *
- * Read-only. The host parses the place and answers with names and classes;
- * properties come one instance at a time, already formatted, so the editor
- * holds a list of names however large the place is.
+ * The host parses the place and answers with names and classes; properties
+ * come one instance at a time, already formatted, so the editor holds a list
+ * of names however large the place is.
+ *
+ * Read-only unless Modify DataModel Instances is on. Then a property the host
+ * offers an edit for is changed in Properties, and the host writes it into
+ * the place file.
  */
 
 import { memo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -16,6 +20,7 @@ import {
 	type PlaceInstanceInfo,
 	type PlaceProperty,
 } from "../core/rbx/browse.js";
+import type { PropertyEdit } from "../core/rbx/edit.js";
 import { api, type PlaceTree } from "./api.js";
 import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
@@ -31,6 +36,13 @@ const CHILD_LIMIT = 200;
 /** Matches listed for a filter; past this the filter wants narrowing. */
 const MATCH_LIMIT = 300;
 
+/**
+ * Versions of the place a property change here wrote. A change renames
+ * nothing, so the outline of one of these is the outline on screen, and
+ * reading it again keeps what was open and picked.
+ */
+const writtenStamps = new Set<string>();
+
 /** An instance the Properties panel is showing, by the version of the place it is in. */
 export interface PlaceTarget {
 	stamp: string;
@@ -42,6 +54,8 @@ export interface PlaceTarget {
 	service: boolean;
 	/** The project file that writes it, for a script. */
 	file?: string;
+	/** Studio had the place open when it was read. */
+	studio?: boolean;
 }
 
 export interface PlaceBrowserProps {
@@ -59,12 +73,14 @@ export interface PlaceBrowserProps {
 	inspecting: number | null;
 	/** Pick and show this instance: a reference followed from Properties. */
 	reveal: { index: number; seq: number } | null;
+	/** The version of the place a property change last wrote: read it again. */
+	written?: string | null;
 }
 
 type Loaded = Extract<PlaceTree, { stamp: string }>;
 
 export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps) {
-	const { file, refreshKey, onInspect, inspecting, reveal: revealRequest } = props;
+	const { file, refreshKey, onInspect, inspecting, reveal: revealRequest, written } = props;
 	const [place, setPlace] = useState<Loaded | null>(null);
 	const [problem, setProblem] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
@@ -85,7 +101,11 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 				setPlace(null);
 				setProblem("The project has no place file.");
 			} else {
-				if (stampRef.current !== null && stampRef.current !== answer.stamp) {
+				if (
+					stampRef.current !== null &&
+					stampRef.current !== answer.stamp &&
+					!writtenStamps.has(answer.stamp)
+				) {
 					setOpen(new Set());
 					setShowAll(new Set());
 					setSelected(null);
@@ -106,7 +126,7 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 
 	useEffect(() => {
 		void load();
-	}, [load, file, refreshKey]);
+	}, [load, file, refreshKey, written]);
 
 	const nodes = place?.outline.nodes;
 	const classes = place?.outline.classes;
@@ -136,6 +156,7 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 				path: pathTo(nodes!, index),
 				service: parent === -1,
 				...(owner ? { file: owner } : {}),
+				...(place!.studio ? { studio: true } : {}),
 			};
 		},
 		[nodes, classes, place],
@@ -363,13 +384,60 @@ export interface PlacePropertiesProps {
 	/** The graph a Luau file is generated from, when it is. */
 	graphFor: (path: string) => string | undefined;
 	onClose: () => void;
+	/** Modify DataModel Instances is on: properties the host can write are changed here. */
+	editable?: boolean;
+	/** Asks before the first change to the place; resolves to whether to go on. */
+	confirmEdit?: (target: PlaceTarget) => Promise<boolean>;
+	/** A change was written: the place's new version, and the backup kept first, if one was. */
+	onWritten?: (stamp: string, backup?: string) => void;
 }
 
 /** The Properties panel: one instance of the place, read from the host. */
 export const PlaceProperties = memo(function PlaceProperties(props: PlacePropertiesProps) {
-	const { target, onPick, onOpenFile, graphFor, onClose } = props;
+	const { target, onPick, onOpenFile, graphFor, onClose, editable, confirmEdit, onWritten } = props;
 	const [info, setInfo] = useState<PlaceInstanceInfo | null>(null);
 	const [problem, setProblem] = useState<string | null>(null);
+	/** The property being written, and the last change refused, by property name. */
+	const [busy, setBusy] = useState<string | null>(null);
+	const [refused, setRefused] = useState<{ name: string; message: string } | null>(null);
+	const [backup, setBackup] = useState<string | null>(null);
+	// The version a change is made against: the last one written here, or the target's.
+	const stamp = useRef(target.stamp);
+	useEffect(() => {
+		stamp.current = target.stamp;
+	}, [target.stamp]);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: another instance clears the last refusal.
+	useEffect(() => setRefused(null), [target.index]);
+
+	const begin = useCallback(
+		async () => (confirmEdit ? confirmEdit(target) : false),
+		[confirmEdit, target],
+	);
+	const commit = useCallback(
+		async (property: PlaceProperty, value: unknown) => {
+			if (!property.edit) return;
+			setBusy(property.name);
+			setRefused(null);
+			try {
+				const answer = await api.placeProperty(
+					stamp.current,
+					target.index,
+					property.edit.stored,
+					value,
+				);
+				writtenStamps.add(answer.stamp);
+				stamp.current = answer.stamp;
+				setInfo(answer.instance);
+				if (answer.backup) setBackup(answer.backup);
+				onWritten?.(answer.stamp, answer.backup);
+			} catch (err) {
+				setRefused({ name: property.name, message: errorMessage(err) });
+			} finally {
+				setBusy(null);
+			}
+		},
+		[target.index, onWritten],
+	);
 
 	useEffect(() => {
 		let live = true;
@@ -430,6 +498,16 @@ export const PlaceProperties = memo(function PlaceProperties(props: PlacePropert
 						<p className="place-summary">No project file writes this script.</p>
 					)
 				)}
+				{editable && target.studio && (
+					<p className="place-summary place-studio">
+						Studio has this place open. Its next save puts back the values it has.
+					</p>
+				)}
+				{editable && backup && (
+					<p className="place-summary" title={backup}>
+						Backup: {backup.split("/").pop()}
+					</p>
+				)}
 				{problem ? (
 					<p className="place-note">{problem}</p>
 				) : info && info.index === target.index ? (
@@ -438,6 +516,7 @@ export const PlaceProperties = memo(function PlaceProperties(props: PlacePropert
 						onPick={onPick}
 						path={target.path}
 						className={target.className}
+						edits={editable ? { busy, refused, begin, commit } : undefined}
 					/>
 				) : (
 					<p className="place-note">Reading…</p>
@@ -532,16 +611,26 @@ function dragOut(e: React.DragEvent, payload: PropertyDrag) {
 	e.dataTransfer.effectAllowed = "copy";
 }
 
+/** What Properties needs to change values, when Modify DataModel Instances is on. */
+interface Edits {
+	busy: string | null;
+	refused: { name: string; message: string } | null;
+	begin: () => Promise<boolean>;
+	commit: (property: PlaceProperty, value: unknown) => Promise<void>;
+}
+
 function Properties({
 	properties,
 	onPick,
 	path,
 	className,
+	edits,
 }: {
 	properties: PlaceProperty[];
 	onPick: (index: number) => void;
 	path: string[];
 	className: string;
+	edits?: Edits;
 }) {
 	const groups = useMemo(() => groupProperties(properties), [properties]);
 	const [shut, setShut] = useState<ReadonlySet<string>>(new Set());
@@ -575,7 +664,7 @@ function Properties({
 					) : (
 						list.map((p) => (
 							<div
-								className="place-prop"
+								className={cx("place-prop", edits && p.edit && "place-prop-editable")}
 								key={p.name}
 								title={`${p.name}: ${p.type}. Drag onto a graph for a Get Member; hold Ctrl as you drop to set it.`}
 								draggable
@@ -590,21 +679,245 @@ function Properties({
 							>
 								<span className="place-prop-name">{p.name}</span>
 								<span className="place-prop-value">
-									{p.color && <span className="place-swatch" style={{ background: p.color }} />}
-									{p.ref !== undefined ? (
-										<button className="place-ref" onClick={() => onPick(p.ref!)}>
-											<Icon name="instance" size={12} />
-											{p.value}
-										</button>
+									{edits && p.edit ? (
+										<PropEditor
+											key={`${p.name}:${p.value}`}
+											property={p}
+											edit={p.edit}
+											busy={edits.busy === p.name}
+											begin={edits.begin}
+											commit={(value) => edits.commit(p, value)}
+										/>
 									) : (
-										<PropValue value={p.value} />
+										<>
+											{p.color && <span className="place-swatch" style={{ background: p.color }} />}
+											{p.ref !== undefined ? (
+												<button className="place-ref" onClick={() => onPick(p.ref!)}>
+													<Icon name="instance" size={12} />
+													{p.value}
+												</button>
+											) : (
+												<PropValue value={p.value} />
+											)}
+										</>
 									)}
 								</span>
+								{edits?.refused?.name === p.name && (
+									<span className="place-prop-refused" role="alert">
+										{edits.refused.message}
+									</span>
+								)}
 							</div>
 						))
 					)}
 				</div>
 			))}
 		</div>
+	);
+}
+
+/** A value as it is first put in its field: a float to the digits it holds. */
+function fieldText(edit: PropertyEdit, type: string): string {
+	const v = edit.value;
+	if (edit.kind === "color") return (v as number[]).join(", ");
+	if (edit.kind === "number" && type === "Float32")
+		return String(Number((v as number).toPrecision(7)));
+	return String(v);
+}
+
+/** What a field holds, as the value to write; or why it is not one. */
+function parseField(
+	edit: PropertyEdit,
+	name: string,
+	text: string,
+): { value: unknown } | { why: string } {
+	const t = text.trim();
+	switch (edit.kind) {
+		case "string":
+			return { value: text };
+		case "color": {
+			const parts = t
+				.split(/[\s,]+/)
+				.filter(Boolean)
+				.map(Number);
+			return parts.length === 3 && parts.every((c) => Number.isInteger(c) && c >= 0 && c <= 255)
+				? { value: parts }
+				: { why: `${name} is three numbers from 0 to 255` };
+		}
+		default: {
+			const n = Number(t);
+			if (t === "" || !Number.isFinite(n)) return { why: `${name} is a number` };
+			if (edit.kind !== "number" && !Number.isInteger(n))
+				return { why: `${name} is a whole number` };
+			return { value: n };
+		}
+	}
+}
+
+const hexOf = (rgb: number[]) => `#${rgb.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
+
+/**
+ * A value that can be changed: a box to tick, a list to pick from, or the
+ * value itself to click and type over. Enter or leaving the field writes it;
+ * Escape puts it back. Asks first, through `begin`, the first time.
+ */
+function PropEditor({
+	property,
+	edit,
+	busy,
+	begin,
+	commit,
+}: {
+	property: PlaceProperty;
+	edit: PropertyEdit;
+	busy: boolean;
+	begin: () => Promise<boolean>;
+	commit: (value: unknown) => Promise<void>;
+}) {
+	const [editing, setEditing] = useState(false);
+	const [why, setWhy] = useState<string | null>(null);
+	const colour = useRef<HTMLInputElement>(null);
+	// Enter or Escape settles the field; the blur that may follow its removal does not again.
+	const settled = useRef(false);
+	const start = async () => {
+		if (busy || !(await begin())) return;
+		settled.current = false;
+		setEditing(true);
+	};
+
+	// The colour picker's change, not its input: one write when it closes,
+	// not one for every colour dragged through.
+	useEffect(() => {
+		const input = colour.current;
+		if (!input) return;
+		const picked = () => {
+			const hex = input.value.slice(1);
+			const rgb = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
+			if (rgb.join() !== (edit.value as number[]).join()) void commit(rgb);
+		};
+		input.addEventListener("change", picked);
+		return () => input.removeEventListener("change", picked);
+	}, [edit.value, commit]);
+
+	if (edit.kind === "bool") {
+		const on = edit.value === true;
+		return (
+			<button
+				className={cx("place-bool place-edit", on && "on")}
+				disabled={busy}
+				aria-pressed={on}
+				onClick={async () => {
+					if (await begin()) await commit(!on);
+				}}
+			>
+				<i aria-hidden>{on ? "✓" : ""}</i>
+				{String(on)}
+			</button>
+		);
+	}
+
+	if (edit.kind === "enum") {
+		if (!editing) {
+			return (
+				<button className="place-edit" disabled={busy} onClick={start}>
+					<PropValue value={property.value} />
+				</button>
+			);
+		}
+		return (
+			<select
+				className="tb place-edit-field"
+				autoFocus
+				value={edit.value as number}
+				onChange={(e) => {
+					setEditing(false);
+					void commit(Number(e.target.value));
+				}}
+				onBlur={() => setEditing(false)}
+				onKeyDown={(e) => e.key === "Escape" && setEditing(false)}
+			>
+				{(edit.items ?? []).map((item) => (
+					<option key={item.value} value={item.value}>
+						{item.name}
+					</option>
+				))}
+			</select>
+		);
+	}
+
+	const swatch =
+		edit.kind === "color" ? (
+			<input
+				ref={colour}
+				type="color"
+				className="place-colour"
+				value={hexOf(edit.value as number[])}
+				disabled={busy}
+				aria-label={`Pick ${property.name}`}
+				onClick={async (e) => {
+					// Asked first; the picker opens on the next click.
+					if (!(await begin())) e.preventDefault();
+				}}
+				onChange={() => {}}
+			/>
+		) : null;
+
+	if (!editing) {
+		return (
+			<>
+				{swatch}
+				<button className="place-edit" disabled={busy} onClick={start}>
+					{edit.kind === "string" && property.value === "" ? (
+						<span className="place-empty">empty</span>
+					) : (
+						<PropValue value={property.value} />
+					)}
+				</button>
+			</>
+		);
+	}
+
+	const initial = fieldText(edit, property.type);
+	const finish = (text: string) => {
+		if (settled.current) return;
+		if (text === initial) {
+			settled.current = true;
+			setEditing(false);
+			return;
+		}
+		const parsed = parseField(edit, property.name, text);
+		if ("why" in parsed) {
+			setWhy(parsed.why);
+			return;
+		}
+		settled.current = true;
+		setEditing(false);
+		void commit(parsed.value);
+	};
+	return (
+		<>
+			{swatch}
+			<input
+				className="tb place-edit-field"
+				autoFocus
+				defaultValue={initial}
+				inputMode={edit.kind === "string" ? "text" : edit.kind === "number" ? "decimal" : "numeric"}
+				spellCheck={false}
+				aria-label={property.name}
+				aria-invalid={why ? true : undefined}
+				title={why ?? undefined}
+				onFocus={(e) => e.currentTarget.select()}
+				onChange={() => setWhy(null)}
+				onKeyDown={(e) => {
+					if (e.key === "Enter") finish(e.currentTarget.value);
+					else if (e.key === "Escape") {
+						settled.current = true;
+						setEditing(false);
+					}
+				}}
+				onBlur={(e) => finish(e.currentTarget.value)}
+			/>
+			{why && <span className="place-prop-refused">{why}</span>}
+		</>
 	);
 }
