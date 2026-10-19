@@ -19,6 +19,7 @@ import { instanceSpecifier } from "../core/modules.js";
 import type { InstanceLocation } from "../core/nodemap.js";
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
 import { BUILTIN_NODES, createRegistry } from "../core/nodes/index.js";
+import type { PlaceInstanceInfo } from "../core/rbx/browse.js";
 import { indentUnit, type NodeDef, type RoswaalConfig } from "../core/schema.js";
 import { unformattedGroups, unformattedMessage, unformattedWhat } from "../core/unformatted.js";
 import { AliasDocument } from "./AliasDocument.jsx";
@@ -389,8 +390,13 @@ export function App() {
 		},
 		[ask, project?.place],
 	);
-	const onPlaceWritten = useCallback((stamp: string) => {
-		setPlaceInspect((shown) => (shown ? { ...shown, stamp } : shown));
+	const onPlaceWritten = useCallback((stamp: string, _backup?: string, now?: PlaceInstanceInfo) => {
+		// Renamed, it sorts elsewhere: the panel follows it to its new place.
+		setPlaceInspect((shown) =>
+			shown
+				? { ...shown, stamp, ...(now ? { index: now.index, name: now.name, path: now.path } : {}) }
+				: shown,
+		);
 		setPlaceWritten(stamp);
 	}, []);
 

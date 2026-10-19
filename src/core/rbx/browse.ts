@@ -414,8 +414,13 @@ function formatValue(
 /** How an instance's stored property is changed, or undefined when it is not. */
 export function propertyEdit(inst: RbxInstance, stored: string): PropertyEdit | undefined {
 	const prop = inst.props.get(stored);
-	if (!prop || INTERNAL.has(stored)) return undefined;
+	if (!prop || INTERNAL.has(stored) || fixedName(inst, stored)) return undefined;
 	return editFor(stored, prop, findProperty(inst.className, RENAMED[stored] ?? stored));
+}
+
+/** A service's Name, which is the service: Studio finds it by it. */
+function fixedName(inst: RbxInstance, stored: string): boolean {
+	return stored === "Name" && (inst.service || inst.parent === null);
 }
 
 /** Everything the browser shows about one instance. */
@@ -429,7 +434,7 @@ export function describeInstance(
 		if (INTERNAL.has(stored)) continue;
 		const engine = findProperty(inst.className, RENAMED[stored] ?? stored);
 		const name = engine?.name ?? RENAMED[stored] ?? stored;
-		const edit = editFor(stored, prop, engine);
+		const edit = fixedName(inst, stored) ? undefined : editFor(stored, prop, engine);
 		properties.push({
 			name,
 			type: prop.type,

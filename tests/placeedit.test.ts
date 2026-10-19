@@ -104,10 +104,11 @@ describe("which properties may change", () => {
 		});
 	});
 
-	it("leaves out read-only properties, names and anything the engine does not list", () => {
+	it("leaves out read-only properties and anything the engine does not list", () => {
 		expect(propertyEdit(a, "Mass")).toBeUndefined();
-		expect(propertyEdit(a, "Name")).toBeUndefined();
 		expect(propertyEdit(a, "NoSuchThing")).toBeUndefined();
+		// A name is changed since 0.200.0; see placeeditnames.test.ts.
+		expect(propertyEdit(a, "Name")).toMatchObject({ kind: "string" });
 	});
 
 	it("is carried on the properties the browser shows", () => {

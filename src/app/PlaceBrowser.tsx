@@ -48,6 +48,44 @@ const MATCH_LIMIT = 300;
  */
 const writtenStamps = new Set<string>();
 
+/** The renames written here, by the version they made: what the tree follows a renamed instance by. */
+const renamedAt = new Map<string, { from: string[]; to: string[] }>();
+
+/** Each node's path, names from the service down, as one key. */
+function pathKeys(nodes: readonly [number, string, number, number][]): string[] {
+	const keys: string[] = [];
+	nodes.forEach(([, name, parent], i) => {
+		keys[i] = parent < 0 ? name : `${keys[parent]}\0${name}`;
+	});
+	return keys;
+}
+
+/**
+ * Indices in an old outline, as the same instances' in a new one: by path,
+ * and through a rename, so what was open stays open and the selection stays
+ * on what was selected though a new name sorts it elsewhere.
+ */
+function renumber(
+	before: readonly [number, string, number, number][],
+	after: readonly [number, string, number, number][],
+	rename: { from: string[]; to: string[] } | undefined,
+): (index: number) => number | undefined {
+	const old = pathKeys(before);
+	const now = new Map<string, number>();
+	pathKeys(after).forEach((key, i) => {
+		if (!now.has(key)) now.set(key, i);
+	});
+	const from = rename?.from.join("\0");
+	const to = rename?.to.join("\0");
+	return (index) => {
+		let key = old[index];
+		if (key === undefined) return undefined;
+		if (from !== undefined && to !== undefined && (key === from || key.startsWith(`${from}\0`)))
+			key = to + key.slice(from.length);
+		return now.get(key);
+	};
+}
+
 /** An instance the Properties panel is showing, by the version of the place it is in. */
 export interface PlaceTarget {
 	stamp: string;
@@ -97,6 +135,8 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 	const treeRef = useRef<HTMLDivElement>(null);
 	// The version of the file on screen: a new one renumbers everything.
 	const stampRef = useRef<string | null>(null);
+	// And the outline it had, to renumber what is open by.
+	const placeRef = useRef<Loaded | null>(null);
 
 	const load = useCallback(async () => {
 		setLoading(true);
@@ -116,7 +156,22 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 					setSelected(null);
 					onInspect(null, false);
 				}
+				// A version written here keeps the tree as it was, renumbered.
+				const previous = placeRef.current;
+				if (previous && stampRef.current !== answer.stamp && writtenStamps.has(answer.stamp)) {
+					const map = renumber(
+						previous.outline.nodes,
+						answer.outline.nodes,
+						renamedAt.get(answer.stamp),
+					);
+					const each = (set: ReadonlySet<number>) =>
+						new Set([...set].map(map).filter((i): i is number => i !== undefined));
+					setOpen(each);
+					setShowAll(each);
+					setSelected((was) => (was === null ? null : (map(was) ?? null)));
+				}
 				stampRef.current = answer.stamp;
+				placeRef.current = answer;
 				setPlace(answer);
 				rememberOutline(answer.outline);
 				setProblem(null);
@@ -394,8 +449,11 @@ export interface PlacePropertiesProps {
 	editable?: boolean;
 	/** Asks before the first change to the place; resolves to whether to go on. */
 	confirmEdit?: (target: PlaceTarget) => Promise<boolean>;
-	/** A change was written: the place's new version, and the backup kept first, if one was. */
-	onWritten?: (stamp: string, backup?: string) => void;
+	/**
+	 * A change was written: the place's new version, the backup kept first, if
+	 * one was, and the instance as it now is -- a rename moves it in the tree.
+	 */
+	onWritten?: (stamp: string, backup?: string, instance?: PlaceInstanceInfo) => void;
 	/** For an attribute's name and type, and a tag's name, as one is added. */
 	ask?: Dialogs["ask"];
 }
@@ -435,17 +493,19 @@ export const PlaceProperties = memo(function PlaceProperties(props: PlacePropert
 			try {
 				const answer = await write(stamp.current);
 				writtenStamps.add(answer.stamp);
+				if (label === "Name" && info)
+					renamedAt.set(answer.stamp, { from: info.path, to: answer.instance.path });
 				stamp.current = answer.stamp;
 				setInfo(answer.instance);
 				if (answer.backup) setBackup(answer.backup);
-				onWritten?.(answer.stamp, answer.backup);
+				onWritten?.(answer.stamp, answer.backup, answer.instance);
 			} catch (err) {
 				setRefused({ name: label, message: errorMessage(err) });
 			} finally {
 				setBusy(null);
 			}
 		},
-		[onWritten],
+		[onWritten, info],
 	);
 	const commit = useCallback(
 		async (property: PlaceProperty, value: unknown) => {

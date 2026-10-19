@@ -187,8 +187,8 @@ export function placesAndRojoPage(): DocPage {
 							"UDim2s, ranges and rects, a field a component; CFrames, as a Position and an " +
 							"Orientation in degrees; and references, picked from the place's instances of the " +
 							"class they take. On properties a script can set. Attributes and tags too, added " +
-							"and removed with the + and × beside them",
-						"Names and scripts' source",
+							"and removed with the + and × beside them, and names, on anything but a service",
+						"Scripts' source, which is the project's to write",
 					],
 				],
 			},

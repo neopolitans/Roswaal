@@ -89,6 +89,7 @@ export {
 	placeEntries,
 	placeReport,
 	readPlaceBytes,
+	renameInLinks,
 	writePlaceFile,
 	writePlaceImport,
 } from "./place.js";

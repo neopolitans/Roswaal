@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.200.0",
+		date: "2026-10-19",
+		headline: "Properties renames instances.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Names in Properties.** An instance's name is changed as any text is, on anything but a service, under Studio's rules for a name. The DataModel tree stays open and follows it to where its new name sorts it, and the project's links to scripts under it move with it.",
+		],
+	},
+	{
 		version: "0.199.0",
 		date: "2026-10-19",
 		headline:

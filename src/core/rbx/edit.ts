@@ -100,8 +100,15 @@ export interface PropertyEdit {
 	attribute?: true;
 }
 
-/** Never changed here, whatever the engine allows. */
-const KEPT = new Set(["Name", "Source"]);
+/**
+ * Never changed here, whatever the engine allows: a script's Source is the
+ * project's to write. A Name is changed on anything but a service, which
+ * `propertyEdit` and `describeInstance` decide, knowing the instance.
+ */
+const KEPT = new Set(["Source"]);
+
+/** The longest name Studio gives an instance. */
+const LONGEST_NAME = 100;
 
 /** Tags that mean a script cannot set the property, or should not. */
 const UNSETTABLE = new Set(["ReadOnly", "NotScriptable", "Hidden", "Deprecated"]);
@@ -290,6 +297,14 @@ export function storedValue(
 			return prop.type === "Float32" ? Math.fround(input) : input;
 		case "string": {
 			if (typeof input !== "string") throw new RbxError(`${name} is text`);
+			if (name === "Name") {
+				if (input === "") throw new RbxError("An instance needs a name");
+				if (input.length > LONGEST_NAME)
+					throw new RbxError(`A name is at most ${LONGEST_NAME} characters`);
+				// eslint-disable-next-line no-control-regex
+				if (/[\x00-\x1f]/.test(input))
+					throw new RbxError("A name cannot hold a line break or a tab");
+			}
 			if (input.length > LONGEST_TEXT)
 				throw new RbxError(`${name} takes at most ${LONGEST_TEXT} characters`);
 			// eslint-disable-next-line no-control-regex

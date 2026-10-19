@@ -179,6 +179,35 @@ export function placeReport(update: PlaceUpdate): PlaceReport {
 }
 
 /**
+ * `.roswaal/place.json` after an instance was renamed: every script it links
+ * at that instance or under it, at its new path. The link is found by its
+ * UniqueId where the place has one, and by its path where it does not, so the
+ * path follows the name. Nothing is written when nothing it links moved.
+ */
+export async function renameInLinks(
+	project: OpenProject,
+	from: readonly string[],
+	to: readonly string[],
+): Promise<boolean> {
+	const file = safeJoin(project.root, LINKS_FILE);
+	const raw = await fs.readFile(file, "utf8").catch(() => null);
+	if (raw === null) return false;
+	const links = JSON.parse(raw) as PlaceLinks;
+	const under = (p: readonly string[]) =>
+		p.length >= from.length && from.every((n, i) => p[i] === n);
+	let moved = false;
+	for (const link of links.scripts) {
+		for (const target of link.instances) {
+			if (!under(target.path)) continue;
+			target.path = [...to, ...target.path.slice(from.length)];
+			moved = true;
+		}
+	}
+	if (moved) await writeFileAtomically(file, `${JSON.stringify(links, null, "\t")}\n`);
+	return moved;
+}
+
+/**
  * The project's files that belong in its place, by file name: the ones
  * `.roswaal/place.json` links to the place, and any other Luau under `outDir`
  * a node map places. What an export writes in, and what the DataModel browser

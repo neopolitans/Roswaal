@@ -104,6 +104,7 @@ import {
 	readText,
 	removeOutputs,
 	renameEntry,
+	renameInLinks,
 	safeJoin,
 	savePackNode,
 	scanProjectPacks,
@@ -629,7 +630,9 @@ export class ApiSession {
 					req,
 				);
 				const property = need(text(body.property), "property");
-				return this.changePlace(body, (inst, loaded) => {
+				// A rename moves the paths the project's links go by.
+				let renamed: { from: string[]; to: string[] } | undefined;
+				const answer = await this.changePlace(body, (inst, loaded) => {
 					const edit = propertyEdit(inst, property);
 					if (!edit) throw new HttpError(422, `${property} cannot be changed here.`);
 					const value = storedValue(
@@ -638,8 +641,15 @@ export class ApiSession {
 						body.value,
 						(index) => loaded.order[index],
 					);
+					if (property === "Name") {
+						const from: string[] = [];
+						for (let cur: RbxInstance | null = inst; cur; cur = cur.parent) from.unshift(cur.name);
+						renamed = { from, to: [...from.slice(0, -1), body.value as string] };
+					}
 					return { stored: property, value };
 				});
+				if (renamed) await renameInLinks(this.project(), renamed.from, renamed.to);
+				return answer;
 			},
 
 			/**
