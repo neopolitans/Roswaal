@@ -21,13 +21,15 @@ import {
 	type PlaceProperty,
 } from "../core/rbx/browse.js";
 import type { CFrameEdit, PropertyEdit } from "../core/rbx/edit.js";
+import { isSubclassOf } from "../core/roblox.js";
 import { readOnlyToScripts } from "../core/robloxEngine.js";
 import { api, type PlaceTree } from "./api.js";
 import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
 import { depthStyle, Ident, SectionHead } from "./PanelParts.jsx";
-import { rememberOutline } from "./placeOutline.js";
+import { currentOutline, rememberOutline } from "./placeOutline.js";
+import { ValuePicker } from "./ValuePicker.jsx";
 
 /** Mirrors `TUCKED` in core/rbx/browse.ts, which the editor does not bundle. */
 const TUCKED = 1;
@@ -694,6 +696,7 @@ function Properties({
 											busy={edits.busy === p.name}
 											begin={edits.begin}
 											commit={(value) => edits.commit(p, value)}
+											onGo={p.ref !== undefined ? () => onPick(p.ref!) : undefined}
 										/>
 									) : (
 										<>
@@ -909,6 +912,69 @@ function FieldsEditor({
 	);
 }
 
+/** Where a reference's picker says it points at nothing. */
+const NOTHING = "none";
+
+/**
+ * What a reference may point at: every instance in the place of the class
+ * the property takes, by its path, grouped under its service, and nothing.
+ * A Model's PrimaryPart offers the place's BaseParts; an ObjectValue's Value
+ * offers everything.
+ */
+function RefPicker({
+	edit,
+	current,
+	onPick,
+	onClose,
+}: {
+	edit: PropertyEdit;
+	current: number | undefined;
+	onPick: (index: number | null) => void;
+	onClose: () => void;
+}) {
+	const outline = currentOutline();
+	const found = useMemo(() => {
+		const paths: string[] = [];
+		const options: string[] = [NOTHING];
+		const rootOf: number[] = [];
+		outline?.nodes.forEach(([cls, name, parent], i) => {
+			paths[i] = parent < 0 ? name : `${paths[parent]}.${name}`;
+			rootOf[i] = parent < 0 ? i : rootOf[parent];
+			if (isSubclassOf(outline.classes[cls], edit.refClass)) options.push(String(i));
+		});
+		return { paths, rootOf, options };
+	}, [outline, edit.refClass]);
+	const node = (value: string) => outline?.nodes[Number(value)];
+	return (
+		<ValuePicker
+			what={edit.stored}
+			options={found.options}
+			value={current === undefined ? NOTHING : String(current)}
+			groupOf={(value) =>
+				value === NOTHING ? "Nothing" : found.paths[found.rootOf[Number(value)]]
+			}
+			groupsFirst={["Nothing"]}
+			labelOf={(value) => {
+				if (value === NOTHING) return "None";
+				const path = found.paths[Number(value)];
+				const root = found.paths[found.rootOf[Number(value)]];
+				return path === root ? path : path.slice(root.length + 1);
+			}}
+			detailOf={(value) =>
+				value === NOTHING
+					? `${edit.stored} points at nothing`
+					: `${found.paths[Number(value)]} · ${outline?.classes[node(value)?.[0] ?? 0] ?? ""}`
+			}
+			onPick={(value) => {
+				// Enter on text that matches nothing hands back the text: no instance.
+				if (value === NOTHING) onPick(null);
+				else if (found.options.includes(value)) onPick(Number(value));
+			}}
+			onClose={onClose}
+		/>
+	);
+}
+
 /**
  * A value that can be changed: a box to tick, a list to pick from, or the
  * value itself to click and type over. Enter or leaving the field writes it;
@@ -920,12 +986,15 @@ function PropEditor({
 	busy,
 	begin,
 	commit,
+	onGo,
 }: {
 	property: PlaceProperty;
 	edit: PropertyEdit;
 	busy: boolean;
 	begin: () => Promise<boolean>;
 	commit: (value: unknown) => Promise<void>;
+	/** For a reference that points at something: go to it, as one that cannot be changed does. */
+	onGo?: () => void;
 }) {
 	const [editing, setEditing] = useState(false);
 	const [why, setWhy] = useState<string | null>(null);
@@ -951,6 +1020,44 @@ function PropEditor({
 		input.addEventListener("change", picked);
 		return () => input.removeEventListener("change", picked);
 	}, [edit.value, commit]);
+
+	if (edit.kind === "ref") {
+		return (
+			<span className="place-ref-edit">
+				<button className="place-edit" disabled={busy} onClick={start}>
+					{edit.value === "" ? (
+						<span className="place-empty">none</span>
+					) : (
+						<>
+							<Icon name="instance" size={12} />
+							{edit.value as string}
+						</>
+					)}
+				</button>
+				{onGo && (
+					<button
+						className="place-ref place-ref-go"
+						title={`Go to ${edit.value}`}
+						aria-label={`Go to ${edit.value}`}
+						onClick={onGo}
+					>
+						<Icon name="chevron" size={12} rotate={-90} />
+					</button>
+				)}
+				{editing && (
+					<RefPicker
+						edit={edit}
+						current={property.ref}
+						onPick={(index) => {
+							setEditing(false);
+							if (index !== (property.ref ?? null)) void commit(index);
+						}}
+						onClose={() => setEditing(false)}
+					/>
+				)}
+			</span>
+		);
+	}
 
 	if (edit.kind === "bool") {
 		const on = edit.value === true;

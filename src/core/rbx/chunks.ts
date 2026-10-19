@@ -162,6 +162,18 @@ export function readReferents(b: Uint8Array, at: number, count: number): number[
 	return transposedU32s(b, at, count).map((raw) => (acc += unzigzag(raw)));
 }
 
+/** Referents written as `readReferents` reads them, into `out` at `at`. */
+export function putReferents(out: Uint8Array, at: number, refs: readonly number[]): void {
+	const count = refs.length;
+	refs.forEach((ref, i) => {
+		const raw = zigzag(i === 0 ? ref : ref - refs[i - 1]);
+		out[at + i] = (raw >>> 24) & 255;
+		out[at + count + i] = (raw >>> 16) & 255;
+		out[at + 2 * count + i] = (raw >>> 8) & 255;
+		out[at + 3 * count + i] = raw & 255;
+	});
+}
+
 /** Text as XML CDATA, with any `]]>` in it split across two sections. */
 export function cdata(text: string): string {
 	return `<![CDATA[${text.split("]]>").join("]]]]><![CDATA[>")}]]>`;

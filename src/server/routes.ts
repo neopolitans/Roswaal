@@ -571,7 +571,12 @@ export class ApiSession {
 
 				let after: Uint8Array;
 				try {
-					const value = storedValue(edit, inst.props.get(property)!, body.value);
+					const value = storedValue(
+						edit,
+						inst.props.get(property)!,
+						body.value,
+						(index) => loaded.order[index],
+					);
 					after = writeProperty(before, loaded.doc, inst, property, value);
 				} catch (err) {
 					if (err instanceof RbxError) throw new HttpError(422, errorMessage(err));

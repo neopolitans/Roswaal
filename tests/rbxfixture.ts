@@ -127,6 +127,8 @@ function defaultFor(type: number): unknown {
 			return [0, 0, 0, 0];
 		case 16:
 			return { position: [0, 0, 0], rotation: [1, 0, 0, 0, 1, 0, 0, 0, 1] };
+		case 19:
+			return -1;
 		default:
 			return 0;
 	}
@@ -244,6 +246,13 @@ function writeValues(w: Writer, type: number, values: unknown[]): void {
 		case 28:
 			w.interleaved(values as number[]);
 			return;
+		case 19: {
+			// Referents, as the tree numbers them: each the difference from the
+			// last, zigzagged. -1 is nothing.
+			const refs = values as number[];
+			w.interleaved(refs.map((v, i) => zigzag(i === 0 ? v : v - refs[i - 1])));
+			return;
+		}
 		case 31: {
 			const n = values.length;
 			const out = new Uint8Array(n * 16);

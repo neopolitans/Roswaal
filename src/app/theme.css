@@ -6671,6 +6671,20 @@ button.tb.primary.danger:hover:not(:disabled) {
 	background: color-mix(in srgb, var(--accent) 26%, transparent);
 }
 
+/* A reference that can be changed: the value to click, and the way to what it points at. */
+.place-ref-edit {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	max-width: 100%;
+	min-width: 0;
+}
+
+.place-ref.place-ref-go {
+	flex: none;
+	padding: 2px 4px;
+}
+
 /* With Modify DataModel Instances on: a value that can be changed reads as
    the value still, with a box round it on hover, and turns into its field. */
 .place-edit {

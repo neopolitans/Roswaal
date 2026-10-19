@@ -25,6 +25,11 @@ export function readOutline(): void {
 		.catch(() => rememberOutline(null));
 }
 
+/** The outline in hand, for a reference's picker; none until the place has been read. */
+export function currentOutline(): PlaceOutline | null {
+	return outline;
+}
+
 /** The class the place holds at a root and path, from the outline in hand. */
 export function placeClassAt(root: string, path: string): string | undefined {
 	return outline ? classAtPath(outline, root, path) : undefined;

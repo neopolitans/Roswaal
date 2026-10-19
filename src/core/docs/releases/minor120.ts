@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.198.0",
+		date: "2026-10-19",
+		headline: "Properties changes references.",
+		affects: ["editor", "docs"],
+		added: [
+			"**References in Properties.** A reference such as a Model's PrimaryPart or an ObjectValue's Value is picked from the place's instances of the class it takes, or set to none, and written into the place in .rbxl and .rbxlx. The arrow beside it still goes to what it points at.",
+		],
+	},
+	{
 		version: "0.197.0",
 		date: "2026-10-19",
 		headline:

@@ -18,12 +18,14 @@
  * it holds the new value and every instance the old one did.
  */
 
+import { isInstanceClass, isSubclassOf } from "../roblox.js";
 import type { EngineProperty } from "../robloxEngine.js";
 import { ENGINE } from "../robloxEngine.js";
 import { isBinaryRbx } from "./binary.js";
 import {
 	chunkData,
 	FIRST_CHUNK,
+	putReferents,
 	putU32,
 	readChunks,
 	readReferents,
@@ -56,7 +58,8 @@ export type EditKind =
 	| "color"
 	| "brickcolor"
 	| "vector"
-	| "cframe";
+	| "cframe"
+	| "ref";
 
 /** A CFrame as Studio's Properties shows it: where it is, and how it is turned. */
 export interface CFrameEdit {
@@ -85,6 +88,12 @@ export interface PropertyEdit {
 	enum?: string;
 	/** For an enum, the items it may be set to: the current one, and every one not deprecated. */
 	items?: { name: string; value: number }[];
+	/**
+	 * For a reference, the class what it points at must be: a Model's
+	 * PrimaryPart is a BasePart, an ObjectValue's Value any Instance. Its
+	 * `value` is the name of what it points at now, or empty for nothing.
+	 */
+	refClass?: string;
 }
 
 /** Never changed here, whatever the engine allows. */
@@ -172,6 +181,10 @@ export function editFor(
 			return type === "Color3" ? { stored, kind: "color", value: [...(v as number[])] } : undefined;
 		case "BrickColor":
 			return type === "BrickColor" ? { stored, kind: "brickcolor", value: v as number } : undefined;
+		case "Ref": {
+			if (!isInstanceClass(type)) return undefined;
+			return { stored, kind: "ref", value: (v as RbxInstance | null)?.name ?? "", refClass: type };
+		}
 		case "CFrame": {
 			if (type !== "CFrame") return undefined;
 			const cf = v as CFrameValue;
@@ -245,7 +258,13 @@ export function rotationOf([x, y, z]: readonly number[]): number[] {
  * Throws `RbxError`, worded for the developer, for a value the property
  * cannot hold.
  */
-export function storedValue(edit: PropertyEdit, prop: Prop, input: unknown): unknown {
+export function storedValue(
+	edit: PropertyEdit,
+	prop: Prop,
+	input: unknown,
+	/** For a reference, the instance an index names: the outline's numbering. */
+	instanceAt?: (index: number) => RbxInstance | undefined,
+): unknown {
 	const name = edit.stored;
 	const whole = (n: unknown): n is number => typeof n === "number" && Number.isInteger(n);
 	switch (edit.kind) {
@@ -309,6 +328,19 @@ export function storedValue(edit: PropertyEdit, prop: Prop, input: unknown): unk
 				throw new RbxError(`${name}'s Min is above its Max`);
 			return [...input];
 		}
+		case "ref": {
+			// Nothing is an answer: a Model with no PrimaryPart, an empty ObjectValue.
+			if (input === null) return null;
+			const target = whole(input) ? instanceAt?.(input) : undefined;
+			if (!target) throw new RbxError(`${name} points at an instance in the place, or at nothing`);
+			if (!isSubclassOf(target.className, edit.refClass))
+				throw new RbxError(
+					`${name} is a ${edit.refClass}, and ${target.name} is a ${target.className}`,
+				);
+			if (target.ref === undefined)
+				throw new RbxError(`"${target.name}" has no identity in the file`);
+			return target;
+		}
 		case "cframe": {
 			const given = input as Partial<CFrameEdit> | null;
 			const three = (v: unknown): v is number[] =>
@@ -332,6 +364,9 @@ export function storedValue(edit: PropertyEdit, prop: Prop, input: unknown): unk
 
 /** Whether two stored values are the same value. */
 function same(type: PropType, a: unknown, b: unknown): boolean {
+	// The same instance, whichever reading of the file it came from.
+	if (type === "Ref")
+		return ((a as RbxInstance | null)?.ref ?? null) === ((b as RbxInstance | null)?.ref ?? null);
 	if (a instanceof Uint8Array && b instanceof Uint8Array)
 		return a.length === b.length && a.every((x, i) => x === b[i]);
 	// Floats as the file holds them: 32 bits, whichever format read them.
@@ -401,6 +436,7 @@ const TYPE_BYTE: Partial<Record<PropType, number>> = {
 	Enum: 18,
 	NumberRange: 23,
 	Rect: 24,
+	Ref: 19,
 	Color3uint8: 26,
 	Int64: 27,
 };
@@ -418,6 +454,7 @@ const SIZE: Record<number, number> = {
 	13: 8,
 	14: 12,
 	18: 4,
+	19: 4,
 	23: 8,
 	24: 16,
 	26: 3,
@@ -506,6 +543,14 @@ function patch(
 		case 2:
 			out[base + slot] = value ? 1 : 0;
 			break;
+		case 19: {
+			// Each referent is the difference from the one before, so the run is
+			// read, changed in one place and written again. -1 is nothing.
+			const refs = readReferents(data, base, count);
+			refs[slot] = ((value as RbxInstance | null)?.ref as number | undefined) ?? -1;
+			putReferents(out, base, refs);
+			break;
+		}
 		case 3:
 			putTransposed(out, base, count, slot, zigzag(value as number));
 			break;
@@ -669,6 +714,7 @@ const ELEMENT: Partial<Record<PropType, string>> = {
 	NumberRange: "NumberRange",
 	Rect: "Rect2D",
 	CFrame: "CoordinateFrame",
+	Ref: "Ref",
 };
 
 const R = ["R00", "R01", "R02", "R10", "R11", "R12", "R20", "R21", "R22"];
@@ -827,6 +873,8 @@ function xmlText(type: PropType, value: unknown, el: XmlElement): string {
 			return escapeText(new TextDecoder().decode(value as Uint8Array));
 		case "Bool":
 			return value ? "true" : "false";
+		case "Ref":
+			return String((value as RbxInstance | null)?.ref ?? "null");
 		case "Color3uint8": {
 			// The top byte is kept as the file had it: Studio writes FF there.
 			const top = (Number(el.text.trim()) >>> 24) & 255 || 255;
