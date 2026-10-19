@@ -36,6 +36,7 @@ import {
 import { highlightLuau } from "./highlight.js";
 import { Icon } from "./icons.jsx";
 import { LAYER, NODE } from "./layers.js";
+import { PropertyField } from "./PropertyField.jsx";
 import { nodeColor, pinColor } from "./palette.js";
 import { useTypeChoices } from "./TypePicker.jsx";
 import { typeCardHandlers } from "./typeCard.js";
@@ -72,6 +73,8 @@ export interface NodeViewProps {
 	errorCount: number;
 	/** Pins a problem names, whose labels are marked. */
 	faultPins?: ReadonlySet<string>;
+	/** Set Property's: the class of the Instance wired in, for its property picker. */
+	ownerClass?: string;
 	/**
 	 * Warnings on this node, drawn only when there are no errors.
 	 *
@@ -956,6 +959,15 @@ function renderLiteralEditor(props: NodeViewProps, pin: PinDef) {
 	if (current.t === "string") {
 		if (pin.options && pin.options.length > 0) {
 			return <OptionEditor pin={pin} value={current.v} onChange={(v) => set({ t: "string", v })} />;
+		}
+		if (props.ownerClass && props.node.def === "roblox.setProperty" && pin.id === "property") {
+			return (
+				<PropertyField
+					className={props.ownerClass}
+					value={current.v}
+					onChange={(v) => set({ t: "string", v })}
+				/>
+			);
 		}
 		return (
 			<input

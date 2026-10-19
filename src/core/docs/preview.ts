@@ -49,6 +49,7 @@ import {
 	codeFaceWidth,
 } from "../codeFace.js";
 import { tokenize } from "../luau/lexer.js";
+import { rowsWidth } from "../nodeBox.js";
 import { CODE_MARK_ROLE, CODE_MARKS, GLYPH_STROKE, GLYPHS, nodeGlyph } from "../nodeGlyphs.js";
 import { nodeTitle, type Registry, resolveNodePins } from "../nodes/index.js";
 import {
@@ -139,6 +140,8 @@ export interface NodePreview {
 	config?: NodeConfig;
 	/** The code a code node shows on its face, as `codeFace.ts` has it. */
 	face?: CodeFace;
+	/** How wide its pin rows need it, as `rowsWidth` in `nodeBox.ts` has it for the canvas. */
+	rowsWidth?: number;
 }
 
 /**
@@ -283,6 +286,7 @@ export function previewOf(
 		inputs: inputs.map((p) => previewPin(p, "in")),
 		outputs: outputs.map((p) => previewPin(p, "out")),
 		face: codeFaceOf(def, { def: def.id, config, literals }, inputs, outputs),
+		rowsWidth: rowsWidth(def, { config, literals }),
 	};
 }
 
@@ -434,9 +438,13 @@ export function previewSize(preview: NodePreview, g: PreviewGeometry): PreviewSi
  * The header is two lines, so the wider of the title and the subtitle decides.
  */
 function headerWidth(preview: NodePreview, g: PreviewGeometry): number {
-	if (!g.wideNodes) return g.width;
+	const rows = preview.rowsWidth ?? 0;
+	if (!g.wideNodes) return Math.max(g.width, rows);
 	const longest = Math.max(preview.title.length, (preview.subtitle ?? "").length);
-	return Math.round(Math.max(g.width, longest * g.titleCharWidth + g.headerPadding));
+	return Math.max(
+		Math.round(Math.max(g.width, longest * g.titleCharWidth + g.headerPadding)),
+		rows,
+	);
 }
 
 function headHeight(preview: NodePreview, g: PreviewGeometry): number {
@@ -1314,6 +1322,7 @@ export function previewOfPlaced(
 		outputs: outputs.map((pin) => ({ ...previewPin(pin, "out"), wired: isWired("out", pin.id) })),
 		config: node.config,
 		face: codeFaceOf(def, node, inputs, outputs),
+		rowsWidth: rowsWidth(def, node),
 	};
 }
 

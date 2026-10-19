@@ -1384,11 +1384,19 @@ button.tb.icon-only.panel-float {
 
 /* As the menu's: the title gives way, and the tags stay on one line. */
 .node-picker-hit .title {
-	flex: 1 1 auto;
+	flex: 0 1 auto;
 	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+/* A member a script can read and not set. Not dimmed: reading it is fine. */
+.menu .item .read-only-mark,
+.node-picker-hit .read-only-mark {
+	flex: none;
+	align-self: center;
+	color: var(--fg-muted);
 }
 
 .node-picker-hit .hint {
@@ -2616,6 +2624,112 @@ button.tb.primary:hover:not(:disabled) {
 	width: 92px;
 }
 
+/* Set Property's Property, once the wired value has a class: the field, and
+   the lock it shows when the name in it is read-only. */
+.node .property-field {
+	display: flex;
+	align-items: center;
+	gap: 3px;
+}
+
+.node .property-field:focus-within {
+	outline: 1px solid var(--accent);
+}
+
+.node .property-field input {
+	flex: 1 1 auto;
+	min-width: 0;
+	border: 0;
+	padding: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	outline: none;
+}
+
+.node .property-field.property-field--read-only {
+	border-color: var(--warning);
+}
+
+.node .property-field .property-field-lock {
+	color: var(--warning);
+}
+
+/* What the field offers, hung under it outside the canvas. */
+.property-list {
+	position: fixed;
+	box-sizing: border-box;
+	min-width: 176px;
+	max-width: 260px;
+	max-height: 260px;
+	overflow-y: auto;
+	padding: 3px;
+	background: var(--bg-panel);
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-sm);
+	box-shadow: var(--shadow-popover);
+	font-size: var(--text-sm);
+	color: var(--fg);
+}
+
+.property-list .property-list-class {
+	padding: 3px 6px 2px;
+	font-size: var(--text-xs);
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--fg-faint);
+}
+
+.property-list .property-list-item {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 6px;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.property-list .property-list-item.on {
+	background: var(--bg-active);
+}
+
+.property-list .property-list-item .swatch {
+	flex: none;
+	width: 7px;
+	height: 7px;
+	border-radius: 2px;
+}
+
+.property-list .property-list-item .name {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.property-list .property-list-item .type {
+	flex: none;
+	font-size: var(--text-xs);
+	color: var(--fg-faint);
+}
+
+.property-list .property-list-note {
+	display: flex;
+	align-items: flex-start;
+	gap: 5px;
+	margin: 3px 2px 0;
+	padding: 5px 4px 3px;
+	border-top: 1px solid var(--border);
+	font-size: var(--text-xs);
+	line-height: 1.4;
+	color: var(--fg-muted);
+}
+
+.property-list .property-list-note .icon {
+	margin-top: 2px;
+}
+
 .node .literal:focus {
 	outline: 1px solid var(--accent);
 }
@@ -2890,7 +3004,7 @@ button.tb.primary:hover:not(:disabled) {
    name, ‘mantlet.AssemblyAngularVelocity’, wrapped its badge onto two lines
    and pushed the row past the menu's edge. */
 .menu .item .name {
-	flex: 1 1 auto;
+	flex: 0 1 auto;
 	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;

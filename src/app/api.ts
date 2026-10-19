@@ -384,6 +384,9 @@ export const api = {
 		),
 	/** Adds the place a new project starts with to a project that has none. */
 	newPlace: () => post<{ file: string }>("/api/place/new", {}),
+	/** A place file the developer has, as the project's place. */
+	addPlaceFile: (fileName: string, data: string) =>
+		post<{ file: string }>("/api/place/import", { fileName, data }),
 	/** The place as a tree of names and classes, for the DataModel browser. */
 	place: () => request<PlaceTree>("/api/place"),
 	/** One instance of the place, its properties as text. */

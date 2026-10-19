@@ -54,6 +54,7 @@ export function memberPresets(
 				color: pinColor(field.type, "data"),
 				member: { name: field.name, type: field.type },
 				deep: true,
+				readOnly: field.readOnly,
 			});
 		}
 	}

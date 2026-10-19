@@ -115,6 +115,8 @@ export interface Preset {
 	deep?: boolean;
 	/** See `MenuItem.pins`: the pins this entry arrives with, where its config decides them. */
 	pins?: { inputs: PinDef[]; outputs: PinDef[] };
+	/** The member it reads is one a script can read and not set: drawn with a lock. */
+	readOnly?: true;
 }
 
 /** One row of the palette. */
@@ -147,6 +149,8 @@ export interface MenuItem {
 	member?: { name: string; type?: string };
 	/** See `Preset.deep`: offered while searching rather than while browsing. */
 	deep?: boolean;
+	/** See `Preset.readOnly`. */
+	readOnly?: true;
 	/**
 	 * The pins this item would arrive with, where its config decides them.
 	 *
@@ -223,6 +227,7 @@ export function libraryItems(
 				member: preset.member,
 				deep: preset.deep,
 				pins: preset.pins,
+				readOnly: preset.readOnly,
 			},
 		];
 	});
@@ -471,6 +476,7 @@ export function memberItems(lookup: MemberLookup | null, from: WireFrom | undefi
 		runtime: "graph" as const,
 		def,
 		config: { member: field.name, type: field.type },
+		readOnly: field.readOnly,
 	}));
 }
 

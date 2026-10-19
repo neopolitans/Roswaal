@@ -15,7 +15,7 @@ import { argumentProblems } from "../luau/argumentTypes.js";
 import { checkLuau } from "../luau/check.js";
 import { LUNE_ROBLOX_DATATYPES } from "../luneApi.js";
 import { callOf, moduleOf, specifierFor } from "../luneCalls.js";
-import { typeInto } from "../members.js";
+import { instanceClassInto, typeInto } from "../members.js";
 import { FUNCTION_NODES, isMethod, RECEIVER, signatureOf } from "../nodes/flow.js";
 import { nodeTitle, REMOVED_NODES, type Registry } from "../nodes/index.js";
 import { memberNameOf } from "../nodes/library.js";
@@ -29,6 +29,7 @@ import {
 } from "../nodes/variables.js";
 import { ownTable } from "../ownTable.js";
 import { isService, isSubclassOf } from "../roblox.js";
+import { readOnlyToScripts } from "../robloxEngine.js";
 import {
 	ENGINE_TYPES,
 	type GraphNode,
@@ -607,6 +608,28 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 				});
 			}
 		}
+	}
+
+	// -- read-only properties ----------------------------------------------
+	//
+	// Set Property on one a script cannot set fails when the script runs, with
+	// nothing in the graph to say so. A warning rather than an error: the
+	// catalogue is a build old, and only a class the wire names is checked.
+	for (const node of script.nodes) {
+		if (node.def !== "roblox.setProperty") continue;
+		if (script.links.some((l) => l.to.node === node.id && l.to.pin === "property")) continue;
+		const literal = node.literals?.property;
+		const property = literal?.t === "string" ? literal.v.trim() : "";
+		const owner = instanceClassInto({ script, registry }, node.id, "instance");
+		if (!owner || property === "" || !readOnlyToScripts(owner, property)) continue;
+		out.push({
+			severity: "warning",
+			message: `"${property}" is read-only on ${owner}: Set Property cannot change it.`,
+			node: node.id,
+			pin: "property",
+			// About what the node does, not where it sits: marked on the node.
+			attention: true,
+		});
 	}
 
 	// -- entry points ------------------------------------------------------

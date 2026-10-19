@@ -118,6 +118,25 @@ export function findProperty(className: string, name: string): EngineProperty | 
 	return undefined;
 }
 
+/**
+ * Whether a script can read this property of the class but not set it.
+ *
+ * The engine's `ReadOnly` tag, or a write that needs more than a game script
+ * has. Not the Properties panel's `settable`, which also refuses `Hidden`:
+ * that is a question about the place file, and scripts set `Position` and
+ * `Orientation`, both hidden, all the time. A property the catalogue does not
+ * know is not read-only here: the catalogue is a build old, and saying no to
+ * what cannot be checked would be a wrong answer about a new property.
+ */
+export function readOnlyToScripts(className: string, name: string): boolean {
+	const property = findProperty(className, name);
+	if (!property || property.name !== name) return false;
+	if (property.tags?.includes("ReadOnly")) return true;
+	const security = property.security;
+	const write = typeof security === "string" ? security : security?.write;
+	return write !== undefined && write !== "None";
+}
+
 /** `(className: string, parent: Instance?)` */
 export function signatureText(params: readonly EngineParam[]): string {
 	return `(${params.map((p) => `${p.name}: ${p.type || "any"}`).join(", ")})`;

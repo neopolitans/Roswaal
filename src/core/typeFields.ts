@@ -30,6 +30,8 @@ export interface TypeField {
 	name: string;
 	/** The Luau type as written: `number`, `Vector3`, `{ Player }`, `Model?`. */
 	type: string;
+	/** A Roblox property a script can read and not set. See `readOnlyToScripts`. */
+	readOnly?: true;
 }
 
 const NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;

@@ -21,6 +21,7 @@ import {
 	type PlaceProperty,
 } from "../core/rbx/browse.js";
 import type { CFrameEdit, PropertyEdit } from "../core/rbx/edit.js";
+import { readOnlyToScripts } from "../core/robloxEngine.js";
 import { api, type PlaceTree } from "./api.js";
 import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
@@ -666,7 +667,11 @@ function Properties({
 							<div
 								className={cx("place-prop", edits && p.edit && "place-prop-editable")}
 								key={p.name}
-								title={`${p.name}: ${p.type}. Drag onto a graph for a Get Member; hold Ctrl as you drop to set it.`}
+								title={
+									category !== "Attributes" && readOnlyToScripts(className, p.name)
+										? `${p.name}: ${p.type}. Drag onto a graph for a Get Member. Read-only: a script can read it, not set it.`
+										: `${p.name}: ${p.type}. Drag onto a graph for a Get Member; hold Ctrl as you drop to set it.`
+								}
 								draggable
 								onDragStart={(e) =>
 									dragOut(

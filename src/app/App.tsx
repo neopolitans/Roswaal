@@ -9,6 +9,7 @@
 
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
+import { toBase64 } from "../core/base64.js";
 import { compile, type Diagnostic } from "../core/compiler/index.js";
 import { offTargetNames, offTargetNodes } from "../core/compiler/validate.js";
 import { buildSearchIndex, buildSite } from "../core/docs/site.js";
@@ -337,6 +338,8 @@ export function App() {
 	const zipInput = useRef<HTMLInputElement>(null);
 	const hostCanImportPlace = useCanImportPlace();
 	const placeInput = useRef<HTMLInputElement>(null);
+	// Add Place's own: a place for the open project, not a project from one.
+	const addPlaceInput = useRef<HTMLInputElement>(null);
 	/**
 	 * The introduction panel. No anchor: it is centred rather than dropped
 	 * under the mark, because it is the same panel in all three windows and
@@ -978,6 +981,23 @@ export function App() {
 	/** The directory a file is in, project-relative. */
 	const dirOf = (filePath: string) => filePath.split("/").slice(0, -1).join("/");
 
+	/** A place file the developer has, as the open project's place, shown in DataModel. */
+	const addPlaceFile = useCallback(
+		async (picked: File) => {
+			try {
+				const data = toBase64(new Uint8Array(await picked.arrayBuffer()));
+				const { file } = await api.addPlaceFile(picked.name, data);
+				await refreshTree();
+				setProjectView("datamodel");
+				setPlaceSeen(true);
+				notify("Place added", `${file} is the project's place.`);
+			} catch (err) {
+				notify("No place was added", errorMessage(err));
+			}
+		},
+		[notify, refreshTree],
+	);
+
 	/** Adds Studio's starting place to a project that has none, and shows it in DataModel. */
 	const addPlace = useCallback(async () => {
 		try {
@@ -985,7 +1005,10 @@ export function App() {
 			await refreshTree();
 			setProjectView("datamodel");
 			setPlaceSeen(true);
-			notify("Place added", `${file}: a baseplate, a spawn and the usual services, as a new project starts with.`);
+			notify(
+				"Place added",
+				`${file}: a baseplate, a spawn and the usual services, as a new project starts with.`,
+			);
 		} catch (err) {
 			notify("No place was added", errorMessage(err));
 		}
@@ -1767,6 +1790,25 @@ export function App() {
 									onRename={onTreeRename}
 									onDelete={onTreeDelete}
 									onPackage={onTreePackage}
+									onAddPlace={
+										project.config.target === "roblox" && !project.place
+											? (how) => {
+													if (how === "new") void addPlace();
+													else addPlaceInput.current?.click();
+												}
+											: undefined
+									}
+								/>
+								<input
+									ref={addPlaceInput}
+									type="file"
+									accept=".rbxl,.rbxlx,application/octet-stream"
+									hidden
+									onChange={(event) => {
+										const file = event.target.files?.[0];
+										event.target.value = "";
+										if (file) void addPlaceFile(file);
+									}}
 								/>
 								<input
 									ref={packageZipInput}

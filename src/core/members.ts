@@ -25,6 +25,8 @@
 
 import type { Registry } from "./nodes/index.js";
 import { resolveNodePins } from "./nodes/index.js";
+import { isInstanceClass } from "./roblox.js";
+import { readOnlyToScripts } from "./robloxEngine.js";
 import { nilableProperty } from "./robloxNilable.js";
 import { propertiesOf } from "./robloxProperties.js";
 import type { NodeScript } from "./schema.js";
@@ -61,6 +63,17 @@ export function typeInto(lookup: MemberLookup, nodeId: string, pinId: string): s
 	return type === "" || type === undefined ? undefined : type;
 }
 
+/** The Roblox class of the Instance wired into a pin, when the wire says which. */
+export function instanceClassInto(
+	lookup: MemberLookup,
+	nodeId: string,
+	pinId: string,
+): string | undefined {
+	const type = typeInto(lookup, nodeId, pinId);
+	const bare = type?.endsWith("?") ? type.slice(0, -1).trim() : type;
+	return bare && isInstanceClass(bare) ? bare : undefined;
+}
+
 /**
  * The members of a named type, in the order they were declared.
  *
@@ -88,9 +101,10 @@ export function membersOfType(
 	// Roblox's own, and only where a Roblox build is what is being written. A
 	// reference that can be empty is typed as one: `Character` is a `Model?`.
 	if (lookup.script.target !== "lune") {
-		return propertiesOf(bare).map((p) =>
-			nilableProperty(bare, p.name) ? { ...p, type: `${p.type}?` } : p,
-		);
+		return propertiesOf(bare).map((p) => {
+			const field: TypeField = nilableProperty(bare, p.name) ? { ...p, type: `${p.type}?` } : p;
+			return readOnlyToScripts(bare, p.name) ? { ...field, readOnly: true } : field;
+		});
 	}
 	return [];
 }

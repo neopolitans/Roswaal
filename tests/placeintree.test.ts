@@ -44,7 +44,10 @@ describe("places and models in the tree", () => {
 		await fs.mkdir(path.join(root, "assets"), { recursive: true });
 		await fs.writeFile(path.join(root, "assets", "Tank.rbxm"), "");
 		await fs.mkdir(path.join(root, ".roswaal", "backups"), { recursive: true });
-		await fs.copyFile(path.join(root, "place.rbxl"), path.join(root, ".roswaal", "backups", "place.1.rbxl"));
+		await fs.copyFile(
+			path.join(root, "place.rbxl"),
+			path.join(root, ".roswaal", "backups", "place.1.rbxl"),
+		);
 		const { tree } = (await session.handle("GET", "/tree")) as { tree: TreeEntry[] };
 		const all = flat(tree);
 		expect(all.find((e) => e.path === "place.rbxl")?.kind).toBe("place");
@@ -60,7 +63,9 @@ describe("adding a place", () => {
 		expect(await session.handle("POST", "/place/new", {})).toEqual({ file: "place.rbxl" });
 		const doc = readRbx(await fs.readFile(path.join(root, "place.rbxl")));
 		expect(doc.roots.map((r) => r.className)).toContain("Workspace");
-		expect(((await session.handle("GET", "/tree")) as { place: string | null }).place).toBe("place.rbxl");
+		expect(((await session.handle("GET", "/tree")) as { place: string | null }).place).toBe(
+			"place.rbxl",
+		);
 		await expect(session.handle("POST", "/place/new", {})).rejects.toMatchObject({ status: 409 });
 	});
 });
@@ -74,10 +79,70 @@ describe("graph folders for a map's synced folders", () => {
 		await fs.rm(path.join(root, "src", "StarterPlayer"), { recursive: true });
 		const session = new ApiSession({});
 		await session.openAt(root);
-		const has = (rel: string) => fs.stat(path.join(root, rel)).then(() => true, () => false);
+		const has = (rel: string) =>
+			fs.stat(path.join(root, rel)).then(
+				() => true,
+				() => false,
+			);
 		expect(await has(".roswaal/scripts/ReplicatedStorage/Shared")).toBe(true);
 		// Its output folder is gone, so its graph folder is not made: that is the map's to report.
 		expect(await has(".roswaal/scripts/StarterPlayer/StarterPlayerScripts/Client")).toBe(false);
 		expect(await has("src/StarterPlayer")).toBe(false);
+	});
+});
+
+describe("importing a place file", () => {
+	const encode = (bytes: Uint8Array) => Buffer.from(bytes).toString("base64");
+
+	it("keeps it under its own name, as the project's place", async () => {
+		const { root, session } = await made(false);
+		const { blankPlaceBytes } = await import("../src/core/rbx/blankPlace.js");
+		const data = encode(blankPlaceBytes());
+		expect(
+			await session.handle("POST", "/place/import", { body: { fileName: "Lobby.rbxl", data } }),
+		).toEqual({
+			file: "Lobby.rbxl",
+		});
+		expect(readRbx(await fs.readFile(path.join(root, "Lobby.rbxl"))).roots.length).toBeGreaterThan(
+			0,
+		);
+		expect(((await session.handle("GET", "/tree")) as { place: string | null }).place).toBe(
+			"Lobby.rbxl",
+		);
+		await expect(
+			session.handle("POST", "/place/import", { body: { fileName: "Lobby.rbxl", data } }),
+		).rejects.toMatchObject({ status: 409 });
+	});
+
+	it("is written at the place roswaal.json names, in that format", async () => {
+		const { root, session } = await made(false);
+		const { blankPlaceBytes } = await import("../src/core/rbx/blankPlace.js");
+		await session.handle("PUT", "/project/config", {
+			body: {
+				...JSON.parse(await fs.readFile(path.join(root, "roswaal.json"), "utf8")),
+				place: "game.rbxlx",
+			},
+		});
+		const data = encode(blankPlaceBytes());
+		expect(
+			await session.handle("POST", "/place/import", { body: { fileName: "Lobby.rbxl", data } }),
+		).toEqual({
+			file: "game.rbxlx",
+		});
+		expect((await fs.readFile(path.join(root, "game.rbxlx"), "utf8")).trimStart()).toMatch(
+			/^<roblox/,
+		);
+	});
+
+	it("refuses what is not a place, before writing anything", async () => {
+		const { root, session } = await made(false);
+		const junk = encode(new TextEncoder().encode("not a place"));
+		await expect(
+			session.handle("POST", "/place/import", { body: { fileName: "Lobby.rbxl", data: junk } }),
+		).rejects.toThrow(/could not be read/);
+		await expect(
+			session.handle("POST", "/place/import", { body: { fileName: "Tank.rbxm", data: junk } }),
+		).rejects.toThrow(/choose a \.rbxl or \.rbxlx/);
+		expect(await fs.readdir(root)).not.toContain("Lobby.rbxl");
 	});
 });

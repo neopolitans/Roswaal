@@ -205,7 +205,10 @@ export function placesAndRojoPage(): DocPage {
 						"A property",
 						"An **Instance** node at the instance's path, wired into **Get Member**, typed as the property is",
 					],
-					["A property, with `Ctrl` held as you drop", "The same, into **Set Property**"],
+					[
+						"A property, with `Ctrl` held as you drop",
+						"The same, into **Set Property**. A read-only property stays a Get Member",
+					],
 					["An attribute", "**Get Attribute**, or **Set Attribute** with `Ctrl`"],
 					["The instance's name", "The Instance node alone"],
 				],

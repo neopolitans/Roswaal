@@ -37,6 +37,12 @@ export function projectPanelPage(): DocPage {
 					"sits beside it: `src/`, `place/` and `Packages/`. Luau there opens read-only in the " +
 					"Luau viewer.",
 			},
+			{
+				t: "p",
+				text:
+					"A Roblox project with no place has **Add Place** on the Compile Content heading: " +
+					"import a `.rbxl` or `.rbxlx`, or start from a baseplate.",
+			},
 
 			{ t: "h", level: 2, text: "Colours and icons" },
 			{

@@ -17,6 +17,7 @@ import { categoryLabel } from "../core/categories.js";
 import type { Registry } from "../core/nodes/index.js";
 import type { Literal, NodeConfig, NodeDef } from "../core/schema.js";
 import { cx } from "./cx.js";
+import { Icon } from "./icons.jsx";
 import { MenuSurface } from "./Menu.jsx";
 import {
 	buildPresets,
@@ -252,12 +253,17 @@ export function NodeMenu({
 						<div
 							key={item.key}
 							className={cx("item", flat[active]?.key === item.key && "active")}
-							title={item.summary}
+							title={
+								item.readOnly
+									? `${item.summary ?? item.title}${"\n"}Read-only: a script can read it, not set it.`
+									: item.summary
+							}
 							onMouseEnter={() => setActive(flat.indexOf(item))}
 							onClick={() => pick(item)}
 						>
 							<span className="swatch" style={{ background: item.color }} />
 							<span className="name">{item.title}</span>
+							{item.readOnly && <Icon name="lock" size={12} className="read-only-mark" />}
 							{item.pure && <span className="hint">pure</span>}
 							{/* What it needs, where that is worth saying. Base Luau
 							    is the unmarked case -- badging four rows in five

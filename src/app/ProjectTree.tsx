@@ -14,7 +14,7 @@ import { NOT_HERE, useHostCan } from "./host.js";
 import { Icon, type IconName } from "./icons.jsx";
 import { importableLuau } from "./importable.js";
 import { Menu } from "./Menu.jsx";
-import { depthStyle, SectionHead } from "./PanelParts.jsx";
+import { AddButton, depthStyle, SectionHead } from "./PanelParts.jsx";
 import { fileMenu, packageMenu, type TreeAction } from "./treeMenus.js";
 
 const KIND_ICONS: Record<Exclude<TreeEntry["kind"], "directory">, IconName> = {
@@ -72,6 +72,11 @@ export interface ProjectTreeProps {
 	 * package the menu was opened on, whose zip is being inserted.
 	 */
 	onPackage?: (how: "wally" | "zip" | "github" | "remove", entry?: TreeEntry) => void;
+	/**
+	 * A Roblox project with no place: Compile Content's heading offers one,
+	 * imported from a file or started from Studio's baseplate.
+	 */
+	onAddPlace?: (how: "import" | "new") => void;
 }
 
 /**
@@ -107,11 +112,14 @@ export const ProjectTree = memo(function ProjectTree({
 	onImport,
 	onImportMany,
 	onPackage,
+	onAddPlace,
 }: ProjectTreeProps) {
 	// A file manager to show a file in is something only a machine has.
 	const canReveal = useHostCan("reveal");
 	const canGithub = useHostCan("githubDownload");
 	const [menu, setMenu] = useState<{ x: number; y: number; entry: TreeEntry } | null>(null);
+	// Add Place's two ways, hung from the button.
+	const [placeMenu, setPlaceMenu] = useState<Element | null>(null);
 	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
 	// Wally's folders start shut: `_Index` holds every file of every package,
 	// and opened it is most of the tree. Once each, so shutting is not undone
@@ -355,6 +363,13 @@ export const ProjectTree = memo(function ProjectTree({
 								    heading is a number nobody reads. Empty is the state
 								    worth explaining -- a compile has not run yet. */}
 								{count === 0 && <span className="empty">empty</span>}
+								{section.id === "compiled" && onAddPlace && (
+									<AddButton
+										label="Add Place"
+										title="This project has no place. Import a .rbxl or .rbxlx, or start from a baseplate."
+										onClick={(e) => setPlaceMenu(e.currentTarget)}
+									/>
+								)}
 							</SectionHead>
 						</div>
 					);
@@ -483,6 +498,32 @@ export const ProjectTree = memo(function ProjectTree({
 				<div className="tree-row readonly">
 					<span className="label">Nothing to show yet.</span>
 				</div>
+			)}
+
+			{placeMenu && onAddPlace && (
+				<Menu
+					at={{ element: placeMenu, align: "end" }}
+					label="Add Place"
+					onClose={() => setPlaceMenu(null)}
+					sections={[
+						{
+							entries: [
+								{
+									label: "Import a place file\u2026",
+									icon: "folderOpen",
+									hint: ".rbxl or .rbxlx",
+									run: () => onAddPlace("import"),
+								},
+								{
+									label: "Start from a baseplate",
+									icon: "build",
+									hint: "As a new project starts",
+									run: () => onAddPlace("new"),
+								},
+							],
+						},
+					]}
+				/>
 			)}
 
 			{menu && (isListed(menu.entry) ? onPackage : true) && (

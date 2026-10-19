@@ -159,4 +159,22 @@ export const NODE = {
 	wireBackstep: 40,
 	/** The 45-degree cut taken off each corner in the angular wire style. */
 	wireChamfer: 14,
+	/**
+	 * What a pin row is made of, for a node as wide as its rows need.
+	 *
+	 * Measured across every library node on the canvas: a pin label is 5.4px a
+	 * character on average at `--text-sm`, a type chip 5.3 plus its padding at
+	 * `--text-xs` bold, at most 96 across (`.node .type-chip`). Both are taken
+	 * a little over, as `compactCharWidth` is, for a wider system face. A side
+	 * of a row is `--pin-pad`, the 4px a pin still takes once it hangs on the
+	 * edge, and each part after it a `rowGap` (`.node .row .side`'s gap) apart.
+	 */
+	labelCharWidth: 6.2,
+	chipCharWidth: 5.8,
+	chipPadding: 10,
+	chipMax: 96,
+	rowGap: 5,
+	pinFootprint: 4,
+	/** The × beside a set optional value, and the gap before it (`.node .optional-value`). */
+	clearButton: 12,
 } as const;

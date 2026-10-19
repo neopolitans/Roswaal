@@ -85,6 +85,8 @@ interface Hit {
 	member?: { name: string; type?: string };
 	/** See `Preset.deep`: offered while searching rather than while browsing. */
 	deep?: boolean;
+	/** See `Preset.readOnly`. */
+	readOnly?: true;
 	/** What the filter chips narrow on. `graph` for anything the graph declares. */
 	filter: MenuFilter;
 }
@@ -160,6 +162,7 @@ export function NodePicker({
 					config: preset.config,
 					member: preset.member,
 					deep: preset.deep,
+					readOnly: preset.readOnly,
 					filter: "graph" as const,
 				},
 			];
@@ -372,6 +375,14 @@ export function NodePicker({
 											onDragEnd={() => setDragging(false)}
 										>
 											<span className="title">{hit.title}</span>
+											{hit.readOnly && (
+												<Icon
+													name="lock"
+													size={12}
+													className="read-only-mark"
+													title="Read-only: a script can read it, not set it."
+												/>
+											)}
 											{hit.def.pure && <span className="hint">pure</span>}
 											{hit.def.pack && (
 												<span

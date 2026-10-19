@@ -9,6 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.196.0",
+		date: "2026-10-19",
+		headline:
+			"Read-only properties are marked, Set Property offers what a script can set, and a project with no place can add one from the tree.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Read-only properties.** A property a script can read but not set has a lock in the node menu and the node picker. Set Property's Property field lists the wired instance's settable properties as you type, names the read-only ones it leaves out, and marks a read-only one already in the field. Script analysis warns about one, and dropping one from Properties with Ctrl held places a Get Member.",
+			"**Add Place in the tree.** A Roblox project with no place has Add Place on the Compile Content heading: import a .rbxl or .rbxlx, or start from a baseplate.",
+		],
+		fixed: [
+			"**Nodes as wide as their pins.** A node grows to fit its longest input name and value beside its widest output, where a name such as className was cut short.",
+		],
+	},
+	{
 		version: "0.195.2",
 		date: "2026-10-19",
 		headline: "Long names fit the node menu.",

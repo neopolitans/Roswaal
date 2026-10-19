@@ -9,7 +9,7 @@
  * them to tell apart. `docs/toolbars.ts` draws the same markup.
  */
 
-import { type CSSProperties, type ReactNode, useState } from "react";
+import { type CSSProperties, type MouseEvent, type ReactNode, useState } from "react";
 
 import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
@@ -62,12 +62,20 @@ export function useFold(initial = true): [boolean, () => void] {
 	return [open, () => setOpen((was) => !was)];
 }
 
-/** Add, at the end of a heading's line. */
-export function AddButton({ onClick, title }: { onClick: () => void; title?: string }) {
+/** Add, at the end of a heading's line: "Add", or what it adds when the heading does not say. */
+export function AddButton({
+	onClick,
+	title,
+	label = "Add",
+}: {
+	onClick: (event: MouseEvent<HTMLButtonElement>) => void;
+	title?: string;
+	label?: string;
+}) {
 	return (
 		<button type="button" className="tb pane-add" title={title} onClick={onClick}>
 			<Icon name="plus" size={13} />
-			Add
+			{label}
 		</button>
 	);
 }

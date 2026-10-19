@@ -505,6 +505,41 @@ export class ApiSession {
 			},
 
 			/**
+			 * A place file the developer has, as the project's place: kept under
+			 * its own name, or at the file roswaal.json's `place` names, in that
+			 * file's format. Read first, so a file that is not a place is refused
+			 * before anything is written. A 409 when the project has a place
+			 * already, or is for Lune.
+			 */
+			"POST /place/import": async (req) => {
+				const project = this.project();
+				if (project.config.target !== "roblox")
+					throw new HttpError(
+						409,
+						"A Lune project has no place: there is no DataModel to put one in.",
+					);
+				if (await findPlaceFile(project.root, project.config))
+					throw new HttpError(409, "The project has a place file already.");
+				const { data, fileName } = fields<{ data: string; fileName: string }>(req);
+				const name = path.basename(need(fileName, "fileName", "Pass the file's name.")).trim();
+				if (!/\.rbxlx?$/i.test(name))
+					throw new UserError(`${name} is not a place: choose a .rbxl or .rbxlx file.`);
+				const bytes = fromBase64(need(data, "data", "Pass the place as base64 `data`."));
+				try {
+					readRbx(bytes);
+				} catch (error) {
+					if (error instanceof RbxError)
+						throw new UserError(`${name} could not be read: ${error.message}.`);
+					throw error;
+				}
+				const file = project.config.place ?? name;
+				const abs = safeJoin(project.root, file);
+				await fs.mkdir(path.dirname(abs), { recursive: true });
+				await fs.writeFile(abs, convertPlace(bytes, placeFormatOf(file)).bytes);
+				return { file };
+			},
+
+			/**
 			 * Changes one property of one instance, in the place file itself.
 			 * Only a property the instance's answer offers an `edit` for, with a
 			 * value that property can hold; anything else is a 422 saying why,

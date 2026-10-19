@@ -19,7 +19,9 @@ import {
 } from "react";
 import type { Diagnostic } from "../core/compiler/index.js";
 import { type GraphId, viewOf } from "../core/functionGraph.js";
+import { instanceClassInto } from "../core/members.js";
 import { type Registry, resolveNodePins } from "../core/nodes/index.js";
+import { readOnlyToScripts } from "../core/robloxEngine.js";
 import { nilableProperty } from "../core/robloxNilable.js";
 import { propertiesOf } from "../core/robloxProperties.js";
 import type { Comment, Literal, NodeConfig, NodeScript, PinDef, PinRef } from "../core/schema.js";
@@ -1124,7 +1126,10 @@ export function Canvas({
 					};
 					const pathDef = registry.get("roblox.instancePath");
 					if (!pathDef || path.length === 0) return;
-					const set = e.ctrlKey;
+					// A read-only property is placed as the Get it can only be.
+					const set =
+						e.ctrlKey &&
+						!(property !== undefined && className && readOnlyToScripts(className, property));
 					const member = property !== undefined && !set;
 					const reader =
 						attribute !== undefined
@@ -1502,6 +1507,11 @@ export function Canvas({
 						errorCount={errorsByNode.get(node.id) ?? 0}
 						warningCount={warningsByNode.get(node.id) ?? 0}
 						faultPins={faultPins(problems.get(node.id))}
+						ownerClass={
+							node.def === "roblox.setProperty"
+								? instanceClassInto({ script, registry }, node.id, "instance")
+								: undefined
+						}
 						connected={connectedPins}
 						drag={wireDrag}
 						canAccept={canAccept}

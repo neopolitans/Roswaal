@@ -21,8 +21,9 @@ import {
 	operatorLayout,
 	operatorSymbol,
 } from "./operatorLayout.js";
-import { bodyRows } from "./pinLayout.js";
+import { bodyRows, onHeader } from "./pinLayout.js";
 import type { GraphNode, Literal, NodeConfig, NodeDef, PinDef } from "./schema.js";
+import { typeChip } from "./typeFamily.js";
 
 export interface Rect {
 	x: number;
@@ -139,7 +140,55 @@ export function compactWidth(def: NodeDef, node: GraphNode): number {
 export function nodeWidth(def: NodeDef | undefined, node: GraphNode, wide = false): number {
 	const face = def ? codeFaceFor(def, node) : undefined;
 	if (face) return Math.max(codeFaceWidth(face), wideWidth(def, node, wide));
-	return wideWidth(def, node, wide);
+	return Math.max(wideWidth(def, node, wide), def ? rowsWidth(def, node) : 0);
+}
+
+/**
+ * How wide a node's pin rows need it to be: its widest input side beside its
+ * widest output side, because every row shares one output column (`.node
+ * .rows`). A long input name beside a picker, on a node whose output carries
+ * a type chip, was cut to "cl…".
+ *
+ * Estimated from the pins, as the header is: a label's characters, the value
+ * an input shows, an output's type chip. The value is counted whether or not
+ * the pin is wired, so a node keeps its width as wires come and go.
+ */
+export function rowsWidth(def: NodeDef, node: Pick<GraphNode, "config" | "literals">): number {
+	const { inputs, outputs } = resolvePins(def, node.config, node.literals);
+	const body = (pins: PinDef[]) => (onHeader(pins) ? pins.slice(1) : pins);
+	const side = (parts: number[]) =>
+		NODE.rowPadding +
+		NODE.pinFootprint +
+		parts.filter((w) => w > 0).reduce((sum, w) => sum + NODE.rowGap + w, 0);
+	const label = (pin: PinDef) => (pin.name ? pin.name.length * NODE.labelCharWidth : 0);
+	const chip = (pin: PinDef) => {
+		const text = pin.kind === "data" ? typeChip(pin.name, pin.type) : null;
+		if (!text) return 0;
+		return Math.min(NODE.chipMax, text.length * NODE.chipCharWidth + NODE.chipPadding);
+	};
+	const left = Math.max(0, ...body(inputs).map((pin) => side([label(pin), valueWidth(pin, node)])));
+	const right = Math.max(
+		NODE.pinLane,
+		...body(outputs).map((pin) => side([chip(pin), label(pin)])),
+	);
+	return Math.ceil(2 * NODE.nodeStroke + left + right);
+}
+
+/** The value an input shows on the node, as `NodeView`'s literal editors draw it. */
+function valueWidth(pin: PinDef, node: Pick<GraphNode, "literals">): number {
+	if (pin.kind !== "data") return 0;
+	const typed = node.literals?.[pin.id];
+	// An optional pin nobody set says "default" in a field's width.
+	if (pin.optional === true && typed === undefined) return NODE.fieldWidth;
+	const current = typed ?? pin.default;
+	if (!current) return 0;
+	const field =
+		current.t === "boolean"
+			? NODE.checkWidth
+			: current.t === "string" && pin.options && pin.options.length > 0
+				? NODE.fieldWide
+				: NODE.fieldWidth;
+	return pin.optional === true ? field + NODE.clearButton : field;
 }
 
 /** The face a node shows its code on, when it is one that holds code. See `codeFace.ts`. */
