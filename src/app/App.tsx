@@ -1338,6 +1338,8 @@ export function App() {
 		onGraphSaved: (path) => setEditedSince((was) => new Set(was).add(path)),
 	});
 
+	// Set once useProjectActions has the menu's state; the shortcut is wired before it.
+	const openExport = useRef<() => void>(() => {});
 	const { locked, presets, promotePin, realign, refactor, spawn, spawnComment, splitOrRecombine } =
 		useGraphCommands({
 			editor,
@@ -1354,6 +1356,7 @@ export function App() {
 			setMenu,
 			setPreviewOpen,
 			setDocsJump,
+			openExport: () => openExport.current(),
 			compiling,
 			runCompile,
 			runCompileMap,
@@ -1400,6 +1403,15 @@ export function App() {
 		openEntry,
 		setIntroOpen,
 	});
+
+	openExport.current = () => setExportOpen(true);
+
+	/** Compile project, as its button runs it. Maps first: a folder that moves takes its
+	    graphs with it, and they then compile where they are going to stay. */
+	const compileProject = useCallback(async () => {
+		await runCompileMap(undefined);
+		await runCompile(undefined, true);
+	}, [runCompileMap, runCompile]);
 
 	followMoveRef.current = followMove;
 	offerRojo.current = importRojo;
@@ -1601,12 +1613,8 @@ export function App() {
 						onNewGraph={() => void createGraphIn(inDir(targetDir))}
 						onNewMap={() => void createMapIn(inDir(targetDir))}
 						onCompileMode={(mode) => void setConfig({ compileMode: mode })}
-						onCompileProject={async () => {
-							// Maps first: a folder that moves takes its graphs with it,
-							// and they then compile where they are going to stay.
-							await runCompileMap(undefined);
-							await runCompile(undefined, true);
-						}}
+						onCompileProject={() => void compileProject()}
+						onExport={() => setExportOpen(true)}
 						onOpenDocs={() => void switchMode("docs")}
 						onOpenDesigner={() => void switchMode("designer")}
 						onOpenSettings={() => setSettingsOpen(true)}
@@ -2068,7 +2076,15 @@ export function App() {
 				/>
 			)}
 
-			{exportOpen && <ExportMenu onClose={() => setExportOpen(false)} onError={notify} />}
+			{exportOpen && project && (
+				<ExportMenu
+					onClose={() => setExportOpen(false)}
+					onError={notify}
+					config={project.config}
+					onConfig={setConfig}
+					onCompileProject={compileProject}
+				/>
+			)}
 
 			<Toasts />
 

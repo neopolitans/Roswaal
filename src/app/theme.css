@@ -5876,6 +5876,72 @@ button.start-tile:disabled {
 	margin-right: auto;
 }
 
+/* Dropped from the Export button rather than covering the window: no dimming
+   behind it, and it sits under the button, its right edge on the button's. */
+.dialog-backdrop.export-menu-backdrop {
+	background: transparent;
+	backdrop-filter: none;
+}
+
+.dialog.export-menu.export-menu-anchored {
+	position: fixed;
+	width: min(480px, calc(100vw - 16px));
+	max-height: calc(100dvh - 80px);
+	overflow-y: auto;
+}
+
+.export-menu .segmented {
+	flex-wrap: wrap;
+}
+
+.export-menu-legacy {
+	font-size: var(--text-xs);
+	color: var(--fg-faint);
+	margin-left: 2px;
+}
+
+.export-menu-note-flush {
+	padding-top: 5px;
+}
+
+.export-menu-remember {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: var(--text-md);
+	color: var(--fg-muted);
+	cursor: pointer;
+}
+
+.export-menu-remember input {
+	margin: 0;
+	accent-color: var(--accent);
+}
+
+/* The same menu on a touch screen, every row of it: finger-sized, and the name
+   in 16px so Safari does not zoom onto it. */
+@media (pointer: coarse) {
+	.export-menu .segmented button {
+		min-height: 32px;
+		padding: 0 12px;
+	}
+
+	.export-menu-name input {
+		height: 36px;
+		font-size: 16px;
+	}
+
+	.export-menu-remember input {
+		width: 20px;
+		height: 20px;
+	}
+
+	.export-menu-foot .tb {
+		height: 36px;
+		padding: 0 16px;
+	}
+}
+
 @media (max-width: 480px) {
 	.export-menu-row {
 		grid-template-columns: minmax(0, 1fr);

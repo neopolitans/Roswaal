@@ -33,6 +33,7 @@ import type { ReactNode } from "react";
 
 import type { RoswaalConfig } from "../core/schema.js";
 import { cx } from "./cx.js";
+import { EXPORT_ANCHOR } from "./ExportMenu.jsx";
 import { FloatingTools, ToolGroup } from "./FloatingTools.jsx";
 import { Icon } from "./icons.jsx";
 import { MenuButton } from "./Menu.jsx";
@@ -61,6 +62,8 @@ export interface ProjectBarProps {
 	/** The node designer, in its own window: a form over a node definition. */
 	onOpenDesigner: () => void;
 	onOpenSettings: () => void;
+	/** The Export menu, which drops from its button. */
+	onExport: () => void;
 	/**
 	 * Open the introduction panel. No anchor: it is centred rather than dropped
 	 * under the mark, because the same panel opens from a header in two other
@@ -169,6 +172,17 @@ export function ProjectBar(props: ProjectBarProps) {
 								<Icon name="panelRight" size={16} />
 							</button>
 						)}
+						{!phone && (
+							<button
+								className="tb icon-only"
+								title="Export — the project as a zip, or its place as .rbxl or Legacy .rbxlx (Ctrl+Shift+E)"
+								aria-label="Export"
+								{...{ [EXPORT_ANCHOR]: "" }}
+								onClick={props.onExport}
+							>
+								<Icon name="export" size={16} />
+							</button>
+						)}
 						<MenuButton
 							label={<Icon name="more" size={16} />}
 							title="More"
@@ -200,6 +214,7 @@ export function ProjectBar(props: ProjectBarProps) {
 										// The mode strip has them, where there is room for it.
 										phone && { label: "Docs", icon: "document", run: props.onOpenDocs },
 										phone && { label: "Node Design", icon: "palette", run: props.onOpenDesigner },
+										{ label: "Export…", icon: "export", run: props.onExport },
 										{ label: "Settings", icon: "settings", run: props.onOpenSettings },
 									],
 								},
@@ -236,6 +251,15 @@ export function ProjectBar(props: ProjectBarProps) {
 							<Icon name="panelRight" size={16} />
 						</button>
 						<span className="divider" />
+						<button
+							className="tb icon-only"
+							title="Export — the project as a zip, or its place as .rbxl or Legacy .rbxlx (Ctrl+Shift+E)"
+							aria-label="Export"
+							{...{ [EXPORT_ANCHOR]: "" }}
+							onClick={props.onExport}
+						>
+							<Icon name="export" size={16} />
+						</button>
 						<button
 							className="tb icon-only"
 							title="Settings — the project's, this browser's, and themes"

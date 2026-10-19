@@ -1304,6 +1304,14 @@ export const EDITOR_BAR: ToolbarSpec = {
 				{ t: "divider" },
 				{
 					t: "icon",
+					icon: "export",
+					name: "Export",
+					what:
+						"The project as a zip, or its place alone, as `.rbxl` or Legacy `.rbxlx`. " +
+						"`Ctrl` + `Shift` + `E` opens it too. See [Places and Rojo projects](places-and-rojo).",
+				},
+				{
+					t: "icon",
 					icon: "settings",
 					name: "Settings",
 					where: "the last icon on the row",
@@ -1783,6 +1791,7 @@ export const EDITOR_BAR_BROWSER: ToolbarSpec = {
 			items: [
 				{ t: "icon", icon: "panelRight", ...as(EDITOR_BAR, "Inspector") },
 				{ t: "divider" },
+				{ t: "icon", icon: "export", ...as(EDITOR_BAR, "Export") },
 				{ t: "icon", icon: "settings", ...as(EDITOR_BAR, "Settings") },
 			],
 		},
@@ -3206,28 +3215,29 @@ export const PROPERTIES_PANEL: ToolbarSpec = (() => {
 	};
 })();
 
-/** The Export panel, for a project with a place, as `ExportMenu.tsx` draws it. */
+/** The Export menu, for a project with a place, as `ExportMenu.tsx` draws it. */
 export const EXPORT_PANEL: ToolbarSpec = {
 	id: "export-panel",
-	title: "The Export panel",
-	summary: "Project → Export…, in a project with a place.",
+	title: "The Export menu",
+	summary: "The Export button in the top bar, in a project with a place.",
 	chrome: "modal",
 	className: "export-menu",
 	groups: [
-		{ items: [{ t: "dialogTitle", text: "Export Project" }] },
+		{ items: [{ t: "dialogTitle", text: "Export" }] },
 		{
 			wrap: "export-menu-form",
 			items: [
 				{
 					t: "formRow",
-					label: "Format",
-					control: "select",
-					value: "Project (.zip)",
-					note: "A zip: graphs, Luau and the Rojo project, with the place in its root.",
-					name: "Format",
+					label: "Export",
+					control: "segmented",
+					value: "",
+					options: ["Project (.zip)", "Place only (.rbxl)"],
+					on: 0,
+					note: "A zip: graphs, Luau and the Rojo project, with place.rbxl in its root.",
+					name: "Project (.zip) | Place only",
 					what: "The whole project as a zip, or the place file alone.",
 				},
-				{ t: "formSection", text: "File" },
 				{
 					t: "formRow",
 					label: "Name",
@@ -3237,10 +3247,21 @@ export const EXPORT_PANEL: ToolbarSpec = {
 					name: "Name",
 					what: "The file's name.",
 				},
-				{ t: "formSection", text: "Place file" },
 				{
 					t: "formRow",
-					label: "place.rbxl",
+					label: "Before",
+					control: "segmented",
+					value: "",
+					options: ["Compile first", "Export as it is"],
+					on: 0,
+					note: "Lobby changed since it was compiled; compiled first.",
+					name: "Compile first | Export as it is",
+					what: "Offered when a graph has changed since it was compiled, which in Manual mode would otherwise export its old Luau.",
+				},
+				{ t: "formSection", text: "Place file · place.rbxl" },
+				{
+					t: "formRow",
+					label: "Scripts",
 					control: "segmented",
 					value: "",
 					options: ["Modify RBXL", "Don't Modify RBXL"],
@@ -3248,6 +3269,29 @@ export const EXPORT_PANEL: ToolbarSpec = {
 					note: "Writes 12 scripts and adds 1.",
 					name: "Modify RBXL | Don't Modify RBXL",
 					what: "Modify writes the project's scripts into the copy of the place, and says how many; Don't sends the place as it was.",
+				},
+				{
+					t: "formRow",
+					label: "Save as",
+					control: "segmented",
+					value: "",
+					options: [".rbxl", ".rbxlx Legacy"],
+					on: 0,
+					note: "Binary, as Studio saves.",
+					name: ".rbxl | .rbxlx Legacy",
+					what: "The place's format. Legacy `.rbxlx` names any kinds of property Roswaal cannot write yet, which it leaves out.",
+				},
+				{ t: "formSection", text: "Next time" },
+				{
+					t: "formRow",
+					label: "",
+					control: "segmented",
+					value: "",
+					options: ["Start with these choices for this project"],
+					on: 0,
+					note: "Kept in roswaal.json. Settings → Compiling → Exporting has them too.",
+					name: "Start with these choices",
+					what: "Ticked, the menu opens with the same choices next time, for everyone who opens the project.",
 				},
 			],
 		},

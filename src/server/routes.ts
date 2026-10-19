@@ -37,6 +37,7 @@ import {
 import { storedValue, writeProperty } from "../core/rbx/edit.js";
 import { type RbxDocument, RbxError, type RbxInstance, readRbx } from "../core/rbx/index.js";
 import { type PlaceReport, planPlaceUpdate } from "../core/rbx/placeExport.js";
+import { convertPlace, leftOutOf, placeFormatOf } from "../core/rbx/serialize.js";
 import { emptyScript, type NodeDef, type NodeScript, type Target } from "../core/schema.js";
 import { errorMessage, HttpError, UserError } from "./errors.js";
 import { exists } from "./files.js";
@@ -91,6 +92,7 @@ import {
 	savePackNode,
 	scanProjectPacks,
 	setPackRequires,
+	staleGraphs,
 	unsyncedGraphs,
 	writeConfig,
 	writeLuaurcFile,
@@ -1078,16 +1080,31 @@ export class ApiSession {
 			 * exists to avoid.
 			 *
 			 * `place=modify` writes the project's scripts into its place; the
-			 * report says what went in and what could not.
+			 * report says what went in and what could not. `format` saves the
+			 * place as `.rbxl` or `.rbxlx`: one in the other format is converted,
+			 * goes in under its new name, and `leftOut` names the kinds of
+			 * property the conversion could not carry. `convertLoses` says the
+			 * same for the format the place is not in, whichever was asked for,
+			 * so the menu can warn before anyone picks it.
+			 *
+			 * `stale` lists the graphs whose Luau is older than the graph, for
+			 * the menu to offer to compile first.
 			 */
 			"GET /export": async (req) => {
 				const project = this.project();
 				const modify = optionalQuery(req, "place", ["modify"]) === "modify";
+				const format = optionalQuery(req, "format", ["rbxl", "rbxlx"]);
 				const binaries = await collectBinaries(project);
 				const placeFile = await findPlaceFile(project.root, project.config);
-				let place: { file: string; report?: PlaceReport } | undefined = placeFile
-					? { file: placeFile }
-					: undefined;
+				let place:
+					| {
+							file: string;
+							report?: PlaceReport;
+							savedAs?: string;
+							leftOut?: [string, number][];
+							convertLoses?: [string, number][];
+					  }
+					| undefined = placeFile ? { file: placeFile } : undefined;
 				if (placeFile && modify) {
 					const written = await exportPlace(project);
 					if (written) {
@@ -1095,11 +1112,33 @@ export class ApiSession {
 						place = { file: written.file, report: placeReport(written.update) };
 					}
 				}
+				if (place && binaries[place.file] !== undefined) {
+					const bytes = fromBase64(binaries[place.file]!);
+					const own = placeFormatOf(place.file);
+					try {
+						place.convertLoses = leftOutOf(bytes);
+						if (format && format !== own) {
+							const converted = convertPlace(bytes, format);
+							const savedAs = place.file.replace(/\.rbxlx?$/i, `.${format}`);
+							delete binaries[place.file];
+							binaries[savedAs] = toBase64(converted.bytes);
+							place.savedAs = savedAs;
+							place.leftOut = converted.leftOut;
+						}
+					} catch (err) {
+						if (!(err instanceof RbxError)) throw err;
+						throw new HttpError(
+							422,
+							`${place.file} could not be saved as .${format}: ${errorMessage(err)}`,
+						);
+					}
+				}
 				return {
 					name: path.posix.basename(toPosix(project.root)) || "project",
 					files: await collectProject(project),
 					binaries,
 					...(place ? { place } : {}),
+					stale: await staleGraphs(project),
 				};
 			},
 		};

@@ -23,6 +23,7 @@ export {
 	type MapOutcome,
 	outputCollision,
 	splitGenerated,
+	staleGraphs,
 	stampOutputHash,
 	supersededOutputs,
 } from "./compile.js";

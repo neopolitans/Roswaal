@@ -14,7 +14,7 @@
  */
 
 import { ownTable } from "../ownTable.js";
-import { ENGINE } from "../robloxEngine.js";
+import { ENGINE, findProperty } from "../robloxEngine.js";
 import {
 	asRbxError,
 	type CFrameValue,
@@ -174,6 +174,7 @@ function cframe(el: XmlElement): CFrameValue {
 function readValue(
 	el: XmlElement,
 	shared: Map<string, Uint8Array>,
+	className: string,
 ): [PropType, unknown] | undefined {
 	const t = el.text;
 	switch (el.name) {
@@ -185,7 +186,10 @@ function readValue(
 			return ["String", base64(t)];
 		case "Content": {
 			// An asset link: `<url>` holding it, or `<null>` for none. Kept as
-			// the text binary places store the same property as.
+			// the text binary places store the same property as -- for a
+			// ContentId only: newer Content properties are their own type in
+			// binary, and a string there would be the wrong one.
+			if (findProperty(className, el.attrs.name ?? "")?.type !== "ContentId") return undefined;
 			const url = el.children.find((c) => c.name === "url");
 			if (url) return ["String", utf8.encode(url.text.trim())];
 			if (el.children.some((c) => c.name === "null")) return ["String", new Uint8Array(0)];
@@ -308,7 +312,7 @@ function decodeXml(source: string): RbxDocument {
 				for (const propEl of part.children) {
 					const propName = propEl.attrs.name;
 					if (propName === undefined) continue;
-					const decoded = readValue(propEl, shared);
+					const decoded = readValue(propEl, shared, className);
 					if (!decoded) {
 						undecoded.set(propEl.name, (undecoded.get(propEl.name) ?? 0) + 1);
 						continue;

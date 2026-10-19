@@ -433,7 +433,77 @@ function CompilingSettings({
 					</Row>
 				)}
 			</Group>
+
+			<ExportingSettings config={config} onConfig={onConfig} />
 		</Page>
+	);
+}
+
+/**
+ * What the Export menu starts with: the same choices it keeps when "Start
+ * with these choices for this project" is ticked, so they are not only in the
+ * menu.
+ */
+function ExportingSettings({
+	config,
+	onConfig,
+}: {
+	config: RoswaalConfig;
+	onConfig: (patch: Partial<RoswaalConfig>) => void;
+}) {
+	const kept = config.export ?? {};
+	const set = (patch: Partial<NonNullable<RoswaalConfig["export"]>>) => {
+		const next: Record<string, unknown> = { ...kept, ...patch };
+		for (const key of Object.keys(next)) if (next[key] === undefined) delete next[key];
+		onConfig({ export: next });
+	};
+	const pick = <T,>(
+		value: T,
+		current: T,
+		label: string,
+		patch: Partial<NonNullable<RoswaalConfig["export"]>>,
+	) => (
+		<button className={current === value ? "on" : ""} onClick={() => set(patch)}>
+			{label}
+		</button>
+	);
+	return (
+		<Group title="Exporting">
+			<Row
+				label="Export"
+				help="What the Export menu starts with: the project as a zip, or its place alone."
+			>
+				<div className="segmented">
+					{pick("zip", kept.shape ?? "zip", "Project (.zip)", { shape: "zip" })}
+					{pick("place", kept.shape ?? "zip", "Place only", { shape: "place" })}
+				</div>
+			</Row>
+			<Row label="Before exporting" help="Compile the graphs whose Luau is out of date first.">
+				<div className="segmented">
+					{pick(true, kept.compileFirst ?? true, "Compile first", { compileFirst: true })}
+					{pick(false, kept.compileFirst ?? true, "Export as it is", { compileFirst: false })}
+				</div>
+			</Row>
+			<Row
+				label="Scripts"
+				help="Write the project's scripts into the exported place, or leave it as it was."
+			>
+				<div className="segmented">
+					{pick(true, kept.modify ?? true, "Modify RBXL", { modify: true })}
+					{pick(false, kept.modify ?? true, "Don't Modify RBXL", { modify: false })}
+				</div>
+			</Row>
+			<Row
+				label="Save the place as"
+				help="Legacy .rbxlx leaves out the kinds of property Roswaal cannot write yet; the menu names them."
+			>
+				<div className="segmented">
+					{pick(undefined, kept.format, "As it is", { format: undefined })}
+					{pick("rbxl", kept.format, ".rbxl", { format: "rbxl" })}
+					{pick("rbxlx", kept.format, "Legacy .rbxlx", { format: "rbxlx" })}
+				</div>
+			</Row>
+		</Group>
 	);
 }
 

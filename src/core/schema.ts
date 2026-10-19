@@ -724,6 +724,24 @@ export interface RoswaalConfig {
 	 * one: `place.rbxl` first, then the first by name. See `findPlaceFile`.
 	 */
 	place?: string;
+	/**
+	 * What the Export menu starts with, as it was last used with "Start with
+	 * these choices for this project" ticked, or as Settings sets it. Kept with
+	 * the project so everyone who exports it gets the same thing.
+	 */
+	export?: ExportChoices;
+}
+
+/** The Export menu's choices. Each unset is the menu's own default. */
+export interface ExportChoices {
+	/** The project as a zip, or its place alone. Default: the zip. */
+	shape?: "zip" | "place";
+	/** Write the project's scripts into the place. Default: yes. */
+	modify?: boolean;
+	/** The place's format. Default: the format the project's place is in. */
+	format?: "rbxl" | "rbxlx";
+	/** Compile the graphs whose Luau is out of date before exporting. Default: yes. */
+	compileFirst?: boolean;
 }
 
 export type IndentStyle = "tab" | "space";

@@ -446,13 +446,26 @@ export const api = {
 	 * The whole project, for `zip.ts` to turn into a download. With `modify`,
 	 * its place holds the project's scripts.
 	 */
-	exportProject: (modify = false) =>
-		request<{
+	exportProject: (modify = false, format?: "rbxl" | "rbxlx") => {
+		const query = [modify ? "place=modify" : "", format ? `format=${format}` : ""].filter(Boolean);
+		return request<{
 			name: string;
 			files: Record<string, string>;
 			binaries?: Record<string, string>;
-			place?: { file: string; report?: PlaceReport };
-		}>(`/api/export${modify ? "?place=modify" : ""}`),
+			place?: {
+				file: string;
+				report?: PlaceReport;
+				/** The place's name in `binaries` when it was saved in the other format. */
+				savedAs?: string;
+				/** What that conversion left out, by kind, with how many of each. */
+				leftOut?: [string, number][];
+				/** What saving it in the other format would leave out. */
+				convertLoses?: [string, number][];
+			};
+			/** Graphs whose Luau is older than the graph. */
+			stale?: string[];
+		}>(`/api/export${query.length ? `?${query.join("&")}` : ""}`);
+	},
 	/** Generated files whose graph has moved or gone. */
 	orphans: () =>
 		request<{ orphans: string[]; unsynced?: { graph: string; folder: string }[] }>("/api/orphans"),

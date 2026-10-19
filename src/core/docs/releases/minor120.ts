@@ -9,6 +9,24 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.192.0",
+		date: "2026-10-19",
+		headline: "Export is a button in the top bar, and saves the place as .rbxl or Legacy .rbxlx.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Export in the top bar.** Beside Settings, and left of More on an iPad. `Ctrl` + `Shift` + `E` opens it, and Project → Export… is still there. The menu drops from its button, and on a touch screen it is the same menu, finger-sized.",
+			"**Save as .rbxl or Legacy .rbxlx.** For a zip or the place alone. A place saved in the other format leaves out the kinds of property Roswaal cannot write yet, and the menu names them first.",
+			"**Compile first.** When a graph has changed since it was compiled, the menu names it and compiles it before the export, so the export does not carry its old Luau.",
+			"**Choices kept for the project.** Start with these choices for this project keeps them in `roswaal.json`, and Settings → Compiling → Exporting shows them.",
+		],
+		changed: [
+			"**Shared strings written.** A place written from nothing carries its shared strings, keyed as Studio keys them, so a place with meshes converts.",
+		],
+		fixed: [
+			"**No backups in an export.** The copies Properties keeps in `.roswaal/backups` are left out of a zip.",
+		],
+	},
+	{
 		version: "0.191.1",
 		date: "2026-10-19",
 		headline: "Asset links read and write as Studio keeps them in an .rbxlx place.",

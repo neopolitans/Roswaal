@@ -56,6 +56,33 @@ export interface CompileOutcome {
 	code: string;
 }
 
+/** A generated file's `-- roswaal-source:` hash, or null when it has none. */
+function sourceHashOf(text: string): string | null {
+	return /^-- roswaal-source: (\S+)/m.exec(text)?.[1] ?? null;
+}
+
+/**
+ * Graphs whose Luau on disk is older than the graph: compiled now, the file
+ * would carry a different `roswaal-source` hash, or there is no file yet.
+ *
+ * Compiled in memory, as Check is, so nothing is written. A graph that does
+ * not compile, and an output written by hand (no hash to compare), are left
+ * out: compiling first would not change either.
+ */
+export async function staleGraphs(project: OpenProject): Promise<string[]> {
+	const stale: string[] = [];
+	for (const outcome of await compileAll(project, { write: false })) {
+		if (!outcome.outputPath || outcome.diagnostics.some((d) => d.severity === "error")) continue;
+		const now = sourceHashOf(outcome.code);
+		if (now === null) continue;
+		const disk = await fs
+			.readFile(safeJoin(project.root, outcome.outputPath), "utf8")
+			.catch(() => null);
+		if (disk === null || sourceHashOf(disk) !== now) stale.push(outcome.scriptPath);
+	}
+	return stale.sort();
+}
+
 /**
  * The graph that already wrote this file in the current compile, if any.
  *

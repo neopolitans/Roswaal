@@ -7,6 +7,7 @@ import { toBase64 } from "../core/base64.js";
 import type { OpenProject } from "./config.js";
 import { walkFiles } from "./files.js";
 import { fs } from "./host.js";
+import { PLACE_BACKUPS } from "./place.js";
 
 /**
  * The extensions a Roswaal project is made of: the graphs, the maps, the
@@ -46,6 +47,8 @@ export async function collectBinaries(project: OpenProject): Promise<Record<stri
 	const out: Record<string, string> = {};
 	const accept = (name: string) => /\.rbx[lm]x?$/i.test(name);
 	for (const file of await walkFiles(project.root, { accept })) {
+		// Copies kept before a property change: the project's history, not part of it.
+		if (file.path.startsWith(`${PLACE_BACKUPS}/`)) continue;
 		// Gone since the walk listed it, as above.
 		const bytes = await fs.readFile(file.abs).catch(() => null);
 		if (bytes !== null) out[file.path] = toBase64(bytes);

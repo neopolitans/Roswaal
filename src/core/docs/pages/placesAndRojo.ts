@@ -303,10 +303,21 @@ export function placesAndRojoPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"**Project → Export…** takes the project out as a zip, or its place file alone. For a " +
-					"project with a place it says what **Modify RBXL** would write and add before you " +
-					"choose; **Don't Modify RBXL** sends the place as it was. The project's own place file " +
-					"is not changed either way. `roswaal export out.rbxl` writes the modified place to a file.",
+					"**Export**, beside Settings in the top bar, takes the project out as a zip, or its " +
+					"place file alone. `Ctrl` + `Shift` + `E` opens it too, and **Project → Export…** is " +
+					"still there. For a project with a place it says what **Modify RBXL** would write and " +
+					"add before you choose; **Don't Modify RBXL** sends the place as it was. The project's " +
+					"own place file is not changed either way. `roswaal export out.rbxl` writes the " +
+					"modified place to a file.",
+			},
+			{
+				t: "p",
+				text:
+					"**Save as** writes the place as `.rbxl`, or as Legacy `.rbxlx`, whichever the project " +
+					"keeps. A place saved in the other format leaves out the kinds of property Roswaal " +
+					"cannot write yet, and the menu names them first. When a graph has changed since it was " +
+					"compiled, **Compile first** compiles it before the export. Ticked, **Start with these " +
+					"choices** keeps them in `roswaal.json`, and Settings → Compiling → Exporting shows them.",
 			},
 			{ t: "toolbar", bar: EXPORT_PANEL },
 			{

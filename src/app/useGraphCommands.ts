@@ -76,6 +76,8 @@ export interface GraphCommandsContext {
 	setMenu: React.Dispatch<React.SetStateAction<MenuAnchor | null>>;
 	setPreviewOpen: React.Dispatch<React.SetStateAction<boolean>>;
 	setDocsJump: React.Dispatch<React.SetStateAction<boolean>>;
+	/** The Export menu, from wherever you are in the editor: `Ctrl` + `Shift` + `E`. */
+	openExport: () => void;
 	compiling: boolean;
 	runCompile: (
 		path: string | undefined,
@@ -103,6 +105,7 @@ export function useGraphCommands(context: GraphCommandsContext) {
 		setMenu,
 		setPreviewOpen,
 		setDocsJump,
+		openExport,
 		compiling,
 		runCompile,
 		runCompileMap,
@@ -581,6 +584,11 @@ export function useGraphCommands(context: GraphCommandsContext) {
 			if (mod && e.key.toLowerCase() === "k") {
 				e.preventDefault();
 				setDocsJump(true);
+				return;
+			}
+			if (mod && e.shiftKey && e.key.toLowerCase() === "e") {
+				e.preventDefault();
+				openExport();
 				return;
 			}
 			if (mod && e.shiftKey && e.key.toLowerCase() === "l") {

@@ -208,6 +208,10 @@ export function settingsPage(): DocPage {
 						"How long after your last edit a graph is written. A delay, not a switch — there is no unsaved copy of a graph, so switching it off would give you a document that quietly stops matching itself rather than a buffer.",
 					],
 					[
+						"Exporting",
+						"What the Export menu starts with: zip or place, compile first, Modify RBXL, and the place's format. Kept in `roswaal.json`.",
+					],
+					[
 						"Modify DataModel Instances",
 						"Off by default. On, **Properties** changes values in the place file, after a backup. See Places and Rojo.",
 					],

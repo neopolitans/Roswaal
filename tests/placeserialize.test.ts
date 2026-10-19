@@ -4,9 +4,14 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { type Prop, RbxError, type RbxInstance, readRbx, walk } from "../src/core/rbx/index.js";
-import { writeBinaryPlace, writeXmlPlace } from "../src/core/rbx/serialize.js";
+import { md5 } from "../src/core/md5.js";
+import { type Prop, type RbxInstance, readRbx, walk } from "../src/core/rbx/index.js";
+import {
+	convertPlace,
+	placeFormatOf,
+	writeBinaryPlace,
+	writeXmlPlace,
+} from "../src/core/rbx/serialize.js";
 
 const utf8 = new TextEncoder();
 
@@ -155,13 +160,61 @@ describe("writing a place from nothing", () => {
 		expect(writeXmlPlace(documentOfEveryType())).toBe(writeXmlPlace(documentOfEveryType()));
 	});
 
-	it("refuses a shared string rather than guess at its hash", () => {
+	it("writes shared strings once each, keyed by their MD5, in both formats", () => {
 		const doc = documentOfEveryType();
-		doc.roots[0]!.children[0]!.props.set("MeshData", {
-			type: "SharedString",
-			value: Uint8Array.of(1),
-		});
-		expect(() => writeBinaryPlace(doc)).toThrow(RbxError);
-		expect(() => writeXmlPlace(doc)).toThrow(/not written yet/);
+		const mesh = Uint8Array.from({ length: 300 }, (_, i) => i % 256);
+		const [target, other] = doc.roots[0]!.children;
+		target!.props.set("MeshData", { type: "SharedString", value: mesh });
+		other!.props.set("MeshData", { type: "SharedString", value: mesh });
+		for (const bytes of [writeBinaryPlace(doc), utf8.encode(writeXmlPlace(doc))]) {
+			const read = readRbx(bytes);
+			expect(read.undecoded.size).toBe(0);
+			for (const name of ["Target", "Other"])
+				expect(read.instances.find((i) => i.name === name)!.props.get("MeshData")!.value).toEqual(
+					mesh,
+				);
+		}
+		const xml = writeXmlPlace(doc);
+		const key = btoa(String.fromCharCode(...md5(mesh)));
+		expect(xml.match(/<SharedString md5=/g)).toHaveLength(1);
+		expect(xml).toContain(`<SharedString name="MeshData">${key}</SharedString>`);
+	});
+});
+
+describe("MD5", () => {
+	const hex = (s: string) =>
+		[...md5(utf8.encode(s))].map((b) => b.toString(16).padStart(2, "0")).join("");
+	it("matches the published values", () => {
+		expect(hex("")).toBe("d41d8cd98f00b204e9800998ecf8427e");
+		expect(hex("abc")).toBe("900150983cd24fb0d6963f7d28e17f72");
+		expect(hex("The quick brown fox jumps over the lazy dog")).toBe(
+			"9e107d9d372bb6826bd81d3542a419d6",
+		);
+		expect(hex("a".repeat(1000))).toBe("cabe45dcc9ae5b66ba86600cca6b8ba8");
+	});
+});
+
+describe("converting a place", () => {
+	it("goes binary to XML and back with every decoded property, and names what it left out", () => {
+		const doc = documentOfEveryType();
+		const binary = writeBinaryPlace(doc);
+		expect(convertPlace(binary, "rbxl").bytes).toBe(binary);
+		const xml = convertPlace(binary, "rbxlx");
+		expect(readRbx(xml.bytes).format).toBe("xml");
+		expect(xml.leftOut).toEqual([]);
+		const back = convertPlace(xml.bytes, "rbxl");
+		expectSame([...walk(doc.roots)], [...walk(readRbx(back.bytes).roots)]);
+		expect(placeFormatOf("place.RBXLX")).toBe("rbxlx");
+		expect(placeFormatOf("place.rbxl")).toBe("rbxl");
+	});
+
+	it("reports the kinds of property it could not carry", () => {
+		const xml = `<roblox version="4"><Item class="Part" referent="RBX1"><Properties>
+			<string name="Name">P</string><PhysicalProperties name="CustomPhysicalProperties"><CustomPhysics>false</CustomPhysics></PhysicalProperties>
+			<Font name="FontFace"><Family><url>rbxasset://fonts/x.json</url></Family></Font>
+		</Properties></Item></roblox>`;
+		const converted = convertPlace(utf8.encode(xml), "rbxl");
+		expect(converted.leftOut.map(([type]) => type).sort()).toEqual(["Font", "PhysicalProperties"]);
+		expect(readRbx(converted.bytes).instances[0]!.name).toBe("P");
 	});
 });

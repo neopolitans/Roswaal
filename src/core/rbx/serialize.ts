@@ -7,15 +7,16 @@
  * to the other will be.
  *
  * Every property the document holds is written, of every type the readers
- * decode, except `SharedString`, which is refused for now: its table is keyed
- * by a hash of each value, and a guessed hash is a file Studio may reject. A
- * property the reader skipped is not in the document, so it is not here
- * either, and Studio gives the instance its own default for it.
+ * decode. Shared strings go in a table keyed by the MD5 of each value, as
+ * Studio keys them. A property the reader skipped is not in the document, so
+ * it is not here either, and Studio gives the instance its own default for
+ * it; `convertPlace` says which kinds those were.
  *
  * Instances are written depth first, parents before children, and numbered in
  * that order, so the same document is the same file every time.
  */
 
+import { md5 } from "../md5.js";
 import { findProperty } from "../robloxEngine.js";
 import { cdata, putU32, sealChunk, zigzag } from "./chunks.js";
 import {
@@ -26,6 +27,7 @@ import {
 	type RbxInstance,
 	walk,
 } from "./dom.js";
+import { readRbx } from "./index.js";
 
 const utf8 = new TextEncoder();
 
@@ -37,6 +39,26 @@ function order(doc: RbxDocument): { list: RbxInstance[]; ref: Map<RbxInstance, n
 
 function refused(prop: string, type: string): never {
 	throw new RbxError(`${prop} is a ${type}, which is not written yet`);
+}
+
+/** A place's shared strings, each once, in the order first met, keyed by its MD5. */
+class SharedStrings {
+	readonly values: { bytes: Uint8Array; hash: Uint8Array; key: string }[] = [];
+	private index = new Map<string, number>();
+	/** Where `bytes` is in the table, adding it the first time. */
+	add(bytes: Uint8Array): number {
+		const hash = md5(bytes);
+		const key = base64(hash);
+		let at = this.index.get(key);
+		if (at === undefined) {
+			at = this.values.push({ bytes, hash, key }) - 1;
+			this.index.set(key, at);
+		}
+		return at;
+	}
+	key(bytes: Uint8Array): string {
+		return this.values[this.add(bytes)].key;
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -62,6 +84,7 @@ const TYPE_BYTE: Record<string, number> = {
 	Rect: 24,
 	Color3uint8: 26,
 	Int64: 27,
+	SharedString: 28,
 	ProtectedString: 29,
 	OptionalCFrame: 30,
 	UniqueId: 31,
@@ -149,6 +172,7 @@ function binaryValues(
 	type: string,
 	vs: readonly unknown[],
 	ref: Map<RbxInstance, number>,
+	shared: SharedStrings,
 ) {
 	const nums = vs as number[];
 	const tuples = vs as number[][];
@@ -182,6 +206,9 @@ function binaryValues(
 		case "BrickColor":
 		case "Enum":
 			w.transposed(nums.map((v) => v >>> 0));
+			return;
+		case "SharedString":
+			w.transposed(vs.map((v) => shared.add(v as Uint8Array)));
 			return;
 		case "Color3":
 		case "Vector3":
@@ -252,6 +279,7 @@ function blank(type: string): unknown {
 	switch (type) {
 		case "String":
 		case "ProtectedString":
+		case "SharedString":
 			return new Uint8Array(0);
 		case "Bool":
 			return false;
@@ -330,31 +358,45 @@ export function writeBinaryPlace(doc: RbxDocument): Uint8Array {
 	meta.string("true");
 	chunks.push(sealChunk("META", meta.done()));
 
+	const shared = new SharedStrings();
+	const insts: Uint8Array[] = [];
 	const props: Uint8Array[] = [];
-	classes.forEach(([className, insts], id) => {
-		const service = insts.some((inst) => inst.service);
+	classes.forEach(([className, members], id) => {
+		const service = members.some((inst) => inst.service);
 		const w = new Bytes();
 		w.u32(id);
 		w.string(className);
 		w.u8(service ? 1 : 0);
-		w.u32(insts.length);
-		w.referents(insts.map((inst) => ref.get(inst)!));
-		if (service) for (const _ of insts) w.u8(1);
-		chunks.push(sealChunk("INST", w.done()));
+		w.u32(members.length);
+		w.referents(members.map((inst) => ref.get(inst)!));
+		if (service) for (const _ of members) w.u8(1);
+		insts.push(sealChunk("INST", w.done()));
 
-		for (const [name, type] of propsOf(insts)) {
+		for (const [name, type] of propsOf(members)) {
 			const typeByte = TYPE_BYTE[type];
 			if (typeByte === undefined) refused(`${className}.${name}`, type);
 			const p = new Bytes();
 			p.u32(id);
 			p.string(name);
 			p.u8(typeByte);
-			const values = insts.map((inst) => inst.props.get(name)?.value ?? blank(type));
-			binaryValues(p, `${className}.${name}`, type, values, ref);
+			const values = members.map((inst) => inst.props.get(name)?.value ?? blank(type));
+			binaryValues(p, `${className}.${name}`, type, values, ref, shared);
 			props.push(sealChunk("PROP", p.done()));
 		}
 	});
-	chunks.push(...props);
+	// The table goes before the instances, as Studio writes it, once every
+	// property that points into it has been met.
+	if (shared.values.length) {
+		const t = new Bytes();
+		t.u32(0);
+		t.u32(shared.values.length);
+		for (const v of shared.values) {
+			t.bytes(v.hash);
+			t.string(v.bytes);
+		}
+		chunks.push(sealChunk("SSTR", t.done()));
+	}
+	chunks.push(...insts, ...props);
 
 	const prnt = new Bytes();
 	prnt.u8(0);
@@ -446,6 +488,7 @@ function xmlProperty(
 	name: string,
 	prop: Prop,
 	referent: (inst: RbxInstance) => string | undefined,
+	shared: SharedStrings,
 ): string {
 	const n = escapeXml(name);
 	const v = prop.value;
@@ -484,6 +527,8 @@ function xmlProperty(
 		}
 		case "UniqueId":
 			return el("UniqueId", String(v));
+		case "SharedString":
+			return el("SharedString", shared.key(v as Uint8Array));
 		case "Vector2":
 			return el("Vector2", fields(["X", "Y"], tuple));
 		case "Vector3":
@@ -533,6 +578,7 @@ function referentOf(n: number): string {
 /** The document as `.rbxlx` text: Studio's legacy format, and readable in a diff. */
 export function writeXmlPlace(doc: RbxDocument): string {
 	const { ref } = order(doc);
+	const shared = new SharedStrings();
 	const referent = (inst: RbxInstance) => {
 		const n = ref.get(inst);
 		return n === undefined ? undefined : referentOf(n);
@@ -541,7 +587,9 @@ export function writeXmlPlace(doc: RbxDocument): string {
 		const pad = "\t".repeat(depth);
 		const props = [...inst.props]
 			.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-			.map(([name, prop]) => `${pad}\t\t${xmlProperty(inst.className, name, prop, referent)}`);
+			.map(
+				([name, prop]) => `${pad}\t\t${xmlProperty(inst.className, name, prop, referent, shared)}`,
+			);
 		return [
 			`${pad}<Item class="${escapeXml(inst.className)}" referent="${referent(inst)}">`,
 			`${pad}\t<Properties>`,
@@ -551,6 +599,12 @@ export function writeXmlPlace(doc: RbxDocument): string {
 			`${pad}</Item>`,
 		].join("\n");
 	};
+	const items = doc.roots.map((root) => item(root, 1)).join("\n");
+	const table = shared.values.length
+		? `\t<SharedStrings>\n${shared.values
+				.map((v) => `\t\t<SharedString md5="${v.key}">${base64(v.bytes)}</SharedString>`)
+				.join("\n")}\n\t</SharedStrings>\n`
+		: "";
 	return (
 		'<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" ' +
 		'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ' +
@@ -558,7 +612,46 @@ export function writeXmlPlace(doc: RbxDocument): string {
 		'\t<Meta name="ExplicitAutoJoints">true</Meta>\n' +
 		"\t<External>null</External>\n" +
 		"\t<External>nil</External>\n" +
-		`${doc.roots.map((root) => item(root, 1)).join("\n")}\n` +
+		`${items}\n` +
+		table +
 		"</roblox>\n"
 	);
+}
+
+/** The two formats a place can be saved in. */
+export type PlaceFormat = "rbxl" | "rbxlx";
+
+/** A place's format, by its file name. */
+export function placeFormatOf(file: string): PlaceFormat {
+	return /\.rbxlx$/i.test(file) ? "rbxlx" : "rbxl";
+}
+
+/** A place in the other format, and the kinds of property it could not carry over. */
+export interface ConvertedPlace {
+	bytes: Uint8Array;
+	/**
+	 * Property types the reader does not decode, with how many properties of
+	 * each the place held: left out of the converted file, for Studio to give
+	 * their defaults. Empty when nothing was lost.
+	 */
+	leftOut: [string, number][];
+}
+
+/** The kinds of property a conversion of these bytes would leave out. */
+export function leftOutOf(bytes: Uint8Array): [string, number][] {
+	return [...readRbx(bytes).undecoded].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+}
+
+/**
+ * The place saved as `to`. Read and written again from nothing, so everything
+ * the reader decodes goes across and nothing else does; bytes already in that
+ * format are handed back as they are.
+ */
+export function convertPlace(bytes: Uint8Array, to: PlaceFormat): ConvertedPlace {
+	const doc = readRbx(bytes);
+	if ((doc.format === "binary") === (to === "rbxl")) return { bytes, leftOut: [] };
+	return {
+		bytes: to === "rbxl" ? writeBinaryPlace(doc) : utf8.encode(writeXmlPlace(doc)),
+		leftOut: [...doc.undecoded].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
+	};
 }

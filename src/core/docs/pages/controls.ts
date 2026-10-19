@@ -55,6 +55,7 @@ export function controlsPage(): DocPage {
 									],
 									["`Ctrl` + `D`", "Duplicate the selection, at the pointer"],
 									["`Ctrl` + `Shift` + `L`", "Realign the graph on screen"],
+									["`Ctrl` + `Shift` + `E`", "Open Export"],
 									[
 										"`Delete`, `Backspace`",
 										"Delete the selection. A function takes its graph, and asks first",

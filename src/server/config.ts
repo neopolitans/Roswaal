@@ -118,7 +118,7 @@ export function parseConfig(value: unknown): RoswaalConfig {
 		throw new UserError("roswaal.json must be an object of settings.");
 	}
 	const given: Record<string, unknown> = { ...value };
-	for (const key of ["place", "rojoProject", "castsByHierarchy"]) {
+	for (const key of ["place", "rojoProject", "castsByHierarchy", "export"]) {
 		if (given[key] === null) delete given[key];
 	}
 	const config = { ...defaultConfig(), ...given } as Record<string, unknown>;
@@ -160,8 +160,24 @@ export function parseConfig(value: unknown): RoswaalConfig {
 	if (typeof config.indentWidth !== "number" || !Number.isFinite(config.indentWidth)) {
 		throw wrong("indentWidth", "a number");
 	}
+	if (config.export !== undefined) checkExport(config.export, wrong);
 	// Every key the interface names has now been checked above.
 	return config as unknown as RoswaalConfig;
+}
+
+/** `export` in roswaal.json: an object of the Export menu's choices, each optional. */
+function checkExport(value: unknown, wrong: (key: string, kind: string) => UserError): void {
+	if (typeof value !== "object" || value === null || Array.isArray(value))
+		throw wrong("export", "an object of the Export menu's choices");
+	const given = value as Record<string, unknown>;
+	const one = (key: string, allowed: readonly unknown[], kind: string) => {
+		if (given[key] !== undefined && !allowed.includes(given[key]))
+			throw wrong(`export.${key}`, kind);
+	};
+	one("shape", ["zip", "place"], '"zip" or "place"');
+	one("modify", [true, false], "true or false");
+	one("format", ["rbxl", "rbxlx"], '"rbxl" or "rbxlx"');
+	one("compileFirst", [true, false], "true or false");
 }
 
 export interface InitOptions {
