@@ -2354,6 +2354,7 @@ export const MORE_MENU_PHONE: ToolbarSpec = {
 					name: "Node Design",
 					what: NODE_DESIGN_HERE,
 				},
+				{ t: "button", text: "Export…", icon: "export", ...as(EDITOR_BAR, "Export") },
 				{
 					t: "button",
 					text: "Settings",

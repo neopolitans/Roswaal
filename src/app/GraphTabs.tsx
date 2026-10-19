@@ -210,9 +210,11 @@ export function GraphTabs({
 				);
 			})}
 			{/* The end of the row is a drop target too, and has to be wide enough
-			    to hit when the row is full. It also holds the list. */}
-			<div className={cx("tab-rest", drag && drag.before === null && "drop-before")}>
-				{documents.length > 1 && (
+			    to hit when the row is full. It also holds the list. With one tab
+			    there is nothing to reorder and no list, so there is no end: it
+			    left a blank after the tab where the list button would be. */}
+			{documents.length > 1 && (
+				<div className={cx("tab-rest", drag && drag.before === null && "drop-before")}>
 					<TabList
 						documents={documents}
 						functionTabs={functionTabs}
@@ -223,8 +225,8 @@ export function GraphTabs({
 							onActivate(key);
 						}}
 					/>
-				)}
-			</div>
+				</div>
+			)}
 		</div>
 	);
 }

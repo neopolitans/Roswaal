@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.192.1",
+		date: "2026-10-19",
+		headline:
+			"A file dragged out of the project tree drops on Modules and on the canvas, and one tab has no blank after it.",
+		affects: ["editor"],
+		fixed: [
+			"**Dragging out of the project tree.** A graph or a Luau file dropped on the Modules heading or on the canvas is taken, where the browser showed a red circle and refused it. Moving files between folders works as before.",
+			"**One tab.** The tab row ends at its only tab, without the blank where the list button sits once there are two.",
+		],
+	},
+	{
 		version: "0.192.0",
 		date: "2026-10-19",
 		headline: "Export is a button in the top bar, and saves the place as .rbxl or Legacy .rbxlx.",

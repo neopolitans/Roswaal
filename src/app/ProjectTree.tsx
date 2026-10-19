@@ -267,7 +267,11 @@ export const ProjectTree = memo(function ProjectTree({
 		// gesture implies; dragging a selected one carries the whole selection.
 		const payload = selected.has(entry.path) ? [...selected] : [entry.path];
 		e.dataTransfer.setData("application/x-roswaal", JSON.stringify(payload));
-		e.dataTransfer.effectAllowed = "move";
+		// A move within the tree, and a copy anywhere else: the canvas and the
+		// Modules heading take the file without moving it. A browser refuses a
+		// drop whose effect the drag does not allow, so "move" alone was a red
+		// circle over both.
+		e.dataTransfer.effectAllowed = "copyMove";
 	}
 
 	function onDrop(e: DragEvent, dir: string) {
