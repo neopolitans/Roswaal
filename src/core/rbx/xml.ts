@@ -183,6 +183,14 @@ function readValue(
 			return ["ProtectedString", utf8.encode(t)];
 		case "BinaryString":
 			return ["String", base64(t)];
+		case "Content": {
+			// An asset link: `<url>` holding it, or `<null>` for none. Kept as
+			// the text binary places store the same property as.
+			const url = el.children.find((c) => c.name === "url");
+			if (url) return ["String", utf8.encode(url.text.trim())];
+			if (el.children.some((c) => c.name === "null")) return ["String", new Uint8Array(0)];
+			return undefined;
+		}
 		case "bool":
 			return ["Bool", t.trim() === "true"];
 		case "int":

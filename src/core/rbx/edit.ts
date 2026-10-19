@@ -454,10 +454,16 @@ function writeXml(
 	const props = item?.children.find((c) => c.name === "Properties");
 	const el = props?.children.find((c) => c.attrs.name === stored);
 	if (!el) throw new RbxError(`the file stores no ${stored} for this instance`);
-	if (el.name !== ELEMENT[type]) throw new RbxError(`${stored} is not stored as a ${type}`);
+	// An asset link is a String to the reader, kept in a Content element.
+	const link = type === "String" && el.name === "Content";
+	if (el.name !== ELEMENT[type] && !link)
+		throw new RbxError(`${stored} is not stored as a ${type}`);
 
 	const splices: { start: number; end: number; text: string }[] = [];
-	if (type === "Color3") {
+	if (link) {
+		const url = new TextDecoder().decode(value as Uint8Array);
+		splices.push(content(source, el, url ? `<url>${escapeText(url)}</url>` : "<null></null>"));
+	} else if (type === "Color3") {
 		const rgb = (value as number[]).map(String);
 		const parts = ["R", "G", "B"].map((n) => el.children.find((c) => c.name === n));
 		if (parts.every(Boolean))

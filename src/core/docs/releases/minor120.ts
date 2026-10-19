@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.191.1",
+		date: "2026-10-19",
+		headline: "Asset links read and write as Studio keeps them in an .rbxlx place.",
+		affects: ["editor"],
+		fixed: [
+			"**Asset links in an .rbxlx place.** Textures, decals and skyboxes are written in the form Studio reads, where the place as .rbxlx opened without its grid, spawn pad or sky. An .rbxlx place's asset links are now read too, so Properties shows them and changes them.",
+		],
+	},
+	{
 		version: "0.191.0",
 		date: "2026-10-19",
 		headline: "A new project's place is the one Studio starts a new experience with.",

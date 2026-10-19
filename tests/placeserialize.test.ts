@@ -120,6 +120,34 @@ describe("writing a place from nothing", () => {
 		expectSame([...walk(doc.roots)], [...walk(read.roots)]);
 	});
 
+	it("writes an asset link as XML's Content element, which Studio reads, and reads it back", () => {
+		const decal = inst("Decal", "Decal", {
+			Texture: { type: "String", value: utf8.encode("rbxasset://textures/SpawnLocation.png") },
+		});
+		const sky = inst("Sky", "Sky", { SkyboxUp: { type: "String", value: new Uint8Array(0) } });
+		const roots = [inst("Workspace", "Workspace", {}, [decal, sky], true)];
+		const xml = writeXmlPlace({
+			format: "xml",
+			roots,
+			instances: [...walk(roots)],
+			undecoded: new Map(),
+		});
+		expect(xml).toContain(
+			'<Content name="Texture"><url>rbxasset://textures/SpawnLocation.png</url></Content>',
+		);
+		expect(xml).toContain('<Content name="SkyboxUp"><null></null></Content>');
+		const read = readRbx(utf8.encode(xml));
+		expect(read.undecoded.size).toBe(0);
+		const texture = read.instances.find((i) => i.name === "Decal")!.props.get("Texture")!;
+		expect(new TextDecoder().decode(texture.value as Uint8Array)).toBe(
+			"rbxasset://textures/SpawnLocation.png",
+		);
+		expect(
+			(read.instances.find((i) => i.name === "Sky")!.props.get("SkyboxUp")!.value as Uint8Array)
+				.length,
+		).toBe(0);
+	});
+
 	it("is the same file for the same document", () => {
 		expect(writeBinaryPlace(documentOfEveryType())).toEqual(
 			writeBinaryPlace(documentOfEveryType()),

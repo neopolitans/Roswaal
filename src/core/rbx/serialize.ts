@@ -16,6 +16,7 @@
  * that order, so the same document is the same file every time.
  */
 
+import { findProperty } from "../robloxEngine.js";
 import { cdata, putU32, sealChunk, zigzag } from "./chunks.js";
 import {
 	type CFrameValue,
@@ -441,6 +442,7 @@ function cframeXml(v: CFrameValue): string {
 }
 
 function xmlProperty(
+	className: string,
 	name: string,
 	prop: Prop,
 	referent: (inst: RbxInstance) => string | undefined,
@@ -452,6 +454,10 @@ function xmlProperty(
 	switch (prop.type) {
 		case "String": {
 			const text = asText(v as Uint8Array);
+			// An asset link is a Content element in XML; Studio leaves one
+			// written as a string empty.
+			if (text !== undefined && findProperty(className, name)?.type === "ContentId")
+				return el("Content", text ? `<url>${escapeXml(text)}</url>` : "<null></null>");
 			return text === undefined || BINARY_STRINGS.has(name)
 				? el("BinaryString", base64(v as Uint8Array))
 				: el("string", escapeXml(text));
@@ -535,7 +541,7 @@ export function writeXmlPlace(doc: RbxDocument): string {
 		const pad = "\t".repeat(depth);
 		const props = [...inst.props]
 			.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-			.map(([name, prop]) => `${pad}\t\t${xmlProperty(name, prop, referent)}`);
+			.map(([name, prop]) => `${pad}\t\t${xmlProperty(inst.className, name, prop, referent)}`);
 		return [
 			`${pad}<Item class="${escapeXml(inst.className)}" referent="${referent(inst)}">`,
 			`${pad}\t<Properties>`,

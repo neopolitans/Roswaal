@@ -204,6 +204,12 @@ const XML_PLACE = `<roblox version="4">
 			<string name="Name">Lighting</string>
 		</Properties>
 	</Item>
+	<Item class="Sky" referent="RBX4">
+		<Properties>
+			<string name="Name">Sky</string>
+			<Content name="SkyboxUp"><url>rbxassetid://1</url></Content>
+		</Properties>
+	</Item>
 	<Item class="StringValue" referent="RBX3">
 		<Properties>
 			<string name="Name">Motto</string>
@@ -227,6 +233,12 @@ describe("writing one value into an XML place", () => {
 		expect(text(packed.out)).toContain(`>${(0xffff0010 >>> 0).toString()}</Color3uint8>`);
 		const ambient = change(bytes, "Lighting", "Ambient", [255, 0, 51]);
 		expect(text(ambient.out)).toContain("<R>1</R>\n\t\t\t\t<G>0</G>\n\t\t\t\t<B>0.2</B>");
+	});
+
+	it("changes an asset link inside its Content element", () => {
+		const { out, doc } = change(bytes, "Sky", "SkyboxUp", "rbxassetid://2");
+		expect(text(out)).toContain('<Content name="SkyboxUp"><url>rbxassetid://2</url></Content>');
+		expect(stringProp(named(doc, "Sky"), "SkyboxUp")).toBe("rbxassetid://2");
 	});
 
 	it("escapes text, and opens an element written as one tag", () => {

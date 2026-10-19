@@ -9,7 +9,7 @@
  */
 
 import { ownTable } from "../ownTable.js";
-import { ENGINE, type EngineProperty } from "../robloxEngine.js";
+import { ENGINE, type EngineProperty, findProperty } from "../robloxEngine.js";
 import { type Prop, type RbxDocument, type RbxInstance, SCRIPT_CLASSES, text } from "./dom.js";
 import { editFor, type PropertyEdit } from "./edit.js";
 
@@ -214,15 +214,6 @@ const INTERNAL = new Set([
 	"DefinesCapabilities",
 ]);
 
-function engineProperty(className: string, name: string): EngineProperty | undefined {
-	const lower = name.toLowerCase();
-	for (let cls: string | undefined = className; cls; cls = ENGINE.classes[cls]?.superclass) {
-		const found = ENGINE.classes[cls]?.properties.find((p) => p.name.toLowerCase() === lower);
-		if (found) return found;
-	}
-	return undefined;
-}
-
 const num = (n: number) => {
 	if (!Number.isFinite(n)) return String(n);
 	const r = Math.round(n * 1000) / 1000;
@@ -346,7 +337,7 @@ function formatValue(
 export function propertyEdit(inst: RbxInstance, stored: string): PropertyEdit | undefined {
 	const prop = inst.props.get(stored);
 	if (!prop || INTERNAL.has(stored)) return undefined;
-	return editFor(stored, prop, engineProperty(inst.className, RENAMED[stored] ?? stored));
+	return editFor(stored, prop, findProperty(inst.className, RENAMED[stored] ?? stored));
 }
 
 /** Everything the browser shows about one instance. */
@@ -358,7 +349,7 @@ export function describeInstance(
 	const properties: PlaceProperty[] = [];
 	for (const [stored, prop] of inst.props) {
 		if (INTERNAL.has(stored)) continue;
-		const engine = engineProperty(inst.className, RENAMED[stored] ?? stored);
+		const engine = findProperty(inst.className, RENAMED[stored] ?? stored);
 		const name = engine?.name ?? RENAMED[stored] ?? stored;
 		const edit = editFor(stored, prop, engine);
 		properties.push({

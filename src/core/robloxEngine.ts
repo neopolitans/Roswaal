@@ -105,6 +105,19 @@ export function valueProperties(datatype: string): EngineProperty[] {
 	return found.properties.filter((p) => !constants.has(p.name));
 }
 
+/**
+ * A class's property by name, its own or one it inherits, ignoring case: a
+ * place file stores some under another case than the documentation names.
+ */
+export function findProperty(className: string, name: string): EngineProperty | undefined {
+	const lower = name.toLowerCase();
+	for (let cls: string | undefined = className; cls; cls = ENGINE.classes[cls]?.superclass) {
+		const found = ENGINE.classes[cls]?.properties.find((p) => p.name.toLowerCase() === lower);
+		if (found) return found;
+	}
+	return undefined;
+}
+
 /** `(className: string, parent: Instance?)` */
 export function signatureText(params: readonly EngineParam[]): string {
 	return `(${params.map((p) => `${p.name}: ${p.type || "any"}`).join(", ")})`;

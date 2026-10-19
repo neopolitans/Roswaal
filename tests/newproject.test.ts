@@ -178,6 +178,13 @@ describe("the place a new project starts with", () => {
 				else expect(prop.value).toEqual(other.value);
 			}
 		});
+		// Asset links as Studio reads them in XML, so the grid, the pad and the sky show.
+		expect(blankPlaceXml()).toContain(
+			'<Content name="Texture"><url>rbxassetid://6372755229</url></Content>',
+		);
+		expect(blankPlaceXml()).toContain(
+			'<Content name="SkyboxUp"><url>rbxassetid://6412503613</url></Content>',
+		);
 		expect(blankPlaceBytes()).toEqual(blankPlaceBytes());
 		expect(blankPlaceXml()).toBe(blankPlaceXml());
 	});
