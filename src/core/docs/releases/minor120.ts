@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.191.0",
+		date: "2026-10-19",
+		headline: "A new project's place is the one Studio starts a new experience with.",
+		affects: ["editor", "docs"],
+		changed: [
+			"**Studio's starting place.** A new Roblox project's place is now `place.rbxl`, with a 2048-stud baseplate and its grid, the spawn pad, and Studio's sky, lighting, effects, chat and player settings. It was a plain 512-stud baseplate in `place.rbxlx`. Projects made before keep the place they have.",
+		],
+	},
+	{
 		version: "0.190.0",
 		date: "2026-10-19",
 		headline: "Properties can change values in the place file, behind a setting.",

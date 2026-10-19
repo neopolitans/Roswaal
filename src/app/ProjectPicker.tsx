@@ -427,7 +427,7 @@ export function ProjectPicker({
 										disabled={newTarget !== "roblox"}
 										onChange={(e) => setNewPlace(e.target.checked)}
 									/>
-									Include a place: <code>place.rbxlx</code>, a baseplate and a spawn
+									Include a place: <code>place.rbxl</code>, a baseplate and a spawn
 								</label>
 							</div>
 						)}

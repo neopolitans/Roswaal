@@ -11,7 +11,7 @@
  *     roswaal.json
  *     .roswaal/scripts/Game.nodemap                       -> default.project.json
  *     .roswaal/scripts/ServerScriptService/Server/Main.nodescript
- *     place.rbxlx                                         (when asked for)
+ *     place.rbxl                                          (when asked for)
  *
  * The map syncs `src/` into the places `rojo init` uses: Server into
  * ServerScriptService, Client into StarterPlayerScripts and Shared into
@@ -25,7 +25,7 @@
 
 import { serialiseScript } from "./compiler/index.js";
 import { type MapNode, type NodeMap, serialiseMap } from "./nodemap.js";
-import { blankPlaceXml } from "./rbx/blankPlace.js";
+import { blankPlaceBytes } from "./rbx/blankPlace.js";
 import {
 	defaultConfig,
 	emptyScript,
@@ -39,7 +39,7 @@ export interface NewProjectOptions {
 	/** What the project is called: the Rojo project's name, and the folder's. */
 	name: string;
 	target: Target;
-	/** Write `place.rbxlx` and point the project at it. Roblox only. */
+	/** Write `place.rbxl` and point the project at it. Roblox only. */
 	place: boolean;
 }
 
@@ -47,10 +47,12 @@ export interface NewProject {
 	config: RoswaalConfig;
 	/** Project-relative path to text, everything but `roswaal.json`. */
 	files: Record<string, string>;
+	/** Project-relative path to bytes: the place, when there is one. */
+	binaries?: Record<string, Uint8Array>;
 }
 
 /** The place's file name, at the project's root, where `findPlaceFile` looks. */
-export const NEW_PLACE_FILE = "place.rbxlx";
+export const NEW_PLACE_FILE = "place.rbxl";
 
 /**
  * Why a name will not do for a project, or null when it will.
@@ -147,8 +149,9 @@ sourcemap.json
 `;
 
 /**
- * Everything a new project is, as text. `makeId` names its graphs and map
- * nodes; pass `crypto.randomUUID` for a real project and a counter in a test.
+ * Everything a new project is: its text, and its place as bytes. `makeId`
+ * names its graphs and map nodes; pass `crypto.randomUUID` for a real project
+ * and a counter in a test.
  */
 export function newProject(options: NewProjectOptions, makeId: () => string): NewProject {
 	const problem = projectNameProblem(options.name);
@@ -178,7 +181,7 @@ export function newProject(options: NewProjectOptions, makeId: () => string): Ne
 			".gitignore": GITIGNORE,
 			[`${config.sourceDir}/Game.nodemap`]: serialiseMap(gameMap(options.name, makeId)),
 			[`${config.sourceDir}/ServerScriptService/Server/Main.nodescript`]: serialiseScript(main),
-			...(options.place ? { [NEW_PLACE_FILE]: blankPlaceXml() } : {}),
 		},
+		...(options.place ? { binaries: { [NEW_PLACE_FILE]: blankPlaceBytes() } } : {}),
 	};
 }

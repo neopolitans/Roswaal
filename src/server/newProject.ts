@@ -63,6 +63,11 @@ export async function createProject(
 		await fs.mkdir(path.dirname(abs), { recursive: true });
 		await fs.writeFile(abs, content, "utf8");
 	}
+	for (const [rel, bytes] of Object.entries(made.binaries ?? {})) {
+		const abs = safeJoin(resolved, rel);
+		await fs.mkdir(path.dirname(abs), { recursive: true });
+		await fs.writeFile(abs, bytes);
+	}
 
 	// Compiled now, so the project opens as a working one: the Rojo project
 	// and the folders it syncs, then the first graph's Luau inside them.

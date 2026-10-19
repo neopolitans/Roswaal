@@ -20,10 +20,11 @@ import { createRegistry } from "../src/core/nodes/index.js";
 import {
 	BASEPLATE,
 	BLANK_PLACE_SERVICES,
+	blankPlaceBytes,
 	blankPlaceXml,
 	SPAWN,
 } from "../src/core/rbx/blankPlace.js";
-import { readRbx } from "../src/core/rbx/index.js";
+import { readRbx, walk } from "../src/core/rbx/index.js";
 import type { NodeScript } from "../src/core/schema.js";
 import { createProject } from "../src/server/newProject.js";
 import { exportPlace } from "../src/server/place.js";
@@ -42,9 +43,10 @@ describe("a new Roblox project", () => {
 				".gitignore",
 				".roswaal/scripts/Game.nodemap",
 				".roswaal/scripts/ServerScriptService/Server/Main.nodescript",
-				NEW_PLACE_FILE,
 			].sort(),
 		);
+		expect(Object.keys(made.binaries ?? {})).toEqual([NEW_PLACE_FILE]);
+		expect(NEW_PLACE_FILE).toBe("place.rbxl");
 		expect(made.config.target).toBe("roblox");
 		expect(made.config.place).toBe(NEW_PLACE_FILE);
 		// The project file is the node map's to write, at its own output, so
@@ -78,7 +80,7 @@ describe("a new Roblox project", () => {
 
 	it("leaves the place out when asked", () => {
 		const bare = newProject({ name: "Bare", target: "roblox", place: false }, counter());
-		expect(bare.files[NEW_PLACE_FILE]).toBeUndefined();
+		expect(bare.binaries).toBeUndefined();
 		expect(bare.config.place).toBeUndefined();
 	});
 });
@@ -109,37 +111,74 @@ describe("a project's name", () => {
 });
 
 describe("the place a new project starts with", () => {
-	const doc = readRbx(new TextEncoder().encode(blankPlaceXml()));
+	const doc = readRbx(blankPlaceBytes());
+	const root = (className: string) => doc.roots.find((r) => r.className === className)!;
 
-	it("has the usual services, in Explorer's order", () => {
-		expect(doc.roots.map((root) => root.className)).toEqual([...BLANK_PLACE_SERVICES]);
+	it("is binary, with the usual services in Explorer's order and the settings Studio starts with", () => {
+		expect(doc.format).toBe("binary");
+		expect(doc.roots.map((r) => r.className)).toEqual([...BLANK_PLACE_SERVICES]);
+		expect(BLANK_PLACE_SERVICES.slice(0, 3)).toEqual(["Workspace", "Players", "Lighting"]);
 		expect(doc.undecoded.size).toBe(0);
-		const player = doc.roots.find((root) => root.className === "StarterPlayer")!;
-		expect(player.children.map((child) => child.className)).toEqual([
+		expect(root("StarterPlayer").children.map((c) => c.className)).toEqual([
 			"StarterPlayerScripts",
 			"StarterCharacterScripts",
 		]);
+		expect(root("Lighting").children.map((c) => c.name)).toEqual([
+			"Sky",
+			"SunRays",
+			"Atmosphere",
+			"Bloom",
+			"DepthOfField",
+		]);
+		expect(root("Lighting").props.get("Technology")?.value).toBe(3);
+		expect(root("Workspace").props.get("StreamingEnabled")?.value).toBe(true);
 	});
 
-	/** A 512-stud baseplate with its top at 0, and a 12-stud spawn standing on it. */
+	/** A 2048-stud baseplate with its top at 0 and Studio's grid on it, and a 12-stud spawn on that. */
 	it("has a baseplate and a spawn, where and as big as they are meant to be", () => {
-		const workspace = doc.roots.find((root) => root.className === "Workspace")!;
-		const [ground, spawn] = workspace.children;
+		const [ground, spawn] = root("Workspace").children;
 		expect(ground!.className).toBe("Part");
 		expect(ground!.name).toBe(BASEPLATE.name);
-		expect(ground!.props.get("size")?.value).toEqual([512, 16, 512]);
+		expect(ground!.props.get("size")?.value).toEqual([2048, 16, 2048]);
 		expect((ground!.props.get("CFrame")?.value as { position: number[] }).position).toEqual([
 			0, -8, 0,
 		]);
 		expect(ground!.props.get("Anchored")?.value).toBe(true);
+		expect(ground!.children.map((c) => c.className)).toEqual(["Texture"]);
 		expect(spawn!.className).toBe("SpawnLocation");
 		expect(spawn!.props.get("size")?.value).toEqual([...SPAWN.size]);
 		expect((spawn!.props.get("CFrame")?.value as { position: number[] }).position).toEqual([
 			0, 0.5, 0,
 		]);
+		expect(spawn!.children.map((c) => c.className)).toEqual(["Decal"]);
 	});
 
-	it("is written the same way every time", () => {
+	it("leaves the Camera and the Terrain for Studio to make", () => {
+		const kids = root("Workspace").children.map((c) => c.className);
+		expect(kids).not.toContain("Camera");
+		expect(kids).not.toContain("Terrain");
+	});
+
+	it("is the same place as .rbxlx, and written the same way every time", () => {
+		const xml = [...walk(readRbx(new TextEncoder().encode(blankPlaceXml())).roots)];
+		const binary = [...walk(doc.roots)];
+		expect(xml.map((i) => i.className)).toEqual(binary.map((i) => i.className));
+		xml.forEach((inst, n) => {
+			const twin = binary[n]!;
+			expect([...inst.props.keys()].sort()).toEqual([...twin.props.keys()].sort());
+			for (const [name, prop] of inst.props) {
+				const other = twin.props.get(name)!;
+				expect(prop.type).toBe(other.type);
+				if (Array.isArray(prop.value))
+					(prop.value as number[]).forEach((v, i) =>
+						expect(v).toBeCloseTo((other.value as number[])[i]!, 6),
+					);
+				else if (typeof prop.value === "number")
+					expect(Math.fround(prop.value)).toBe(Math.fround(other.value as number));
+				else expect(prop.value).toEqual(other.value);
+			}
+		});
+		expect(blankPlaceBytes()).toEqual(blankPlaceBytes());
 		expect(blankPlaceXml()).toBe(blankPlaceXml());
 	});
 });

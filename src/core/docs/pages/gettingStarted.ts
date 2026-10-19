@@ -185,7 +185,7 @@ export function gettingStartedPage(): DocPage {
 								t: "ol",
 								items: [
 									"For a new project, `roswaal new my-game` makes one in a new folder: Rojo's three " +
-										"folders, a Main graph that prints Hello world, and `place.rbxlx` with a baseplate " +
+										"folders, a Main graph that prints Hello world, and `place.rbxl` with a baseplate " +
 										"and a spawn. `--lune` makes a Lune project, and `--no-place` leaves the place out.",
 									"For a project you already have, go to it and set it up once: `roswaal init` writes " +
 										"a `roswaal.json` and a `.roswaal/` folder, and nothing else.",

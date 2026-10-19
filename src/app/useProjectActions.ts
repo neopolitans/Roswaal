@@ -736,7 +736,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 			{
 				id: "place",
 				kind: "check",
-				label: "Include a place: place.rbxlx, with a baseplate and a spawn",
+				label: "Include a place: place.rbxl, with a baseplate and a spawn",
 				value: true,
 				when: { id: "target", value: "roblox" },
 			},
