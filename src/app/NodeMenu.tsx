@@ -157,7 +157,13 @@ export function NodeMenu({
 
 	return (
 		// Escape is the search field's own, which also steps out of a category.
-		<MenuSurface at={anchor.screen} label="Add a node" escape={false} onClose={onClose}>
+		<MenuSurface
+			at={anchor.screen}
+			label="Add a node"
+			className="menu--palette"
+			escape={false}
+			onClose={onClose}
+		>
 			{anchor.from && (
 				/* The list is narrowed to what the wire can reach, and that is a
 				   surprising thing for a search box to do without saying so. It
@@ -233,7 +239,7 @@ export function NodeMenu({
 					<>
 						<div className="item" onClick={onAddComment}>
 							<span className="swatch" style={{ background: `#${COMMENT_DEFAULT_COLOR}` }} />
-							<span>Comment</span>
+							<span className="name">Comment</span>
 							<span className="hint">C</span>
 						</div>
 						{/* A comment is not a node, so a divider sets it apart from the
@@ -251,7 +257,7 @@ export function NodeMenu({
 							onClick={() => pick(item)}
 						>
 							<span className="swatch" style={{ background: item.color }} />
-							<span>{item.title}</span>
+							<span className="name">{item.title}</span>
 							{item.pure && <span className="hint">pure</span>}
 							{/* What it needs, where that is worth saying. Base Luau
 							    is the unmarked case -- badging four rows in five

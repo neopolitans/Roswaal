@@ -1382,10 +1382,21 @@ button.tb.icon-only.panel-float {
 	color: var(--fg);
 }
 
+/* As the menu's: the title gives way, and the tags stay on one line. */
+.node-picker-hit .title {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 .node-picker-hit .hint {
 	margin-left: auto;
 	font-size: var(--text-xs);
 	color: var(--fg-faint);
+	flex: none;
+	white-space: nowrap;
 	/* Same as the menu's: this row is baseline-aligned too. */
 	align-self: center;
 }
@@ -2787,6 +2798,15 @@ button.tb.primary:hover:not(:disabled) {
 	width: 280px;
 }
 
+/* The palette is wider than a menu of commands: its entries are names, and a
+   member or a service method is a long one, ‘Workspace:GetPartBoundsInRadius’,
+   whose last word is the one that tells it from the next. One width while
+   you type, so the list does not jump as it narrows. */
+.menu.menu--palette {
+	width: 360px;
+	max-width: calc(100vw - 16px);
+}
+
 /* Shown only when the palette was opened by dragging a wire. Above the search
    box, because it is the reason the list is short. */
 .menu-from {
@@ -2866,6 +2886,17 @@ button.tb.primary:hover:not(:disabled) {
 	background: none;
 }
 
+/* The name gives way, on one line, to what trails it: a member of a long
+   name, ‘mantlet.AssemblyAngularVelocity’, wrapped its badge onto two lines
+   and pushed the row past the menu's edge. */
+.menu .item .name {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 .menu .item .swatch {
 	width: 8px;
 	height: 8px;
@@ -2877,6 +2908,8 @@ button.tb.primary:hover:not(:disabled) {
 	margin-left: auto;
 	font-size: var(--text-xs);
 	color: var(--fg-faint);
+	flex: none;
+	white-space: nowrap;
 	/* Centred, like everything else that trails a row. The row aligns on the
 	   baseline, which is right for the swatch and the title and wrong for a
 	   trailing chip -- `pure` and a bordered badge beside it sat two pixels

@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.195.2",
+		date: "2026-10-19",
+		headline: "Long names fit the node menu.",
+		affects: ["editor"],
+		fixed: [
+			"**Long names in the node menu.** The menu is wider, a name still too long for it ends in an ellipsis, and its tags stay on one line beside it, where a long member pushed them onto two lines and past the menu's edge. The node picker's list does the same.",
+		],
+	},
+	{
 		version: "0.195.1",
 		date: "2026-10-19",
 		headline:
