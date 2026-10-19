@@ -116,6 +116,12 @@ class Reader {
 	string(): Uint8Array {
 		return this.bytes(this.u32());
 	}
+	u16(): number {
+		this.need(2);
+		const v = this.view.getUint16(this.o, true);
+		this.o += 2;
+		return v;
+	}
 	/** `count` transposed big-endian u32s. */
 	interleaved(count: number): number[] {
 		this.need(count * 4);
@@ -286,6 +292,77 @@ function readValues(
 			const present: boolean[] = [];
 			for (let i = 0; i < count; i++) present.push(r.u8() !== 0);
 			return ["OptionalCFrame", frames.map((f, i) => (present[i] ? f : null))];
+		}
+		case 21: {
+			// NumberSequence: a count, then time, value, envelope a keypoint.
+			const out: number[][][] = [];
+			for (let i = 0; i < count; i++) {
+				const keys: number[][] = [];
+				for (let k = r.u32(); k > 0; k--) keys.push([r.f32(), r.f32(), r.f32()]);
+				out.push(keys);
+			}
+			return ["NumberSequence", out];
+		}
+		case 22: {
+			// ColorSequence: a count, then time, red, green, blue, envelope a keypoint.
+			const out: number[][][] = [];
+			for (let i = 0; i < count; i++) {
+				const keys: number[][] = [];
+				for (let k = r.u32(); k > 0; k--) keys.push([r.f32(), r.f32(), r.f32(), r.f32(), r.f32()]);
+				out.push(keys);
+			}
+			return ["ColorSequence", out];
+		}
+		case 25: {
+			// PhysicalProperties: a flag byte, then the custom values when bit 0
+			// is set -- five floats, and a sixth when bit 1 says so.
+			const out: { flag: number; values: number[] }[] = [];
+			for (let i = 0; i < count; i++) {
+				const flag = r.u8();
+				const values: number[] = [];
+				if (flag & 1) for (let k = flag & 2 ? 6 : 5; k > 0; k--) values.push(r.f32());
+				out.push({ flag, values });
+			}
+			return ["PhysicalProperties", out];
+		}
+		case 32: {
+			// Font: the family's asset, the weight, the style, the cached face.
+			const out: { family: string; weight: number; style: number; cachedFaceId: string }[] = [];
+			for (let i = 0; i < count; i++) {
+				const family = text(r.string());
+				const weight = r.u16();
+				const style = r.u8();
+				out.push({ family, weight, style, cachedFaceId: text(r.string()) });
+			}
+			return ["Font", out];
+		}
+		case 33: {
+			// SecurityCapabilities: a 64-bit set of flags, transposed, not zigzagged.
+			const bytes = r.bytes(count * 8);
+			const out: bigint[] = [];
+			for (let i = 0; i < count; i++) {
+				let v = 0n;
+				for (let k = 0; k < 8; k++) v = (v << 8n) | BigInt(bytes[k * count + i]);
+				out.push(v);
+			}
+			return ["SecurityCapabilities", out];
+		}
+		case 34: {
+			// Content: each value's source, then the links, then the objects,
+			// then a fourth table. Read only while every value is None or a
+			// link: an object would need its referent resolved, and a fourth
+			// table is something this does not know the shape of.
+			const sources = r.ints(count);
+			const uris: string[] = [];
+			for (let k = r.u32(); k > 0; k--) uris.push(text(r.string()));
+			if (r.u32() !== 0 || r.u32() !== 0) return undefined;
+			if (sources.some((s) => s !== 0 && s !== 1)) return undefined;
+			let next = 0;
+			const out = sources.map((source) =>
+				source === 1 ? { source, uri: uris[next++] ?? "" } : { source },
+			);
+			if (next !== uris.length) return undefined;
+			return ["Content", out];
 		}
 		case 31: {
 			// 16 bytes a value, transposed like everything else. Kept as hex:

@@ -91,6 +91,8 @@ describe("the binary reader", () => {
 						className: "ParticleEmitter",
 						name: "Sparks",
 						props: {
+							// Faces: one byte of flags, a type this reader leaves alone.
+							Faces: { type: 9, value: Uint8Array.of(63) },
 							Size: {
 								type: 21,
 								value: [
@@ -103,9 +105,13 @@ describe("the binary reader", () => {
 				]),
 			]),
 		);
-		expect(doc.undecoded.get("NumberSequence")).toBe(1);
+		expect(doc.undecoded.get("Faces")).toBe(1);
 		const sparks = doc.instances.find((i) => i.name === "Sparks")!;
-		expect(sparks.props.has("Size")).toBe(false);
+		expect(sparks.props.has("Faces")).toBe(false);
+		expect(sparks.props.get("Size")?.value).toEqual([
+			[0, 1, 0],
+			[1, 2, 0],
+		]);
 		expect(sparks.className).toBe("ParticleEmitter");
 	});
 
@@ -155,6 +161,7 @@ const XML = `<?xml version="1.0" encoding="utf-8"?>
 			<Vector3 name="Gravity2"><X>0</X><Y>-196.2</Y><Z>0</Z></Vector3>
 			<SharedString name="Blob">abc</SharedString>
 			<Font name="SomeFont"><Family><url>rbxasset://x</url></Family></Font>
+			<Faces name="SomeFaces"><faces>63</faces></Faces>
 		</Properties>
 	</Item>
 	<SharedStrings>
@@ -189,7 +196,13 @@ describe("the XML reader", () => {
 		const ws = doc.roots[1];
 		expect(ws.props.get("Gravity2")?.value).toEqual([0, -196.2, 0]);
 		expect(text(ws.props.get("Blob")?.value)).toBe("hello");
-		expect(doc.undecoded.get("Font")).toBe(1);
+		expect(ws.props.get("SomeFont")?.value).toEqual({
+			family: "rbxasset://x",
+			weight: 400,
+			style: 0,
+			cachedFaceId: "",
+		});
+		expect(doc.undecoded.get("Faces")).toBe(1);
 	});
 
 	it("says where malformed XML goes wrong", () => {

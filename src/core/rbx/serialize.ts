@@ -21,6 +21,9 @@ import { findProperty } from "../robloxEngine.js";
 import { cdata, putU32, sealChunk, zigzag } from "./chunks.js";
 import {
 	type CFrameValue,
+	type ContentValue,
+	type FontValue,
+	type PhysicalValue,
 	type Prop,
 	type RbxDocument,
 	RbxError,
@@ -84,8 +87,14 @@ const TYPE_BYTE: Record<string, number> = {
 	Rect: 24,
 	Color3uint8: 26,
 	Int64: 27,
+	NumberSequence: 21,
+	ColorSequence: 22,
+	PhysicalProperties: 25,
 	SharedString: 28,
 	ProtectedString: 29,
+	Font: 32,
+	SecurityCapabilities: 33,
+	Content: 34,
 	OptionalCFrame: 30,
 	UniqueId: 31,
 };
@@ -210,6 +219,51 @@ function binaryValues(
 		case "SharedString":
 			w.transposed(vs.map((v) => shared.add(v as Uint8Array)));
 			return;
+		case "NumberSequence":
+		case "ColorSequence":
+			for (const keys of vs as number[][][]) {
+				w.u32(keys.length);
+				for (const key of keys) for (const c of key) w.f32(c);
+			}
+			return;
+		case "PhysicalProperties":
+			for (const v of vs as PhysicalValue[]) {
+				w.u8(v.flag);
+				if (v.flag & 1) for (const c of v.values) w.f32(c);
+			}
+			return;
+		case "Font":
+			for (const v of vs as FontValue[]) {
+				w.string(v.family);
+				w.u8(v.weight & 255);
+				w.u8(v.weight >>> 8);
+				w.u8(v.style);
+				w.string(v.cachedFaceId);
+			}
+			return;
+		case "SecurityCapabilities": {
+			const n = vs.length;
+			const out = new Uint8Array(n * 8);
+			vs.forEach((v, i) => {
+				let z = BigInt.asUintN(64, BigInt(v as bigint));
+				for (let k = 7; k >= 0; k--) {
+					out[k * n + i] = Number(z & 255n);
+					z >>= 8n;
+				}
+			});
+			w.bytes(out);
+			return;
+		}
+		case "Content": {
+			const values = vs as ContentValue[];
+			w.ints(values.map((v) => v.source));
+			const uris = values.filter((v) => v.source === 1);
+			w.u32(uris.length);
+			for (const v of uris) w.string(v.uri ?? "");
+			w.u32(0);
+			w.u32(0);
+			return;
+		}
 		case "Color3":
 		case "Vector3":
 			for (let k = 0; k < 3; k++) w.floats(tuples.map((v) => v[k]));
@@ -302,6 +356,29 @@ function blank(type: string): unknown {
 		case "Ref":
 		case "OptionalCFrame":
 			return null;
+		case "NumberSequence":
+			return [
+				[0, 0, 0],
+				[1, 0, 0],
+			];
+		case "ColorSequence":
+			return [
+				[0, 1, 1, 1, 0],
+				[1, 1, 1, 1, 0],
+			];
+		case "PhysicalProperties":
+			return { flag: 0, values: [] } satisfies PhysicalValue;
+		case "Font":
+			return {
+				family: "rbxasset://fonts/families/SourceSansPro.json",
+				weight: 400,
+				style: 0,
+				cachedFaceId: "",
+			} satisfies FontValue;
+		case "SecurityCapabilities":
+			return 0n;
+		case "Content":
+			return { source: 0 } satisfies ContentValue;
 		case "UniqueId":
 			return "0".repeat(32);
 		default:
@@ -529,6 +606,45 @@ function xmlProperty(
 			return el("UniqueId", String(v));
 		case "SharedString":
 			return el("SharedString", shared.key(v as Uint8Array));
+		case "NumberSequence":
+		case "ColorSequence":
+			return el(prop.type, `${(v as number[][]).flat().map(float32Text).join(" ")} `);
+		case "PhysicalProperties": {
+			const p = v as PhysicalValue;
+			if (!(p.flag & 1)) return el("PhysicalProperties", "<CustomPhysics>false</CustomPhysics>");
+			const names = [
+				"Density",
+				"Friction",
+				"Elasticity",
+				"FrictionWeight",
+				"ElasticityWeight",
+				"AcousticAbsorption",
+			];
+			return el(
+				"PhysicalProperties",
+				`<CustomPhysics>true</CustomPhysics>${fields(names.slice(0, p.values.length), p.values)}`,
+			);
+		}
+		case "Font": {
+			const f = v as FontValue;
+			return el(
+				"Font",
+				`<Family><url>${escapeXml(f.family)}</url></Family><Weight>${f.weight}</Weight>` +
+					`<Style>${f.style === 1 ? "Italic" : "Normal"}</Style>` +
+					(f.cachedFaceId
+						? `<CachedFaceId><url>${escapeXml(f.cachedFaceId)}</url></CachedFaceId>`
+						: ""),
+			);
+		}
+		case "SecurityCapabilities":
+			return el("SecurityCapabilities", String(v));
+		case "Content": {
+			const c = v as ContentValue;
+			return el(
+				"Content",
+				c.source === 1 ? `<uri>${escapeXml(c.uri ?? "")}</uri>` : "<null></null>",
+			);
+		}
 		case "Vector2":
 			return el("Vector2", fields(["X", "Y"], tuple));
 		case "Vector3":

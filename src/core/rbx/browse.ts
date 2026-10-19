@@ -10,8 +10,31 @@
 
 import { ownTable } from "../ownTable.js";
 import { ENGINE, type EngineProperty, findProperty } from "../robloxEngine.js";
-import { type Prop, type RbxDocument, type RbxInstance, SCRIPT_CLASSES, text } from "./dom.js";
+import {
+	type ContentValue,
+	type FontValue,
+	type PhysicalValue,
+	type Prop,
+	type RbxDocument,
+	type RbxInstance,
+	SCRIPT_CLASSES,
+	text,
+} from "./dom.js";
+
 import { editFor, orientationOf, type PropertyEdit } from "./edit.js";
+
+/** Enum.FontWeight's names, by value. */
+const FONT_WEIGHTS: Record<number, string> = {
+	100: "Thin",
+	200: "Extra Light",
+	300: "Light",
+	400: "Regular",
+	500: "Medium",
+	600: "Semi Bold",
+	700: "Bold",
+	800: "Extra Bold",
+	900: "Heavy",
+};
 
 /**
  * The tree, depth first: each node is `[class, name, parent, flags]`, the
@@ -315,6 +338,42 @@ function formatValue(
 		case "UDim": {
 			const [s, o] = prop.value as number[];
 			return { value: `${num(s)}, ${o}` };
+		}
+		case "NumberSequence": {
+			const keys = prop.value as number[][];
+			return {
+				value: `${keys.length} keypoint${keys.length === 1 ? "" : "s"}, ${keys.map((k) => num(k[1])).join(" → ")}`,
+			};
+		}
+		case "ColorSequence": {
+			const keys = prop.value as number[][];
+			const first = keys[0] ?? [0, 1, 1, 1];
+			return {
+				value: `${keys.length} keypoint${keys.length === 1 ? "" : "s"}`,
+				color: hex([first[1], first[2], first[3]].map((c) => c * 255)),
+			};
+		}
+		case "PhysicalProperties": {
+			const p = prop.value as PhysicalValue;
+			if (!(p.flag & 1)) return { value: "Default" };
+			const [density, friction, elasticity] = p.values;
+			return {
+				value: `Density ${num(density)}, Friction ${num(friction)}, Elasticity ${num(elasticity)}`,
+			};
+		}
+		case "Font": {
+			const f = prop.value as FontValue;
+			const family = (f.family.split("/").pop() ?? f.family)
+				.replace(/\.json$/, "")
+				.replace(/([a-z])([A-Z])/g, "$1 $2");
+			const weight = FONT_WEIGHTS[f.weight] ?? String(f.weight);
+			return { value: `${family}, ${weight}${f.style === 1 ? ", Italic" : ""}` };
+		}
+		case "SecurityCapabilities":
+			return { value: String(prop.value) };
+		case "Content": {
+			const c = prop.value as ContentValue;
+			return { value: c.source === 1 ? (c.uri ?? "") : "None" };
 		}
 		case "UDim2": {
 			const [sx, ox, sy, oy] = prop.value as number[];

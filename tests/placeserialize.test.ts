@@ -92,9 +92,10 @@ function expectSame(a: RbxInstance[], b: RbxInstance[]) {
 			} else if (prop.type === "Float32") {
 				expect(Math.fround(got.value as number), name).toBe(Math.fround(prop.value as number));
 			} else if (Array.isArray(prop.value)) {
-				(prop.value as number[]).forEach((v, i) =>
-					expect((got.value as number[])[i], name).toBeCloseTo(v, 5),
-				);
+				// Flat, so a sequence's keypoints compare as their numbers.
+				const flat = (x: unknown) => (x as unknown[]).flat(2) as number[];
+				expect(flat(got.value).length, name).toBe(flat(prop.value).length);
+				flat(prop.value).forEach((v, i) => expect(flat(got.value)[i], name).toBeCloseTo(v, 5));
 			} else {
 				expect(got.value, name).toEqual(prop.value);
 			}
@@ -210,11 +211,83 @@ describe("converting a place", () => {
 
 	it("reports the kinds of property it could not carry", () => {
 		const xml = `<roblox version="4"><Item class="Part" referent="RBX1"><Properties>
-			<string name="Name">P</string><PhysicalProperties name="CustomPhysicalProperties"><CustomPhysics>false</CustomPhysics></PhysicalProperties>
-			<Font name="FontFace"><Family><url>rbxasset://fonts/x.json</url></Family></Font>
+			<string name="Name">P</string><Faces name="ResizeableFaces"><faces>63</faces></Faces>
+			<Axes name="Axes"><axes>7</axes></Axes>
 		</Properties></Item></roblox>`;
 		const converted = convertPlace(utf8.encode(xml), "rbxl");
-		expect(converted.leftOut.map(([type]) => type).sort()).toEqual(["Font", "PhysicalProperties"]);
+		expect(converted.leftOut.map(([type]) => type).sort()).toEqual(["Axes", "Faces"]);
 		expect(readRbx(converted.bytes).instances[0]!.name).toBe("P");
+	});
+
+	it("carries sequences, physical properties, fonts, capabilities and content both ways", () => {
+		const roots = [
+			inst(
+				"Workspace",
+				"Workspace",
+				{},
+				[
+					inst("Part", "Heavy", {
+						CustomPhysicalProperties: {
+							type: "PhysicalProperties",
+							value: { flag: 1, values: [2, 0.5, 0.25, 1, 1] },
+						},
+						Capabilities: { type: "SecurityCapabilities", value: 5n },
+					}),
+					inst("Part", "Plain", {
+						CustomPhysicalProperties: {
+							type: "PhysicalProperties",
+							value: { flag: 2, values: [] },
+						},
+						Capabilities: { type: "SecurityCapabilities", value: 0n },
+					}),
+					inst("ParticleEmitter", "Sparks", {
+						Transparency: {
+							type: "NumberSequence",
+							value: [
+								[0, 0, 0],
+								[0.5, 0.25, 0.1],
+								[1, 1, 0],
+							],
+						},
+						Color: {
+							type: "ColorSequence",
+							value: [
+								[0, 1, 0, 0, 0],
+								[1, 0, 0, 1, 0],
+							],
+						},
+					}),
+					inst("TextLabel", "Label", {
+						FontFace: {
+							type: "Font",
+							value: {
+								family: "rbxasset://fonts/families/BuilderSans.json",
+								weight: 700,
+								style: 1,
+								cachedFaceId: "rbxasset://fonts/BuilderSans-Bold.otf",
+							},
+						},
+					}),
+					inst("Decal", "Mask", {
+						EmissiveMaskContent: { type: "Content", value: { source: 1, uri: "rbxassetid://123" } },
+					}),
+					inst("Decal", "Blank", {
+						EmissiveMaskContent: { type: "Content", value: { source: 0 } },
+					}),
+				],
+				true,
+			),
+		];
+		const doc = {
+			format: "binary" as const,
+			roots,
+			instances: [...walk(roots)],
+			undecoded: new Map(),
+		};
+		for (const bytes of [writeBinaryPlace(doc), utf8.encode(writeXmlPlace(doc))]) {
+			const read = readRbx(bytes);
+			expect(read.undecoded.size).toBe(0);
+			expectSame([...walk(doc.roots)], [...walk(read.roots)]);
+		}
 	});
 });

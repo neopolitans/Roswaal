@@ -16041,7 +16041,9 @@ select:not(.literal):not([multiple]) {
 
 /* What the centre shows when it is not a canvas -- a node map, a source file,
    the aliases -- is a sheet on the canvas: below the top clusters, clear of the
-   cards either side and of the status pill. */
+   cards either side and of Script analysis at the foot, by its measured height
+   (--pill-h), folded or open. Sized by the grid, not `height: 100%`, which
+   with the top margin ran the sheet off the bottom and under the card. */
 .workspace {
 	--left-w: 0px;
 	--right-w: 0px;
@@ -16051,7 +16053,8 @@ select:not(.literal):not([multiple]) {
 .centre-body > .source,
 .centre-body > .alias-doc {
 	margin: var(--chrome-top) calc(var(--edge) * 2 + var(--right-w))
-		calc(var(--hit) + var(--edge) * 3) calc(var(--edge) * 2 + var(--left-w));
+		calc(var(--pill-h, var(--hit)) + var(--edge) * 2) calc(var(--edge) * 2 + var(--left-w));
+	height: auto;
 	min-width: 0;
 	min-height: 0;
 	background: var(--bg-panel);

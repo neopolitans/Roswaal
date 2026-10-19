@@ -255,6 +255,11 @@ function writeValues(w: Writer, type: number, values: unknown[]): void {
 			return;
 		}
 		default:
+			// Bytes as they are, for a type the reader is not meant to know.
+			if (values.every((v) => v instanceof Uint8Array)) {
+				for (const v of values) w.bytes(v as Uint8Array);
+				return;
+			}
 			throw new Error(`the fixture writer does not write type ${type}`);
 	}
 }

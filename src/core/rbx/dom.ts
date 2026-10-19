@@ -33,7 +33,50 @@ export type PropType =
 	| "UDim"
 	| "UDim2"
 	| "NumberRange"
-	| "Rect";
+	| "Rect"
+	| "NumberSequence"
+	| "ColorSequence"
+	| "PhysicalProperties"
+	| "Font"
+	| "SecurityCapabilities"
+	| "Content";
+
+/** A NumberSequence's keypoints: time, value, envelope. */
+export type NumberKeypoint = [number, number, number];
+/** A ColorSequence's keypoints: time, then red, green and blue from 0 to 1, then the envelope the file keeps. */
+export type ColorKeypoint = [number, number, number, number, number];
+
+/**
+ * PhysicalProperties as the file keeps them: its flag byte -- bit 0 set when
+ * they are custom -- and, when they are, the floats after it: density,
+ * friction, elasticity, friction weight, elasticity weight, and an acoustic
+ * absorption where the flag's bit 1 says one follows.
+ */
+export interface PhysicalValue {
+	flag: number;
+	values: number[];
+}
+
+/** A Font: its family's asset, weight and style, and the face Studio last resolved it to. */
+export interface FontValue {
+	family: string;
+	/** 100 to 900, as Enum.FontWeight's values. */
+	weight: number;
+	/** Enum.FontStyle's value: 0 Normal, 1 Italic. */
+	style: number;
+	cachedFaceId: string;
+}
+
+/**
+ * A Content value: nothing, an asset link, or an instance. `source` is
+ * Enum.ContentSourceType's value: 0 None, 1 Uri, 2 Object.
+ */
+export interface ContentValue {
+	source: number;
+	uri?: string;
+	/** For an Object: the instance, or null where it is not in the file. */
+	object?: RbxInstance | null;
+}
 
 export interface CFrameValue {
 	position: [number, number, number];
@@ -45,8 +88,10 @@ export interface Prop {
 	type: PropType;
 	/**
 	 * By type: bytes for the string kinds, a boolean, a number (a bigint for
-	 * Int64), an array of numbers for the vector kinds, a `CFrameValue`, an
-	 * instance or null for a `Ref`, and a hex string for a `UniqueId`.
+	 * Int64 and SecurityCapabilities), an array of numbers for the vector
+	 * kinds, a `CFrameValue`, an instance or null for a `Ref`, a hex string
+	 * for a `UniqueId`, keypoints for the sequences, and a `PhysicalValue`,
+	 * `FontValue` or `ContentValue`.
 	 */
 	value: unknown;
 }

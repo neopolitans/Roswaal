@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.194.0",
+		date: "2026-10-19",
+		headline:
+			"Fonts, physics, gradients, sequences and Content are read and written, and a code view stops above Script analysis.",
+		affects: ["editor"],
+		added: [
+			"**Every kind of property a place keeps.** Fonts, custom physics, ColorSequences and NumberSequences, Capabilities and the newer Content type are read from a place and written back, in .rbxl and .rbxlx. Properties shows them, and a place saved as Legacy .rbxlx or back keeps them; only a Terrain property of a type Roswaal does not know yet is left out.",
+		],
+		fixed: [
+			"**A code view clear of Script analysis.** A Luau file, a node map and the aliases end above the card at the foot, folded or open, where the view ran under it and off the bottom of the window.",
+		],
+	},
+	{
 		version: "0.193.0",
 		date: "2026-10-19",
 		headline: "Properties changes vectors, sizes, UDim2s and CFrames.",

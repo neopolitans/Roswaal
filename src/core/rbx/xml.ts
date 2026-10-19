@@ -189,7 +189,18 @@ function readValue(
 			// the text binary places store the same property as -- for a
 			// ContentId only: newer Content properties are their own type in
 			// binary, and a string there would be the wrong one.
-			if (findProperty(className, el.attrs.name ?? "")?.type !== "ContentId") return undefined;
+			const declared = findProperty(className, el.attrs.name ?? "")?.type;
+			// A property newer than the catalogue goes by what it holds: a
+			// `<uri>` or `<null>` is a Content, a `<url>` an asset link.
+			const isContent =
+				declared === "Content" ||
+				(declared === undefined && !el.children.some((c) => c.name === "url"));
+			if (isContent) {
+				const uri = el.children.find((c) => c.name === "uri");
+				if (uri) return ["Content", { source: 1, uri: uri.text.trim() }];
+				return el.children.some((c) => c.name === "null") ? ["Content", { source: 0 }] : undefined;
+			}
+			if (declared !== "ContentId") return undefined;
 			const url = el.children.find((c) => c.name === "url");
 			if (url) return ["String", utf8.encode(url.text.trim())];
 			if (el.children.some((c) => c.name === "null")) return ["String", new Uint8Array(0)];
@@ -247,6 +258,47 @@ function readValue(
 		case "NumberRange": {
 			const [a, b] = t.trim().split(/\s+/).map(num);
 			return ["NumberRange", [a ?? 0, b ?? 0]];
+		}
+		case "NumberSequence":
+		case "ColorSequence": {
+			const width = el.name === "NumberSequence" ? 3 : 5;
+			const parts = t.trim().split(/\s+/).filter(Boolean).map(num);
+			if (parts.length % width !== 0) return undefined;
+			const keys: number[][] = [];
+			for (let i = 0; i < parts.length; i += width) keys.push(parts.slice(i, i + width));
+			return [el.name, keys];
+		}
+		case "PhysicalProperties": {
+			// Default physics: flag 2, as Studio's binary saves write it now.
+			if (child(el, "CustomPhysics") !== "true")
+				return ["PhysicalProperties", { flag: 2, values: [] }];
+			const names = ["Density", "Friction", "Elasticity", "FrictionWeight", "ElasticityWeight"];
+			const acoustic = el.children.some((c) => c.name === "AcousticAbsorption");
+			const values = [...names, ...(acoustic ? ["AcousticAbsorption"] : [])].map((n) =>
+				num(child(el, n)),
+			);
+			return ["PhysicalProperties", { flag: acoustic ? 3 : 1, values }];
+		}
+		case "Font": {
+			const url = (n: string) =>
+				el.children
+					.find((c) => c.name === n)
+					?.children.find((c) => c.name === "url")
+					?.text.trim() ?? "";
+			const style = child(el, "Style");
+			return [
+				"Font",
+				{
+					family: url("Family"),
+					weight: num(child(el, "Weight")) || 400,
+					style: style === "Italic" ? 1 : 0,
+					cachedFaceId: url("CachedFaceId"),
+				},
+			];
+		}
+		case "SecurityCapabilities": {
+			const digits = t.trim() || "0";
+			return /^\d+$/.test(digits) ? ["SecurityCapabilities", BigInt(digits)] : undefined;
 		}
 		case "Rect2D": {
 			const min = el.children.find((c) => c.name === "min");
