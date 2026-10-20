@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.202.2",
+		date: "2026-10-20",
+		headline: "A node's header rule runs its full width, and the hidden theme draws pins as sprites.",
+		affects: ["editor"],
+		fixed: [
+			"**A node's header rule.** The line under a node's header runs under its category tab too, in every theme, where it stopped at the tab's edge.",
+			"**Pins in the hidden theme.** Each pin is drawn on a grid of its own pixels, solid when wired and an outline when not, and lines and glyphs are drawn with stepped edges.",
+		],
+	},
+	{
 		version: "0.202.1",
 		date: "2026-10-20",
 		headline: "The hidden theme's buttons show on the panel in use.",

@@ -698,14 +698,18 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 	} else {
 		// The header is a tint of the category — the colour laid over the body
 		// at `--head-tint`, which is the same sum as the canvas's `color-mix` —
-		// with its lower edge at twice that, and the tab at full strength.
+		// and the tab at full strength. Its lower edge comes after the tab.
 		parts.push(
 			`<path d="${top(width)}" fill="${cat}" style="fill-opacity: var(--head-tint, 0.14)"/>`,
-			`<rect x="0" y="${n(head - 1)}" width="${n(width)}" height="1" fill="${cat}" ` +
-				`style="fill-opacity: calc(var(--head-tint, 0.14) * 2)"/>`,
 			`<path d="${top(g.tab)}" fill="${cat}"/>`,
 		);
 	}
+	// The header's lower edge, at twice the tint, laid over the tab as well as
+	// the header, as `.node .head::after` is.
+	const rule = pure
+		? ""
+		: `<rect x="0" y="${n(head - 1)}" width="${n(width)}" height="1" fill="${cat}" ` +
+			`style="fill-opacity: calc(var(--head-tint, 0.14) * 2)"/>`;
 
 	// A node that holds code takes the Code panel's mark in its tab, in the
 	// code face and colours, on the editor's surface: `.node .head .tab.code-tab`.
@@ -742,6 +746,8 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 				`stroke-width="${GLYPH_STROKE}" stroke-linecap="round" stroke-linejoin="round"/></g>`,
 		);
 	}
+
+	parts.push(rule);
 
 	// Header text, in the text colour on the tint, or the category's on a value.
 	const titleFill = pure ? ink : "var(--fg, #1c1f24)";

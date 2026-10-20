@@ -2064,14 +2064,33 @@ button.tb.primary:hover:not(:disabled) {
 	   are square, instead of going negative and being ignored. */
 	border-radius: max(0px, calc(var(--node-radius) - 1px)) max(0px, calc(var(--node-radius) - 1px)) 0 0;
 	background: color-mix(in srgb, var(--cat) calc(var(--head-tint) * 100%), var(--node-body));
-	/* The header's lower edge, as a shadow so it takes no height: the rows'
-	   positions are computed from the header's, and a border would move them. */
-	box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--cat) calc(var(--head-tint) * 200%), var(--node-body));
+	position: relative;
 	color: var(--fg);
 	font-weight: 600;
 	font-size: var(--text-md);
 	cursor: grab;
 	overflow: hidden;
+}
+
+/* The header's lower edge. Laid over the header rather than drawn as an inset
+   shadow on it, so it runs under the category tab too -- the tab's own fill
+   used to cover the shadow there, and the rule stopped short of the node's
+   edge. Absolute, so it takes no height: the rows' positions are computed from
+   the header's, and a border would move them. */
+.node .head::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: var(--head-rule, 1px);
+	background: var(--head-rule-color, color-mix(in srgb, var(--cat) calc(var(--head-tint) * 200%), var(--node-body)));
+	pointer-events: none;
+}
+
+.node.node--pure .head::after,
+.node.node--head-only .head::after {
+	display: none;
 }
 
 /* The category, as a tab in the header's corner: the full height of the
@@ -19895,8 +19914,8 @@ textarea.tb:where(:disabled) {
 	-webkit-backdrop-filter: none !important;
 }
 
-/* Pins, knots and dots stay round: their shape is what they say. */
-:root[data-look="four-colours"] .node .pin .dot,
+/* Knots and dots stay round: their shape is what they say. Pins are drawn as
+   sprites, further down. */
 :root[data-look="four-colours"] .node .node-pin,
 :root[data-look="four-colours"] .knot,
 :root[data-look="four-colours"] .type-dot {
@@ -20013,7 +20032,8 @@ textarea.tb:where(:disabled) {
    under it, picked in orange. */
 :root[data-look="four-colours"] .node .head {
 	color: #ffffff;
-	box-shadow: inset 0 -2px 0 var(--four-black) !important;
+	--head-rule: 2px;
+	--head-rule-color: var(--four-black);
 }
 
 :root[data-look="four-colours"] .node.node--selected {
@@ -20135,4 +20155,100 @@ textarea.tb:where(:disabled) {
 	background: var(--bg-panel);
 	border-color: var(--bg-panel);
 	color: var(--fg);
+}
+
+/* Pins as sprites: each drawn on a grid of 2px cells, a lores pixel each,
+   solid when wired and its edge alone when not. The shapes say what they
+   say in every scheme -- circle, square, diamond, ring, hexagon, arrow --
+   only stepped. Generated: masks, so the pin keeps its type's colour. */
+
+:root[data-look="four-colours"] .node .pin .dot {
+	inset: 3px;
+	border: 0 !important;
+	background: currentColor !important;
+	transform: none;
+	clip-path: none;
+}
+
+:root[data-look="four-colours"] .node .pin .dot::after {
+	display: none;
+}
+
+:root[data-look="four-colours"] .node .pin.fam-signal .dot {
+	inset: 3px 1px;
+}
+
+:root[data-look="four-colours"] .node .pin.exec .dot {
+	inset: 0 auto 0 0;
+	width: 14px;
+	height: 16px;
+}
+
+:root[data-look="four-colours"] .node .pin .dot {
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Crect x='1' y='0' width='1' height='1'/%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='3' y='0' width='1' height='1'/%3E%3Crect x='0' y='1' width='1' height='1'/%3E%3Crect x='4' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='4' y='2' width='1' height='1'/%3E%3Crect x='0' y='3' width='1' height='1'/%3E%3Crect x='4' y='3' width='1' height='1'/%3E%3Crect x='1' y='4' width='1' height='1'/%3E%3Crect x='2' y='4' width='1' height='1'/%3E%3Crect x='3' y='4' width='1' height='1'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
+}
+
+:root[data-look="four-colours"] .node .pin.connected .dot {
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Crect x='1' y='0' width='1' height='1'/%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='3' y='0' width='1' height='1'/%3E%3Crect x='0' y='1' width='1' height='1'/%3E%3Crect x='1' y='1' width='1' height='1'/%3E%3Crect x='2' y='1' width='1' height='1'/%3E%3Crect x='3' y='1' width='1' height='1'/%3E%3Crect x='4' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='1' y='2' width='1' height='1'/%3E%3Crect x='2' y='2' width='1' height='1'/%3E%3Crect x='3' y='2' width='1' height='1'/%3E%3Crect x='4' y='2' width='1' height='1'/%3E%3Crect x='0' y='3' width='1' height='1'/%3E%3Crect x='1' y='3' width='1' height='1'/%3E%3Crect x='2' y='3' width='1' height='1'/%3E%3Crect x='3' y='3' width='1' height='1'/%3E%3Crect x='4' y='3' width='1' height='1'/%3E%3Crect x='1' y='4' width='1' height='1'/%3E%3Crect x='2' y='4' width='1' height='1'/%3E%3Crect x='3' y='4' width='1' height='1'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
+}
+
+:root[data-look="four-colours"] .node .pin.fam-object .dot {
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Crect x='0' y='0' width='1' height='1'/%3E%3Crect x='1' y='0' width='1' height='1'/%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='3' y='0' width='1' height='1'/%3E%3Crect x='4' y='0' width='1' height='1'/%3E%3Crect x='0' y='1' width='1' height='1'/%3E%3Crect x='4' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='4' y='2' width='1' height='1'/%3E%3Crect x='0' y='3' width='1' height='1'/%3E%3Crect x='4' y='3' width='1' height='1'/%3E%3Crect x='0' y='4' width='1' height='1'/%3E%3Crect x='1' y='4' width='1' height='1'/%3E%3Crect x='2' y='4' width='1' height='1'/%3E%3Crect x='3' y='4' width='1' height='1'/%3E%3Crect x='4' y='4' width='1' height='1'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
+}
+
+:root[data-look="four-colours"] .node .pin.fam-object.connected .dot {
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Crect x='0' y='0' width='1' height='1'/%3E%3Crect x='1' y='0' width='1' height='1'/%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='3' y='0' width='1' height='1'/%3E%3Crect x='4' y='0' width='1' height='1'/%3E%3Crect x='0' y='1' width='1' height='1'/%3E%3Crect x='1' y='1' width='1' height='1'/%3E%3Crect x='2' y='1' width='1' height='1'/%3E%3Crect x='3' y='1' width='1' height='1'/%3E%3Crect x='4' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='1' y='2' width='1' height='1'/%3E%3Crect x='2' y='2' width='1' height='1'/%3E%3Crect x='3' y='2' width='1' height='1'/%3E%3Crect x='4' y='2' width='1' height='1'/%3E%3Crect x='0' y='3' width='1' height='1'/%3E%3Crect x='1' y='3' width='1' height='1'/%3E%3Crect x='2' y='3' width='1' height='1'/%3E%3Crect x='3' y='3' width='1' height='1'/%3E%3Crect x='4' y='3' width='1' height='1'/%3E%3Crect x='0' y='4' width='1' height='1'/%3E%3Crect x='1' y='4' width='1' height='1'/%3E%3Crect x='2' y='4' width='1' height='1'/%3E%3Crect x='3' y='4' width='1' height='1'/%3E%3Crect x='4' y='4' width='1' height='1'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
+}
+
+:root[data-look="four-colours"] .node .pin.fam-table .dot {
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='1' y='1' width='1' height='1'/%3E%3Crect x='3' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='4' y='2' width='1' height='1'/%3E%3Crect x='1' y='3' width='1' height='1'/%3E%3Crect x='3' y='3' width='1' height='1'/%3E%3Crect x='2' y='4' width='1' height='1'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
+}
+
+:root[data-look="four-colours"] .node .pin.fam-table.connected .dot {
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='1' y='1' width='1' height='1'/%3E%3Crect x='2' y='1' width='1' height='1'/%3E%3Crect x='3' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='1' y='2' width='1' height='1'/%3E%3Crect x='2' y='2' width='1' height='1'/%3E%3Crect x='3' y='2' width='1' height='1'/%3E%3Crect x='4' y='2' width='1' height='1'/%3E%3Crect x='1' y='3' width='1' height='1'/%3E%3Crect x='2' y='3' width='1' height='1'/%3E%3Crect x='3' y='3' width='1' height='1'/%3E%3Crect x='2' y='4' width='1' height='1'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
+}
+
+:root[data-look="four-colours"] .node .pin.fam-signal .dot {
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 5' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='3' y='0' width='1' height='1'/%3E%3Crect x='4' y='0' width='1' height='1'/%3E%3Crect x='1' y='1' width='1' height='1'/%3E%3Crect x='5' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='6' y='2' width='1' height='1'/%3E%3Crect x='1' y='3' width='1' height='1'/%3E%3Crect x='5' y='3' width='1' height='1'/%3E%3Crect x='2' y='4' width='1' height='1'/%3E%3Crect x='3' y='4' width='1' height='1'/%3E%3Crect x='4' y='4' width='1' height='1'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
+}
+
+:root[data-look="four-colours"] .node .pin.fam-signal.connected .dot {
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 5' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='3' y='0' width='1' height='1'/%3E%3Crect x='4' y='0' width='1' height='1'/%3E%3Crect x='1' y='1' width='1' height='1'/%3E%3Crect x='2' y='1' width='1' height='1'/%3E%3Crect x='3' y='1' width='1' height='1'/%3E%3Crect x='4' y='1' width='1' height='1'/%3E%3Crect x='5' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='1' y='2' width='1' height='1'/%3E%3Crect x='2' y='2' width='1' height='1'/%3E%3Crect x='3' y='2' width='1' height='1'/%3E%3Crect x='4' y='2' width='1' height='1'/%3E%3Crect x='5' y='2' width='1' height='1'/%3E%3Crect x='6' y='2' width='1' height='1'/%3E%3Crect x='1' y='3' width='1' height='1'/%3E%3Crect x='2' y='3' width='1' height='1'/%3E%3Crect x='3' y='3' width='1' height='1'/%3E%3Crect x='4' y='3' width='1' height='1'/%3E%3Crect x='5' y='3' width='1' height='1'/%3E%3Crect x='2' y='4' width='1' height='1'/%3E%3Crect x='3' y='4' width='1' height='1'/%3E%3Crect x='4' y='4' width='1' height='1'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
+}
+
+:root[data-look="four-colours"] .node .pin.exec .dot {
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 8' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Crect x='0' y='0' width='1' height='1'/%3E%3Crect x='0' y='1' width='1' height='1'/%3E%3Crect x='1' y='1' width='1' height='1'/%3E%3Crect x='2' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='3' y='2' width='1' height='1'/%3E%3Crect x='4' y='2' width='1' height='1'/%3E%3Crect x='0' y='3' width='1' height='1'/%3E%3Crect x='5' y='3' width='1' height='1'/%3E%3Crect x='6' y='3' width='1' height='1'/%3E%3Crect x='0' y='4' width='1' height='1'/%3E%3Crect x='5' y='4' width='1' height='1'/%3E%3Crect x='6' y='4' width='1' height='1'/%3E%3Crect x='0' y='5' width='1' height='1'/%3E%3Crect x='3' y='5' width='1' height='1'/%3E%3Crect x='4' y='5' width='1' height='1'/%3E%3Crect x='0' y='6' width='1' height='1'/%3E%3Crect x='1' y='6' width='1' height='1'/%3E%3Crect x='2' y='6' width='1' height='1'/%3E%3Crect x='0' y='7' width='1' height='1'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
+}
+
+:root[data-look="four-colours"] .node .pin.exec.connected .dot {
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 8' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Crect x='0' y='0' width='1' height='1'/%3E%3Crect x='0' y='1' width='1' height='1'/%3E%3Crect x='1' y='1' width='1' height='1'/%3E%3Crect x='2' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='1' y='2' width='1' height='1'/%3E%3Crect x='2' y='2' width='1' height='1'/%3E%3Crect x='3' y='2' width='1' height='1'/%3E%3Crect x='4' y='2' width='1' height='1'/%3E%3Crect x='0' y='3' width='1' height='1'/%3E%3Crect x='1' y='3' width='1' height='1'/%3E%3Crect x='2' y='3' width='1' height='1'/%3E%3Crect x='3' y='3' width='1' height='1'/%3E%3Crect x='4' y='3' width='1' height='1'/%3E%3Crect x='5' y='3' width='1' height='1'/%3E%3Crect x='6' y='3' width='1' height='1'/%3E%3Crect x='0' y='4' width='1' height='1'/%3E%3Crect x='1' y='4' width='1' height='1'/%3E%3Crect x='2' y='4' width='1' height='1'/%3E%3Crect x='3' y='4' width='1' height='1'/%3E%3Crect x='4' y='4' width='1' height='1'/%3E%3Crect x='5' y='4' width='1' height='1'/%3E%3Crect x='6' y='4' width='1' height='1'/%3E%3Crect x='0' y='5' width='1' height='1'/%3E%3Crect x='1' y='5' width='1' height='1'/%3E%3Crect x='2' y='5' width='1' height='1'/%3E%3Crect x='3' y='5' width='1' height='1'/%3E%3Crect x='4' y='5' width='1' height='1'/%3E%3Crect x='0' y='6' width='1' height='1'/%3E%3Crect x='1' y='6' width='1' height='1'/%3E%3Crect x='2' y='6' width='1' height='1'/%3E%3Crect x='0' y='7' width='1' height='1'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
+}
+
+:root[data-look="four-colours"] .node .pin.fam-function .dot {
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Crect x='1' y='0' width='1' height='1'/%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='3' y='0' width='1' height='1'/%3E%3Crect x='0' y='1' width='1' height='1'/%3E%3Crect x='4' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='2' y='2' width='1' height='1'/%3E%3Crect x='4' y='2' width='1' height='1'/%3E%3Crect x='0' y='3' width='1' height='1'/%3E%3Crect x='4' y='3' width='1' height='1'/%3E%3Crect x='1' y='4' width='1' height='1'/%3E%3Crect x='2' y='4' width='1' height='1'/%3E%3Crect x='3' y='4' width='1' height='1'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
+}
+
+:root[data-look="four-colours"] .node .pin.fam-function.connected .dot {
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Crect x='1' y='0' width='1' height='1'/%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='3' y='0' width='1' height='1'/%3E%3Crect x='0' y='1' width='1' height='1'/%3E%3Crect x='2' y='1' width='1' height='1'/%3E%3Crect x='4' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='1' y='2' width='1' height='1'/%3E%3Crect x='2' y='2' width='1' height='1'/%3E%3Crect x='3' y='2' width='1' height='1'/%3E%3Crect x='4' y='2' width='1' height='1'/%3E%3Crect x='0' y='3' width='1' height='1'/%3E%3Crect x='2' y='3' width='1' height='1'/%3E%3Crect x='4' y='3' width='1' height='1'/%3E%3Crect x='1' y='4' width='1' height='1'/%3E%3Crect x='2' y='4' width='1' height='1'/%3E%3Crect x='3' y='4' width='1' height='1'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
+}
+
+/* A wire in flight marks where it may land with an edge, as the glow
+   other schemes use is a shadow, which this one has none of. */
+
+:root[data-look="four-colours"] .node .pin.compatible {
+	outline: 2px dotted var(--ok);
+	outline-offset: -1px;
+}
+
+:root[data-look="four-colours"] .node .pin.highlighted {
+	outline: 2px solid var(--four-orange);
+	outline-offset: -1px;
+}
+
+/* Lines and glyphs drawn as the hardware drew them: stepped, without the
+   blending that smooths an edge. */
+
+:root[data-look="four-colours"] svg,
+:root[data-look="four-colours"] svg * {
+	shape-rendering: crispEdges;
 }
