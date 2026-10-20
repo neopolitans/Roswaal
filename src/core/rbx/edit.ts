@@ -110,6 +110,15 @@ const KEPT = new Set(["Source"]);
 /** The longest name Studio gives an instance. */
 const LONGEST_NAME = 100;
 
+/** Why `name` cannot be an instance's, or undefined if it can. */
+export function nameProblem(name: string): string | undefined {
+	if (name === "") return "An instance needs a name";
+	if (name.length > LONGEST_NAME) return `A name is at most ${LONGEST_NAME} characters`;
+	// eslint-disable-next-line no-control-regex
+	if (/[\x00-\x1f]/.test(name)) return "A name cannot hold a line break or a tab";
+	return undefined;
+}
+
 /** Tags that mean a script cannot set the property, or should not. */
 const UNSETTABLE = new Set(["ReadOnly", "NotScriptable", "Hidden", "Deprecated"]);
 
@@ -298,12 +307,8 @@ export function storedValue(
 		case "string": {
 			if (typeof input !== "string") throw new RbxError(`${name} is text`);
 			if (name === "Name") {
-				if (input === "") throw new RbxError("An instance needs a name");
-				if (input.length > LONGEST_NAME)
-					throw new RbxError(`A name is at most ${LONGEST_NAME} characters`);
-				// eslint-disable-next-line no-control-regex
-				if (/[\x00-\x1f]/.test(input))
-					throw new RbxError("A name cannot hold a line break or a tab");
+				const problem = nameProblem(input);
+				if (problem) throw new RbxError(problem);
 			}
 			if (input.length > LONGEST_TEXT)
 				throw new RbxError(`${name} takes at most ${LONGEST_TEXT} characters`);
@@ -520,7 +525,7 @@ export function withEmptyString(
 }
 
 /** The key a shared string is filed under here: its MD5. Studio's own keys are only names. */
-function sharedKey(value: Uint8Array): string {
+export function sharedKey(value: Uint8Array): string {
 	return toBase64(md5(value));
 }
 
@@ -585,7 +590,7 @@ function withShared(bytes: Uint8Array, value: Uint8Array): { bytes: Uint8Array; 
 }
 
 /** The XML place with `value` filed under `key` in its SharedStrings, made if there are none. */
-function withSharedXml(source: string, key: string, value: Uint8Array): string {
+export function withSharedXml(source: string, key: string, value: Uint8Array): string {
 	const roblox = parseXml(source).children.find((c) => c.name === "roblox");
 	if (!roblox) throw new RbxError("not a Roblox XML place: there is no <roblox> element");
 	const table = roblox.children.find((c) => c.name === "SharedStrings");

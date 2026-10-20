@@ -7,8 +7,9 @@
  * of names however large the place is.
  *
  * Read-only unless Modify DataModel Instances is on. Then a property the host
- * offers an edit for is changed in Properties, and the host writes it into
- * the place file.
+ * offers an edit for is changed in Properties, an instance is added, deleted
+ * or duplicated from its menu and moved by dragging it onto another, and the
+ * host writes each change into the place file.
  */
 
 import { memo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -21,16 +22,19 @@ import {
 	type PlaceProperty,
 } from "../core/rbx/browse.js";
 import type { CFrameEdit, PropertyEdit } from "../core/rbx/edit.js";
-import { isSubclassOf } from "../core/roblox.js";
+import { addableClasses, parentProblem, targetProblem } from "../core/rbx/instanceRules.js";
+import { classGroup, isSubclassOf } from "../core/roblox.js";
 import { readOnlyToScripts } from "../core/robloxEngine.js";
-import { api, type PlaceTree } from "./api.js";
+import { api, type PlaceInstanceChange, type PlaceTree } from "./api.js";
 import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
+import { Menu } from "./Menu.jsx";
+import type { MenuAnchor } from "./menuPlace.js";
 import { AddButton, depthStyle, Ident, SectionHead } from "./PanelParts.jsx";
 import { currentOutline, rememberOutline } from "./placeOutline.js";
 import type { Dialogs } from "./useDialogs.js";
-import { ValuePicker } from "./ValuePicker.jsx";
+import { classDetail, ValuePicker } from "./ValuePicker.jsx";
 
 /** Mirrors `TUCKED` in core/rbx/browse.ts, which the editor does not bundle. */
 const TUCKED = 1;
@@ -50,6 +54,15 @@ const writtenStamps = new Set<string>();
 
 /** The renames written here, by the version they made: what the tree follows a renamed instance by. */
 const renamedAt = new Map<string, { from: string[]; to: string[] }>();
+
+/** Versions a change to the tree here wrote: Properties follows what it shows, or lets it go. */
+const treeChanges = new Set<string>();
+
+/** What a drag out of the tree carries when it can move the instance: its index. */
+const PLACE_MOVE = "application/x-roswaal-place-move";
+
+/** Said on an instance change while Modify DataModel Instances is off. */
+const TURN_ON = "Turn on Modify DataModel Instances in Settings to change the place.";
 
 /** Each node's path, names from the service down, as one key. */
 function pathKeys(nodes: readonly [number, string, number, number][]): string[] {
@@ -118,12 +131,21 @@ export interface PlaceBrowserProps {
 	reveal: { index: number; seq: number } | null;
 	/** The version of the place a property change last wrote: read it again. */
 	written?: string | null;
+	/** Modify DataModel Instances is on: instances are added, deleted, moved and duplicated here. */
+	editable?: boolean;
+	/** Asks before the first change to the place; resolves to whether to go on. */
+	confirmEdit?: (studio: boolean) => Promise<boolean>;
+	/** For the confirmation a deletion asks. */
+	ask?: Dialogs["ask"];
+	/** A change to the tree was written: the place's new version, and the backup kept first. */
+	onChanged?: (stamp: string, backup?: string) => void;
 }
 
 type Loaded = Extract<PlaceTree, { stamp: string }>;
 
 export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps) {
 	const { file, refreshKey, onInspect, inspecting, reveal: revealRequest, written } = props;
+	const { editable, confirmEdit, ask, onChanged } = props;
 	const [place, setPlace] = useState<Loaded | null>(null);
 	const [problem, setProblem] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
@@ -137,6 +159,57 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 	const stampRef = useRef<string | null>(null);
 	// And the outline it had, to renumber what is open by.
 	const placeRef = useRef<Loaded | null>(null);
+	// What Properties shows, for following it through a change to the tree.
+	const inspectingRef = useRef(inspecting);
+	inspectingRef.current = inspecting;
+	const [menu, setMenu] = useState<{ at: MenuAnchor; index: number } | null>(null);
+	/** The instance a class is being picked to add to. */
+	const [adding, setAdding] = useState<number | null>(null);
+	const [busy, setBusy] = useState(false);
+	const [refusal, setRefusal] = useState<string | null>(null);
+	const dragging = useRef<number | null>(null);
+	const [dropAt, setDropAt] = useState<number | null>(null);
+
+	/** A version of the place on screen, keeping what was open where it was written here. */
+	const show = useCallback(
+		(answer: Loaded) => {
+			if (
+				stampRef.current !== null &&
+				stampRef.current !== answer.stamp &&
+				!writtenStamps.has(answer.stamp)
+			) {
+				setOpen(new Set());
+				setShowAll(new Set());
+				setSelected(null);
+				onInspect(null, false);
+			}
+			// A version written here keeps the tree as it was, renumbered.
+			const previous = placeRef.current;
+			if (previous && stampRef.current !== answer.stamp && writtenStamps.has(answer.stamp)) {
+				const map = renumber(
+					previous.outline.nodes,
+					answer.outline.nodes,
+					renamedAt.get(answer.stamp),
+				);
+				const each = (set: ReadonlySet<number>) =>
+					new Set([...set].map(map).filter((i): i is number => i !== undefined));
+				setOpen(each);
+				setShowAll(each);
+				setSelected((was) => (was === null ? null : (map(was) ?? null)));
+				const shown = inspectingRef.current;
+				if (treeChanges.has(answer.stamp) && shown !== null) {
+					const now = map(shown);
+					onInspect(now === undefined ? null : targetIn(answer, now), false);
+				}
+			}
+			stampRef.current = answer.stamp;
+			placeRef.current = answer;
+			setPlace(answer);
+			rememberOutline(answer.outline);
+			setProblem(null);
+		},
+		[onInspect],
+	);
 
 	const load = useCallback(async () => {
 		setLoading(true);
@@ -145,37 +218,7 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 			if (answer.file === null) {
 				setPlace(null);
 				setProblem("The project has no place file.");
-			} else {
-				if (
-					stampRef.current !== null &&
-					stampRef.current !== answer.stamp &&
-					!writtenStamps.has(answer.stamp)
-				) {
-					setOpen(new Set());
-					setShowAll(new Set());
-					setSelected(null);
-					onInspect(null, false);
-				}
-				// A version written here keeps the tree as it was, renumbered.
-				const previous = placeRef.current;
-				if (previous && stampRef.current !== answer.stamp && writtenStamps.has(answer.stamp)) {
-					const map = renumber(
-						previous.outline.nodes,
-						answer.outline.nodes,
-						renamedAt.get(answer.stamp),
-					);
-					const each = (set: ReadonlySet<number>) =>
-						new Set([...set].map(map).filter((i): i is number => i !== undefined));
-					setOpen(each);
-					setShowAll(each);
-					setSelected((was) => (was === null ? null : (map(was) ?? null)));
-				}
-				stampRef.current = answer.stamp;
-				placeRef.current = answer;
-				setPlace(answer);
-				rememberOutline(answer.outline);
-				setProblem(null);
-			}
+			} else show(answer);
 		} catch (err) {
 			// An unreadable place answers with an error, whose message names the file.
 			setPlace(null);
@@ -183,7 +226,7 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 		} finally {
 			setLoading(false);
 		}
-	}, [onInspect]);
+	}, [show]);
 
 	useEffect(() => {
 		void load();
@@ -205,23 +248,7 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 
 	const classOf = (i: number) => classes![nodes![i][0]];
 
-	const targetOf = useCallback(
-		(index: number): PlaceTarget => {
-			const [cls, name, parent] = nodes![index];
-			const owner = place!.scripts[index];
-			return {
-				stamp: place!.stamp,
-				index,
-				name,
-				className: classes![cls],
-				path: pathTo(nodes!, index),
-				service: parent === -1,
-				...(owner ? { file: owner } : {}),
-				...(place!.studio ? { studio: true } : {}),
-			};
-		},
-		[nodes, classes, place],
-	);
+	const targetOf = useCallback((index: number): PlaceTarget => targetIn(place!, index), [place]);
 
 	// Picks an instance, and shows it in Properties when that is open or asked for.
 	const pick = useCallback(
@@ -337,6 +364,90 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 		return out;
 	}, [nodes, classes, children, open, showAll, tucked, filter]);
 
+	/** One change to the tree written, the tree following it and showing what it made or moved. */
+	const change = useCallback(
+		async (body: PlaceInstanceChange, moved?: { from: string[]; to: string[] }) => {
+			const now = placeRef.current;
+			if (!now || busy) return;
+			setBusy(true);
+			setRefusal(null);
+			try {
+				const answer = await api.placeChange(now.stamp, body);
+				writtenStamps.add(answer.stamp);
+				treeChanges.add(answer.stamp);
+				if (moved) renamedAt.set(answer.stamp, moved);
+				show(answer);
+				const made = answer.index;
+				if (made !== undefined) {
+					const above: number[] = [];
+					for (let p = answer.outline.nodes[made][2]; p !== -1; p = answer.outline.nodes[p][2])
+						above.push(p);
+					setOpen((prev) => new Set([...prev, ...above]));
+					setSelected(made);
+				}
+				onChanged?.(answer.stamp, answer.backup);
+			} catch (err) {
+				setRefusal(errorMessage(err));
+			} finally {
+				setBusy(false);
+			}
+		},
+		[busy, show, onChanged],
+	);
+
+	/** Whether a change may begin: the first one asks, as a property's does. */
+	const begin = useCallback(
+		async () => Boolean(editable && confirmEdit && (await confirmEdit(Boolean(place?.studio)))),
+		[editable, confirmEdit, place?.studio],
+	);
+
+	const remove = useCallback(
+		async (index: number) => {
+			if (!nodes || !place || !ask || !(await begin())) return;
+			const inside: number[] = [];
+			const stack = [...(children.get(index) ?? [])];
+			while (stack.length) {
+				const at = stack.pop()!;
+				inside.push(at);
+				stack.push(...(children.get(at) ?? []));
+			}
+			const owners = [index, ...inside]
+				.map((i) => place.scripts[i])
+				.filter((f): f is string => Boolean(f));
+			const name = nodes[index][1];
+			const yes = await ask({
+				kind: "confirm",
+				title: `Delete ${name}?`,
+				message: inside.length
+					? `${name} and the ${inside.length} instance${inside.length === 1 ? "" : "s"} in it are taken out of ${file}.`
+					: `${name} is taken out of ${file}.`,
+				...(owners.length
+					? {
+							items: owners,
+							points: [
+								owners.length === 1
+									? "The file stays; only its link goes."
+									: "The files stay; only their links go.",
+								"A script a node map places comes back with the next export.",
+							],
+						}
+					: {}),
+				confirmLabel: "Delete",
+				danger: true,
+			});
+			if (yes === true)
+				await change({ kind: "delete", index, ...(owners.length ? { unlink: true } : {}) });
+		},
+		[nodes, place, ask, begin, children, file, change],
+	);
+
+	/** Whether the instance at `from` can be dropped into the one at `to`. */
+	const canDrop = (from: number, to: number) => {
+		if (!nodes || nodes[from][2] === to) return false;
+		for (let p = to; p !== -1; p = nodes[p][2]) if (p === from) return false;
+		return !parentProblem(classOf(from), classOf(to));
+	};
+
 	if (!place) {
 		return (
 			<div className="place-browser">
@@ -399,11 +510,51 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 								"tree-row place-row",
 								selected === i && "selected",
 								inspecting === i && "open-doc",
+								dropAt === i && "drop-target",
 							)}
 							style={depthStyle(row.depth)}
-							title={`${row.match ? pathTo(nodes!, i).join(".") : name} (${cls}). Double-click for its properties; drag onto a graph for an Instance node.`}
+							title={`${row.match ? pathTo(nodes!, i).join(".") : name} (${cls}). Double-click for its properties; drag onto a graph for an Instance node${editable ? ", or onto another instance to move it there" : ""}.`}
 							draggable
-							onDragStart={(e) => dragOut(e, { path: pathTo(nodes!, i), className: cls })}
+							onDragStart={(e) => {
+								dragOut(e, { path: pathTo(nodes!, i), className: cls });
+								if (!editable || targetProblem(cls, parent === -1)) return;
+								// Copy for a graph, move for the tree: the drop picks which.
+								e.dataTransfer.setData(PLACE_MOVE, String(i));
+								e.dataTransfer.effectAllowed = "copyMove";
+								dragging.current = i;
+							}}
+							onDragEnd={() => {
+								dragging.current = null;
+								setDropAt(null);
+							}}
+							onDragOver={(e) => {
+								const from = dragging.current;
+								if (from === null || !canDrop(from, i)) return;
+								e.preventDefault();
+								e.dataTransfer.dropEffect = "move";
+								setDropAt(i);
+							}}
+							onDragLeave={() => setDropAt((at) => (at === i ? null : at))}
+							onDrop={(e) => {
+								const from = dragging.current;
+								setDropAt(null);
+								if (from === null || !canDrop(from, i)) return;
+								e.preventDefault();
+								dragging.current = null;
+								void (async () => {
+									if (!(await begin())) return;
+									const was = pathTo(nodes!, from);
+									await change(
+										{ kind: "move", index: from, parent: i },
+										{ from: was, to: [...pathTo(nodes!, i), was[was.length - 1]] },
+									);
+								})();
+							}}
+							onContextMenu={(e) => {
+								e.preventDefault();
+								pick(i, false);
+								setMenu({ at: { x: e.clientX, y: e.clientY }, index: i });
+							}}
 							onClick={() => (row.match ? reveal(i) : pick(i, false))}
 							onDoubleClick={() => (row.match ? reveal(i, true) : pick(i, true))}
 						>
@@ -429,10 +580,95 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 								<span className="place-where">{nodes![parent][1]}</span>
 							)}
 							<span className="place-class">{cls}</span>
+							{selected === i && (
+								<button
+									type="button"
+									className="tb icon-only place-more-button"
+									title="Add a child, duplicate, delete"
+									aria-label={`More for ${name}`}
+									onClick={(e) => {
+										e.stopPropagation();
+										setMenu({ at: { element: e.currentTarget, align: "end" }, index: i });
+									}}
+									onDoubleClick={(e) => e.stopPropagation()}
+								>
+									<Icon name="more" size={14} />
+								</button>
+							)}
 						</div>
 					);
 				})}
 			</div>
+			{(busy || refusal) && (
+				<p className={cx("place-note", refusal && "place-refused")}>
+					{busy ? "Writing the place…" : refusal}
+				</p>
+			)}
+
+			{menu && nodes![menu.index] && (
+				<Menu
+					at={menu.at}
+					label={nodes![menu.index][1]}
+					onClose={() => setMenu(null)}
+					sections={(() => {
+						const i = menu.index;
+						const cls = classOf(i);
+						const fixed = targetProblem(cls, nodes![i][2] === -1);
+						const off = (problem?: string) =>
+							!editable
+								? { disabled: true, title: TURN_ON }
+								: problem
+									? { disabled: true, title: problem }
+									: {};
+						return [
+							{
+								entries: [
+									{ label: "Add Child…", icon: "plus", ...off(), run: () => setAdding(i) },
+									{
+										label: "Duplicate",
+										icon: "duplicate",
+										...off(fixed),
+										run: () =>
+											void (async () => {
+												if (await begin()) await change({ kind: "duplicate", index: i });
+											})(),
+									},
+								],
+							},
+							{
+								entries: [
+									{
+										label: "Delete",
+										icon: "remove",
+										danger: true,
+										...off(fixed),
+										run: () => void remove(i),
+									},
+								],
+							},
+						];
+					})()}
+				/>
+			)}
+
+			{adding !== null && nodes![adding] && (
+				<ValuePicker
+					what="class"
+					options={addableClasses().filter((c) => !parentProblem(c, classOf(adding)))}
+					value=""
+					groupOf={classGroup}
+					detailOf={classDetail}
+					onPick={(className) => {
+						const parent = adding;
+						setAdding(null);
+						void (async () => {
+							if (await begin())
+								await change({ kind: "add", index: parent, className, name: className });
+						})();
+					}}
+					onClose={() => setAdding(null)}
+				/>
+			)}
 		</div>
 	);
 });
@@ -668,6 +904,23 @@ export const PlaceProperties = memo(function PlaceProperties(props: PlacePropert
 		</div>
 	);
 });
+
+/** The instance at `index` of `place`, as Properties is given it. */
+function targetIn(place: Loaded, index: number): PlaceTarget {
+	const { nodes, classes } = place.outline;
+	const [cls, name, parent] = nodes[index];
+	const owner = place.scripts[index];
+	return {
+		stamp: place.stamp,
+		index,
+		name,
+		className: classes[cls],
+		path: pathTo(nodes, index),
+		service: parent === -1,
+		...(owner ? { file: owner } : {}),
+		...(place.studio ? { studio: true } : {}),
+	};
+}
 
 type Row =
 	| { kind: "node"; index: number; depth: number; match?: boolean }

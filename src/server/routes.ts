@@ -50,9 +50,23 @@ import {
 	propertyEdit,
 } from "../core/rbx/browse.js";
 import { ADDED_IF_MISSING, storedValue, withEmptyString, writeProperty } from "../core/rbx/edit.js";
-import { type RbxDocument, RbxError, type RbxInstance, readRbx } from "../core/rbx/index.js";
+import {
+	pathOf,
+	type RbxDocument,
+	RbxError,
+	type RbxInstance,
+	readRbx,
+	walk,
+} from "../core/rbx/index.js";
+import {
+	changeInstances,
+	changeProblem,
+	type InstanceChange,
+	type InstanceRef,
+} from "../core/rbx/instances.js";
 import { type PlaceReport, planPlaceUpdate } from "../core/rbx/placeExport.js";
 import { convertPlace, leftOutOf, placeFormatOf } from "../core/rbx/serialize.js";
+import { legacyBinaryUniqueId } from "../core/rbx/uniqueId.js";
 import { emptyScript, type NodeDef, type NodeScript, type Target } from "../core/schema.js";
 import { errorMessage, HttpError, UserError } from "./errors.js";
 import { exists } from "./files.js";
@@ -87,6 +101,7 @@ import {
 	graphOutputPath,
 	importRojoProject,
 	initProject,
+	linkedFiles,
 	listPacks,
 	locateFile,
 	moveEntry,
@@ -110,6 +125,7 @@ import {
 	scanProjectPacks,
 	setPackRequires,
 	staleGraphs,
+	unlinkUnder,
 	unsyncedGraphs,
 	writeConfig,
 	writeLuaurcFile,
@@ -341,6 +357,27 @@ export class ApiSession {
 			if (err instanceof RbxError) throw new HttpError(422, errorMessage(err));
 			throw err;
 		}
+		const { now, backup } = await this.savePlace(project, file, before, after, loaded);
+		const index = now.order.findIndex((other) => other.ref === inst.ref);
+		return {
+			stamp: now.stamp,
+			instance: describeInstance(now.order[index], index, (other) => now.index.get(other)),
+			...(backup ? { backup } : {}),
+		};
+	}
+
+	/**
+	 * `after` written over the place, which held `before` when it was read as
+	 * `loaded`: a backup first unless this session wrote the file last, and the
+	 * place as it now is.
+	 */
+	private async savePlace(
+		project: OpenProject,
+		file: string,
+		before: Uint8Array,
+		after: Uint8Array,
+		loaded: LoadedPlace,
+	): Promise<{ now: LoadedPlace; backup: string | undefined }> {
 		const key = path.join(project.root, file);
 		const backup = await writePlaceFile(
 			project,
@@ -351,11 +388,24 @@ export class ApiSession {
 		);
 		const now = await this.loadPlace(project, file);
 		this.placeWrites.set(key, now.stamp);
-		const index = now.order.findIndex((other) => other.ref === inst.ref);
+		return { now, backup };
+	}
+
+	/** The place as the DataModel browser is given it. See `GET /place`. */
+	private async placeAnswer(project: OpenProject, file: string, loaded: LoadedPlace) {
+		const scripts: Record<number, string> = {};
+		planPlaceUpdate(loaded.doc, await placeEntries(project), (inst, owner) => {
+			const i = loaded.index.get(inst);
+			if (i !== undefined) scripts[i] = owner;
+		});
+		// Studio keeps a lock file beside a place it has open.
+		const studio = await exists(path.join(project.root, `${file}.lock`));
 		return {
-			stamp: now.stamp,
-			instance: describeInstance(now.order[index], index, (other) => now.index.get(other)),
-			...(backup ? { backup } : {}),
+			file,
+			stamp: loaded.stamp,
+			outline: loaded.outline,
+			scripts,
+			...(studio ? { studio } : {}),
 		};
 	}
 
@@ -537,20 +587,7 @@ export class ApiSession {
 						code: "place-unreadable",
 					});
 				}
-				const scripts: Record<number, string> = {};
-				planPlaceUpdate(loaded.doc, await placeEntries(project), (inst, owner) => {
-					const i = loaded.index.get(inst);
-					if (i !== undefined) scripts[i] = owner;
-				});
-				// Studio keeps a lock file beside a place it has open.
-				const studio = await exists(path.join(project.root, `${file}.lock`));
-				return {
-					file,
-					stamp: loaded.stamp,
-					outline: loaded.outline,
-					scripts,
-					...(studio ? { studio } : {}),
-				};
+				return this.placeAnswer(project, file, loaded);
 			},
 
 			/**
@@ -717,6 +754,113 @@ export class ApiSession {
 					if (problem) throw new HttpError(422, problem);
 					return { stored: "Tags", value: encodeTags([...tags, tag]) };
 				});
+			},
+
+			/**
+			 * Adds, deletes, moves or duplicates an instance, in the place file
+			 * itself: the instance at `index`, which an add makes a `className`
+			 * named `name` in and a move puts in the instance at `parent`. What
+			 * Studio would refuse is a 422 saying why, and the file is left as it
+			 * was; a 409 when the place has changed since `stamp`.
+			 *
+			 * Deleting scripts the project's files write is a 409 with code
+			 * `linked-scripts` naming them, until asked again with `unlink`: their
+			 * links go, and the files stay. A move takes the links with it.
+			 * Answers with the place as `GET /place` does, and `index`, where
+			 * the instance made or moved now is.
+			 */
+			"POST /place/instance": async (req) => {
+				const body = fields<{
+					stamp: string;
+					kind: string;
+					index: number;
+					parent?: number;
+					className?: string;
+					name?: string;
+					unlink?: boolean;
+				}>(req);
+				const project = this.project();
+				const file = await findPlaceFile(project.root, project.config);
+				if (!file) throw new HttpError(404, "The project has no place file.");
+				const stamp = need(text(body.stamp), "stamp");
+				const before = await readPlaceBytes(project, file);
+				const loaded = await this.loadPlace(project, file);
+				if (stamp !== loaded.stamp || loaded.stamp !== `${file}:${fingerprint(before)}`)
+					throw new HttpError(409, "The place file has changed. Reload it.");
+				const at = (index: unknown) => {
+					const inst = typeof index === "number" ? loaded.order[index] : undefined;
+					if (inst?.ref === undefined)
+						throw new HttpError(404, `No instance ${index} in the place.`);
+					return inst;
+				};
+				const inst = at(body.index);
+				let change: InstanceChange;
+				switch (body.kind) {
+					case "add":
+						change = {
+							kind: "add",
+							parent: inst.ref!,
+							className: need(text(body.className), "className"),
+							name: text(body.name) ?? "",
+						};
+						break;
+					case "move":
+						change = { kind: "move", target: inst.ref!, parent: at(body.parent).ref! };
+						break;
+					case "delete":
+					case "duplicate":
+						change = { kind: body.kind, target: inst.ref! };
+						break;
+					default:
+						throw new HttpError(400, "`kind` is add, delete, move or duplicate.");
+				}
+
+				// The scripts a deletion takes that the project's files write.
+				const owners = new Set<string>();
+				const ids = new Set<string>();
+				if (change.kind === "delete") {
+					// Refused first, so nobody is asked about links for a deletion that cannot happen.
+					const problem = changeProblem({ kind: "delete", target: inst });
+					if (problem) throw new HttpError(422, problem);
+					const doomed = new Set(walk([inst]));
+					planPlaceUpdate(loaded.doc, await placeEntries(project), (script, owner) => {
+						if (doomed.has(script)) owners.add(owner);
+					});
+					for (const script of doomed) {
+						const id = script.props.get("UniqueId")?.value;
+						if (typeof id === "string") ids.add(id).add(legacyBinaryUniqueId(id));
+					}
+					if (owners.size && body.unlink !== true) {
+						const links = await linkedFiles(project);
+						const files = [...owners].sort();
+						throw new HttpError(409, `Deleting ${inst.name} unlinks ${files.join(", ")}.`, {
+							code: "linked-scripts",
+							linked: files.filter((f) => links.has(f)),
+							placed: files.filter((f) => !links.has(f)),
+						});
+					}
+				}
+
+				let after: Uint8Array;
+				let focus: InstanceRef | undefined;
+				try {
+					({ bytes: after, ref: focus } = changeInstances(before, change));
+				} catch (err) {
+					if (err instanceof RbxError) throw new HttpError(422, errorMessage(err));
+					throw err;
+				}
+				const from = pathOf(inst);
+				const { now, backup } = await this.savePlace(project, file, before, after, loaded);
+				if (change.kind === "delete" && owners.size) await unlinkUnder(project, from, ids);
+				if (change.kind === "move")
+					await renameInLinks(project, from, [...pathOf(at(body.parent)), inst.name]);
+				const index =
+					focus === undefined ? -1 : now.order.findIndex((other) => other.ref === focus);
+				return {
+					...(await this.placeAnswer(project, file, now)),
+					...(index === -1 ? {} : { index }),
+					...(backup ? { backup } : {}),
+				};
 			},
 
 			/**

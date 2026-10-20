@@ -222,6 +222,13 @@ export class ProjectChangedError extends Error {
 	}
 }
 
+/** A change to the place's tree: see `POST /place/instance`. */
+export type PlaceInstanceChange =
+	| { kind: "add"; index: number; className: string; name: string }
+	| { kind: "delete"; index: number; unlink?: boolean }
+	| { kind: "move"; index: number; parent: number }
+	| { kind: "duplicate"; index: number };
+
 /**
  * How a request reaches whatever is serving the API.
  *
@@ -393,6 +400,16 @@ export const api = {
 	placeInstance: (stamp: string, index: number) =>
 		request<PlaceInstanceInfo>(
 			`/api/place/instance?stamp=${encodeURIComponent(stamp)}&index=${index}`,
+		),
+	/**
+	 * Adds, deletes, moves or duplicates an instance in the place file itself.
+	 * Answers with the place as it now is, where the instance made or moved
+	 * now is, and the backup kept first, when one was.
+	 */
+	placeChange: (stamp: string, change: PlaceInstanceChange) =>
+		post<Extract<PlaceTree, { stamp: string }> & { index?: number; backup?: string }>(
+			"/api/place/instance",
+			{ stamp, ...change },
 		),
 	/**
 	 * Changes one property of one instance in the place file itself. Answers

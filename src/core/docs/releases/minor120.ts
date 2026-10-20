@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.201.0",
+		date: "2026-10-20",
+		headline: "The DataModel adds, deletes, moves and duplicates instances.",
+		affects: ["editor", "docs"],
+		added: [
+			"**Add Child.** An instance's menu in DataModel, from a right-click or the ⋯ on the picked row, adds a child of a class you pick, named after it and holding the values Studio gives a fresh one.",
+			"**Duplicate and Delete.** Duplicate puts a copy beside the instance, with new ids and references inside the copy pointing into it. Delete takes it out with everything in it, after asking; what pointed at it points at nothing, and a script a project file writes is unlinked while the file stays.",
+			"**Moving by dragging.** An instance dragged onto another moves there, and the project's links to scripts in it follow.",
+			"**Studio's rules.** Services stay where they are, classes Studio will not make in a place are not offered, and a class that needs a particular parent, such as a WrapLayer in a MeshPart, is only offered there. Each change is written into the .rbxl or .rbxlx as Studio would save it.",
+		],
+	},
+	{
 		version: "0.200.1",
 		date: "2026-10-20",
 		headline: "A place converted between .rbxl and .rbxlx keeps every value Studio saved.",

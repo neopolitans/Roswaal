@@ -213,7 +213,7 @@ export function settingsPage(): DocPage {
 					],
 					[
 						"Modify DataModel Instances",
-						"Off by default. On, **Properties** changes values in the place file, after a backup. See Places and Rojo.",
+						"Off by default. On, **Properties** changes values in the place file and **DataModel** adds, moves and deletes instances, after a backup. See Places and Rojo.",
 					],
 					["On opening Roswaal", "Reopen the last project, or start at the picker."],
 					[

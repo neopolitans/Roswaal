@@ -84,12 +84,14 @@ export { entryPath, safeJoin } from "./paths.js";
 export {
 	exportPlace,
 	findPlaceFile,
+	linkedFiles,
 	PLACE_BACKUPS,
 	type PlaceExport,
 	placeEntries,
 	placeReport,
 	readPlaceBytes,
 	renameInLinks,
+	unlinkUnder,
 	writePlaceFile,
 	writePlaceImport,
 } from "./place.js";

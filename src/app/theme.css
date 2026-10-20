@@ -6838,6 +6838,36 @@ select.place-edit-field {
 	color: var(--warning);
 }
 
+/* A change to the tree the host refused, under the tree. */
+.place-note.place-refused {
+	color: var(--danger);
+}
+
+/* The picked row's menu, for a finger or anyone who does not right-click. */
+.tb.icon-only.place-more-button {
+	width: 20px;
+	height: 18px;
+	min-height: 0;
+	margin-left: 4px;
+	padding: 0;
+	flex: none;
+	display: inline-grid;
+	place-items: center;
+	border-color: transparent;
+	background: none;
+}
+
+.tb.icon-only.place-more-button:hover {
+	background: var(--bg-hover);
+}
+
+@media (pointer: coarse) {
+	.tb.icon-only.place-more-button {
+		width: 32px;
+		height: 28px;
+	}
+}
+
 /* A finger needs room: the field and the box are touch targets. */
 @media (pointer: coarse) {
 	.place-edit,

@@ -829,7 +829,7 @@ function WorkspaceSettings({ prefs, onPrefs }: SettingsPanelProps) {
 			<Group title="DataModel">
 				<Row
 					label="Modify DataModel Instances"
-					help="Change values in Properties. Each change is written into the place file, after a backup."
+					help="Change values in Properties, and add, move and delete instances in DataModel. Each change is written into the place file, after a backup."
 				>
 					<Toggle
 						on={prefs.modifyDataModel}

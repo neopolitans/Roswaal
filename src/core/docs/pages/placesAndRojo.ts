@@ -198,6 +198,40 @@ export function placesAndRojoPage(): DocPage {
 				text: "**Close the place in Studio first.** Studio's next save puts back the values it has.",
 			},
 
+			{ t: "h", level: 2, text: "Adding, moving and deleting instances" },
+			{
+				t: "p",
+				text:
+					"With the same setting on, an instance's menu in DataModel adds a child, duplicates it " +
+					"or deletes it. Right-click it, or pick it and press its **⋯**. Drag an instance onto " +
+					"another to move it there.",
+			},
+			{
+				t: "table",
+				head: ["Change", "What happens"],
+				rows: [
+					[
+						"Add Child…",
+						"Pick a class. The new instance is named after it and starts with Studio's defaults for a fresh one",
+					],
+					[
+						"Duplicate",
+						"A copy beside it, with new ids. References inside the copy point into the copy",
+					],
+					[
+						"Delete",
+						"It goes, with everything in it. What pointed at it points at nothing. A script a project file writes is unlinked; the file stays",
+					],
+					["Drag onto another", "It moves there, and links to scripts in it follow"],
+				],
+			},
+			{
+				t: "p",
+				text:
+					"Services stay where they are, and a class Studio only puts in one kind of parent, such " +
+					"as a **WrapLayer** in a MeshPart, is only offered there.",
+			},
+
 			{ t: "h", level: 2, text: "Dragging onto a graph" },
 			{
 				t: "table",

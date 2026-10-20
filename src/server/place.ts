@@ -208,6 +208,41 @@ export async function renameInLinks(
 }
 
 /**
+ * `.roswaal/place.json` after the instance at `under` was deleted: every link
+ * at it or inside it, found by path or by one of `ids`, taken off. A file left
+ * linked to nothing keeps its entry, so an export neither puts the script back
+ * nor takes the file for a new one. Answers with the files unlinked.
+ */
+export async function unlinkUnder(
+	project: OpenProject,
+	under: readonly string[],
+	ids: ReadonlySet<string>,
+): Promise<string[]> {
+	const file = safeJoin(project.root, LINKS_FILE);
+	const raw = await fs.readFile(file, "utf8").catch(() => null);
+	if (raw === null) return [];
+	const links = JSON.parse(raw) as PlaceLinks;
+	const inside = (p: readonly string[]) =>
+		p.length >= under.length && under.every((n, i) => p[i] === n);
+	const unlinked: string[] = [];
+	for (const link of links.scripts) {
+		const kept = link.instances.filter((t) => !inside(t.path) && !(t.id && ids.has(t.id)));
+		if (kept.length === link.instances.length) continue;
+		link.instances = kept;
+		unlinked.push(link.file);
+	}
+	if (unlinked.length) await writeFileAtomically(file, `${JSON.stringify(links, null, "\t")}\n`);
+	return unlinked;
+}
+
+/** The files `.roswaal/place.json` links to the place. */
+export async function linkedFiles(project: OpenProject): Promise<Set<string>> {
+	const raw = await fs.readFile(safeJoin(project.root, LINKS_FILE), "utf8").catch(() => null);
+	const links = raw === null ? null : (JSON.parse(raw) as PlaceLinks);
+	return new Set((links?.scripts ?? []).map((link) => link.file));
+}
+
+/**
  * The project's files that belong in its place, by file name: the ones
  * `.roswaal/place.json` links to the place, and any other Luau under `outDir`
  * a node map places. What an export writes in, and what the DataModel browser

@@ -31,6 +31,10 @@ export interface ErrorDetails {
 	root?: string;
 	/** `not-a-project`: the folder or archive that was not one. */
 	name?: string;
+	/** `linked-scripts`: files a deletion would unlink from their scripts. */
+	linked?: string[];
+	/** `linked-scripts`: files a node map places, whose scripts an export puts back. */
+	placed?: string[];
 }
 
 /** What every error answer looks like, on the daemon and in the web worker. */

@@ -845,6 +845,8 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 				`<span class="label">${escapeXml(item.label)}</span>` +
 				`${item.badge ? `<span class="badge">${escapeXml(item.badge)}</span>` : ""}` +
 				`${item.className ? `<span class="place-class">${escapeXml(item.className)}</span>` : ""}` +
+				// The picked DataModel row's menu button, as `PlaceBrowser.tsx` draws it.
+				`${item.place && item.selected ? `<span class="tb icon-only place-more-button">${iconSvg("more", 14, art)}</span>` : ""}` +
 				`</div>`
 			);
 		}
@@ -3070,7 +3072,7 @@ export const DATAMODEL_BROWSER: ToolbarSpec = {
 				placeRow("Door", "Part", 2, {
 					selected: true,
 					name: "An instance",
-					what: "Its name and class. Double-click it, or double tap, for Properties.",
+					what: "Its name and class. Double-click it, or double tap, for Properties. Its menu, from ⋯ or a right-click, adds a child, duplicates or deletes it.",
 				}),
 				placeRow("ReplicatedStorage", "ReplicatedStorage", 0, {
 					service: true,

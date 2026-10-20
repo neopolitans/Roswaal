@@ -33,7 +33,7 @@ export function uniqueIdToBinary(id: string): Uint8Array {
 }
 
 /**
- * The id as Roswaal spelled it before 0.201.0 for a binary place: its 16
+ * The id as Roswaal spelled it before 0.200.1 for a binary place: its 16
  * bytes as they stand. A link written then names a script by it.
  */
 export function legacyBinaryUniqueId(id: string): string {

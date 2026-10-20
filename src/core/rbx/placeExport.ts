@@ -86,7 +86,7 @@ export function planPlaceUpdate(
 		const id = inst.props.get("UniqueId")?.value;
 		if (typeof id === "string") {
 			byId.set(id, inst);
-			// As a link made from a binary place before 0.201.0 names it.
+			// As a link made from a binary place before 0.200.1 names it.
 			byId.set(legacyBinaryUniqueId(id), inst);
 		}
 		const k = key(pathOf(inst));

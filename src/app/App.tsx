@@ -368,13 +368,13 @@ export function App() {
 	 * the place file, which Studio may have open.
 	 */
 	const confirmPlaceEdit = useCallback(
-		async (target: PlaceTarget) => {
+		async (target: { studio?: boolean }) => {
 			const file = project?.place;
 			if (!file) return false;
 			if (placeEditsAgreed.current.has(file)) return true;
 			const yes = await ask({
 				kind: "confirm",
-				title: `Change properties in ${file}?`,
+				title: `Change ${file}?`,
 				message:
 					"Each change is written into the place file as you make it. A copy of the file " +
 					"as it is now goes in .roswaal/backups first.",
@@ -383,12 +383,16 @@ export function App() {
 						? "Studio has this place open. Its next save puts back the values it has, so close it first."
 						: "If Studio has this place open, its next save puts back the values it has.",
 				],
-				confirmLabel: "Change Properties",
+				confirmLabel: "Change the Place",
 			});
 			if (yes === true) placeEditsAgreed.current.add(file);
 			return yes === true;
 		},
 		[ask, project?.place],
+	);
+	const confirmTreeEdit = useCallback(
+		(studio: boolean) => confirmPlaceEdit({ studio }),
+		[confirmPlaceEdit],
 	);
 	const onPlaceWritten = useCallback((stamp: string, _backup?: string, now?: PlaceInstanceInfo) => {
 		// Renamed, it sorts elsewhere: the panel follows it to its new place.
@@ -1775,6 +1779,10 @@ export function App() {
 										inspecting={placeInspect?.index ?? null}
 										reveal={placeReveal}
 										written={placeWritten}
+										editable={prefs.modifyDataModel}
+										confirmEdit={confirmTreeEdit}
+										ask={ask}
+										onChanged={setPlaceWritten}
 									/>
 								</div>
 							)}

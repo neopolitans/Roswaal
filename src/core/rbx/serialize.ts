@@ -46,9 +46,20 @@ function refused(prop: string, type: string): never {
 }
 
 /** A place's shared strings, each once, in the order first met, keyed by its MD5. */
-class SharedStrings {
+export class SharedStrings {
 	readonly values: { bytes: Uint8Array; hash: Uint8Array; key: string }[] = [];
 	private index = new Map<string, number>();
+	/**
+	 * A table a file already has, in its order and with its own hashes, so the
+	 * indices its properties hold stay right and only new strings are added.
+	 */
+	seed(entries: readonly { bytes: Uint8Array; hash: Uint8Array }[]): void {
+		for (const { bytes, hash } of entries) {
+			const at = this.values.push({ bytes, hash, key: base64(hash) }) - 1;
+			const own = base64(md5(bytes));
+			if (!this.index.has(own)) this.index.set(own, at);
+		}
+	}
 	/** Where `bytes` is in the table, adding it the first time. */
 	add(bytes: Uint8Array): number {
 		const hash = md5(bytes);
@@ -69,7 +80,7 @@ class SharedStrings {
 // Binary
 // ---------------------------------------------------------------------------
 
-const TYPE_BYTE: Record<string, number> = {
+export const TYPE_BYTE: Record<string, number> = {
 	String: 1,
 	Bool: 2,
 	Int32: 3,
@@ -107,7 +118,7 @@ const TYPE_BYTE: Record<string, number> = {
 };
 
 /** A chunk's payload, built up a value at a time. */
-class Bytes {
+export class Bytes {
 	private parts: number[] = [];
 	u8(v: number) {
 		this.parts.push(v & 255);
@@ -182,7 +193,7 @@ function cframes(w: Bytes, values: readonly (CFrameValue | null)[]) {
 	for (let k = 0; k < 3; k++) w.floats(values.map((v) => (v ?? IDENTITY).position[k]));
 }
 
-function binaryValues(
+export function binaryValues(
 	w: Bytes,
 	name: string,
 	type: string,
@@ -346,7 +357,7 @@ function binaryValues(
  * be written, and zero is the only one known; a document read from a binary
  * place never lacks one.
  */
-function blank(type: string): unknown {
+export function blank(type: string): unknown {
 	switch (type) {
 		case "String":
 		case "ProtectedString":
@@ -435,6 +446,41 @@ function propsOf(insts: readonly RbxInstance[]): [string, string][] {
 	return [...types].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
 }
 
+/**
+ * One class's chunks: its INST, listing `members` by the referents `ref`
+ * gives them, and a PROP for each property any of them holds, a blank where
+ * one does not. Also what an instance change rewrites a class with.
+ */
+export function classChunks(
+	id: number,
+	className: string,
+	members: readonly RbxInstance[],
+	ref: Map<RbxInstance, number>,
+	shared: SharedStrings,
+): { inst: Uint8Array; props: Uint8Array[] } {
+	const service = members.some((inst) => inst.service);
+	const w = new Bytes();
+	w.u32(id);
+	w.string(className);
+	w.u8(service ? 1 : 0);
+	w.u32(members.length);
+	w.referents(members.map((inst) => ref.get(inst)!));
+	if (service) for (const _ of members) w.u8(1);
+	const props: Uint8Array[] = [];
+	for (const [name, type] of propsOf(members)) {
+		const typeByte = TYPE_BYTE[type];
+		if (typeByte === undefined) refused(`${className}.${name}`, type);
+		const p = new Bytes();
+		p.u32(id);
+		p.string(name);
+		p.u8(typeByte);
+		const values = members.map((inst) => inst.props.get(name)?.value ?? blank(type));
+		binaryValues(p, `${className}.${name}`, type, values, ref, shared);
+		props.push(sealChunk("PROP", p.done()));
+	}
+	return { inst: sealChunk("INST", w.done()), props };
+}
+
 /** The document as a binary place, every chunk LZ4-compressed as Rojo writes them. */
 export function writeBinaryPlace(doc: RbxDocument): Uint8Array {
 	const { list, ref } = order(doc);
@@ -462,27 +508,9 @@ export function writeBinaryPlace(doc: RbxDocument): Uint8Array {
 	const insts: Uint8Array[] = [];
 	const props: Uint8Array[] = [];
 	classes.forEach(([className, members], id) => {
-		const service = members.some((inst) => inst.service);
-		const w = new Bytes();
-		w.u32(id);
-		w.string(className);
-		w.u8(service ? 1 : 0);
-		w.u32(members.length);
-		w.referents(members.map((inst) => ref.get(inst)!));
-		if (service) for (const _ of members) w.u8(1);
-		insts.push(sealChunk("INST", w.done()));
-
-		for (const [name, type] of propsOf(members)) {
-			const typeByte = TYPE_BYTE[type];
-			if (typeByte === undefined) refused(`${className}.${name}`, type);
-			const p = new Bytes();
-			p.u32(id);
-			p.string(name);
-			p.u8(typeByte);
-			const values = members.map((inst) => inst.props.get(name)?.value ?? blank(type));
-			binaryValues(p, `${className}.${name}`, type, values, ref, shared);
-			props.push(sealChunk("PROP", p.done()));
-		}
+		const chunks = classChunks(id, className, members, ref, shared);
+		insts.push(chunks.inst);
+		props.push(...chunks.props);
 	});
 	// The table goes before the instances, as Studio writes it, once every
 	// property that points into it has been met.
@@ -586,7 +614,7 @@ function cframeXml(v: CFrameValue): string {
 	return fields(["X", "Y", "Z"], v.position) + fields(R, v.rotation);
 }
 
-function xmlProperty(
+export function xmlProperty(
 	className: string,
 	name: string,
 	prop: Prop,
