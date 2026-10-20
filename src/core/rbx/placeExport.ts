@@ -13,6 +13,7 @@
 import { scriptClassOf } from "../rojoPaths.js";
 import type { NewInstance } from "./adder.js";
 import { isScript, pathOf, type RbxDocument, type RbxInstance, stringProp } from "./dom.js";
+import { legacyBinaryUniqueId } from "./uniqueId.js";
 import type { SourceChange } from "./writer.js";
 
 export interface PlaceTarget {
@@ -83,7 +84,11 @@ export function planPlaceUpdate(
 	for (const inst of doc.instances) {
 		if (!isScript(inst)) continue;
 		const id = inst.props.get("UniqueId")?.value;
-		if (typeof id === "string") byId.set(id, inst);
+		if (typeof id === "string") {
+			byId.set(id, inst);
+			// As a link made from a binary place before 0.201.0 names it.
+			byId.set(legacyBinaryUniqueId(id), inst);
+		}
 		const k = key(pathOf(inst));
 		byPath.set(k, [...(byPath.get(k) ?? []), inst]);
 	}

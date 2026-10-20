@@ -31,6 +31,7 @@ import {
 	walk,
 } from "./dom.js";
 import { readRbx } from "./index.js";
+import { uniqueIdToBinary } from "./uniqueId.js";
 
 const utf8 = new TextEncoder();
 
@@ -94,6 +95,10 @@ const TYPE_BYTE: Record<string, number> = {
 	// A script's Source, which Studio's binary keeps as a plain String whatever
 	// the XML called it: given 29, Studio refused the place it was in.
 	ProtectedString: 1,
+	Ray: 8,
+	Faces: 9,
+	Axes: 10,
+	Vector3int16: 20,
 	Font: 32,
 	SecurityCapabilities: 33,
 	Content: 34,
@@ -270,6 +275,16 @@ function binaryValues(
 		case "Vector3":
 			for (let k = 0; k < 3; k++) w.floats(tuples.map((v) => v[k]));
 			return;
+		case "Ray":
+			for (const v of tuples) for (const n of v) w.f32(n);
+			return;
+		case "Faces":
+		case "Axes":
+			for (const v of nums) w.u8(v);
+			return;
+		case "Vector3int16":
+			for (const v of tuples) for (const n of v) w.bytes([n & 255, (n >> 8) & 255]);
+			return;
 		case "Vector2":
 			for (let k = 0; k < 2; k++) w.floats(tuples.map((v) => v[k]));
 			return;
@@ -314,9 +329,9 @@ function binaryValues(
 		case "UniqueId": {
 			const n = vs.length;
 			const out = new Uint8Array(n * 16);
-			vs.forEach((hex, i) => {
-				for (let k = 0; k < 16; k++)
-					out[k * n + i] = parseInt((hex as string).slice(2 * k, 2 * k + 2), 16);
+			vs.forEach((id, i) => {
+				const bytes = uniqueIdToBinary(id as string);
+				for (let k = 0; k < 16; k++) out[k * n + i] = bytes[k];
 			});
 			w.bytes(out);
 			return;
@@ -352,7 +367,13 @@ function blank(type: string): unknown {
 		case "Color3":
 		case "Vector3":
 		case "Color3uint8":
+		case "Vector3int16":
 			return [0, 0, 0];
+		case "Ray":
+			return [0, 0, 0, 0, 0, 0];
+		case "Faces":
+		case "Axes":
+			return 0;
 		case "CFrame":
 			return IDENTITY;
 		case "Ref":
@@ -504,6 +525,9 @@ export function writeBinaryPlace(doc: RbxDocument): Uint8Array {
 // XML
 // ---------------------------------------------------------------------------
 
+/** Shared strings Studio's XML writes as a `NetAssetRef`: a union's mesh. */
+const NET_ASSET_REFS = new Set(["SolidMeshHolder"]);
+
 /** Kept in a `BinaryString` element whatever they hold, as Studio writes them. */
 const BINARY_STRINGS = new Set([
 	"AttributesSerialize",
@@ -576,6 +600,9 @@ function xmlProperty(
 	switch (prop.type) {
 		case "String": {
 			const text = asText(v as Uint8Array);
+			// A script's Source, which a binary place keeps as a String and
+			// Studio's XML as a ProtectedString.
+			if (name === "Source" && text !== undefined) return el("ProtectedString", cdata(text));
 			// An asset link is a Content element in XML; Studio leaves one
 			// written as a string empty.
 			if (text !== undefined && findProperty(className, name)?.type === "ContentId")
@@ -607,7 +634,11 @@ function xmlProperty(
 		case "UniqueId":
 			return el("UniqueId", String(v));
 		case "SharedString":
-			return el("SharedString", shared.key(v as Uint8Array));
+			// A union's mesh, which Studio's XML keeps in its own element.
+			return el(
+				NET_ASSET_REFS.has(name) ? "NetAssetRef" : "SharedString",
+				shared.key(v as Uint8Array),
+			);
 		case "NumberSequence":
 		case "ColorSequence":
 			return el(prop.type, `${(v as number[][]).flat().map(float32Text).join(" ")} `);
@@ -651,6 +682,18 @@ function xmlProperty(
 			return el("Vector2", fields(["X", "Y"], tuple));
 		case "Vector3":
 			return el("Vector3", fields(["X", "Y", "Z"], tuple));
+		case "Vector3int16":
+			return el("Vector3int16", fields(["X", "Y", "Z"], tuple, String));
+		case "Ray":
+			return el(
+				"Ray",
+				`<origin>${fields(["X", "Y", "Z"], tuple.slice(0, 3))}</origin>` +
+					`<direction>${fields(["X", "Y", "Z"], tuple.slice(3))}</direction>`,
+			);
+		case "Faces":
+			return el("Faces", `<faces>${v}</faces>`);
+		case "Axes":
+			return el("Axes", `<axes>${v}</axes>`);
 		case "Color3":
 			return el("Color3", fields(["R", "G", "B"], tuple));
 		case "Color3uint8": {

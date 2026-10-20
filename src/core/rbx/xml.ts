@@ -239,7 +239,22 @@ function readValue(
 		case "UniqueId":
 			return ["UniqueId", t.trim().toLowerCase()];
 		case "SharedString":
+		case "NetAssetRef":
+			// A union's mesh is a shared string Studio's XML gives its own element.
 			return ["SharedString", shared.get(t.trim()) ?? new Uint8Array(0)];
+		case "Faces":
+			return ["Faces", num(child(el, "faces"))];
+		case "Axes":
+			return ["Axes", num(child(el, "axes"))];
+		case "Vector3int16":
+			return ["Vector3int16", [num(child(el, "X")), num(child(el, "Y")), num(child(el, "Z"))]];
+		case "Ray": {
+			const end = (part: string) => {
+				const at = el.children.find((c) => c.name === part);
+				return at ? [num(child(at, "X")), num(child(at, "Y")), num(child(at, "Z"))] : [0, 0, 0];
+			};
+			return ["Ray", [...end("origin"), ...end("direction")]];
+		}
 		case "Vector2":
 			return ["Vector2", [num(child(el, "X")), num(child(el, "Y"))]];
 		case "Vector3":

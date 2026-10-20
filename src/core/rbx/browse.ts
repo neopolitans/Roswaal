@@ -350,7 +350,18 @@ function formatValue(
 		case "Vector3":
 		case "NumberRange":
 		case "Rect":
+		case "Vector3int16":
 			return { value: (prop.value as number[]).map(num).join(", ") };
+		case "Ray": {
+			const v = (prop.value as number[]).map(num);
+			return { value: `${v.slice(0, 3).join(", ")} → ${v.slice(3).join(", ")}` };
+		}
+		case "Faces":
+		case "Axes": {
+			const names = prop.type === "Faces" ? FACES : AXES;
+			const on = names.filter((_, i) => ((prop.value as number) >> i) & 1);
+			return { value: on.length ? on.join(", ") : "None" };
+		}
 		case "Color3": {
 			const rgb = (prop.value as number[]).map((c) => c * 255);
 			return { value: rgb.map((c) => String(Math.round(c))).join(", "), color: hex(rgb) };
@@ -410,6 +421,11 @@ function formatValue(
 	}
 	return { value: "" };
 }
+
+/** A Faces value's bits, lowest first, as Enum.NormalId names them. */
+const FACES = ["Right", "Top", "Back", "Left", "Bottom", "Front"];
+/** An Axes value's bits, lowest first. */
+const AXES = ["X", "Y", "Z"];
 
 /** How an instance's stored property is changed, or undefined when it is not. */
 export function propertyEdit(inst: RbxInstance, stored: string): PropertyEdit | undefined {

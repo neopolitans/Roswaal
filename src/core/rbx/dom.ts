@@ -39,7 +39,13 @@ export type PropType =
 	| "PhysicalProperties"
 	| "Font"
 	| "SecurityCapabilities"
-	| "Content";
+	| "Content"
+	// A handle's faces and axes, as bitmasks; a RayValue's origin then
+	// direction; a TerrainRegion's corners in whole studs.
+	| "Faces"
+	| "Axes"
+	| "Ray"
+	| "Vector3int16";
 
 /** A NumberSequence's keypoints: time, value, envelope. */
 export type NumberKeypoint = [number, number, number];

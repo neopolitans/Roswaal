@@ -1,6 +1,6 @@
 {
   "name": "roswaal",
-  "version": "0.200.0",
+  "version": "0.200.1",
   "private": true,
   "license": "0BSD",
   "type": "module",

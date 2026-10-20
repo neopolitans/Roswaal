@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.200.1",
+		date: "2026-10-20",
+		headline: "A place converted between .rbxl and .rbxlx keeps every value Studio saved.",
+		affects: ["editor"],
+		fixed: [
+			"**Identities kept across formats.** A place converted between .rbxl and .rbxlx keeps the UniqueId Studio gave each instance, where each one came out different.",
+			"**Handles, rays, regions and unions.** A handle's faces and axes, a RayValue, a TerrainRegion's corners and a union's mesh are read and written in both formats, where a conversion left them out.",
+			"**Scripts in a .rbxlx.** A script's Source is written as Studio writes it in XML.",
+		],
+	},
+	{
 		version: "0.200.0",
 		date: "2026-10-19",
 		headline: "Properties renames instances.",

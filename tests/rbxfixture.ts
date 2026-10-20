@@ -9,6 +9,8 @@
 
 import { zstdCompressSync } from "node:zlib";
 
+import { uniqueIdToBinary } from "../src/core/rbx/uniqueId.js";
+
 export interface FixtureProp {
 	/** The binary format's type id: 1 String, 2 Bool, 18 Enum, 31 UniqueId... */
 	type: number;
@@ -256,9 +258,10 @@ function writeValues(w: Writer, type: number, values: unknown[]): void {
 		case 31: {
 			const n = values.length;
 			const out = new Uint8Array(n * 16);
+			// Given as Roswaal spells an id (Studio's XML order), written as the binary holds it.
 			values.forEach((v, i) => {
-				const hex = v as string;
-				for (let k = 0; k < 16; k++) out[k * n + i] = parseInt(hex.slice(k * 2, k * 2 + 2), 16);
+				const bytes = uniqueIdToBinary(v as string);
+				for (let k = 0; k < 16; k++) out[k * n + i] = bytes[k];
 			});
 			w.bytes(out);
 			return;

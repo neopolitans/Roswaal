@@ -28,6 +28,7 @@ import {
 	type RbxInstance,
 	text,
 } from "./dom.js";
+import { uniqueIdFromBinary } from "./uniqueId.js";
 
 const MAGIC = "<roblox!";
 const SIGNATURE = [0x89, 0xff, 0x0d, 0x0a, 0x1a, 0x0a];
@@ -244,6 +245,26 @@ function readValues(
 			const oy = r.ints(count);
 			return ["UDim2", sx.map((s, i) => [s, ox[i], sy[i], oy[i]])];
 		}
+		case 8: {
+			// A Ray: origin then direction, six floats each, side by side.
+			const out: number[][] = [];
+			for (let i = 0; i < count; i++) out.push(Array.from({ length: 6 }, () => r.f32()));
+			return ["Ray", out];
+		}
+		case 9:
+		case 10: {
+			// Faces and Axes: one byte of flags each.
+			const out: number[] = [];
+			for (let i = 0; i < count; i++) out.push(r.u8());
+			return [type === 9 ? "Faces" : "Axes", out];
+		}
+		case 20: {
+			// Three signed 16-bit whole numbers each, side by side.
+			const out: number[][] = [];
+			const i16 = () => (r.u16() << 16) >> 16;
+			for (let i = 0; i < count; i++) out.push([i16(), i16(), i16()]);
+			return ["Vector3int16", out];
+		}
 		case 11:
 			return ["BrickColor", r.interleaved(count)];
 		case 12: {
@@ -365,14 +386,13 @@ function readValues(
 			return ["Content", out];
 		}
 		case 31: {
-			// 16 bytes a value, transposed like everything else. Kept as hex:
-			// it is an identity to match on, not a number to do sums with.
+			// 16 bytes a value, transposed like everything else. Kept as hex,
+			// spelt as Studio's XML spells it: an identity to match on, the
+			// same whichever format the place was read from.
 			const bytes = r.bytes(count * 16);
 			const out: string[] = [];
 			for (let i = 0; i < count; i++) {
-				let hex = "";
-				for (let k = 0; k < 16; k++) hex += bytes[k * count + i].toString(16).padStart(2, "0");
-				out.push(hex);
+				out.push(uniqueIdFromBinary(Array.from({ length: 16 }, (_, k) => bytes[k * count + i])));
 			}
 			return ["UniqueId", out];
 		}
