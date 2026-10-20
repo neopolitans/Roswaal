@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.202.1",
+		date: "2026-10-20",
+		headline: "The hidden theme's buttons show on the panel in use.",
+		affects: ["editor"],
+		fixed: [
+			"**Buttons in a panel's title bar.** In the hidden theme, the fold and menu buttons on the panel in use are drawn in its blue on the white bar, where they were blank blue squares.",
+		],
+	},
+	{
 		version: "0.202.0",
 		date: "2026-10-20",
 		headline: "Settings › Themes keeps one scheme hidden, for whoever looks closely.",

@@ -20116,3 +20116,23 @@ textarea.tb:where(:disabled) {
 	outline: 2px solid var(--four-orange);
 	outline-offset: 1px;
 }
+
+/* The gadgets in a white title bar are drawn in its blue, as they were on the
+   window in use: a blue edge and a blue glyph on white, swapped while held. */
+:root[data-look="four-colours"] .card.focus .card-head button.tb {
+	background: transparent;
+	border-color: var(--bg-panel);
+	color: var(--bg-panel);
+}
+
+:root[data-look="four-colours"] .card.focus .card-head button.tb:hover:not(:disabled) {
+	background: transparent;
+	border-color: var(--four-orange);
+}
+
+:root[data-look="four-colours"] .card.focus .card-head button.tb:active:not(:disabled),
+:root[data-look="four-colours"] .card.focus .card-head button.tb.on {
+	background: var(--bg-panel);
+	border-color: var(--bg-panel);
+	color: var(--fg);
+}
