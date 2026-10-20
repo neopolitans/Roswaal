@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.203.1",
+		date: "2026-10-20",
+		headline: "The documentation site carries the hidden theme's face.",
+		affects: ["docs"],
+		fixed: [
+			"**The face on the documentation site.** A reader who chose the hidden theme in the editor sees the docs in its own face, which the site now carries beside its stylesheet, where it fell back to a system one.",
+		],
+	},
+	{
 		version: "0.203.0",
 		date: "2026-10-20",
 		headline: "The hidden theme moves a panel by its outline.",

@@ -14,7 +14,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -154,6 +154,9 @@ async function main() {
 	await writeFile(join(out, "search.json"), JSON.stringify(index), "utf8");
 	await writeFile(join(out, "docs.js"), docsJs, "utf8");
 	await writeFile(join(out, "theme.css"), themeCss, "utf8");
+	// The faces the stylesheet names by a path beside it, at that path: a
+	// scheme chosen in the editor follows the reader here.
+	await cp(join(root, "src/app/fonts"), join(out, "fonts"), { recursive: true });
 	await writeFile(join(out, "theme.js"), themeJs, "utf8");
 
 	console.log(`docs site: ${files.length} pages -> dist-docs/`);
