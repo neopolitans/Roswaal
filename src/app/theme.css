@@ -20252,3 +20252,20 @@ textarea.tb:where(:disabled) {
 :root[data-look="four-colours"] svg * {
 	shape-rendering: crispEdges;
 }
+
+/* A card being moved, as its outline (`Workspace.tsx`). Drawn as Workbench
+   drew one, in complement: white differenced with what is under it, which
+   is orange over the blue and black over white. */
+.drag-outline {
+	position: absolute;
+	z-index: 31;
+	pointer-events: none;
+	box-sizing: border-box;
+	border: 2px solid #ffffff;
+	mix-blend-mode: difference;
+}
+
+/* Where a card would join, as an edge alone: no see-through fill. */
+:root[data-look="four-colours"] .drop-preview:not(.line) {
+	background: none;
+}

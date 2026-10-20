@@ -209,6 +209,8 @@ export function Workspace({
 		alone: boolean;
 		windowed: boolean;
 		target: Target | null;
+		/** The card's outline, where it would go, when it is moved by its outline. */
+		outline?: { left: number; top: number; width: number; height: number };
 	} | null>(null);
 	// The card last used, which its header marks.
 	const [focus, setFocus] = useState<PanelId | null>(null);
@@ -489,7 +491,11 @@ export function Workspace({
 				{/* The preview, drawn over everything and hit by nothing. It has to be
 				    `pointer-events: none` or `elementFromPoint` would answer "the
 				    overlay" for every position under it, which is every position. */}
-				{dragging?.target && <DropPreview target={dragging.target} />}
+				{/* Where an outline already shows the window it would make, it is that preview. */}
+				{dragging?.target && !(dragging.outline && dragging.target.drop.kind === "float") && (
+					<DropPreview target={dragging.target} />
+				)}
+				{dragging?.outline && <div className="drag-outline" style={dragging.outline} />}
 
 				{menu && openMenuItems && (
 					<Menu
@@ -529,6 +535,20 @@ export function Workspace({
 		const startY = event.clientY;
 		let started = false;
 		let target: Target | null = null;
+		// Four Colours moves a card as Workbench moved a window: its outline
+		// follows the pointer, and the card stays where it is until let go.
+		const byOutline = document.documentElement.dataset.look === "four-colours";
+		const box = surface.current?.getBoundingClientRect();
+		const card = event.currentTarget.closest(".card")?.getBoundingClientRect();
+		const start =
+			byOutline && box && card
+				? {
+						left: card.left - box.left,
+						top: card.top - box.top,
+						width: card.width,
+						height: card.height,
+					}
+				: undefined;
 
 		const move = (e: PointerEvent) => {
 			if (!started) {
@@ -537,14 +557,19 @@ export function Workspace({
 				window.getSelection()?.removeAllRanges();
 				setMenu(null);
 			}
-			if (windowed)
+			if (windowed && !start)
 				onFramePanel?.(head, {
 					...from,
 					x: from.x + e.clientX - startX,
 					y: from.y + e.clientY - startY,
 				});
 			target = targetAt(e.clientX, e.clientY, head, panel, alone, windowed);
-			setDragging({ panel, alone, windowed, target });
+			const outline = start && {
+				...start,
+				left: start.left + e.clientX - startX,
+				top: start.top + e.clientY - startY,
+			};
+			setDragging({ panel, alone, windowed, target, ...(outline ? { outline } : {}) });
 		};
 
 		const end = (e: PointerEvent | undefined) => {
@@ -553,6 +578,13 @@ export function Workspace({
 			const drop = targetAt(e.clientX, e.clientY, head, panel, alone, windowed)?.drop ?? null;
 			if (!drop || drop.kind === "float") {
 				if (windowed) {
+					// Moved by its outline, the window goes there only now.
+					if (start)
+						onFramePanel?.(head, {
+							...from,
+							x: from.x + e.clientX - startX,
+							y: from.y + e.clientY - startY,
+						});
 					onFramePanelEnd?.();
 					return;
 				}

@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.203.0",
+		date: "2026-10-20",
+		headline: "The hidden theme moves a panel by its outline.",
+		affects: ["editor"],
+		added: [
+			"**Moving by outline.** In the hidden theme, a panel being dragged stays where it is while its outline follows the pointer, drawn in the colours under it swapped, and goes where the outline is when let go.",
+		],
+	},
+	{
 		version: "0.202.2",
 		date: "2026-10-20",
 		headline: "A node's header rule runs its full width, and the hidden theme draws pins as sprites.",
