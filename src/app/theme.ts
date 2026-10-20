@@ -77,8 +77,14 @@ export function applyTheme(theme: Theme | undefined): void {
 		for (const property of appliedProperties()) root.style.removeProperty(property);
 		existing?.remove();
 		root.removeAttribute("data-theme");
+		root.removeAttribute("data-look");
 		return;
 	}
+
+	// What a palette cannot say -- a face, square edges, another kind of
+	// window -- is a section of theme.css, keyed by this.
+	if (theme.look) root.setAttribute("data-look", theme.look);
+	else root.removeAttribute("data-look");
 
 	const tokens = themeTokens(theme);
 	for (const [property, value] of Object.entries(tokens)) {

@@ -68,5 +68,15 @@
 		"source": "lune-org/lune · LICENSE.txt at v0.10.5",
 		"url": "https://github.com/lune-org/lune/blob/v0.10.5/LICENSE.txt",
 		"retrieved": "2026-10-08"
+	},
+	{
+		"file": "vt323.txt",
+		"name": "VT323",
+		"holder": "The VT323 Project Authors",
+		"spdx": "OFL-1.1",
+		"covers": "The pixel face one of the editor's themes is drawn in, unchanged.",
+		"source": "google/fonts · ofl/vt323/OFL.txt",
+		"url": "https://github.com/google/fonts/blob/main/ofl/vt323/OFL.txt",
+		"retrieved": "2026-10-20"
 	}
 ]

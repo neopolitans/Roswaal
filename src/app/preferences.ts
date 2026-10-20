@@ -234,6 +234,8 @@ export interface Preferences {
 	 * only showing them. Off until asked for: it writes a file Studio owns.
 	 */
 	modifyDataModel: boolean;
+	/** The hidden schemes found on the Themes page, by name: listed from then on. */
+	foundThemes: string[];
 	/**
 	 * What the node menu is narrowed to, or `null` for everything.
 	 *
@@ -415,6 +417,7 @@ export const DEFAULTS: Preferences = {
 	showPreReleaseNotes: false,
 	analysisScope: "script",
 	modifyDataModel: false,
+	foundThemes: [],
 	// Everything the target allows, which is what the menu did before there was
 	// a filter at all.
 	nodeFilter: null,
@@ -512,6 +515,9 @@ export function readPreferences(): Preferences {
 			typeof stored.modifyDataModel === "boolean"
 				? stored.modifyDataModel
 				: DEFAULTS.modifyDataModel,
+		foundThemes: Array.isArray(stored.foundThemes)
+			? stored.foundThemes.filter((name): name is string => typeof name === "string")
+			: DEFAULTS.foundThemes,
 		docsFont: DOCS_FONTS.some((f) => f.font === stored.docsFont)
 			? (stored.docsFont as DocsFont)
 			: DEFAULTS.docsFont,

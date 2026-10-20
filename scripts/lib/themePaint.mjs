@@ -57,7 +57,7 @@ export async function buildThemePaint() {
 			"// lists to keep in step, and this one is already on the page.",
 			"window.__roswaal = {",
 			"\tread: readPreferences, write: writePreferences, paint,",
-			"\tthemes: BUILTIN_THEMES, fonts: DOCS_FONTS,",
+			"\tthemes: BUILTIN_THEMES.filter((t) => !t.hidden), fonts: DOCS_FONTS,",
 			"};",
 		],
 		{ minify: true },

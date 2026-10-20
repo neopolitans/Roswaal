@@ -17,3 +17,6 @@ src/core/robloxMembers.ts linguist-generated=true
 src/core/robloxProperties.ts linguist-generated=true
 src/core/licenceData.ts linguist-generated=true
 src/core/themeData.ts linguist-generated=true
+
+# A font is bytes, and the OFL asks for it unchanged.
+*.ttf binary

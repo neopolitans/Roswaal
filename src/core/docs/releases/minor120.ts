@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.202.0",
+		date: "2026-10-20",
+		headline: "Settings › Themes keeps one scheme hidden, for whoever looks closely.",
+		affects: ["editor"],
+		added: [
+			"**A hidden theme.** Settings › Themes has one more scheme than it lists, with its own face, edges and windows as well as its colours. Once found it stays in the list, in that browser.",
+			"**VT323 under Licences.** The pixel face that scheme is drawn in is carried unchanged under the SIL Open Font License, and listed in Settings › Licences.",
+		],
+	},
+	{
 		version: "0.201.1",
 		date: "2026-10-20",
 		headline: "On a tablet, a drag inside the Project panel drops there.",

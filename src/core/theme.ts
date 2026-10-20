@@ -88,9 +88,27 @@ export interface Theme {
 	source?: string;
 	/** Required when the scheme is somebody else's work. */
 	licence?: ThemeLicence;
+	/**
+	 * Listed only once it has been found: a scheme kept as a surprise, which
+	 * the Themes page offers after the developer goes looking for it.
+	 */
+	hidden?: boolean;
+	/**
+	 * A section of `theme.css` this scheme turns on, for what colours cannot
+	 * say: a face, square edges, windows drawn another way. One of `LOOKS`.
+	 */
+	look?: Look;
 	colors: Record<ColorRole, string>;
 	code: Record<CodeRole, string>;
 }
+
+/**
+ * The looks a scheme may turn on, each a section of `theme.css` keyed by the
+ * root's `data-look`. A list, so a misspelt one is refused rather than
+ * quietly drawing the default chrome under a palette made for another.
+ */
+export const LOOKS = ["four-colours"] as const;
+export type Look = (typeof LOOKS)[number];
 
 // ---------------------------------------------------------------------------
 // Roles
@@ -320,6 +338,10 @@ export function validateTheme(value: unknown, where: string): string[] {
 		if (!CODE_ROLE_NAMES.includes(key as CodeRole)) say(`code.${key} is not a role`);
 	}
 
+	if (t.hidden !== undefined && typeof t.hidden !== "boolean") say("hidden must be true or false");
+	if (t.look !== undefined && !LOOKS.includes(t.look))
+		say(`look "${String(t.look)}" is not one of ${LOOKS.join(", ")}`);
+
 	if (t.licence !== undefined) {
 		const l = t.licence;
 		if (typeof l.spdx !== "string" || l.spdx === "") say("licence.spdx is missing");
@@ -344,8 +366,12 @@ export function validateTheme(value: unknown, where: string): string[] {
 		say(`dark is false but app (${c.app}) is a dark colour — every hover would be black on black`);
 	}
 
-	/** A node the same colour as the canvas is a node you cannot see. */
-	if (contrast(c.nodeBody, c.canvas) < 1.12) {
+	/**
+	 * A node the same colour as the canvas is a node you cannot see -- unless
+	 * its outline shows it, as a window's white edge did on a desk the same
+	 * blue.
+	 */
+	if (contrast(c.nodeBody, c.canvas) < 1.12 && contrast(c.nodeBorder, c.canvas) < 3) {
 		say(`nodeBody (${c.nodeBody}) is indistinguishable from canvas (${c.canvas})`);
 	}
 

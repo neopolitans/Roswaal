@@ -19,6 +19,7 @@
 import {
 	createContext,
 	type ReactNode,
+	useCallback,
 	useContext,
 	useEffect,
 	useMemo,
@@ -906,12 +907,48 @@ function DocsSettings({ prefs, onPrefs }: SettingsPanelProps) {
 // Themes
 // ---------------------------------------------------------------------------
 
+/** How long the empty place in the grid is held before what is behind it shows. */
+const HOLD_TO_FIND_MS = 1200;
+
 function ThemeSettings({ prefs, onPrefs }: SettingsPanelProps) {
 	const schemes = useMemo(
-		() => [...BUILTIN_THEMES].sort((a, b) => a.order - b.order || a.name.localeCompare(b.name)),
-		[],
+		() =>
+			BUILTIN_THEMES.filter((t) => !t.hidden || prefs.foundThemes.includes(t.name)).sort(
+				(a, b) => a.order - b.order || a.name.localeCompare(b.name),
+			),
+		[prefs.foundThemes],
 	);
 	const chosen = schemes.find((t) => t.name === prefs.theme);
+	// A scheme kept as a surprise, still to be found: the grid's next place is
+	// left empty for it, and holding that place, or Shift + Alt + F1 while
+	// this page is open, finds it.
+	const unfound = BUILTIN_THEMES.find((t) => t.hidden && !prefs.foundThemes.includes(t.name));
+	const [holding, setHolding] = useState(false);
+	const [found, setFound] = useState<string | null>(null);
+	const hold = useRef<number | null>(null);
+	const find = useCallback(() => {
+		if (!unfound) return;
+		onPrefs({ foundThemes: [...prefs.foundThemes, unfound.name] });
+		setFound(unfound.name);
+		setHolding(false);
+	}, [unfound, prefs.foundThemes, onPrefs]);
+	const letGo = useCallback(() => {
+		if (hold.current !== null) window.clearTimeout(hold.current);
+		hold.current = null;
+		setHolding(false);
+	}, []);
+	useEffect(() => {
+		if (!unfound) return;
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key !== "F1" || !e.shiftKey || !e.altKey) return;
+			// F1 is the browser's help otherwise.
+			e.preventDefault();
+			find();
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	}, [unfound, find]);
+	useEffect(() => letGo, [letGo]);
 
 	return (
 		<Page
@@ -943,7 +980,43 @@ function ThemeSettings({ prefs, onPrefs }: SettingsPanelProps) {
 						<span className="theme-credit">{theme.credit ?? " "}</span>
 					</button>
 				))}
+				{unfound && (
+					<div
+						className={cx("theme-slot", holding && "holding")}
+						aria-hidden
+						onPointerDown={(e) => {
+							if (e.button !== 0) return;
+							setHolding(true);
+							hold.current = window.setTimeout(find, HOLD_TO_FIND_MS);
+						}}
+						onPointerUp={letGo}
+						onPointerLeave={letGo}
+						onPointerCancel={letGo}
+						onContextMenu={(e) => e.preventDefault()}
+					>
+						{holding && <DiskGlyph />}
+					</div>
+				)}
 			</div>
+
+			{found && (
+				<div className="theme-found" role="status">
+					<div className="theme-found-title">{found}</div>
+					<p>A theme was in the empty place all along.</p>
+					<div className="theme-found-actions">
+						<button
+							className="on"
+							onClick={() => {
+								onPrefs({ theme: found });
+								setFound(null);
+							}}
+						>
+							Use it
+						</button>
+						<button onClick={() => setFound(null)}>Not now</button>
+					</div>
+				</div>
+			)}
 
 			{chosen?.source && (
 				<p className="settings-note">
@@ -1027,6 +1100,18 @@ function ThemeSwatch({ theme }: { theme: Theme }) {
 			<rect x="6" y="69" width="40" height="4" rx="2" fill={c.text} />
 			<rect x="50" y="69" width="14" height="4" rx="2" fill={c.ok} />
 			<rect x="68" y="69" width="14" height="4" rx="2" fill={c.danger} />
+		</svg>
+	);
+}
+
+/** A disk going in, drawn while the empty place is held. */
+function DiskGlyph() {
+	return (
+		<svg className="theme-slot-disk" viewBox="0 0 32 32" aria-hidden>
+			<rect x="4" y="3" width="24" height="26" fill="#ffffff" stroke="#000022" strokeWidth="1.5" />
+			<rect x="9" y="3" width="14" height="9" fill="#000022" />
+			<rect x="17" y="5" width="3" height="5" fill="#ffffff" />
+			<rect x="8" y="16" width="16" height="10" fill="#ff8800" />
 		</svg>
 	);
 }

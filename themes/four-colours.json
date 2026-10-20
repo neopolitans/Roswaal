@@ -1,0 +1,43 @@
+{
+  "name": "Four Colours",
+  "builtin": true,
+  "order": 100,
+  "dark": true,
+  "hidden": true,
+  "look": "four-colours",
+  "credit": "neopolitans",
+  "source": "https://github.com/neopolitans/Roswaal",
+  "colors": {
+    "app": "#0055aa",
+    "panel": "#0055aa",
+    "canvas": "#0055aa",
+    "input": "#0055aa",
+    "text": "#ffffff",
+    "subText": "#bbccee",
+    "dimText": "#8899cc",
+    "border": "#ffffff",
+    "borderStrong": "#ffffff",
+    "nodeBody": "#0055aa",
+    "nodeBorder": "#ffffff",
+    "wireExec": "#ffffff",
+    "accent": "#ffbb66",
+    "danger": "#ff6655",
+    "warning": "#ffcc00",
+    "ok": "#66dd66",
+    "select": "#ff8800",
+    "pure": "#88dd88",
+    "capsule": "#0055aa",
+    "capsuleBorder": "#ffffff"
+  },
+  "code": {
+    "keyword": "#ffaa44",
+    "string": "#aaffaa",
+    "number": "#ffdd66",
+    "comment": "#99aacc",
+    "operator": "#ffffff",
+    "property": "#cceeff",
+    "global": "#ffbb77",
+    "function": "#ffff88",
+    "type": "#aaeedd"
+  }
+}

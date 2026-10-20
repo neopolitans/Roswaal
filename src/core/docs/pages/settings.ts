@@ -243,7 +243,7 @@ export function settingsPage(): DocPage {
 			{
 				t: "table",
 				head: ["Scheme", "Credit", "Licence"],
-				rows: [...BUILTIN_THEMES]
+				rows: BUILTIN_THEMES.filter((t) => !t.hidden)
 					.sort((a, b) => a.order - b.order)
 					.map((t) => [
 						t.name,
