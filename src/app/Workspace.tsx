@@ -254,15 +254,34 @@ export function Workspace({
 	const openPanel = drawer !== null && contents[drawer] !== undefined ? drawer : null;
 
 	// Dragging something out of a drawer -- a variable, a file -- puts the
-	// drawer away, or it would cover the graph the drag is headed for.
+	// drawer away once the drag leaves it, or it would cover the graph the drag
+	// is headed for. Not as the drag starts: a drop inside the drawer, a file
+	// into a folder or an instance onto another, needs the drawer still there.
 	useEffect(() => {
 		const element = surface.current;
 		if (!compact || !element) return;
+		let fromDrawer = false;
+		const inDrawer = (e: Event) =>
+			e.target instanceof Element && e.target.closest(".dock.drawer") !== null;
 		const onStart = (e: Event) => {
-			if (e.target instanceof Element && e.target.closest(".dock.drawer")) setDrawer(null);
+			fromDrawer = inDrawer(e);
+		};
+		const onOver = (e: Event) => {
+			if (!fromDrawer || inDrawer(e)) return;
+			fromDrawer = false;
+			setDrawer(null);
+		};
+		const onEnd = () => {
+			fromDrawer = false;
 		};
 		element.addEventListener("dragstart", onStart);
-		return () => element.removeEventListener("dragstart", onStart);
+		element.addEventListener("dragover", onOver);
+		element.addEventListener("dragend", onEnd);
+		return () => {
+			element.removeEventListener("dragstart", onStart);
+			element.removeEventListener("dragover", onOver);
+			element.removeEventListener("dragend", onEnd);
+		};
 	}, [compact]);
 
 	// The panels a side's drawers offer, in the order the dock stacks them.

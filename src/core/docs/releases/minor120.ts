@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.201.1",
+		date: "2026-10-20",
+		headline: "On a tablet, a drag inside the Project panel drops there.",
+		affects: ["editor"],
+		fixed: [
+			"**Dragging within a drawer.** On a tablet, the Project panel stays out while an instance is dragged onto another or a file into a folder, and goes once the drag leaves it for the graph, where it went as the drag began.",
+		],
+	},
+	{
 		version: "0.201.0",
 		date: "2026-10-20",
 		headline: "The DataModel adds, deletes, moves and duplicates instances.",
