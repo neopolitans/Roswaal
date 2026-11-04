@@ -3880,11 +3880,19 @@ button.tb.primary:hover:not(:disabled) {
 	display: none;
 }
 
+/* Check stays the size of the line it ends; the line is padded to give it a
+   finger's room instead. */
+.workspace.compact .status .summary,
+.docs-layout-screen:is(.dev-tablet, .dev-phone) .status .summary {
+	padding-block: 6px;
+	font-size: var(--text-md);
+}
+
 .workspace.compact .status .status-check,
 .docs-layout-screen:is(.dev-tablet, .dev-phone) .status .status-check {
-	min-width: var(--hit);
-	min-height: 30px;
-	justify-content: center;
+	min-height: 24px;
+	margin-block: -4px;
+	font-size: var(--text-md);
 }
 
 .workspace.compact .status :is(.entry, .group-head),

@@ -259,6 +259,13 @@ export function StatusPanel(props: StatusPanelProps) {
 									<Split counts={scriptCounts} /> in <b>{props.graph}</b>
 								</>
 							)
+						) : checked && project.counts.errors + project.counts.warnings === 0 ? (
+							// "No problems in 0 graphs of 1" said the clean case backwards.
+							<>No problems in {plural(project.graphs.length + project.clean.length, "graph")}</>
+						) : checked && project.graphs.length === 0 ? (
+							<>
+								<Split counts={project.counts} /> in the project's files
+							</>
 						) : checked ? (
 							<>
 								<Split counts={project.counts} /> in {plural(project.graphs.length, "graph")} of{" "}

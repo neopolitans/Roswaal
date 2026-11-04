@@ -398,7 +398,13 @@ export function Workspace({
 				</div>
 
 				{compact && openPanel && (
-					<div className="drawer-backdrop" onPointerDown={() => setDrawer(null)} />
+					<div
+						className="drawer-backdrop"
+						onPointerDown={() => {
+							setDrawer(null);
+							swallowNextClick();
+						}}
+					/>
 				)}
 
 				{(["left", "right"] as const).map((side) =>
@@ -1250,6 +1256,24 @@ function DrawerDock({
 			))}
 		</div>
 	);
+}
+
+/**
+ * Puts away the click a press on the drawer's backdrop would go on to give.
+ *
+ * The press closes the drawer and the backdrop goes with it, so on iPadOS the
+ * click that follows lands on whatever was under the finger -- the very top
+ * bar button that opens that drawer, which opened it again. A tap outside a
+ * drawer only puts it away.
+ */
+function swallowNextClick(): void {
+	const stop = (e: Event) => {
+		e.stopPropagation();
+		e.preventDefault();
+	};
+	window.addEventListener("click", stop, { capture: true, once: true });
+	// A press that became a drag gives no click; nothing is left waiting.
+	window.setTimeout(() => window.removeEventListener("click", stop, { capture: true }), 600);
 }
 
 function DrawerPanel({

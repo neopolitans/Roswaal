@@ -211,6 +211,13 @@ describe("the panel", () => {
 		expect(summary).toContain("status-check");
 	});
 
+	it("says a clean project's graphs as a count, not as none of them", () => {
+		const clean = analyseProject(input({ outcomes: [outcome(RIG)] }));
+		const html = render({ scope: "project", project: clean });
+		expect(html).toContain("No problems in 1 graph");
+		expect(html).not.toContain("0 graphs");
+	});
+
 	it("draws the card's menu only where the card has one", () => {
 		expect(render()).not.toContain("card-more");
 	});

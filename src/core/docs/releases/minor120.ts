@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.203.5",
+		date: "2026-11-04",
+		headline: "On an iPad, a panel's button puts its drawer away, and Check is the size of its line.",
+		fixed: [
+			"**A drawer's own button.** Pressing Project or Inspector in the top bar while its drawer is out puts the drawer away. It used to close and open again.",
+			"**Check on a touch screen.** It is as tall as the summary line it ends.",
+			"**A clean project's summary.** Project says No problems in 1 graph, not in 0 graphs of 1.",
+		],
+	},
+	{
 		version: "0.203.4",
 		date: "2026-11-04",
 		headline: "Script analysis has a card header like every other card.",
