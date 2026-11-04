@@ -3569,61 +3569,30 @@ button.tb.primary:hover:not(:disabled) {
 	flex-direction: column;
 }
 
-/* The bar: the two scopes, each with its health, then one status, Check and
-   the fold. Folding is the button's, not the bar's: a tap on a scope used to
-   fold the card on its way through. */
-.status .bar {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	/* Room on the right for the undock button, as the headings have. */
-	padding: 4px 34px 4px 6px;
-	min-height: 32px;
-	font-size: var(--text-md);
+/* The header: a card header like every card's, its tabs the two scopes, each
+   with its health, then the status, the fold and the menu. Folding is the
+   chevron's, not the header's: a tap on a scope used to fold the card on its
+   way through. With the card folded the header is all there is, so it has no
+   line under it. */
+.status > .card-head:last-child {
+	border-bottom-color: transparent;
 }
 
 /* One line however narrow the card: the scopes keep their words, and the
-   status gives way first. */
-.status .bar > * {
+   status gives way first. The tabs' words start where a title's would. */
+.status .card-tabs {
 	flex: none;
-	white-space: nowrap;
+	margin-left: -8px;
 }
 
-.status .bar > .spacer {
-	flex: 1 1 0;
-	min-width: 4px;
-}
-
-.status .scopes {
-	display: inline-flex;
-	gap: 2px;
-	padding: 2px;
-	border: 1px solid var(--border);
-	border-radius: var(--radius-sm);
-	background: var(--bg-input);
-}
-
-.status .scope-tab {
-	display: inline-flex;
-	align-items: center;
+.status .card-tab {
 	gap: 6px;
-	min-height: 22px;
-	padding: 1px 5px 1px 9px;
-	border: 0;
-	border-radius: var(--radius-xs);
-	background: none;
-	color: var(--fg-muted);
-	font: inherit;
+	padding: 0 8px;
 	cursor: pointer;
+	touch-action: manipulation;
 }
 
-.status .scope-tab[aria-selected="true"] {
-	background: color-mix(in srgb, var(--accent) 20%, transparent);
-	color: var(--fg);
-	font-weight: 600;
-}
-
-.status .scope-tab .short {
+.status .card-tab .short {
 	display: none;
 }
 
@@ -3658,20 +3627,14 @@ button.tb.primary:hover:not(:disabled) {
 	color: var(--fg-muted);
 }
 
-.status .bar .status-text {
-	flex: 0 1 auto;
-	min-width: 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	color: var(--fg-muted);
-	font-size: var(--text-sm);
-}
-
+/* Check ends the summary line it refreshes, at the card's right edge. */
 .status .status-check {
 	display: inline-flex;
 	align-items: center;
+	align-self: center;
 	gap: 5px;
-	min-height: 22px;
+	min-height: 20px;
+	margin: -2px 0 -2px auto;
 	padding: 0 8px;
 	font-size: var(--text-sm);
 }
@@ -3686,10 +3649,6 @@ button.tb.primary:hover:not(:disabled) {
 	}
 }
 
-.status .status-fold-button {
-	color: var(--fg-faint);
-}
-
 .status .status-fold {
 	transform: rotate(-90deg);
 	transition: transform 120ms;
@@ -3699,14 +3658,13 @@ button.tb.primary:hover:not(:disabled) {
 	transform: none;
 }
 
-/* The split, under the bar: what the badges counted, in words. */
+/* The split, under the header: what the badges counted, in words. */
 .status .summary {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: baseline;
 	gap: 0 4px;
-	padding: 4px 10px;
-	border-top: 1px solid var(--border);
+	padding: 4px 6px 4px 10px;
 	color: var(--fg-muted);
 	font-size: var(--text-sm);
 }
@@ -3901,20 +3859,13 @@ button.tb.primary:hover:not(:disabled) {
 	font-size: var(--text-sm);
 }
 
-/* On a touch screen every target a finger can land on: the bar 44 high, its
-   controls 32. The pictures of a tablet and a phone in the docs are drawn at
-   the same sizes. */
-.workspace.compact .status .bar,
-.docs-layout-screen:is(.dev-tablet, .dev-phone) .status .bar {
-	min-height: 44px;
-	gap: 6px;
+/* On a touch screen the header is as tall as every card's on one, and the
+   scopes, Check and the rows are targets a finger can land on. The pictures
+   of a tablet and a phone in the docs are drawn at the same sizes. */
+.workspace.compact .status .card-tab,
+.docs-layout-screen:is(.dev-tablet, .dev-phone) .status .card-tab {
+	padding: 0 10px;
 	font-size: var(--text-lg);
-}
-
-.workspace.compact .status .scope-tab,
-.docs-layout-screen:is(.dev-tablet, .dev-phone) .status .scope-tab {
-	min-height: 32px;
-	padding: 4px 8px 4px 12px;
 }
 
 .workspace.compact .status .badge,
@@ -3924,10 +3875,15 @@ button.tb.primary:hover:not(:disabled) {
 	font-size: 11px;
 }
 
-.workspace.compact .status :is(.status-check, .status-fold-button),
-.docs-layout-screen:is(.dev-tablet, .dev-phone) .status :is(.status-check, .status-fold-button) {
+/* A touch screen's cards have no menu, so its pictures draw none. */
+.docs-layout-screen:is(.dev-tablet, .dev-phone) .status .card-more {
+	display: none;
+}
+
+.workspace.compact .status .status-check,
+.docs-layout-screen:is(.dev-tablet, .dev-phone) .status .status-check {
 	min-width: var(--hit);
-	min-height: 32px;
+	min-height: 30px;
 	justify-content: center;
 }
 
@@ -3937,53 +3893,44 @@ button.tb.primary:hover:not(:disabled) {
 	font-size: var(--text-md);
 }
 
-/* A phone: the scopes fill the bar under their short names, Check is its
-   glyph, and the status moves under the bar. */
+/* A phone: the scopes fill the header under their short names, and the
+   status moves under it. */
 @media (max-width: 699px) {
-	.workspace.compact .status .scopes {
+	.workspace.compact .status .card-tabs {
 		flex: 1 1 auto;
 	}
 
-	.workspace.compact .status .scope-tab {
+	.workspace.compact .status .card-tab {
 		flex: 1 1 0;
 		justify-content: center;
 	}
 
-	.workspace.compact .status .scope-tab .long,
-	.workspace.compact .status .bar :is(.status-text, .spacer) {
+	.workspace.compact .status .card-tab .long,
+	.workspace.compact .status .card-head > .card-slot {
 		display: none;
 	}
 
-	.workspace.compact .status .scope-tab .short,
+	.workspace.compact .status .card-tab .short,
 	.workspace.compact .status .summary-status {
 		display: inline;
 	}
-
-	.workspace.compact .status .status-check .tb-label {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		overflow: hidden;
-		clip-path: inset(50%);
-		white-space: nowrap;
-	}
 }
 
-.docs-layout-screen.dev-phone .status .scopes {
+.docs-layout-screen.dev-phone .status .card-tabs {
 	flex: 1 1 auto;
 }
 
-.docs-layout-screen.dev-phone .status .scope-tab {
+.docs-layout-screen.dev-phone .status .card-tab {
 	flex: 1 1 0;
 	justify-content: center;
 }
 
-.docs-layout-screen.dev-phone .status .scope-tab .long,
-.docs-layout-screen.dev-phone .status .bar :is(.status-text, .spacer) {
+.docs-layout-screen.dev-phone .status .card-tab .long,
+.docs-layout-screen.dev-phone .status .card-head > .card-slot {
 	display: none;
 }
 
-.docs-layout-screen.dev-phone .status .scope-tab .short,
+.docs-layout-screen.dev-phone .status .card-tab .short,
 .docs-layout-screen.dev-phone .status .summary-status {
 	display: inline;
 }
@@ -18924,13 +18871,13 @@ html {
 	overflow: auto;
 }
 
-/* Script analysis's own bar is its header, in the same band. */
-.card.headless .status > .bar {
-	background: var(--card-head);
+/* Script analysis draws its own header; marked in use as a card's is. */
+.card.headless.focus .status > .card-head {
+	background: var(--card-head-focus);
 }
 
-.card.headless.focus .status > .bar {
-	background: var(--card-head-focus);
+.card.headless.focus .status .card-tab.on {
+	color: var(--accent);
 }
 
 /* The line between two cards in a dock: drag to share their height. */

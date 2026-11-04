@@ -191,9 +191,28 @@ describe("the panel", () => {
 
 	it("folds with its own button, not the whole bar", () => {
 		const html = render({ open: false });
-		expect(html).toContain('class="tb icon-only status-fold-button" aria-expanded="false"');
+		expect(html).toContain('class="tb icon-only card-fold status-fold-button" aria-expanded="false"');
 		expect(html).not.toContain('class="list"');
-		expect(html).not.toMatch(/<div class="bar"[^>]*aria-expanded/);
+		expect(html).not.toMatch(/<header class="card-head bar"[^>]*aria-expanded/);
+	});
+
+	it("has a card header whose tabs are the scopes", () => {
+		const html = render();
+		expect(html).toMatch(/^<div class="status"><header class="card-head bar">/);
+		expect(html).toContain('class="card-tab scope-tab on" aria-selected="true"');
+		expect(html).toContain('class="card-tab scope-tab" aria-selected="false"');
+	});
+
+	it("puts Check on the summary line, not in the header", () => {
+		const html = render({ scope: "project" });
+		const header = html.slice(0, html.indexOf("</header>"));
+		const summary = html.slice(html.indexOf('<div class="summary">'), html.indexOf('<div class="list">'));
+		expect(header).not.toContain("status-check");
+		expect(summary).toContain("status-check");
+	});
+
+	it("draws the card's menu only where the card has one", () => {
+		expect(render()).not.toContain("card-more");
 	});
 
 	it("says the project has not been checked, before it has", () => {

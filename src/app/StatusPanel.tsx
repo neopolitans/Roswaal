@@ -7,9 +7,14 @@
  * no map syncs, packs that will not load, what StyLua refused. The project's
  * lines stay out of This Script, where they read as the open graph's.
  *
- * Each scope carries its count in the bar, in the colour of the worst, so the
+ * Each scope carries its count on its tab, in the colour of the worst, so the
  * two read at a glance with the card folded. What is counted where is
  * `analysis.ts`'s, so the counts and the lists cannot disagree.
+ *
+ * The header is a card header like every other card's -- the scopes are its
+ * tabs, then the status, the fold and the card's menu -- drawn here because
+ * this card is the status pill and has no header from `Cards.tsx`. Check
+ * belongs to the Project summary it refreshes, on the line under it.
  */
 
 import { Fragment, type ReactNode, useEffect, useState } from "react";
@@ -23,6 +28,7 @@ import {
 	sinceCheck,
 } from "./analysis.js";
 import type { CompileOutcome } from "./api.js";
+import { useCardMenu } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import { Icon } from "./icons.jsx";
 
@@ -140,6 +146,7 @@ export function StatusPanel(props: StatusPanelProps) {
 	const { project, scope } = props;
 	const scriptCounts = countOf(props.diagnostics);
 	const checked = props.checkedAt !== null;
+	const menu = useCardMenu();
 
 	// "Checked 4 min ago" moves on by itself.
 	const [now, setNow] = useState(() => Date.now());
@@ -162,7 +169,7 @@ export function StatusPanel(props: StatusPanelProps) {
 		<button
 			type="button"
 			role="tab"
-			className="scope-tab"
+			className={cx("card-tab scope-tab", scope === id && "on")}
 			aria-selected={scope === id}
 			title={long}
 			onClick={() => props.onScope(id)}
@@ -205,8 +212,8 @@ export function StatusPanel(props: StatusPanelProps) {
 
 	return (
 		<div className="status">
-			<div className="bar">
-				<span className="scopes" role="tablist" aria-label="Scope">
+			<header className="card-head bar">
+				<span className="card-tabs scopes" role="tablist" aria-label="Scope">
 					{tab("script", "This Script", "Script", <Badge counts={scriptCounts} />)}
 					{tab(
 						"project",
@@ -215,30 +222,31 @@ export function StatusPanel(props: StatusPanelProps) {
 						<Badge counts={project.counts} known={checked || project.files.length > 0} />,
 					)}
 				</span>
-				<span className="spacer" />
-				<span className="status-text">{status}</span>
-				{scope === "project" && (
-					<button
-						type="button"
-						className={cx("tb with-icon status-check", props.checking && "spin")}
-						title="Check every graph, writing nothing"
-						disabled={props.checking !== null || props.busy !== null}
-						onClick={props.onCheck}
-					>
-						<Icon name="refresh" size={13} />
-						<span className="tb-label">Check</span>
-					</button>
-				)}
+				<span className="card-slot">
+					<span className="card-sub status-text" title={status}>
+						{status}
+					</span>
+				</span>
 				<button
 					type="button"
-					className="tb icon-only status-fold-button"
+					className="tb icon-only card-fold status-fold-button"
 					aria-expanded={props.open}
 					title={props.open ? "Fold Script analysis" : "Unfold Script analysis"}
 					onClick={props.onToggle}
 				>
 					<Icon name="chevron" size={14} className="status-fold" />
 				</button>
-			</div>
+				{menu && (
+					<button
+						type="button"
+						className="tb icon-only card-more"
+						title="Move or dock"
+						onClick={(e) => menu(e.currentTarget)}
+					>
+						<Icon name="more" size={15} />
+					</button>
+				)}
+			</header>
 
 			{props.open && (
 				<>
@@ -263,6 +271,18 @@ export function StatusPanel(props: StatusPanelProps) {
 						{/* On a phone the bar has no room for when Project was checked, so it is
 						    said here. This Script's status is the graph, named already. */}
 						{scope === "project" && <span className="summary-status"> · {status}</span>}
+						{scope === "project" && (
+							<button
+								type="button"
+								className={cx("tb with-icon status-check", props.checking && "spin")}
+								title="Check every graph, writing nothing"
+								disabled={props.checking !== null || props.busy !== null}
+								onClick={props.onCheck}
+							>
+								<Icon name="refresh" size={13} />
+								<span className="tb-label">Check</span>
+							</button>
+						)}
 					</div>
 
 					<div className="list">

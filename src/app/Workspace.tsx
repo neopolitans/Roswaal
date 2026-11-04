@@ -776,13 +776,17 @@ export function Workspace({
 			moves.push({ label: "Back to the foot", run: to({ kind: "dock", side: "bottom" }) });
 		if (head !== "analysis" && (state.floating || state.dock !== "bottom"))
 			moves.push({ label: "Along the foot", run: to({ kind: "dock", side: "bottom" }) });
-		if (members.length > 1)
-			card.push({ label: `Separate ${title}`, run: () => onLayout((l) => separate(l, panel)) });
-		card.push({
-			label: state.folded ? "Unfold" : "Fold",
-			run: () => onLayout((l) => foldCard(l, head, !state.folded)),
-		});
-		card.push({ label: `Close ${title}`, run: () => onLayout((l) => closePanel(l, panel)) });
+		// Script analysis only moves: its chevron folds it, and it is the status
+		// pill, which stays.
+		if (head !== "analysis") {
+			if (members.length > 1)
+				card.push({ label: `Separate ${title}`, run: () => onLayout((l) => separate(l, panel)) });
+			card.push({
+				label: state.folded ? "Unfold" : "Fold",
+				run: () => onLayout((l) => foldCard(l, head, !state.folded)),
+			});
+			card.push({ label: `Close ${title}`, run: () => onLayout((l) => closePanel(l, panel)) });
+		}
 		const closed = PANEL_IDS.filter(
 			(id) => !layout.panels[id].open && contents[id] !== undefined,
 		).map(

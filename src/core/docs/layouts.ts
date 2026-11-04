@@ -381,8 +381,10 @@ function cardHtml(card: LayoutCard, art: ToolbarArt, preview?: PreviewOptions): 
 					`</div></div>`,
 			);
 		case "status": {
-			// Script analysis has no header: its bar is one. Drawn in This Script,
-			// as the editor opens it, with the project's count beside it.
+			// Script analysis draws its own header, its scopes as the tabs. Drawn
+			// in This Script, as the editor opens it, with the project's count
+			// beside it. The menu is drawn always; a touch screen's picture hides
+			// it, as the editor has none there.
 			const graph = escapeXml(card.graph ?? "Events");
 			const total = card.errors + card.warnings;
 			const word = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
@@ -391,7 +393,7 @@ function cardHtml(card: LayoutCard, art: ToolbarArt, preview?: PreviewOptions): 
 					? `<span class="badge clean">✓</span>`
 					: `<span class="badge ${card.errors ? "error" : "warning"}">${total}</span>`;
 			const scope = (on: boolean, long: string, short: string) =>
-				`<span class="scope-tab" role="tab" aria-selected="${on}"><span class="long">${long}</span><span class="short">${short}</span>${badge}</span>`;
+				`<span class="card-tab scope-tab${on ? " on" : ""}" role="tab" aria-selected="${on}"><span class="long">${long}</span><span class="short">${short}</span>${badge}</span>`;
 			const split =
 				total === 0
 					? "No problems"
@@ -403,9 +405,10 @@ function cardHtml(card: LayoutCard, art: ToolbarArt, preview?: PreviewOptions): 
 							.join(" · ");
 			return dock(
 				`<section class="card card-analysis headless"><div class="panel panel-analysis card-body"><div class="status">` +
-					`<div class="bar"><span class="scopes" role="tablist">${scope(true, "This Script", "Script")}${scope(false, "Project", "Project")}</span>` +
-					`<span class="spacer"></span><span class="status-text">${graph}</span>` +
-					`<button type="button" class="tb icon-only status-fold-button" aria-expanded="${card.entry ? "true" : "false"}"${INERT}>${glyphHtml("chevron", 14, art).replace('class="icon"', 'class="icon status-fold"')}</button></div>` +
+					`<header class="card-head bar"><span class="card-tabs scopes" role="tablist">${scope(true, "This Script", "Script")}${scope(false, "Project", "Project")}</span>` +
+					`<span class="card-slot"><span class="card-sub status-text">${graph}</span></span>` +
+					`<button type="button" class="tb icon-only card-fold status-fold-button" aria-expanded="${card.entry ? "true" : "false"}"${INERT}>${glyphHtml("chevron", 14, art).replace('class="icon"', 'class="icon status-fold"')}</button>` +
+					`<button type="button" class="tb icon-only card-more"${INERT}>${glyphHtml("more", 15, art)}</button></header>` +
 					(card.entry
 						? `<div class="summary">${split} in <b>${graph}</b></div>` +
 							`<div class="list"><div class="entry warning"><span class="sev">warning</span><span class="msg">${escapeXml(card.entry)}</span></div></div>`

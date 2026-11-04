@@ -8,9 +8,10 @@
  * hands to the header through `PanelHead`, so a panel in a tab still has its
  * controls where a reader looks for them, and nothing is said twice.
  *
- * Script analysis is the exception: its bar is already a header, with its
- * counts and its own chevron, and is the status pill itself at the foot of the
- * window. Its card has no header of its own.
+ * Script analysis is the exception: it draws its own header, a `card-head`
+ * whose tabs are its two scopes with their counts, since it is the status pill
+ * itself at the foot of the window. Its card has no header of its own, and
+ * hands its menu down through `useCardMenu`.
  */
 
 import {
@@ -32,6 +33,16 @@ export const HEADLESS: ReadonlySet<PanelId> = new Set<PanelId>(["analysis"]);
 
 /** Where a panel's header controls go: its card's header, or nowhere. */
 const HeadSlot = createContext<HTMLElement | null>(null);
+
+/**
+ * The card's menu, for a headless panel to put in the header it draws itself.
+ * `null` where the card has none: a tablet's drawer, or a picture in the docs.
+ */
+const CardMenu = createContext<((anchor: HTMLElement) => void) | null>(null);
+
+export function useCardMenu(): ((anchor: HTMLElement) => void) | null {
+	return useContext(CardMenu);
+}
 
 /**
  * What a panel puts in its card's header: a word beside the title, such as
@@ -216,7 +227,13 @@ export function CardView({
 					className={cx("panel", `panel-${id}`, "card-body")}
 					hidden={id !== card.active || (card.folded && !headless)}
 				>
-					<HeadSlot.Provider value={slots[id] ?? null}>{contents[id]}</HeadSlot.Provider>
+					<HeadSlot.Provider value={slots[id] ?? null}>
+						<CardMenu.Provider
+							value={headless && onMenu ? (anchor) => onMenu(card.active, anchor) : null}
+						>
+							{contents[id]}
+						</CardMenu.Provider>
+					</HeadSlot.Provider>
 				</div>
 			))}
 			{children}

@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.203.4",
+		date: "2026-11-04",
+		headline: "Script analysis has a card header like every other card.",
+		changed: [
+			"**Script analysis's header.** This Script and Project are the card's tabs, each with its count, followed by the status, the fold and the card's menu. The menu moves or docks the card.",
+			"**Check on the summary line.** In Project, Check ends the line under the header.",
+		],
+	},
+	{
 		version: "0.203.3",
 		date: "2026-11-04",
 		headline: "The Attributions page credits the Rojo Developers for Rojo and rbx-dom.",
