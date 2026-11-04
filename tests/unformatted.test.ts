@@ -23,6 +23,11 @@ vi.mock("node:child_process", () => ({
 	spawnSync: () => next,
 }));
 
+/** A StyLua is always found, so these do not depend on one being installed. */
+vi.mock("../src/server/programs.js", () => ({
+	findOnPath: (filename: string) => `/usr/local/bin/${filename}`,
+}));
+
 /** The project layer on a volume, with a formatter that refuses everything. */
 const REFUSED = "Failed to find tool 'stylua' in any project manifest file.";
 vi.mock("../src/server/host.js", async () => {
