@@ -49,10 +49,11 @@ ships.
 | Roblox Corporation | [Roblox](https://create.roblox.com/docs) | Written for | None needed | Compiles to Luau that Roblox runs, and names the engine's classes, enums and services. | Nothing of theirs ships. |
 | Roblox Corporation | [Roblox Creator Documentation](https://github.com/Roblox/creator-docs) | Quoted | CC-BY-4.0 | Shows one-sentence summaries of the engine's API. Changed: shortened, and markup removed. | `src/core/robloxEngine.json`, `src/core/robloxMembers.ts`; licence in `notices/upstream/creator-docs.txt` |
 | Roblox Corporation | [Roact](https://github.com/Roblox/roact) | Example | None needed | Its docs use `@roact` as the example of an alias. | Nothing of theirs ships. |
-| rojo-rbx and contributors | [Rojo](https://rojo.space/) | Works with | None needed | Writes the files Rojo syncs into a place. | Nothing of theirs ships. |
 | Savage Interactive Pty Ltd | [Procreate](https://procreate.com/) | Inspired by | None needed | Floats its tools in small clusters at the window's edge, as Procreate does. | Nothing of theirs ships. |
 | Stephen Leitnick | [Signal](https://github.com/Sleitnick/RbxUtil) | Example | None needed | Its docs and tests use Signal as the example Wally package. | Nothing of theirs ships. |
 | Sven Greb | [Nord](https://github.com/nordtheme/nord) | Included | MIT | Includes Nord as a colour scheme. | `themes/nord.json` |
+| The Rojo Developers | [Rojo](https://rojo.space/) | Works with | None needed | Writes the files Rojo syncs into a place. | Nothing of theirs ships. |
+| The Rojo Developers | [rbx-dom](https://github.com/rojo-rbx/rbx-dom) | Works with | None needed | Its `.rbxl` writes were checked by reading them back with rbx-dom, through Lune. | Nothing of theirs ships. |
 | Their authors | Open-source packages | Included | MIT, ISC and BSD-3-Clause | Includes the packages it is built with, React and Express among them. | Each build's `THIRD-PARTY-NOTICES.txt`, and every release zip |
 | Unity Technologies | [Unity Visual Scripting (Bolt)](https://unity.com/features/unity-visual-scripting) | Inspired by | None needed | Draws execution pins as triangles outside the node, as Bolt does. | Nothing of theirs ships. |
 | Uplift Games and contributors | [Wally](https://github.com/UpliftGames/wally) | Works with | None needed | Reads Wally packages, and searches the public Wally registry. | Nothing of theirs ships. |

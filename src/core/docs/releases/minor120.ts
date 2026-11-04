@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.203.3",
+		date: "2026-11-04",
+		headline: "The Attributions page credits the Rojo Developers for Rojo and rbx-dom.",
+		changed: [
+			"**The Rojo Developers on the Attributions page.** Rojo is credited to them, and rbx-dom is listed under Works with, as the reader Roswaal's place files were checked against.",
+		],
+	},
+	{
 		version: "0.203.2",
 		security: true,
 		date: "2026-11-04",

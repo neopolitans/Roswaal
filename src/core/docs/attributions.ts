@@ -337,12 +337,26 @@ export const ATTRIBUTIONS: Attribution[] = [
 	{
 		name: "Rojo",
 		usage: "works",
-		holder: "rojo-rbx and contributors",
+		// As its maintainers asked, Nov 2026: credit the Rojo Developers and
+		// link back to them.
+		holder: "The Rojo Developers",
 		licence: "MPL-2.0",
 		ships: false,
 		where: NOTHING_SHIPS,
 		note: "Roswaal writes the files Rojo syncs into a place.",
 		url: "https://rojo.space/",
+	},
+	// Roswaal's place-file code is its own. rbx-dom was only an outside reader:
+	// places Roswaal wrote were opened with it, through Lune, to check them.
+	{
+		name: "rbx-dom",
+		usage: "works",
+		holder: "The Rojo Developers",
+		licence: "MIT",
+		ships: false,
+		where: NOTHING_SHIPS,
+		note: "Roswaal's .rbxl writes were checked by reading them back with rbx-dom, through Lune.",
+		url: "https://github.com/rojo-rbx/rbx-dom",
 	},
 	{
 		name: "Wally",
