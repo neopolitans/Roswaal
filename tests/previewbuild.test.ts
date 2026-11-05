@@ -300,16 +300,19 @@ describe("links into the browser build", () => {
 	it("does not let the door and the prose under it disagree", () => {
 		const canary: string = landingPage("9.9.9", { canary: true });
 		// From the door forwards, not from the first mention of the class: the
-		// stylesheet names every one of these before the markup uses it.
+		// stylesheet names every one of these before the markup uses it. The
+		// prose that names the build, since 0.204.0, is the card about trying it
+		// on your own project.
 		const door = canary.indexOf('href="try.html"');
-		const note = canary.indexOf('class="landing-note"', door);
+		const banner = canary.indexOf("</header>", door);
+		const note = canary.indexOf("Try it on your own project", door);
 		expect(door).toBeGreaterThan(-1);
 		expect(note).toBeGreaterThan(door);
 
-		// The banner's drawn graph sits between them now, and its class names
+		// The banner's drawn graph sits beside the door, and its class names
 		// say preview; it is a picture, not a statement about this build.
 		const doorMark = canary
-			.slice(door, note)
+			.slice(door, banner)
 			.replace(/<div class="banner-graph"[\s\S]*?<\/svg><\/div>/, "");
 		expect(doorMark).toContain(MARK_LABEL.canary);
 		expect(doorMark).not.toContain(PREVIEW_LABEL);

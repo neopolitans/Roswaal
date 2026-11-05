@@ -148,11 +148,11 @@ describe("the tour's preview", () => {
 		expect(tourOnly).not.toMatch(/data-node="start"[^>]*data-pure=/);
 	});
 
-	it("is led to from the example of what Roswaal writes", () => {
+	it("comes straight after the promise, and is linked to from the cards", () => {
 		expect(html).toContain('<section class="landing-sec tour" id="tour"');
-		const see = html.slice(html.indexOf("See what it writes"), html.indexOf('id="tour"'));
-		expect(see).toContain('<p class="landing-bridge">');
-		expect(see).toContain('href="#tour"');
+		const before = html.slice(html.indexOf('<section class="landing-pitch">'), html.indexOf('id="tour"'));
+		expect(before.match(/<section/g)).toHaveLength(2);
+		expect(html).toContain('class="landing-card-go" href="#tour"');
 		// Brought wholly into view, clear of the floating bar, script or not.
 		expect(TOUR_SCRIPT).toContain('a[href="#tour"]');
 		expect(html).toContain(".tour { scroll-margin-top:");
@@ -163,7 +163,7 @@ describe("the cards and the tour", () => {
 	/** A card whose part has a slide links up to it, and only to a slide that exists. */
 	it("link up to the slide that shows their part", () => {
 		const links = [
-			...html.matchAll(/<a class="landing-card-tour" href="#tour" data-tour-slide="([^"]+)">/g),
+			...html.matchAll(/<a class="landing-card-go" href="#tour" data-tour-slide="([^"]+)">/g),
 		].map((m) => m[1]);
 		expect(links.sort()).toEqual(["list", "preview", "windows"]);
 		for (const key of links)
@@ -209,7 +209,7 @@ describe("version badges, since 0.147.0", () => {
 	/** Every badge on the page opens a release that has notes, on its minor version's page. */
 	it("link to the notes of the release they name", () => {
 		const badges = [
-			...html.matchAll(/<a class="(?:since|tour-since[^"]*)" href="([^"]+)"[^>]*>([^<]+)<\/a>/g),
+			...html.matchAll(/<a class="(?:since|tour-since[^"]*)" href="([^"]+)"[^>]*>(?:Since )?([^<]+)<\/a>/g),
 		];
 		expect(badges.length).toBeGreaterThan(SLIDES.length + 8);
 		const versions = new Set(RELEASES.map((release) => release.version));

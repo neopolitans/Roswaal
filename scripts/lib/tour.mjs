@@ -1490,47 +1490,65 @@ ${themeCss(".tour-complete-box", TOOLTIP_STYLE)}
 
 /* The tour: one slide at a time, the words on the left and the thing itself
    on the right, the same height whichever is showing so the page under it
-   does not jump. Switched by radio buttons, like the examples. */
+   does not jump. Switched by radio buttons, so it works with no script. */
 /* Without the script, a jump to the tour still clears the floating bar. */
 .tour { scroll-margin-top: 72px; }
 .tour .landing-pick, .tour .tour-pick { position: absolute; opacity: 0; pointer-events: none; }
 .tour-tabs label { display: inline-flex; align-items: center; gap: 6px; }
 .tour-tab-n { font: 600 11px/1 ui-monospace, "Cascadia Mono", Consolas, monospace; opacity: 0.7; }
-@media (max-width: 900px) { .tour-tab-name { display: none; } .tour-tab-n { font-size: 13px; opacity: 1; } }
-/* Eleven numbers are wider than a phone: they wrap rather than push the page. */
 .tour-tabs { display: inline-flex; flex-wrap: wrap; max-width: 100%; }
 .tour-progress { height: 3px; border-radius: 2px; background: var(--border); margin: 0 0 12px; overflow: hidden; }
 .tour-progress > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.25s ease; }
+/* On a tablet or a phone the tabs are one row of named stops that scrolls
+   sideways, each a finger's height, fading at the edges to say there are
+   more; the script keeps the current one in view. Where you are is said once,
+   by the count above the title, so the progress bar goes. */
+@media (max-width: 900px) {
+  .tour .landing-sec-head .spacer { display: none; }
+  .tour-tabs {
+    flex: 1 0 100%; display: flex; flex-wrap: nowrap; gap: 6px; padding: 2px;
+    overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; overscroll-behavior-x: contain;
+    background: none; border: 0;
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 28px), transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 28px), transparent 100%);
+  }
+  .tour-tabs::-webkit-scrollbar { display: none; }
+  .tour-tabs label {
+    flex: none; scroll-snap-align: center; min-height: 40px; padding: 0 14px; gap: 7px;
+    border: 1px solid var(--border); border-radius: 8px; background: var(--landing-card); font-size: 14px;
+  }
+  .tour-tab-n { font-size: 11px; opacity: 0.6; }
+  .tour-progress { display: none; }
+}
 .tour-stage {
   border: 1px solid var(--border); border-radius: 10px; background: var(--landing-card);
-  box-shadow: var(--shadow-raised); overflow: hidden;
+  overflow: hidden;
 }
 /* Focusable, so a click on the words takes the arrow keys there. */
 .tour-stage:focus { outline: none; }
+/* Tall enough on a computer for its demonstrations to be read without
+   scrolling inside them. */
 .tour-slide {
-  display: none; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.6fr); min-height: 460px;
+  display: none; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.6fr); min-height: 600px;
   animation: tour-in 0.22s ease;
 }
 @keyframes tour-in { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .tour-slide { animation: none; } .tour-progress > i { transition: none; } }
-.tour-copy { display: flex; flex-direction: column; gap: 12px; padding: 26px 26px 20px; border-right: 1px solid var(--border); }
+.tour-copy { display: flex; flex-direction: column; gap: 16px; padding: 34px 32px 26px; border-right: 1px solid var(--border); }
 .tour-kicker { display: flex; align-items: center; gap: 10px; margin: 0; font: 600 12px/1.4 ui-monospace, "Cascadia Mono", Consolas, monospace; color: var(--fg-faint); }
-/* The version a part arrived in, opening the notes it arrived with. */
-.tour-since {
-  padding: 1px 7px; border-radius: 4px; border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--border));
-  color: var(--accent); text-decoration: none; font-variant-numeric: tabular-nums;
-}
-.tour-since.small { padding: 0 5px; font: 600 11px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace; }
+/* The version a part arrived in, opening the notes it arrived with: a grey
+   number, so the accent is left to what can be pressed. */
+.tour-since { color: var(--fg-faint); font-weight: 500; text-decoration: none; font-variant-numeric: tabular-nums; }
+.tour-since.small { font: 500 11px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace; }
 .tour-steps { margin: 0; font-size: 13px; line-height: 1.9; color: var(--fg-faint); }
-.tour-since:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.tour-since:hover { color: var(--fg); text-decoration: underline; }
 .tour-since:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.tour-title { margin: 0; font-size: 26px; line-height: 1.2; letter-spacing: -0.01em; color: var(--fg); }
+.tour-title { margin: 0; font-size: 28px; line-height: 1.2; letter-spacing: -0.01em; color: var(--fg); }
 .tour-body { margin: 0; color: var(--fg-muted, var(--fg-faint)); font-size: 15px; text-wrap: pretty; }
 .tour-keys { margin: 0; font-size: 13px; color: var(--fg-faint); }
-.tour-try {
-  margin: 0; padding: 9px 12px; border-radius: 6px; font-size: 14px;
-  background: color-mix(in srgb, var(--accent) 9%, transparent); border-left: 3px solid var(--accent);
-}
+/* The instruction, set off by its rule alone: no second tinted box inside
+   the card. */
+.tour-try { margin: 0; padding: 2px 0 2px 12px; font-size: 14px; border-left: 2px solid var(--accent); }
 .tour :is(.tour-body, .tour-keys, .tour-try, .tour-readout) kbd {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; line-height: 1;
   padding: 2px 5px; border-radius: 4px; border: 1px solid var(--border);
@@ -1544,6 +1562,14 @@ ${themeCss(".tour-complete-box", TOOLTIP_STYLE)}
 .tour-step:hover { border-color: var(--accent); }
 .tour-step.next { background: var(--accent); border-color: var(--accent); color: #fff; }
 .tour-doc { margin-left: auto; font-size: 13px; color: var(--accent); }
+/* On a tablet or a phone, back and next are one bar of two halves, a finger's
+   height, next always on the right; the docs link goes under them. */
+@media (max-width: 900px) {
+  .tour-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .tour-step { display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 12px; font-size: 15px; }
+  .tour-step.next { grid-column: 2; }
+  .tour-doc { grid-column: 1 / -1; margin: 4px 0 0; justify-self: center; }
+}
 .tour-demo { position: relative; min-width: 0; display: flex; }
 .tour-pane { flex: 1; min-width: 0; position: relative; display: flex; flex-direction: column; }
 /* The canvas the demonstrations sit on. Its grid is the editor's own, from
@@ -1554,8 +1580,9 @@ ${themeCss(".tour-complete-box", TOOLTIP_STYLE)}
 }
 @media (max-width: 1000px) {
   .tour-slide { grid-template-columns: minmax(0, 1fr); min-height: 0; }
-  .tour-copy { border-right: 0; border-bottom: 1px solid var(--border); padding: 20px; }
+  .tour-copy { border-right: 0; border-bottom: 1px solid var(--border); padding: 20px; gap: 12px; }
   .tour-demo { min-height: 400px; }
+  .tour-title { font-size: 26px; }
 }
 @media (max-width: 640px) { .tour-title { font-size: 22px; } .tour-canvas { padding: 14px; } }
 
@@ -1575,6 +1602,14 @@ ${themeCss(".tour-complete-box", TOOLTIP_STYLE)}
 .tour .tour-preview-panel {
   width: auto; height: auto; flex: 1; min-height: 0; max-height: 300px;
   border: 0; border-top: 1px solid var(--border); border-radius: 0; box-shadow: none;
+}
+/* On a computer the slide's height goes to the graph, drawn larger, and the
+   preview fills what is left. */
+@media (min-width: 1001px) {
+  .tour-preview-graph { padding: 28px 24px; }
+  .tour-preview-frame { max-width: 900px; }
+  .tour .tour-preview-panel { max-height: none; display: flex; flex-direction: column; }
+  .tour-preview-panel .preview-body { flex: 1 1 auto; }
 }
 .tour-preview-panel .docs-head { gap: 8px; }
 .tour-preview-panel .docs-head .sub { font-size: 12px; color: var(--fg-faint); }
@@ -1841,6 +1876,22 @@ export const TOUR_SCRIPT = `(() => {
     swipe = null;
     if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) go(dx < 0 ? 1 : -1);
   });
+  // On a tablet or a phone the tabs are a row that scrolls sideways: the
+  // current stop is kept in its middle, so the row always says where you are.
+  // The row scrolls, never the page.
+  const narrow = window.matchMedia("(max-width: 900px)");
+  const showStop = (smooth) => {
+    if (!narrow.matches) return;
+    const at = radios.find((r) => r.checked);
+    const label = at && tour.querySelector('.tour-tabs label[for="' + at.id + '"]');
+    const row = label && label.parentElement;
+    if (!row) return;
+    const lr = label.getBoundingClientRect(), rr = row.getBoundingClientRect();
+    const left = row.scrollLeft + (lr.left - rr.left) - (row.clientWidth - lr.width) / 2;
+    row.scrollTo({ left: Math.max(0, left), behavior: smooth && !still.matches ? "smooth" : "auto" });
+  };
+  tour.addEventListener("change", (event) => { if (event.target.name === "tour") showStop(true); });
+  requestAnimationFrame(() => showStop(false));
 
   // A list walked with the arrow keys from a search field: the node menu and
   // the node picker both work this way.
@@ -2051,20 +2102,45 @@ export const TOUR_SCRIPT = `(() => {
           (toLines.length ? ", which writes " + span(toLines) + "." : ".");
         if (scroll) reveal(true);
       };
-      for (const b of buttons) b.addEventListener("click", () => select([b.dataset.nodes], false));
+      // What was chosen by a click, a tap or a key: where a hover returns to.
+      let kept = [];
+      const choose = (ids, scroll) => { kept = ids; select(ids, scroll); };
+      // Resting a mouse on a line, or on a node, shows what it pairs with, as a
+      // click would, and leaving puts back what was chosen. The graph only
+      // scrolls when those nodes are out of its view, so it holds still while
+      // the pointer runs down the file.
+      const inView = (nodes) => {
+        const g = graph.getBoundingClientRect();
+        return nodes.every((b) => { const r = b.getBoundingClientRect(); return r.left >= g.left && r.right <= g.right && r.top >= g.top && r.bottom <= g.bottom; });
+      };
+      const hover = (element, ids) => {
+        element.addEventListener("pointerenter", (event) => {
+          if (event.pointerType !== "mouse") return;
+          select(ids, false);
+          if (!inView(current)) reveal(true);
+        });
+        element.addEventListener("pointerleave", (event) => {
+          if (event.pointerType === "mouse") select(kept, false);
+        });
+      };
+      for (const b of buttons) {
+        b.addEventListener("click", () => choose([b.dataset.nodes], false));
+        hover(b, [b.dataset.nodes]);
+      }
       for (const l of [...src, ...out]) {
         if (!l.dataset.nodes) continue;
-        const take = () => select(l.dataset.nodes.split(","), true);
+        const take = () => choose(l.dataset.nodes.split(","), true);
         l.addEventListener("click", take);
         l.addEventListener("keydown", (event) => {
           if (event.key !== "Enter" && event.key !== " ") return;
           event.preventDefault();
           take();
         });
+        hover(l, l.dataset.nodes.split(","));
       }
       // Opened on one line, as an example of what a tap shows.
       const open = src.find((l) => l.dataset.open !== undefined);
-      if (open) select(open.dataset.nodes.split(","), false);
+      if (open) choose(open.dataset.nodes.split(","), false);
     }
     // A pane is measured only once it is shown: on this slide, or this mode.
     tour.addEventListener("change", () => requestAnimationFrame(() => reveals.forEach((r) => r(false))));

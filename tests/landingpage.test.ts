@@ -15,7 +15,7 @@
 import { describe, expect, it } from "vitest";
 
 // @ts-expect-error -- build tooling, plain JS, no declarations to import.
-import { LANDING_SCRIPT, landingPage } from "../scripts/lib/landing.mjs";
+import { landingPage } from "../scripts/lib/landing.mjs";
 import { taglineFor } from "../src/core/docs/releases.js";
 
 /**
@@ -70,7 +70,7 @@ describe("the landing page", () => {
 	 * colour scheme they picked in the editor -- and the answer is the copy the
 	 * documentation already ships rather than a script written for this page.
 	 */
-	it("carries the shared theme script and the split bar's, and nothing inline", () => {
+	it("carries the shared theme script and the tour's, and nothing inline", () => {
 		// The structured data for search engines is a script element that runs
 		// nothing -- a data block, which the policy does not stop either.
 		const data = /type="application\/ld\+json"/;
@@ -83,17 +83,18 @@ describe("the landing page", () => {
 		expect(html).not.toMatch(/<script(?![^>]*\ssrc=)(?![^>]*application\/ld\+json)/i);
 	});
 
-	/** The split is CSS: a page whose script did not load still shows both halves at 60/40. */
-	it("splits the graph and its Luau 60/40 without the script", () => {
-		expect(html).toContain('class="landing-show" style="--split: 60%"');
-		expect(html).toContain('role="separator"');
-		expect(() => new Function(LANDING_SCRIPT)).not.toThrow();
-	});
-
-	/** Its graph is the docs' viewer: a pan-and-zoom frame with a grip that sets its height. */
-	it("makes the graph a viewer whose height can be dragged", () => {
-		expect(html).toContain('class="docs-preview graph landing-graph"><div class="graph-viewport">');
-		expect(html).toContain('class="landing-graph-grip" role="separator"');
+	/**
+	 * Since 0.204.0 the tour is what it writes, shown working: it follows the
+	 * promise, with no second example of a graph and its Luau before it.
+	 */
+	it("follows the promise with the tour, not a second example", () => {
+		const pitch = html.indexOf('<section class="landing-pitch">');
+		const tour = html.indexOf('<section class="landing-sec tour"');
+		expect(pitch).toBeGreaterThan(-1);
+		expect(tour).toBeGreaterThan(pitch);
+		expect(html.slice(pitch, tour).match(/<section/g)).toHaveLength(1);
+		expect(html).not.toContain("See what it writes");
+		expect(html).not.toContain("landing-show");
 	});
 
 	it("opens on a banner whose graph is drawn, not pictured", () => {
@@ -102,6 +103,19 @@ describe("the landing page", () => {
 		expect(banner).toContain("<svg");
 		expect(banner).toContain("Connect Event");
 		expect(banner).toContain("Touched");
+	});
+
+	/**
+	 * The mark rests on the name, as the top bar draws it, and the line under
+	 * the doors keeps to where it runs: free is said once, under the banner.
+	 */
+	it("sets the mark on the name and keeps the banner to the name and the doors", () => {
+		const banner = /<header class="landing-banner[^"]*">([\s\S]*?)<\/header>/.exec(html)?.[1] ?? "";
+		expect(banner).toMatch(/<span class="name-mark" aria-hidden="true"><svg[^>]*class="logo-mark"[\s\S]*?<\/svg><\/span><h1>Roswaal<\/h1>/);
+		expect(banner).not.toContain(".nodescript →");
+		expect(banner).not.toContain("Free and 0BSD");
+		expect(text).toContain("And it's completely free, forever.");
+		expect(html).toMatch(/0BSD<\/a>:<\/span>\s+yours to keep, sell or change\./);
 	});
 
 	/**
@@ -345,16 +359,28 @@ describe("what it shows since 0.125.0", () => {
 		expect((list.match(/<li class="lately-more">/g) ?? []).length).toBe(2);
 	});
 
-	/** Radio buttons and CSS: the page still has no script of its own to choose with. */
-	it("switches between its examples without a script", () => {
-		const picks = [
-			...html.matchAll(/<input class="landing-pick" type="radio"[^>]*id="(landing-ex-\d)"/g),
-		];
-		expect(picks.length).toBe(3);
-		for (const [, id] of picks) expect(html).toContain(`<label for="${id}">`);
-		expect(html).toContain('id="landing-ex-0" checked');
-		expect(text).toContain("for key, value in pairs(");
-		expect(text).toContain('require("@lune/fs")');
+	/**
+	 * The editor's cards, since 0.204.0: two named rows, and one footer on every
+	 * card -- the version it arrived in, and where to go next.
+	 */
+	it("lays the editor's cards out in two named rows, each card ending on its footer", () => {
+		const editor = html.slice(
+			html.indexOf("Inside the editor"),
+			html.indexOf("Works with what you have"),
+		);
+		expect([...editor.matchAll(/<p class="landing-row">([^<]+)<\/p>/g)].map((m) => m[1])).toEqual([
+			"Writing a graph",
+			"Around it",
+		]);
+		const cards = editor.split('<div class="landing-card"').slice(1);
+		expect(cards).toHaveLength(8);
+		for (const card of cards) {
+			expect(card).toMatch(/<div class="landing-card-foot"><a class="since" href="[^"]+"[^>]*>Since \d+\.\d+\.\d+<\/a><a class="landing-card-go" href="[^"]+"/);
+		}
+		// The footer says the version once; the body does not repeat it.
+		for (const [, body] of editor.matchAll(/<p>([\s\S]*?)<\/p>/g)) {
+			expect(body).not.toMatch(/since \d+\.\d+\.\d+/i);
+		}
 	});
 
 	/**

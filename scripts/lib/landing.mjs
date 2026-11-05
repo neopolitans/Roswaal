@@ -5,27 +5,21 @@
  * deciding whether a visual scripting tool is worth an afternoon of their time,
  * and the fastest honest answer to that is the thing itself: a graph, and the
  * Luau it compiles to, side by side, where they can see whether the output is
- * code they would have been happy to write.
+ * code they would have been happy to write. The tour (`tour.mjs`) is that,
+ * working, so it comes straight after the promise.
  *
- * **Both halves come out of the documentation's own model**, which builds each
- * one from a real `NodeScript` and compiles it. So the picture cannot show a
- * wiring the code underneath does not have — the same guarantee the docs make,
- * for the same reason, and it costs nothing here because the machinery already
- * exists.
+ * **What it shows comes out of the documentation's own model and the editor's
+ * own compiler**, so the picture cannot show a wiring the code underneath does
+ * not have — the same guarantee the docs make, for the same reason.
  *
  * Almost no script of its own. The graphs scale by their `viewBox`, the code
- * is highlighted at build time, and the examples are switched by radio buttons
- * and CSS, so the page is whole as markup and cannot break the way `docs.js`
- * broke. `landing.js` makes the graphs pan and zoom and the bars around them
- * draggable; without it they stay as drawn.
- *
- * The tour (`tour.mjs`) holds to the same rule: its slides switch by radio
- * button, and each demonstration is drawn in a state worth looking at before
- * any script makes it answer.
+ * is highlighted at build time, and the tour's slides switch by radio button,
+ * so the page is whole as markup and cannot break the way `docs.js` broke.
+ * `landing.js` is the tour's: each demonstration is drawn in a state worth
+ * looking at before any script makes it answer.
  */
 
 import { wirePath } from "../../src/app/geometry.ts";
-import { highlightLuau } from "../../src/app/highlight.ts";
 import { ICONS } from "../../src/app/icons.tsx";
 import { NODE } from "../../src/app/layers.ts";
 import { faviconHref, logoMarkup } from "../../src/app/logo.tsx";
@@ -41,12 +35,7 @@ import { escapeHtml } from "../../src/core/docs/html.ts";
 import { SOURCE_REPOSITORY, STABLE_SITE } from "../../src/core/docs/links.ts";
 import { graphSvg } from "../../src/core/docs/preview.ts";
 import { RELEASES, taglineFor } from "../../src/core/docs/releases.ts";
-import { buildSite } from "../../src/core/docs/site.ts";
-import {
-	BUILTIN_NODES as ALL_NODES,
-	BUILTIN_NODES,
-	createRegistry,
-} from "../../src/core/nodes/index.ts";
+import { BUILTIN_NODES as ALL_NODES, createRegistry } from "../../src/core/nodes/index.ts";
 import { emptyScript } from "../../src/core/schema.ts";
 import { metaTags, SITE_DESCRIPTION, softwareJsonLd } from "../../src/core/siteMeta.ts";
 import { releaseHref, SLIDES, sinceBadge, TOUR_STYLE, tourSection } from "./tour.mjs";
@@ -62,35 +51,6 @@ const CANARY_DESCRIPTION =
  */
 const CANARY_STRIP =
 	"This is the canary — an unreleased build of Roswaal, and not the one to start from.";
-
-/**
- * Which examples to show, each a docs page with a graph and the Luau compiled
- * from it.
- *
- * `event.connect` first, because its output is the first line of Roblox code
- * anybody writes -- `Players.PlayerAdded:Connect(...)` -- so a reader can judge
- * the generated Luau against something they already have an opinion about,
- * rather than against a toy. Then a loop, which runs anywhere, and a Lune
- * script, so somebody who came for Lune sees Lune.
- */
-const EXAMPLES = [
-	{
-		slug: "node/event.connect",
-		label: "A player joins",
-		runtime: "roblox",
-		doc: "docs/node/event.connect.html",
-	},
-	{
-		slug: "node/flow.forEach",
-		label: "A loop",
-		runtime: "luau",
-		doc: "docs/node/flow.forEach.html",
-	},
-	{ slug: "lune-demos", label: "Read a file", runtime: "lune", doc: "docs/lune-demos.html" },
-];
-
-/** What each example's Luau runs on, as its chip says it. */
-const RUNS_ON = { roblox: "Roblox", luau: "Any Luau", lune: "Lune" };
 
 /**
  * A node's colour, from the function the canvas itself uses.
@@ -122,25 +82,13 @@ function icon(name) {
 	return `<svg viewBox="0 -960 960 960" aria-hidden="true"><path d="${path}"${stroke}/></svg>`;
 }
 
-/** Luau to HTML, with the token classes the editor's own stylesheet colours. */
-function highlight(code) {
-	return highlightLuau(code)
-		.map((tokens) =>
-			tokens
-				.map((t) =>
-					t.cls === "" ? escapeHtml(t.text) : `<span class="${t.cls}">${escapeHtml(t.text)}</span>`,
-				)
-				.join(""),
-		)
-		.join(String.fromCharCode(10));
-}
-
 /**
  * The banner's graph: a part's Touched event, handled, printing what touched it.
  *
  * A real graph drawn by the docs' renderer, so it is the editor's node style
- * whatever that becomes, and it follows the theme. Get Event fades into the
- * banner's left edge, which is what says the graph carries on past it.
+ * whatever that becomes, and it follows the theme. Drawn at about the editor's
+ * size, straight on the banner's grid, with no frame of its own: the tour's
+ * graphs below have frames, and a second one here read as the same thing twice.
  */
 export function heroGraph() {
 	const registry = createRegistry();
@@ -175,32 +123,6 @@ export function heroGraph() {
 		nodeColor,
 		pinColor,
 		wirePath,
-	});
-}
-
-/** Each example's graph and the Luau compiled from it: the first of each on its page. */
-function examples() {
-	const registry = createRegistry();
-	const site = buildSite(registry, new Set(BUILTIN_NODES.map((d) => d.id)));
-	const pages = site.sections.flatMap((section) => section.pages);
-
-	return EXAMPLES.map((one) => {
-		const page = pages.find((candidate) => candidate.slug === one.slug);
-		if (!page) throw new Error(`The landing page's example is gone: ${one.slug}`);
-
-		const graph = page.blocks.find((block) => block.t === "graph");
-		const code = page.blocks.find((block) => block.t === "code");
-		if (!graph || !code) {
-			throw new Error(`${one.slug} no longer has both a graph and its output.`);
-		}
-
-		const svg = graphSvg(graph.script, registry, {
-			geometry: NODE,
-			nodeColor,
-			pinColor,
-			wirePath,
-		});
-		return { ...one, svg, luau: highlight(code.text) };
 	});
 }
 
@@ -255,21 +177,21 @@ body.roswaal-landing {
   .landing-chrome .wide-only, .landing-chrome .window-name { display: none; }
 }
 
-/* The banner runs the width of the window, a strip of canvas with the mark,
-   the name and a graph on it; its contents keep the page's column. The graph
-   is drawn by the docs' renderer, so it is the editor's node style and follows
-   the theme, and its first node fades into the left. The line under it is the
-   page's divider: everything below starts there, the glow included. */
+/* The banner runs the width of the window, a strip of canvas with the name and
+   a graph on it; its contents keep the page's column. The graph is drawn by
+   the docs' renderer, so it is the editor's node style and follows the theme,
+   at about the editor's size and straight on the grid. A plain line under it
+   is the page's divider. */
 .landing-banner {
   position: relative; overflow: hidden;
   background-color: var(--bg-canvas);
-  border-bottom: 5px solid var(--accent);
+  border-bottom: 1px solid var(--border);
 }
 /* The grid is the editor's own ("The grid" in theme.css, by the
    grid-surface class); the fade from the left, under the name, lies over it. */
 .landing-banner::before {
   content: ""; position: absolute; inset: 0; pointer-events: none;
-  background: linear-gradient(to right, var(--bg-canvas) 20%, transparent 75%);
+  background: linear-gradient(to right, var(--bg-canvas) 10%, transparent 60%);
 }
 .banner-inner { position: relative; }
 /* On the canary the divider is a strip: what this build is, and the way out. */
@@ -303,16 +225,19 @@ body.roswaal-landing {
 /* The top padding clears the chrome hanging over it. */
 .banner-inner {
   display: grid; align-items: center; text-align: left;
-  grid-template-columns: auto minmax(0, auto) minmax(0, 1fr); gap: 0 32px;
-  max-width: min(96vw, 1460px); margin: 0 auto; padding: 92px 68px 48px;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 0 40px;
+  max-width: min(96vw, 1460px); margin: 0 auto; padding: 92px 68px 56px;
 }
-/* The mark draws with currentColor, so this is the whole of colouring it. */
-.banner-mark .logo-mark { display: block; color: var(--fg); }
-.landing-banner.canary .banner-mark .logo-mark { color: var(--warning); }
+/* The mark rests on the name, as the top bar draws it: as tall as the name's
+   capitals and on its baseline. It draws with currentColor, so this is the
+   whole of colouring it. */
+.banner-name .name-mark { align-self: flex-end; margin-bottom: 0.17em; font-size: 64px; }
+.banner-name .name-mark .logo-mark { display: block; height: 0.74em; width: auto; color: var(--fg); }
+.landing-banner.canary .banner-name .name-mark .logo-mark { color: var(--warning); }
 /* The version sits on the name's baseline and stands as tall as its
    lowercase letters, so it reads as part of the wordmark rather than a label
    floating beside it. The offset is the h1's descent at line-height 1. */
-.banner-name { display: flex; align-items: flex-end; gap: 16px; }
+.banner-name { display: flex; align-items: flex-end; gap: 14px 16px; }
 .banner-name h1 { font-size: 64px; line-height: 1; margin: 0; letter-spacing: -0.02em; font-weight: 700; }
 .banner-name .tag {
   box-sizing: border-box; height: 0.5em; margin-bottom: 0.21em;
@@ -322,15 +247,11 @@ body.roswaal-landing {
 }
 .banner-name .tag-text { font-size: 15px; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
 @media (max-width: 640px) { .banner-name .tag { font-size: 44px; } .banner-name .tag-text { font-size: 12px; } }
-.banner-sub { font-size: 24px; margin: 10px 0 12px; color: var(--fg-muted, var(--fg)); }
-.banner-flow { margin: 0; font: 15px/1.4 ui-monospace, "Cascadia Mono", Consolas, monospace; color: var(--accent); }
-.banner-graph svg {
-  display: block; width: 100%; height: auto; max-height: 190px; margin-left: auto;
-  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 34%);
-  mask-image: linear-gradient(to right, transparent 0, #000 34%);
-}
-/* The doors, in the banner where the name is: the first is the build itself. */
-.landing-doors { display: flex; flex-wrap: wrap; gap: 10px; margin: 22px 0 0; padding: 0; list-style: none; }
+.banner-sub { font-size: 24px; margin: 10px 0 0; color: var(--fg-muted, var(--fg)); }
+.banner-graph svg { display: block; width: 100%; height: auto; margin-left: auto; }
+/* The doors, in the banner where the name is: the first is the build itself.
+   Set well clear of the name, which has the room to itself. */
+.landing-doors { display: flex; flex-wrap: wrap; gap: 10px; margin: 52px 0 0; padding: 0; list-style: none; }
 .landing-doors a {
   display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 7px;
   text-decoration: none; font-weight: 500;
@@ -341,7 +262,7 @@ body.roswaal-landing {
 /* Which runtimes, and which of them to be careful with, as the line under the
    doors: "experimental" is the kind of qualifier that gets skimmed past when
    it is buried in prose. */
-.landing-targets { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 14px 0 0; padding: 0; list-style: none; font-size: 13px; color: var(--fg-muted, var(--fg-faint)); }
+.landing-targets { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 16px 0 0; padding: 0; list-style: none; font-size: 13px; color: var(--fg-muted, var(--fg-faint)); }
 .landing-targets li { display: inline-flex; align-items: center; gap: 6px; }
 .landing-targets .flag,
 .landing-doors .flag,
@@ -355,13 +276,14 @@ body.roswaal-landing {
 .landing-doors a.first .flag, .landing-chrome a.tb.primary .flag { color: #fff; border-color: rgb(255 255 255 / 55%); }
 /* Narrower, the graph goes under the name rather than squeezing it. */
 @media (max-width: 1100px) {
-  .banner-inner { grid-template-columns: auto minmax(0, 1fr); padding: 84px 40px 36px; }
-  .banner-graph { grid-column: 1 / -1; margin-top: 22px; }
+  .banner-inner { grid-template-columns: minmax(0, 1fr); padding: 84px 40px 36px; }
+  .banner-graph { margin-top: 26px; }
 }
 @media (max-width: 640px) {
   .banner-inner { grid-template-columns: minmax(0, 1fr); gap: 16px; padding: 72px 20px 28px; }
-  .banner-mark .logo-mark { height: 56px; width: auto; }
+  .banner-name .name-mark { font-size: 44px; }
   .banner-name h1 { font-size: 44px; }
+  .landing-doors { margin-top: 32px; }
   .banner-sub { font-size: 19px; }
   .banner-graph { display: none; }
   .landing-doors li { flex: 1 1 auto; display: flex; }
@@ -371,16 +293,6 @@ body.roswaal-landing {
    is the first thing anybody here needs to know. */
 .landing-notices { max-width: min(96vw, 1460px); margin: 0 auto; padding: 14px 24px 0; }
 .landing-notices .landing-canary { margin-bottom: 14px; }
-
-/* A wash of the accent under the divider, so the page is not four greys. It
-   starts at the line and fades out well before the content does. */
-.landing-below { position: relative; isolation: isolate; }
-.landing-glow {
-  position: absolute; inset: 0 0 auto 0; height: 60vh; pointer-events: none; z-index: -1;
-  background:
-    radial-gradient(60rem 26rem at 22% -8%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%),
-    radial-gradient(44rem 22rem at 78% -14%, color-mix(in srgb, var(--category-values, #4c7fd4) 14%, transparent), transparent 70%);
-}
 
 /* The promise beside what it means, read left to right. */
 .landing-pitch { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 16px 48px; align-items: start; margin: 0 0 56px; }
@@ -426,181 +338,119 @@ body.roswaal-landing {
 .landing-sec-head .spacer { flex: 1; }
 .landing-sec-head a.more { font-size: 14px; color: var(--accent); }
 
-/* The examples, picked with radio buttons the page draws as a switch: so the
-   choice works with no script at all, and arrow keys move it. */
+/* The tour's switch: radio buttons the page draws as tabs, so the choice
+   works with no script at all, and arrow keys move it. */
 .landing-pick { position: absolute; opacity: 0; pointer-events: none; }
 .landing-tabs label {
   padding: 3px 12px; border-radius: var(--radius-xs, 4px); color: var(--fg-muted, var(--fg-faint));
   font-size: 14px; cursor: pointer; user-select: none;
 }
 .landing-tabs label:hover { background: var(--bg-hover); color: var(--fg); }
-.landing-examples > .landing-show { display: none; }
-
-/* The demonstration: the graph and its Luau side by side on a wide screen,
-   split 60/40 by default and resizable by dragging the bar between them
-   (landing.js). Without the script the split is simply fixed. Below 62rem
-   there is no room for two columns and the two stack, flow then output. */
-.landing-show { gap: 12px; grid-template-columns: 1fr; margin-bottom: 10px; }
-.landing-split { display: none; }
-@media (min-width: 62rem) {
-  .landing-show {
-    grid-template-columns: minmax(0, var(--split, 60%)) 14px minmax(0, 1fr);
-    gap: 0; align-items: stretch;
-  }
-  .landing-split {
-    display: block; cursor: col-resize; position: relative; touch-action: none;
-  }
-  .landing-split::after {
-    content: ""; position: absolute; top: 50%; left: 50%; width: 4px; height: 44px;
-    transform: translate(-50%, -50%); border-radius: 2px;
-    background: var(--border); transition: background 0.12s;
-  }
-  .landing-split:hover::after, .landing-split:focus-visible::after, .landing-split.dragging::after {
-    background: var(--accent);
-  }
-  .landing-split:focus-visible { outline: none; }
-}
-/* Each half is a card with the editor's card header. */
-.landing-pane {
-  display: flex; flex-direction: column; min-width: 0;
-  border: 1px solid var(--border); border-radius: 10px; background: var(--landing-card);
-  box-shadow: var(--shadow-raised); overflow: hidden;
-}
-/* The editor's size, not the page's: it is a piece of the editor. */
-.landing-pane .card-head { cursor: default; font-size: var(--text-md, 13px); line-height: 1.4; padding-right: 10px; }
-.landing-pane .card-head h3 { margin: 0; font-size: inherit; font-weight: inherit; }
-.landing-pane .card-head a { margin-left: auto; font-size: 12px; color: var(--accent); white-space: nowrap; }
-/* The docs' graph viewer, the editor's own pan-and-zoom code (landing.js):
-   drag to pan, scroll to zoom, double-click to fit. It refits as its frame
-   changes size until the reader takes over, so dragging the frame's bottom
-   edge to make it taller or shorter needs nothing else. */
-.landing-graph { margin: 0; }
-.docs-preview.graph.landing-graph .graph-viewport {
-  height: 320px; min-height: 200px; max-height: 80vh; border: 0; border-radius: 0;
-}
-/* A phone's frame is short: the graph is wide, and a tall frame was mostly
-   empty grid. Pinch or scroll to read it. */
-@media (max-width: 640px) {
-  .docs-preview.graph.landing-graph .graph-viewport { height: 220px; }
-}
-/* The grip under the graph sets its height. A native resize corner cannot
-   work here: the viewer takes every press inside the frame as a pan. */
-.landing-graph-grip {
-  height: 12px; cursor: row-resize; position: relative; touch-action: none;
-  border-top: 1px solid var(--border);
-}
-.landing-graph-grip::after {
-  content: ""; position: absolute; left: 50%; top: 50%; width: 44px; height: 4px;
-  transform: translate(-50%, -50%); border-radius: 2px; background: var(--border);
-  transition: background 0.12s;
-}
-.landing-graph-grip:hover::after, .landing-graph-grip:focus-visible::after, .landing-graph-grip.dragging::after {
-  background: var(--accent);
-}
-.landing-graph-grip:focus-visible { outline: none; }
 /* Roswaal writes tabs. Eight columns is the browser default and makes a
    two-level function body look like an accident. */
 .landing-code { flex: 1; margin: 0; padding: 14px; overflow-x: auto; font-size: 13px; line-height: 1.55; tab-size: 2; background: var(--bg-input); }
-.landing-caption { color: var(--fg-faint); font-size: 13px; margin: 0; }
-/* From the output to the tour: the one joins the other. */
-.landing-bridge { margin: 18px 0 0; font-size: 15px; color: var(--fg-muted, var(--fg-faint)); }
-.landing-bridge a { color: var(--accent); font-weight: 600; text-decoration: none; }
-.landing-bridge a::after { content: " \\2193"; }
-.landing-bridge a:hover { text-decoration: underline; }
 
-/* The cards are drawn as Roswaal's own nodes: a header in the colour
-   nodeColor() gives the canvas, with the execution pins every step has, over a
-   solid body. So the page is coloured by the tool rather than by a decision
-   made here. */
-.landing-points { display: grid; gap: 14px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; }
-.landing-points.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-@media (max-width: 1200px) { .landing-points.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 900px) { .landing-points, .landing-points.four { grid-template-columns: minmax(0, 1fr); } }
+/* The cards are the editor's cards: a header in the card band with the
+   title, the colour nodeColor() gives the part's nodes on a tile behind its
+   glyph -- as the Inspector's file badge is -- and one footer, the same on
+   every card, pinned to its foot: the version it arrived in, and where to go
+   next. So a row of cards ends on one line, and the page is coloured by the
+   tool rather than by a decision made here. A row fills its width with the
+   cards it has. */
+.landing-points { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin: 0; }
+.landing-points.four { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+/* The editor's cards in two named rows: writing a graph, and what is around it. */
+.landing-row { grid-column: 1 / -1; margin: 8px 0 -6px; font-size: 13px; font-weight: 600; color: var(--fg-muted, var(--fg-faint)); }
+.landing-row:first-child { margin-top: 0; }
 .landing-card {
   display: flex; flex-direction: column; min-width: 0;
   border: 1px solid var(--border); border-radius: 8px; background: var(--landing-card);
-  box-shadow: var(--shadow-raised); overflow: hidden;
-  transition: border-color 0.12s, background 0.12s;
+  overflow: hidden; transition: border-color 0.12s, background 0.12s;
 }
-.landing-card:hover { border-color: color-mix(in srgb, var(--edge, var(--accent)) 70%, var(--border)); background: var(--landing-card-hover); }
+.landing-card:hover { border-color: color-mix(in srgb, var(--accent) 60%, var(--border)); background: var(--landing-card-hover); }
 .landing-card h3 {
-  position: relative; display: flex; align-items: center; gap: 9px; margin: 0;
-  padding: 7px 26px; background: var(--edge, var(--accent)); color: #fff;
+  display: flex; align-items: center; gap: 10px; margin: 0; min-height: 40px; box-sizing: border-box;
+  padding: 0 10px; background: var(--card-head); border-bottom: 1px solid var(--border); color: var(--fg);
   font-size: 14px; font-weight: 600; line-height: 1.3;
 }
-.landing-card h3 svg { width: 15px; height: 15px; flex: none; fill: currentColor; opacity: 0.92; }
-.landing-card h3::before, .landing-card h3::after {
-  content: ""; position: absolute; top: 50%; width: 0; height: 0; transform: translateY(-50%);
-  border-top: 5px solid transparent; border-bottom: 5px solid transparent;
-  border-left: 8px solid rgb(255 255 255 / 85%);
+.landing-card h3 svg {
+  box-sizing: border-box; width: 24px; height: 24px; padding: 4px; border-radius: 6px; flex: none;
+  color: #fff; fill: #fff; background: var(--edge, var(--accent));
 }
-.landing-card h3::before { left: 9px; }
-.landing-card h3::after { right: 9px; }
-/* Which version it arrived in, in the header's own ink, opening the release
-   notes it arrived with. */
-.landing-card .since {
-  margin-left: auto; padding: 0 6px; border-radius: 3px; background: rgb(0 0 0 / 24%);
-  font: 600 11px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace; font-variant-numeric: tabular-nums;
-  color: inherit; text-decoration: none; transition: background 0.12s;
-}
-.landing-card .since:hover { background: rgb(0 0 0 / 40%); text-decoration: underline; }
-.landing-card .since:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
 .landing-card p { margin: 0; padding: 12px 14px 14px; color: var(--fg-muted, var(--fg-faint)); font-size: 14px; line-height: 1.55; }
 .landing-card p a { color: var(--accent); }
-/* Back up to the slide where the card's part can be tried. */
-.landing-card-tour {
-  margin: auto 14px 12px; align-self: flex-start; font-size: 13px; font-weight: 600;
-  color: var(--accent); text-decoration: none;
+/* The footer: the version it arrived in, opening the release notes it arrived
+   with, and where to go next -- the tour's slide for the part, or its page. */
+.landing-card-foot {
+  display: flex; align-items: center; gap: 12px; margin-top: auto;
+  padding: 9px 14px; border-top: 1px solid var(--border); font-size: 13px;
 }
-.landing-card-tour::after { content: " \\2191"; }
-.landing-card-tour:hover { text-decoration: underline; }
+.landing-card-foot .since {
+  color: var(--fg-faint); font: 500 12px/1.4 ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-variant-numeric: tabular-nums; text-decoration: none;
+}
+.landing-card-foot .since:hover { color: var(--fg); text-decoration: underline; }
+.landing-card-go { margin-left: auto; color: var(--accent); font-weight: 600; text-decoration: none; white-space: nowrap; }
+.landing-card-go::after { content: " \\2192"; }
+.landing-card-go[href="#tour"]::after { content: " \\2191"; }
+.landing-card-go:hover { text-decoration: underline; }
 .landing-card code { font-size: 12px; }
-/* A key, not a phrase. Borrowed from the shape the docs give one, so a reader
-   who has seen the shortcuts written down once recognises them here. */
+/* A key, not a phrase, and a light one in running text. Borrowed from the
+   shape the docs give one, so a reader who has seen the shortcuts written down
+   once recognises them here. */
 .landing-card kbd {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 11px; line-height: 1;
-  padding: 2px 5px; border-radius: 4px;
-  border: 1px solid var(--border); background: var(--bg-input, var(--bg-app));
+  padding: 1px 4px; border-radius: 4px;
+  border: 1px solid var(--border); background: none;
   color: var(--fg); white-space: nowrap;
 }
+/* Why it holds up: three plain columns under their tiles, not three more boxes.
+   One column under a tablet's width, never two and an orphan. */
+.landing-points.plain { gap: 32px; }
+.landing-points.plain > .landing-card { background: none; border: 0; }
+.landing-points.plain > .landing-card h3 { background: none; border: 0; padding: 0 0 6px; min-height: 0; font-size: 15px; }
+.landing-points.plain > .landing-card p { padding: 0; }
+@media (max-width: 900px) { .landing-points.plain { grid-template-columns: minmax(0, 1fr); gap: 22px; } }
 
-/* What is planned, told apart from what is there: a node not placed yet --
-   dashed, uncoloured, its pins unlit. A plan that looks like a feature is a
-   promise nobody made, and the disclaimer sits above the cards rather than in
-   small print underneath. */
+/* What is planned, told apart from what is there: a card not made yet --
+   dashed and uncoloured. A plan that looks like a feature is a promise nobody
+   made, and the disclaimer sits above the cards rather than in small print
+   underneath. */
 .landing-note-plan { color: var(--fg-faint); font-size: 13px; margin: 0 0 18px; max-width: 46rem; }
 .landing-card.planned {
   background: color-mix(in srgb, var(--accent) 3%, var(--bg-canvas));
-  border-style: dashed; border-color: var(--border-strong, var(--border)); box-shadow: none;
+  border-style: dashed; border-color: var(--border-strong, var(--border));
 }
-.landing-card.planned h3 { background: none; color: var(--fg); border-bottom: 1px dashed var(--border-strong, var(--border)); }
-.landing-card.planned h3::before, .landing-card.planned h3::after { border-left-color: var(--fg-faint); opacity: 0.6; }
+.landing-card.planned h3 { background: none; border-bottom-style: dashed; }
+.landing-card.planned h3 svg { background: none; fill: var(--fg-faint); color: var(--fg-faint); }
 
-/* What it reads and writes besides its own files, each to its docs page. */
+/* What it reads and writes besides its own files, each to its docs page, in
+   the editor's button shape. */
 .landing-works { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .landing-works a {
-  display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px;
-  border: 1px solid var(--border); border-radius: 999px; background: var(--landing-card);
+  display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px;
+  border: 1px solid var(--border); border-radius: 6px; background: var(--landing-card);
   color: var(--fg); text-decoration: none; font-size: 14px;
 }
 .landing-works a:hover { border-color: var(--accent); }
 .landing-works code { font-size: 12px; color: var(--fg-muted, var(--fg-faint)); }
 
-/* The latest releases, from the notes themselves: eight on a computer's width,
-   four a row, and six on a tablet or a phone. */
-.landing-lately { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
-@media (max-width: 1199px) {
-  .landing-lately { grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
-  .landing-lately .lately-more { display: none; }
+/* The latest releases, from the notes themselves: one card of rows, eight on a
+   computer's width in two columns of four, and six on a tablet or a phone in
+   one. Two, not three: eight in threes left a hole in the card. */
+.landing-lately {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr));
+  gap: 0; margin: 0; padding: 0; list-style: none;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--landing-card); overflow: hidden;
 }
+@media (max-width: 1199px) { .landing-lately .lately-more { display: none; } }
 .landing-lately a {
-  display: flex; align-items: baseline; gap: 12px; height: 100%; box-sizing: border-box; padding: 10px 14px;
-  border: 1px solid var(--border); border-radius: var(--radius-md, 8px); background: var(--landing-card);
-  color: var(--fg); text-decoration: none;
+  display: flex; align-items: baseline; gap: 12px; height: 100%; box-sizing: border-box; padding: 9px 14px;
+  border-bottom: 1px solid var(--border); color: var(--fg); text-decoration: none;
 }
-.landing-lately a:hover { border-color: var(--accent); background: var(--landing-card-hover); }
-.lately-version { flex: none; font: 600 13px/1.4 ui-monospace, "Cascadia Mono", Consolas, monospace; color: var(--accent); font-variant-numeric: tabular-nums; }
+.landing-lately a:hover { background: var(--landing-card-hover); }
+.lately-version { flex: none; font: 500 13px/1.4 ui-monospace, "Cascadia Mono", Consolas, monospace; color: var(--fg-faint); font-variant-numeric: tabular-nums; }
 .lately-line { font-size: 14px; color: var(--fg-muted, var(--fg-faint)); }
 
 .landing-foot {
@@ -627,100 +477,6 @@ body.roswaal-landing {
 @media (max-width: 640px) { .landing-sec { margin-bottom: 44px; } }
 @media (prefers-reduced-motion: reduce) { .landing-card { transition: none; } }
 ${TOUR_STYLE}`;
-
-/**
- * The landing page's own script: the handles around each example.
- * `build-pages` writes it into `landing.js` after the docs' graph viewer.
- *
- * The bar between a graph and its Luau sets the split, and the grip under the
- * graph sets its height. Each drags, steps with the arrow keys, resets on a
- * double-click, and is remembered in this browser -- one split and one height
- * for every example, so switching between them does not move the frame. Only
- * an enhancement: the 60/40 split and the graph's height are CSS, and the
- * examples switch without it.
- */
-export const LANDING_SCRIPT = `(() => {
-  const remember = (key, value) => { try { localStorage.setItem(key, String(value)); } catch {} };
-  const recall = (key) => { try { return Number(localStorage.getItem(key)) || 0; } catch { return 0; } };
-
-  // One handle: a separator that sets a value by dragging along one axis.
-  // \`apply\` sets it everywhere the value belongs, not only beside this grip.
-  const handle = (grip, { key, axis, min, max, step, initial, read, apply }) => {
-    const set = (value) => {
-      const clamped = Math.round(Math.min(max(), Math.max(min, value)));
-      apply(clamped);
-      return clamped;
-    };
-    grip.addEventListener("pointerdown", (event) => {
-      event.preventDefault();
-      grip.setPointerCapture(event.pointerId);
-      grip.classList.add("dragging");
-      const start = axis === "x" ? event.clientX : event.clientY;
-      const from = read();
-      const at = (e) => read.fromDrag(from, (axis === "x" ? e.clientX : e.clientY) - start);
-      const move = (e) => set(at(e));
-      const end = (e) => {
-        grip.classList.remove("dragging");
-        grip.removeEventListener("pointermove", move);
-        grip.removeEventListener("pointerup", end);
-        grip.removeEventListener("pointercancel", end);
-        remember(key, set(at(e)));
-      };
-      grip.addEventListener("pointermove", move);
-      grip.addEventListener("pointerup", end);
-      grip.addEventListener("pointercancel", end);
-    });
-    grip.addEventListener("keydown", (event) => {
-      const now = read();
-      const back = axis === "x" ? "ArrowLeft" : "ArrowUp";
-      const on = axis === "x" ? "ArrowRight" : "ArrowDown";
-      if (event.key === back) remember(key, set(now - step));
-      else if (event.key === on) remember(key, set(now + step));
-      else if (event.key === "Home") remember(key, set(min));
-      else if (event.key === "End") remember(key, set(max()));
-      else return;
-      event.preventDefault();
-    });
-    grip.addEventListener("dblclick", () => remember(key, set(initial)));
-  };
-
-  const shows = [...document.querySelectorAll(".landing-show")];
-  const splitTo = (value) => {
-    for (const show of shows) {
-      show.style.setProperty("--split", value + "%");
-      show.querySelector(".landing-split")?.setAttribute("aria-valuenow", String(value));
-    }
-  };
-  const viewports = shows.map((show) => show.querySelector(".landing-graph .graph-viewport")).filter(Boolean);
-  const heightTo = (value) => {
-    for (const viewport of viewports) viewport.style.height = value + "px";
-    for (const grip of document.querySelectorAll(".landing-graph-grip")) grip.setAttribute("aria-valuenow", String(value));
-  };
-  const keptSplit = recall("roswaal.landingSplit");
-  if (keptSplit) splitTo(Math.min(75, Math.max(25, keptSplit)));
-  const keptHeight = recall("roswaal.landingGraphHeight");
-  if (keptHeight) heightTo(Math.min(Math.round(window.innerHeight * 0.8), Math.max(200, keptHeight)));
-
-  for (const show of shows) {
-    const bar = show.querySelector(".landing-split");
-    if (bar) {
-      const percent = () => Number(bar.getAttribute("aria-valuenow")) || 60;
-      percent.fromDrag = (from, delta) => from + (delta / show.getBoundingClientRect().width) * 100;
-      handle(bar, { key: "roswaal.landingSplit", axis: "x", min: 25, max: () => 75, step: 5, initial: 60, read: percent, apply: splitTo });
-    }
-    const viewport = show.querySelector(".landing-graph .graph-viewport");
-    const grip = show.querySelector(".landing-graph-grip");
-    if (viewport && grip) {
-      const height = () => viewport.getBoundingClientRect().height;
-      height.fromDrag = (from, delta) => from + delta;
-      handle(grip, {
-        key: "roswaal.landingGraphHeight", axis: "y", min: 200, max: () => Math.round(window.innerHeight * 0.8),
-        step: 40, initial: 320, read: height, apply: heightTo,
-      });
-    }
-  }
-})();
-`;
 
 /**
  * Which line a build came from, read off the environment by default.
@@ -757,21 +513,32 @@ function lately() {
 }
 
 /**
- * A feature card, drawn as a node. `since` is the version it arrived in, and
- * its badge opens that version's release notes. `slide` names the tour's slide
- * that shows the same part working, for a link back up to it.
+ * A card in the editor's shape: its glyph on a tile in the colour of the part's
+ * nodes, the title, the body. `since` is the version it arrived in and opens
+ * that version's release notes; `go` is where to go next, a tour slide
+ * (`{ slide }`) that shows the same part working or a page (`{ href, say }`).
+ * With neither, as in the plain columns, there is no footer.
  */
-function card(node, glyph, title, body, since, slide) {
-	if (slide !== undefined && !SLIDES.some((one) => one.key === slide)) {
-		throw new Error(`A card points at a tour slide that is gone: ${slide}`);
+function card(node, glyph, title, body, since, go) {
+	if (go?.slide !== undefined && !SLIDES.some((one) => one.key === go.slide)) {
+		throw new Error(`A card points at a tour slide that is gone: ${go.slide}`);
 	}
+	const next = go?.slide
+		? `<a class="landing-card-go" href="#tour" data-tour-slide="${go.slide}">Try it in the tour</a>`
+		: go
+			? `<a class="landing-card-go" href="${go.href}">${escapeHtml(go.say)}</a>`
+			: "";
+	const foot =
+		since || next
+			? `\n        <div class="landing-card-foot">${since ? sinceBadge(since, "since").replace(/>([^<]+)<\/a>$/, ">Since $1</a>") : ""}${next}</div>`
+			: "";
 	return `<div class="landing-card" style="--edge: ${colourOf(node)}">
-        <h3>${icon(glyph)}${title}${since ? sinceBadge(since, "since") : ""}</h3>
-        <p>${body}</p>${slide ? `\n        <a class="landing-card-tour" href="#tour" data-tour-slide="${slide}">See it in the tour</a>` : ""}
+        <h3>${icon(glyph)}${title}</h3>
+        <p>${body}</p>${foot}
       </div>`;
 }
 
-/** A plan, drawn as a node not placed yet. */
+/** A plan, drawn as a card not made yet. */
 function planned(glyph, title, body) {
 	return `<div class="landing-card planned">
         <h3>${icon(glyph)}${title}</h3>
@@ -784,23 +551,12 @@ export function landingPage(
 	{ canary = channelIsCanary(), backup = buildIsBackup() } = {},
 ) {
 	const IS_CANARY = canary;
-	const shown = examples();
 	const hero = heroGraph();
 	const tour = tourSection({ tryHref: "try.html" });
 	const tagline = taglineFor(version);
 	const mark = IS_CANARY ? "canary" : "preview";
 	const flag = escapeHtml(IS_CANARY ? MARK_LABEL.canary : PREVIEW_LABEL);
 	const doorTitle = escapeHtml(IS_CANARY ? MARK_BESIDE_LINK.canary : PREVIEW_BESIDE_LINK);
-	// The switch's rules, one per example: radio buttons ahead of the frames,
-	// so the page needs no script to choose between them.
-	const pickRules = shown
-		.map(
-			(_, i) =>
-				`#landing-ex-${i}:checked ~ .landing-examples > [data-example="${i}"] { display: grid; }\n` +
-				`#landing-ex-${i}:checked ~ .landing-sec-head label[for="landing-ex-${i}"] { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent); }\n` +
-				`#landing-ex-${i}:focus-visible ~ .landing-sec-head label[for="landing-ex-${i}"] { outline: 2px solid var(--accent); outline-offset: 1px; }`,
-		)
-		.join("\n");
 
 	return `<!doctype html>
 <html lang="en">
@@ -827,7 +583,6 @@ ${softwareJsonLd({ canary: IS_CANARY, backup })}
 <link rel="stylesheet" href="docs/theme.css?v=${encodeURIComponent(version)}" />
 <script src="docs/theme.js?v=${encodeURIComponent(version)}"></script>
 <style>${STYLE}
-${pickRules}
 ${tour.rules}</style>
 <script src="landing.js?v=${encodeURIComponent(version)}" defer></script>
 </head>
@@ -861,14 +616,12 @@ ${
 </nav>
 <header class="landing-banner grid-surface${IS_CANARY ? " canary" : ""}">
   <div class="banner-inner">
-    <div class="banner-mark">${logoMarkup(96)}</div>
     <div class="banner-copy">
       <div class="banner-name">
-        <h1>Roswaal</h1>
+        <span class="name-mark" aria-hidden="true">${logoMarkup(96)}</span><h1>Roswaal</h1>
         <span class="tag"><span class="tag-text">${escapeHtml(version)}</span></span>
       </div>
       <p class="banner-sub">Visual scripting for Luau, reimagined.</p>
-      <p class="banner-flow">.nodescript → .luau → Rojo → Studio</p>
       <ul class="landing-doors">
         <li><a class="door first" href="try.html" title="${doorTitle}">Try it in your browser <span class="flag ${mark}">${flag}</span></a></li>
         <li><a href="docs/getting-started.html">Getting started</a></li>
@@ -876,7 +629,6 @@ ${
       <ul class="landing-targets">
         <li>Roblox <span class="flag stable">stable</span></li>
         <li>Lune <span class="flag">experimental</span></li>
-        <li>Free and 0BSD</li>
         <li>Computer, tablet or phone</li>
       </ul>
     </div>
@@ -897,60 +649,14 @@ ${
 		: ""
 }
 <div class="landing-below">
-<div class="landing-glow" aria-hidden="true"></div>
 <main class="landing">
   <section class="landing-pitch">
     <p class="landing-lede">And it's completely free, forever.</p>
-    <div>
-      <p class="landing-sub">
-        Graphs live as <code>.nodescript</code> files and compile to <code>.luau</code>
-        that Rojo syncs like any other source file. No plugin or runtime, nothing of
-        Roswaal stays in your game. And it's
-        <span class="nowrap"><a class="licence-chip" href="${SOURCE_REPOSITORY}/blob/main/LICENSE" rel="noreferrer noopener">0BSD</a>,</span>
-        so Roswaal and anything you make with it are yours to keep, sell, modify or walk away with.
-      </p>
-      <p class="landing-note">
-        Install it and it runs <strong>locally</strong>, on your repository. Or open the
-        <strong>${IS_CANARY ? "canary" : "preview"}</strong> on a computer, tablet or phone,
-        with nothing to install and your project kept in your browser.
-      </p>
-    </div>
-  </section>
-
-  <section class="landing-sec landing-see">
-    ${shown.map((_, i) => `<input class="landing-pick" type="radio" name="landing-example" id="landing-ex-${i}"${i === 0 ? " checked" : ""} />`).join("\n    ")}
-    <div class="landing-sec-head">
-      <h2 class="landing-h2">See what it writes</h2>
-      <span class="spacer"></span>
-      <span class="segmented landing-tabs">${shown.map((one, i) => `<label for="landing-ex-${i}">${escapeHtml(one.label)}</label>`).join("")}</span>
-    </div>
-    <div class="landing-examples">
-${shown
-	.map(
-		(one, i) => `      <div class="landing-show" style="--split: 60%" data-example="${i}">
-        <section class="landing-pane">
-          <div class="card-head"><h3 class="card-title">The graph</h3><span class="card-slot"><span class="card-sub">${escapeHtml(one.label)}</span></span><a href="${one.doc}">On its docs page</a></div>
-          <figure class="docs-preview graph landing-graph"><div class="graph-viewport">${one.svg}</div></figure>
-          <div class="landing-graph-grip" role="separator" aria-orientation="horizontal" aria-label="Resize the graph"
-            aria-valuemin="200" aria-valuenow="320" tabindex="0"></div>
-        </section>
-        <div class="landing-split" role="separator" aria-orientation="vertical" aria-label="Resize the graph and the Luau"
-          aria-valuemin="25" aria-valuemax="75" aria-valuenow="60" tabindex="0"></div>
-        <section class="landing-pane">
-          <div class="card-head"><h3 class="card-title">The Luau it writes</h3><span class="card-slot"><span class="runtime-chip runtime-chip-${one.runtime}">${RUNS_ON[one.runtime]}</span></span></div>
-          <pre class="landing-code"><code>${one.luau}</code></pre>
-        </section>
-      </div>`,
-	)
-	.join("\n")}
-    </div>
-    <p class="landing-caption">
-      Both halves come from the same graph, by the same compiler the editor runs, so
-      the picture cannot show a wiring the code does not have.
-    </p>
-    <p class="landing-bridge">
-      That is what it writes. <a href="#tour">Take the tour of the editor that writes it</a>,
-      starting with the lines each node wrote.
+    <p class="landing-sub">
+      Graphs are files in your repository, compiled to the Luau that Rojo syncs, and
+      nothing of Roswaal stays in your game. It's
+      <span class="nowrap"><a class="licence-chip" href="${SOURCE_REPOSITORY}/blob/main/LICENSE" rel="noreferrer noopener">0BSD</a>:</span>
+      yours to keep, sell or change.
     </p>
   </section>
 
@@ -958,7 +664,7 @@ ${shown
 
   <section class="landing-sec">
     <div class="landing-sec-head"><h2 class="landing-h2">Why it holds up</h2></div>
-    <div class="landing-points">
+    <div class="landing-points plain">
       ${card(
 				"script.begin",
 				"document",
@@ -983,20 +689,14 @@ ${shown
   <section class="landing-sec">
     <div class="landing-sec-head"><h2 class="landing-h2">Inside the editor</h2></div>
     <div class="landing-points four">
+      <p class="landing-row">Writing a graph</p>
       ${card(
 				"roblox.getEvent",
 				"search",
 				"Search literally, or visually",
-				"<kbd>Right-click</kbd> the canvas to search nodes by name. <kbd>Ctrl</kbd> + <kbd>Right-click</kbd> opens a picker that draws each node as you walk the list, since 0.50.0.",
+				"<kbd>Right-click</kbd> the canvas to search nodes by name. <kbd>Ctrl</kbd> + <kbd>Right-click</kbd> opens a picker that draws each node as you walk the list.",
 				"0.1.0",
-				"list",
-			)}
-      ${card(
-				"event.connect",
-				"instance",
-				"Events, already typed",
-				"<strong>On Event</strong> lists the events a part's class has, and the handler's parameters arrive typed. Connect Event fills them in too.",
-				"0.119.0",
+				{ slide: "list" },
 			)}
       ${card(
 				"code.custom",
@@ -1004,6 +704,15 @@ ${shown
 				"Code Block, and Luau Expression",
 				"Write Luau where writing Luau is simpler, and wrap code you already have instead of rebuilding it as nodes. The text is emitted verbatim.",
 				"0.1.0",
+				{ href: "docs/hand-written-luau.html", say: "How it compiles" },
+			)}
+      ${card(
+				"event.connect",
+				"instance",
+				"Events, already typed",
+				"<strong>On Event</strong> lists the events a part's class has, and the handler's parameters arrive typed. Connect Event fills them in too.",
+				"0.119.0",
+				{ href: "docs/node/event.on.html", say: "On Event's page" },
 			)}
       ${card(
 				"value.expression",
@@ -1011,21 +720,24 @@ ${shown
 				"Custom nodes, made your way",
 				"In Node Design, wire a node's logic from nodes and watch the Luau appear, or write the template by hand. Or write a pack yourself, in JSON or Luau.",
 				"0.34.0",
+				{ href: "docs/creating-custom-nodes.html", say: "Make a node" },
 			)}
-      ${card(
-				"roblox.getService",
-				"map",
-				"Places and Rojo projects",
-				"Open a <code>.rbxl</code> as a project with its scripts, and export back into the place. Since 0.106.0, a <code>default.project.json</code> becomes a node map that makes the folders Rojo syncs.",
-				"0.98.0",
-			)}
+      <p class="landing-row">Around it</p>
       ${card(
 				"string.concat",
 				"layout",
 				"Preview anything, any time",
 				"<kbd>P</kbd> shows what the graph in front of you compiles to: a whole script, one function, or only the nodes you have selected, read from the real output.",
 				"0.17.0",
-				"preview",
+				{ slide: "preview" },
+			)}
+      ${card(
+				"roblox.getService",
+				"map",
+				"Places and Rojo projects",
+				"Open a <code>.rbxl</code> as a project with its scripts, and export back into the place. A <code>default.project.json</code> becomes a node map that makes the folders Rojo syncs.",
+				"0.98.0",
+				{ href: "docs/places-and-rojo.html", say: "Places and Rojo" },
 			)}
       ${card(
 				"table.insert",
@@ -1033,7 +745,7 @@ ${shown
 				"Panels that float and dock",
 				"Every window floats its controls over the work. Cards dock to an edge, share it, take tabs and fold away on a computer or an iPad, and become sheets on a phone.",
 				"0.121.0",
-				"windows",
+				{ slide: "windows" },
 			)}
       ${card(
 				"debug.print",
@@ -1041,6 +753,7 @@ ${shown
 				"Documented, node by node",
 				`A page for every node with its graph and its Luau, <kbd>Ctrl</kbd> + <kbd>K</kbd> to it from anywhere, and a <kbd>✎</kbd> on each page to suggest an edit. Plus <a href="docs/coming-from-blueprints.html">Coming from Blueprints</a>.`,
 				"0.4.0",
+				{ href: "docs/node/event.connect.html", say: "A node's page" },
 			)}
     </div>
   </section>

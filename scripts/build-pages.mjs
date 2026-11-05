@@ -32,8 +32,7 @@ import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { buildGraphViewer } from "./lib/graphViewer.mjs";
-import { LANDING_SCRIPT, landingPage } from "./lib/landing.mjs";
+import { landingPage } from "./lib/landing.mjs";
 import { notFoundPage } from "./lib/notFound.mjs";
 import { withPolicyThroughout } from "./lib/policy.mjs";
 import { TOUR_SCRIPT } from "./lib/tour.mjs";
@@ -109,14 +108,8 @@ async function main() {
 	await cp(join(root, "site"), out, { recursive: true });
 
 	await writeFile(join(out, "index.html"), landingPage(version), "utf8");
-	// The docs' graph viewer, so the landing page's graph pans and zooms with
-	// the editor's own code, then the bar between the graph and its Luau, then
-	// what makes the tour's demonstrations answer.
-	await writeFile(
-		join(out, "landing.js"),
-		[await buildGraphViewer(), LANDING_SCRIPT, TOUR_SCRIPT].join("\n"),
-		"utf8",
-	);
+	// What makes the tour's demonstrations answer: the page's only script.
+	await writeFile(join(out, "landing.js"), TOUR_SCRIPT, "utf8");
 	await writeFile(join(out, "404.html"), notFoundPage(base, version), "utf8");
 	// `/technical/`: the specification as its own site, as spec.roswaal.app
 	// serves it -- the canary's preview of it, and a copy on roswaal.app for the

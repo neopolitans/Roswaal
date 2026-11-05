@@ -9,6 +9,23 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.204.0",
+		date: "2026-11-05",
+		headline: "The front page is quieter, its tour comes first, and its cards are the editor's.",
+		added: [
+			"**Hover in the tour's Import slide.** Resting the pointer on a line of the file or of what it writes shows the nodes it became, as a click does.",
+		],
+		changed: [
+			"**The banner.** The mark rests on the name, the graph is drawn at the editor's size on the grid, and the line under the name goes.",
+			"**The promise.** That it is free, forever, is said in two sentences.",
+			"**The tour first.** It follows the promise; See what it writes is gone.",
+			"**The cards.** Each has the editor's card header, its colour on a tile, and one footer with the version it arrived in and where to go next. Inside the editor is in two rows, Writing a graph and Around it.",
+			"**Quieter.** Versions are grey numbers, Why it holds up is three columns, Lately is one card, and cards have no shadows.",
+			"**The tour on a tablet or a phone.** The tabs are one row of named stops that scrolls, and back and next are two halves of one bar. The progress bar is gone.",
+			"**The tour on a computer.** Slides are taller, and the preview's graph is drawn larger.",
+		],
+	},
+	{
 		version: "0.203.5",
 		date: "2026-11-04",
 		headline: "On an iPad, a panel's button puts its drawer away, and Check is the size of its line.",
