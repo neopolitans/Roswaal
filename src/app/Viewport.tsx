@@ -349,6 +349,16 @@ export function ViewportBar({ controller }: { controller: ViewportController }) 
 					/>
 				))}
 			</span>
+			{/* Esc's job, where a touch screen has no keys. */}
+			<span className="vp-clear">
+				<Tile
+					icon="close"
+					label="Clear"
+					title="Pick nothing (Esc)"
+					disabled={!state.picked}
+					onClick={() => controller.clear()}
+				/>
+			</span>
 			<span className="vp-rule" />
 			<span className="vp-snaps" title={snapTitle}>
 				<SnapFields snap={state.snap} controller={controller} />

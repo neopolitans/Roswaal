@@ -20827,6 +20827,14 @@ textarea.tb:where(:disabled) {
 	width: 100%;
 	height: 100%;
 	touch-action: none;
+	/* A long press picks a part: no callout, no selecting text. */
+	-webkit-touch-callout: none;
+	-webkit-user-select: none;
+	user-select: none;
+}
+
+.vp-bar .vp-clear {
+	display: none;
 }
 
 .vp-problem {
@@ -21154,6 +21162,10 @@ textarea.tb:where(:disabled) {
 }
 
 @media (hover: none) and (pointer: coarse) {
+	.vp-bar .vp-clear {
+		display: contents;
+	}
+
 	.vp-touch {
 		position: absolute;
 		left: 20px;

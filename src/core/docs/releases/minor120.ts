@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.210.0",
+		date: "2026-11-05",
+		headline: "A long press picks a part in the place, and Clear picks nothing.",
+		added: [
+			"**Long press for a part.** On a touch screen, a long press on the place picks the part itself, as Alt or Shift and a click do.",
+			"**Clear.** On a touch screen the place's bar has Clear, which picks nothing, as Esc does.",
+		],
+	},
+	{
 		version: "0.209.0",
 		date: "2026-11-05",
 		headline: "The place has touch sticks on a tablet, and its snaps are in the bar.",

@@ -34,6 +34,8 @@ export interface ViewportState {
 	summary: { parts: number; meshes: number; transparent: number; notes: string[] } | null;
 	/** The steps a drag of the handles keeps to, in studs and degrees, each on or off. */
 	snap: Snap;
+	/** Something is picked, for the bar's Clear. */
+	picked: boolean;
 }
 
 export interface Snap {
@@ -49,6 +51,8 @@ export type ViewportPlace = PlaceScene & { lighting: LightingParams; outline: Pl
 
 /** Studs a second at 1×: a walk across M103's tank in about half a second. */
 const BASE_SPEED = 24;
+/** How long a touch holds still before it picks the part itself, as Alt and a click do. */
+const LONG_PRESS = 500;
 /** How fast the look stick turns the camera at its rim, in the right-drag's pixels a second. */
 const LOOK_RATE = 320;
 const MOVES: Record<string, number[]> = {
@@ -116,6 +120,7 @@ export class ViewportController {
 		error: null,
 		summary: null,
 		snap: { move: 0.5, moveOn: true, rotate: 5, rotateOn: true },
+		picked: false,
 	};
 	private listeners = new Set<() => void>();
 	private place: ViewportPlace | null = null;
@@ -204,7 +209,15 @@ export class ViewportController {
 	select(index: number | null): void {
 		if (index === this.selected) return;
 		this.selected = index;
+		if (this.state.picked !== (index !== null)) this.set({ picked: index !== null });
 		this.refreshSelection();
+	}
+
+	/** Picks nothing: the bar's Clear, and Esc. */
+	clear(): void {
+		if (this.selected === null) return;
+		this.select(null);
+		this.onPick(null);
 	}
 
 	private refreshSelection(): void {
@@ -740,7 +753,7 @@ export class ViewportController {
 				}
 				if (e.key === "f" || e.key === "F") this.frameSelection();
 				else if (e.key === "Home") this.fitAll();
-				else if (e.key === "Escape" && this.selected !== null) this.onPick(null);
+				else if (e.key === "Escape") this.clear();
 				else {
 					// The bar's order. Studio's Ctrl+1 to Ctrl+4 are the browser's, for its own tabs.
 					const pick = TOOLS.find(([, , key]) => key === e.key);
@@ -761,13 +774,44 @@ export class ViewportController {
 		let moved = 0;
 		let mode: "orbit" | "look" | "pan" = "orbit";
 		let pinch = 0;
+		// A touch held still picks the part itself, where a touch screen has no Alt.
+		let press: ReturnType<typeof setTimeout> | undefined;
+		let pressed = false;
+		const unpress = () => {
+			clearTimeout(press);
+			press = undefined;
+		};
+		const pickAt = async (x: number, y: number, partItself: boolean) => {
+			if (!this.view) return;
+			const box = el.getBoundingClientRect();
+			const dpr = el.width / box.width;
+			const id = await this.view.pick(
+				this.camera(),
+				Math.floor((x - box.left) * dpr),
+				Math.floor((y - box.top) * dpr),
+			);
+			const target = id >= 0 ? this.clickTarget(id, partItself) : null;
+			this.select(target);
+			this.onPick(target);
+		};
 		el.addEventListener("contextmenu", (e) => e.preventDefault());
 		el.addEventListener("pointerdown", (e) => {
 			el.setPointerCapture(e.pointerId);
 			this.hold(true);
 			pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 			moved = 0;
+			pressed = false;
 			mode = e.button === 2 ? "look" : e.button === 1 || e.shiftKey ? "pan" : "orbit";
+			unpress();
+			if (pointers.size === 1 && e.pointerType !== "mouse") {
+				const { clientX: x, clientY: y } = e;
+				press = setTimeout(() => {
+					press = undefined;
+					if (moved > 6 || pointers.size !== 1) return;
+					pressed = true;
+					void pickAt(x, y, true);
+				}, LONG_PRESS);
+			}
 			if (pointers.size === 2) {
 				const [a, b] = [...pointers.values()];
 				pinch = Math.hypot(a.x - b.x, a.y - b.y);
@@ -779,6 +823,7 @@ export class ViewportController {
 			const dx = e.clientX - last.x;
 			const dy = e.clientY - last.y;
 			moved += Math.abs(dx) + Math.abs(dy);
+			if (moved > 6) unpress();
 			pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 			if (pointers.size === 2) {
 				const [a, b] = [...pointers.values()];
@@ -791,23 +836,17 @@ export class ViewportController {
 			else this.orbit(dx, dy);
 			this.redraw();
 		});
-		el.addEventListener("pointerup", async (e) => {
+		el.addEventListener("pointerup", (e) => {
 			if (!pointers.has(e.pointerId)) return;
 			pointers.delete(e.pointerId);
 			this.hold(false);
-			if (pointers.size > 0 || moved > 6 || !this.view || e.button !== 0) return;
-			const box = el.getBoundingClientRect();
-			const dpr = el.width / box.width;
-			const id = await this.view.pick(
-				this.camera(),
-				Math.floor((e.clientX - box.left) * dpr),
-				Math.floor((e.clientY - box.top) * dpr),
-			);
-			const target = id >= 0 ? this.clickTarget(id, e.altKey || e.shiftKey) : null;
-			this.select(target);
-			this.onPick(target);
+			unpress();
+			// A long press has picked already.
+			if (pressed || pointers.size > 0 || moved > 6 || e.button !== 0) return;
+			void pickAt(e.clientX, e.clientY, e.altKey || e.shiftKey);
 		});
 		el.addEventListener("pointercancel", (e) => {
+			unpress();
 			if (pointers.delete(e.pointerId)) this.hold(false);
 		});
 		el.addEventListener(
