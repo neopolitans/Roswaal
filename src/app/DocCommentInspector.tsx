@@ -39,7 +39,13 @@ import { cx } from "./cx.js";
 import { useEditBurst } from "./editBurst.js";
 import { updateComment } from "./edits.js";
 import { Icon } from "./icons.jsx";
-import { LongFieldsEditor, LongTextEditor, LongTextField, touchScreen } from "./LongText.jsx";
+import {
+	type LongBadge,
+	LongFieldsEditor,
+	LongTextEditor,
+	LongTextField,
+	touchScreen,
+} from "./LongText.jsx";
 import { MenuButton } from "./Menu.jsx";
 import { Ident } from "./PanelParts.jsx";
 import { commentColor, pinColor } from "./palette.js";
@@ -61,6 +67,9 @@ function kept(words: Record<string, string>): Record<string, string> | undefined
 }
 
 const tidy = tidyDoc;
+
+/** The long editors' badge: the doc comment's moon, on its violet. */
+const BADGE: LongBadge = { icon: "moon", tone: commentColor(undefined, true) };
 
 export function DocCommentInspector({
 	comment,
@@ -204,6 +213,7 @@ function WordsRow({
 				title={title}
 				about={type ? `${name}: ${type}` : name}
 				label={title}
+				badge={BADGE}
 				onValue={onWords}
 				field={typing.field}
 			/>
@@ -512,6 +522,7 @@ function Extras({
 						about: doc.deprecated.version ? `Deprecated in ${doc.deprecated.version}` : undefined,
 						value: doc.deprecated.reason ?? "",
 						placeholder: "Use find instead.",
+						badge: BADGE,
 						onDone: (reason) =>
 							set({ ...doc, deprecated: { ...doc.deprecated!, reason: reason || undefined } }),
 					}}
@@ -605,6 +616,7 @@ function DocError({
 				<LongFieldsEditor
 					title="Edit docs error"
 					about={about}
+					badge={BADGE}
 					first={open}
 					fields={[
 						{ label: "Type", value: error.type, placeholder: '"Missing"', code: true },

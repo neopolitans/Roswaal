@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.205.5",
+		date: "2026-11-05",
+		headline: "A doc comment's larger fields open in a dialog like the editor's others.",
+		changed: [
+			"**The larger field's dialog.** It has the header band of the editor's other dialogs, with the doc comment's moon, the function's name under the title and a close button, and the keys in its foot.",
+			"**Edit docs error.** Type is one line in the code face, and the field being written is outlined in the doc comment's violet.",
+		],
+	},
+	{
 		version: "0.205.4",
 		date: "2026-11-05",
 		headline: "A doc comment's error is edited whole in one dialog.",

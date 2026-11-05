@@ -16,7 +16,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { Icon } from "./icons.jsx";
+import { Icon, type IconName } from "./icons.jsx";
 import { keyboardUp } from "./keyboardSettle.js";
 import { LAYER } from "./layers.js";
 
@@ -29,6 +29,7 @@ export interface LongTextRequest {
 	placeholder?: string;
 	/** Written in the code face: what an error throws, say. */
 	code?: boolean;
+	badge?: LongBadge;
 	onDone: (value: string) => void;
 }
 
@@ -63,6 +64,85 @@ function useKeyboardInset(): number {
 	return inset;
 }
 
+/** The badge at the head of the editor: an icon on the colour of what is edited. */
+export interface LongBadge {
+	icon: IconName;
+	/** A CSS colour. */
+	tone: string;
+}
+
+/**
+ * The frame both editors are drawn in, as every dialog in `Dialog.tsx` is: a
+ * header band with the badge, the title and what it is about, and a close; the
+ * fields; and a foot with the keys on the left and the answers on the right.
+ */
+function LongShell({
+	title,
+	about,
+	badge,
+	keys,
+	onDone,
+	onClose,
+	children,
+}: {
+	title: string;
+	about?: string;
+	badge?: LongBadge;
+	keys: React.ReactNode;
+	onDone: () => void;
+	onClose: () => void;
+	children: React.ReactNode;
+}) {
+	const inset = useKeyboardInset();
+	return createPortal(
+		<div
+			className={`dialog-backdrop long-text-backdrop${inset > 0 ? " over-keyboard" : ""}`}
+			style={{ zIndex: LAYER.menu + 1, paddingBottom: inset > 0 ? inset + 12 : undefined }}
+			onPointerDown={(e) => {
+				if (e.target === e.currentTarget) onDone();
+			}}
+		>
+			<div
+				className="dialog dialog-panel long-text"
+				role="dialog"
+				aria-modal="true"
+				aria-label={title}
+				style={badge ? ({ "--tone": badge.tone } as React.CSSProperties) : undefined}
+			>
+				<header className="dialog-head">
+					<span className="dialog-badge">
+						<Icon name={badge?.icon ?? "expandContent"} size={17} />
+					</span>
+					<div className="long-text-title">
+						<h3>{title}</h3>
+						{about && <span className="long-text-about">{about}</span>}
+					</div>
+					<button
+						type="button"
+						className="tb icon-only dialog-close"
+						aria-label="Cancel"
+						title="Cancel (Esc)"
+						onClick={onClose}
+					>
+						<Icon name="close" size={14} />
+					</button>
+				</header>
+				<div className="dialog-body">{children}</div>
+				<div className="dialog-actions">
+					<span className="dialog-keys">{keys}</span>
+					<button type="button" className="tb" onClick={onClose}>
+						Cancel
+					</button>
+					<button type="button" className="tb primary" onClick={onDone}>
+						Done
+					</button>
+				</div>
+			</div>
+		</div>,
+		document.body,
+	);
+}
+
 export function LongTextEditor({
 	request,
 	onClose,
@@ -72,7 +152,6 @@ export function LongTextEditor({
 }) {
 	const [value, setValue] = useState(request.value);
 	const field = useRef<HTMLTextAreaElement>(null);
-	const inset = useKeyboardInset();
 	const done = () => {
 		if (value !== request.value) request.onDone(value);
 		onClose();
@@ -83,45 +162,37 @@ export function LongTextEditor({
 		el.focus();
 		el.setSelectionRange(el.value.length, el.value.length);
 	}, []);
-	return createPortal(
-		<div
-			className={`dialog-backdrop long-text-backdrop${inset > 0 ? " over-keyboard" : ""}`}
-			style={{ zIndex: LAYER.menu + 1, paddingBottom: inset > 0 ? inset + 12 : undefined }}
-			onPointerDown={(e) => {
-				if (e.target === e.currentTarget) done();
-			}}
+	return (
+		<LongShell
+			title={request.title}
+			about={request.about}
+			badge={request.badge}
+			keys={
+				<>
+					<kbd>Enter</kbd> to finish · <kbd>Esc</kbd> to cancel
+				</>
+			}
+			onDone={done}
+			onClose={onClose}
 		>
-			<div className="dialog long-text" role="dialog" aria-label={request.title}>
-				<h3>{request.title}</h3>
-				{request.about && <p className="long-text-about">{request.about}</p>}
-				<textarea
-					ref={field}
-					className={request.code ? "long-text-code" : undefined}
-					rows={request.code ? 3 : 5}
-					value={value}
-					placeholder={request.placeholder}
-					onChange={(e) => setValue(e.target.value)}
-					onKeyDown={(e) => {
-						// Enter finishes: these are single lines, however long. Escape leaves
-						// what was there.
-						if (e.key === "Enter" && !e.shiftKey) {
-							e.preventDefault();
-							done();
-						}
-						if (e.key === "Escape") onClose();
-					}}
-				/>
-				<div className="dialog-actions">
-					<button type="button" className="tb" onClick={onClose}>
-						Cancel
-					</button>
-					<button type="button" className="tb primary" onClick={done}>
-						Done
-					</button>
-				</div>
-			</div>
-		</div>,
-		document.body,
+			<textarea
+				ref={field}
+				className={request.code ? "long-text-code" : undefined}
+				rows={request.code ? 3 : 5}
+				value={value}
+				placeholder={request.placeholder}
+				onChange={(e) => setValue(e.target.value)}
+				onKeyDown={(e) => {
+					// Enter finishes: these are single lines, however long. Escape leaves
+					// what was there.
+					if (e.key === "Enter" && !e.shiftKey) {
+						e.preventDefault();
+						done();
+					}
+					if (e.key === "Escape") onClose();
+				}}
+			/>
+		</LongShell>
 	);
 }
 
@@ -129,7 +200,7 @@ export interface LongField {
 	label: string;
 	value: string;
 	placeholder?: string;
-	/** Written in the code face. */
+	/** Written in the code face, on one line: what an error throws. */
 	code?: boolean;
 }
 
@@ -141,6 +212,7 @@ export interface LongField {
 export function LongFieldsEditor({
 	title,
 	about,
+	badge,
 	fields,
 	first = 0,
 	onDone,
@@ -148,6 +220,7 @@ export function LongFieldsEditor({
 }: {
 	title: string;
 	about?: string;
+	badge?: LongBadge;
 	fields: LongField[];
 	/** The field the caret starts in: the one tapped. */
 	first?: number;
@@ -155,8 +228,7 @@ export function LongFieldsEditor({
 	onClose: () => void;
 }) {
 	const [values, setValues] = useState(() => fields.map((f) => f.value));
-	const refs = useRef<(HTMLTextAreaElement | null)[]>([]);
-	const inset = useKeyboardInset();
+	const refs = useRef<(HTMLTextAreaElement | HTMLInputElement | null)[]>([]);
 	const done = () => {
 		if (values.some((v, i) => v !== fields[i].value)) onDone(values);
 		onClose();
@@ -167,54 +239,49 @@ export function LongFieldsEditor({
 		el.focus();
 		el.setSelectionRange(el.value.length, el.value.length);
 	}, [first]);
-	return createPortal(
-		<div
-			className={`dialog-backdrop long-text-backdrop${inset > 0 ? " over-keyboard" : ""}`}
-			style={{ zIndex: LAYER.menu + 1, paddingBottom: inset > 0 ? inset + 12 : undefined }}
-			onPointerDown={(e) => {
-				if (e.target === e.currentTarget) done();
-			}}
+	const props = (i: number) => ({
+		ref: (el: HTMLTextAreaElement | HTMLInputElement | null) => {
+			refs.current[i] = el;
+		},
+		value: values[i],
+		placeholder: fields[i].placeholder,
+		onChange: (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
+			const value = e.target.value;
+			setValues((was) => was.map((v, j) => (j === i ? value : v)));
+		},
+		onKeyDown: (e: React.KeyboardEvent) => {
+			if (e.key === "Enter" && !e.shiftKey) {
+				e.preventDefault();
+				if (i < fields.length - 1) refs.current[i + 1]?.focus();
+				else done();
+			}
+			if (e.key === "Escape") onClose();
+		},
+	});
+	return (
+		<LongShell
+			title={title}
+			about={about}
+			badge={badge}
+			keys={
+				<>
+					<kbd>Enter</kbd> for the next · <kbd>Esc</kbd> to cancel
+				</>
+			}
+			onDone={done}
+			onClose={onClose}
 		>
-			<div className="dialog long-text" role="dialog" aria-label={title}>
-				<h3>{title}</h3>
-				{about && <p className="long-text-about">{about}</p>}
-				{fields.map((f, i) => (
-					<label className="long-text-labelled" key={f.label}>
-						<span className="field-label">{f.label}</span>
-						<textarea
-							ref={(el) => {
-								refs.current[i] = el;
-							}}
-							className={f.code ? "long-text-code" : undefined}
-							rows={f.code ? 2 : 4}
-							value={values[i]}
-							placeholder={f.placeholder}
-							onChange={(e) => {
-								const value = e.target.value;
-								setValues((was) => was.map((v, j) => (j === i ? value : v)));
-							}}
-							onKeyDown={(e) => {
-								if (e.key === "Enter" && !e.shiftKey) {
-									e.preventDefault();
-									if (i < fields.length - 1) refs.current[i + 1]?.focus();
-									else done();
-								}
-								if (e.key === "Escape") onClose();
-							}}
-						/>
-					</label>
-				))}
-				<div className="dialog-actions">
-					<button type="button" className="tb" onClick={onClose}>
-						Cancel
-					</button>
-					<button type="button" className="tb primary" onClick={done}>
-						Done
-					</button>
-				</div>
-			</div>
-		</div>,
-		document.body,
+			{fields.map((f, i) => (
+				<label className="field wide" key={f.label}>
+					<span>{f.label}</span>
+					{f.code ? (
+						<input className="tb long-text-code" spellCheck={false} {...props(i)} />
+					) : (
+						<textarea rows={4} {...props(i)} />
+					)}
+				</label>
+			))}
+		</LongShell>
 	);
 }
 
@@ -229,6 +296,7 @@ export function LongTextField({
 	about,
 	label,
 	code,
+	badge,
 	onValue,
 	field,
 }: {
@@ -238,6 +306,7 @@ export function LongTextField({
 	about?: string;
 	label: string;
 	code?: boolean;
+	badge?: LongBadge;
 	onValue: (value: string) => void;
 	/** The edit burst's handlers, so typing in the short field is one undo step. */
 	field?: { onBlur: () => void; onKeyDown: (e: { key: string }) => void };
@@ -271,7 +340,7 @@ export function LongTextField({
 			</button>
 			{open && (
 				<LongTextEditor
-					request={{ title, about, value, placeholder, code, onDone: onValue }}
+					request={{ title, about, value, placeholder, code, badge, onDone: onValue }}
 					onClose={() => setOpen(false)}
 				/>
 			)}

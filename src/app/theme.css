@@ -3347,8 +3347,22 @@ button.tb.primary:hover:not(:disabled) {
 
 /* The long editor: wide enough to read what is written while writing it, and
    on a touch screen resting on the keyboard rather than behind it. */
-.dialog.long-text {
-	width: min(640px, 100%);
+.dialog.dialog-panel.long-text {
+	width: min(600px, 100%);
+}
+
+/* The title, and under it what is being written about: the function's name. */
+.long-text-title {
+	display: grid;
+	min-width: 0;
+}
+
+.long-text-title .long-text-about {
+	font-size: var(--text-xs);
+	color: var(--fg-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .long-text textarea {
@@ -3362,13 +3376,20 @@ button.tb.primary:hover:not(:disabled) {
 	border: 1px solid var(--border);
 	border-radius: var(--radius-sm);
 	font: inherit;
-	font-size: var(--text-lg);
+	font-size: var(--text-md);
 	line-height: 1.5;
+}
+
+/* Focused in the badge's colour, rather than the browser's ring. */
+.long-text textarea:focus,
+.long-text input.tb:focus {
+	outline: none;
+	border-color: color-mix(in srgb, var(--tone) 75%, var(--border));
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--tone) 22%, transparent);
 }
 
 .long-text-about {
 	font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
-	font-size: var(--text-sm);
 }
 
 .long-text-backdrop.over-keyboard {
@@ -3420,14 +3441,12 @@ button.tb.doc-error-remove:focus-visible {
 	border-color: var(--danger);
 }
 
-.long-text-labelled {
-	display: grid;
-	gap: 4px;
-}
-
-/* A type is a word or two: short, and in the code face like the field it opens from. */
+/* A type is a word or two: one line, in the code face like the field it
+   opens from. */
+.long-text input.long-text-code,
 .long-text textarea.long-text-code {
-	min-height: 0;
+	min-height: 30px;
+	box-sizing: border-box;
 	font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
 	font-size: var(--text-sm);
 }
