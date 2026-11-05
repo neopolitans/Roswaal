@@ -1313,9 +1313,12 @@ export const LIBRARY_NODES: NodeDef[] = [
 		inputs: arrayPins(1),
 		outputs: [d("result", "", "table")],
 		compilesTo: { kind: "expr", outputs: { result: "{ $args(, ) }" } },
+		// `{ T }` once what goes in agrees on a T; see `arrayTypes.ts`.
 		derivePins: (config) => ({
 			inputs: arrayPins(Math.max(1, Math.min(MAX_PAIRS, Number(config.args ?? 1)))),
-			outputs: [d("result", "", "table")],
+			outputs: [
+				d("result", "", typeof config.element === "string" ? `{ ${config.element} }` : "table"),
+			],
 		}),
 	},
 

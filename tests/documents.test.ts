@@ -171,6 +171,31 @@ describe("closing", () => {
 		expect(store.getTabs()).toHaveLength(1);
 	});
 
+	/** The tab menu's others, either side, and all (0.207.0). */
+	it("closes several, bringing the tab the menu was opened on to the front", () => {
+		const C = "scripts/C.nodescript";
+		store.open(C, graph("C"));
+		store.activate(A);
+		// Close the others from C's menu: A was in front and goes, so C comes forward.
+		store.closeDocuments([A, B], C);
+		expect(store.getTabs().map((t) => t.key)).toEqual([C]);
+		expect(store.getSnapshot().script?.name).toBe("C");
+	});
+
+	it("leaves the tab in front alone when it is not among those closed", () => {
+		store.open("scripts/C.nodescript", graph("C"));
+		store.activate(B);
+		store.closeDocuments([A], "scripts/C.nodescript");
+		expect(store.getSnapshot().script?.name).toBe("B");
+		expect(store.getTabs()).toHaveLength(2);
+	});
+
+	it("closes them all, with nothing left in front", () => {
+		store.closeDocuments(store.getTabs().map((t) => t.key));
+		expect(store.getTabs()).toEqual([]);
+		expect(store.getSnapshot().script).toBeNull();
+	});
+
 	it("ends with nothing open, rather than something stale", () => {
 		store.closeAll();
 		expect(store.getTabs()).toEqual([]);

@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.207.0",
+		date: "2026-11-05",
+		headline:
+			"A tab's menu closes the others, those either side, or all, and Make Array says what it holds.",
+		added: [
+			"**A tab's menu.** Right-click a tab, or long-press it on a touch screen, to close it, the other tabs, the tabs to its left or right, or all of them.",
+			"**What Make Array holds.** When its values share a type, its output is a list of that type, such as a list of Model, rather than a plain table. Instances of different classes share the class one of them is, or Instance.",
+		],
+		changed: [
+			"**Lists and tables.** A list of a type can be wired wherever a table is wanted, and into a list of a class it derives from, so a list of Model goes into a list of Instance.",
+		],
+	},
+	{
 		version: "0.206.0",
 		date: "2026-11-05",
 		headline:

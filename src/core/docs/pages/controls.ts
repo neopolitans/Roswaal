@@ -280,6 +280,10 @@ export function controlsPage(): DocPage {
 					["Double-click a function in the tree", "Open its graph in a tab"],
 					["Click a function in the Variables panel", "Open its graph"],
 					["Middle-click a tab", "Close it"],
+					[
+						"Right-click a tab, or long-press it",
+						"Close it, the other tabs, those to its left or right, or all of them",
+					],
 				],
 			},
 			{ t: "h", level: 2, text: "Panels" },

@@ -1658,6 +1658,7 @@ export function App() {
 									functionTabs={prefs.functionTabs}
 									onActivate={(key) => store.activate(key)}
 									onClose={(key) => store.closeDocument(key)}
+									onCloseMany={(keys, keep) => store.closeDocuments(keys, keep)}
 									onReorder={(key, before) => store.reorder(key, before)}
 								/>
 								{mapDoc ? (

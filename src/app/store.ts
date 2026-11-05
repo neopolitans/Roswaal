@@ -48,6 +48,7 @@
  */
 
 import { useSyncExternalStore } from "react";
+import { retypeArrays } from "../core/arrayTypes.js";
 import { retypeClassReads } from "../core/classReads.js";
 import {
 	type FunctionInfo,
@@ -453,6 +454,32 @@ class Store {
 		this.changed();
 	}
 
+	/**
+	 * Closes several tabs at once: the tab menu's others, to the left, to the
+	 * right and all.
+	 *
+	 * `keep` is the tab the menu was opened on. When the active tab is among
+	 * those closed it becomes the active one, since it is the one being looked
+	 * at; with nothing kept, the first tab left does. A file closes with its
+	 * last tab, as one closed by itself does, and its writes still land: they
+	 * belong to the file, not the tab (see `saveQueue.ts`).
+	 */
+	closeDocuments(keys: readonly string[], keep?: string): void {
+		const going = new Set(keys);
+		const closed = this.tabList.filter((t) => going.has(t.key));
+		if (closed.length === 0) return;
+		this.tabList = this.tabList.filter((t) => !going.has(t.key));
+		for (const tab of closed) {
+			if (!this.tabList.some((t) => t.path === tab.path)) this.docs.delete(tab.path);
+		}
+		if (this.activeKey !== null && going.has(this.activeKey)) {
+			const kept =
+				keep !== undefined && this.tabList.some((t) => t.key === keep) ? keep : undefined;
+			this.activeKey = kept ?? this.tabList[0]?.key ?? null;
+		}
+		this.changed();
+	}
+
 	/** Closes everything. For a project switching underneath the editor. */
 	closeAll(): void {
 		this.docs.clear();
@@ -814,6 +841,8 @@ class Store {
 		 */
 		if (this.registry) next = retypeReroutes(next, this.registry);
 		next = retypeClassReads(next);
+		// And a Make Array's values, which say what the list holds. See `arrayTypes.ts`.
+		if (this.registry) next = retypeArrays(next, this.registry);
 		// The same reasoning for a Script Function: its pins are a copy of its
 		// function's signature, and a signature changes from the Inspector,
 		// the node's own − and +, an undo of either, and a paste. Every one of

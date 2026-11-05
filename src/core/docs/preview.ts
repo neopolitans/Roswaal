@@ -39,6 +39,7 @@
  * the time, so it is part of what the node looks like.
  */
 
+import { retypeArrays } from "../arrayTypes.js";
 import {
 	CODE_FACE,
 	type CodeFace,
@@ -1641,7 +1642,7 @@ export function graphSvg(
 	 * asked once, here, where every docs graph is rendered and the registry is
 	 * already in hand.
 	 */
-	const script = retypeReroutes(scene, registry);
+	const script = retypeArrays(retypeReroutes(scene, registry), registry);
 	const g = options.geometry;
 	const placed = placeGraph(script, registry, options);
 	if (placed.length === 0) return "";

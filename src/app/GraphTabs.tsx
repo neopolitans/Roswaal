@@ -50,6 +50,11 @@ export interface GraphTabsProps {
 	onActivate: (key: string) => void;
 	onClose: (key: string) => void;
 	/**
+	 * Several tabs from the tab menu, keeping `keep` -- the tab it was opened
+	 * on -- in front if the one in front goes. Absent leaves the menu out.
+	 */
+	onCloseMany?: (keys: string[], keep?: string) => void;
+	/**
 	 * A tab was dragged to a new place: put it before `before`, or at the end
 	 * when that is null. Absent leaves the row fixed.
 	 */
@@ -102,6 +107,7 @@ export function GraphTabs({
 	functionTabs,
 	onActivate,
 	onClose,
+	onCloseMany,
 	onReorder,
 }: GraphTabsProps) {
 	const row = useRef<HTMLDivElement>(null);
@@ -109,6 +115,7 @@ export function GraphTabs({
 	// The tab being dragged, and the one it would land before.
 	const [drag, setDrag] = useState<{ key: string; before: string | null } | null>(null);
 	const [listOpen, setListOpen] = useState(false);
+	const [menu, setMenu] = useState<{ x: number; y: number; key: string } | null>(null);
 
 	// The tabs are the open document's name as well as the way between graphs,
 	// so one graph still has its tab.
@@ -188,6 +195,10 @@ export function GraphTabs({
 						aria-selected={doc.active}
 						title={doc.kind === "function" ? `ƒ ${full}\n${doc.path}` : doc.path}
 						onPointerDown={(e) => onTabPointerDown(e, doc.key)}
+						onContextMenu={(e) => {
+							e.preventDefault();
+							if (onCloseMany) setMenu({ x: e.clientX, y: e.clientY, key: doc.key });
+						}}
 					>
 						<TabIcon doc={doc} size={13} />
 						<span className="name">{label}</span>
@@ -213,6 +224,17 @@ export function GraphTabs({
 			    to hit when the row is full. It also holds the list. With one tab
 			    there is nothing to reorder and no list, so there is no end: it
 			    left a blank after the tab where the list button would be. */}
+			{menu && onCloseMany && (
+				<TabMenu
+					at={menu}
+					tab={menu.key}
+					documents={documents}
+					functionTabs={functionTabs}
+					onClose={onClose}
+					onCloseMany={onCloseMany}
+					onDismiss={() => setMenu(null)}
+				/>
+			)}
 			{documents.length > 1 && (
 				<div className={cx("tab-rest", drag && drag.before === null && "drop-before")}>
 					<TabList
@@ -228,6 +250,72 @@ export function GraphTabs({
 				</div>
 			)}
 		</div>
+	);
+}
+
+/**
+ * A tab's own menu: closing it, the others, those either side of it, or all.
+ *
+ * Either side is by where the tabs sit in the row, which dragging decides, so
+ * the row is the order the menu means. An entry that would close nothing is
+ * shown and greyed rather than left out, so the menu keeps its shape.
+ */
+function TabMenu({
+	at,
+	tab,
+	documents,
+	functionTabs,
+	onClose,
+	onCloseMany,
+	onDismiss,
+}: {
+	at: { x: number; y: number };
+	tab: string;
+	documents: OpenDocument[];
+	functionTabs: FunctionTabs;
+	onClose: (key: string) => void;
+	onCloseMany: (keys: string[], keep?: string) => void;
+	onDismiss: () => void;
+}) {
+	const index = documents.findIndex((d) => d.key === tab);
+	if (index === -1) return null;
+	const keys = documents.map((d) => d.key);
+	const left = keys.slice(0, index);
+	const right = keys.slice(index + 1);
+	const others = [...left, ...right];
+	const name = tabLabel(documents[index], functionTabs);
+	return (
+		<Menu
+			at={at}
+			label={`${name} tab`}
+			onClose={onDismiss}
+			sections={[
+				{ entries: [{ key: "close", label: "Close", icon: "close", run: () => onClose(tab) }] },
+				{
+					entries: [
+						{
+							key: "others",
+							label: "Close other tabs",
+							disabled: others.length === 0,
+							run: () => onCloseMany(others, tab),
+						},
+						{
+							key: "left",
+							label: "Close tabs to the left",
+							disabled: left.length === 0,
+							run: () => onCloseMany(left, tab),
+						},
+						{
+							key: "right",
+							label: "Close tabs to the right",
+							disabled: right.length === 0,
+							run: () => onCloseMany(right, tab),
+						},
+					],
+				},
+				{ entries: [{ key: "all", label: "Close all tabs", run: () => onCloseMany(keys) }] },
+			]}
+		/>
 	);
 }
 

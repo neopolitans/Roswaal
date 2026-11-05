@@ -117,8 +117,20 @@ export function typesCompatible(from: string | undefined, to: string | undefined
 	// what the value *is* rather than a fact about its type, and Cast is the node
 	// that makes that claim out loud.
 	if (isSubclassOf(a, b)) return true;
+	// A table type written out is still a table: `{ Model }` goes wherever any
+	// table is wanted. Not the other way: a plain table says nothing of what
+	// it holds, so it does not go where `{ Model }` is promised.
+	if (b === "table" && a.trim().startsWith("{")) return true;
+	// A list goes where a list of what it holds would: `{ Model }` into
+	// `{ Instance }`, by the rule above for its values.
+	const listA = LIST.exec(a)?.[1];
+	const listB = LIST.exec(b)?.[1];
+	if (listA && listB) return typesCompatible(listA, listB);
 	return false;
 }
+
+/** `{ T }`, a list of one type: what is between the braces. */
+const LIST = /^\{\s*([A-Za-z_][\w.]*\??)\s*\}$/;
 
 /**
  * Whether a wire from an output may land on an input: the type rule, and the
