@@ -42,6 +42,9 @@ const CODE_FILE =
 export const ICONS = {
 	chevron: "M480-345 240-585l56-56 184 184 184-184 56 56-240 240Z",
 
+	/** Material's crescent, for a doc comment: what Moonwave writes, by its moon. */
+	moon: "M484-80q-84 0-157.5-32t-128-86.5Q144-253 112-326.5T80-484q0-146 93-257.5T410-880q-18 99 11 193.5T521-521q71 71 165.5 100T880-410q-26 144-138 237T484-80Z",
+
 	/**
 	 * ƒ, for a function graph. Drawn here rather than taken from Material, and
 	 * drawn as a stroke — see `STROKED`.

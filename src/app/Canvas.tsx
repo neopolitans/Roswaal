@@ -18,6 +18,7 @@ import {
 	useState,
 } from "react";
 import type { Diagnostic } from "../core/compiler/index.js";
+import { type DocSubject, docProblem, docSubject, realmWords } from "../core/docComments.js";
 import { type GraphId, viewOf } from "../core/functionGraph.js";
 import { instanceClassInto } from "../core/members.js";
 import { type Registry, resolveNodePins } from "../core/nodes/index.js";
@@ -25,9 +26,18 @@ import { isInstanceClass } from "../core/roblox.js";
 import { readOnlyToScripts } from "../core/robloxEngine.js";
 import { nilableProperty } from "../core/robloxNilable.js";
 import { propertiesOf } from "../core/robloxProperties.js";
-import type { Comment, Literal, NodeConfig, NodeScript, PinDef, PinRef } from "../core/schema.js";
+import type {
+	Comment,
+	DocTags,
+	Literal,
+	NodeConfig,
+	NodeScript,
+	PinDef,
+	PinRef,
+} from "../core/schema.js";
 import { serviceFromSource } from "../core/serviceCalls.js";
 import { cx } from "./cx.js";
+import { Icon } from "./icons.jsx";
 import {
 	addNode,
 	bindNodeToFunction,
@@ -1394,6 +1404,8 @@ export function Canvas({
 							if (text === comment.text && h === comment.h) return;
 							store.edit((s) => updateComment(s, comment.id, { text, h }));
 						}}
+						subject={comment.doc ? docSubject(whole, registry, comment) : undefined}
+						onDoc={(doc) => store.edit((s) => updateComment(s, comment.id, { doc }))}
 					/>
 				))}
 
@@ -1605,6 +1617,135 @@ interface CommentViewProps {
 	onStartEdit: () => void;
 	/** The text, and how tall the header ended up, so the box can fit it. */
 	onCommit: (text: string, barHeight: number) => void;
+	/** A doc comment's subject, read off what its box holds. */
+	subject?: DocSubject;
+	/** A doc comment's tags, changed on the canvas. */
+	onDoc?: (doc: DocTags) => void;
+}
+
+/**
+ * A doc comment's words on the canvas, under its bar: a line of what it says,
+ * then each parameter and return of the function it documents with its words.
+ * A row is a field once clicked, so the description and a line per parameter
+ * -- what most of these comments are -- are written where the function is.
+ */
+function DocCanvas({
+	comment,
+	subject,
+	onDoc,
+}: {
+	comment: Comment;
+	subject: DocSubject;
+	onDoc: (doc: DocTags) => void;
+}) {
+	const doc = comment.doc ?? {};
+	const [editing, setEditing] = useState<string | null>(null);
+	const chips = docChips(doc, subject);
+	const rows =
+		subject.kind === "function"
+			? [
+					...subject.params.map((p) => ({
+						key: `p:${p.name}`,
+						name: p.name || "arg",
+						type: p.type,
+						words: doc.params?.[p.name] ?? "",
+						set: (words: string) => onDoc({ ...doc, params: withWords(doc.params, p.name, words) }),
+					})),
+					...subject.returns.map((r, i) => ({
+						key: `r:${i}`,
+						name: subject.returns.length > 1 ? `→ ${i + 1}` : "→",
+						type: r.type || "any",
+						words: doc.returns?.[i] ?? "",
+						set: (words: string) => {
+							const returns = subject.returns.map((_, j) => (j === i ? words : (doc.returns?.[j] ?? "")));
+							onDoc({ ...doc, returns: returns.some((x) => x.trim()) ? returns : undefined });
+						},
+					})),
+				]
+			: subject.kind === "interface"
+				? subject.fields.map((f) => ({
+						key: `f:${f.name}`,
+						name: `.${f.name}`,
+						type: f.type,
+						words: doc.fields?.[f.name] ?? "",
+						set: (words: string) => onDoc({ ...doc, fields: withWords(doc.fields, f.name, words) }),
+					}))
+				: [];
+	const problem = docProblem(subject);
+	return (
+		<div className="doc-canvas" onPointerDown={(e) => e.stopPropagation()}>
+			<div className="doc-chips">
+				{problem ? <span className="doc-chip warn">{subject.kind === "none" ? "Documents nothing" : `Holds ${(subject as { count: number }).count}`}</span> : null}
+				{chips.map((chip) => (
+					<span key={chip} className="doc-chip">
+						{chip}
+					</span>
+				))}
+			</div>
+			{rows.length > 0 && (
+				<div className="doc-rows">
+					{rows.map((row) => (
+						<div
+							key={row.key}
+							className={cx("doc-row", editing === row.key && "editing")}
+							onClick={() => setEditing(row.key)}
+						>
+							<span className="nm">{row.name}</span>
+							{row.type && <span className="ty">{row.type}</span>}
+							{editing === row.key ? (
+								<input
+									autoFocus
+									defaultValue={row.words}
+									aria-label={`What ${row.name} is`}
+									onBlur={(e) => {
+										setEditing(null);
+										if (e.target.value !== row.words) row.set(e.target.value);
+									}}
+									onKeyDown={(e) => {
+										if (e.key === "Enter" || e.key === "Escape") e.currentTarget.blur();
+									}}
+								/>
+							) : row.words ? (
+								<span className="ds">{row.words}</span>
+							) : (
+								<span className="ds missing">Say what it is</span>
+							)}
+						</div>
+					))}
+				</div>
+			)}
+		</div>
+	);
+}
+
+/** A record of words by name, with one changed, and none kept empty. */
+function withWords(
+	words: Record<string, string> | undefined,
+	name: string,
+	text: string,
+): Record<string, string> | undefined {
+	const next = { ...words, [name]: text.trim() };
+	if (!text.trim()) delete next[name];
+	return Object.keys(next).length ? next : undefined;
+}
+
+/** The line of what a doc comment says, under its bar. */
+function docChips(doc: DocTags, subject: DocSubject): string[] {
+	const chips: string[] = [];
+	if (subject.kind === "class") chips.push(`@class ${subject.name}`);
+	if (subject.kind === "interface") chips.push(`@interface ${subject.name}`);
+	if (subject.kind === "type") chips.push(`@type ${subject.name}`);
+	if (subject.kind !== "class" && doc.within?.trim()) chips.push(`@within ${doc.within.trim()}`);
+	if (doc.realms?.length) chips.push(realmWords(doc.realms));
+	if (doc.errors?.length) chips.push(`${doc.errors.length} error${doc.errors.length === 1 ? "" : "s"}`);
+	if (doc.yields) chips.push("Yields");
+	if (doc.since?.trim()) chips.push(`Since ${doc.since.trim()}`);
+	if (doc.deprecated) chips.push("Deprecated");
+	if (doc.private) chips.push("Private");
+	if (doc.ignore) chips.push("Ignored");
+	if (doc.unreleased) chips.push("Unreleased");
+	for (const name of doc.tags ?? []) chips.push(name);
+	return chips;
 }
 
 function CommentView({
@@ -1616,9 +1757,12 @@ function CommentView({
 	onResize,
 	onStartEdit,
 	onCommit,
+	subject,
+	onDoc,
 }: CommentViewProps) {
-	const color = commentColor(comment.color);
+	const color = commentColor(comment.color, comment.doc !== undefined);
 	const bar = useRef<HTMLDivElement>(null);
+	const isDoc = comment.doc !== undefined;
 
 	// Keeps the field exactly as tall as what it holds.
 	const fit = (field: HTMLTextAreaElement) => {
@@ -1628,7 +1772,7 @@ function CommentView({
 
 	return (
 		<div
-			className={cx("comment", selected && "comment--selected")}
+			className={cx("comment", isDoc && "comment-doc", selected && "comment--selected")}
 			style={{
 				left: comment.x,
 				top: comment.y,
@@ -1663,10 +1807,21 @@ function CommentView({
 							}
 						}}
 					/>
+				) : isDoc ? (
+					<>
+						<span className="doc-badge" title="A doc comment: Moonwave documentation">
+							<Icon name="moon" size={11} />
+							Doc
+						</span>
+						<span className={cx("doc-title", !comment.text.trim() && "missing")}>
+							{comment.text.trim().split("\n")[0] || "Double-click to describe it"}
+						</span>
+					</>
 				) : (
 					comment.text
 				)}
 			</div>
+			{isDoc && subject && onDoc && <DocCanvas comment={comment} subject={subject} onDoc={onDoc} />}
 			{/* Both corners. The top-left moves the box as it resizes, which is
 			    what you want when a comment has to grow upwards to take in a node
 			    above it -- the alternative is resizing from the bottom and then

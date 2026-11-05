@@ -1331,6 +1331,7 @@ export function addComment(
 	script: NodeScript,
 	rect: Rect,
 	text = "Comment",
+	kind: "comment" | "doc" = "comment",
 ): { script: NodeScript; id: string } {
 	const id = newId();
 	const comment: Comment = {
@@ -1340,6 +1341,8 @@ export function addComment(
 		w: Math.max(160, Math.round(rect.w)),
 		h: Math.max(96, Math.round(rect.h)),
 		text,
+		// A doc comment: Moonwave, written as a block until it is asked otherwise.
+		...(kind === "doc" ? { doc: {}, style: "docBlock" as const } : {}),
 	};
 	return { script: { ...script, comments: [...script.comments, comment] }, id };
 }

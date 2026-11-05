@@ -21,6 +21,7 @@
  */
 
 import { commentLines, headersByNode, oneLine } from "../comments.js";
+import { docProblem, docSubject, docText } from "../docComments.js";
 import { compoundTemplate } from "../nodes/compound.js";
 import { FUNCTION_NODES, loopNamesOf, signatureOf } from "../nodes/flow.js";
 import { nodeTitle, type Registry } from "../nodes/index.js";
@@ -173,6 +174,8 @@ export class Emitter {
 	private headers = new Map<string, Comment>();
 	/** Comments already written, so a header is printed once per block. */
 	private headed = new Set<string>();
+	/** For a doc comment's subject, read when its header is written. */
+	private registry!: Registry;
 
 	constructor(
 		readonly script: NodeScript,
@@ -182,8 +185,21 @@ export class Emitter {
 	) {
 		this.index = new GraphIndex(script, registry);
 		// Worked out once: it is a pass over every comment against every node,
-		// and the answer cannot change while one file is being written.
-		if (this.options.comments) this.headers = headersByNode(script, registry);
+		// and the answer cannot change while one file is being written. Doc
+		// comments are documentation rather than notes, so they are written
+		// whatever the comments setting says; the rest only when it is on.
+		this.headers = headersByNode(
+			this.options.comments
+				? script
+				: { ...script, comments: script.comments.filter((comment) => comment.doc) },
+			registry,
+		);
+		this.registry = registry;
+		for (const comment of this.options.inline ? [] : script.comments) {
+			if (!comment.doc) continue;
+			const problem = docProblem(docSubject(script, registry, comment));
+			if (problem) this.warn(problem);
+		}
 		// Anything Luau itself provides must not be shadowed by a generated name.
 		for (const g of PROVIDED_GLOBALS) this.names.reserve(g);
 		if (script.asWritten === true) this.names.keep(givenNames(script));
@@ -316,7 +332,7 @@ export class Emitter {
 	 * nothing -- which is right: there is no block for it to head.
 	 */
 	private headerFor(nodeId: string | undefined): void {
-		if (nodeId === undefined || !this.options.comments) return;
+		if (nodeId === undefined) return;
 		const comment = this.headers.get(nodeId);
 		if (!comment || this.headed.has(comment.id)) return;
 		this.headed.add(comment.id);
@@ -330,7 +346,12 @@ export class Emitter {
 		// opener sits one level shallower than what it opens.
 		const previous = [...this.out].reverse().find((line) => line.text !== "");
 		if (previous && previous.indent >= this.indent) this.blank();
-		this.write(commentLines(comment.text, comment.style).join("\n"), nodeId, true);
+		// A doc comment writes Moonwave, from its tags and what it documents.
+		const text = comment.doc
+			? docText(comment, docSubject(this.script, this.registry, comment), this.script.name)
+			: comment.text;
+		const style = comment.doc ? (comment.style === "doc" ? "doc" : "docBlock") : comment.style;
+		this.write(commentLines(text, style).join("\n"), nodeId, true);
 	}
 
 	/**

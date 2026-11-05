@@ -70,6 +70,7 @@ export interface OverlaysProps {
 		member?: { name: string; type?: string },
 	) => void;
 	onAddComment: () => void;
+	onAddDocComment: () => void;
 	onMenuClose: () => void;
 
 	pinMenu: PinMenuTarget | null;
@@ -149,6 +150,7 @@ export function Overlays(props: OverlaysProps) {
 					presets={props.presets}
 					onPick={props.onMenuPick}
 					onAddComment={props.onAddComment}
+					onAddDocComment={props.onAddDocComment}
 					onClose={props.onMenuClose}
 				/>
 			)}

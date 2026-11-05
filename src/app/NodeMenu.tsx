@@ -37,7 +37,7 @@ import {
 	searchMenu,
 	serviceItems,
 } from "./menuSearch.js";
-import { COMMENT_DEFAULT_COLOR, pinColor } from "./palette.js";
+import { COMMENT_DEFAULT_COLOR, DOC_COMMENT_COLOR, pinColor } from "./palette.js";
 import {
 	FILTER_LABEL,
 	FILTER_SUMMARY,
@@ -64,7 +64,27 @@ export interface NodeMenuProps {
 		member?: { name: string; type?: string },
 	) => void;
 	onAddComment: () => void;
+	/** A doc comment: Moonwave for the declaration it is drawn around. */
+	onAddDocComment?: () => void;
 	onClose: () => void;
+}
+
+/** What a doc comment is found by, besides its name. */
+const DOC_WORDS = ["doc comment", "docs", "documentation", "moonwave"];
+
+/**
+ * Which comment rows the menu shows for what has been typed: both with
+ * nothing typed, as before; otherwise each that the search names. Comments
+ * are not nodes, so the library's search never finds them.
+ */
+export function commentRows(query: string): { plain: boolean; doc: boolean } {
+	const q = query.trim().toLowerCase();
+	if (q === "") return { plain: true, doc: true };
+	if (q.length < 2) return { plain: false, doc: false };
+	return {
+		plain: "comment".startsWith(q),
+		doc: DOC_WORDS.some((word) => word.startsWith(q) || q.startsWith(word)),
+	};
 }
 
 export function NodeMenu({
@@ -74,6 +94,7 @@ export function NodeMenu({
 	presets,
 	onPick,
 	onAddComment,
+	onAddDocComment,
 	onClose,
 }: NodeMenuProps) {
 	// What the open graph declares, for the members of a dragged wire's type.
@@ -153,6 +174,8 @@ export function NodeMenu({
 
 	// Flat order, so arrow keys move through the list the eye reads.
 	const flat = useMemo(() => flattenGroups(grouped), [grouped]);
+	const found = commentRows(query);
+	const comments = { plain: found.plain, doc: found.doc && onAddDocComment !== undefined };
 
 	useEffect(() => setActive(0), [query]);
 
@@ -233,16 +256,29 @@ export function NodeMenu({
 						setActive((i) => Math.max(i - 1, 0));
 					}
 					if (e.key === "Enter" && flat[active]) pick(flat[active]);
+					// Nothing in the library matched "moonwave": the comment it named.
+					else if (e.key === "Enter" && comments.doc && query.trim() !== "") onAddDocComment?.();
 				}}
 			/>
 			<div className="items">
-				{query.trim() === "" && (
+				{(comments.plain || comments.doc) && (
 					<>
-						<div className="item" onClick={onAddComment}>
-							<span className="swatch" style={{ background: `#${COMMENT_DEFAULT_COLOR}` }} />
-							<span className="name">Comment</span>
-							<span className="hint">C</span>
-						</div>
+						{comments.plain && (
+							<div className="item" onClick={onAddComment}>
+								<span className="swatch" style={{ background: `#${COMMENT_DEFAULT_COLOR}` }} />
+								<span className="name">Comment</span>
+								<span className="hint">C</span>
+							</div>
+						)}
+						{comments.doc && (
+							<div className="item" onClick={onAddDocComment}>
+								<span className="swatch doc-swatch" style={{ background: `#${DOC_COMMENT_COLOR}` }}>
+									<Icon name="moon" size={9} />
+								</span>
+								<span className="name">Doc comment</span>
+								<span className="hint">Moonwave</span>
+							</div>
+						)}
 						{/* A comment is not a node, so a divider sets it apart from the
 						    library. The category headings divide the rest already. */}
 						<div className="menu-sep" role="separator" />

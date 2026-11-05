@@ -50,6 +50,13 @@ export function readingLuauPage(): DocPage {
 					"`@class`, `@prop`, `@interface` and `@type` count wherever they stand in the file, " +
 					"as Moonwave reads them.",
 			},
+			{
+				t: "p",
+				text:
+					"To write one from a graph, draw a **Doc comment** around a Declare Function, Module " +
+					"Exports or Declare Type. Its tags are in the Inspector, or under **Text** to type it as " +
+					"Moonwave. Parameters, returns and their types come from the function.",
+			},
 
 			{ t: "h", level: 2, text: "Required modules" },
 			{

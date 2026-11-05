@@ -8,6 +8,7 @@ import type React from "react";
 import { useCallback, useEffect, useMemo } from "react";
 
 import { ENTRY_HOME, mergeLayout, viewOf, withFunctionGraphs } from "../core/functionGraph.js";
+import { signatureOf } from "../core/nodes/flow.js";
 import { type Registry, resolveNodePins } from "../core/nodes/index.js";
 import { canShowName } from "../core/operatorLayout.js";
 import { getterPerReader, shareGets, splitIntoRows } from "../core/refactor.js";
@@ -327,7 +328,7 @@ export function useGraphCommands(context: GraphCommandsContext) {
 	);
 
 	const spawnComment = useCallback(
-		(world: { x: number; y: number }) => {
+		(world: { x: number; y: number }, kind: "comment" | "doc" = "comment") => {
 			const { selection: selected, graph } = store.getSnapshot();
 			store.edit((s) => {
 				// Wrapping a selection is the common case, so a comment created with
@@ -340,11 +341,19 @@ export function useGraphCommands(context: GraphCommandsContext) {
 				// graphs at two positions, and the whole script only holds the outer
 				// one — so a comment around it inside its own graph went to where it
 				// sits in the other.
-				const box = boundsOf(viewOf(s, graph), selected, registry);
+				const view = viewOf(s, graph);
+				const box = boundsOf(view, selected, registry);
+				// A doc comment draws its words under its bar -- a line of what it
+				// says, and a row for each parameter and return of the function it
+				// documents -- so it starts that much higher, clear of the nodes.
+				const fn = view.nodes.find((n) => selected.has(n.id) && n.def === "function.declareHere");
+				const sig = fn ? signatureOf(fn.config) : undefined;
+				const rows = (sig?.params?.length ?? 0) + (sig?.returns?.length ?? 0);
+				const top = kind === "doc" ? 52 + 28 + (rows > 0 ? rows * 22 + 12 : 0) : 52;
 				const rect = box
-					? { x: box.x - 24, y: box.y - 52, w: box.w + 48, h: box.h + 76 }
+					? { x: box.x - 24, y: box.y - top, w: Math.max(box.w + 48, kind === "doc" ? 320 : 0), h: box.h + top + 24 }
 					: { x: world.x, y: world.y, w: 320, h: 200 };
-				const { script, id } = addComment(s, rect);
+				const { script, id } = addComment(s, rect, kind === "doc" ? "" : "Comment", kind);
 				queueMicrotask(() => store.select([id]));
 				return script;
 			});

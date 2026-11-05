@@ -2223,6 +2223,7 @@ export function App() {
 					menu && spawn(def, menu.world, config, literals, member)
 				}
 				onAddComment={() => menu && spawnComment(menu.world)}
+				onAddDocComment={() => menu && spawnComment(menu.world, "doc")}
 				onMenuClose={() => setMenu(null)}
 				pinMenu={pinMenu}
 				onPromote={() => pinMenu && promotePin(pinMenu)}

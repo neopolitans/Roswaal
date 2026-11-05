@@ -491,9 +491,41 @@ export interface Comment {
 	 * hold. Set by an import on the comments its service lines had.
 	 */
 	services?: true;
+	/**
+	 * Present on a doc comment: the Moonwave tags written with its `text`, which
+	 * is the description. Its `style` is `docBlock` or `doc`. See
+	 * `docComments.ts`.
+	 */
+	doc?: DocTags;
 }
 
 export type CommentStyle = "lines" | "doc" | "docBlock";
+
+/** Where a documented thing may be used, as Moonwave's realm tags say it. */
+export type DocRealm = "server" | "client" | "plugin";
+
+/**
+ * A doc comment's tags. Only what the comment says is here: a parameter's
+ * name and type, a return's type and a field's are the graph's, read when the
+ * comment is written, so this keeps their words alone -- parameters and fields
+ * by name, returns by position.
+ */
+export interface DocTags {
+	params?: Record<string, string>;
+	returns?: string[];
+	fields?: Record<string, string>;
+	errors?: { type: string; description?: string }[];
+	realms?: DocRealm[];
+	yields?: true;
+	unreleased?: true;
+	private?: true;
+	ignore?: true;
+	since?: string;
+	deprecated?: { version: string; reason?: string };
+	tags?: string[];
+	/** The class it belongs to, when not the module's own name. */
+	within?: string;
+}
 
 /**
  * A named value belonging to the whole graph, in the sense visual-scripting

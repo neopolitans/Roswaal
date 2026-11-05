@@ -93,7 +93,8 @@ export function commentAreas(script: NodeScript, registry: Registry): CommentAre
 export function headersByNode(script: NodeScript, registry: Registry): Map<string, Comment> {
 	const out = new Map<string, Comment>();
 	for (const area of commentAreas(script, registry)) {
-		if (area.comment.text.trim() === "") continue;
+		// A doc comment has its tags to say even with no description yet.
+		if (area.comment.text.trim() === "" && !area.comment.doc) continue;
 		for (const id of area.holds) {
 			if (!out.has(id)) out.set(id, area.comment);
 		}

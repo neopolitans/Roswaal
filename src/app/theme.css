@@ -2923,6 +2923,374 @@ button.tb.primary:hover:not(:disabled) {
 	border-top: 2px solid color-mix(in srgb, var(--comment-color) 90%, transparent);
 }
 
+/* A doc comment: the bar carries its moon and the description's first line,
+   and under it a line of what it says, then a row for each parameter and
+   return of the function it documents, each a field once clicked. */
+.comment-doc .bar {
+	align-items: center;
+	gap: 8px;
+	white-space: nowrap;
+}
+
+.doc-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	flex: none;
+	padding: 1px 6px 1px 4px;
+	border-radius: 4px;
+	background: rgb(0 0 0 / 28%);
+	font-size: 11px;
+	font-weight: 600;
+}
+
+.doc-title {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.doc-title.missing {
+	font-weight: 500;
+	font-style: italic;
+	opacity: 0.8;
+}
+
+.doc-canvas {
+	position: relative;
+	z-index: 36;
+	display: grid;
+	gap: 4px;
+	padding: 6px 8px 8px;
+	font-size: var(--text-sm);
+	color: var(--fg);
+}
+
+.doc-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+.doc-chip {
+	font: 600 10.5px/1.6 ui-monospace, "Cascadia Mono", Consolas, monospace;
+	padding: 0 6px;
+	border-radius: 3px;
+	color: #efe9fb;
+	background: color-mix(in srgb, var(--comment-color) 42%, transparent);
+}
+
+.doc-chip.warn {
+	color: #2a1a00;
+	background: var(--warning);
+}
+
+.doc-rows {
+	display: grid;
+	gap: 1px;
+	max-width: 520px;
+}
+
+.doc-row {
+	display: grid;
+	grid-template-columns: auto auto minmax(0, 1fr);
+	align-items: baseline;
+	gap: 6px;
+	padding: 2px 6px;
+	border-radius: var(--radius-xs);
+	cursor: text;
+}
+
+.doc-row:hover,
+.doc-row.editing {
+	background: rgb(0 0 0 / 24%);
+}
+
+.doc-row .nm {
+	font: 600 11.5px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+
+.doc-row .ty {
+	font: 500 11px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace;
+	color: var(--fg-muted);
+}
+
+.doc-row .ds {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--fg-muted);
+}
+
+.doc-row .ds.missing {
+	color: var(--warning);
+	font-style: italic;
+}
+
+.doc-row input {
+	min-width: 0;
+	font: inherit;
+	color: var(--fg);
+	background: var(--bg-input);
+	border: 1px solid var(--select, var(--accent));
+	border-radius: 3px;
+	padding: 0 5px;
+}
+
+/* ---------------------------------------------- doc comment, in the Inspector */
+
+.doc-inspector .doc-mode {
+	align-self: start;
+}
+
+.doc-inspector .doc-mode button {
+	min-width: 64px;
+}
+
+.doc-problem {
+	margin: 0;
+	padding: 6px 8px;
+	border-left: 2px solid var(--warning);
+	background: color-mix(in srgb, var(--warning) 8%, transparent);
+	font-size: var(--text-sm);
+	color: var(--fg);
+}
+
+.doc-desc,
+.doc-text {
+	width: 100%;
+	box-sizing: border-box;
+	resize: vertical;
+	padding: 6px 8px;
+	color: var(--fg);
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	font: inherit;
+	font-size: var(--text-md);
+	line-height: 1.45;
+}
+
+.doc-text {
+	font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+	font-size: 12px;
+	tab-size: 4;
+	white-space: pre;
+}
+
+.doc-lists {
+	display: grid;
+	gap: 2px;
+}
+
+.doc-fold-row {
+	display: grid;
+	grid-template-columns: 14px 1fr auto;
+	align-items: center;
+	gap: 6px;
+	width: 100%;
+	min-height: 30px;
+	padding: 0 8px;
+	border: 0;
+	border-radius: var(--radius-sm);
+	background: none;
+	color: var(--fg);
+	font: inherit;
+	font-size: var(--text-md);
+	text-align: left;
+	cursor: pointer;
+}
+
+.doc-fold-row:hover {
+	background: var(--bg-hover);
+}
+
+.doc-fold-row .sum {
+	color: var(--fg-faint);
+	font-size: var(--text-sm);
+}
+
+.doc-fold-row .ok {
+	color: var(--ok);
+	font-weight: 700;
+}
+
+.doc-fold-row .miss {
+	color: var(--warning);
+}
+
+.doc-fold-body {
+	display: grid;
+	gap: 5px;
+	padding: 2px 8px 8px 28px;
+}
+
+.doc-words {
+	display: grid;
+	grid-template-columns: auto auto minmax(0, 1fr);
+	align-items: center;
+	gap: 6px;
+	font-size: var(--text-sm);
+}
+
+.doc-words .nm {
+	font: 600 11.5px/1 ui-monospace, "Cascadia Mono", Consolas, monospace;
+	color: var(--fg);
+}
+
+.doc-words .ty {
+	font: 500 11px/1 ui-monospace, "Cascadia Mono", Consolas, monospace;
+	color: var(--fg-muted);
+}
+
+.doc-error {
+	display: grid;
+	grid-template-columns: 96px minmax(0, 1fr) auto;
+	gap: 6px;
+	align-items: center;
+}
+
+.doc-add {
+	justify-self: start;
+	font-size: var(--text-sm);
+}
+
+.doc-realms {
+	display: grid;
+	gap: 5px;
+}
+
+.doc-realm-label {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	font-size: var(--text-sm);
+	color: var(--fg-muted);
+}
+
+.doc-realm-label b {
+	color: var(--fg);
+	font-weight: 600;
+}
+
+/* One switch of three parts, any of them on. */
+.doc-realm {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 2px;
+	padding: 2px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	background: var(--bg-input);
+}
+
+.doc-realm button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 5px;
+	min-height: 26px;
+	border: 0;
+	border-radius: var(--radius-xs);
+	background: none;
+	color: var(--fg-muted);
+	font: inherit;
+	font-size: var(--text-md);
+	cursor: pointer;
+}
+
+.doc-realm button:hover {
+	color: var(--fg);
+}
+
+.doc-realm button.on {
+	background: color-mix(in srgb, var(--accent) 22%, transparent);
+	color: var(--fg);
+	font-weight: 600;
+}
+
+.doc-realm .tick {
+	width: 12px;
+	font-size: 11px;
+	text-align: center;
+}
+
+.doc-extras {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 5px;
+	align-items: center;
+}
+
+.doc-extras .doc-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 24px;
+	padding: 0 2px 0 8px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-xs);
+	background: var(--bg-input);
+	color: var(--fg);
+	font: inherit;
+	font-size: var(--text-sm);
+}
+
+.doc-extras .doc-chip .k {
+	color: var(--fg-faint);
+}
+
+.doc-chip-in {
+	width: 64px;
+	min-width: 0;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--fg);
+	font: inherit;
+}
+
+.doc-chip-in.why {
+	width: 110px;
+}
+
+.doc-chip-in:focus {
+	outline: none;
+	box-shadow: 0 1px 0 var(--accent);
+}
+
+.doc-extras .doc-chip .x {
+	padding: 0 5px;
+	border: 0;
+	background: none;
+	color: var(--fg-faint);
+	font: inherit;
+	cursor: pointer;
+}
+
+.doc-extras .doc-chip .x:hover {
+	color: var(--fg);
+}
+
+.doc-writing .field {
+	display: grid;
+	grid-template-columns: 88px minmax(0, 1fr);
+	align-items: center;
+	gap: 8px;
+}
+
+@media (hover: none) and (pointer: coarse) {
+	.doc-realm button,
+	.doc-fold-row {
+		min-height: 38px;
+	}
+
+	.doc-extras .doc-chip {
+		height: 32px;
+	}
+}
+
 /* ------------------------------------------------------------------- menu */
 
 .menu {
@@ -3042,6 +3410,15 @@ button.tb.primary:hover:not(:disabled) {
 	height: 8px;
 	border-radius: var(--radius-xs);
 	flex: none;
+}
+
+/* A doc comment's swatch carries its moon. */
+.menu .item .swatch.doc-swatch {
+	display: inline-grid;
+	place-items: center;
+	width: 13px;
+	height: 13px;
+	color: #fff;
 }
 
 .menu .item .hint {

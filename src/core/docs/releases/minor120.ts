@@ -9,6 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.205.0",
+		date: "2026-11-05",
+		headline: "Doc comments write Moonwave for the declaration they are drawn around.",
+		added: [
+			"**Doc comments.** Right-click the canvas and choose Doc comment, or type doc or moonwave there. Drawn around a Declare Function, Module Exports or Declare Type, it writes a Moonwave comment above it in the generated Luau.",
+			"**On the canvas.** The box lists the function's parameters and returns; click one to write what it is for.",
+			"**In the Inspector.** Parameters, Returns and Errors fold to a count, Used on switches Server, Client and Plugin, and Add holds Since, Deprecated, Yields and the rest. Text shows the comment as Moonwave and reads what you type back into the fields.",
+			"**Moonwave's rules.** Parameters, returns and their types come from the function, @within is filled in from the module, and Script analysis says when a doc comment documents nothing or more than one thing.",
+		],
+		changed: [
+			"**Doc comments are always written.** The Comments setting turns off ordinary comments only.",
+		],
+	},
+	{
 		version: "0.204.1",
 		date: "2026-11-05",
 		headline: "On a computer, the tour's Import slide shows its whole graph.",

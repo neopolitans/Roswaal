@@ -6,7 +6,7 @@ import { isStackOverflow } from "../errorMessage.js";
 import { checkLuau } from "../luau/check.js";
 import type { SpecifierContext } from "../modules.js";
 import type { Registry } from "../nodes/index.js";
-import type { Comment, NodeScript, ScriptClass, Target } from "../schema.js";
+import type { Comment, DocTags, NodeScript, ScriptClass, Target } from "../schema.js";
 import { adoptWiredSignatures, syncScriptCalls } from "../scriptCalls.js";
 import { type Diagnostic, type EmitResult, emit, hashString } from "./emit.js";
 import { validate } from "./validate.js";
@@ -85,7 +85,13 @@ function compileScript(
 	// Hashed as saved; compiled with every wired Class Name followed and every
 	// Script Function on its function's current signature, so a file edited by
 	// hand cannot carry a stale class or signature into the build.
-	const headers = options.comments ? headersByNode(source, registry) : undefined;
+	// Doc comments are written whatever the setting says, so they count either way.
+	const docs = source.comments.filter((comment) => comment.doc);
+	const headers = options.comments
+		? headersByNode(source, registry)
+		: docs.length > 0
+			? headersByNode({ ...source, comments: docs }, registry)
+			: undefined;
 	const sourceHash = hashString(semanticJson(source, { headers }));
 	const script = adoptWiredSignatures(syncScriptCalls(retypeClassReads(source)));
 	const structural = validate(script, registry);
@@ -226,15 +232,18 @@ function semanticJson(script: NodeScript, layout: { headers?: Map<string, Commen
 }
 
 /** Each written header's text and the nodes it heads, ordered by comment id. */
+/** A doc comment's tags and the form it is written in: both change its header. */
+type DocProjection = { tags: DocTags; style: string };
+
 function headerProjection(headers: Map<string, Comment> | undefined): {
-	headers?: { text: string; style?: string; nodes: string[] }[];
+	headers?: { text: string; doc?: DocProjection; nodes: string[] }[];
 } {
 	if (headers === undefined || headers.size === 0) return {};
-	const byComment = new Map<string, { text: string; style?: string; nodes: string[] }>();
+	const byComment = new Map<string, { text: string; doc?: DocProjection; nodes: string[] }>();
 	for (const [nodeId, comment] of headers) {
 		const entry = byComment.get(comment.id) ?? {
 			text: comment.text,
-			...(comment.style ? { style: comment.style } : {}),
+			...(comment.doc ? { doc: { tags: comment.doc, style: comment.style ?? "docBlock" } } : {}),
 			nodes: [],
 		};
 		entry.nodes.push(nodeId);
@@ -243,7 +252,11 @@ function headerProjection(headers: Map<string, Comment> | undefined): {
 	return {
 		headers: [...byComment]
 			.sort(([a], [b]) => a.localeCompare(b))
-			.map(([, entry]) => ({ text: entry.text, nodes: entry.nodes.sort() })),
+			.map(([, entry]) => ({
+				text: entry.text,
+				...(entry.doc ? { doc: entry.doc } : {}),
+				nodes: entry.nodes.sort(),
+			})),
 	};
 }
 
@@ -331,6 +344,7 @@ export function serialiseScript(script: NodeScript): string {
 				...(c.style ? { style: c.style } : {}),
 				...(c.preserve ? { preserve: true } : {}),
 				...(c.services ? { services: true } : {}),
+				...(c.doc ? { doc: sortKeys(c.doc as Record<string, unknown>) } : {}),
 			})),
 	};
 	return JSON.stringify(ordered, null, 2) + "\n";

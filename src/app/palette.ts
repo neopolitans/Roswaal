@@ -211,9 +211,12 @@ export const COMMENT_COLORS: { hex: string; name: string }[] = [
 	{ hex: "7c848f", name: "Grey" },
 ];
 
+/** A doc comment's colour until it is given one: the list's violet, Moonwave's. */
+export const DOC_COMMENT_COLOR = "9a76b8";
+
 /** A comment's colour as a CSS value, defaulting when it has none. */
-export function commentColor(hex: string | undefined): string {
-	return `#${hex ?? COMMENT_DEFAULT_COLOR}`;
+export function commentColor(hex: string | undefined, doc = false): string {
+	return `#${hex ?? (doc ? DOC_COMMENT_COLOR : COMMENT_DEFAULT_COLOR)}`;
 }
 
 /**

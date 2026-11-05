@@ -16,6 +16,7 @@ import { ownTable } from "../core/ownTable.js";
 import type { Comment, GraphNode, NodeDef, NodeScript } from "../core/schema.js";
 import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
+import { DocCommentInspector } from "./DocCommentInspector.jsx";
 import { useEditBurst } from "./editBurst.js";
 import { renameNode, updateComment } from "./edits.js";
 import { Field, InspectorSections } from "./InspectorSections.jsx";
@@ -122,6 +123,9 @@ export function Inspector({ script, registry, selection, locked }: InspectorProp
 	if (selection.size !== 1) return null;
 	const id = [...selection][0];
 	const comment = script.comments.find((c) => c.id === id);
+	if (comment?.doc) {
+		return <DocCommentInspector comment={comment} script={script} registry={registry} locked={locked} />;
+	}
 	if (comment) return <CommentInspector comment={comment} locked={locked} />;
 	const node = script.nodes.find((n) => n.id === id);
 	if (!node) return null;
