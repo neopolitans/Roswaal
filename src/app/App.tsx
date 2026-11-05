@@ -2045,7 +2045,8 @@ export function App() {
 								onToggleFull={() => setCodeFull((full) => !full)}
 							/>
 						) : undefined,
-					analysis: (
+					// Script analysis is a graph's: the place in front has the bottom to itself.
+					analysis: placeDoc ? undefined : (
 						<StatusPanel
 							open={statusOpen}
 							onToggle={() => setStatusOpen((v) => !v)}

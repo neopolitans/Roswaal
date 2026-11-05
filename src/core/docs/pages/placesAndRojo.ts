@@ -184,6 +184,10 @@ export function placesAndRojoPage(): DocPage {
 					["Pan", "Middle-drag, or `Shift` + drag"],
 					["Zoom", "Scroll, or pinch"],
 					["Fly", "`W` `A` `S` `D`, `Q` down and `E` up; `Shift` + scroll sets the speed"],
+					[
+						"Fly, on a touch screen",
+						"The left stick moves and the right one looks round; the buttons beside it go up and down",
+					],
 					["Frame what is picked, or everything", "`F`, or `Home`"],
 					["Look along an axis", "Click its end on the axes, bottom right"],
 					["Show a tool's handles", "`1` to `4`: Select, Move, Rotate, Scale"],
@@ -192,8 +196,9 @@ export function placesAndRojoPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"It draws with WebGPU, or WebGL2 where the browser has no WebGPU. For now a MeshPart " +
-					"is drawn as its box, and the handles do not drag yet.",
+					"The bar's snaps set the steps a drag keeps to, in studs and degrees; on a narrower " +
+					"screen they are behind **Snap**. It draws with WebGPU, or WebGL2 where the browser has " +
+					"no WebGPU. For now a MeshPart is drawn as its box, and the handles do not drag yet.",
 			},
 
 			{ t: "h", level: 2, text: "Changing properties" },

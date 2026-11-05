@@ -20845,12 +20845,12 @@ textarea.tb:where(:disabled) {
 	text-align: center;
 }
 
-/* Bottom right, clear of the right cards: the camera's rotation over the frame
-   rate, outlined to read on sky or ground alike. */
+/* Bottom right, clear of the right cards and above the bar: the camera's
+   rotation over the frame rate, outlined to read on sky or ground alike. */
 .vp-corner {
 	position: absolute;
 	right: calc(var(--right-w, 0px) + 16px);
-	bottom: calc(var(--pill-h, 0px) + 12px);
+	bottom: calc(var(--edge) + 72px);
 	display: grid;
 	justify-items: end;
 	gap: 2px;
@@ -20877,7 +20877,7 @@ textarea.tb:where(:disabled) {
 .vp-gizmo {
 	position: absolute;
 	right: calc(var(--right-w, 0px) + 10px);
-	bottom: calc(var(--pill-h, 0px) + 50px);
+	bottom: calc(var(--edge) + 110px);
 	width: 104px;
 	height: 104px;
 	cursor: grab;
@@ -21036,13 +21036,6 @@ textarea.tb:where(:disabled) {
 		margin: 0 3px;
 	}
 
-	.vp-corner {
-		bottom: calc(var(--pill-h, 0px) + 76px);
-	}
-
-	.vp-gizmo {
-		bottom: calc(var(--pill-h, 0px) + 112px);
-	}
 }
 
 /* Properties with nothing picked: the place as drawn. */
@@ -21081,4 +21074,161 @@ textarea.tb:where(:disabled) {
 	padding-left: 18px;
 	font-size: var(--text-sm);
 	color: var(--fg-muted);
+}
+
+/* The Move and Rotate snaps: in the bar where there is room, behind a tile
+   where there is not. */
+.vp-bar .vp-snaps {
+	display: grid;
+	gap: 4px;
+	padding: 0 2px;
+}
+
+.vp-bar .vp-snap-tile {
+	display: none;
+}
+
+.vp-snap {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	font-size: 11.5px;
+	color: var(--fg-muted);
+}
+
+.vp-snap input[type="checkbox"] {
+	margin: 0;
+	accent-color: var(--accent);
+}
+
+.vp-step {
+	width: 50px;
+	height: 20px;
+	box-sizing: border-box;
+	padding: 0 4px;
+	font: inherit;
+	font-size: 11.5px;
+	color: var(--fg);
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-xs);
+}
+
+.vp-snap-pop {
+	position: absolute;
+	bottom: calc(100% + 8px);
+	z-index: 5;
+	display: grid;
+	gap: 8px;
+	padding: 10px 12px;
+	background: var(--bg-panel);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-raised);
+}
+
+.vp-snap-pop .vp-snap {
+	font-size: var(--text-sm);
+}
+
+.vp-snap-pop .vp-step {
+	width: 64px;
+	height: 30px;
+	font-size: var(--text-sm);
+}
+
+@media (max-width: 1499px) {
+	.vp-bar .vp-snaps {
+		display: none;
+	}
+
+	.vp-bar .vp-snap-tile {
+		display: contents;
+	}
+}
+
+/* Touch sticks, where a touch screen has no keys: move on the left, look on
+   the right with up and down beside it, above the bar. */
+.vp-touch {
+	display: none;
+}
+
+@media (hover: none) and (pointer: coarse) {
+	.vp-touch {
+		position: absolute;
+		left: 20px;
+		right: calc(var(--right-w, 0px) + 20px);
+		bottom: calc(var(--edge) + 72px);
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-end;
+		pointer-events: none;
+	}
+
+	.vp-touch > *,
+	.vp-touch-right > * {
+		pointer-events: auto;
+	}
+
+	.vp-touch-right {
+		display: flex;
+		align-items: flex-end;
+		gap: 12px;
+		pointer-events: none;
+	}
+
+	.vp-stick {
+		position: relative;
+		display: grid;
+		place-items: center;
+		width: 120px;
+		height: 120px;
+		border-radius: 50%;
+		background: rgb(0 0 0 / 0.18);
+		border: 2px solid rgb(255 255 255 / 0.55);
+		touch-action: none;
+		-webkit-user-select: none;
+		user-select: none;
+	}
+
+	.vp-stick-knob {
+		width: 52px;
+		height: 52px;
+		border-radius: 50%;
+		background: rgb(255 255 255 / 0.75);
+		box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+		pointer-events: none;
+	}
+
+	.vp-rise {
+		display: grid;
+		gap: 10px;
+	}
+
+	.vp-rise-button {
+		display: grid;
+		place-items: center;
+		width: 48px;
+		height: 48px;
+		border-radius: 50%;
+		border: 2px solid rgb(255 255 255 / 0.55);
+		background: rgb(0 0 0 / 0.18);
+		color: #fff;
+		touch-action: none;
+		-webkit-user-select: none;
+		user-select: none;
+	}
+
+	.vp-rise-button:active {
+		background: rgb(255 255 255 / 0.35);
+	}
+
+	/* The corner and the axes, above the right stick. */
+	.vp-corner {
+		bottom: calc(var(--edge) + 72px + 136px);
+	}
+
+	.vp-gizmo {
+		bottom: calc(var(--edge) + 72px + 176px);
+	}
 }

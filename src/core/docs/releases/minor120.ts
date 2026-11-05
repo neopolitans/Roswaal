@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.209.0",
+		date: "2026-11-05",
+		headline: "The place has touch sticks on a tablet, and its snaps are in the bar.",
+		added: [
+			"**Touch sticks.** On a touch screen the place has two sticks: the left one moves and the right one looks round, and the buttons beside it go up and down.",
+			"**Snaps.** The Move and Rotate steps, in studs and degrees, are in the place's bar, or behind Snap on a narrower screen. Dragging the handles keeps to them once editing comes.",
+		],
+		changed: [
+			"**Script analysis with the place in front.** This Script and Project are hidden, so the bar has the bottom of the window to itself.",
+		],
+	},
+	{
 		version: "0.208.0",
 		date: "2026-11-05",
 		headline: "The place opens in 3D, in a tab of its own.",

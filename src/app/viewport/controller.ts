@@ -32,12 +32,25 @@ export interface ViewportState {
 	error: string | null;
 	/** The place as drawn: parts by shape, and what lights it. */
 	summary: { parts: number; meshes: number; transparent: number; notes: string[] } | null;
+	/** The steps a drag of the handles keeps to, in studs and degrees, each on or off. */
+	snap: Snap;
 }
+
+export interface Snap {
+	move: number;
+	moveOn: boolean;
+	rotate: number;
+	rotateOn: boolean;
+}
+
+export type Stick = "move" | "look";
 
 export type ViewportPlace = PlaceScene & { lighting: LightingParams; outline: PlaceOutline };
 
 /** Studs a second at 1×: a walk across M103's tank in about half a second. */
 const BASE_SPEED = 24;
+/** How fast the look stick turns the camera at its rim, in the right-drag's pixels a second. */
+const LOOK_RATE = 320;
 const MOVES: Record<string, number[]> = {
 	KeyW: [0, 0, 1],
 	KeyS: [0, 0, -1],
@@ -102,6 +115,7 @@ export class ViewportController {
 		fellBack: false,
 		error: null,
 		summary: null,
+		snap: { move: 0.5, moveOn: true, rotate: 5, rotateOn: true },
 	};
 	private listeners = new Set<() => void>();
 	private place: ViewportPlace | null = null;
@@ -121,6 +135,9 @@ export class ViewportController {
 	private looping = false;
 	private frames: number[] = [];
 	private held = new Set<string>();
+	/** The touch sticks, each -1 to 1 across and down, and the up and down buttons. */
+	private sticks: Record<Stick, [number, number]> = { move: [0, 0], look: [0, 0] };
+	private rise = 0;
 	private flying = false;
 	private turning = 0;
 
@@ -307,8 +324,34 @@ export class ViewportController {
 		this.redraw();
 	}
 
-	private setSpeed(speed: number): void {
+	setSpeed(speed: number): void {
 		this.set({ speed: Math.max(0.05, Math.min(50, speed)) });
+	}
+
+	setSnap(patch: Partial<Snap>): void {
+		this.set({ snap: { ...this.state.snap, ...patch } });
+	}
+
+	/** A touch stick, pushed `x` across and `y` down, each -1 to 1: moving, or looking round. */
+	setStick(stick: Stick, x: number, y: number): void {
+		this.sticks[stick] = [x, y];
+		if (x !== 0 || y !== 0) this.fly();
+	}
+
+	/** The up and down buttons beside the sticks: 1 up, -1 down, 0 neither. */
+	setRise(rise: number): void {
+		this.rise = rise;
+		if (rise !== 0) this.fly();
+	}
+
+	private moving(): boolean {
+		const { move, look } = this.sticks;
+		return (
+			this.held.size > 0 ||
+			this.rise !== 0 ||
+			move.some((v) => v !== 0) ||
+			look.some((v) => v !== 0)
+		);
 	}
 
 	/** Turns the camera where it stands: the right-drag look. */
@@ -373,25 +416,33 @@ export class ViewportController {
 		requestAnimationFrame(step);
 	}
 
-	/** WASD along the look, Q and E down and up, for as long as they are held. */
+	/**
+	 * WASD along the look, Q and E down and up, for as long as they are held;
+	 * and the touch sticks and buttons, the same way, as far as they are pushed.
+	 */
 	private fly(): void {
 		if (this.flying) return;
 		this.flying = true;
 		let last = performance.now();
 		const step = (now: number) => {
-			if (this.held.size === 0 || !this.mounted) {
+			if (!this.moving() || !this.mounted) {
 				this.flying = false;
 				return;
 			}
 			const dt = Math.min(0.1, (now - last) / 1000);
 			last = now;
+			const [lx, ly] = this.sticks.look;
+			if (lx !== 0 || ly !== 0) this.look(lx * LOOK_RATE * dt, ly * LOOK_RATE * dt);
 			const b = this.back();
 			const right = [Math.cos(this.cam.yaw), 0, -Math.sin(this.cam.yaw)];
 			const move = [0, 0, 0];
-			for (const code of this.held) {
-				const [x, y, z] = MOVES[code];
+			const push = (x: number, y: number, z: number) => {
 				for (let a = 0; a < 3; a++) move[a] += right[a] * x - b[a] * z + (a === 1 ? y : 0);
-			}
+			};
+			for (const code of this.held) push(...(MOVES[code] as [number, number, number]));
+			// Pushed up is forward.
+			const [mx, my] = this.sticks.move;
+			push(mx, this.rise, -my);
 			const d = BASE_SPEED * this.state.speed * dt;
 			for (let a = 0; a < 3; a++) this.cam.target[a] += move[a] * d;
 			this.redraw();
@@ -427,6 +478,8 @@ export class ViewportController {
 			resize.disconnect();
 			clearInterval(rate);
 			this.held.clear();
+			this.sticks = { move: [0, 0], look: [0, 0] };
+			this.rise = 0;
 			this.view?.destroy();
 			this.view = null;
 			this.canvas?.remove();

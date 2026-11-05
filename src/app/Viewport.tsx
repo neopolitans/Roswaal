@@ -6,14 +6,26 @@
  * keeps for the session; these lend it the window.
  */
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+	type PointerEvent as ReactPointerEvent,
+	useEffect,
+	useRef,
+	useState,
+	useSyncExternalStore,
+} from "react";
 import { errorMessage } from "../core/errorMessage.js";
 import { api } from "./api.js";
 import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
 import { Ident } from "./PanelParts.jsx";
-import { TOOLS, type Tool, type ViewportController } from "./viewport/controller.js";
+import {
+	type Snap,
+	type Stick,
+	TOOLS,
+	type Tool,
+	type ViewportController,
+} from "./viewport/controller.js";
 import { useWorkspaceControls } from "./Workspace.jsx";
 
 const GIZMO = 104;
@@ -102,7 +114,163 @@ export function Viewport({
 					title="Frames a second while the view moves, and what draws it. Nothing is drawn while nothing changes."
 				/>
 			</div>
+			<div className="vp-touch">
+				<TouchStick stick="move" label="Move" controller={controller} />
+				<span className="vp-touch-right">
+					<span className="vp-rise">
+						<RiseButton rise={1} label="Up" controller={controller} />
+						<RiseButton rise={-1} label="Down" controller={controller} />
+					</span>
+					<TouchStick stick="look" label="Look round" controller={controller} />
+				</span>
+			</div>
 		</div>
+	);
+}
+
+/** How far a stick's knob goes from the middle, in pixels. */
+const STICK_REACH = 44;
+
+/**
+ * A touch stick, where a touch screen has no keys: a ring and a knob, pushed
+ * as far as the ring in any direction, back to the middle when let go.
+ */
+function TouchStick({
+	stick,
+	label,
+	controller,
+}: {
+	stick: Stick;
+	label: string;
+	controller: ViewportController;
+}) {
+	const knob = useRef<HTMLSpanElement>(null);
+	const held = useRef<{ id: number; x: number; y: number } | null>(null);
+	const push = (e: ReactPointerEvent) => {
+		const at = held.current;
+		if (!at || e.pointerId !== at.id) return;
+		let dx = e.clientX - at.x;
+		let dy = e.clientY - at.y;
+		const d = Math.hypot(dx, dy);
+		if (d > STICK_REACH) {
+			dx *= STICK_REACH / d;
+			dy *= STICK_REACH / d;
+		}
+		if (knob.current) knob.current.style.transform = `translate(${dx}px, ${dy}px)`;
+		// A little give in the middle, so a resting thumb does not drift.
+		const k = d < 6 ? 0 : 1 / STICK_REACH;
+		controller.setStick(stick, dx * k, dy * k);
+	};
+	const end = (e: ReactPointerEvent) => {
+		if (held.current?.id !== e.pointerId) return;
+		held.current = null;
+		if (knob.current) knob.current.style.transform = "";
+		controller.setStick(stick, 0, 0);
+	};
+	return (
+		<span
+			className="vp-stick"
+			role="img"
+			aria-label={label}
+			title={label}
+			onPointerDown={(e) => {
+				e.currentTarget.setPointerCapture(e.pointerId);
+				const box = e.currentTarget.getBoundingClientRect();
+				held.current = {
+					id: e.pointerId,
+					x: box.left + box.width / 2,
+					y: box.top + box.height / 2,
+				};
+				push(e);
+			}}
+			onPointerMove={push}
+			onPointerUp={end}
+			onPointerCancel={end}
+		>
+			<span className="vp-stick-knob" ref={knob} />
+		</span>
+	);
+}
+
+/** Up or down, for as long as it is held: Q and E, for a touch screen. */
+function RiseButton({
+	rise,
+	label,
+	controller,
+}: {
+	rise: number;
+	label: string;
+	controller: ViewportController;
+}) {
+	const stop = () => controller.setRise(0);
+	return (
+		<button
+			type="button"
+			className="vp-rise-button"
+			aria-label={label}
+			title={label}
+			onPointerDown={(e) => {
+				e.currentTarget.setPointerCapture(e.pointerId);
+				controller.setRise(rise);
+			}}
+			onPointerUp={stop}
+			onPointerCancel={stop}
+			onContextMenu={(e) => e.preventDefault()}
+		>
+			<Icon name="chevron" size={18} rotate={rise > 0 ? 180 : 0} />
+		</button>
+	);
+}
+
+/** The Move and Rotate snaps: on or off, and the step each keeps to. */
+function SnapFields({ snap, controller }: { snap: Snap; controller: ViewportController }) {
+	const step = (value: string, set: (n: number) => void) => {
+		const n = Number(value);
+		if (Number.isFinite(n) && n > 0) set(n);
+	};
+	return (
+		<>
+			<label className="vp-snap">
+				<input
+					type="checkbox"
+					checked={snap.moveOn}
+					aria-label="Snap moves"
+					onChange={(e) => controller.setSnap({ moveOn: e.target.checked })}
+				/>
+				<Icon name="vpMove" size={14} />
+				<input
+					className="vp-step"
+					type="number"
+					inputMode="decimal"
+					min={0.001}
+					step={0.5}
+					defaultValue={snap.move}
+					aria-label="Move snap, in studs"
+					onChange={(e) => step(e.target.value, (move) => controller.setSnap({ move }))}
+				/>
+				<span>studs</span>
+			</label>
+			<label className="vp-snap">
+				<input
+					type="checkbox"
+					checked={snap.rotateOn}
+					aria-label="Snap turns"
+					onChange={(e) => controller.setSnap({ rotateOn: e.target.checked })}
+				/>
+				<Icon name="vpRotate" size={14} />
+				<input
+					className="vp-step"
+					type="number"
+					inputMode="decimal"
+					min={1}
+					step={5}
+					defaultValue={snap.rotate}
+					aria-label="Rotate snap, in degrees"
+					onChange={(e) => step(e.target.value, (rotate) => controller.setSnap({ rotate }))}
+				/>
+				<span>°</span>
+			</label>
+		</>
 	);
 }
 
@@ -152,6 +320,19 @@ export function ViewportBar({ controller }: { controller: ViewportController }) 
 	const state = useViewport(controller);
 	const cards = useWorkspaceControls();
 	const speed = state.speed;
+	/** The snaps behind a tile, where the bar has no room for them: open, and where. */
+	const [snapAt, setSnapAt] = useState<number | null>(null);
+	const pop = useRef<HTMLDivElement>(null);
+	useEffect(() => {
+		if (snapAt === null) return;
+		const away = (e: PointerEvent) => {
+			const target = e.target as Element;
+			if (!pop.current?.contains(target) && !target.closest?.(".vp-snap-tile")) setSnapAt(null);
+		};
+		addEventListener("pointerdown", away);
+		return () => removeEventListener("pointerdown", away);
+	}, [snapAt]);
+	const snapTitle = "Snapping, for dragging the handles, which comes with editing";
 	return (
 		<div className="side-strip tool-group vp-bar" role="toolbar" aria-label="Viewport">
 			<span className="vp-group" role="radiogroup" aria-label="Tool">
@@ -168,6 +349,32 @@ export function ViewportBar({ controller }: { controller: ViewportController }) 
 					/>
 				))}
 			</span>
+			<span className="vp-rule" />
+			<span className="vp-snaps" title={snapTitle}>
+				<SnapFields snap={state.snap} controller={controller} />
+			</span>
+			<span
+				className="vp-snap-tile"
+				onClickCapture={(e) => {
+					// The tile's own place in the bar: its wrapper draws no box of its own.
+					const left = (e.target as Element).closest<HTMLElement>(".vp-tile")?.offsetLeft ?? 0;
+					setSnapAt((was) => (was === null ? left : null));
+				}}
+			>
+				<Tile
+					icon="vpSnap"
+					label="Snap"
+					title={snapTitle}
+					caret
+					on={snapAt !== null}
+					aria-pressed={snapAt !== null}
+				/>
+			</span>
+			{snapAt !== null && (
+				<div className="vp-snap-pop" ref={pop} style={{ left: snapAt }} title={snapTitle}>
+					<SnapFields snap={state.snap} controller={controller} />
+				</div>
+			)}
 			<span className="vp-rule" />
 			<Tile icon="instance" label="Part" title={`Add a part: ${LATER}`} caret disabled />
 			<span className="vp-rule" />
