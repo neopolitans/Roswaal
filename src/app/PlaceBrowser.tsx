@@ -15,6 +15,7 @@
 import { memo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { errorMessage } from "../core/errorMessage.js";
 import {
+	assetIdOf,
 	classGlyph,
 	groupProperties,
 	isScriptClass,
@@ -964,6 +965,20 @@ function PropValue({ value }: { value: string }) {
 				<i aria-hidden>{on ? "✓" : ""}</i>
 				{value}
 			</span>
+		);
+	}
+	const asset = assetIdOf(value);
+	if (asset) {
+		return (
+			<a
+				className="place-asset"
+				href={`https://create.roblox.com/store/asset/${asset}`}
+				target="_blank"
+				rel="noreferrer"
+				title={`Asset ${asset} on the Creator Store`}
+			>
+				{value}
+			</a>
 		);
 	}
 	const item = /^(.+) \((-?\d+)\)$/.exec(value);

@@ -3,13 +3,21 @@
  * instance's properties as text, and the two routes both hosts answer.
  */
 
+import { readFileSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { describeInstance, outlinePlace, readAttributes, TUCKED } from "../src/core/rbx/browse.js";
+import {
+	assetIdOf,
+	describeInstance,
+	groupProperties,
+	outlinePlace,
+	readAttributes,
+	TUCKED,
+} from "../src/core/rbx/browse.js";
 import { readRbx } from "../src/core/rbx/index.js";
 import { planImport, surveyPlace } from "../src/core/rbx/placeImport.js";
 import { writePlaceImport } from "../src/server/project.js";
@@ -245,5 +253,33 @@ describe("the place routes", () => {
 		const session = new ApiSession({});
 		await session.openAt(root);
 		expect(await session.handle("GET", "/place")).toEqual({ file: null });
+	});
+});
+
+describe("A mesh in Properties", () => {
+	it("keeps the mesh's own properties under Mesh, after Appearance", () => {
+		const doc = readRbx(
+			new Uint8Array(
+				readFileSync(path.join(import.meta.dirname, "..", "examples", "m103", "place.rbxl")),
+			),
+		);
+		const { order } = outlinePlace(doc);
+		const at = order.findIndex((inst) => inst.className === "MeshPart");
+		const info = describeInstance(order[at], at, () => undefined);
+		const groups = groupProperties(info.properties);
+		const names = groups.map(([category]) => category);
+		expect(names.indexOf("Mesh")).toBe(names.indexOf("Appearance") + 1);
+		const mesh = groups.find(([category]) => category === "Mesh")?.[1].map((p) => p.name) ?? [];
+		expect(mesh).toEqual(
+			expect.arrayContaining(["MeshId", "TextureID", "RenderFidelity", "DoubleSided"]),
+		);
+		expect(mesh).not.toContain("Color");
+	});
+
+	it("knows an asset id when it sees one", () => {
+		expect(assetIdOf("rbxassetid://83335352151146")).toBe("83335352151146");
+		expect(assetIdOf("http://www.roblox.com/asset/?id=1234")).toBe("1234");
+		expect(assetIdOf("rbxasset://textures/face.png")).toBeUndefined();
+		expect(assetIdOf("")).toBeUndefined();
 	});
 });

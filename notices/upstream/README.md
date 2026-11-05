@@ -13,6 +13,7 @@ is written by hand, edited, reformatted, or reconstructed from a template.
 | `lune.txt` | [`lune-org/lune` · `LICENSE.txt` at `v0.10.5`](https://github.com/lune-org/lune/blob/v0.10.5/LICENSE.txt) | 2026-10-08 |
 | `creator-docs.txt` | [`Roblox/creator-docs` · `LICENSE`](https://github.com/Roblox/creator-docs/blob/main/LICENSE) | 2026-10-08 |
 | `vt323.txt` | [`google/fonts` · `ofl/vt323/OFL.txt`](https://github.com/google/fonts/blob/main/ofl/vt323/OFL.txt) | 2026-10-20 |
+| `bakinglab.txt` | [`TheRealMJP/BakingLab` · `LICENSE`](https://github.com/TheRealMJP/BakingLab/blob/master/LICENSE) | 2026-11-05 |
 
 `luau-site.txt` covers the Luau logo, whose two squares are the `.luau` file icon. It was fetched
 directly, and reaches a user under **Settings → Licences** as the theme licences do.
@@ -23,6 +24,9 @@ covers the descriptions in `src/core/luneApi.ts`, taken at the tag they were gen
 `creator-docs.txt` the summaries in `src/core/robloxEngine.json` and `src/core/robloxMembers.ts`.
 `vt323.txt` covers `src/app/fonts/VT323-Regular.ttf`, the font file from the same folder of
 `google/fonts`, carried unchanged and loaded only by the theme drawn in it.
+`bakinglab.txt` covers the viewport's tone curve in `src/app/viewport/webgpu.ts` and `webgl2.ts`:
+Stephen Hill's fit of the ACES curve, as BakingLab's `ACES.hlsl` has it, its two matrices and its
+rational fit carried over to WGSL and GLSL.
 The upstream repository has no `NOTICE` file for the icons, so the licence is all Apache-2.0 asks
 to carry.
 

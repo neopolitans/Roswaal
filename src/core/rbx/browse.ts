@@ -184,6 +184,7 @@ export interface PlaceInstanceInfo {
 const CATEGORY_ORDER = [
 	"Data",
 	"Appearance",
+	"Mesh",
 	"Text",
 	"Image",
 	"Behavior",
@@ -252,6 +253,41 @@ const RENAMED: Record<string, string> = ownTable({
 	formFactorRaw: "FormFactor",
 	MaterialVariantSerialized: "MaterialVariant",
 });
+
+/**
+ * A mesh's own properties, under a Mesh heading of their own: on a MeshPart
+ * they are spread across Appearance and Other, among the part's.
+ */
+const MESH_CLASSES = new Set(["MeshPart", "SpecialMesh", "FileMesh", "BlockMesh", "CylinderMesh"]);
+const MESH_PROPERTIES = new Set([
+	"MeshId",
+	"TextureID",
+	"TextureId",
+	"MeshType",
+	"Scale",
+	"Offset",
+	"VertexColor",
+	"InitialSize",
+	"MeshSize",
+	"RenderFidelity",
+	"CollisionFidelity",
+	"DoubleSided",
+	"HasSkinnedMesh",
+	"HasJointOffset",
+	"JointOffset",
+]);
+
+/**
+ * The asset a value names, for a link to it: `rbxassetid://123`, or the
+ * older `http://www.roblox.com/asset/?id=123`. Not an `rbxasset://` path,
+ * which is a file in Studio's own install.
+ */
+export function assetIdOf(value: string): string | undefined {
+	const id =
+		/^rbxassetid:\/\/(\d+)\s*$/i.exec(value) ??
+		/^https?:\/\/(?:www\.)?roblox\.com\/asset\/?\?id=(\d+)\s*$/i.exec(value);
+	return id?.[1];
+}
 
 /** Kept in the file for Studio's own bookkeeping; nothing a developer reads. */
 const INTERNAL = new Set([
@@ -454,7 +490,10 @@ export function describeInstance(
 		properties.push({
 			name,
 			type: prop.type,
-			category: engine?.category || "Other",
+			category:
+				MESH_CLASSES.has(inst.className) && MESH_PROPERTIES.has(name)
+					? "Mesh"
+					: engine?.category || "Other",
 			...formatValue(prop, stored, engine, indexOf),
 			...(edit ? { edit } : {}),
 		});

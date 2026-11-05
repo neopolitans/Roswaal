@@ -131,12 +131,13 @@ interface Tab {
 }
 
 /** What a tab is, by the tree's names for files, and `function` for a function's graph. */
-export type TabKind = "nodescript" | "function" | "nodemap" | "luau" | "luaurc";
+export type TabKind = "nodescript" | "function" | "nodemap" | "luau" | "luaurc" | "place";
 
 const SIDE_KIND: Record<SideDocument["kind"], TabKind> = {
 	map: "nodemap",
 	luau: "luau",
 	luaurc: "luaurc",
+	place: "place",
 };
 
 /** What the tab strip needs, without handing it the undo stacks. */
@@ -636,7 +637,9 @@ class Store {
 					? { kind: "luaurc", doc: { ...t.side.doc, dir: next.split("/").slice(0, -1).join("/") } }
 					: t.side.kind === "map"
 						? { kind: "map", doc: { ...t.side.doc, path: next } }
-						: { kind: "luau", doc: { ...t.side.doc, path: next } };
+						: t.side.kind === "place"
+							? { kind: "place", doc: { path: next } }
+							: { kind: "luau", doc: { ...t.side.doc, path: next } };
 			const key = sideKey(side);
 			renamed.set(t.key, key);
 			return { ...t, key, path: next, side };

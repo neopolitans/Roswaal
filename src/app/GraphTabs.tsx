@@ -76,6 +76,7 @@ const KIND_ICON: Record<TabKind, IconName> = {
 	nodemap: "map",
 	luau: "luauScript",
 	luaurc: "settings",
+	place: "build",
 };
 
 /**

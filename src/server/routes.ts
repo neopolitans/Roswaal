@@ -64,7 +64,9 @@ import {
 	type InstanceChange,
 	type InstanceRef,
 } from "../core/rbx/instances.js";
+import { readLighting } from "../core/rbx/lighting.js";
 import { type PlaceReport, planPlaceUpdate } from "../core/rbx/placeExport.js";
+import { buildPlaceScene, type PlaceScene, SCENE_KINDS } from "../core/rbx/scene.js";
 import { convertPlace, leftOutOf, placeFormatOf } from "../core/rbx/serialize.js";
 import { legacyBinaryUniqueId } from "../core/rbx/uniqueId.js";
 import { emptyScript, type NodeDef, type NodeScript, type Target } from "../core/schema.js";
@@ -882,6 +884,33 @@ export class ApiSession {
 			},
 
 			/**
+			 * The place's Workspace for the viewport: one instance buffer per
+			 * shape, as base64, built once per version of the place, with its
+			 * lighting and Studio's saved camera. A 409 when the place has
+			 * changed since `stamp`, as for an instance.
+			 */
+			"GET /place/scene": async (req) => {
+				const project = this.project();
+				const file = await findPlaceFile(project.root, project.config);
+				if (!file) throw new HttpError(404, "The project has no place file.");
+				const loaded = await this.loadPlace(project, file);
+				if (query(req, "stamp") !== loaded.stamp)
+					throw new HttpError(409, "The place file has changed. Reload it.");
+				const workspace = loaded.doc.roots.find((r) => r.className === "Workspace");
+				loaded.scene ??= buildPlaceScene(workspace, (inst) => loaded.index.get(inst));
+				const scene = loaded.scene;
+				const kinds: Record<string, { data: string; count: number }> = {};
+				for (const k of SCENE_KINDS) {
+					const { data, count } = scene.kinds[k];
+					kinds[k] = {
+						data: toBase64(new Uint8Array(data.buffer, data.byteOffset, data.byteLength)),
+						count,
+					};
+				}
+				return { ...scene, kinds, lighting: readLighting(loaded.doc) };
+			},
+
+			/**
 			 * The DataModel as the project knows it: the place's instances and
 			 * what the node maps' files add, for instance-aware lint, hover and
 			 * completion. Answers without a place too, from the files alone.
@@ -1501,6 +1530,8 @@ interface LoadedPlace {
 	outline: PlaceOutline;
 	order: RbxInstance[];
 	index: Map<RbxInstance, number>;
+	/** The viewport's buffers, built the first time they are asked for. */
+	scene?: PlaceScene;
 }
 
 /** Kept out of the handlers so the id source is one line to find and to change. */

@@ -78,5 +78,15 @@
 		"source": "google/fonts · ofl/vt323/OFL.txt",
 		"url": "https://github.com/google/fonts/blob/main/ofl/vt323/OFL.txt",
 		"retrieved": "2026-10-20"
+	},
+	{
+		"file": "bakinglab.txt",
+		"name": "BakingLab",
+		"holder": "MJP",
+		"spdx": "MIT",
+		"covers": "The viewport's tone curve: Stephen Hill's fit of ACES, from BakingLab's ACES.hlsl.",
+		"source": "TheRealMJP/BakingLab · LICENSE",
+		"url": "https://github.com/TheRealMJP/BakingLab/blob/master/LICENSE",
+		"retrieved": "2026-11-05"
 	}
 ]

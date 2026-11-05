@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.208.0",
+		date: "2026-11-05",
+		headline: "The place opens in 3D, in a tab of its own.",
+		added: [
+			"**The place in 3D.** Open the place from Files, or with the button at the top of DataModel, and Workspace opens in a tab, lit by the place's Lighting and Atmosphere, with Studio's saved camera drawn where it was. Click to pick a model, Alt or Shift and click for the part, drag to orbit round what is picked, and fly with W, A, S and D. It draws with WebGPU, or WebGL2 where there is none.",
+			"**The place's bar.** Along the bottom while the place is in front: Select, Move, Rotate and Scale, Focus and Fit all, and the Explorer and Properties cards. Move, Rotate and Scale show their handles; dragging them, and adding parts, come with editing.",
+			"**Mesh in Properties.** A MeshPart's mesh properties are under a Mesh heading, and an asset id links to its page on the Creator Store.",
+		],
+		changed: [
+			"**Panels with the place in front.** DataModel and Properties show; the graph's panels and controls come back with a graph.",
+		],
+	},
+	{
 		version: "0.207.0",
 		date: "2026-11-05",
 		headline:

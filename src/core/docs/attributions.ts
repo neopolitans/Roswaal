@@ -250,6 +250,21 @@ export const ATTRIBUTIONS: Attribution[] = [
 		url: "https://fonts.google.com/icons",
 	},
 	{
+		name: "BakingLab",
+		usage: "included",
+		licenceFile: "bakinglab",
+		holder: "MJP",
+		licence: "MIT",
+		ships: true,
+		where:
+			"`src/app/viewport/webgpu.ts`, `src/app/viewport/webgl2.ts`. Licence: " +
+			"`notices/upstream/bakinglab.txt`.",
+		note:
+			"Roswaal tones the viewport's colours with Stephen Hill's fit of the ACES curve, as " +
+			"BakingLab has it.",
+		url: "https://github.com/TheRealMJP/BakingLab",
+	},
+	{
 		name: "CodeMirror 6",
 		usage: "included",
 		short: "CodeMirror",

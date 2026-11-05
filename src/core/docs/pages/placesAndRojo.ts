@@ -159,9 +159,42 @@ export function placesAndRojoPage(): DocPage {
 					"Double-click or double-tap an instance to open the **Properties** panel on the right: " +
 					"its properties, tags and attributes under Studio's headings. While it is open it follows " +
 					"what you pick, and a reference goes to what it names. For a script a project file " +
-					"writes, **Open** opens that file, and its graph when one generates it.",
+					"writes, **Open** opens that file, and its graph when one generates it. An asset id " +
+					"links to its page on the Creator Store.",
 			},
 			{ t: "toolbar", bar: PROPERTIES_PANEL },
+
+			{ t: "h", level: 2, text: "Viewing the place in 3D" },
+			{
+				t: "p",
+				text:
+					"Open the place from **Files**, or with the button at the top of **DataModel**, and " +
+					"Workspace opens in a tab of its own, lit by the place's Lighting and Atmosphere, with " +
+					"Studio's saved camera drawn in yellow. While it is in front only DataModel and " +
+					"Properties show, and Properties describes the place until you pick something.",
+			},
+			{
+				t: "table",
+				head: ["To", "Do"],
+				rows: [
+					["Pick a model", "Click a part: the highest Model in Workspace that holds it"],
+					["Pick the part itself", "`Alt` or `Shift` + click"],
+					["Orbit round what is picked", "Drag"],
+					["Look round", "Right-drag"],
+					["Pan", "Middle-drag, or `Shift` + drag"],
+					["Zoom", "Scroll, or pinch"],
+					["Fly", "`W` `A` `S` `D`, `Q` down and `E` up; `Shift` + scroll sets the speed"],
+					["Frame what is picked, or everything", "`F`, or `Home`"],
+					["Look along an axis", "Click its end on the axes, bottom right"],
+					["Show a tool's handles", "`1` to `4`: Select, Move, Rotate, Scale"],
+				],
+			},
+			{
+				t: "p",
+				text:
+					"It draws with WebGPU, or WebGL2 where the browser has no WebGPU. For now a MeshPart " +
+					"is drawn as its box, and the handles do not drag yet.",
+			},
 
 			{ t: "h", level: 2, text: "Changing properties" },
 			{

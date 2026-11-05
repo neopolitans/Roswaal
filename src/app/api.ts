@@ -1,10 +1,13 @@
 /** Thin wrapper over the daemon's HTTP API. */
 
+import { fromBase64 } from "../core/base64.js";
 import type { DocComment } from "../core/luau/docComment.js";
 import type { TableMember } from "../core/luau/infer.js";
 import type { InstanceOutline } from "../core/luau/instances.js";
 import type { PlaceInstanceInfo, PlaceOutline } from "../core/rbx/browse.js";
+import type { LightingParams } from "../core/rbx/lighting.js";
 import type { PlaceReport } from "../core/rbx/placeExport.js";
+import { type PlaceScene, SCENE_KINDS } from "../core/rbx/scene.js";
 
 /** What adding a package did. See `src/server/wally.ts`. */
 export interface WallyOutcome {
@@ -401,6 +404,21 @@ export const api = {
 		request<PlaceInstanceInfo>(
 			`/api/place/instance?stamp=${encodeURIComponent(stamp)}&index=${index}`,
 		),
+	/** The place's Workspace as the viewport draws it: see `GET /place/scene`. */
+	placeScene: async (stamp: string): Promise<PlaceScene & { lighting: LightingParams }> => {
+		const wire = await request<
+			Omit<PlaceScene, "kinds"> & {
+				kinds: Record<string, { data: string; count: number }>;
+				lighting: LightingParams;
+			}
+		>(`/api/place/scene?stamp=${encodeURIComponent(stamp)}`);
+		const kinds = {} as PlaceScene["kinds"];
+		for (const k of SCENE_KINDS) {
+			const { data, count } = wire.kinds[k] ?? { data: "", count: 0 };
+			kinds[k] = { data: new Float32Array(fromBase64(data).buffer), count };
+		}
+		return { ...wire, kinds };
+	},
 	/**
 	 * Adds, deletes, moves or duplicates an instance in the place file itself.
 	 * Answers with the place as it now is, where the instance made or moved

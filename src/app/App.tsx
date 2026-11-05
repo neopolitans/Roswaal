@@ -68,6 +68,7 @@ import {
 } from "./host.js";
 import { Inspector } from "./Inspector.jsx";
 import { IntroPanel } from "./IntroPanel.jsx";
+import { Icon } from "./icons.jsx";
 import { MapEditor } from "./MapEditor.jsx";
 import { MenuButton } from "./Menu.jsx";
 import { ModeStrip } from "./ModeStrip.jsx";
@@ -105,6 +106,8 @@ import { useGraphCommands } from "./useGraphCommands.js";
 import { useLayoutPrefs } from "./useLayoutPrefs.js";
 import { useProjectActions } from "./useProjectActions.js";
 import { SpecifierHints, VariablesPanel } from "./VariablesPanel.jsx";
+import { PlaceSummary, Viewport, ViewportBar } from "./Viewport.jsx";
+import { ViewportController } from "./viewport/controller.js";
 import { WindowMark } from "./WindowMark.jsx";
 import { Workspace } from "./Workspace.jsx";
 
@@ -240,6 +243,7 @@ export function App() {
 	const aliasDoc = editor.side?.kind === "luaurc" ? editor.side.doc : null;
 	const source = editor.side?.kind === "luau" ? editor.side.doc : null;
 	const mapDoc = editor.side?.kind === "map" ? editor.side.doc : null;
+	const placeDoc = editor.side?.kind === "place" ? editor.side.doc : null;
 	const layout = prefs.layout;
 
 	/**
@@ -330,6 +334,21 @@ export function App() {
 	const onPlaceClose = useCallback(() => setPlaceInspect(null), []);
 	// Another project's place numbers its instances differently.
 	useEffect(() => setPlaceInspect(null), [project?.root]);
+	/**
+	 * The place in 3D, kept for the session so the camera is where it was when
+	 * its tab comes back. A pick in the view picks in the browser, which shows
+	 * it in Properties; the sky picks nothing. Another project's place is a new view.
+	 */
+	// biome-ignore lint/correctness/useExhaustiveDependencies: a new project is a new view.
+	const viewport = useMemo(
+		() =>
+			new ViewportController((index) => {
+				if (index === null) setPlaceInspect(null);
+				else setPlaceReveal((prev) => ({ index, seq: (prev?.seq ?? 0) + 1 }));
+			}),
+		[project?.root],
+	);
+	useEffect(() => viewport.select(placeInspect?.index ?? null), [viewport, placeInspect]);
 	// The folder from a previous session, when one is waiting on a click.
 	const rememberedFolders = useRememberedFolders();
 	// What this host can do, for the project actions in the panel's footer.
@@ -1063,6 +1082,7 @@ export function App() {
 			if (entry.path === place) {
 				setProjectView("datamodel");
 				setPlaceSeen(true);
+				store.openSide({ kind: "place", doc: { path: entry.path } });
 				return;
 			}
 			const yes = await ask({
@@ -1076,6 +1096,7 @@ export function App() {
 				await saveConfig({ place: entry.path });
 				setProjectView("datamodel");
 				setPlaceSeen(true);
+				store.openSide({ kind: "place", doc: { path: entry.path } });
 			}
 			return;
 		}
@@ -1720,7 +1741,9 @@ export function App() {
 					/>
 				}
 				strip={
-					graphOpen && editor.script ? (
+					placeDoc ? (
+						<ViewportBar controller={viewport} />
+					) : graphOpen && editor.script ? (
 						<CanvasStrip
 							script={editor.script}
 							graph={editor.graph}
@@ -1774,6 +1797,16 @@ export function App() {
 											DataModel
 										</button>
 									</span>
+								)}
+								{project.place && projectView === "datamodel" && (
+									<button
+										className={cx("tb icon-only", placeDoc && "on")}
+										title={`${project.place} in 3D`}
+										aria-label="View the place in 3D"
+										onClick={() => store.openSide({ kind: "place", doc: { path: project.place! } })}
+									>
+										<Icon name="build" size={15} />
+									</button>
 								)}
 							</PanelHead>
 							{project.place && placeSeen && (
@@ -1961,6 +1994,8 @@ export function App() {
 								onWritten={onPlaceWritten}
 								ask={ask}
 							/>
+						) : project.place && placeDoc ? (
+							<PlaceSummary controller={viewport} file={project.place} />
 						) : undefined,
 					code:
 						codeShown && editor.path ? (
@@ -2069,7 +2104,9 @@ export function App() {
 				centre={
 					<>
 						<div className="centre-body">
-							{aliasDoc ? (
+							{placeDoc ? (
+								<Viewport controller={viewport} refreshKey={project.tree} written={placeWritten} />
+							) : aliasDoc ? (
 								<AliasDocument
 									key={aliasDoc.dir}
 									dir={aliasDoc.dir}

@@ -5,6 +5,7 @@
  * map is a tree, a `.luaurc` an alias table, a Luau file is read-only text, and
  * none has anything for undo or selection to act on. Each still has a tab of
  * its own, which the store keeps beside the graphs' -- see `SideDocument`.
+ * The place is one too: its viewport, which reads the place from the host.
  */
 
 import type { LuaurcSource } from "../core/luaurc.js";
@@ -31,11 +32,17 @@ export interface SourceDoc {
 	generatedFrom?: string;
 }
 
+/** The project's place open in the centre, in 3D. */
+export interface PlaceDocument {
+	path: string;
+}
+
 /** What a tab that is not a graph holds. */
 export type SideDocument =
 	| { kind: "map"; doc: MapDocument }
 	| { kind: "luau"; doc: SourceDoc }
-	| { kind: "luaurc"; doc: LuaurcDocument };
+	| { kind: "luaurc"; doc: LuaurcDocument }
+	| { kind: "place"; doc: PlaceDocument };
 
 /** The file a side document's tab stands for: what closes it when the file goes. */
 export function sidePath(side: SideDocument): string {

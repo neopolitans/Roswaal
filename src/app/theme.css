@@ -734,6 +734,10 @@ select optgroup {
 	color: var(--ok);
 }
 
+.tab-kind.tab-kind-place {
+	color: var(--danger);
+}
+
 .tab-kind.tree-script-server {
 	color: var(--tree-script-server);
 }
@@ -20802,4 +20806,279 @@ textarea.tb:where(:disabled) {
 /* Where a card would join, as an edge alone: no see-through fill. */
 :root[data-look="four-colours"] .drop-preview:not(.line) {
 	background: none;
+}
+
+/* ---------------------------------------------------------------- viewport */
+
+/* The place in 3D fills the centre, under the floating cards, as a graph does. */
+.viewport {
+	position: absolute;
+	inset: 0;
+	overflow: hidden;
+}
+
+.vp-holder {
+	position: absolute;
+	inset: 0;
+}
+
+.vp-canvas {
+	display: block;
+	width: 100%;
+	height: 100%;
+	touch-action: none;
+}
+
+.vp-problem {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	max-width: 420px;
+	margin: 0;
+	padding: 10px 14px;
+	border-radius: var(--radius-md);
+	background: var(--bg-panel);
+	border: 1px solid var(--border);
+	color: var(--fg-muted);
+	font-size: var(--text-sm);
+	text-align: center;
+}
+
+/* Bottom right, clear of the right cards: the camera's rotation over the frame
+   rate, outlined to read on sky or ground alike. */
+.vp-corner {
+	position: absolute;
+	right: calc(var(--right-w, 0px) + 16px);
+	bottom: calc(var(--pill-h, 0px) + 12px);
+	display: grid;
+	justify-items: end;
+	gap: 2px;
+	pointer-events: none;
+	font: 600 12px/1.3 ui-monospace, "Cascadia Mono", Consolas, monospace;
+	font-variant-numeric: tabular-nums;
+	color: #fff;
+	text-shadow:
+		0 0 2px #000,
+		0 0 2px #000,
+		1px 1px 0 #000,
+		-1px -1px 0 #000,
+		1px -1px 0 #000,
+		-1px 1px 0 #000;
+}
+
+.vp-corner .vp-rot {
+	font-size: 11px;
+	opacity: 0.92;
+	white-space: pre;
+}
+
+/* Blender's axes, above the corner's text. */
+.vp-gizmo {
+	position: absolute;
+	right: calc(var(--right-w, 0px) + 10px);
+	bottom: calc(var(--pill-h, 0px) + 50px);
+	width: 104px;
+	height: 104px;
+	cursor: grab;
+	touch-action: none;
+}
+
+.vp-gizmo:active {
+	cursor: grabbing;
+}
+
+.vp-gizmo .vp-gizmo-back {
+	fill: rgb(255 255 255 / 0);
+	transition: fill 0.12s;
+}
+
+.vp-gizmo:hover .vp-gizmo-back {
+	fill: rgb(255 255 255 / 0.12);
+}
+
+.vp-gizmo text {
+	font: 700 10px/1 system-ui, "Segoe UI", sans-serif;
+	fill: #111;
+	pointer-events: none;
+}
+
+.vp-gizmo .vp-gizmo-neg text {
+	fill: #fff;
+	font-size: 8px;
+	opacity: 0;
+	transition: opacity 0.12s;
+}
+
+.vp-gizmo .vp-gizmo-end {
+	cursor: pointer;
+}
+
+.vp-gizmo .vp-gizmo-end:hover circle {
+	stroke: #fff;
+	stroke-width: 2;
+}
+
+.vp-gizmo .vp-gizmo-neg:hover text {
+	opacity: 1;
+}
+
+/* The bar, after Studio's compact one: along the bottom on every screen with
+   room for it, touch or not, centred right of the left cards so it clears the
+   status pill under them. */
+.side-strip.vp-bar {
+	top: auto;
+	left: calc(var(--left-w, 0px) + (100% - var(--left-w, 0px)) / 2);
+	bottom: var(--edge);
+	height: auto;
+	margin-block: 0;
+	transform: translateX(-50%);
+	flex-direction: row;
+	align-items: center;
+	gap: 1px;
+	padding: 4px 8px;
+}
+
+.vp-bar .vp-group {
+	display: inline-flex;
+	gap: 1px;
+}
+
+.vp-bar .vp-tile {
+	display: inline-flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+	min-width: 50px;
+	height: 52px;
+	padding: 0 6px;
+	border: 0;
+	border-radius: var(--radius-sm);
+	background: transparent;
+	color: var(--fg);
+	font: inherit;
+	cursor: pointer;
+}
+
+.vp-bar .vp-tile:hover:not(:disabled) {
+	background: var(--bg-hover);
+}
+
+.vp-bar .vp-tile.on {
+	background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.vp-bar .vp-tile.on .vp-tile-label {
+	color: var(--fg);
+}
+
+/* A card toggle is lit while its cards show, as Studio's Explorer and Properties are. */
+.vp-bar .vp-tile[aria-pressed="true"] {
+	background: color-mix(in srgb, var(--fg) 9%, transparent);
+}
+
+.vp-bar .vp-tile:disabled {
+	opacity: 0.38;
+	cursor: default;
+}
+
+.vp-bar .vp-tile-icon {
+	display: inline-flex;
+	align-items: flex-end;
+	gap: 1px;
+	height: 22px;
+}
+
+.vp-bar .vp-caret {
+	margin-bottom: 1px;
+	color: var(--fg-muted);
+}
+
+.vp-bar .vp-tile-label {
+	font-size: 11px;
+	line-height: 1;
+	color: var(--fg-muted);
+	white-space: nowrap;
+}
+
+.vp-bar .vp-rule {
+	width: 1px;
+	height: 40px;
+	margin: 0 6px;
+	background: var(--border);
+}
+
+.vp-bar .vp-speed {
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+	color: var(--fg-muted);
+	padding: 0 4px;
+	white-space: nowrap;
+}
+
+/* Narrower screens, an iPad Mini among them: icons only. */
+@media (max-width: 1499px) {
+	.vp-bar .vp-tile {
+		min-width: 34px;
+		height: 40px;
+		padding: 0 3px;
+	}
+
+	.vp-bar .vp-tile-label,
+	.vp-bar .vp-speed,
+	.vp-bar .vp-rule:has(+ .vp-speed) {
+		display: none;
+	}
+
+	.vp-bar .vp-rule {
+		height: 28px;
+		margin: 0 3px;
+	}
+
+	.vp-corner {
+		bottom: calc(var(--pill-h, 0px) + 76px);
+	}
+
+	.vp-gizmo {
+		bottom: calc(var(--pill-h, 0px) + 112px);
+	}
+}
+
+/* Properties with nothing picked: the place as drawn. */
+.vp-place {
+	display: grid;
+	gap: 10px;
+}
+
+.vp-facts {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: 3px 10px;
+	font-size: var(--text-sm);
+	color: var(--fg-muted);
+}
+
+.vp-facts span:nth-child(odd) {
+	font-weight: 700;
+	color: var(--fg);
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+
+.place-asset {
+	color: var(--accent);
+	text-decoration: none;
+	overflow-wrap: anywhere;
+}
+
+.place-asset:hover {
+	text-decoration: underline;
+}
+
+.vp-notes {
+	margin: 0;
+	padding-left: 18px;
+	font-size: var(--text-sm);
+	color: var(--fg-muted);
 }
