@@ -287,34 +287,28 @@ function DocLists({
 					))}
 				</Fold>
 			)}
-			<Fold label="Errors" count={errors.length} missing={0}>
+			<Fold
+				label="Errors"
+				count={errors.length}
+				missing={errors.filter((e) => !e.type.trim()).length}
+			>
 				{errors.map((error, i) => (
-					// What is thrown on its own line, short and in the code face; when,
-					// the long half, under it at the full width.
+					// Type and Message, each a row of its own with room to grow, and
+					// removing it under both, where it is not hit reaching for either.
 					<div className="doc-error" key={i}>
-						<div className="doc-error-head">
-							<input
-								className="tb doc-error-type"
-								value={error.type}
-								placeholder='"Missing"'
-								aria-label="What it throws"
-								onChange={(e) =>
-									write({
-										...doc,
-										errors: errors.map((x, j) => (j === i ? { ...x, type: e.target.value } : x)),
-									})
-								}
-								{...typing.field}
-							/>
-							<button
-								type="button"
-								className="tb icon-only"
-								title="Remove this error"
-								onClick={() => set({ ...doc, errors: errors.filter((_, j) => j !== i) })}
-							>
-								<Icon name="close" size={12} />
-							</button>
-						</div>
+						<span className="doc-error-label">Type</span>
+						<LongTextField
+							code
+							value={error.type}
+							placeholder='"Missing"'
+							title="What it throws"
+							label="What it throws"
+							field={typing.field}
+							onValue={(type) =>
+								write({ ...doc, errors: errors.map((x, j) => (j === i ? { ...x, type } : x)) })
+							}
+						/>
+						<span className="doc-error-label">Message</span>
 						<LongTextField
 							value={error.description ?? ""}
 							placeholder="When it is thrown"
@@ -329,6 +323,14 @@ function DocLists({
 								})
 							}
 						/>
+						<button
+							type="button"
+							className="tb danger with-icon doc-error-remove"
+							onClick={() => set({ ...doc, errors: errors.filter((_, j) => j !== i) })}
+						>
+							<Icon name="close" size={12} />
+							Remove error
+						</button>
 					</div>
 				))}
 				<button

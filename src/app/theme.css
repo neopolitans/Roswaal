@@ -3376,26 +3376,32 @@ button.tb.primary:hover:not(:disabled) {
 	padding-top: 12px;
 }
 
-/* An error: what is thrown, then when, at the full width. */
+/* An error: Type and Message as labelled rows, and Remove under both. */
 .doc-error {
 	display: grid;
-	gap: 4px;
-	padding-bottom: 4px;
+	grid-template-columns: auto minmax(0, 1fr);
+	gap: 4px 8px;
+	align-items: center;
+	padding-bottom: 6px;
 }
 
 .doc-error + .doc-error {
-	padding-top: 6px;
+	padding-top: 8px;
 	border-top: 1px solid var(--border);
 }
 
-.doc-error-head {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) auto;
-	gap: 6px;
-	align-items: center;
+.doc-error-label {
+	font-size: var(--text-sm);
+	color: var(--fg-muted);
 }
 
-.doc-error-type {
+.doc-error-remove {
+	grid-column: 1 / -1;
+	justify-self: start;
+	margin-top: 2px;
+}
+
+.long-text-code {
 	font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
 	font-size: var(--text-sm);
 }

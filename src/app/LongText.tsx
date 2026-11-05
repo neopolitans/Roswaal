@@ -27,6 +27,8 @@ export interface LongTextRequest {
 	about?: string;
 	value: string;
 	placeholder?: string;
+	/** Written in the code face: what an error throws, say. */
+	code?: boolean;
 	onDone: (value: string) => void;
 }
 
@@ -94,7 +96,8 @@ export function LongTextEditor({
 				{request.about && <p className="long-text-about">{request.about}</p>}
 				<textarea
 					ref={field}
-					rows={5}
+					className={request.code ? "long-text-code" : undefined}
+					rows={request.code ? 3 : 5}
 					value={value}
 					placeholder={request.placeholder}
 					onChange={(e) => setValue(e.target.value)}
@@ -132,6 +135,7 @@ export function LongTextField({
 	title,
 	about,
 	label,
+	code,
 	onValue,
 	field,
 }: {
@@ -140,6 +144,7 @@ export function LongTextField({
 	title: string;
 	about?: string;
 	label: string;
+	code?: boolean;
 	onValue: (value: string) => void;
 	/** The edit burst's handlers, so typing in the short field is one undo step. */
 	field?: { onBlur: () => void; onKeyDown: (e: { key: string }) => void };
@@ -148,7 +153,7 @@ export function LongTextField({
 	return (
 		<span className="long-text-field">
 			<input
-				className="tb"
+				className={code ? "tb long-text-code" : "tb"}
 				value={value}
 				placeholder={placeholder}
 				aria-label={label}
@@ -173,7 +178,7 @@ export function LongTextField({
 			</button>
 			{open && (
 				<LongTextEditor
-					request={{ title, about, value, placeholder, onDone: onValue }}
+					request={{ title, about, value, placeholder, code, onDone: onValue }}
 					onClose={() => setOpen(false)}
 				/>
 			)}

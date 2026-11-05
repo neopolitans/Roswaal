@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.205.3",
+		date: "2026-11-05",
+		headline: "A doc comment's errors are a Type row, a Message row and a Remove error button.",
+		changed: [
+			"**Errors in a doc comment.** Each has a Type row and a Message row, both with the larger field, and a red Remove error button under them.",
+			"**The Errors count.** An error with no Type is counted as still to describe.",
+		],
+	},
+	{
 		version: "0.205.2",
 		date: "2026-11-05",
 		headline: "C with nothing selected puts the comment at the pointer.",
