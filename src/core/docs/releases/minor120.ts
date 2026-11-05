@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.205.2",
+		date: "2026-11-05",
+		headline: "C with nothing selected puts the comment at the pointer.",
+		fixed: [
+			"**C with nothing selected.** The comment's top-left corner is at the pointer, as a paste is. With the pointer off the canvas it still goes near the top-left of the view.",
+		],
+	},
+	{
 		version: "0.205.1",
 		date: "2026-11-05",
 		headline:

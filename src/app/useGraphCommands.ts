@@ -351,7 +351,12 @@ export function useGraphCommands(context: GraphCommandsContext) {
 				const rows = (sig?.params?.length ?? 0) + (sig?.returns?.length ?? 0);
 				const top = kind === "doc" ? 52 + 28 + (rows > 0 ? rows * 22 + 12 : 0) : 52;
 				const rect = box
-					? { x: box.x - 24, y: box.y - top, w: Math.max(box.w + 48, kind === "doc" ? 320 : 0), h: box.h + top + 24 }
+					? {
+							x: box.x - 24,
+							y: box.y - top,
+							w: Math.max(box.w + 48, kind === "doc" ? 320 : 0),
+							h: box.h + top + 24,
+						}
 					: { x: world.x, y: world.y, w: 320, h: 200 };
 				const { script, id } = addComment(s, rect, kind === "doc" ? "" : "Comment", kind);
 				queueMicrotask(() => store.select([id]));
@@ -674,17 +679,19 @@ export function useGraphCommands(context: GraphCommandsContext) {
 			if (e.key.toLowerCase() === "c" && !mod) {
 				e.preventDefault();
 				/**
-				 * Where the canvas is looking, rather than world origin.
+				 * At the pointer, as a paste lands, with the box's top-left
+				 * corner there.
 				 *
 				 * With a selection the point is ignored — the comment sizes
 				 * itself around what is selected. Without one it is the whole
-				 * answer, and `(0, 0)` would drop the comment at the world's
-				 * origin, which is usually nowhere near the screen. The view's
-				 * offset and zoom say where its top-left corner is without
+				 * answer. With the pointer off the canvas it is just inside the
+				 * view's top-left corner: `(0, 0)` would drop the comment at the
+				 * world's origin, which is usually nowhere near the screen, and
+				 * the view's offset and zoom say where that corner is without
 				 * anyone needing to know how big the canvas is.
 				 */
 				const inset = 64;
-				spawnComment(screenToWorld(store.getView(), inset, inset));
+				spawnComment(pointerAt.current ?? screenToWorld(store.getView(), inset, inset));
 			}
 			// Unmodified. With a selection it picks out what those nodes produced;
 			// with nothing picked it is the whole script.

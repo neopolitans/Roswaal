@@ -414,7 +414,7 @@ export function controlsPage(): DocPage {
 				t: "table",
 				head: ["Gesture", "What it does"],
 				rows: [
-					["`C`", "A new comment: around the selection, or empty where you are looking"],
+					["`C`", "A new comment: around the selection, or empty at the pointer"],
 					["Right-click the canvas", "**Add comment**, placed where you clicked"],
 					[
 						"Right-click the canvas, then **Doc comment**",
