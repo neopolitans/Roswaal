@@ -421,6 +421,10 @@ export function controlsPage(): DocPage {
 						"Moonwave for the function, Module Exports or Declare Type it is drawn around. Typing `doc` or `moonwave` finds it",
 					],
 					["Click a row in a doc comment", "Write what that parameter or return is for"],
+					[
+						"**Edit as Moonwave text**, in the Inspector",
+						"The doc comment in the Code panel, read back as you type",
+					],
 					["Drag", "Move it, and the nodes that were inside it when you grabbed it"],
 					["`Ctrl` + `C`", "Copy it, and the nodes it is drawn around"],
 					["Select it", "Its colour, in the Inspector: eight swatches or a hex you type"],

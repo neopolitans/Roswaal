@@ -37,7 +37,6 @@ import type {
 } from "../core/schema.js";
 import { serviceFromSource } from "../core/serviceCalls.js";
 import { cx } from "./cx.js";
-import { Icon } from "./icons.jsx";
 import {
 	addNode,
 	bindNodeToFunction,
@@ -81,6 +80,7 @@ import {
 	wireBounds,
 	wirePath,
 } from "./geometry.js";
+import { Icon } from "./icons.jsx";
 import { GRID, LAYER, NODE, ZOOM } from "./layers.js";
 import { type Growth, NodeView, type PinDragState } from "./NodeView.jsx";
 import { configText, functionNameOf } from "./nodeConfig.js";
@@ -1657,7 +1657,9 @@ function DocCanvas({
 						type: r.type || "any",
 						words: doc.returns?.[i] ?? "",
 						set: (words: string) => {
-							const returns = subject.returns.map((_, j) => (j === i ? words : (doc.returns?.[j] ?? "")));
+							const returns = subject.returns.map((_, j) =>
+								j === i ? words : (doc.returns?.[j] ?? ""),
+							);
 							onDoc({ ...doc, returns: returns.some((x) => x.trim()) ? returns : undefined });
 						},
 					})),
@@ -1675,7 +1677,13 @@ function DocCanvas({
 	return (
 		<div className="doc-canvas" onPointerDown={(e) => e.stopPropagation()}>
 			<div className="doc-chips">
-				{problem ? <span className="doc-chip warn">{subject.kind === "none" ? "Documents nothing" : `Holds ${(subject as { count: number }).count}`}</span> : null}
+				{problem ? (
+					<span className="doc-chip warn">
+						{subject.kind === "none"
+							? "Documents nothing"
+							: `Holds ${(subject as { count: number }).count}`}
+					</span>
+				) : null}
 				{chips.map((chip) => (
 					<span key={chip} className="doc-chip">
 						{chip}
@@ -1691,7 +1699,16 @@ function DocCanvas({
 							onClick={() => setEditing(row.key)}
 						>
 							<span className="nm">{row.name}</span>
-							{row.type && <span className="ty">{row.type}</span>}
+							{row.type ? (
+								<span
+									className="doc-type"
+									style={{ "--pin": pinColor(row.type, "data") } as React.CSSProperties}
+								>
+									{row.type}
+								</span>
+							) : (
+								<span />
+							)}
 							{editing === row.key ? (
 								<input
 									autoFocus
@@ -1737,7 +1754,8 @@ function docChips(doc: DocTags, subject: DocSubject): string[] {
 	if (subject.kind === "type") chips.push(`@type ${subject.name}`);
 	if (subject.kind !== "class" && doc.within?.trim()) chips.push(`@within ${doc.within.trim()}`);
 	if (doc.realms?.length) chips.push(realmWords(doc.realms));
-	if (doc.errors?.length) chips.push(`${doc.errors.length} error${doc.errors.length === 1 ? "" : "s"}`);
+	if (doc.errors?.length)
+		chips.push(`${doc.errors.length} error${doc.errors.length === 1 ? "" : "s"}`);
 	if (doc.yields) chips.push("Yields");
 	if (doc.since?.trim()) chips.push(`Since ${doc.since.trim()}`);
 	if (doc.deprecated) chips.push("Deprecated");

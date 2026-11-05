@@ -13,9 +13,10 @@
  *   Add, a short menu that says what each one is.
  * - Within and the written form fold into Writing, at the foot.
  *
- * Text is the same comment as Moonwave, for a developer who would rather type
- * it: what is typed is read back into the fields as it goes, so the two never
- * disagree. Names, types and counts are the function's either way.
+ * Edit as Moonwave text opens the same comment in the Code panel, for a
+ * developer who would rather type it: what is typed is read back into the
+ * fields as it goes, so the two never disagree. Names, types and counts are
+ * the function's either way.
  */
 
 import { useState } from "react";
@@ -23,24 +24,25 @@ import { useState } from "react";
 import {
 	DOC_REALMS,
 	type DocSubject,
-	docProblem,
+	docProblems,
 	docSubject,
-	docText,
 	docWithin,
-	readDocText,
 	realmWords,
+	tidyDoc,
 	undescribed,
 } from "../core/docComments.js";
 import type { Registry } from "../core/nodes/index.js";
 import type { Comment, DocTags, NodeScript } from "../core/schema.js";
 import { PanelHead } from "./Cards.jsx";
+import { requestCodeEdit } from "./codeEditRequests.js";
 import { cx } from "./cx.js";
 import { useEditBurst } from "./editBurst.js";
 import { updateComment } from "./edits.js";
 import { Icon } from "./icons.jsx";
+import { LongTextEditor, LongTextField } from "./LongText.jsx";
 import { MenuButton } from "./Menu.jsx";
-import { commentColor } from "./palette.js";
 import { Ident } from "./PanelParts.jsx";
+import { commentColor, pinColor } from "./palette.js";
 import { store } from "./store.js";
 
 const KIND: Record<DocSubject["kind"], string> = {
@@ -58,16 +60,7 @@ function kept(words: Record<string, string>): Record<string, string> | undefined
 	return Object.keys(out).length ? out : undefined;
 }
 
-/** The record without its empty parts, so a saved file says only what was said. */
-function tidy(doc: DocTags): DocTags {
-	const out: DocTags = {};
-	for (const [key, value] of Object.entries(doc) as [keyof DocTags, unknown][]) {
-		if (value === undefined || value === false) continue;
-		if (Array.isArray(value) && value.length === 0) continue;
-		(out as Record<string, unknown>)[key] = value;
-	}
-	return out;
-}
+const tidy = tidyDoc;
 
 export function DocCommentInspector({
 	comment,
@@ -83,46 +76,52 @@ export function DocCommentInspector({
 	const subject = docSubject(script, registry, comment);
 	const doc = comment.doc ?? {};
 	const typing = useEditBurst();
-	const [mode, setMode] = useState<"fields" | "text">("fields");
-	const set = (next: DocTags) => store.edit((s) => updateComment(s, comment.id, { doc: tidy(next) }));
-	const problem = docProblem(subject);
+	const set = (next: DocTags) =>
+		store.edit((s) => updateComment(s, comment.id, { doc: tidy(next) }));
+	const problems = docProblems(script, registry, comment, subject);
 	const name = "name" in subject && subject.name ? subject.name : "Doc comment";
 
 	return (
 		<div className={cx("inspector doc-inspector", locked && "editing-locked")}>
 			<PanelHead sub="Doc comment" />
 			<div className="inspector-body">
-				<Ident name={name} kind={`Doc comment · ${KIND[subject.kind]}`} color={commentColor(comment.color, true)} icon="moon" />
-				<div className="segmented doc-mode" role="tablist" aria-label="Edit as">
-					<button type="button" role="tab" aria-selected={mode === "fields"} className={cx(mode === "fields" && "on")} onClick={() => setMode("fields")}>
-						Fields
-					</button>
-					<button type="button" role="tab" aria-selected={mode === "text"} className={cx(mode === "text" && "on")} onClick={() => setMode("text")}>
-						Text
-					</button>
-				</div>
-				{problem && <p className="doc-problem">{problem}</p>}
-				{mode === "text" ? (
-					<DocTextField comment={comment} subject={subject} moduleName={script.name} typing={typing} />
-				) : (
-					<>
-						<textarea
-							className="doc-desc"
-							rows={2}
-							placeholder="What it does, in a sentence or two"
-							value={comment.text}
-							onChange={(e) => {
-								const text = e.target.value;
-								typing.edit((s) => updateComment(s, comment.id, { text }));
-							}}
-							{...typing.field}
-						/>
-						<DocLists comment={comment} subject={subject} set={set} typing={typing} />
-						<Realms doc={doc} set={set} />
-						<Extras doc={doc} subject={subject} set={set} typing={typing} comment={comment} />
-						<Writing comment={comment} moduleName={script.name} set={set} typing={typing} />
-					</>
-				)}
+				<Ident
+					name={name}
+					kind={`Doc comment · ${KIND[subject.kind]}`}
+					color={commentColor(comment.color, true)}
+					icon="moon"
+				/>
+				{/* The same comment as Moonwave text, in the Code panel's editor: for
+				    whoever would rather type it. What is typed is read back here. */}
+				<button
+					type="button"
+					className="tb with-icon doc-as-text"
+					title="Open this comment as Moonwave in the Code panel, read back into these fields as you type"
+					onClick={() => requestCodeEdit({ nodeId: comment.id, doc: true })}
+				>
+					<Icon name="terminal" size={14} />
+					Edit as Moonwave text
+				</button>
+				{problems.map((problem) => (
+					<p className="doc-problem" key={problem}>
+						{problem}
+					</p>
+				))}
+				<textarea
+					className="doc-desc"
+					rows={2}
+					placeholder="What it does, in a sentence or two"
+					value={comment.text}
+					onChange={(e) => {
+						const text = e.target.value;
+						typing.edit((s) => updateComment(s, comment.id, { text }));
+					}}
+					{...typing.field}
+				/>
+				<DocLists comment={comment} subject={subject} set={set} typing={typing} />
+				<Realms doc={doc} set={set} />
+				<Extras doc={doc} subject={subject} set={set} typing={typing} comment={comment} />
+				<Writing comment={comment} moduleName={script.name} set={set} typing={typing} />
 			</div>
 		</div>
 	);
@@ -146,16 +145,34 @@ function Fold({
 	const [open, setOpen] = useState(missing > 0);
 	return (
 		<div className={cx("doc-fold", open && "open")}>
-			<button type="button" className="doc-fold-row" aria-expanded={open} onClick={() => setOpen(!open)}>
+			<button
+				type="button"
+				className="doc-fold-row"
+				aria-expanded={open}
+				onClick={() => setOpen(!open)}
+			>
 				<Icon name="chevron" size={12} rotate={open ? 0 : -90} />
 				<span className="label">{label}</span>
 				<span className="sum">
 					{count}
-					{missing > 0 ? <span className="miss"> · {missing} to describe</span> : count > 0 ? <span className="ok"> ✓</span> : null}
+					{missing > 0 ? (
+						<span className="miss"> · {missing} to describe</span>
+					) : count > 0 ? (
+						<span className="ok"> ✓</span>
+					) : null}
 				</span>
 			</button>
 			{open && <div className="doc-fold-body">{children}</div>}
 		</div>
+	);
+}
+
+/** A type as a node draws it: a pill in its wire's colour. */
+export function DocType({ type }: { type: string }) {
+	return (
+		<span className="doc-type" style={{ "--pin": pinColor(type, "data") } as React.CSSProperties}>
+			{type}
+		</span>
 	);
 }
 
@@ -164,6 +181,7 @@ function WordsRow({
 	type,
 	words,
 	placeholder,
+	title,
 	onWords,
 	typing,
 }: {
@@ -171,15 +189,25 @@ function WordsRow({
 	type?: string;
 	words: string;
 	placeholder: string;
+	/** What the long editor is headed: "What parent is for". */
+	title: string;
 	onWords: (words: string) => void;
 	typing: Typing;
 }) {
 	return (
-		<label className="doc-words">
+		<div className="doc-words">
 			<span className="nm">{name}</span>
-			{type && <span className="ty">{type}</span>}
-			<input className="tb" value={words} placeholder={placeholder} onChange={(e) => onWords(e.target.value)} {...typing.field} />
-		</label>
+			{type ? <DocType type={type} /> : <span />}
+			<LongTextField
+				value={words}
+				placeholder={placeholder}
+				title={title}
+				about={type ? `${name}: ${type}` : name}
+				label={title}
+				onValue={onWords}
+				field={typing.field}
+			/>
+		</div>
 	);
 }
 
@@ -196,7 +224,8 @@ function DocLists({
 	typing: Typing;
 }) {
 	const doc = comment.doc ?? {};
-	const write = (next: DocTags) => typing.edit((s) => updateComment(s, comment.id, { doc: tidy(next) }));
+	const write = (next: DocTags) =>
+		typing.edit((s) => updateComment(s, comment.id, { doc: tidy(next) }));
 	if (subject.kind === "interface") {
 		const missing = subject.fields.filter((f) => !doc.fields?.[f.name]?.trim()).length;
 		return (
@@ -208,6 +237,7 @@ function DocLists({
 						type={f.type}
 						words={doc.fields?.[f.name] ?? ""}
 						placeholder="What it holds"
+						title={`What ${f.name} holds`}
 						typing={typing}
 						onWords={(w) => write({ ...doc, fields: kept({ ...doc.fields, [f.name]: w }) })}
 					/>
@@ -229,6 +259,7 @@ function DocLists({
 							type={p.type}
 							words={doc.params?.[p.name] ?? ""}
 							placeholder="What it is for"
+							title={`What ${p.name || "this parameter"} is for`}
 							typing={typing}
 							onWords={(w) => write({ ...doc, params: kept({ ...doc.params, [p.name]: w }) })}
 						/>
@@ -244,9 +275,12 @@ function DocLists({
 							type={r.type || "any"}
 							words={doc.returns?.[i] ?? ""}
 							placeholder="What it gives back"
+							title="What it gives back"
 							typing={typing}
 							onWords={(w) => {
-								const returns = subject.returns.map((_, j) => (j === i ? w : (doc.returns?.[j] ?? "")));
+								const returns = subject.returns.map((_, j) =>
+									j === i ? w : (doc.returns?.[j] ?? ""),
+								);
 								write({ ...doc, returns: returns.some((x) => x.trim()) ? returns : undefined });
 							}}
 						/>
@@ -255,31 +289,53 @@ function DocLists({
 			)}
 			<Fold label="Errors" count={errors.length} missing={0}>
 				{errors.map((error, i) => (
+					// What is thrown on its own line, short and in the code face; when,
+					// the long half, under it at the full width.
 					<div className="doc-error" key={i}>
-						<input
-							className="tb"
-							value={error.type}
-							placeholder='"Missing"'
-							aria-label="What it throws"
-							onChange={(e) => write({ ...doc, errors: errors.map((x, j) => (j === i ? { ...x, type: e.target.value } : x)) })}
-							{...typing.field}
-						/>
-						<input
-							className="tb"
+						<div className="doc-error-head">
+							<input
+								className="tb doc-error-type"
+								value={error.type}
+								placeholder='"Missing"'
+								aria-label="What it throws"
+								onChange={(e) =>
+									write({
+										...doc,
+										errors: errors.map((x, j) => (j === i ? { ...x, type: e.target.value } : x)),
+									})
+								}
+								{...typing.field}
+							/>
+							<button
+								type="button"
+								className="tb icon-only"
+								title="Remove this error"
+								onClick={() => set({ ...doc, errors: errors.filter((_, j) => j !== i) })}
+							>
+								<Icon name="close" size={12} />
+							</button>
+						</div>
+						<LongTextField
 							value={error.description ?? ""}
-							placeholder="When"
-							aria-label="When it throws it"
-							onChange={(e) =>
-								write({ ...doc, errors: errors.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)) })
+							placeholder="When it is thrown"
+							title="When it is thrown"
+							about={error.type || undefined}
+							label="When it is thrown"
+							field={typing.field}
+							onValue={(description) =>
+								write({
+									...doc,
+									errors: errors.map((x, j) => (j === i ? { ...x, description } : x)),
+								})
 							}
-							{...typing.field}
 						/>
-						<button type="button" className="tb icon-only" title="Remove this error" onClick={() => set({ ...doc, errors: errors.filter((_, j) => j !== i) })}>
-							<Icon name="close" size={12} />
-						</button>
 					</div>
 				))}
-				<button type="button" className="tb doc-add" onClick={() => set({ ...doc, errors: [...errors, { type: "" }] })}>
+				<button
+					type="button"
+					className="tb doc-add"
+					onClick={() => set({ ...doc, errors: [...errors, { type: "" }] })}
+				>
 					+ Add error
 				</button>
 			</Fold>
@@ -336,33 +392,78 @@ function Extras({
 	typing: Typing;
 	comment: Comment;
 }) {
-	const write = (next: DocTags) => typing.edit((s) => updateComment(s, comment.id, { doc: tidy(next) }));
+	const write = (next: DocTags) =>
+		typing.edit((s) => updateComment(s, comment.id, { doc: tidy(next) }));
+	const [why, setWhy] = useState(false);
 	const flag = (key: "yields" | "unreleased" | "private" | "ignore", label: string) =>
 		doc[key] ? (
 			<span className="doc-chip" key={key}>
 				{label}
-				<button type="button" className="x" title={`Remove ${label}`} onClick={() => set({ ...doc, [key]: undefined })}>
+				<button
+					type="button"
+					className="x"
+					title={`Remove ${label}`}
+					onClick={() => set({ ...doc, [key]: undefined })}
+				>
 					×
 				</button>
 			</span>
 		) : null;
 	const functionOnly = subject.kind === "function";
 	const add = [
-		doc.since === undefined && { label: "Since", hint: "the version it arrived in", run: () => set({ ...doc, since: "" }) },
-		!doc.deprecated && { label: "Deprecated", hint: "since a version, and why", run: () => set({ ...doc, deprecated: { version: "" } }) },
-		functionOnly && !doc.yields && { label: "Yields", hint: "it can pause the thread", run: () => set({ ...doc, yields: true }) },
+		doc.since === undefined && {
+			label: "Since",
+			hint: "the version it arrived in",
+			run: () => set({ ...doc, since: "" }),
+		},
+		!doc.deprecated && {
+			label: "Deprecated",
+			hint: "since a version, and why",
+			run: () => set({ ...doc, deprecated: { version: "" } }),
+		},
+		functionOnly &&
+			!doc.yields && {
+				label: "Yields",
+				hint: "it can pause the thread",
+				run: () => set({ ...doc, yields: true }),
+			},
 		!doc.unreleased && { label: "Unreleased", run: () => set({ ...doc, unreleased: true }) },
-		!doc.private && { label: "Private", hint: "for the author", run: () => set({ ...doc, private: true }) },
-		!doc.ignore && { label: "Ignore", hint: "left out of the docs", run: () => set({ ...doc, ignore: true }) },
-		{ label: "Tag", hint: "a label beside the name", run: () => set({ ...doc, tags: [...(doc.tags ?? []), ""] }) },
+		!doc.private && {
+			label: "Private",
+			hint: "for the author",
+			run: () => set({ ...doc, private: true }),
+		},
+		!doc.ignore && {
+			label: "Ignore",
+			hint: "left out of the docs",
+			run: () => set({ ...doc, ignore: true }),
+		},
+		{
+			label: "Tag",
+			hint: "a label beside the name",
+			run: () => set({ ...doc, tags: [...(doc.tags ?? []), ""] }),
+		},
 	].filter((entry): entry is { label: string; hint?: string; run: () => void } => Boolean(entry));
 	return (
 		<div className="doc-extras">
 			{doc.since !== undefined && (
 				<span className="doc-chip">
 					<span className="k">Since</span>
-					<input className="doc-chip-in" value={doc.since} placeholder="0.4.0" aria-label="Since" autoFocus={doc.since === ""} onChange={(e) => write({ ...doc, since: e.target.value })} {...typing.field} />
-					<button type="button" className="x" title="Remove Since" onClick={() => set({ ...doc, since: undefined })}>
+					<input
+						className="doc-chip-in"
+						value={doc.since}
+						placeholder="0.4.0"
+						aria-label="Since"
+						autoFocus={doc.since === ""}
+						onChange={(e) => write({ ...doc, since: e.target.value })}
+						{...typing.field}
+					/>
+					<button
+						type="button"
+						className="x"
+						title="Remove Since"
+						onClick={() => set({ ...doc, since: undefined })}
+					>
 						×
 					</button>
 				</span>
@@ -370,9 +471,31 @@ function Extras({
 			{doc.deprecated && (
 				<span className="doc-chip wide">
 					<span className="k">Deprecated</span>
-					<input className="doc-chip-in" value={doc.deprecated.version} placeholder="version" aria-label="Deprecated since" autoFocus={doc.deprecated.version === ""} onChange={(e) => write({ ...doc, deprecated: { ...doc.deprecated!, version: e.target.value } })} {...typing.field} />
-					<input className="doc-chip-in why" value={doc.deprecated.reason ?? ""} placeholder="why" aria-label="Why it is deprecated" onChange={(e) => write({ ...doc, deprecated: { ...doc.deprecated!, reason: e.target.value } })} {...typing.field} />
-					<button type="button" className="x" title="Remove Deprecated" onClick={() => set({ ...doc, deprecated: undefined })}>
+					<input
+						className="doc-chip-in"
+						value={doc.deprecated.version}
+						placeholder="version"
+						aria-label="Deprecated since"
+						autoFocus={doc.deprecated.version === ""}
+						onChange={(e) =>
+							write({ ...doc, deprecated: { ...doc.deprecated!, version: e.target.value } })
+						}
+						{...typing.field}
+					/>
+					<button
+						type="button"
+						className={cx("doc-chip-why", !doc.deprecated.reason && "empty")}
+						title="Why it is deprecated"
+						onClick={() => setWhy(true)}
+					>
+						{doc.deprecated.reason || "why"}
+					</button>
+					<button
+						type="button"
+						className="x"
+						title="Remove Deprecated"
+						onClick={() => set({ ...doc, deprecated: undefined })}
+					>
 						×
 					</button>
 				</span>
@@ -384,16 +507,52 @@ function Extras({
 			{(doc.tags ?? []).map((name, i) => (
 				<span className="doc-chip" key={`tag${i}`}>
 					<span className="k">Tag</span>
-					<input className="doc-chip-in" value={name} placeholder="Player" aria-label="Tag" autoFocus={name === ""} onChange={(e) => write({ ...doc, tags: (doc.tags ?? []).map((t, j) => (j === i ? e.target.value : t)) })} {...typing.field} />
-					<button type="button" className="x" title="Remove this tag" onClick={() => set({ ...doc, tags: (doc.tags ?? []).filter((_, j) => j !== i) })}>
+					<input
+						className="doc-chip-in"
+						value={name}
+						placeholder="Player"
+						aria-label="Tag"
+						autoFocus={name === ""}
+						onChange={(e) =>
+							write({
+								...doc,
+								tags: (doc.tags ?? []).map((t, j) => (j === i ? e.target.value : t)),
+							})
+						}
+						{...typing.field}
+					/>
+					<button
+						type="button"
+						className="x"
+						title="Remove this tag"
+						onClick={() => set({ ...doc, tags: (doc.tags ?? []).filter((_, j) => j !== i) })}
+					>
 						×
 					</button>
 				</span>
 			))}
+			{why && doc.deprecated && (
+				<LongTextEditor
+					request={{
+						title: "Why it is deprecated",
+						about: doc.deprecated.version ? `Deprecated in ${doc.deprecated.version}` : undefined,
+						value: doc.deprecated.reason ?? "",
+						placeholder: "Use find instead.",
+						onDone: (reason) =>
+							set({ ...doc, deprecated: { ...doc.deprecated!, reason: reason || undefined } }),
+					}}
+					onClose={() => setWhy(false)}
+				/>
+			)}
 			<MenuButton
 				label="Add"
 				title="Add to the comment"
-				sections={[{ label: "Add to the comment", entries: add.map((e) => ({ label: e.label, hint: e.hint, run: e.run })) }]}
+				sections={[
+					{
+						label: "Add to the comment",
+						entries: add.map((e) => ({ label: e.label, hint: e.hint, run: e.run })),
+					},
+				]}
 			/>
 		</div>
 	);
@@ -416,7 +575,12 @@ function Writing({
 	const form = comment.style === "doc" ? "---" : "--[=[ ]=]";
 	return (
 		<div className={cx("doc-fold", open && "open")}>
-			<button type="button" className="doc-fold-row" aria-expanded={open} onClick={() => setOpen(!open)}>
+			<button
+				type="button"
+				className="doc-fold-row"
+				aria-expanded={open}
+				onClick={() => setOpen(!open)}
+			>
 				<Icon name="chevron" size={12} rotate={open ? 0 : -90} />
 				<span className="label">Writing</span>
 				<span className="sum">
@@ -433,7 +597,11 @@ function Writing({
 							placeholder={moduleName}
 							onChange={(e) => {
 								const within = e.target.value;
-								typing.edit((s) => updateComment(s, comment.id, { doc: tidy({ ...doc, within: within || undefined }) }));
+								typing.edit((s) =>
+									updateComment(s, comment.id, {
+										doc: tidy({ ...doc, within: within || undefined }),
+									}),
+								);
 							}}
 							{...typing.field}
 						/>
@@ -456,45 +624,5 @@ function Writing({
 				</div>
 			)}
 		</div>
-	);
-}
-
-/**
- * The comment as Moonwave text, read back into the fields as it is typed. A
- * draft of its own, so the field is never rewritten under the caret; it is
- * written from the comment again whenever the text view is opened.
- */
-function DocTextField({
-	comment,
-	subject,
-	moduleName,
-	typing,
-}: {
-	comment: Comment;
-	subject: DocSubject;
-	moduleName: string;
-	typing: Typing;
-}) {
-	const [draft, setDraft] = useState(() => docText(comment, subject, moduleName));
-	return (
-		<>
-			<textarea
-				className="doc-text"
-				spellCheck={false}
-				rows={Math.min(18, Math.max(6, draft.split("\n").length + 1))}
-				value={draft}
-				onChange={(e) => {
-					const text = e.target.value;
-					setDraft(text);
-					const read = readDocText(text);
-					typing.edit((s) => updateComment(s, comment.id, { text: read.description, doc: tidy(read.doc) }));
-				}}
-				{...typing.field}
-			/>
-			<p className="summary">
-				Moonwave, as it will be written. Parameters, returns and their types come from the function: write what each is
-				for, and the rest of the line is filled in.
-			</p>
-		</>
 	);
 }

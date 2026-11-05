@@ -54,8 +54,8 @@ export function readingLuauPage(): DocPage {
 				t: "p",
 				text:
 					"To write one from a graph, draw a **Doc comment** around a Declare Function, Module " +
-					"Exports or Declare Type. Its tags are in the Inspector, or under **Text** to type it as " +
-					"Moonwave. Parameters, returns and their types come from the function.",
+					"Exports or Declare Type. Its tags are in the Inspector, or **Edit as Moonwave text** opens it " +
+					"in the Code panel to type. Parameters, returns and their types come from the function.",
 			},
 
 			{ t: "h", level: 2, text: "Required modules" },

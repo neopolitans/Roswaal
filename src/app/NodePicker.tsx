@@ -35,7 +35,8 @@ import type { NodeConfig, NodeDef } from "../core/schema.js";
 import { cx } from "./cx.js";
 import { Icon } from "./icons.jsx";
 import { LAYER } from "./layers.js";
-import type { Preset } from "./NodeMenu.jsx";
+import { commentRows, type Preset } from "./NodeMenu.jsx";
+import { COMMENT_DEFAULT_COLOR, DOC_COMMENT_COLOR } from "./palette.js";
 import {
 	FILTER_LABEL,
 	FILTER_SUMMARY,
@@ -63,6 +64,9 @@ export interface NodePickerProps {
 	/** How the picture is drawn: the reader's own geometry and colours. */
 	preview: PreviewOptions;
 	onPick: (def: NodeDef, config?: NodeConfig, member?: { name: string; type?: string }) => void;
+	/** A comment, as the node menu offers one; not a node, so it has no picture. */
+	onAddComment?: () => void;
+	onAddDocComment?: () => void;
 	onClose: () => void;
 }
 
@@ -125,6 +129,8 @@ export function NodePicker({
 	presets = [],
 	preview,
 	onPick,
+	onAddComment,
+	onAddDocComment,
 	onClose,
 }: NodePickerProps) {
 	const [query, setQuery] = useState("");
@@ -233,6 +239,11 @@ export function NodePicker({
 	}, [matches, query, registry]);
 
 	const flat = useMemo(() => groups.flatMap((g) => g.defs), [groups]);
+	const found = commentRows(query);
+	const comments = {
+		plain: found.plain && onAddComment !== undefined,
+		doc: found.doc && onAddDocComment !== undefined,
+	};
 	const chosen = flat[Math.min(active, flat.length - 1)];
 
 	useEffect(() => setActive(0), [query]);
@@ -303,6 +314,8 @@ export function NodePicker({
 							} else if (e.key === "Enter") {
 								e.preventDefault();
 								if (chosen) onPick(chosen.def, chosen.config, chosen.member);
+								// Nothing in the library matched "moonwave": the comment it named.
+								else if (comments.doc && query.trim() !== "") onAddDocComment?.();
 							} else if (e.key === "Escape") {
 								e.preventDefault();
 								e.stopPropagation();
@@ -318,7 +331,42 @@ export function NodePicker({
 
 				<div className="node-picker-body">
 					<div className="node-picker-list" ref={list}>
-						{flat.length === 0 && <div className="empty">Nothing matches “{query.trim()}”.</div>}
+						{/* The comments, as the node menu has them: not nodes, so above
+						    the library, with no picture of their own. */}
+						{(comments.plain || comments.doc) && (
+							<div className="node-picker-group node-picker-comments">
+								{comments.plain && (
+									<button
+										type="button"
+										className="node-picker-hit node-picker-comment"
+										onClick={onAddComment}
+									>
+										<span className="swatch" style={{ background: `#${COMMENT_DEFAULT_COLOR}` }} />
+										<span className="name">Comment</span>
+										<span className="hint">C</span>
+									</button>
+								)}
+								{comments.doc && (
+									<button
+										type="button"
+										className="node-picker-hit node-picker-comment"
+										onClick={onAddDocComment}
+									>
+										<span
+											className="swatch doc-swatch"
+											style={{ background: `#${DOC_COMMENT_COLOR}` }}
+										>
+											<Icon name="moon" size={12} />
+										</span>
+										<span className="name">Doc comment</span>
+										<span className="hint">Moonwave</span>
+									</button>
+								)}
+							</div>
+						)}
+						{flat.length === 0 && !comments.plain && !comments.doc && (
+							<div className="empty">Nothing matches “{query.trim()}”.</div>
+						)}
 						{groups.map((group) => (
 							<div key={group.label || "all"} className="node-picker-group">
 								{group.label && <div className="head">{group.label}</div>}

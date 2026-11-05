@@ -140,7 +140,9 @@ describe("a tab", () => {
 		expect(CODE_MARKS.block?.mark).toBe("{ }");
 		expect(CODE_MARKS.expression?.mark).toBe("ƒx");
 		expect(CODE_MARKS.type?.mark).toBe("<T>");
-		expect(new Set(Object.values(CODE_MARKS).map((m) => m.mark)).size).toBe(3);
+		// A doc comment's tab is marked with the moon, drawn rather than written.
+		expect(CODE_MARKS.doc?.name).toBe("Doc comment");
+		expect(new Set(Object.values(CODE_MARKS).map((m) => m.mark)).size).toBe(4);
 	});
 });
 

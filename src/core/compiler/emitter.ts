@@ -21,7 +21,7 @@
  */
 
 import { commentLines, headersByNode, oneLine } from "../comments.js";
-import { docProblem, docSubject, docText } from "../docComments.js";
+import { docProblems, docSubject, docText } from "../docComments.js";
 import { compoundTemplate } from "../nodes/compound.js";
 import { FUNCTION_NODES, loopNamesOf, signatureOf } from "../nodes/flow.js";
 import { nodeTitle, type Registry } from "../nodes/index.js";
@@ -197,8 +197,14 @@ export class Emitter {
 		this.registry = registry;
 		for (const comment of this.options.inline ? [] : script.comments) {
 			if (!comment.doc) continue;
-			const problem = docProblem(docSubject(script, registry, comment));
-			if (problem) this.warn(problem);
+			for (const problem of docProblems(
+				script,
+				registry,
+				comment,
+				docSubject(script, registry, comment),
+			)) {
+				this.warn(problem);
+			}
 		}
 		// Anything Luau itself provides must not be shadowed by a generated name.
 		for (const g of PROVIDED_GLOBALS) this.names.reserve(g);
@@ -266,8 +272,12 @@ export class Emitter {
 		const headerLines = header.split("\n").length - 1;
 
 		const sourceMap = lines
-			.map((l, i) => (l.node ? { line: headerLines + i + 1, node: l.node } : null))
-			.filter((x): x is { line: number; node: string } => x !== null);
+			.map((l, i) =>
+				l.node
+					? { line: headerLines + i + 1, node: l.node, ...(l.by ? { comment: l.by } : {}) }
+					: null,
+			)
+			.filter((x): x is { line: number; node: string; comment?: string } => x !== null);
 
 		return {
 			code: header + body,
@@ -351,7 +361,7 @@ export class Emitter {
 			? docText(comment, docSubject(this.script, this.registry, comment), this.script.name)
 			: comment.text;
 		const style = comment.doc ? (comment.style === "doc" ? "doc" : "docBlock") : comment.style;
-		this.write(commentLines(text, style).join("\n"), nodeId, true);
+		this.write(commentLines(text, style).join("\n"), nodeId, true, comment.id);
 	}
 
 	/**
@@ -396,7 +406,7 @@ export class Emitter {
 	 * level — so the body follows the project's indent setting rather than being
 	 * a tab sitting inside four spaces.
 	 */
-	private write(text: string, node?: string, comment = false): void {
+	private write(text: string, node?: string, comment = false, by?: string): void {
 		for (const line of text.split("\n")) {
 			const inner = line.length - line.replace(/^\t+/, "").length;
 			this.out.push({
@@ -404,6 +414,7 @@ export class Emitter {
 				indent: this.indent + inner,
 				node,
 				...(comment ? { comment: true as const } : {}),
+				...(by ? { by } : {}),
 			});
 		}
 	}

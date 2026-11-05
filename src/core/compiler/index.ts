@@ -19,7 +19,7 @@ export { validate } from "./validate.js";
 export interface CompileResult {
 	code: string;
 	diagnostics: Diagnostic[];
-	sourceMap: { line: number; node: string }[];
+	sourceMap: { line: number; node: string; comment?: string }[];
 	sourceHash: string;
 	outputHash: string;
 	/** Filename the result should be written as, relative to the out directory. */

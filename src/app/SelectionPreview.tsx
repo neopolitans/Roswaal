@@ -77,7 +77,7 @@ export interface SelectionPreviewProps {
 	functionName?: string;
 	/** The generated file, exactly as it would be written. */
 	code: string;
-	sourceMap: { line: number; node: string }[];
+	sourceMap: { line: number; node: string; comment?: string }[];
 	onClose: () => void;
 }
 
@@ -130,7 +130,7 @@ export function SelectionPreview(props: SelectionPreviewProps) {
 							? `${rows.length} line${rows.length === 1 ? "" : "s"}`
 							: props.functionName
 								? `${direct} line${direct === 1 ? "" : "s"}`
-								: `${props.selection.size} node${props.selection.size === 1 ? "" : "s"}`}
+								: selectionWords(props.selection, props.script)}
 						{!whole &&
 							!props.functionName &&
 							direct > 0 &&
@@ -215,6 +215,19 @@ export function SelectionPreview(props: SelectionPreviewProps) {
 	);
 }
 
+/** "1 node", "2 comments", "1 node, 1 comment": what is selected, by kind. */
+function selectionWords(selection: ReadonlySet<string>, script: NodeScript): string {
+	const comments = [...selection].filter((id) => script.comments.some((c) => c.id === id)).length;
+	const nodes = selection.size - comments;
+	const count = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+	return [
+		nodes > 0 || comments === 0 ? count(nodes, "node") : "",
+		comments > 0 ? count(comments, "comment") : "",
+	]
+		.filter(Boolean)
+		.join(", ");
+}
+
 /**
  * Which lines belong to the selection, and which pure nodes had none.
  *
@@ -243,6 +256,12 @@ export function analyse(props: SelectionPreviewProps): {
 		if (!selected.has(node)) continue;
 		mineLines.add(line);
 		emitted.add(node);
+	}
+	// A comment box selected: the header it wrote, which the map names it on.
+	for (const entry of props.sourceMap) {
+		if (entry.comment === undefined || !selected.has(entry.comment)) continue;
+		mineLines.add(entry.line);
+		emitted.add(entry.comment);
 	}
 
 	// Selected, and nowhere in the map: a pure node whose value went into

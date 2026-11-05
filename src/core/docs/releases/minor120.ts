@@ -9,6 +9,25 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.205.1",
+		date: "2026-11-05",
+		headline:
+			"A doc comment opens as Moonwave in the Code panel, and long words get room to be written.",
+		changed: [
+			"**Edit as Moonwave text.** The Inspector's Text view is now a button that opens the comment in the Code panel, highlighted and completing Moonwave's tags. What you type is read back into the fields.",
+			"**Long words.** Each parameter, return and error has a button that opens a larger field in the middle of the screen. On an iPad, tapping the field opens it, above the keyboard.",
+			"**Types.** Parameters, returns and fields show their type as a coloured tag, on the canvas and in the Inspector.",
+			"**The moon.** It is larger in the canvas menu and the node picker.",
+			"**Errors.** Each error has its own row for what is thrown, and a line below for when.",
+		],
+		fixed: [
+			"**The node picker.** Comment and Doc comment are at the top of its list.",
+			"**Previewing a doc comment.** With the box selected, P lights the Moonwave it writes.",
+			"**Long lines in the preview.** The band behind lit lines reaches past the longest one.",
+			"**Half-filled tags.** Script analysis says when Since, Deprecated, an error or a tag is missing its version or name, and so left out of the comment, and when Moonwave has no class to file the comment under.",
+		],
+	},
+	{
 		version: "0.205.0",
 		date: "2026-11-05",
 		headline: "Doc comments write Moonwave for the declaration they are drawn around.",
@@ -50,7 +69,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.203.5",
 		date: "2026-11-04",
-		headline: "On an iPad, a panel's button puts its drawer away, and Check is the size of its line.",
+		headline:
+			"On an iPad, a panel's button puts its drawer away, and Check is the size of its line.",
 		fixed: [
 			"**A drawer's own button.** Pressing Project or Inspector in the top bar while its drawer is out puts the drawer away. It used to close and open again.",
 			"**Check on a touch screen.** It is as tall as the summary line it ends.",
@@ -104,7 +124,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.202.2",
 		date: "2026-10-20",
-		headline: "A node's header rule runs its full width, and the hidden theme draws pins as sprites.",
+		headline:
+			"A node's header rule runs its full width, and the hidden theme draws pins as sprites.",
 		affects: ["editor"],
 		fixed: [
 			"**A node's header rule.** The line under a node's header runs under its category tab too, in every theme, where it stopped at the tab's edge.",

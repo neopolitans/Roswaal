@@ -12,6 +12,8 @@ export interface OutLine {
 	node?: string;
 	/** Part of a comment, which Luau reads as space between statements. */
 	comment?: true;
+	/** The comment box whose header this line is, so selecting it can find it. */
+	by?: string;
 }
 
 /** Lexical scope: which node outputs are bound to which locals, and where. */

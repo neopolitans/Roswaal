@@ -273,7 +273,7 @@ export function NodeMenu({
 						{comments.doc && (
 							<div className="item" onClick={onAddDocComment}>
 								<span className="swatch doc-swatch" style={{ background: `#${DOC_COMMENT_COLOR}` }}>
-									<Icon name="moon" size={9} />
+									<Icon name="moon" size={12} />
 								</span>
 								<span className="name">Doc comment</span>
 								<span className="hint">Moonwave</span>

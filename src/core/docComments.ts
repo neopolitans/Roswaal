@@ -29,12 +29,12 @@
  * into the fields, and switch between the two without losing anything.
  */
 
-import { commentHolds } from "./comments.js";
+import { commentHolds, commentLines } from "./comments.js";
 import { luauType } from "./compiler/emitDeclarations.js";
 import { viewOf } from "./functionGraph.js";
 import { signatureOf, typeDeclarationOf } from "./nodes/flow.js";
 import type { Registry } from "./nodes/index.js";
-import type { Comment, DocTags, DocRealm, GraphNode, NodeScript } from "./schema.js";
+import type { Comment, DocRealm, DocTags, GraphNode, NodeScript } from "./schema.js";
 
 export type { DocRealm, DocTags } from "./schema.js";
 
@@ -135,11 +135,14 @@ export function docText(comment: Comment, subject: DocSubject, moduleName: strin
 	const tags: string[] = [];
 	if (subject.kind === "class") tags.push(tag("class", subject.name));
 	if (subject.kind === "interface") tags.push(tag("interface", subject.name));
-	if (subject.kind === "type") tags.push(tag("type", subject.name, subject.definition || undefined));
+	if (subject.kind === "type")
+		tags.push(tag("type", subject.name, subject.definition || undefined));
 	if (subject.kind !== "class") tags.push(tag("within", docWithin(doc, moduleName)));
 	if (subject.kind === "interface") {
 		for (const field of subject.fields) {
-			tags.push([`.${field.name}`, field.type, said(doc.fields?.[field.name])].filter(Boolean).join(" "));
+			tags.push(
+				[`.${field.name}`, field.type, said(doc.fields?.[field.name])].filter(Boolean).join(" "),
+			);
 		}
 	}
 	if (subject.kind === "function") {
@@ -148,12 +151,21 @@ export function docText(comment: Comment, subject: DocSubject, moduleName: strin
 		// agree: Roswaal's ClassName is Luau's string.
 		if (subject.params.some((p) => params[p.name]?.trim())) {
 			for (const p of subject.params) {
-				tags.push(tag("param", p.name || "arg", p.type ? luauType(p.type) : undefined, said(params[p.name])));
+				tags.push(
+					tag(
+						"param",
+						p.name || "arg",
+						p.type ? luauType(p.type) : undefined,
+						said(params[p.name]),
+					),
+				);
 			}
 		}
 		const returns = doc.returns ?? [];
 		if (subject.returns.some((_, i) => returns[i]?.trim())) {
-			subject.returns.forEach((r, i) => tags.push(tag("return", luauType(r.type), said(returns[i]))));
+			subject.returns.forEach((r, i) =>
+				tags.push(tag("return", luauType(r.type), said(returns[i]))),
+			);
 		}
 		for (const error of doc.errors ?? []) {
 			if (error.type.trim()) tags.push(tag("error", error.type.trim(), said(error.description)));
@@ -227,7 +239,8 @@ export function readDocText(text: string): { description: string; doc: DocTags }
 				returns.push(words ?? "");
 				break;
 			case "error":
-				if (head) (doc.errors ??= []).push({ type: head, ...(words ? { description: words } : {}) });
+				if (head)
+					(doc.errors ??= []).push({ type: head, ...(words ? { description: words } : {}) });
 				break;
 			case "yields":
 			case "unreleased":
@@ -267,6 +280,56 @@ export function readDocText(text: string): { description: string; doc: DocTags }
 	return { description: description.join("\n"), doc };
 }
 
+/**
+ * The comment as the file will hold it, its delimiters included: what the
+ * Code panel shows, so it reads, and is highlighted, as the output will.
+ */
+export function docBlockText(comment: Comment, subject: DocSubject, moduleName: string): string {
+	return commentLines(
+		docText(comment, subject, moduleName),
+		comment.style === "doc" ? "doc" : "docBlock",
+	).join("\n");
+}
+
+/** The record without its empty parts, so a saved file says only what was said. */
+export function tidyDoc(doc: DocTags): DocTags {
+	const out: DocTags = {};
+	for (const [key, value] of Object.entries(doc) as [keyof DocTags, unknown][]) {
+		if (value === undefined || value === false) continue;
+		if (Array.isArray(value) && value.length === 0) continue;
+		(out as Record<string, unknown>)[key] = value;
+	}
+	return out;
+}
+
+/** JSON with its keys in order, so two records that say the same thing compare equal. */
+function stable(value: unknown): string {
+	if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
+	if (value && typeof value === "object") {
+		return `{${Object.keys(value as object)
+			.sort()
+			.map((key) => `${JSON.stringify(key)}:${stable((value as Record<string, unknown>)[key])}`)
+			.join(",")}}`;
+	}
+	return JSON.stringify(value);
+}
+
+/**
+ * Whether two texts of a comment say the same thing.
+ *
+ * What is written back is the comment as the graph writes it, which need not be
+ * what was typed, character for character: the tags in their order, a type
+ * filled in. An editor that waits for its typing to come back compares by this,
+ * or it would wait forever.
+ */
+export function sameDocText(a: string, b: string): boolean {
+	const read = (text: string) => {
+		const { description, doc } = readDocText(text);
+		return stable({ description, doc: tidyDoc(doc) });
+	};
+	return read(a) === read(b);
+}
+
 /** The result of the realm switch, in words. */
 export function realmWords(realms: readonly DocRealm[] | undefined): string {
 	const on = DOC_REALMS.filter((r) => realms?.includes(r));
@@ -291,10 +354,64 @@ export function docProblem(subject: DocSubject): string | undefined {
 }
 
 /**
+ * Everything Script analysis says about a doc comment, beyond what it holds.
+ *
+ * The rules Moonwave refuses a comment for -- a parameter list that is not the
+ * function's, some returns and not others, no @within -- cannot be broken
+ * here, since those are written from the graph. What can be is a tag left
+ * half-filled, which is left out of the file rather than written broken, and
+ * said here so it is not lost without a word; and a member filed under a
+ * class nothing declares, which Moonwave has nowhere to put.
+ */
+export function docProblems(
+	script: NodeScript,
+	registry: Registry,
+	comment: Comment,
+	subject: DocSubject,
+	moduleName = script.name,
+): string[] {
+	const out: string[] = [];
+	const holds = docProblem(subject);
+	if (holds) out.push(holds);
+	const doc = comment.doc ?? {};
+	const left = (what: string) => `${what} Until it has one, it is left out of the comment.`;
+	if (doc.since !== undefined && !doc.since.trim())
+		out.push(left("Since needs the version it arrived in."));
+	if (doc.deprecated && !doc.deprecated.version.trim()) {
+		out.push(left("Deprecated needs the version it was deprecated in."));
+	}
+	if (subject.kind === "function" && (doc.errors ?? []).some((e) => !e.type.trim())) {
+		out.push(left('An error needs what is thrown, such as "Missing".'));
+	}
+	if ((doc.tags ?? []).some((t) => !t.trim())) out.push(left("A tag needs a name."));
+	// Filed under the module's own class: something has to declare it.
+	if (subject.kind === "function" || subject.kind === "interface" || subject.kind === "type") {
+		const within = docWithin(doc, moduleName);
+		const declared = script.comments.some(
+			(other) =>
+				other.doc !== undefined &&
+				other.id !== comment.id &&
+				docSubject(script, registry, other, moduleName).kind === "class",
+		);
+		if (within === moduleName && !declared) {
+			out.push(
+				script.scriptClass === "ModuleScript"
+					? `Moonwave files this under @class ${within}, which nothing declares. Draw a doc comment around Module Exports to declare it, or set Within to a class that has one.`
+					: `Moonwave files this under @class ${within}, which nothing declares. Set Within to a class that has a doc comment of its own.`,
+			);
+		}
+	}
+	return out;
+}
+
+/**
  * The parameters, and returns by position, that have no words yet: what the
  * box and the Inspector mark as still to describe.
  */
-export function undescribed(comment: Comment, subject: DocSubject): { params: string[]; returns: number[] } {
+export function undescribed(
+	comment: Comment,
+	subject: DocSubject,
+): { params: string[]; returns: number[] } {
 	if (subject.kind !== "function") return { params: [], returns: [] };
 	const doc = comment.doc ?? {};
 	return {

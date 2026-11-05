@@ -22,11 +22,12 @@
  * in the graph -- never because it is still catching up with the typing.
  */
 
-import type { Completion } from "@codemirror/autocomplete";
+import type { Completion, CompletionContext, CompletionResult } from "@codemirror/autocomplete";
 import { Annotation, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { docBlockText, docProblems, docSubject, sameDocText } from "../core/docComments.js";
 import { argumentProblems } from "../core/luau/argumentTypes.js";
 import { checkLuau, type LuauFragment } from "../core/luau/check.js";
 import type { ModuleInfo } from "../core/luau/hover.js";
@@ -73,6 +74,11 @@ export interface CodeTab {
 	field?: "definition";
 	/** What the text must parse as. Worked out from the node when absent. */
 	kind?: LuauFragment;
+	/**
+	 * A doc comment's Moonwave, with `nodeId` the comment's id: written back
+	 * into its fields as it is typed. See `DocField`.
+	 */
+	doc?: true;
 }
 
 /** The key a field's tab is found by. */
@@ -89,6 +95,12 @@ export function codeValue(
 	registry: Registry,
 	tab: CodeTab,
 ): string | undefined {
+	if (tab.doc) {
+		const comment = script?.comments.find((c) => c.id === tab.nodeId && c.doc);
+		return script && comment
+			? docBlockText(comment, docSubject(script, registry, comment), script.name)
+			: undefined;
+	}
 	const node = script?.nodes.find((n) => n.id === tab.nodeId);
 	if (!node) return undefined;
 	if (tab.field) return configText(node, tab.field) ?? "";
@@ -103,8 +115,8 @@ export function codeValue(
 		: "";
 }
 
-/** What a tab edits, which its mark says: statements, one value, or a type. */
-export type CodeKind = LuauFragment;
+/** What a tab edits, which its mark says: statements, one value, a type, or a doc comment. */
+export type CodeKind = LuauFragment | "doc";
 
 /**
  * The mark before a tab's name, so the kind of code reads before the words
@@ -116,13 +128,16 @@ export const CODE_MARKS: Record<string, { mark: string; name: string }> = ownTab
 	block: { mark: "{ }", name: "Code Block" },
 	expression: { mark: "ƒx", name: "Luau Expression" },
 	type: { mark: "<T>", name: "Type" },
+	doc: { mark: "", name: "Doc comment" },
 });
 
 /** A tab's mark. The type's brackets are drawn quieter than its T. */
 function CodeMark({ kind }: { kind: CodeKind }) {
 	return (
 		<span className={cx("code-mark", `code-mark-${kind}`)} aria-hidden="true">
-			{kind === "type" ? (
+			{kind === "doc" ? (
+				<Icon name="moon" size={11} />
+			) : kind === "type" ? (
 				<>
 					<span className="code-mark-angle">{"<"}</span>T
 					<span className="code-mark-angle">{">"}</span>
@@ -143,6 +158,13 @@ export function codeTabLabel(
 	registry: Registry,
 	tab: CodeTab,
 ): { kind: CodeKind; title: string; label?: string; where: string } {
+	if (tab.doc) {
+		const comment = script?.comments.find((c) => c.id === tab.nodeId && c.doc);
+		if (!script || !comment) return { kind: "doc", title: "Gone", where: "" };
+		const subject = docSubject(script, registry, comment);
+		const label = "name" in subject && subject.name ? subject.name : undefined;
+		return { kind: "doc", title: "Doc comment", ...(label ? { label } : {}), where: script.name };
+	}
 	const node = script?.nodes.find((n) => n.id === tab.nodeId);
 	const kind = tab.field ? "type" : kindOf(node, tab);
 	if (!script || !node) return { kind, title: "Gone", where: "" };
@@ -365,12 +387,16 @@ export function CodePanel(props: CodePanelProps) {
 				{current && (
 					<button
 						className="tb with-icon code-head-action"
-						title="Select this node on the graph, and bring it into view"
+						title={
+							current.doc
+								? "Select this doc comment on the graph, and bring it into view"
+								: "Select this node on the graph, and bring it into view"
+						}
 						onClick={() => props.onGoTo(current.nodeId)}
 					>
 						{/* Drawn only on a touch screen, where the words give way: see `code-head-action`. */}
 						<Icon name="locate" size={14} className="tb-icon-when-narrow" />
-						<span className="tb-label">Go to node</span>
+						<span className="tb-label">{current.doc ? "Go to comment" : "Go to node"}</span>
 					</button>
 				)}
 				<button
@@ -389,18 +415,31 @@ export function CodePanel(props: CodePanelProps) {
 			</PanelHead>
 
 			{graphPath &&
-				tabs.map((tab) => (
-					<CodeField
-						key={`${graphPath}|${tab.key}`}
-						shown={tab.key === current?.key}
-						tab={tab}
-						script={script}
-						registry={registry}
-						graphPath={graphPath}
-						locked={props.locked}
-						onApply={props.onApply}
-					/>
-				))}
+				tabs.map((tab) =>
+					tab.doc ? (
+						<DocField
+							key={`${graphPath}|${tab.key}`}
+							shown={tab.key === current?.key}
+							tab={tab}
+							script={script}
+							registry={registry}
+							graphPath={graphPath}
+							locked={props.locked}
+							onApply={props.onApply}
+						/>
+					) : (
+						<CodeField
+							key={`${graphPath}|${tab.key}`}
+							shown={tab.key === current?.key}
+							tab={tab}
+							script={script}
+							registry={registry}
+							graphPath={graphPath}
+							locked={props.locked}
+							onApply={props.onApply}
+						/>
+					),
+				)}
 		</div>
 	);
 }
@@ -691,6 +730,177 @@ function CodeField({ shown, tab, script, registry, graphPath, locked, onApply }:
 				<span className="keys">
 					{kind === "block" ? "Statements" : kind === "type" ? "A type" : "An expression"}
 				</span>
+			</div>
+		</div>
+	);
+}
+
+/** The tags Moonwave reads, offered after an @, each with what it says. */
+const DOC_TAGS: [string, string][] = [
+	["param", "a parameter and what it is for"],
+	["return", "what it gives back"],
+	["error", "what it throws, and when"],
+	["yields", "it can pause the thread"],
+	["within", "the class it belongs to"],
+	["since", "the version it arrived in"],
+	["deprecated", "since a version, and why"],
+	["unreleased", "not in a release yet"],
+	["server", "used on the server"],
+	["client", "used on the client"],
+	["plugin", "used in a plugin"],
+	["private", "for the author"],
+	["ignore", "left out of the docs"],
+	["tag", "a label beside the name"],
+];
+
+/**
+ * A doc comment's Moonwave, in the Code panel: the comment as the file will
+ * hold it, delimiters and all, so it reads and is highlighted as the output
+ * will. What is typed is read back into the comment's fields as it goes.
+ *
+ * Not `CodeField`: that one parses, hovers and completes Luau around a node,
+ * and none of it means anything inside a comment. This completes Moonwave's
+ * tags after an @, and the function's own parameters after @param.
+ *
+ * What comes back from the graph is the comment as the graph writes it, which
+ * need not be what was typed character for character -- the tags in their
+ * order, a type filled in -- so the typing is held until the graph says the
+ * same thing, by `sameDocText`, rather than the same characters.
+ */
+function DocField({ shown, tab, script, registry, graphPath, locked, onApply }: CodeFieldProps) {
+	const host = useRef<HTMLDivElement>(null);
+	const view = useRef<EditorView | null>(null);
+	const comment = script?.comments.find((c) => c.id === tab.nodeId && c.doc);
+	const subject = script && comment ? docSubject(script, registry, comment) : undefined;
+	const value = codeValue(script, registry, tab) ?? "";
+	const problems =
+		script && comment && subject ? docProblems(script, registry, comment, subject) : [];
+	const params =
+		subject?.kind === "function" ? subject.params.map((p) => p.name).filter(Boolean) : [];
+	const paramsRef = useRef(params);
+	paramsRef.current = params;
+
+	const unseen = useRef<string | null>(null);
+	const graphValue = useRef(value);
+	graphValue.current = value;
+	const lockedRef = useRef(locked);
+	lockedRef.current = locked;
+	const timer = useRef<number | undefined>(undefined);
+
+	const flush = useCallback(() => {
+		window.clearTimeout(timer.current);
+		timer.current = undefined;
+		const pending = unseen.current;
+		if (pending === null) return;
+		if (sameDocText(pending, graphValue.current)) {
+			unseen.current = null;
+			return;
+		}
+		if (lockedRef.current) {
+			timer.current = window.setTimeout(flush, RETRY_AFTER);
+			return;
+		}
+		onApply(graphPath, tab, pending);
+	}, [graphPath, tab, onApply]);
+	const flushRef = useRef(flush);
+	flushRef.current = flush;
+
+	// The graph's comment moved: caught up with the typing, or changed for
+	// another reason -- an undo, the Inspector, the canvas -- and written in.
+	useEffect(() => {
+		const instance = view.current;
+		if (unseen.current !== null) {
+			if (sameDocText(value, unseen.current)) unseen.current = null;
+			else if (timer.current === undefined) timer.current = window.setTimeout(flush, RETRY_AFTER);
+			return;
+		}
+		if (!instance || instance.state.doc.toString() === value) return;
+		instance.dispatch({
+			changes: { from: 0, to: instance.state.doc.length, insert: value },
+			annotations: [fromGraph.of(true)],
+		});
+	}, [value, flush]);
+
+	useEffect(() => {
+		if (!host.current) return;
+		const complete = (context: CompletionContext): CompletionResult | null => {
+			const param = context.matchBefore(/@param\s+\w*$/);
+			if (param) {
+				const at = param.text.lastIndexOf(" ") + 1;
+				return {
+					from: param.from + at,
+					options: paramsRef.current.map((name) => ({
+						label: name,
+						type: "variable",
+						detail: "parameter",
+					})),
+				};
+			}
+			const word = context.matchBefore(/@\w*$/);
+			if (!word) return null;
+			return {
+				from: word.from + 1,
+				options: DOC_TAGS.map(([label, detail]) => ({ label, type: "keyword", detail })),
+			};
+		};
+		const instance = new EditorView({
+			parent: host.current,
+			state: EditorState.create({
+				doc: value,
+				extensions: [
+					luauExtensions({
+						completion: complete,
+						extra: [
+							EditorView.updateListener.of((update) => {
+								if (!update.docChanged) return;
+								if (update.transactions.some((t) => t.annotation(fromGraph))) return;
+								unseen.current = update.state.doc.toString();
+								window.clearTimeout(timer.current);
+								timer.current = window.setTimeout(() => flushRef.current(), APPLY_AFTER);
+							}),
+							EditorView.domEventHandlers({
+								blur: () => {
+									flushRef.current();
+									return false;
+								},
+							}),
+						],
+					}),
+				],
+			}),
+		});
+		view.current = instance;
+		return () => {
+			flushRef.current();
+			window.clearTimeout(timer.current);
+			instance.destroy();
+			view.current = null;
+		};
+		// Built once per tab; `value` is only the first document.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	useEffect(() => {
+		if (shown) view.current?.focus();
+	}, [shown]);
+
+	return (
+		<div className="code-field" hidden={!shown}>
+			<div className="code-body" ref={host} />
+			<div className={cx("code-status", problems.length > 0 && "warn")}>
+				<span className="code-note">Read into the comment as you type · Ctrl+Z undoes it</span>
+				<span style={{ flex: 1 }} />
+				{problems.length > 0 ? (
+					<span className="code-verdict">
+						{problems[0]}
+						{problems.length > 1 && ` (+${problems.length - 1} more)`}
+					</span>
+				) : (
+					<span className="code-verdict">
+						<span className="code-ok" aria-hidden="true" /> No problems
+					</span>
+				)}
+				<span className="keys">Moonwave</span>
 			</div>
 		</div>
 	);

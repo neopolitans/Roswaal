@@ -1377,6 +1377,48 @@ button.tb.icon-only.panel-float {
 	font-size: var(--text-md);
 }
 
+/* The comments, above the library: a swatch, the name, and its key or kind. */
+.node-picker-comments {
+	padding-bottom: 6px;
+	margin-bottom: 6px;
+	border-bottom: 1px solid var(--border);
+}
+
+.node-picker-hit.node-picker-comment {
+	align-items: center;
+	color: var(--fg);
+}
+
+.node-picker-hit.node-picker-comment:hover {
+	background: var(--bg-hover);
+}
+
+.node-picker-comment .swatch {
+	width: 8px;
+	height: 8px;
+	border-radius: var(--radius-xs);
+	flex: none;
+}
+
+.node-picker-comment .swatch.doc-swatch {
+	display: inline-grid;
+	place-items: center;
+	width: 18px;
+	height: 18px;
+	margin: -2px 0;
+	border-radius: 5px;
+	color: #fff;
+}
+
+.node-picker-comment .name {
+	flex: 1;
+}
+
+.node-picker-comment .hint {
+	color: var(--fg-faint);
+	font-size: var(--text-sm);
+}
+
 .node-picker-hit.on {
 	background: color-mix(in srgb, var(--accent) 20%, transparent);
 	color: var(--fg);
@@ -3040,12 +3082,8 @@ button.tb.primary:hover:not(:disabled) {
 
 /* ---------------------------------------------- doc comment, in the Inspector */
 
-.doc-inspector .doc-mode {
+.doc-inspector .doc-as-text {
 	align-self: start;
-}
-
-.doc-inspector .doc-mode button {
-	min-width: 64px;
 }
 
 .doc-problem {
@@ -3057,8 +3095,7 @@ button.tb.primary:hover:not(:disabled) {
 	color: var(--fg);
 }
 
-.doc-desc,
-.doc-text {
+.doc-desc {
 	width: 100%;
 	box-sizing: border-box;
 	resize: vertical;
@@ -3070,13 +3107,6 @@ button.tb.primary:hover:not(:disabled) {
 	font: inherit;
 	font-size: var(--text-md);
 	line-height: 1.45;
-}
-
-.doc-text {
-	font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
-	font-size: 12px;
-	tab-size: 4;
-	white-space: pre;
 }
 
 .doc-lists {
@@ -3142,13 +3172,6 @@ button.tb.primary:hover:not(:disabled) {
 .doc-words .ty {
 	font: 500 11px/1 ui-monospace, "Cascadia Mono", Consolas, monospace;
 	color: var(--fg-muted);
-}
-
-.doc-error {
-	display: grid;
-	grid-template-columns: 96px minmax(0, 1fr) auto;
-	gap: 6px;
-	align-items: center;
 }
 
 .doc-add {
@@ -3278,6 +3301,120 @@ button.tb.primary:hover:not(:disabled) {
 	grid-template-columns: 88px minmax(0, 1fr);
 	align-items: center;
 	gap: 8px;
+}
+
+/* A type as a node draws one: a pill in its wire's colour. */
+.doc-type {
+	justify-self: start;
+	max-width: 120px;
+	height: 17px;
+	padding: 0 6px;
+	border-radius: 4px;
+	background: color-mix(in srgb, var(--pin) 18%, var(--bg-panel));
+	color: color-mix(in srgb, var(--pin) 66%, var(--fg));
+	font-size: var(--text-xs);
+	font-weight: 600;
+	line-height: 17px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.doc-row .doc-type {
+	align-self: center;
+}
+
+/* A short field with an expand button beside it. */
+.long-text-field {
+	display: flex;
+	min-width: 0;
+	gap: 2px;
+}
+
+.long-text-field input {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.long-text-open {
+	flex: none;
+	color: var(--fg-faint);
+}
+
+.long-text-open:hover {
+	color: var(--fg);
+}
+
+/* The long editor: wide enough to read what is written while writing it, and
+   on a touch screen resting on the keyboard rather than behind it. */
+.dialog.long-text {
+	width: min(640px, 100%);
+}
+
+.long-text textarea {
+	width: 100%;
+	box-sizing: border-box;
+	min-height: 110px;
+	resize: vertical;
+	padding: 8px 10px;
+	color: var(--fg);
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	font: inherit;
+	font-size: var(--text-lg);
+	line-height: 1.5;
+}
+
+.long-text-about {
+	font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+	font-size: var(--text-sm);
+}
+
+.long-text-backdrop.over-keyboard {
+	place-items: end center;
+	padding-top: 12px;
+}
+
+/* An error: what is thrown, then when, at the full width. */
+.doc-error {
+	display: grid;
+	gap: 4px;
+	padding-bottom: 4px;
+}
+
+.doc-error + .doc-error {
+	padding-top: 6px;
+	border-top: 1px solid var(--border);
+}
+
+.doc-error-head {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 6px;
+	align-items: center;
+}
+
+.doc-error-type {
+	font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+	font-size: var(--text-sm);
+}
+
+.doc-chip-why {
+	max-width: 160px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--fg);
+	font: inherit;
+	cursor: pointer;
+}
+
+.doc-chip-why.empty {
+	color: var(--fg-faint);
 }
 
 @media (hover: none) and (pointer: coarse) {
@@ -3412,12 +3549,15 @@ button.tb.primary:hover:not(:disabled) {
 	flex: none;
 }
 
-/* A doc comment's swatch carries its moon. */
+/* A doc comment's swatch carries its moon, big enough to tell from Comment's
+   dot at a glance. */
 .menu .item .swatch.doc-swatch {
 	display: inline-grid;
 	place-items: center;
-	width: 13px;
-	height: 13px;
+	width: 18px;
+	height: 18px;
+	margin: -2px 0;
+	border-radius: 5px;
 	color: #fff;
 }
 
@@ -13206,6 +13346,10 @@ p.licence-meta,
 	line-height: 1.6;
 	white-space: pre;
 	overflow-x: auto;
+	/* One column as wide as the longest line, so a lit line is lit under all
+	   of it: a long comment ran on past the band, which stopped at the frame. */
+	display: grid;
+	grid-template-columns: minmax(max-content, 1fr);
 }
 
 .preview-code .ln {
@@ -18976,6 +19120,8 @@ html {
 	.preview-code {
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;
+		/* Lines wrap here, so the column is the frame's width, not the longest. */
+		grid-template-columns: minmax(0, 1fr);
 	}
 
 	.preview-code .ln {

@@ -9,9 +9,19 @@
  */
 
 import { describe, expect, it } from "vitest";
-
+import { commentRows } from "../src/app/NodeMenu.js";
+import { analyse } from "../src/app/SelectionPreview.js";
 import { compile, serialiseScript } from "../src/core/compiler/index.js";
-import { docSubject, docText, readDocText, realmWords, undescribed } from "../src/core/docComments.js";
+import {
+	docBlockText,
+	docProblems,
+	docSubject,
+	docText,
+	readDocText,
+	realmWords,
+	sameDocText,
+	undescribed,
+} from "../src/core/docComments.js";
 import { docCommentBefore } from "../src/core/luau/docComment.js";
 import { nodeBounds } from "../src/core/nodeBox.js";
 import { createRegistry } from "../src/core/nodes/index.js";
@@ -53,7 +63,8 @@ function need(doc: DocTags = {}, text = "Finds the child of `parent` called `nam
 	return script;
 }
 
-const out = (script: NodeScript, comments = true) => body(compile(script, registry, { comments }).code);
+const out = (script: NodeScript, comments = true) =>
+	body(compile(script, registry, { comments }).code);
 
 describe("a doc comment around a Declare Function", () => {
 	it("writes a Moonwave block above the function, with @within the module", () => {
@@ -216,11 +227,18 @@ describe("the text form", () => {
 		expect(read.doc.returns).toEqual(["The child."]);
 		expect(read.doc.errors).toEqual(doc.errors);
 		expect(read.doc.realms).toEqual(["server", "client"]);
-		expect(read.doc).toMatchObject({ since: "0.4.0", yields: true, tags: ["Player"], within: "Tank" });
+		expect(read.doc).toMatchObject({
+			since: "0.4.0",
+			yields: true,
+			tags: ["Player"],
+			within: "Tank",
+		});
 	});
 
 	it("takes a comment pasted with its delimiters", () => {
-		const read = readDocText("--[=[\n\tAdds one.\n\n\t@param n number -- The number.\n\t@client\n]=]");
+		const read = readDocText(
+			"--[=[\n\tAdds one.\n\n\t@param n number -- The number.\n\t@client\n]=]",
+		);
 		expect(read.description).toBe("Adds one.");
 		expect(read.doc.params).toEqual({ n: "The number." });
 		expect(read.doc.realms).toEqual(["client"]);
@@ -231,5 +249,104 @@ describe("the text form", () => {
 		expect(realmWords(["server"])).toBe("Server only");
 		expect(realmWords(["client", "server"])).toBe("Server and client");
 		expect(realmWords(["server", "client", "plugin"])).toBe("Server, client and plugin");
+	});
+});
+
+/**
+ * What is said about a comment beyond what it holds: a tag half-filled, which
+ * is left out of the file, and a class nothing declares.
+ */
+describe("the checks beyond Moonwave's own rules", () => {
+	const problems = (script: NodeScript) =>
+		docProblems(
+			script,
+			registry,
+			script.comments[0],
+			docSubject(script, registry, script.comments[0]),
+		);
+
+	it("says a half-filled tag is left out, and leaves it out", () => {
+		const script = need({ since: " ", deprecated: { version: "" }, tags: [""], within: "Tank" });
+		const said = problems(script);
+		expect(said.some((p) => p.startsWith("Since needs"))).toBe(true);
+		expect(said.some((p) => p.startsWith("Deprecated needs"))).toBe(true);
+		expect(said.some((p) => p.startsWith("A tag needs"))).toBe(true);
+		const code = out(script);
+		expect(code).not.toContain("@since");
+		expect(code).not.toContain("@deprecated");
+		expect(code).not.toContain("@tag");
+	});
+
+	it("says a function filed under the module's class needs that class declared", () => {
+		expect(problems(need()).some((p) => p.includes("@class Rig, which nothing declares"))).toBe(
+			true,
+		);
+		expect(problems(need({ within: "Tank" }))).toEqual([]);
+	});
+
+	it("is quiet once Module Exports has a doc comment of its own", () => {
+		const script = need();
+		const b = new Builder();
+		const exportsNode = b.node("module.exports", { id: "exports", x: 300, y: 1400 });
+		const built = b.build();
+		script.nodes.push(...built.nodes);
+		script.comments.push({ ...around({ ...built, name: "Rig" }, [exportsNode], {}), id: "class" });
+		expect(problems(script)).toEqual([]);
+	});
+
+	it("is said in Script analysis", () => {
+		const messages = compile(need({ since: "" }), registry).diagnostics.map((d) => d.message);
+		expect(messages.some((m) => m.startsWith("Since needs"))).toBe(true);
+	});
+});
+
+/** The Code panel's tab waits for its typing to come back by meaning, not by characters. */
+describe("the Moonwave text in the Code panel", () => {
+	it("is the comment with its delimiters, as the file holds it", () => {
+		const script = need({ params: { parent: "Where." } });
+		const comment = script.comments[0];
+		const text = docBlockText(comment, docSubject(script, registry, comment), "Rig");
+		expect(text.startsWith("--[=[")).toBe(true);
+		expect(text.endsWith("]=]")).toBe(true);
+		expect(out(script)).toContain(text);
+	});
+
+	it("is the same text when it says the same thing", () => {
+		const written =
+			"--[=[\n\tAdds one.\n\n\t@param n number -- The number.\n\t@client\n\t@within Maths\n]=]";
+		const typed = "Adds one.\n@within Maths\n@client\n@param n -- The number.";
+		expect(sameDocText(written, typed)).toBe(true);
+		expect(sameDocText(written, typed.replace("one", "two"))).toBe(false);
+	});
+});
+
+describe("adding one from a menu", () => {
+	it("offers both comments with nothing typed, and the doc comment by its other names", () => {
+		expect(commentRows("")).toEqual({ plain: true, doc: true });
+		expect(commentRows("moon").doc).toBe(true);
+		expect(commentRows("docs").doc).toBe(true);
+		expect(commentRows("comm")).toEqual({ plain: true, doc: false });
+		expect(commentRows("print")).toEqual({ plain: false, doc: false });
+	});
+});
+
+/** `P` with the box selected lights what it wrote, as it does for a node. */
+describe("previewing a selected doc comment", () => {
+	it("lights every line of the Moonwave block", () => {
+		const script = need({ params: { parent: "Where." } });
+		const result = compile(script, registry);
+		const preview = analyse({
+			script,
+			registry,
+			selection: new Set(["doc"]),
+			code: result.code,
+			sourceMap: result.sourceMap,
+			onClose: () => {},
+		});
+		const lit = preview.rows.filter((r) => r.mine).map((r) => r.tokens.map((t) => t.text).join(""));
+		expect(lit[0]).toContain("--[=[");
+		expect(lit.some((line) => line.includes("@param parent Instance -- Where."))).toBe(true);
+		expect(lit[lit.length - 1]).toContain("]=]");
+		expect(lit.some((line) => line.includes("local function need"))).toBe(false);
 	});
 });

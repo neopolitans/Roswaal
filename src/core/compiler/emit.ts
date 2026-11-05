@@ -36,7 +36,8 @@ export interface EmitResult {
 	code: string;
 	diagnostics: Diagnostic[];
 	/** 1-based output line -> the node that produced it. Powers error mapping. */
-	sourceMap: { line: number; node: string }[];
+	/** Each line a node wrote; a comment's header names its box too. */
+	sourceMap: { line: number; node: string; comment?: string }[];
 	/** Hash of the emitted body, so dynamic compiling can spot hand edits. */
 	outputHash: string;
 }

@@ -12,6 +12,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { toBase64 } from "../core/base64.js";
 import { compile, type Diagnostic } from "../core/compiler/index.js";
 import { offTargetNames, offTargetNodes } from "../core/compiler/validate.js";
+import { readDocText, tidyDoc } from "../core/docComments.js";
 import { buildSearchIndex, buildSite } from "../core/docs/site.js";
 import { errorMessage } from "../core/errorMessage.js";
 import { diffLines, shownLines } from "../core/lineDiff.js";
@@ -52,6 +53,7 @@ import {
 	disconnectPin,
 	setLiteral,
 	setConfig as setNodeConfig,
+	updateComment,
 } from "./edits.js";
 import { FloatingTools, ToolGroup } from "./FloatingTools.jsx";
 import { chooseFolder } from "./folderDialog.js";
@@ -485,7 +487,9 @@ export function App() {
 		(request: CodeOpenRequest) => {
 			const path = openPath.current;
 			if (!path) return;
-			const key = codeTabKey(request.nodeId, request.pin, request.field);
+			const key = request.doc
+				? `${request.nodeId}:doc`
+				: codeTabKey(request.nodeId, request.pin, request.field);
 			setCodeTabs((all) => {
 				const here = all[path] ?? { tabs: [], active: null };
 				const tab: CodeTab = {
@@ -494,6 +498,7 @@ export function App() {
 					...(request.pin ? { pin: request.pin } : {}),
 					...(request.field ? { field: request.field } : {}),
 					...(request.kind ? { kind: request.kind } : {}),
+					...(request.doc ? { doc: true as const } : {}),
 				};
 				const tabs = here.tabs.some((t) => t.key === key) ? here.tabs : [...here.tabs, tab];
 				return { ...all, [path]: { tabs, active: key } };
@@ -1983,7 +1988,16 @@ export function App() {
 									if (path !== openPath.current) return;
 									if (tab.field)
 										store.edit((s) => setNodeConfig(s, tab.nodeId, { [tab.field!]: text }));
-									else if (tab.pin)
+									// A doc comment: the Moonwave typed, read into its fields.
+									else if (tab.doc) {
+										const read = readDocText(text);
+										store.edit((s) =>
+											updateComment(s, tab.nodeId, {
+												text: read.description,
+												doc: tidyDoc(read.doc),
+											}),
+										);
+									} else if (tab.pin)
 										store.edit((s) => setLiteral(s, tab.nodeId, tab.pin!, { t: "raw", v: text }));
 								}}
 								onGoTo={(nodeId) => {
@@ -2172,6 +2186,14 @@ export function App() {
 					preview={nodePreview}
 					onPick={(def, config, member) => {
 						spawn(def, nodePicker, config, undefined, member, nodePicker.from);
+						setNodePicker(null);
+					}}
+					onAddComment={() => {
+						spawnComment(nodePicker);
+						setNodePicker(null);
+					}}
+					onAddDocComment={() => {
+						spawnComment(nodePicker, "doc");
 						setNodePicker(null);
 					}}
 					onClose={() => setNodePicker(null)}

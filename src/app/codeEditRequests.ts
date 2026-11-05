@@ -18,6 +18,8 @@ export interface CodeOpenRequest {
 	field?: "definition";
 	/** What the text must parse as. Worked out from the node when absent. */
 	kind?: LuauFragment;
+	/** A doc comment's Moonwave, by the comment's id in `nodeId`. */
+	doc?: true;
 }
 
 type Listener = (request: CodeOpenRequest) => void;
