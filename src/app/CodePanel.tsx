@@ -807,19 +807,26 @@ function DocField({ shown, tab, script, registry, graphPath, locked, onApply }: 
 
 	// The graph's comment moved: caught up with the typing, or changed for
 	// another reason -- an undo, the Inspector, the canvas -- and written in.
+	//
+	// Written in only when it says something the editor does not. The graph's
+	// form of what was typed puts the description first and the tags in their
+	// order, and putting that over the typing moved lines under the caret. And
+	// run when the comment moves, not on every render: `flush` is new whenever
+	// the panel's callbacks are, which is any render of the editor.
 	useEffect(() => {
 		const instance = view.current;
 		if (unseen.current !== null) {
 			if (sameDocText(value, unseen.current)) unseen.current = null;
-			else if (timer.current === undefined) timer.current = window.setTimeout(flush, RETRY_AFTER);
+			else if (timer.current === undefined)
+				timer.current = window.setTimeout(() => flushRef.current(), RETRY_AFTER);
 			return;
 		}
-		if (!instance || instance.state.doc.toString() === value) return;
+		if (!instance || sameDocText(instance.state.doc.toString(), value)) return;
 		instance.dispatch({
 			changes: { from: 0, to: instance.state.doc.length, insert: value },
 			annotations: [fromGraph.of(true)],
 		});
-	}, [value, flush]);
+	}, [value]);
 
 	useEffect(() => {
 		if (!host.current) return;

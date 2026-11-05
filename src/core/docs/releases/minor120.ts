@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.205.6",
+		date: "2026-11-05",
+		headline: "A doc comment's Moonwave text stays as you type it.",
+		fixed: [
+			"**Typing Moonwave in the Code panel.** What you type is no longer rearranged into the order the comment is written in while you are still typing. It is replaced only when the comment changes somewhere else, such as an undo or the Inspector.",
+		],
+	},
+	{
 		version: "0.205.5",
 		date: "2026-11-05",
 		headline: "A doc comment's larger fields open in a dialog like the editor's others.",
