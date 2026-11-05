@@ -42,5 +42,8 @@ export const FOV = (70 * Math.PI) / 180;
 /** How much of a handle shows while it is not held: the place shows through it. */
 export const HANDLE_ALPHA = 0.6;
 
+/** How wide the outline round what is picked is drawn, in CSS pixels. */
+export const SELECT_WIDTH = 2.5;
+
 /** Studio's selection blue, as the outline round what is picked. */
 export const SELECT: [number, number, number] = [0.05, 0.6, 1];

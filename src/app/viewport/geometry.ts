@@ -231,17 +231,23 @@ export function meshFor(kind: SceneKind | "cone"): Mesh {
 	}
 }
 
-/** A unit box's twelve edges, as a line list, in the 6-float layout the solids use. */
+/**
+ * A unit box's twelve edges, each as a band to be drawn a few pixels wide: four
+ * vertices an edge, each holding both of its ends (position and normal, in the
+ * layout the solids use), told apart by their index -- bit 0 the side of the
+ * band, bit 1 the end. The vertex shader widens them on screen.
+ */
 export function boxEdges(): { vertices: Float32Array; indices: Uint16Array } {
 	const h = 0.5;
+	const corner = (c: number) => [c & 4 ? h : -h, c & 2 ? h : -h, c & 1 ? h : -h];
 	const v: number[] = [];
-	for (const x of [-h, h])
-		for (const y of [-h, h]) for (const z of [-h, h]) v.push(x, y, z, 0, 1, 0);
-	const at = (x: number, y: number, z: number) => x * 4 + y * 2 + z;
 	const idx: number[] = [];
-	for (let a = 0; a < 2; a++)
-		for (let b = 0; b < 2; b++) {
-			idx.push(at(0, a, b), at(1, a, b), at(a, 0, b), at(a, 1, b), at(a, b, 0), at(a, b, 1));
+	for (let a = 0; a < 8; a++)
+		for (const bit of [4, 2, 1]) {
+			if (a & bit) continue;
+			const base = v.length / 6;
+			for (let k = 0; k < 4; k++) v.push(...corner(a), ...corner(a | bit));
+			idx.push(base, base + 1, base + 2, base + 2, base + 1, base + 3);
 		}
 	return { vertices: new Float32Array(v), indices: new Uint16Array(idx) };
 }

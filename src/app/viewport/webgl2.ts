@@ -8,7 +8,7 @@ import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene
 import { boxEdges, meshFor } from "./geometry.js";
 import { HANDLE_KINDS, type Handles, handleMesh } from "./handles.js";
 import { invert, lookAt, multiply, perspective } from "./math.js";
-import { type Camera, FOV, HANDLE_ALPHA, SELECT, type ViewRenderer } from "./view.js";
+import { type Camera, FOV, HANDLE_ALPHA, SELECT, SELECT_WIDTH, type ViewRenderer } from "./view.js";
 
 const COMMON = `
 uniform vec4 L[11];
@@ -52,14 +52,26 @@ const VS = `#version 300 es
 layout(location=0) in vec3 pos; layout(location=1) in vec3 nrm;
 layout(location=2) in vec3 c0; layout(location=3) in vec3 c1; layout(location=4) in vec3 c2; layout(location=5) in vec3 p;
 layout(location=6) in vec4 colour; layout(location=7) in uint id;
-uniform mat4 viewProj; uniform float outline; uniform float handle;
+uniform mat4 viewProj; uniform float outline; uniform float handle; uniform vec3 screen;
 out vec3 vColour; out vec3 vWorld; out vec3 vNormal; flat out uint vId;
 void main() {
 	mat3 m = mat3(c0, c1, c2);
 	vec3 s = vec3(length(c0), length(c1), length(c2));
 	vNormal = normalize(m * (nrm / max(s * s, vec3(1e-6))));
-	vWorld = m * (pos * (outline > 0.5 ? 1.02 : 1.0)) + p;
+	vWorld = m * pos + p;
 	gl_Position = viewProj * vec4(vWorld, 1.0);
+	// An outline's edge as a band, as WebGpuView's vsLine draws it.
+	if (outline > 0.5) {
+		vec3 grow = (s + vec3(0.04)) / max(s, vec3(1e-4));
+		vec4 a = viewProj * vec4(m * (pos * grow) + p, 1.0);
+		vec4 b = viewProj * vec4(m * (nrm * grow) + p, 1.0);
+		bool end = (gl_VertexID & 2) == 2;
+		float side = (gl_VertexID & 1) == 1 ? 1.0 : -1.0;
+		vec2 dir = normalize((b.xy / max(b.w, 1e-4) - a.xy / max(a.w, 1e-4)) * screen.xy + vec2(1e-6, 0.0));
+		vec2 off = (vec2(-dir.y, dir.x) * side + dir * (end ? 1.0 : -1.0)) * screen.z / screen.xy;
+		gl_Position = end ? b : a;
+		gl_Position.xy += off * gl_Position.w;
+	}
 	vColour = pow(colour.rgb, vec3(2.2));
 	vId = id;
 	// A handle's depth squeezed into the front hundredth, as in WebGpuView.
@@ -114,6 +126,7 @@ interface Program {
 	alpha: WebGLUniformLocation | null;
 	block: WebGLUniformLocation | null;
 	invViewProj: WebGLUniformLocation | null;
+	screen: WebGLUniformLocation | null;
 }
 
 export class WebGl2View implements ViewRenderer {
@@ -149,7 +162,10 @@ export class WebGl2View implements ViewRenderer {
 	private width = 1;
 	private height = 1;
 
+	private canvas: HTMLCanvasElement | null = null;
+
 	async init(canvas: HTMLCanvasElement, scene: PlaceScene): Promise<void> {
+		this.canvas = canvas;
 		const gl = canvas.getContext("webgl2", {
 			antialias: true,
 			powerPreference: "high-performance",
@@ -315,6 +331,7 @@ export class WebGl2View implements ViewRenderer {
 			alpha: at("alpha"),
 			block: at("L[0]") ?? at("L"),
 			invViewProj: at("invViewProj"),
+			screen: at("screen"),
 		};
 	}
 
@@ -370,6 +387,8 @@ export class WebGl2View implements ViewRenderer {
 		if (prog.block)
 			gl.uniform4fv(prog.block, lightingBlock(this.lighting, camera.eye, SELECT, HANDLE_ALPHA));
 		gl.uniform1f(prog.outline, outline ? 1 : 0);
+		const band = SELECT_WIDTH * (this.width / (this.canvas?.clientWidth || this.width));
+		gl.uniform3f(prog.screen, this.width, this.height, band);
 		gl.uniform3f(prog.select, SELECT[0], SELECT[1], SELECT[2]);
 		gl.uniform1f(prog.handle, 0);
 	}
@@ -400,14 +419,16 @@ export class WebGl2View implements ViewRenderer {
 			this.use(this.main, camera, true);
 			gl.disable(gl.DEPTH_TEST);
 			gl.bindVertexArray(this.selection.vao);
+			gl.disable(gl.CULL_FACE);
 			gl.drawElementsInstanced(
-				gl.LINES,
+				gl.TRIANGLES,
 				this.edgeMesh.count,
 				gl.UNSIGNED_SHORT,
 				0,
 				this.selection.count,
 			);
 			gl.bindVertexArray(null);
+			gl.enable(gl.CULL_FACE);
 			gl.enable(gl.DEPTH_TEST);
 		}
 		if (this.handleDraws.length > 0) {

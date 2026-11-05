@@ -8,7 +8,7 @@ import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene
 import { boxEdges, meshFor } from "./geometry.js";
 import { HANDLE_KINDS, type Handles, handleMesh } from "./handles.js";
 import { invert, lookAt, multiply, perspective } from "./math.js";
-import { type Camera, FOV, HANDLE_ALPHA, SELECT, type ViewRenderer } from "./view.js";
+import { type Camera, FOV, HANDLE_ALPHA, SELECT, SELECT_WIDTH, type ViewRenderer } from "./view.js";
 
 // WebGPU's flags, as the spec numbers them: TypeScript's DOM types have the
 // interfaces but not these namespaces.
@@ -23,6 +23,7 @@ struct U {
 	viewProj: mat4x4f, invViewProj: mat4x4f,
 	sun: vec4f, sunColour: vec4f, ambient: vec4f, zenith: vec4f, horizon: vec4f, ground: vec4f,
 	camPos: vec4f, select: vec4f, fog: vec4f, fogColour: vec4f, hazeColour: vec4f,
+	screen: vec4f,
 };
 @group(0) @binding(0) var<uniform> u: U;
 struct VIn {
@@ -124,12 +125,24 @@ struct SOut { @builtin(position) clip: vec4f, @location(0) ndc: vec2f };
 	let shadeK = 0.72 + 0.38 * max(dot(n, normalize(vec3f(0.4, 1.0, 0.25))), 0.0);
 	return vec4f(pow(i.colour * shadeK, vec3f(1.0 / 2.2)), u.sun.w);
 }
-@vertex fn vsLine(v: VIn) -> VOut {
+// An edge of the outline as a band \`screen.z\` pixels wide, square to it on
+// screen and a little past each corner so the corners meet; on the part's
+// own box, a few hundredths of a stud out whatever its size.
+@vertex fn vsLine(v: VIn, @builtin(vertex_index) vid: u32) -> VOut {
 	let m = mat3x3f(v.c0, v.c1, v.c2);
+	let s = vec3f(length(v.c0), length(v.c1), length(v.c2));
+	let grow = (s + vec3f(0.04)) / max(s, vec3f(1e-4));
+	let a = u.viewProj * vec4f(m * (v.pos * grow) + v.p, 1.0);
+	let b = u.viewProj * vec4f(m * (v.nrm * grow) + v.p, 1.0);
+	let end = (vid & 2u) == 2u;
+	let side = select(-1.0, 1.0, (vid & 1u) == 1u);
+	let dir = normalize((b.xy / max(b.w, 1e-4) - a.xy / max(a.w, 1e-4)) * u.screen.xy + vec2f(1e-6, 0.0));
+	let along = select(-1.0, 1.0, end);
+	let off = (vec2f(-dir.y, dir.x) * side + dir * along) * u.screen.z / u.screen.xy;
 	var o: VOut;
-	// A hair outside the part, so the outline is not lost in its faces.
-	o.world = m * (v.pos * 1.02) + v.p;
-	o.clip = u.viewProj * vec4f(o.world, 1.0);
+	o.clip = select(a, b, end);
+	o.clip = vec4f(o.clip.xy + off * o.clip.w, o.clip.zw);
+	o.world = select(v.pos, v.nrm, end);
 	o.colour = u.select.rgb;
 	o.normal = vec3f(0.0, 1.0, 0.0);
 	o.id = v.id;
@@ -189,7 +202,15 @@ export class WebGpuView implements ViewRenderer {
 	private width = 1;
 	private height = 1;
 
+	private canvas: HTMLCanvasElement | null = null;
+
+	/** The outline's width in the canvas's own pixels. */
+	private band(): number {
+		return SELECT_WIDTH * (this.width / (this.canvas?.clientWidth || this.width));
+	}
+
 	async init(canvas: HTMLCanvasElement, scene: PlaceScene): Promise<void> {
+		this.canvas = canvas;
 		const adapter = await navigator.gpu?.requestAdapter({ powerPreference: "high-performance" });
 		if (!adapter) throw new Error("no WebGPU adapter");
 		this.device = await adapter.requestDevice();
@@ -243,7 +264,7 @@ export class WebGpuView implements ViewRenderer {
 			layout: pipelineLayout,
 			vertex: { module, entryPoint: "vsLine", buffers },
 			fragment: { module, entryPoint: "fsLine", targets: [{ format: this.format }] },
-			primitive: { topology: "line-list" },
+			primitive: { topology: "triangle-list" },
 			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "always" },
 			multisample: { count: SAMPLES },
 		});
@@ -302,7 +323,7 @@ export class WebGpuView implements ViewRenderer {
 			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "always" },
 			multisample: { count: SAMPLES },
 		});
-		this.uniform = d.createBuffer({ size: 304, usage: BUFFER.UNIFORM | BUFFER.COPY_DST });
+		this.uniform = d.createBuffer({ size: 320, usage: BUFFER.UNIFORM | BUFFER.COPY_DST });
 		this.bind = d.createBindGroup({
 			layout,
 			entries: [{ binding: 0, resource: { buffer: this.uniform } }],
@@ -416,10 +437,11 @@ export class WebGpuView implements ViewRenderer {
 			perspective(FOV, this.width / this.height, camera.near, camera.far, true),
 			lookAt(camera.eye, camera.at),
 		);
-		const u = new Float32Array(76);
+		const u = new Float32Array(80);
 		u.set(vp, 0);
 		u.set(invert(vp), 16);
 		u.set(lightingBlock(this.lighting, camera.eye, SELECT, HANDLE_ALPHA), 32);
+		u.set([this.width, this.height, this.band(), 0], 76);
 		this.device.queue.writeBuffer(this.uniform, 0, u);
 	}
 

@@ -20944,7 +20944,7 @@ textarea.tb:where(:disabled) {
 	flex-direction: row;
 	align-items: center;
 	gap: 1px;
-	padding: 4px 8px;
+	padding: 4px;
 }
 
 .vp-bar .vp-group {
@@ -21021,7 +21021,7 @@ textarea.tb:where(:disabled) {
 	font-size: 11px;
 	font-variant-numeric: tabular-nums;
 	color: var(--fg-muted);
-	padding: 0 4px;
+	padding: 0 2px 0 4px;
 	white-space: nowrap;
 }
 

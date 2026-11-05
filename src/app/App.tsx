@@ -310,7 +310,11 @@ export function App() {
 	/** The place instance the Properties panel shows; the panel is there only while one is. */
 	const [placeInspect, setPlaceInspect] = useState<PlaceTarget | null>(null);
 	/** A reference followed in Properties, for the browser to pick and show. */
-	const [placeReveal, setPlaceReveal] = useState<{ index: number; seq: number } | null>(null);
+	const [placeReveal, setPlaceReveal] = useState<{
+		index: number;
+		seq: number;
+		open?: boolean;
+	} | null>(null);
 	/** Slides a drawer out on a phone or a tablet: Properties, when it is asked for. */
 	const [showDrawer, setShowDrawer] = useState<{ panel: PanelId; seq: number } | null>(null);
 
@@ -337,18 +341,19 @@ export function App() {
 	/**
 	 * The place in 3D, kept for the session so the camera is where it was when
 	 * its tab comes back. A pick in the view picks in the browser, which shows
-	 * it in Properties; the sky picks nothing. Another project's place is a new view.
+	 * it in Properties without bringing the panel out -- on a tablet its drawer
+	 * would cover the view -- and the sky picks nothing. The view follows the
+	 * browser's picked row. Another project's place is a new view.
 	 */
 	// biome-ignore lint/correctness/useExhaustiveDependencies: a new project is a new view.
 	const viewport = useMemo(
 		() =>
-			new ViewportController((index) => {
-				if (index === null) setPlaceInspect(null);
-				else setPlaceReveal((prev) => ({ index, seq: (prev?.seq ?? 0) + 1 }));
-			}),
+			new ViewportController((index) =>
+				setPlaceReveal((prev) => ({ index: index ?? -1, seq: (prev?.seq ?? 0) + 1, open: false })),
+			),
 		[project?.root],
 	);
-	useEffect(() => viewport.select(placeInspect?.index ?? null), [viewport, placeInspect]);
+	const onPlaceSelect = useCallback((index: number | null) => viewport.select(index), [viewport]);
 	// The folder from a previous session, when one is waiting on a click.
 	const rememberedFolders = useRememberedFolders();
 	// What this host can do, for the project actions in the panel's footer.
@@ -1817,6 +1822,7 @@ export function App() {
 										onInspect={onPlaceInspect}
 										inspecting={placeInspect?.index ?? null}
 										reveal={placeReveal}
+										onSelect={onPlaceSelect}
 										written={placeWritten}
 										editable={prefs.modifyDataModel}
 										confirmEdit={confirmTreeEdit}

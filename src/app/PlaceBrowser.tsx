@@ -128,8 +128,14 @@ export interface PlaceBrowserProps {
 	onInspect: (target: PlaceTarget | null, open: boolean) => void;
 	/** The instance the Properties panel is showing, if any. */
 	inspecting: number | null;
-	/** Pick and show this instance: a reference followed from Properties. */
-	reveal: { index: number; seq: number } | null;
+	/**
+	 * Pick and show this instance: a reference followed from Properties, or a
+	 * pick in the place's view. `open` false shows it in Properties without
+	 * bringing the panel out; an index of -1 picks nothing.
+	 */
+	reveal: { index: number; seq: number; open?: boolean } | null;
+	/** The row picked here changed, however it was picked: for the place's view to follow. */
+	onSelect?: (index: number | null) => void;
 	/** The version of the place a property change last wrote: read it again. */
 	written?: string | null;
 	/** Modify DataModel Instances is on: instances are added, deleted, moved and duplicated here. */
@@ -155,6 +161,8 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 	const [tucked, setTucked] = useState(false);
 	const [filter, setFilter] = useState("");
 	const [selected, setSelected] = useState<number | null>(null);
+	const { onSelect } = props;
+	useEffect(() => onSelect?.(selected), [selected, onSelect]);
 	const treeRef = useRef<HTMLDivElement>(null);
 	// The version of the file on screen: a new one renumbers everything.
 	const stampRef = useRef<string | null>(null);
@@ -299,10 +307,17 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 		});
 	};
 
-	// A reference followed in Properties: shown here, and there.
+	// A reference followed in Properties, or a pick in the view: shown here, and there.
 	useEffect(() => {
-		if (revealRequest && nodes && revealRequest.index < nodes.length)
-			reveal(revealRequest.index, true);
+		if (!revealRequest || !nodes) return;
+		const { index, open = true } = revealRequest;
+		if (index < 0) {
+			setSelected(null);
+			onInspect(null, false);
+		} else if (index < nodes.length) {
+			reveal(index, open);
+			if (!open) onInspect(targetOf(index), false);
+		}
 		// Only a new request; `reveal` changes with every pick.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [revealRequest]);

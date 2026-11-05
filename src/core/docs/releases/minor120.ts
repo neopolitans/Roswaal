@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.211.0",
+		date: "2026-11-05",
+		headline: "What DataModel picks is outlined in the place, and the outline sits on it.",
+		changed: [
+			"**Properties on a tablet.** A pick in the place shows in Properties without sliding its drawer out; its button brings the drawer out.",
+			"**The place's bar.** Less space before Select and after the speed.",
+		],
+		fixed: [
+			"**Picking in DataModel.** A row picked in DataModel is outlined in the place, and picking nothing in the place picks nothing in DataModel.",
+			"**The selection outline.** It sits on the part's box rather than a little outside it, and is drawn wider.",
+		],
+	},
+	{
 		version: "0.210.0",
 		date: "2026-11-05",
 		headline: "A long press picks a part in the place, and Clear picks nothing.",
