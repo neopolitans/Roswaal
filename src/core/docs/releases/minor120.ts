@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.205.4",
+		date: "2026-11-05",
+		headline: "A doc comment's error is edited whole in one dialog.",
+		changed: [
+			"**Edit docs error.** One button under an error's Type and Message opens both in a larger dialog. Enter moves to Message, then finishes. On an iPad, tapping either field opens it there.",
+			"**Remove error.** It sits at the right of that row, with a dashed outline that fills when you point at it.",
+		],
+	},
+	{
 		version: "0.205.3",
 		date: "2026-11-05",
 		headline: "A doc comment's errors are a Type row, a Message row and a Remove error button.",

@@ -3395,10 +3395,41 @@ button.tb.primary:hover:not(:disabled) {
 	color: var(--fg-muted);
 }
 
-.doc-error-remove {
+/* The editor for both on the left, Remove on the right: a dashed outline in
+   the danger colour, filled when it is about to be pressed. */
+.doc-error-foot {
 	grid-column: 1 / -1;
-	justify-self: start;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
 	margin-top: 2px;
+}
+
+button.tb.doc-error-remove {
+	font-size: var(--text-sm);
+	color: var(--danger);
+	background: transparent;
+	border: 1px dashed color-mix(in srgb, var(--danger) 70%, transparent);
+}
+
+button.tb.doc-error-remove:hover,
+button.tb.doc-error-remove:focus-visible {
+	color: #fff;
+	background: var(--danger);
+	border-style: solid;
+	border-color: var(--danger);
+}
+
+.long-text-labelled {
+	display: grid;
+	gap: 4px;
+}
+
+/* A type is a word or two: short, and in the code face like the field it opens from. */
+.long-text textarea.long-text-code {
+	min-height: 0;
+	font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+	font-size: var(--text-sm);
 }
 
 .long-text-code {

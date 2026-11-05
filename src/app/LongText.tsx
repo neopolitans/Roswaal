@@ -125,6 +125,99 @@ export function LongTextEditor({
 	);
 }
 
+export interface LongField {
+	label: string;
+	value: string;
+	placeholder?: string;
+	/** Written in the code face. */
+	code?: boolean;
+}
+
+/**
+ * Several fields of one thing in the same room, as `LongTextEditor` has one:
+ * an error's Type and Message, which are written together. Enter moves to the
+ * next field, and finishes on the last.
+ */
+export function LongFieldsEditor({
+	title,
+	about,
+	fields,
+	first = 0,
+	onDone,
+	onClose,
+}: {
+	title: string;
+	about?: string;
+	fields: LongField[];
+	/** The field the caret starts in: the one tapped. */
+	first?: number;
+	onDone: (values: string[]) => void;
+	onClose: () => void;
+}) {
+	const [values, setValues] = useState(() => fields.map((f) => f.value));
+	const refs = useRef<(HTMLTextAreaElement | null)[]>([]);
+	const inset = useKeyboardInset();
+	const done = () => {
+		if (values.some((v, i) => v !== fields[i].value)) onDone(values);
+		onClose();
+	};
+	useEffect(() => {
+		const el = refs.current[first];
+		if (!el) return;
+		el.focus();
+		el.setSelectionRange(el.value.length, el.value.length);
+	}, [first]);
+	return createPortal(
+		<div
+			className={`dialog-backdrop long-text-backdrop${inset > 0 ? " over-keyboard" : ""}`}
+			style={{ zIndex: LAYER.menu + 1, paddingBottom: inset > 0 ? inset + 12 : undefined }}
+			onPointerDown={(e) => {
+				if (e.target === e.currentTarget) done();
+			}}
+		>
+			<div className="dialog long-text" role="dialog" aria-label={title}>
+				<h3>{title}</h3>
+				{about && <p className="long-text-about">{about}</p>}
+				{fields.map((f, i) => (
+					<label className="long-text-labelled" key={f.label}>
+						<span className="field-label">{f.label}</span>
+						<textarea
+							ref={(el) => {
+								refs.current[i] = el;
+							}}
+							className={f.code ? "long-text-code" : undefined}
+							rows={f.code ? 2 : 4}
+							value={values[i]}
+							placeholder={f.placeholder}
+							onChange={(e) => {
+								const value = e.target.value;
+								setValues((was) => was.map((v, j) => (j === i ? value : v)));
+							}}
+							onKeyDown={(e) => {
+								if (e.key === "Enter" && !e.shiftKey) {
+									e.preventDefault();
+									if (i < fields.length - 1) refs.current[i + 1]?.focus();
+									else done();
+								}
+								if (e.key === "Escape") onClose();
+							}}
+						/>
+					</label>
+				))}
+				<div className="dialog-actions">
+					<button type="button" className="tb" onClick={onClose}>
+						Cancel
+					</button>
+					<button type="button" className="tb primary" onClick={done}>
+						Done
+					</button>
+				</div>
+			</div>
+		</div>,
+		document.body,
+	);
+}
+
 /**
  * A short field with room to grow: the expand button beside it opens the long
  * editor, and on a touch screen so does a tap on the field.

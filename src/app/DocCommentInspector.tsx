@@ -39,7 +39,7 @@ import { cx } from "./cx.js";
 import { useEditBurst } from "./editBurst.js";
 import { updateComment } from "./edits.js";
 import { Icon } from "./icons.jsx";
-import { LongTextEditor, LongTextField } from "./LongText.jsx";
+import { LongFieldsEditor, LongTextEditor, LongTextField, touchScreen } from "./LongText.jsx";
 import { MenuButton } from "./Menu.jsx";
 import { Ident } from "./PanelParts.jsx";
 import { commentColor, pinColor } from "./palette.js";
@@ -293,45 +293,17 @@ function DocLists({
 				missing={errors.filter((e) => !e.type.trim()).length}
 			>
 				{errors.map((error, i) => (
-					// Type and Message, each a row of its own with room to grow, and
-					// removing it under both, where it is not hit reaching for either.
-					<div className="doc-error" key={i}>
-						<span className="doc-error-label">Type</span>
-						<LongTextField
-							code
-							value={error.type}
-							placeholder='"Missing"'
-							title="What it throws"
-							label="What it throws"
-							field={typing.field}
-							onValue={(type) =>
-								write({ ...doc, errors: errors.map((x, j) => (j === i ? { ...x, type } : x)) })
-							}
-						/>
-						<span className="doc-error-label">Message</span>
-						<LongTextField
-							value={error.description ?? ""}
-							placeholder="When it is thrown"
-							title="When it is thrown"
-							about={error.type || undefined}
-							label="When it is thrown"
-							field={typing.field}
-							onValue={(description) =>
-								write({
-									...doc,
-									errors: errors.map((x, j) => (j === i ? { ...x, description } : x)),
-								})
-							}
-						/>
-						<button
-							type="button"
-							className="tb danger with-icon doc-error-remove"
-							onClick={() => set({ ...doc, errors: errors.filter((_, j) => j !== i) })}
-						>
-							<Icon name="close" size={12} />
-							Remove error
-						</button>
-					</div>
+					<DocError
+						key={i}
+						error={error}
+						about={"name" in subject ? subject.name : undefined}
+						typing={typing}
+						onTyped={(next) =>
+							write({ ...doc, errors: errors.map((x, j) => (j === i ? next : x)) })
+						}
+						onEdited={(next) => set({ ...doc, errors: errors.map((x, j) => (j === i ? next : x)) })}
+						onRemove={() => set({ ...doc, errors: errors.filter((_, j) => j !== i) })}
+					/>
 				))}
 				<button
 					type="button"
@@ -556,6 +528,94 @@ function Extras({
 					},
 				]}
 			/>
+		</div>
+	);
+}
+
+type DocErrorTag = NonNullable<DocTags["errors"]>[number];
+
+/**
+ * One error: Type and Message as labelled rows, then a row with the editor
+ * that holds both -- the two are written together, and the message is the
+ * long half -- and, at the other end, Remove error, apart from either field.
+ * On a touch screen a tap on a field opens the editor at that field.
+ */
+function DocError({
+	error,
+	about,
+	typing,
+	onTyped,
+	onEdited,
+	onRemove,
+}: {
+	error: DocErrorTag;
+	about?: string;
+	typing: Typing;
+	onTyped: (error: DocErrorTag) => void;
+	onEdited: (error: DocErrorTag) => void;
+	onRemove: () => void;
+}) {
+	const [open, setOpen] = useState<number | null>(null);
+	const touch = touchScreen();
+	const tapOpens = (field: number) => ({
+		readOnly: touch,
+		onPointerDown: (e: React.PointerEvent) => {
+			if (!touch) return;
+			e.preventDefault();
+			setOpen(field);
+		},
+	});
+	return (
+		<div className="doc-error">
+			<span className="doc-error-label">Type</span>
+			<input
+				className="tb long-text-code"
+				value={error.type}
+				placeholder='"Missing"'
+				aria-label="Type: what it throws"
+				onChange={(e) => onTyped({ ...error, type: e.target.value })}
+				{...tapOpens(0)}
+				{...typing.field}
+			/>
+			<span className="doc-error-label">Message</span>
+			<input
+				className="tb"
+				value={error.description ?? ""}
+				placeholder="When it is thrown"
+				aria-label="Message: when it is thrown"
+				onChange={(e) => onTyped({ ...error, description: e.target.value })}
+				{...tapOpens(1)}
+				{...typing.field}
+			/>
+			<div className="doc-error-foot">
+				<button
+					type="button"
+					className="tb icon-only long-text-open"
+					title="Edit this error's type and message, with room for both"
+					aria-label="Edit this error's type and message"
+					onClick={() => setOpen(0)}
+				>
+					<Icon name="expandContent" size={13} />
+				</button>
+				<button type="button" className="tb doc-error-remove" onClick={onRemove}>
+					Remove error
+				</button>
+			</div>
+			{open !== null && (
+				<LongFieldsEditor
+					title="Edit docs error"
+					about={about}
+					first={open}
+					fields={[
+						{ label: "Type", value: error.type, placeholder: '"Missing"', code: true },
+						{ label: "Message", value: error.description ?? "", placeholder: "When it is thrown" },
+					]}
+					onDone={([type, description]) =>
+						onEdited({ ...error, type, description: description || undefined })
+					}
+					onClose={() => setOpen(null)}
+				/>
+			)}
 		</div>
 	);
 }
