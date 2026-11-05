@@ -1045,8 +1045,8 @@ function wallyDemo() {
 
 /**
  * A file to import: a run long enough that Tidy cuts it into rows, a loop, a
- * branch, an `and … or` that Modern rewrites, and a `repeat` loop, which has
- * no node yet and stays Luau.
+ * branch, an `and … or` that Modern rewrites, and a `repeat` loop, which is
+ * Repeat Until since 0.206.0.
  */
 const IMPORT_SOURCE = `local coins = 0
 local bonus = true

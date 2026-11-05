@@ -797,6 +797,40 @@ function whileLoop(e: Emitter, r: ResolvedNode, scope: Scope): string | undefine
 	return e.index.execTarget(id, "completed");
 }
 
+/**
+ * Repeat Until: the body, then the condition, worked out inside the loop after
+ * the body so that it reads the body's locals and is read again on each pass.
+ *
+ * Lines the condition needs go at the foot of the body, before `until`, which
+ * is still the body's block: Luau's `until` sees everything declared in it.
+ */
+function repeatLoop(e: Emitter, r: ResolvedNode, scope: Scope): string | undefined {
+	const id = r.node.id;
+	const condPin = e.pin(r, "condition", "in");
+	const link = e.index.sourceOf(id, "condition");
+	const src = link ? e.index.get(link.from.node) : undefined;
+	if (src && !src.def.pure) {
+		e.warn(
+			"The Until condition is produced by a node with side effects, so it is not worked out " +
+				"again on each pass. Feed it a pure comparison instead.",
+			id,
+			"condition",
+		);
+	}
+	const loop = new Scope(scope, "loop");
+	e.push("repeat", id);
+	e.indent++;
+	e.names.push();
+	e.walk(e.index.execTarget(id, "body"), loop);
+	const captured = e.capture(() => e.resolveInput(r, condPin, loop));
+	for (const line of captured.lines) e.out.push(line);
+	e.indent--;
+	e.push(`until ${captured.value}`, id);
+	e.names.pop();
+	e.terminated = false;
+	return e.index.execTarget(id, "completed");
+}
+
 /** Break and Continue. */
 function breakOrContinue(
 	e: Emitter,
@@ -959,6 +993,7 @@ const FLOW_HANDLERS = new Map<string, FlowHandler>([
 	["flow.forEach", forPairs],
 	["flow.forIndex", forPairs],
 	["flow.while", whileLoop],
+	["flow.repeat", repeatLoop],
 	["flow.break", breakOrContinue],
 	["flow.continue", breakOrContinue],
 	["event.connect", connectHandler],

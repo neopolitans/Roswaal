@@ -150,7 +150,10 @@ describe("the tour's preview", () => {
 
 	it("comes straight after the promise, and is linked to from the cards", () => {
 		expect(html).toContain('<section class="landing-sec tour" id="tour"');
-		const before = html.slice(html.indexOf('<section class="landing-pitch">'), html.indexOf('id="tour"'));
+		const before = html.slice(
+			html.indexOf('<section class="landing-pitch">'),
+			html.indexOf('id="tour"'),
+		);
 		expect(before.match(/<section/g)).toHaveLength(2);
 		expect(html).toContain('class="landing-card-go" href="#tour"');
 		// Brought wholly into view, clear of the floating bar, script or not.
@@ -209,7 +212,9 @@ describe("version badges, since 0.147.0", () => {
 	/** Every badge on the page opens a release that has notes, on its minor version's page. */
 	it("link to the notes of the release they name", () => {
 		const badges = [
-			...html.matchAll(/<a class="(?:since|tour-since[^"]*)" href="([^"]+)"[^>]*>(?:Since )?([^<]+)<\/a>/g),
+			...html.matchAll(
+				/<a class="(?:since|tour-since[^"]*)" href="([^"]+)"[^>]*>(?:Since )?([^<]+)<\/a>/g,
+			),
 		];
 		expect(badges.length).toBeGreaterThan(SLIDES.length + 8);
 		const versions = new Set(RELEASES.map((release) => release.version));
@@ -291,7 +296,9 @@ describe("the slides added in 0.149.0", () => {
 		const modern = slide.slice(slide.indexOf('class="tour-import tour-import-modern"'));
 		expect(verbatim.replace(/<[^>]+>/g, "")).toContain("bonus and &quot;Bonus round&quot; or");
 		expect(modern.replace(/<[^>]+>/g, "")).toContain("if bonus then &quot;Bonus round&quot; else");
-		expect(slide).toContain("Kept as code: repeat loop ×1.");
+		// Every statement is a node since Repeat Until (0.206.0).
+		expect(slide).not.toContain("Kept as code");
+		expect(slide).toContain('title="Repeat Until"');
 		// Tidy cuts the long run into rows; Verbatim keeps one chain.
 		const tidy = slide.slice(
 			slide.indexOf('class="tour-import tour-import-tidy"'),

@@ -423,7 +423,9 @@ class Importer {
 			}
 			case "table":
 				return (
-					(this.tables && this.dictionary(e, scope, graph, near)) || this.luau(e, graph, below(0))
+					(this.tables &&
+						(this.dictionary(e, scope, graph, near) ?? this.list(e, scope, graph, near))) ||
+					this.luau(e, graph, below(0))
 				);
 			case "paren": {
 				// Brackets around a call or `...` keep only its first value:
@@ -802,6 +804,42 @@ class Importer {
 		return { kind: "wire", node: id, pin: "result" };
 	}
 
+	/**
+	 * `{ a, b }` as Make Array: a pin for each value, typed in or wired.
+	 *
+	 * Only a list written as the node writes one -- on one line, a space inside
+	 * each brace, a comma and a space between, nothing after the last -- so the
+	 * file compiles back to what it said. Any other spacing, a list over several
+	 * lines, more values than the node has pins, and a list with a comment in it
+	 * stay as code.
+	 */
+	private list(
+		e: Extract<Expr, { kind: "table" }>,
+		scope: Scope,
+		graph: string | undefined,
+		near: { x: number; y: number },
+	): Value | undefined {
+		const fields = e.fields;
+		if (fields.length === 0 || fields.length > MAX_DICTIONARY_ROWS) return undefined;
+		if (fields.some((f) => f.kind !== "positional")) return undefined;
+		if (this.comments.some((c) => c.start >= e.start && c.end <= e.end)) return undefined;
+		const between = (from: number, to: number) => this.src.slice(from, to);
+		if (between(e.start, fields[0].start) !== "{ ") return undefined;
+		if (between(fields[fields.length - 1].end, e.end) !== " }") return undefined;
+		for (let i = 1; i < fields.length; i++) {
+			if (between(fields[i - 1].end, fields[i].start) !== ", ") return undefined;
+		}
+
+		const at = { x: near.x - 240, y: near.y + 90 };
+		const id = this.node("table.array", graph, at, { config: { args: fields.length } });
+		fields.forEach((field, i) => {
+			if (field.kind !== "positional") return;
+			const row = { x: at.x, y: at.y + 70 * (i + 1) };
+			this.feed(this.expr(field.value, scope, graph, row), { node: id, pin: `a${i}` });
+		});
+		return { kind: "wire", node: id, pin: "result" };
+	}
+
 	/** The file's comments, in order, and which have been taken. */
 	private comments: { start: number; end: number; text: string; line: number }[] = [];
 	private taken = new Set<number>();
@@ -1104,6 +1142,9 @@ class Importer {
 			case "while":
 				return this.loop(stat, tail, scope, graph, row, fn);
 
+			case "repeat":
+				return this.repeatLoop(stat, tail, scope, graph, row, fn);
+
 			case "break":
 			case "continue": {
 				const id = this.node(`flow.${stat.kind}`, graph, this.place(graph, row));
@@ -1289,6 +1330,29 @@ class Importer {
 		}
 		this.chain(tail, id);
 		this.block(stat.body, { node: id, pin: "body" }, inner, graph, row + 1, fn, false);
+		this.asNodes += 1;
+		return { node: id, pin: "completed" };
+	}
+
+	/**
+	 * `repeat … until x` as Repeat Until. The condition is read after the body,
+	 * in the body's scope, so a local the body declares is wired from where it
+	 * was declared, as Luau reads it.
+	 */
+	private repeatLoop(
+		stat: Extract<Stat, { kind: "repeat" }>,
+		tail: Tail,
+		scope: Scope,
+		graph: string | undefined,
+		row: number,
+		fn: FunctionContext | undefined,
+	): Tail {
+		const at = this.place(graph, row);
+		const inner = new Scope(scope);
+		const id = this.node("flow.repeat", graph, at);
+		this.chain(tail, id);
+		this.block(stat.body, { node: id, pin: "body" }, inner, graph, row + 1, fn, false);
+		this.feed(this.expr(stat.condition, inner, graph, at), { node: id, pin: "condition" });
 		this.asNodes += 1;
 		return { node: id, pin: "completed" };
 	}

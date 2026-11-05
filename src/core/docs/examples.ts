@@ -267,6 +267,17 @@ export const CURATED: Record<string, () => NodeScript> = ownTable({
 		return g.out();
 	},
 
+	// The body runs first, so the print always happens once.
+	"flow.repeat": () => {
+		const g = new G();
+		const begin = g.node("script.begin");
+		const found = g.stand("found");
+		const loop = g.node("flow.repeat");
+		g.link(begin, "then", loop, "in").link(found, "result", loop, "condition");
+		printAfter(g, loop, "body", "Looking");
+		return g.out();
+	},
+
 	"flow.break": () => {
 		const g = new G();
 		const begin = g.node("script.begin");
@@ -631,6 +642,24 @@ export const CURATED: Record<string, () => NodeScript> = ownTable({
 		g.link(begin, "then", declare, "in")
 			.link(declare, "then", p, "in")
 			.link(get, "value", p, "value");
+		return g.out();
+	},
+
+	// Joined and printed, so the example's output is the list itself rather
+	// than a table's address.
+	"table.array": () => {
+		const g = new G();
+		const begin = g.node("script.begin", { column: 0 });
+		const list = g.node("table.array", {
+			column: 0,
+			row: 1,
+			config: { args: 3 },
+			literals: { a0: str("Hull"), a1: str("Turret"), a2: str("Gun") },
+		});
+		const join = g.node("table.concat", { column: 1, row: 1, literals: { separator: str(", ") } });
+		const p = g.node("debug.print", { column: 2 });
+		g.link(list, "result", join, "table");
+		g.link(begin, "then", p, "in").link(join, "result", p, "value");
 		return g.out();
 	},
 

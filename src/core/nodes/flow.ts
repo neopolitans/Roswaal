@@ -167,6 +167,7 @@ export function continuesEnclosingBlock(defId: string, pinId: string): boolean {
 		case "flow.forEach":
 		case "flow.forIndex":
 		case "flow.while":
+		case "flow.repeat":
 			return pinId === "completed";
 		// Declare Function is the same shape as a handler: "then" carries on in
 		// the block the node sits in, and "body" opens the function's own.
@@ -591,6 +592,29 @@ export const FLOW_NODES: NodeDef[] = [
 		inputs: [exec("in", ""), data("condition", "Condition", "any", { t: "boolean", v: true })],
 		outputs: [exec("body", "Body"), exec("completed", "Completed")],
 		compilesTo: { kind: "builtin", handler: "flow.while" },
+	},
+	/**
+	 * `repeat … until x`: the body first, then the test. While Loop's mirror,
+	 * for the loop that has to run once before it knows whether to stop -- a
+	 * retry, a wait for something to turn up. There is no Repeat While in Luau;
+	 * a Not into Until is the same loop.
+	 *
+	 * Until is worked out after the body, in the body's scope, so it can read
+	 * the locals the body declares. Luau allows exactly that, and it is the
+	 * usual reason to write one.
+	 */
+	{
+		id: "flow.repeat",
+		title: "Repeat Until",
+		category: "Flow",
+		role: "flow",
+		summary:
+			"Runs the body, then stops once Until holds. The body always runs at least once, and " +
+			"Until can read the locals the body declares. For a loop that goes on while something " +
+			"holds, put a Not before Until.",
+		inputs: [exec("in", ""), data("condition", "Until", "any", { t: "boolean", v: true })],
+		outputs: [exec("body", "Body"), exec("completed", "Completed")],
+		compilesTo: { kind: "builtin", handler: "flow.repeat" },
 	},
 	{
 		id: "flow.break",

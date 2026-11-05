@@ -9,6 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.206.0",
+		date: "2026-11-05",
+		headline:
+			"Make Array writes a list in one node, and Repeat Until runs its body before it tests.",
+		added: [
+			"**Make Array.** A list in one node, written as a table of values in braces. Each value is a pin, typed in or wired, and + and − set how many. A new table is made each time its line runs. Find it by typing array or list.",
+			"**Repeat Until.** Runs its body, then stops once Until holds, so the body always runs at least once. Until can read the locals the body declares. For a loop that goes on while something holds, put a Not before Until.",
+			"**Importing lists and repeat loops.** A repeat loop becomes Repeat Until, and a list written on one line with a space inside each brace becomes Make Array.",
+		],
+		changed: [
+			"**The tour's Import slide.** Its repeat loop is a node now, so every statement in the file imports as one.",
+		],
+	},
+	{
 		version: "0.205.6",
 		date: "2026-11-05",
 		headline: "A doc comment's Moonwave text stays as you type it.",

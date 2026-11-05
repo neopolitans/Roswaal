@@ -439,6 +439,13 @@ const pill = (def: NodeDef, operator: string): NodeDef => ({
 const MAX_ARGS = 8;
 const MAX_PAIRS = 24;
 
+/** Make Array's values: `a0`, `a1`, … as `$args` reads them, labelled by index. */
+function arrayPins(count: number): PinDef[] {
+	return Array.from({ length: count }, (_, i) =>
+		d(`a${i}`, String(i + 1), "any", { t: "string", v: "" }),
+	);
+}
+
 /** Payload pins for a call whose argument count is chosen per node. */
 function payload(
 	config: Record<string, unknown>,
@@ -1283,6 +1290,34 @@ export const LIBRARY_NODES: NodeDef[] = [
 		"string",
 		"An array of strings and numbers joined into one string, with Separator between each.",
 	),
+
+	/**
+	 * A list written out in one node: `{ a, b, c }`.
+	 *
+	 * The array half of a table constructor, which Make Dictionary is the keyed
+	 * half of. Without it a list was New Table and a chain of Insert -- two
+	 * statements and a local to say `return { rig.model }` -- or Luau typed in.
+	 * Pure, so it folds into the line that uses it, and that line builds a new
+	 * table every time it runs, as the constructor written by hand does.
+	 *
+	 * Its pins are numbered, because a value's place in the list is its index.
+	 */
+	{
+		id: "table.array",
+		title: "Make Array",
+		category: "Tables",
+		summary:
+			"A list built in one node: `{ a, b, c }`. Each value is a pin, typed in or wired; use + and − for how many. A new table is made each time the line runs.",
+		pure: true,
+		variadic: { min: 1, max: MAX_PAIRS, type: "any", default: { t: "string", v: "" } },
+		inputs: arrayPins(1),
+		outputs: [d("result", "", "table")],
+		compilesTo: { kind: "expr", outputs: { result: "{ $args(, ) }" } },
+		derivePins: (config) => ({
+			inputs: arrayPins(Math.max(1, Math.min(MAX_PAIRS, Number(config.args ?? 1)))),
+			outputs: [d("result", "", "table")],
+		}),
+	},
 
 	/**
 	 * A dictionary written out in one node.

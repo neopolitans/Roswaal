@@ -52,6 +52,19 @@ export function growthRule(def: NodeDef | undefined): GrowthRule | null {
 			max: def.variadic.max,
 		};
 	}
+	// A list's entries are values, not operands: its Add row says so.
+	if (def.id === "table.array" && def.variadic) {
+		return {
+			field: "args",
+			kind: "count",
+			prefix: "a",
+			label: "values",
+			one: "value",
+			side: "in",
+			min: def.variadic.min,
+			max: def.variadic.max,
+		};
+	}
 	if (def.variadic) {
 		return {
 			field: "args",

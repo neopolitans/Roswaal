@@ -47,7 +47,8 @@ export const NODE_ALIASES: Readonly<Record<string, readonly string[]>> = ownTabl
 	"flow.forRange": ["Numeric For", "Loop"],
 	"flow.forEach": ["Loop Over Table", "Pairs Loop"],
 	"flow.forIndex": ["Loop Over Array", "Ipairs Loop"],
-	"flow.while": ["Loop While", "Repeat Until"],
+	"flow.while": ["Loop While"],
+	"flow.repeat": ["Do While", "Repeat While", "Loop Until", "Do Until"],
 
 	"local.declare": ["Define Local", "Local Variable", "New Local"],
 	"variable.init": ["Declare Variable", "Define Variable"],
@@ -64,6 +65,7 @@ export const NODE_ALIASES: Readonly<Record<string, readonly string[]>> = ownTabl
 	"convert.tostring": ["Stringify"],
 	"table.new": ["Empty Table", "Make Table"],
 	"table.dictionary": ["Make Table", "Map"],
+	"table.array": ["Make List", "List", "Array", "Table Literal"],
 	"table.length": ["Count"],
 	"table.insert": ["Push", "Append"],
 	"table.freeze": ["Read Only", "Lock Table", "Immutable"],
