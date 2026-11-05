@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.204.1",
+		date: "2026-11-05",
+		headline: "On a computer, the tour's Import slide shows its whole graph.",
+		fixed: [
+			"**The Import slide's graph.** On a computer it is tall enough for each mode's graph, so its top row is no longer cut off. It still scrolls sideways.",
+		],
+	},
+	{
 		version: "0.204.0",
 		date: "2026-11-05",
 		headline: "The front page is quieter, its tour comes first, and its cards are the editor's.",

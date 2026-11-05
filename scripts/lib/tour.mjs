@@ -1777,6 +1777,10 @@ ${themeCss(".tour-complete-box", TOOLTIP_STYLE)}
   display: block; margin: 0 0 8px; padding: 12px; border: 1px solid var(--border); border-radius: 8px;
   max-height: 300px; overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
 }
+/* On a computer the slide has the room to show each mode's graph its whole
+   height, Modern's the tallest, so it only scrolls sideways: at 300px the top
+   row sat above the edge, and 57px of scrolling did not read as any. */
+@media (min-width: 1001px) { .tour-import-graph { max-height: 400px; } }
 .tour-import-frame { position: relative; }
 .tour-import-frame svg { display: block; width: 100%; height: 100%; }
 .tour-import-node {
