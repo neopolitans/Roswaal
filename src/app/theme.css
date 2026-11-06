@@ -20853,12 +20853,32 @@ textarea.tb:where(:disabled) {
 	text-align: center;
 }
 
-/* Bottom right, clear of the right cards and above the bar: the camera's
-   rotation over the frame rate, outlined to read on sky or ground alike. */
-.vp-corner {
+/* The bar along the bottom, centred in the window as the view is, with the
+   axes and the readout over its right-hand end; a card opening or shutting
+   moves none of them. */
+.vp-dock {
 	position: absolute;
-	right: calc(var(--right-w, 0px) + 16px);
-	bottom: calc(var(--edge) + 72px);
+	left: 50%;
+	bottom: var(--edge);
+	transform: translateX(-50%);
+	z-index: 4;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 6px;
+	pointer-events: none;
+}
+
+.vp-cluster {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 2px;
+	margin-right: 4px;
+}
+
+/* The camera's rotation over the frame rate, outlined to read on sky or ground alike. */
+.vp-corner {
 	display: grid;
 	justify-items: end;
 	gap: 2px;
@@ -20881,12 +20901,10 @@ textarea.tb:where(:disabled) {
 	white-space: pre;
 }
 
-/* Blender's axes, above the corner's text. */
+/* Blender's axes, above the readout. */
 .vp-gizmo {
-	position: absolute;
-	right: calc(var(--right-w, 0px) + 10px);
-	bottom: calc(var(--edge) + 110px);
 	width: 104px;
+	pointer-events: auto;
 	height: 104px;
 	cursor: grab;
 	touch-action: none;
@@ -20931,16 +20949,17 @@ textarea.tb:where(:disabled) {
 	opacity: 1;
 }
 
-/* The bar, after Studio's compact one: along the bottom on every screen with
-   room for it, touch or not, centred right of the left cards so it clears the
-   status pill under them. */
-.side-strip.vp-bar {
+/* The bar, after Studio's compact one: in the dock, on every screen with room
+   for it, touch or not. */
+.vp-dock .side-strip.vp-bar {
+	position: static;
 	top: auto;
-	left: calc(var(--left-w, 0px) + (100% - var(--left-w, 0px)) / 2);
-	bottom: var(--edge);
+	left: auto;
+	bottom: auto;
 	height: auto;
 	margin-block: 0;
-	transform: translateX(-50%);
+	transform: none;
+	pointer-events: auto;
 	flex-direction: row;
 	align-items: center;
 	gap: 1px;
@@ -21046,27 +21065,6 @@ textarea.tb:where(:disabled) {
 
 }
 
-/* Properties with nothing picked: the place as drawn. */
-.vp-place {
-	display: grid;
-	gap: 10px;
-}
-
-.vp-facts {
-	display: grid;
-	grid-template-columns: auto 1fr;
-	gap: 3px 10px;
-	font-size: var(--text-sm);
-	color: var(--fg-muted);
-}
-
-.vp-facts span:nth-child(odd) {
-	font-weight: 700;
-	color: var(--fg);
-	text-align: right;
-	font-variant-numeric: tabular-nums;
-}
-
 .place-asset {
 	color: var(--accent);
 	text-decoration: none;
@@ -21075,13 +21073,6 @@ textarea.tb:where(:disabled) {
 
 .place-asset:hover {
 	text-decoration: underline;
-}
-
-.vp-notes {
-	margin: 0;
-	padding-left: 18px;
-	font-size: var(--text-sm);
-	color: var(--fg-muted);
 }
 
 /* The Move and Rotate snaps: in the bar where there is room, behind a tile
@@ -21234,14 +21225,5 @@ textarea.tb:where(:disabled) {
 
 	.vp-rise-button:active {
 		background: rgb(255 255 255 / 0.35);
-	}
-
-	/* The corner and the axes, above the right stick. */
-	.vp-corner {
-		bottom: calc(var(--edge) + 72px + 136px);
-	}
-
-	.vp-gizmo {
-		bottom: calc(var(--edge) + 72px + 176px);
 	}
 }

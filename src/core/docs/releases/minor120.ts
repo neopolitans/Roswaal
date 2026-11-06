@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.211.2",
+		date: "2026-11-06",
+		headline: "The place's bar stays centred, and the place is the top row of DataModel.",
+		changed: [
+			"**The place's bar.** Centred in the window, with the axes and the camera's rotation over its right-hand end, so neither moves as cards show and hide.",
+			"**DataModel.** The place is the top row, with the services under it; click it to see the place in 3D. It replaces the button in DataModel's heading.",
+			"**The place's Properties.** Drawn as an instance's are, under Drawn and Lighting headings, docked, floating or in a tablet's drawer.",
+		],
+	},
+	{
 		version: "0.211.1",
 		date: "2026-11-06",
 		headline: "The tab in front stays in sight, and the place's toolbar has only what it uses.",

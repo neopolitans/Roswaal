@@ -188,7 +188,11 @@ describe("The scene route", () => {
 		const block = new Float32Array(fromBase64(answer.kinds.block.data).buffer);
 		expect(block.length).toBe(2 * SCENE_STRIDE);
 		expect(block[0]).toBe(2048);
-		expect((answer as { lighting?: { sun: number[] } }).lighting?.sun).toHaveLength(3);
+		const lighting = (answer as { lighting?: { sun: number[]; notes: [string, string][] } })
+			.lighting;
+		expect(lighting?.sun).toHaveLength(3);
+		// What lights it, as Properties' rows: a name and what it is.
+		expect(lighting?.notes.map(([name]) => name)).toEqual(["Haze", "Sunlight", "Sky"]);
 		await expect(
 			session.handle("GET", "/place/scene", { query: { stamp: "old" } }),
 		).rejects.toThrow(/changed/);

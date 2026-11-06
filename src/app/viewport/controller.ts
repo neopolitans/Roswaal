@@ -31,7 +31,12 @@ export interface ViewportState {
 	/** Why nothing is drawn, when nothing can be. */
 	error: string | null;
 	/** The place as drawn: parts by shape, and what lights it. */
-	summary: { parts: number; meshes: number; transparent: number; notes: string[] } | null;
+	summary: {
+		parts: number;
+		meshes: number;
+		transparent: number;
+		notes: [string, string][];
+	} | null;
 	/** The steps a drag of the handles keeps to, in studs and degrees, each on or off. */
 	snap: Snap;
 	/** Something is picked, for the bar's Clear. */
@@ -106,6 +111,10 @@ function turn(v: number[], k: number[], angle: number): number[] {
 
 export interface ViewportElements {
 	holder: HTMLElement;
+}
+
+/** The axes and the readout over them, which stand on the bar rather than in the view. */
+export interface CornerElements {
 	gizmo: HTMLElement;
 	rotation: HTMLElement;
 	rate: HTMLElement;
@@ -134,6 +143,7 @@ export class ViewportController {
 	private view: ViewRenderer | null = null;
 	private canvas: HTMLCanvasElement | null = null;
 	private els: ViewportElements | null = null;
+	private corner: CornerElements | null = null;
 	private mounted = 0;
 	private pending = false;
 	private holding = 0;
@@ -467,8 +477,8 @@ export class ViewportController {
 	// -- drawing -------------------------------------------------------------------
 
 	/**
-	 * Lends the controller a holder for its canvas and the corner's parts, while
-	 * the tab is in front. Answers with the function that takes them back.
+	 * Lends the controller a holder for its canvas while the tab is in front.
+	 * Answers with the function that takes it back.
 	 */
 	mount(els: ViewportElements): () => void {
 		const run = ++this.mounted;
@@ -479,8 +489,6 @@ export class ViewportController {
 		addEventListener("blur", keys.blur);
 		const resize = new ResizeObserver(() => this.fit());
 		resize.observe(els.holder);
-		const rate = setInterval(() => this.showRate(), 250);
-		this.attachGizmo(els.gizmo);
 		void this.start();
 		return () => {
 			if (this.mounted !== run) return;
@@ -489,7 +497,6 @@ export class ViewportController {
 			removeEventListener("keyup", keys.up);
 			removeEventListener("blur", keys.blur);
 			resize.disconnect();
-			clearInterval(rate);
 			this.held.clear();
 			this.sticks = { move: [0, 0], look: [0, 0] };
 			this.rise = 0;
@@ -498,6 +505,18 @@ export class ViewportController {
 			this.canvas?.remove();
 			this.canvas = null;
 			this.els = null;
+		};
+	}
+
+	/** Lends the axes and the readout, from the bar. Answers with the function that takes them back. */
+	mountCorner(corner: CornerElements): () => void {
+		this.corner = corner;
+		this.attachGizmo(corner.gizmo);
+		const rate = setInterval(() => this.showRate(), 250);
+		this.showRotation();
+		return () => {
+			clearInterval(rate);
+			if (this.corner === corner) this.corner = null;
 		};
 	}
 
@@ -602,8 +621,8 @@ export class ViewportController {
 		while (this.frames.length && now - this.frames[0] > 1000) this.frames.shift();
 		const last = this.frames.at(-1);
 		const idle = last === undefined || now - last > 400;
-		if (this.els)
-			this.els.rate.textContent = `${idle ? "Idle" : `${this.frames.length}Hz`} (${this.state.backend ?? "…"})`;
+		if (this.corner)
+			this.corner.rate.textContent = `${idle ? "Idle" : `${this.frames.length}Hz`} (${this.state.backend ?? "…"})`;
 	}
 
 	/**
@@ -612,14 +631,14 @@ export class ViewportController {
 	 * -Z, as Roblox's does.
 	 */
 	private showRotation(): void {
-		if (!this.els) return;
+		if (!this.corner) return;
 		const x = (-this.cam.pitch * 180) / Math.PI;
 		let y = ((this.cam.yaw * 180) / Math.PI) % 360;
 		if (y > 180) y -= 360;
 		if (y <= -180) y += 360;
 		// No "-0.0": a turn that rounds to nothing is nothing.
 		const deg = (v: number) => (Math.abs(v) < 0.05 ? 0 : v).toFixed(1);
-		this.els.rotation.textContent = `X ${deg(x)}°  Y ${deg(y)}°  Z 0.0°`;
+		this.corner.rotation.textContent = `X ${deg(x)}°  Y ${deg(y)}°  Z 0.0°`;
 		this.drawGizmo();
 	}
 
@@ -628,7 +647,7 @@ export class ViewportController {
 	 * the positive ends labelled, the negative ends plainer, nearest on top.
 	 */
 	private drawGizmo(): void {
-		const svg = this.els?.gizmo.querySelector("svg");
+		const svg = this.corner?.gizmo.querySelector("svg");
 		if (!svg) return;
 		const b = this.back();
 		const forward = b.map((v) => -v);

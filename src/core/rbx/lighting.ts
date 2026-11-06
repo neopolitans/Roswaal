@@ -31,8 +31,8 @@ export interface LightingParams {
 	/** Lighting's own fog, used when there is no Atmosphere. */
 	fog: { start: number; end: number; colour: number[]; on: boolean };
 	glare: number;
-	/** What lights the place, for the Properties summary. */
-	notes: string[];
+	/** What lights the place, for the Properties summary: a name and what it is. */
+	notes: [string, string][];
 }
 
 const lin = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
@@ -80,7 +80,7 @@ export function readLighting(doc: RbxDocument): LightingParams {
 	const lighting = doc.roots.find((r) => r.className === "Lighting");
 	const atmosphere = lighting?.children.find((c) => c.className === "Atmosphere");
 	const sky = lighting?.children.find((c) => c.className === "Sky");
-	const notes: string[] = [];
+	const notes: [string, string][] = [];
 
 	const latitude = prop(lighting, "GeographicLatitude", 41.733);
 	let sun = sunDirection(hours(lighting), latitude);
@@ -122,11 +122,12 @@ export function readLighting(doc: RbxDocument): LightingParams {
 		moon ? 0 : lowSun * 0.6,
 	).map((v) => v * (0.05 + 0.95 * day));
 
-	notes.push(
-		atmosphere ? `Atmosphere, density ${+density.toFixed(3)}` : "Lighting's fog (no Atmosphere)",
-	);
-	notes.push(`${moon ? "Moonlight" : "Sun"}, latitude ${+latitude.toFixed(1)}°`);
-	if (sky) notes.push("Sky images not drawn yet");
+	notes.push([
+		"Haze",
+		atmosphere ? `Atmosphere, density ${+density.toFixed(3)}` : "Lighting's fog, no Atmosphere",
+	]);
+	notes.push([moon ? "Moonlight" : "Sunlight", `Latitude ${+latitude.toFixed(1)}°`]);
+	if (sky) notes.push(["Sky", "Its images are not drawn yet"]);
 
 	return {
 		sun,

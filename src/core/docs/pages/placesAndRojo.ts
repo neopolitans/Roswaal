@@ -168,7 +168,7 @@ export function placesAndRojoPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"Open the place from **Files**, or with the button at the top of **DataModel**, and " +
+					"Open the place from **Files**, or with its row at the top of **DataModel**, and " +
 					"Workspace opens in a tab of its own, lit by the place's Lighting and Atmosphere, with " +
 					"Studio's saved camera drawn in yellow. While it is in front only DataModel and " +
 					"Properties show, and Properties describes the place until you pick something.",

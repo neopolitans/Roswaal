@@ -18,7 +18,7 @@ import { api } from "./api.js";
 import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
-import { Ident } from "./PanelParts.jsx";
+import { Ident, SectionHead } from "./PanelParts.jsx";
 import {
 	type Snap,
 	type Stick,
@@ -53,20 +53,12 @@ export function Viewport({
 	written?: string | null;
 }) {
 	const holder = useRef<HTMLDivElement>(null);
-	const gizmo = useRef<HTMLDivElement>(null);
-	const rotation = useRef<HTMLSpanElement>(null);
-	const rate = useRef<HTMLSpanElement>(null);
 	const [problem, setProblem] = useState<string | null>(null);
 	const state = useViewport(controller);
 
 	useEffect(() => {
-		if (!holder.current || !gizmo.current || !rotation.current || !rate.current) return;
-		return controller.mount({
-			holder: holder.current,
-			gizmo: gizmo.current,
-			rotation: rotation.current,
-			rate: rate.current,
-		});
+		if (!holder.current) return;
+		return controller.mount({ holder: holder.current });
 	}, [controller]);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: refreshKey and written are when to read the place again.
@@ -94,26 +86,6 @@ export function Viewport({
 		<div className="viewport">
 			<div className="vp-holder" ref={holder} />
 			{shown && <p className="vp-problem">{shown}</p>}
-			<div className="vp-gizmo" ref={gizmo}>
-				<svg
-					width={GIZMO}
-					height={GIZMO}
-					viewBox={`${-GIZMO / 2} ${-GIZMO / 2} ${GIZMO} ${GIZMO}`}
-					aria-label="View axes: click an end to look along it, drag to orbit"
-				/>
-			</div>
-			<div className="vp-corner">
-				<span
-					className="vp-rot"
-					ref={rotation}
-					title="The camera's rotation, as Roblox's Orientation reads it: X, Y, Z, in degrees"
-				/>
-				<span
-					className="vp-fps"
-					ref={rate}
-					title="Frames a second while the view moves, and what draws it. Nothing is drawn while nothing changes."
-				/>
-			</div>
 			<div className="vp-touch">
 				<TouchStick stick="move" label="Move" controller={controller} />
 				<span className="vp-touch-right">
@@ -318,6 +290,17 @@ function Tile({
 /** The viewport's bar, where a graph's strip is: the tools, framing, the cards, and the camera's speed. */
 export function ViewportBar({ controller }: { controller: ViewportController }) {
 	const state = useViewport(controller);
+	const gizmo = useRef<HTMLDivElement>(null);
+	const rotation = useRef<HTMLSpanElement>(null);
+	const rate = useRef<HTMLSpanElement>(null);
+	useEffect(() => {
+		if (!gizmo.current || !rotation.current || !rate.current) return;
+		return controller.mountCorner({
+			gizmo: gizmo.current,
+			rotation: rotation.current,
+			rate: rate.current,
+		});
+	}, [controller]);
 	const cards = useWorkspaceControls();
 	const speed = state.speed;
 	/** The snaps behind a tile, where the bar has no room for them: open, and where. */
@@ -334,106 +317,150 @@ export function ViewportBar({ controller }: { controller: ViewportController }) 
 	}, [snapAt]);
 	const snapTitle = "Snapping, for dragging the handles, which comes with editing";
 	return (
-		<div className="side-strip tool-group vp-bar" role="toolbar" aria-label="Viewport">
-			<span className="vp-group" role="radiogroup" aria-label="Tool">
-				{TOOLS.map(([id, label, key]) => (
-					<Tile
-						key={id}
-						icon={TOOL_ICON[id]}
-						label={label}
-						title={`${label} (${key})${id === "select" ? "" : `: the handles show; dragging them ${LATER}`}`}
-						role="radio"
-						aria-checked={state.tool === id}
-						on={state.tool === id}
-						onClick={() => controller.setTool(id)}
+		// The bar centred in the window, as the view is, with the axes and the
+		// readout standing on its right-hand end: none of them moves when a card
+		// opens or shuts.
+		<div className="vp-dock">
+			<div className="vp-cluster">
+				<div className="vp-gizmo" ref={gizmo}>
+					<svg
+						width={GIZMO}
+						height={GIZMO}
+						viewBox={`${-GIZMO / 2} ${-GIZMO / 2} ${GIZMO} ${GIZMO}`}
+						aria-label="View axes: click an end to look along it, drag to orbit"
 					/>
-				))}
-			</span>
-			{/* Esc's job, where a touch screen has no keys. */}
-			<span className="vp-clear">
-				<Tile
-					icon="close"
-					label="Clear"
-					title="Pick nothing (Esc)"
-					disabled={!state.picked}
-					onClick={() => controller.clear()}
-				/>
-			</span>
-			<span className="vp-rule" />
-			<span className="vp-snaps" title={snapTitle}>
-				<SnapFields snap={state.snap} controller={controller} />
-			</span>
-			<span
-				className="vp-snap-tile"
-				onClickCapture={(e) => {
-					// The tile's own place in the bar: its wrapper draws no box of its own.
-					const left = (e.target as Element).closest<HTMLElement>(".vp-tile")?.offsetLeft ?? 0;
-					setSnapAt((was) => (was === null ? left : null));
-				}}
-			>
-				<Tile
-					icon="vpSnap"
-					label="Snap"
-					title={snapTitle}
-					caret
-					on={snapAt !== null}
-					aria-pressed={snapAt !== null}
-				/>
-			</span>
-			{snapAt !== null && (
-				<div className="vp-snap-pop" ref={pop} style={{ left: snapAt }} title={snapTitle}>
-					<SnapFields snap={state.snap} controller={controller} />
 				</div>
-			)}
-			<span className="vp-rule" />
-			<Tile icon="instance" label="Part" title={`Add a part: ${LATER}`} caret disabled />
-			<span className="vp-rule" />
-			<Tile icon="vpMaterial" label="Material" title={`Material: ${LATER}`} caret disabled />
-			<Tile icon="vpColor" label="Color" title={`Color: ${LATER}`} caret disabled />
-			<Tile icon="vpGroup" label="Group" title={`Group: ${LATER}`} disabled />
-			<Tile icon="vpLock" label="Lock" title={`Lock: ${LATER}`} disabled />
-			<Tile icon="vpAnchor" label="Anchor" title={`Anchor: ${LATER}`} disabled />
-			<span className="vp-rule" />
-			<Tile
-				icon="locate"
-				label="Focus"
-				title="Frame the selection (F)"
-				onClick={() => controller.frameSelection()}
-			/>
-			<Tile
-				icon="fit"
-				label="Fit all"
-				title="Frame the whole place (Home)"
-				onClick={() => controller.fitAll()}
-			/>
-			<span className="vp-rule" />
-			<Tile
-				icon="vpExplorer"
-				label="Explorer"
-				title="Show or hide the left cards: DataModel"
-				aria-pressed={cards.isOpen("left")}
-				on={cards.isOpen("left")}
-				disabled={!cards.has("left")}
-				onClick={() => cards.toggle("left")}
-			/>
-			<Tile
-				icon="vpProperties"
-				label="Properties"
-				title="Show or hide the right cards: Properties"
-				aria-pressed={cards.isOpen("right")}
-				on={cards.isOpen("right")}
-				disabled={!cards.has("right")}
-				onClick={() => cards.toggle("right")}
-			/>
-			<span className="vp-rule" />
-			<span className="vp-speed" title="How fast WASD moves the camera. Shift+scroll to change it.">
-				Speed {speed >= 10 ? speed.toFixed(0) : speed >= 1 ? speed.toFixed(1) : speed.toFixed(2)}×
-			</span>
+				<div className="vp-corner">
+					<span
+						className="vp-rot"
+						ref={rotation}
+						title="The camera's rotation, as Roblox's Orientation reads it: X, Y, Z, in degrees"
+					/>
+					<span
+						className="vp-fps"
+						ref={rate}
+						title="Frames a second while the view moves, and what draws it. Nothing is drawn while nothing changes."
+					/>
+				</div>
+			</div>
+			<div className="side-strip tool-group vp-bar" role="toolbar" aria-label="Viewport">
+				<span className="vp-group" role="radiogroup" aria-label="Tool">
+					{TOOLS.map(([id, label, key]) => (
+						<Tile
+							key={id}
+							icon={TOOL_ICON[id]}
+							label={label}
+							title={`${label} (${key})${id === "select" ? "" : `: the handles show; dragging them ${LATER}`}`}
+							role="radio"
+							aria-checked={state.tool === id}
+							on={state.tool === id}
+							onClick={() => controller.setTool(id)}
+						/>
+					))}
+				</span>
+				{/* Esc's job, where a touch screen has no keys. */}
+				<span className="vp-clear">
+					<Tile
+						icon="close"
+						label="Clear"
+						title="Pick nothing (Esc)"
+						disabled={!state.picked}
+						onClick={() => controller.clear()}
+					/>
+				</span>
+				<span className="vp-rule" />
+				<span className="vp-snaps" title={snapTitle}>
+					<SnapFields snap={state.snap} controller={controller} />
+				</span>
+				<span
+					className="vp-snap-tile"
+					onClickCapture={(e) => {
+						// The tile's own place in the bar: its wrapper draws no box of its own.
+						const left = (e.target as Element).closest<HTMLElement>(".vp-tile")?.offsetLeft ?? 0;
+						setSnapAt((was) => (was === null ? left : null));
+					}}
+				>
+					<Tile
+						icon="vpSnap"
+						label="Snap"
+						title={snapTitle}
+						caret
+						on={snapAt !== null}
+						aria-pressed={snapAt !== null}
+					/>
+				</span>
+				{snapAt !== null && (
+					<div className="vp-snap-pop" ref={pop} style={{ left: snapAt }} title={snapTitle}>
+						<SnapFields snap={state.snap} controller={controller} />
+					</div>
+				)}
+				<span className="vp-rule" />
+				<Tile icon="instance" label="Part" title={`Add a part: ${LATER}`} caret disabled />
+				<span className="vp-rule" />
+				<Tile icon="vpMaterial" label="Material" title={`Material: ${LATER}`} caret disabled />
+				<Tile icon="vpColor" label="Color" title={`Color: ${LATER}`} caret disabled />
+				<Tile icon="vpGroup" label="Group" title={`Group: ${LATER}`} disabled />
+				<Tile icon="vpLock" label="Lock" title={`Lock: ${LATER}`} disabled />
+				<Tile icon="vpAnchor" label="Anchor" title={`Anchor: ${LATER}`} disabled />
+				<span className="vp-rule" />
+				<Tile
+					icon="locate"
+					label="Focus"
+					title="Frame the selection (F)"
+					onClick={() => controller.frameSelection()}
+				/>
+				<Tile
+					icon="fit"
+					label="Fit all"
+					title="Frame the whole place (Home)"
+					onClick={() => controller.fitAll()}
+				/>
+				<span className="vp-rule" />
+				<Tile
+					icon="vpExplorer"
+					label="Explorer"
+					title="Show or hide the left cards: DataModel"
+					aria-pressed={cards.isOpen("left")}
+					on={cards.isOpen("left")}
+					disabled={!cards.has("left")}
+					onClick={() => cards.toggle("left")}
+				/>
+				<Tile
+					icon="vpProperties"
+					label="Properties"
+					title="Show or hide the right cards: Properties"
+					aria-pressed={cards.isOpen("right")}
+					on={cards.isOpen("right")}
+					disabled={!cards.has("right")}
+					onClick={() => cards.toggle("right")}
+				/>
+				<span className="vp-rule" />
+				<span
+					className="vp-speed"
+					title="How fast WASD moves the camera. Shift+scroll to change it."
+				>
+					Speed {speed >= 10 ? speed.toFixed(0) : speed >= 1 ? speed.toFixed(1) : speed.toFixed(2)}×
+				</span>
+			</div>
 		</div>
 	);
 }
 
-/** Properties while the place is in front and nothing is picked: what is drawn, and how. */
+/** Rows as an instance's Properties draws them: a name, and its value. */
+function Rows({ rows }: { rows: [string, string][] }) {
+	return rows.map(([name, value]) => (
+		<div className="place-prop" key={name}>
+			<span className="place-prop-name">{name}</span>
+			<span className="place-prop-value">{value}</span>
+		</div>
+	));
+}
+
+/**
+ * Properties while the place is in front and nothing is picked: the place
+ * itself, drawn as an instance's Properties are, so it reads the same docked,
+ * floating or in a tablet's drawer.
+ */
 export function PlaceSummary({
 	controller,
 	file,
@@ -446,31 +473,41 @@ export function PlaceSummary({
 	return (
 		<div className="place-properties">
 			<PanelHead sub={name} />
-			<div className="place-props vp-place">
-				<Ident name={name} kind="Place" color="var(--danger)" icon="build" />
-				{summary && (
-					<div className="vp-facts">
-						<span>{summary.parts.toLocaleString()}</span>
-						<span>parts drawn</span>
-						<span>{summary.meshes.toLocaleString()}</span>
-						<span>of them MeshParts, as their boxes</span>
-						<span>{summary.transparent.toLocaleString()}</span>
-						<span>fully transparent, left out</span>
-					</div>
-				)}
-				{summary && summary.notes.length > 0 && (
-					<ul className="vp-notes">
-						{summary.notes.map((n) => (
-							<li key={n}>{n}</li>
-						))}
-					</ul>
-				)}
-				{backend && (
-					<p className="place-note">
-						Drawn with {backend}
-						{fellBack ? ": WebGPU is not available here" : ""}.
-					</p>
-				)}
+			<div className="place-props">
+				<div className="place-props-head">
+					<Ident name={name} kind="DataModel" color="var(--danger)" icon="build" />
+				</div>
+				<p className="place-summary">
+					The place in 3D. Pick an instance in it, or in DataModel, for its properties.
+				</p>
+				<div className="place-groups">
+					{summary && (
+						<div className="place-group">
+							<SectionHead title="Drawn" />
+							<Rows
+								rows={[
+									["Parts", summary.parts.toLocaleString()],
+									["MeshParts", `${summary.meshes.toLocaleString()}, as their boxes`],
+									["Left out", `${summary.transparent.toLocaleString()} fully transparent`],
+									...(backend
+										? [
+												["Renderer", fellBack ? `${backend}, no WebGPU here` : backend] as [
+													string,
+													string,
+												],
+											]
+										: []),
+								]}
+							/>
+						</div>
+					)}
+					{summary && summary.notes.length > 0 && (
+						<div className="place-group">
+							<SectionHead title="Lighting" />
+							<Rows rows={summary.notes} />
+						</div>
+					)}
+				</div>
 			</div>
 		</div>
 	);

@@ -136,6 +136,13 @@ export interface PlaceBrowserProps {
 	reveal: { index: number; seq: number; open?: boolean } | null;
 	/** The row picked here changed, however it was picked: for the place's view to follow. */
 	onSelect?: (index: number | null) => void;
+	/**
+	 * The DataModel row at the top: the place itself, which opens its view.
+	 * Without it the services are the top rows.
+	 */
+	onOpenPlace?: () => void;
+	/** The place's view is in front: its row is the open document. */
+	placeOpen?: boolean;
 	/** The version of the place a property change last wrote: read it again. */
 	written?: string | null;
 	/** Modify DataModel Instances is on: instances are added, deleted, moved and duplicated here. */
@@ -161,7 +168,9 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 	const [tucked, setTucked] = useState(false);
 	const [filter, setFilter] = useState("");
 	const [selected, setSelected] = useState<number | null>(null);
-	const { onSelect } = props;
+	const { onSelect, onOpenPlace, placeOpen } = props;
+	// The DataModel row's own fold: the services under it.
+	const [placeShut, setPlaceShut] = useState(false);
 	useEffect(() => onSelect?.(selected), [selected, onSelect]);
 	const treeRef = useRef<HTMLDivElement>(null);
 	// The version of the file on screen: a new one renumbers everything.
@@ -364,18 +373,24 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 				});
 			}
 		};
+		// Under the DataModel row when there is one, as Studio's tree is under the game.
+		const top = onOpenPlace ? 1 : 0;
+		if (onOpenPlace) {
+			out.push({ kind: "datamodel", depth: 0 });
+			if (placeShut) return out;
+		}
 		const roots = children.get(-1) ?? [];
 		const hidden = roots.filter((i) => nodes[i][3] & TUCKED);
-		for (const root of roots) if (!(nodes[root][3] & TUCKED)) add(root, 0);
+		for (const root of roots) if (!(nodes[root][3] & TUCKED)) add(root, top);
 		if (hidden.length) {
 			out.push({
 				kind: "tucked",
-				depth: 0,
+				depth: top,
 				text: tucked
 					? `Hide ${hidden.length} empty services`
 					: `${hidden.length} more services, all empty`,
 			});
-			if (tucked) for (const root of hidden) add(root, 0);
+			if (tucked) for (const root of hidden) add(root, top);
 		}
 		return out;
 	}, [nodes, classes, children, open, showAll, tucked, filter]);
@@ -495,6 +510,44 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 
 			<div className="tree place-tree" ref={treeRef} role="tree">
 				{rows.map((row, n) => {
+					if (row.kind === "datamodel") {
+						// The place itself: a click opens its view, and Properties
+						// describes it while nothing in it is picked.
+						const openPlace = () => {
+							setSelected(null);
+							onInspect(null, false);
+							onOpenPlace?.();
+						};
+						return (
+							<div
+								key="datamodel"
+								role="treeitem"
+								aria-expanded={!placeShut}
+								aria-selected={placeOpen && selected === null}
+								className={cx(
+									"tree-row place-row place-datamodel",
+									placeOpen && selected === null && "selected",
+									placeOpen && "open-doc",
+								)}
+								style={depthStyle(0)}
+								title={`${file} (DataModel). Click to see the place in 3D.`}
+								onClick={openPlace}
+							>
+								<span
+									className="place-twist"
+									onClick={(e) => {
+										e.stopPropagation();
+										setPlaceShut((was) => !was);
+									}}
+								>
+									<Icon name="chevron" size={14} className="twist" rotate={placeShut ? -90 : 0} />
+								</span>
+								<Icon name="build" size={15} className="kind tree-folder-place" />
+								<span className="label">{file.split("/").pop()}</span>
+								<span className="place-class">DataModel</span>
+							</div>
+						);
+					}
 					if (row.kind !== "node") {
 						return (
 							<div
@@ -939,6 +992,7 @@ function targetIn(place: Loaded, index: number): PlaceTarget {
 }
 
 type Row =
+	| { kind: "datamodel"; depth: number }
 	| { kind: "node"; index: number; depth: number; match?: boolean }
 	| { kind: "more" | "tucked"; depth: number; parent?: number; text: string };
 

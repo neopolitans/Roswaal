@@ -68,7 +68,6 @@ import {
 } from "./host.js";
 import { Inspector } from "./Inspector.jsx";
 import { IntroPanel } from "./IntroPanel.jsx";
-import { Icon } from "./icons.jsx";
 import { MapEditor } from "./MapEditor.jsx";
 import { MenuButton } from "./Menu.jsx";
 import { ModeStrip } from "./ModeStrip.jsx";
@@ -1804,16 +1803,6 @@ export function App() {
 										</button>
 									</span>
 								)}
-								{project.place && projectView === "datamodel" && (
-									<button
-										className={cx("tb icon-only", placeDoc && "on")}
-										title={`${project.place} in 3D`}
-										aria-label="View the place in 3D"
-										onClick={() => store.openSide({ kind: "place", doc: { path: project.place! } })}
-									>
-										<Icon name="build" size={15} />
-									</button>
-								)}
 							</PanelHead>
 							{project.place && placeSeen && (
 								<div className="project-view" hidden={projectView !== "datamodel"}>
@@ -1824,6 +1813,11 @@ export function App() {
 										inspecting={placeInspect?.index ?? null}
 										reveal={placeReveal}
 										onSelect={onPlaceSelect}
+										onOpenPlace={() =>
+											project.place &&
+											store.openSide({ kind: "place", doc: { path: project.place } })
+										}
+										placeOpen={placeDoc !== null}
 										written={placeWritten}
 										editable={prefs.modifyDataModel}
 										confirmEdit={confirmTreeEdit}
