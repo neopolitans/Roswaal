@@ -899,15 +899,23 @@ export class ApiSession {
 				const workspace = loaded.doc.roots.find((r) => r.className === "Workspace");
 				loaded.scene ??= buildPlaceScene(workspace, (inst) => loaded.index.get(inst));
 				const scene = loaded.scene;
-				const kinds: Record<string, { data: string; count: number }> = {};
-				for (const k of SCENE_KINDS) {
-					const { data, count } = scene.kinds[k];
-					kinds[k] = {
-						data: toBase64(new Uint8Array(data.buffer, data.byteOffset, data.byteLength)),
-						count,
-					};
-				}
-				return { ...scene, kinds, lighting: readLighting(loaded.doc) };
+				const encode = (from: PlaceScene["kinds"]) => {
+					const out: Record<string, { data: string; count: number }> = {};
+					for (const k of SCENE_KINDS) {
+						const { data, count } = from[k];
+						out[k] = {
+							data: toBase64(new Uint8Array(data.buffer, data.byteOffset, data.byteLength)),
+							count,
+						};
+					}
+					return out;
+				};
+				return {
+					...scene,
+					kinds: encode(scene.kinds),
+					translucent: encode(scene.translucent),
+					lighting: readLighting(loaded.doc),
+				};
 			},
 
 			/**

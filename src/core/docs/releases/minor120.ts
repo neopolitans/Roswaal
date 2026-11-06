@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.212.0",
+		date: "2026-11-06",
+		headline: "The place is drawn in its materials, with Transparency, Reflectance and Neon.",
+		added: [
+			"**Materials.** Each part is drawn in its material: how strongly and how tightly it catches the sun, a metal's tinted shine, and a fine grain across stone, wood, grass and the rest.",
+			"**Transparency.** Parts with a Transparency between 0 and 1 are seen through, blended over what is behind them.",
+			"**Reflectance and Glass.** A part with Reflectance shows the sky it faces, and Glass does so of its own, more at a glancing angle.",
+			"**Neon and ForceField.** Neon gives its own light, and ForceField glows at its edges.",
+		],
+		changed: ["**The place's Properties.** Drawn lists how many parts are seen through."],
+	},
+	{
 		version: "0.211.3",
 		date: "2026-11-06",
 		headline: "The place's Explorer and Properties buttons follow their cards, floating or docked.",

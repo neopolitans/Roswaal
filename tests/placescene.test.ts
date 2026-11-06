@@ -15,6 +15,7 @@ import { outlinePlace } from "../src/core/rbx/browse.js";
 import type { Prop, PropType, RbxInstance } from "../src/core/rbx/dom.js";
 import { readRbx } from "../src/core/rbx/index.js";
 import { sunDirection } from "../src/core/rbx/lighting.js";
+import { MATERIALS } from "../src/core/rbx/materials.js";
 import { buildPlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../src/core/rbx/scene.js";
 import { ApiSession } from "../src/server/routes.js";
 
@@ -71,6 +72,7 @@ function rows(data: Float32Array) {
 		transform: [...data.slice(n * SCENE_STRIDE, n * SCENE_STRIDE + 12)],
 		colour: words[n * SCENE_STRIDE + 12],
 		id: words[n * SCENE_STRIDE + 13],
+		look: words[n * SCENE_STRIDE + 14],
 	}));
 }
 
@@ -146,6 +148,33 @@ describe("A place's scene", () => {
 		expect(scene.transparent).toBe(1);
 	});
 
+	it("marks each part with its material and Reflectance", () => {
+		const scene = sceneOf(
+			part("Part", [1, 1, 1], { Material: ["Enum", 1088], Reflectance: ["Float32", 0.5] }),
+			part("Part", [1, 1, 1], { Material: ["Enum", 99999] }),
+		);
+		const [metal, unknown] = rows(scene.kinds.block.data);
+		expect(MATERIALS[metal.look & 255].name).toBe("Metal");
+		expect(metal.look >> 8).toBe(128);
+		// A material the table does not know is drawn as Plastic.
+		expect(MATERIALS[unknown.look & 255].name).toBe("Plastic");
+	});
+
+	it("keeps parts that are seen through apart, with their Transparency in the alpha", () => {
+		const scene = sceneOf(
+			part("Part", [1, 1, 1], { Transparency: ["Float32", 0.5] }),
+			part("Part", [1, 1, 1], { Material: ["Enum", 1584] }),
+			part("Part", [1, 1, 1]),
+		);
+		expect(scene.kinds.block.count).toBe(1);
+		const [half, field] = rows(scene.translucent.block.data);
+		expect(half.colour >>> 24).toBe(128);
+		// ForceField is blended at any Transparency: it glows at its rim.
+		expect(MATERIALS[field.look & 255].name).toBe("ForceField");
+		expect(field.colour >>> 24).toBe(255);
+		expect(rows(scene.kinds.block.data)[0].colour >>> 24).toBe(255);
+	});
+
 	it("keeps where Studio's camera was when the place was saved", () => {
 		const { scene, order } = m103();
 		expect(scene.camera).toBeDefined();
@@ -185,6 +214,9 @@ describe("The scene route", () => {
 			transparent: number;
 		};
 		expect(answer.kinds.mesh.count).toBe(22);
+		expect(Object.keys((answer as { translucent?: object }).translucent ?? {})).toEqual([
+			...SCENE_KINDS,
+		]);
 		const block = new Float32Array(fromBase64(answer.kinds.block.data).buffer);
 		expect(block.length).toBe(2 * SCENE_STRIDE);
 		expect(block[0]).toBe(2048);

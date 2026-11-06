@@ -61,7 +61,7 @@ export class HandleBuilder {
 			(Math.round(rgb[1] * 255) << 8) |
 			(Math.round(rgb[2] * 255) << 16) |
 			(255 << 24);
-		this.lists[kind].push(...c0, ...c1, ...c2, ...p, bits(colour), NO_ID);
+		this.lists[kind].push(...c0, ...c1, ...c2, ...p, bits(colour), NO_ID, 0);
 	}
 
 	/** A shape stretched from `from` to `to`, `thick` across. */

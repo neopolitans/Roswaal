@@ -486,6 +486,7 @@ export function PlaceSummary({
 								rows={[
 									["Parts", summary.parts.toLocaleString()],
 									["MeshParts", `${summary.meshes.toLocaleString()}, as their boxes`],
+									["Seen through", `${summary.translucent.toLocaleString()}, blended`],
 									["Left out", `${summary.transparent.toLocaleString()} fully transparent`],
 									...(backend
 										? [

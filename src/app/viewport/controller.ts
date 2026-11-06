@@ -34,6 +34,8 @@ export interface ViewportState {
 	summary: {
 		parts: number;
 		meshes: number;
+		/** Seen through: Transparency above 0, or ForceField. */
+		translucent: number;
 		transparent: number;
 		notes: [string, string][];
 	} | null;
@@ -178,15 +180,16 @@ export class ViewportController {
 	setPlace(place: ViewportPlace): void {
 		this.place = place;
 		this.words.clear();
-		for (const k of SCENE_KINDS) {
-			const { data, count } = place.kinds[k];
-			const u = new Uint32Array(data.buffer, data.byteOffset, data.length);
-			for (let i = 0; i < count; i++)
-				this.words.set(
-					u[i * SCENE_STRIDE + 13],
-					data.slice(i * SCENE_STRIDE, (i + 1) * SCENE_STRIDE),
-				);
-		}
+		for (const set of [place.kinds, place.translucent])
+			for (const k of SCENE_KINDS) {
+				const { data, count } = set[k];
+				const u = new Uint32Array(data.buffer, data.byteOffset, data.length);
+				for (let i = 0; i < count; i++)
+					this.words.set(
+						u[i * SCENE_STRIDE + 13],
+						data.slice(i * SCENE_STRIDE, (i + 1) * SCENE_STRIDE),
+					);
+			}
 		const { nodes, classes } = place.outline;
 		this.kids = nodes.map(() => []);
 		this.workspace = -1;
@@ -198,7 +201,8 @@ export class ViewportController {
 		this.set({
 			summary: {
 				parts: this.words.size,
-				meshes: place.kinds.mesh.count,
+				meshes: place.kinds.mesh.count + place.translucent.mesh.count,
+				translucent: SCENE_KINDS.reduce((n, k) => n + place.translucent[k].count, 0),
 				transparent: place.transparent,
 				notes: place.lighting.notes,
 			},
@@ -272,6 +276,7 @@ export class ViewportController {
 			(lo[0] + hi[0]) / 2,
 			(lo[1] + hi[1]) / 2,
 			(lo[2] + hi[2]) / 2,
+			0,
 			0,
 			0,
 		]);

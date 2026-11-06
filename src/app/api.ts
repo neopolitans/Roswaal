@@ -406,18 +406,23 @@ export const api = {
 		),
 	/** The place's Workspace as the viewport draws it: see `GET /place/scene`. */
 	placeScene: async (stamp: string): Promise<PlaceScene & { lighting: LightingParams }> => {
+		type Wire = Record<string, { data: string; count: number }>;
 		const wire = await request<
-			Omit<PlaceScene, "kinds"> & {
-				kinds: Record<string, { data: string; count: number }>;
+			Omit<PlaceScene, "kinds" | "translucent"> & {
+				kinds: Wire;
+				translucent?: Wire;
 				lighting: LightingParams;
 			}
 		>(`/api/place/scene?stamp=${encodeURIComponent(stamp)}`);
-		const kinds = {} as PlaceScene["kinds"];
-		for (const k of SCENE_KINDS) {
-			const { data, count } = wire.kinds[k] ?? { data: "", count: 0 };
-			kinds[k] = { data: new Float32Array(fromBase64(data).buffer), count };
-		}
-		return { ...wire, kinds };
+		const decode = (from: Wire | undefined) => {
+			const out = {} as PlaceScene["kinds"];
+			for (const k of SCENE_KINDS) {
+				const { data, count } = from?.[k] ?? { data: "", count: 0 };
+				out[k] = { data: new Float32Array(fromBase64(data).buffer), count };
+			}
+			return out;
+		};
+		return { ...wire, kinds: decode(wire.kinds), translucent: decode(wire.translucent) };
 	},
 	/**
 	 * Adds, deletes, moves or duplicates an instance in the place file itself.

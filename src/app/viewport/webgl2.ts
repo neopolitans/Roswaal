@@ -4,11 +4,20 @@
  */
 
 import { type LightingParams, lightingBlock } from "../../core/rbx/lighting.js";
+import { MATERIALS, materialBlock } from "../../core/rbx/materials.js";
 import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene.js";
 import { boxEdges, meshFor } from "./geometry.js";
 import { HANDLE_KINDS, type Handles, handleMesh } from "./handles.js";
 import { invert, lookAt, multiply, perspective } from "./math.js";
-import { type Camera, FOV, HANDLE_ALPHA, SELECT, SELECT_WIDTH, type ViewRenderer } from "./view.js";
+import {
+	backToFront,
+	type Camera,
+	FOV,
+	HANDLE_ALPHA,
+	SELECT,
+	SELECT_WIDTH,
+	type ViewRenderer,
+} from "./view.js";
 
 const COMMON = `
 uniform vec4 L[11];
@@ -29,31 +38,66 @@ vec3 aces(vec3 colour) {
 	return clamp(o * (a / b), 0.0, 1.0);
 }
 vec3 display(vec3 c) { vec3 t = aces(c * L[3].w); return pow(t + 0.007 * (1.0 - t), vec3(1.0 / 2.2)); }
-vec3 lit(vec3 albedo, vec3 n, vec3 world) {
+vec3 air(vec3 c, float d, float y) {
+	if (L[8].z > 0.5) return mix(c, L[9].rgb, clamp((d - L[8].x) / max(L[8].y - L[8].x, 1.0), 0.0, 1.0));
+	float thin = exp(-max(y, 0.0) * 0.004);
+	return mix(c, L[10].rgb, 1.0 - exp(-d * L[4].w * thin));
+}
+`;
+// A surface in its material, as WebGpuView's \`surface\` draws it.
+const SURFACE = `
+uniform vec4 M[${MATERIALS.length * 2}];
+float hash3(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+float noise3(vec3 p) {
+	vec3 i = floor(p);
+	vec3 f = fract(p);
+	vec3 w = f * f * (3.0 - 2.0 * f);
+	float x0 = mix(mix(hash3(i), hash3(i + vec3(1.0, 0.0, 0.0)), w.x), mix(hash3(i + vec3(0.0, 1.0, 0.0)), hash3(i + vec3(1.0, 1.0, 0.0)), w.x), w.y);
+	float x1 = mix(mix(hash3(i + vec3(0.0, 0.0, 1.0)), hash3(i + vec3(1.0, 0.0, 1.0)), w.x), mix(hash3(i + vec3(0.0, 1.0, 1.0)), hash3(i + vec3(1.0, 1.0, 1.0)), w.x), w.y);
+	return mix(x0, x1, w.z);
+}
+vec4 surface(vec3 colour, vec3 n, vec3 world, float alpha, uint look) {
+	int row = int(look & 255u);
+	float shine = float((look >> 8u) & 255u) / 255.0;
+	vec4 a = M[row * 2];
+	vec4 b = M[row * 2 + 1];
 	vec3 toEye = L[6].xyz - world;
 	float d = length(toEye);
 	vec3 v = toEye / max(d, 1e-4);
-	vec3 l = L[0].xyz;
-	float ndl = max(dot(n, l), 0.0);
-	vec3 h = normalize(l + v);
-	float spec = pow(max(dot(n, h), 0.0), 40.0) * 0.12;
-	vec3 fill = L[2].rgb * (0.9 + 0.1 * n.y);
-	vec3 c = albedo * (fill + L[1].rgb * ndl) + L[1].rgb * spec * ndl;
-	if (L[8].z > 0.5) {
-		c = mix(c, L[9].rgb, clamp((d - L[8].x) / max(L[8].y - L[8].x, 1.0), 0.0, 1.0));
-	} else {
-		float thin = exp(-max(world.y, 0.0) * 0.004);
-		c = mix(c, L[10].rgb, 1.0 - exp(-d * L[4].w * thin));
+	vec3 albedo = colour;
+	if (a.w > 0.0) {
+		float g = noise3(world / b.x) * 0.65 + noise3(world / b.x * 3.1) * 0.35;
+		albedo *= 1.0 + a.w * (g - 0.5) * 2.0;
 	}
-	return c;
+	vec3 c;
+	if (b.y > 0.5 && b.y < 1.5) {
+		c = albedo * 2.4;
+	} else if (b.y > 2.5) {
+		float rim = pow(1.0 - abs(dot(n, v)), 2.0);
+		c = albedo * (0.6 + rim * 2.5);
+		alpha *= clamp(0.15 + rim * 0.85, 0.0, 1.0);
+	} else {
+		vec3 l = L[0].xyz;
+		float ndl = max(dot(n, l), 0.0);
+		vec3 h = normalize(l + v);
+		float spec = pow(max(dot(n, h), 0.0), a.y) * a.x;
+		vec3 fill = L[2].rgb * (0.9 + 0.1 * n.y);
+		c = albedo * (1.0 - a.z * 0.6) * (fill + L[1].rgb * ndl) + L[1].rgb * mix(vec3(1.0), albedo, a.z) * spec * ndl;
+		vec3 seen = sky(reflect(-v, n));
+		c += seen * albedo * a.z * a.x * 0.25;
+		float mirror = shine;
+		if (b.y > 1.5) mirror = max(mirror, 0.2 + 0.5 * pow(1.0 - abs(dot(n, v)), 3.0));
+		c = mix(c, seen, mirror);
+	}
+	return vec4(air(c, d, world.y), alpha);
 }
 `;
 const VS = `#version 300 es
 layout(location=0) in vec3 pos; layout(location=1) in vec3 nrm;
 layout(location=2) in vec3 c0; layout(location=3) in vec3 c1; layout(location=4) in vec3 c2; layout(location=5) in vec3 p;
-layout(location=6) in vec4 colour; layout(location=7) in uint id;
+layout(location=6) in vec4 colour; layout(location=7) in uint id; layout(location=8) in uint look;
 uniform mat4 viewProj; uniform float outline; uniform float handle; uniform vec3 screen;
-out vec3 vColour; out vec3 vWorld; out vec3 vNormal; flat out uint vId;
+out vec3 vColour; out vec3 vWorld; out vec3 vNormal; flat out uint vId; out float vAlpha; flat out uint vLook;
 void main() {
 	mat3 m = mat3(c0, c1, c2);
 	vec3 s = vec3(length(c0), length(c1), length(c2));
@@ -74,20 +118,26 @@ void main() {
 	}
 	vColour = pow(colour.rgb, vec3(2.2));
 	vId = id;
+	vAlpha = colour.a;
+	vLook = look;
 	// A handle's depth squeezed into the front hundredth, as in WebGpuView.
 	if (handle > 0.5) gl_Position.z = ((gl_Position.z / gl_Position.w + 1.0) * 0.01 - 1.0) * gl_Position.w;
 }`;
 const FS = `#version 300 es
 precision highp float;
-in vec3 vColour; in vec3 vWorld; in vec3 vNormal; flat in uint vId;
+in vec3 vColour; in vec3 vWorld; in vec3 vNormal; flat in uint vId; in float vAlpha; flat in uint vLook;
 uniform float outline; uniform vec3 select; uniform float handle; uniform float alpha;
 ${COMMON}
+${SURFACE}
 out vec4 o;
 void main() {
 	vec3 n = normalize(vNormal);
 	if (outline > 0.5) o = vec4(select, 1.0);
 	else if (handle > 0.5) o = vec4(pow(vColour * (0.72 + 0.38 * max(dot(n, normalize(vec3(0.4, 1.0, 0.25))), 0.0)), vec3(1.0 / 2.2)), alpha);
-	else o = vec4(display(lit(vColour, n, vWorld)), 1.0);
+	else {
+		vec4 s = surface(vColour, n, vWorld, vAlpha, vLook);
+		o = vec4(display(s.rgb), s.a);
+	}
 }`;
 const VS_SKY = `#version 300 es
 out vec2 ndc;
@@ -153,6 +203,15 @@ export class WebGl2View implements ViewRenderer {
 		count: number;
 	}[] = [];
 	private draws: { vao: WebGLVertexArrayObject; indexCount: number; count: number }[] = [];
+	private clear: {
+		vao: WebGLVertexArrayObject;
+		indexCount: number;
+		count: number;
+		instances: WebGLBuffer;
+		source: Float32Array;
+		sorted: Float32Array;
+	}[] = [];
+	private clearEye: number[] | null = null;
 	private edgeMesh!: { vertices: WebGLBuffer; indices: WebGLBuffer; count: number };
 	private selection: { vao: WebGLVertexArrayObject; buffer: WebGLBuffer; count: number } | null =
 		null;
@@ -173,6 +232,9 @@ export class WebGl2View implements ViewRenderer {
 		if (!gl) throw new Error("no WebGL2");
 		this.gl = gl;
 		this.main = this.link(VS, FS);
+		// The material table: the same for every frame, so set once.
+		gl.useProgram(this.main.program);
+		gl.uniform4fv(gl.getUniformLocation(this.main.program, "M[0]"), materialBlock());
 		this.ids = this.link(VS, FS_ID);
 		this.over = this.link(VS_OVER, FS_OVER);
 		this.skyProgram = this.link(VS_SKY, FS_SKY);
@@ -206,19 +268,44 @@ export class WebGl2View implements ViewRenderer {
 
 	setScene(scene: PlaceScene): void {
 		const gl = this.gl;
-		for (const d of this.draws) gl.deleteVertexArray(d.vao);
+		for (const d of [...this.draws, ...this.clear]) gl.deleteVertexArray(d.vao);
 		for (const b of this.sceneBuffers) gl.deleteBuffer(b);
 		this.draws = [];
+		this.clear = [];
+		this.clearEye = null;
 		this.sceneBuffers = [];
 		for (const kind of SCENE_KINDS) {
-			const { data, count } = scene.kinds[kind];
-			if (count === 0) continue;
 			const mesh = meshFor(kind);
-			const vb = this.buffer(gl.ARRAY_BUFFER, mesh.vertices);
-			const eb = this.buffer(gl.ELEMENT_ARRAY_BUFFER, mesh.indices);
-			const ib = this.buffer(gl.ARRAY_BUFFER, data);
-			this.sceneBuffers.push(vb, eb, ib);
-			this.draws.push({ vao: this.vao(vb, ib, eb), indexCount: mesh.indices.length, count });
+			for (const seeThrough of [false, true]) {
+				const { data, count } = (seeThrough ? scene.translucent : scene.kinds)[kind];
+				if (count === 0) continue;
+				const vb = this.buffer(gl.ARRAY_BUFFER, mesh.vertices);
+				const eb = this.buffer(gl.ELEMENT_ARRAY_BUFFER, mesh.indices);
+				const ib = this.buffer(gl.ARRAY_BUFFER, data);
+				this.sceneBuffers.push(vb, eb, ib);
+				const draw = { vao: this.vao(vb, ib, eb), indexCount: mesh.indices.length, count };
+				if (seeThrough)
+					this.clear.push({
+						...draw,
+						instances: ib,
+						source: data,
+						sorted: new Float32Array(data.length),
+					});
+				else this.draws.push(draw);
+			}
+		}
+	}
+
+	/** The see-through parts sorted again when the camera has moved. */
+	private sortClear(eye: number[]): void {
+		const was = this.clearEye;
+		if (was && Math.hypot(eye[0] - was[0], eye[1] - was[1], eye[2] - was[2]) < 0.01) return;
+		this.clearEye = [...eye];
+		const gl = this.gl;
+		for (const c of this.clear) {
+			backToFront(c.source, c.count, eye, c.sorted);
+			gl.bindBuffer(gl.ARRAY_BUFFER, c.instances);
+			gl.bufferSubData(gl.ARRAY_BUFFER, 0, c.sorted);
 		}
 	}
 
@@ -299,6 +386,9 @@ export class WebGl2View implements ViewRenderer {
 		gl.enableVertexAttribArray(7);
 		gl.vertexAttribIPointer(7, 1, gl.UNSIGNED_INT, stride, 52);
 		gl.vertexAttribDivisor(7, 1);
+		gl.enableVertexAttribArray(8);
+		gl.vertexAttribIPointer(8, 1, gl.UNSIGNED_INT, stride, 56);
+		gl.vertexAttribDivisor(8, 1);
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indices);
 		gl.bindVertexArray(null);
 		return vao;
@@ -393,9 +483,11 @@ export class WebGl2View implements ViewRenderer {
 		gl.uniform1f(prog.handle, 0);
 	}
 
-	private solids(): void {
+	private solids(
+		draws: { vao: WebGLVertexArrayObject; indexCount: number; count: number }[] = this.draws,
+	): void {
 		const gl = this.gl;
-		for (const d of this.draws) {
+		for (const d of draws) {
 			gl.bindVertexArray(d.vao);
 			gl.drawElementsInstanced(gl.TRIANGLES, d.indexCount, gl.UNSIGNED_SHORT, 0, d.count);
 		}
@@ -415,6 +507,16 @@ export class WebGl2View implements ViewRenderer {
 		gl.enable(gl.DEPTH_TEST);
 		this.use(this.main, camera, false);
 		this.solids();
+		// The see-through parts: blended, farthest first, hiding nothing themselves.
+		if (this.clear.length > 0) {
+			this.sortClear(camera.eye);
+			gl.enable(gl.BLEND);
+			gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+			gl.depthMask(false);
+			this.solids(this.clear);
+			gl.depthMask(true);
+			gl.disable(gl.BLEND);
+		}
 		if (this.selection) {
 			this.use(this.main, camera, true);
 			gl.disable(gl.DEPTH_TEST);
@@ -471,6 +573,7 @@ export class WebGl2View implements ViewRenderer {
 		gl.clear(gl.DEPTH_BUFFER_BIT);
 		this.use(this.ids, camera, false);
 		this.solids();
+		this.solids(this.clear);
 		const out = new Uint32Array(4);
 		gl.readPixels(px, py, 1, 1, gl.RGBA_INTEGER, gl.UNSIGNED_INT, out);
 		gl.disable(gl.SCISSOR_TEST);

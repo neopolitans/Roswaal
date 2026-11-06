@@ -4,11 +4,20 @@
  */
 
 import { type LightingParams, lightingBlock } from "../../core/rbx/lighting.js";
+import { MATERIALS, materialBlock } from "../../core/rbx/materials.js";
 import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene.js";
 import { boxEdges, meshFor } from "./geometry.js";
 import { HANDLE_KINDS, type Handles, handleMesh } from "./handles.js";
 import { invert, lookAt, multiply, perspective } from "./math.js";
-import { type Camera, FOV, HANDLE_ALPHA, SELECT, SELECT_WIDTH, type ViewRenderer } from "./view.js";
+import {
+	backToFront,
+	type Camera,
+	FOV,
+	HANDLE_ALPHA,
+	SELECT,
+	SELECT_WIDTH,
+	type ViewRenderer,
+} from "./view.js";
 
 // WebGPU's flags, as the spec numbers them: TypeScript's DOM types have the
 // interfaces but not these namespaces.
@@ -24,16 +33,19 @@ struct U {
 	sun: vec4f, sunColour: vec4f, ambient: vec4f, zenith: vec4f, horizon: vec4f, ground: vec4f,
 	camPos: vec4f, select: vec4f, fog: vec4f, fogColour: vec4f, hazeColour: vec4f,
 	screen: vec4f,
+	// The material table: two rows a material, as \`materialBlock\` writes it.
+	mats: array<vec4f, ${MATERIALS.length * 2}>,
 };
 @group(0) @binding(0) var<uniform> u: U;
 struct VIn {
 	@location(0) pos: vec3f, @location(1) nrm: vec3f,
 	@location(2) c0: vec3f, @location(3) c1: vec3f, @location(4) c2: vec3f, @location(5) p: vec3f,
-	@location(6) colour: vec4f, @location(7) id: u32,
+	@location(6) colour: vec4f, @location(7) id: u32, @location(8) look: u32,
 };
 struct VOut {
 	@builtin(position) clip: vec4f, @location(0) colour: vec3f, @location(1) @interpolate(flat) id: u32,
 	@location(2) world: vec3f, @location(3) normal: vec3f,
+	@location(4) alpha: f32, @location(5) @interpolate(flat) look: u32,
 };
 @vertex fn vs(v: VIn) -> VOut { return shade(v); }
 // The parts' transform, shared by the parts and the handles: an entry point cannot call another.
@@ -46,6 +58,8 @@ fn shade(v: VIn) -> VOut {
 	o.normal = normalize(m * (v.nrm / max(s * s, vec3f(1e-6))));
 	o.colour = pow(v.colour.rgb, vec3f(2.2));
 	o.id = v.id;
+	o.alpha = v.colour.a;
+	o.look = v.look;
 	return o;
 }
 // The sky in a direction: blue overhead, the haze colour at the horizon,
@@ -76,28 +90,71 @@ fn display(c: vec3f) -> vec3f {
 	let t = aces(c * u.zenith.w);
 	return pow(t + 0.007 * (1.0 - t), vec3f(1.0 / 2.2));
 }
-// A surface: the sun with a soft highlight, the ambient, the sky's fill, then
-// the haze between it and the camera.
-fn lit(albedo: vec3f, n: vec3f, world: vec3f) -> vec3f {
-	let toEye = u.camPos.xyz - world;
+// The air between a surface and the camera: Lighting's fog, or the
+// Atmosphere's haze, thinner with height as air is.
+fn air(c: vec3f, d: f32, y: f32) -> vec3f {
+	if (u.fog.z > 0.5) {
+		return mix(c, u.fogColour.rgb, clamp((d - u.fog.x) / max(u.fog.y - u.fog.x, 1.0), 0.0, 1.0));
+	}
+	let thin = exp(-max(y, 0.0) * 0.004);
+	return mix(c, u.hazeColour.rgb, 1.0 - exp(-d * u.horizon.w * thin));
+}
+// A cheap value noise, for a material's grain.
+fn hash3(p: vec3f) -> f32 { return fract(sin(dot(p, vec3f(127.1, 311.7, 74.7))) * 43758.5453); }
+fn noise3(p: vec3f) -> f32 {
+	let i = floor(p);
+	let f = fract(p);
+	let w = f * f * (3.0 - 2.0 * f);
+	let x0 = mix(mix(hash3(i), hash3(i + vec3f(1.0, 0.0, 0.0)), w.x), mix(hash3(i + vec3f(0.0, 1.0, 0.0)), hash3(i + vec3f(1.0, 1.0, 0.0)), w.x), w.y);
+	let x1 = mix(mix(hash3(i + vec3f(0.0, 0.0, 1.0)), hash3(i + vec3f(1.0, 0.0, 1.0)), w.x), mix(hash3(i + vec3f(0.0, 1.0, 1.0)), hash3(i + vec3f(1.0, 1.0, 1.0)), w.x), w.y);
+	return mix(x0, x1, w.z);
+}
+// A surface in its material: the sun's light and highlight, the sky's fill, a
+// metal's tinted highlight, the material's grain, what it reflects, and the
+// air in front of it. Neon gives its own light; ForceField glows at its rim.
+fn surface(i: VOut) -> vec4f {
+	let row = i.look & 255u;
+	let shine = f32((i.look >> 8u) & 255u) / 255.0;
+	let a = u.mats[row * 2u];
+	let b = u.mats[row * 2u + 1u];
+	let n = normalize(i.normal);
+	let toEye = u.camPos.xyz - i.world;
 	let d = length(toEye);
 	let v = toEye / max(d, 1e-4);
-	let l = u.sun.xyz;
-	let ndl = max(dot(n, l), 0.0);
-	let h = normalize(l + v);
-	let spec = pow(max(dot(n, h), 0.0), 40.0) * 0.12;
-	let fill = u.ambient.rgb * (0.9 + 0.1 * n.y);
-	var c = albedo * (fill + u.sunColour.rgb * ndl) + u.sunColour.rgb * spec * ndl;
-	if (u.fog.z > 0.5) {
-		c = mix(c, u.fogColour.rgb, clamp((d - u.fog.x) / max(u.fog.y - u.fog.x, 1.0), 0.0, 1.0));
-	} else {
-		// Thinner with height, as air is.
-		let thin = exp(-max(world.y, 0.0) * 0.004);
-		c = mix(c, u.hazeColour.rgb, 1.0 - exp(-d * u.horizon.w * thin));
+	var albedo = i.colour;
+	if (a.w > 0.0) {
+		let g = noise3(i.world / b.x) * 0.65 + noise3(i.world / b.x * 3.1) * 0.35;
+		albedo = albedo * (1.0 + a.w * (g - 0.5) * 2.0);
 	}
-	return c;
+	var alpha = i.alpha;
+	var c: vec3f;
+	if (b.y > 0.5 && b.y < 1.5) {
+		c = albedo * 2.4;
+	} else if (b.y > 2.5) {
+		let rim = pow(1.0 - abs(dot(n, v)), 2.0);
+		c = albedo * (0.6 + rim * 2.5);
+		alpha = alpha * clamp(0.15 + rim * 0.85, 0.0, 1.0);
+	} else {
+		let l = u.sun.xyz;
+		let ndl = max(dot(n, l), 0.0);
+		let h = normalize(l + v);
+		let spec = pow(max(dot(n, h), 0.0), a.y) * a.x;
+		let fill = u.ambient.rgb * (0.9 + 0.1 * n.y);
+		c = albedo * (1.0 - a.z * 0.6) * (fill + u.sunColour.rgb * ndl) + u.sunColour.rgb * mix(vec3f(1.0), albedo, a.z) * spec * ndl;
+		let seen = sky(reflect(-v, n));
+		// A metal shows a little of the sky in its own colour.
+		c = c + seen * albedo * a.z * a.x * 0.25;
+		// Reflectance, and glass's own, stronger at a glancing angle.
+		var mirror = shine;
+		if (b.y > 1.5) { mirror = max(mirror, 0.2 + 0.5 * pow(1.0 - abs(dot(n, v)), 3.0)); }
+		c = mix(c, seen, mirror);
+	}
+	return vec4f(air(c, d, i.world.y), alpha);
 }
-@fragment fn fs(i: VOut) -> @location(0) vec4f { return vec4f(display(lit(i.colour, normalize(i.normal), i.world)), 1.0); }
+@fragment fn fs(i: VOut) -> @location(0) vec4f {
+	let s = surface(i);
+	return vec4f(display(s.rgb), s.a);
+}
 // The sky behind everything: a triangle that covers the screen, each pixel's ray worked out from where it is.
 struct SOut { @builtin(position) clip: vec4f, @location(0) ndc: vec2f };
 @vertex fn vsSky(@builtin(vertex_index) i: u32) -> SOut {
@@ -192,6 +249,10 @@ export class WebGpuView implements ViewRenderer {
 	private uniform!: GPUBuffer;
 	private bind!: GPUBindGroup;
 	private draws: Draw[] = [];
+	/** The see-through parts, drawn last and blended, re-sorted as the camera moves. */
+	private clear: (Draw & { source: Float32Array; sorted: Float32Array })[] = [];
+	private clearEye: number[] | null = null;
+	private blended!: GPURenderPipeline;
 	private edges!: { vertices: GPUBuffer; indices: GPUBuffer; indexCount: number };
 	private selection: { buffer: GPUBuffer; count: number } | null = null;
 	private msaa?: GPUTexture;
@@ -239,6 +300,7 @@ export class WebGpuView implements ViewRenderer {
 					{ shaderLocation: 5, offset: 36, format: "float32x3" },
 					{ shaderLocation: 6, offset: 48, format: "unorm8x4" },
 					{ shaderLocation: 7, offset: 52, format: "uint32" },
+					{ shaderLocation: 8, offset: 56, format: "uint32" },
 				],
 			},
 		];
@@ -257,6 +319,28 @@ export class WebGpuView implements ViewRenderer {
 			fragment: { module, entryPoint: "fs", targets: [{ format: this.format }] },
 			primitive: { topology: "triangle-list", cullMode: "back" },
 			depthStencil: depth,
+			multisample: { count: SAMPLES },
+		});
+		// The see-through parts: blended over what is behind them, hidden by
+		// what is in front, and hiding nothing themselves.
+		this.blended = d.createRenderPipeline({
+			layout: pipelineLayout,
+			vertex: { module, entryPoint: "vs", buffers },
+			fragment: {
+				module,
+				entryPoint: "fs",
+				targets: [
+					{
+						format: this.format,
+						blend: {
+							color: { srcFactor: "src-alpha", dstFactor: "one-minus-src-alpha" },
+							alpha: { srcFactor: "one", dstFactor: "one-minus-src-alpha" },
+						},
+					},
+				],
+			},
+			primitive: { topology: "triangle-list", cullMode: "back" },
+			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "less" },
 			multisample: { count: SAMPLES },
 		});
 		// Over everything, as Studio's selection box is.
@@ -323,7 +407,11 @@ export class WebGpuView implements ViewRenderer {
 			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "always" },
 			multisample: { count: SAMPLES },
 		});
-		this.uniform = d.createBuffer({ size: 320, usage: BUFFER.UNIFORM | BUFFER.COPY_DST });
+		this.uniform = d.createBuffer({
+			size: 320 + MATERIALS.length * 32,
+			usage: BUFFER.UNIFORM | BUFFER.COPY_DST,
+		});
+		d.queue.writeBuffer(this.uniform, 320, materialBlock());
 		this.bind = d.createBindGroup({
 			layout,
 			entries: [{ binding: 0, resource: { buffer: this.uniform } }],
@@ -364,19 +452,44 @@ export class WebGpuView implements ViewRenderer {
 	}
 
 	setScene(scene: PlaceScene): void {
-		for (const d of this.draws) for (const b of [d.vertices, d.indices, d.instances]) b.destroy();
+		for (const d of [...this.draws, ...this.clear])
+			for (const b of [d.vertices, d.indices, d.instances]) b.destroy();
 		this.draws = [];
+		this.clear = [];
+		this.clearEye = null;
 		for (const kind of SCENE_KINDS) {
-			const { data, count } = scene.kinds[kind];
-			if (count === 0) continue;
 			const mesh = meshFor(kind);
-			this.draws.push({
-				vertices: this.make(mesh.vertices, BUFFER.VERTEX),
-				indices: this.make(mesh.indices, BUFFER.INDEX),
-				indexCount: mesh.indices.length,
-				instances: this.make(data, BUFFER.VERTEX),
-				count,
-			});
+			const solid = scene.kinds[kind];
+			const seen = scene.translucent[kind];
+			if (solid.count > 0)
+				this.draws.push({
+					vertices: this.make(mesh.vertices, BUFFER.VERTEX),
+					indices: this.make(mesh.indices, BUFFER.INDEX),
+					indexCount: mesh.indices.length,
+					instances: this.make(solid.data, BUFFER.VERTEX),
+					count: solid.count,
+				});
+			if (seen.count > 0)
+				this.clear.push({
+					vertices: this.make(mesh.vertices, BUFFER.VERTEX),
+					indices: this.make(mesh.indices, BUFFER.INDEX),
+					indexCount: mesh.indices.length,
+					instances: this.make(seen.data, BUFFER.VERTEX),
+					count: seen.count,
+					source: seen.data,
+					sorted: new Float32Array(seen.data.length),
+				});
+		}
+	}
+
+	/** The see-through parts sorted again when the camera has moved. */
+	private sortClear(eye: number[]): void {
+		const was = this.clearEye;
+		if (was && Math.hypot(eye[0] - was[0], eye[1] - was[1], eye[2] - was[2]) < 0.01) return;
+		this.clearEye = [...eye];
+		for (const c of this.clear) {
+			backToFront(c.source, c.count, eye, c.sorted);
+			this.device.queue.writeBuffer(c.instances, 0, c.sorted);
 		}
 	}
 
@@ -445,8 +558,8 @@ export class WebGpuView implements ViewRenderer {
 		this.device.queue.writeBuffer(this.uniform, 0, u);
 	}
 
-	private solids(pass: GPURenderPassEncoder): void {
-		for (const draw of this.draws) {
+	private solids(pass: GPURenderPassEncoder, draws: Draw[] = this.draws): void {
+		for (const draw of draws) {
 			pass.setVertexBuffer(0, draw.vertices);
 			pass.setVertexBuffer(1, draw.instances);
 			pass.setIndexBuffer(draw.indices, "uint16");
@@ -479,6 +592,11 @@ export class WebGpuView implements ViewRenderer {
 		pass.draw(3);
 		pass.setPipeline(this.solid);
 		this.solids(pass);
+		if (this.clear.length > 0) {
+			this.sortClear(camera.eye);
+			pass.setPipeline(this.blended);
+			this.solids(pass, this.clear);
+		}
 		if (this.selection) {
 			pass.setPipeline(this.lines);
 			pass.setVertexBuffer(0, this.edges.vertices);
@@ -532,6 +650,7 @@ export class WebGpuView implements ViewRenderer {
 		pass.setPipeline(this.ids);
 		pass.setScissorRect(Math.min(x, this.width - 1), Math.min(y, this.height - 1), 1, 1);
 		this.solids(pass);
+		this.solids(pass, this.clear);
 		pass.end();
 		encoder.copyTextureToBuffer(
 			{

@@ -5,13 +5,17 @@
  * editor whole -- the editor never holds the place, only names and classes
  * (see `browse.ts`), and a buffer is the one other thing a renderer needs.
  *
- * Each instance is 14 words (56 bytes):
+ * Each instance is 15 words (60 bytes):
  *
  * - c0, c1, c2: the CFrame's rotation columns, each times the size on its axis;
  * - p: the position;
- * - colour: RGBA8, packed into one word;
+ * - colour: RGBA8, packed into one word, the alpha 1 - Transparency;
  * - id: the instance's place in the DataModel browser's order, so a click in
- *   the view and a row in the tree name the same instance.
+ *   the view and a row in the tree name the same instance;
+ * - look: its row in `MATERIALS` in the low byte, Reflectance × 255 in the next.
+ *
+ * Parts that are seen through -- Transparency above 0, or ForceField -- are
+ * kept apart, in `translucent`, to be drawn after the rest and blended.
  *
  * For now a MeshPart, or a part with a FileMesh, is its bounding box, fully
  * transparent parts are left out, and a mesh modifier's Scale and Offset are
@@ -19,14 +23,17 @@
  */
 
 import type { RbxInstance } from "./dom.js";
+import { MATERIAL_SHADE, MATERIALS, materialIndex } from "./materials.js";
 
 export const SCENE_KINDS = ["block", "wedge", "cornerWedge", "cylinder", "ball", "mesh"] as const;
 export type SceneKind = (typeof SCENE_KINDS)[number];
 /** Words an instance. */
-export const SCENE_STRIDE = 14;
+export const SCENE_STRIDE = 15;
 
 export interface PlaceScene {
 	kinds: Record<SceneKind, { data: Float32Array; count: number }>;
+	/** Parts seen through, drawn after `kinds` and blended. */
+	translucent: Record<SceneKind, { data: Float32Array; count: number }>;
 	/** Where most of the place is: the median of each axis, and a radius holding 95% of it. */
 	centre: [number, number, number];
 	radius: number;
@@ -98,14 +105,16 @@ export function buildPlaceScene(
 	workspace: RbxInstance | undefined,
 	idOf: (inst: RbxInstance) => number | undefined,
 ): PlaceScene {
-	const lists: Record<SceneKind, number[]> = {
+	const empty = (): Record<SceneKind, number[]> => ({
 		block: [],
 		wedge: [],
 		cornerWedge: [],
 		cylinder: [],
 		ball: [],
 		mesh: [],
-	};
+	});
+	const lists = empty();
+	const seeThrough = empty();
 	const f32 = new Float32Array(1);
 	const u32 = new Uint32Array(f32.buffer);
 	const word = (bits: number) => {
@@ -166,8 +175,16 @@ export function buildPlaceScene(
 			(a) =>
 				cf.position[a] + r[a * 3] * offset[0] + r[a * 3 + 1] * offset[1] + r[a * 3 + 2] * offset[2],
 		);
-		const colour = (rgb[0] & 255) | ((rgb[1] & 255) << 8) | ((rgb[2] & 255) << 16) | (255 << 24);
-		lists[kind].push(
+		const see = typeof transparency === "number" ? Math.max(0, Math.min(1, transparency)) : 0;
+		const alpha = Math.round((1 - see) * 255);
+		const colour = (rgb[0] & 255) | ((rgb[1] & 255) << 8) | ((rgb[2] & 255) << 16) | (alpha << 24);
+		const material = materialIndex(inst.props.get("Material")?.value);
+		const reflectance = inst.props.get("Reflectance")?.value;
+		const shine = Math.round(
+			Math.max(0, Math.min(1, typeof reflectance === "number" ? reflectance : 0)) * 255,
+		);
+		const through = alpha < 255 || MATERIALS[material].shade === MATERIAL_SHADE.forceField;
+		(through ? seeThrough : lists)[kind].push(
 			x[0] * sx,
 			x[1] * sx,
 			x[2] * sx,
@@ -182,6 +199,7 @@ export function buildPlaceScene(
 			p[2],
 			word(colour),
 			word(id),
+			word(material | (shine << 8)),
 		);
 		positions.push(p[0], p[1], p[2]);
 	};
@@ -204,10 +222,19 @@ export function buildPlaceScene(
 	).sort((p, q) => p - q);
 	const radius = Math.max(50, dist[Math.floor(n * 0.95)] ?? 100);
 
-	const kinds = {} as PlaceScene["kinds"];
-	for (const k of SCENE_KINDS)
-		kinds[k] = { data: new Float32Array(lists[k]), count: lists[k].length / SCENE_STRIDE };
-	const scene: PlaceScene = { kinds, centre, radius, transparent };
+	const pack = (from: Record<SceneKind, number[]>) => {
+		const out = {} as PlaceScene["kinds"];
+		for (const k of SCENE_KINDS)
+			out[k] = { data: new Float32Array(from[k]), count: from[k].length / SCENE_STRIDE };
+		return out;
+	};
+	const scene: PlaceScene = {
+		kinds: pack(lists),
+		translucent: pack(seeThrough),
+		centre,
+		radius,
+		transparent,
+	};
 	const studio = workspace?.children.find((c) => c.className === "Camera");
 	const cf = studio?.props.get("CFrame")?.value as
 		| { position: number[]; rotation: number[] }

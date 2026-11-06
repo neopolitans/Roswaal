@@ -5,7 +5,7 @@
  */
 
 import type { LightingParams } from "../../core/rbx/lighting.js";
-import type { PlaceScene } from "../../core/rbx/scene.js";
+import { type PlaceScene, SCENE_STRIDE } from "../../core/rbx/scene.js";
 import type { Handles } from "./handles.js";
 
 export interface Camera {
@@ -41,6 +41,31 @@ export interface ViewRenderer {
 export const FOV = (70 * Math.PI) / 180;
 /** How much of a handle shows while it is not held: the place shows through it. */
 export const HANDLE_ALPHA = 0.6;
+
+/**
+ * A shape's see-through instances, farthest from `eye` first, into `out`:
+ * blended, the far ones have to be drawn before the near ones in front of them.
+ */
+export function backToFront(
+	from: Float32Array,
+	count: number,
+	eye: number[],
+	out: Float32Array,
+): void {
+	const stride = SCENE_STRIDE;
+	const order = Array.from({ length: count }, (_, i) => i);
+	const away = new Float32Array(count);
+	for (let i = 0; i < count; i++) {
+		const dx = from[i * stride + 9] - eye[0];
+		const dy = from[i * stride + 10] - eye[1];
+		const dz = from[i * stride + 11] - eye[2];
+		away[i] = dx * dx + dy * dy + dz * dz;
+	}
+	order.sort((a, b) => away[b] - away[a]);
+	order.forEach((from_, to) => {
+		out.set(from.subarray(from_ * stride, (from_ + 1) * stride), to * stride);
+	});
+}
 
 /** How wide the outline round what is picked is drawn, in CSS pixels. */
 export const SELECT_WIDTH = 2.5;
