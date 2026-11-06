@@ -48,6 +48,7 @@ import {
 	PREVIEW_SCALE,
 	type Preferences,
 	previewScaleOf,
+	VIEWPORT_RENDERERS,
 	WHEEL_CHOICES,
 	WIRE_STYLES,
 } from "./preferences.js";
@@ -845,15 +846,10 @@ function WorkspaceSettings({ prefs, onPrefs }: SettingsPanelProps) {
 			<Group title="Place in 3D">
 				<Row
 					label="Renderer"
-					help="WebGPU where the browser has it, and WebGL2 where it does not; or WebGL2 always."
+					help="Automatic draws with WebGPU where the browser has it, and WebGL2 where it does not. WebGPU falls back to WebGL2 where there is none."
 				>
 					<div className="segmented">
-						{(
-							[
-								["auto", "Automatic"],
-								["webgl2", "WebGL2"],
-							] as const
-						).map(([value, label]) => (
+						{VIEWPORT_RENDERERS.map(([value, label]) => (
 							<button
 								key={value}
 								className={prefs.viewportRenderer === value ? "on" : ""}

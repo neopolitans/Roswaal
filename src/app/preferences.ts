@@ -83,6 +83,14 @@ const KEY = PREFERENCES_KEY;
 export const OUTLINE_WIDTHS = { thin: 2, medium: 3.5, thick: 5 } as const;
 export type OutlineWidth = keyof typeof OUTLINE_WIDTHS;
 
+/** What draws the place in 3D, by name, as Settings offers them. */
+export const VIEWPORT_RENDERERS = [
+	["auto", "Automatic"],
+	["webgpu", "WebGPU"],
+	["webgl2", "WebGL2"],
+] as const;
+export type ViewportRenderer = (typeof VIEWPORT_RENDERERS)[number][0];
+
 export interface Preferences {
 	/**
 	 * The colour scheme by name, or `null` to follow the operating system.
@@ -238,8 +246,8 @@ export interface Preferences {
 	 * only showing them. Off until asked for: it writes a file Studio owns.
 	 */
 	modifyDataModel: boolean;
-	/** What draws the place in 3D: WebGPU where the browser has it, or WebGL2 always. */
-	viewportRenderer: "auto" | "webgl2";
+	/** What draws the place in 3D: Automatic, WebGPU where the browser has it; or either by name. */
+	viewportRenderer: ViewportRenderer;
 	/** How wide the place's selection outline is. */
 	outlineWidth: OutlineWidth;
 	/** The outline shows through what is in front of it, as Studio's does, rather than being hidden by it. */
@@ -528,7 +536,10 @@ export function readPreferences(): Preferences {
 			typeof stored.modifyDataModel === "boolean"
 				? stored.modifyDataModel
 				: DEFAULTS.modifyDataModel,
-		viewportRenderer: stored.viewportRenderer === "webgl2" ? "webgl2" : DEFAULTS.viewportRenderer,
+		viewportRenderer:
+			stored.viewportRenderer === "webgl2" || stored.viewportRenderer === "webgpu"
+				? stored.viewportRenderer
+				: DEFAULTS.viewportRenderer,
 		outlineWidth:
 			typeof stored.outlineWidth === "string" && stored.outlineWidth in OUTLINE_WIDTHS
 				? (stored.outlineWidth as OutlineWidth)

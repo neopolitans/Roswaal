@@ -8,13 +8,14 @@
 import type { PlaceOutline } from "../../core/rbx/browse.js";
 import type { LightingParams } from "../../core/rbx/lighting.js";
 import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene.js";
+import { rayPick } from "./geometry.js";
 import { HandleBuilder } from "./handles.js";
-import { type Camera, SELECT, type ViewRenderer } from "./view.js";
+import { type Camera, FOV, SELECT, type ViewRenderer } from "./view.js";
 
 /** How the view is drawn, from Settings: which renderer, and the outline's width and depth. */
 export interface ViewportOptions {
-	/** WebGPU where the browser has it, or WebGL2 always. */
-	renderer: "auto" | "webgl2";
+	/** Automatic, WebGPU where the browser has it; or either by name. */
+	renderer: "auto" | "webgpu" | "webgl2";
 	/** In CSS pixels. */
 	outlineWidth: number;
 	/** What is in front of an outline hides it, rather than the outline showing through. */
@@ -380,6 +381,22 @@ export class ViewportController {
 	private eye(): number[] {
 		const b = this.back();
 		return this.cam.target.map((v, a) => v + this.cam.dist * b[a]);
+	}
+
+	/** The way into the view through a point on it, in CSS pixels from its corner. */
+	private rayAt(x: number, y: number, box: { width: number; height: number }): number[] {
+		const b = this.back();
+		const forward = b.map((v) => -v);
+		const right = [Math.cos(this.cam.yaw), 0, -Math.sin(this.cam.yaw)];
+		const up = [
+			right[1] * forward[2] - right[2] * forward[1],
+			right[2] * forward[0] - right[0] * forward[2],
+			right[0] * forward[1] - right[1] * forward[0],
+		];
+		const tan = Math.tan(FOV / 2);
+		const sx = ((x / box.width) * 2 - 1) * tan * (box.width / box.height);
+		const sy = (1 - (y / box.height) * 2) * tan;
+		return [0, 1, 2].map((a) => forward[a] + right[a] * sx + up[a] * sy);
 	}
 
 	private camera(): Camera {
@@ -897,21 +914,28 @@ export class ViewportController {
 			this.select(target);
 			this.onPick(target);
 		};
-		// A mouse resting over the view outlines, faintly, what a click there would pick.
-		let hovering: ReturnType<typeof setTimeout> | undefined;
+		// The mouse over the view outlines, faintly, what a click there would pick:
+		// a ray against the parts' own shapes, once a frame while it moves.
+		let aim: { x: number; y: number; itself: boolean } | null = null;
+		let aiming = 0;
 		el.addEventListener("pointermove", (e) => {
 			if (e.pointerType !== "mouse" || pointers.size > 0) return;
-			clearTimeout(hovering);
-			const { clientX: x, clientY: y } = e;
-			const itself = e.altKey || e.shiftKey;
-			hovering = setTimeout(async () => {
-				if (!this.view || pointers.size > 0) return;
-				const id = await idAt(x, y);
-				this.setHover(id >= 0 ? this.clickTarget(id, itself) : null);
-			}, 40);
+			aim = { x: e.clientX, y: e.clientY, itself: e.altKey || e.shiftKey };
+			if (aiming) return;
+			aiming = requestAnimationFrame(() => {
+				aiming = 0;
+				if (!aim || !this.place || pointers.size > 0) return;
+				const box = el.getBoundingClientRect();
+				const id = rayPick(
+					this.place,
+					this.eye(),
+					this.rayAt(aim.x - box.left, aim.y - box.top, box),
+				);
+				this.setHover(id >= 0 ? this.clickTarget(id, aim.itself) : null);
+			});
 		});
 		el.addEventListener("pointerleave", () => {
-			clearTimeout(hovering);
+			aim = null;
 			this.setHover(null);
 		});
 		el.addEventListener("contextmenu", (e) => e.preventDefault());

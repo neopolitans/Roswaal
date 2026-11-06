@@ -11,6 +11,97 @@ import {
 	type SceneKind,
 } from "../../core/rbx/scene.js";
 
+/**
+ * The nearest part a ray from `o` along `d` meets, by its id, or -1: each
+ * part's own shape -- a box, a wedge, a cylinder along X, a ball; a corner
+ * wedge and a MeshPart as their boxes -- in its own unit space, where the
+ * ray's distance along itself is the same as in the world. A part the ray
+ * starts inside is passed through, as the view draws it from inside.
+ */
+export function rayPick(scene: PlaceScene, o: number[], d: number[]): number {
+	let best = Infinity;
+	let found = -1;
+	for (const set of [scene.kinds, scene.translucent])
+		for (const kind of SCENE_KINDS) {
+			const { data, count } = set[kind];
+			const words = new Uint32Array(data.buffer, data.byteOffset, data.length);
+			for (let i = 0; i < count; i++) {
+				const at = i * SCENE_STRIDE;
+				// Into the part's unit space: each column's share, over its length squared.
+				const ox = o[0] - data[at + 9];
+				const oy = o[1] - data[at + 10];
+				const oz = o[2] - data[at + 11];
+				const lo = [0, 0, 0];
+				const ld = [0, 0, 0];
+				for (let a = 0; a < 3; a++) {
+					const cx = data[at + a * 3];
+					const cy = data[at + a * 3 + 1];
+					const cz = data[at + a * 3 + 2];
+					const ss = cx * cx + cy * cy + cz * cz || 1e-9;
+					lo[a] = (cx * ox + cy * oy + cz * oz) / ss;
+					ld[a] = (cx * d[0] + cy * d[1] + cz * d[2]) / ss;
+				}
+				let near = -Infinity;
+				let far = Infinity;
+				// The unit box's slabs, along each axis.
+				const slab = (a: number) => {
+					if (Math.abs(ld[a]) < 1e-12) {
+						if (Math.abs(lo[a]) > 0.5) far = -Infinity;
+						return;
+					}
+					let t0 = (-0.5 - lo[a]) / ld[a];
+					let t1 = (0.5 - lo[a]) / ld[a];
+					if (t0 > t1) [t0, t1] = [t1, t0];
+					near = Math.max(near, t0);
+					far = Math.min(far, t1);
+				};
+				// Inside a circle of radius 0.5 across axes `a` and `b`.
+				const round = (axes: number[]) => {
+					let qa = 0;
+					let qb = 0;
+					let qc = -0.25;
+					for (const a of axes) {
+						qa += ld[a] * ld[a];
+						qb += 2 * lo[a] * ld[a];
+						qc += lo[a] * lo[a];
+					}
+					const disc = qb * qb - 4 * qa * qc;
+					if (disc < 0 || qa < 1e-12) {
+						if (qc > 0) far = -Infinity;
+						return;
+					}
+					const r = Math.sqrt(disc);
+					near = Math.max(near, (-qb - r) / (2 * qa));
+					far = Math.min(far, (-qb + r) / (2 * qa));
+				};
+				if (kind === "ball") round([0, 1, 2]);
+				else if (kind === "cylinder") {
+					slab(0);
+					round([1, 2]);
+				} else {
+					slab(0);
+					slab(1);
+					slab(2);
+					// A wedge is solid where y <= z: its slope runs from the back's top to the front's foot.
+					if (kind === "wedge") {
+						const f0 = lo[1] - lo[2];
+						const f1 = ld[1] - ld[2];
+						if (Math.abs(f1) < 1e-12) {
+							if (f0 > 0) far = -Infinity;
+						} else if (f1 > 0) far = Math.min(far, -f0 / f1);
+						else near = Math.max(near, -f0 / f1);
+					}
+				}
+				if (near > far || far <= 0 || near <= 0) continue;
+				if (near < best) {
+					best = near;
+					found = words[at + 13];
+				}
+			}
+		}
+	return found;
+}
+
 /** Whether anything in the place gives light of its own -- Neon, CrackedLava -- for the glow. */
 export function sceneGlows(scene: PlaceScene): boolean {
 	for (const set of [scene.kinds, scene.translucent])

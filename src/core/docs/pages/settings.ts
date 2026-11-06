@@ -217,7 +217,7 @@ export function settingsPage(): DocPage {
 					],
 					[
 						"Renderer",
-						"What draws the place in 3D: **Automatic**, WebGPU where the browser has it and WebGL2 where it does not, or **WebGL2** always. The place's Properties has it too.",
+						"What draws the place in 3D: **Automatic**, WebGPU where the browser has it and WebGL2 where it does not; **WebGPU**, falling back to WebGL2 where there is none; or **WebGL2**. The place's Properties has it too.",
 					],
 					[
 						"Selection outline",

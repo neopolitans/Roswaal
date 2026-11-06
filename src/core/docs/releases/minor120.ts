@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.214.1",
+		date: "2026-11-06",
+		headline:
+			"The place's hover outline keeps up with the mouse, and its renderer can be WebGPU by name.",
+		changed: [
+			"**Renderer.** Automatic, WebGPU or WebGL2, in Settings and on the place's Properties, which also says what is drawing.",
+		],
+		fixed: [
+			"**Hover.** The outline follows the mouse as it moves, rather than waiting for it to stop.",
+		],
+	},
+	{
 		version: "0.214.0",
 		date: "2026-11-06",
 		headline:

@@ -19,6 +19,7 @@ import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
 import { Ident, SectionHead } from "./PanelParts.jsx";
+import { VIEWPORT_RENDERERS, type ViewportRenderer } from "./preferences.js";
 import {
 	type Snap,
 	type Stick,
@@ -36,6 +37,8 @@ const TOOL_ICON: Record<Tool, IconName> = {
 	scale: "vpScale",
 };
 const LATER = "comes with editing";
+/** What Automatic draws with here: WebGPU where the browser offers it at all. */
+const AUTOMATIC = typeof navigator !== "undefined" && "gpu" in navigator ? "WebGPU" : "WebGL2";
 
 function useViewport(controller: ViewportController) {
 	return useSyncExternalStore(controller.subscribe, controller.getState);
@@ -468,8 +471,8 @@ export function PlaceSummary({
 	controller: ViewportController;
 	file: string;
 	/** The renderer Settings asks for, chosen here too. */
-	renderer: "auto" | "webgl2";
-	onRenderer: (renderer: "auto" | "webgl2") => void;
+	renderer: ViewportRenderer;
+	onRenderer: (renderer: ViewportRenderer) => void;
 }) {
 	const { summary, backend, fellBack } = useViewport(controller);
 	const name = file.split("/").pop() ?? file;
@@ -501,17 +504,21 @@ export function PlaceSummary({
 									<select
 										className="tb place-edit-field"
 										value={renderer}
-										onChange={(e) => onRenderer(e.target.value as "auto" | "webgl2")}
+										onChange={(e) => onRenderer(e.target.value as ViewportRenderer)}
 									>
-										<option value="auto">
-											{renderer === "auto" && backend
-												? `Automatic: ${fellBack ? "WebGL2, no WebGPU here" : backend}`
-												: "Automatic"}
-										</option>
-										<option value="webgl2">WebGL2</option>
+										{VIEWPORT_RENDERERS.map(([value, label]) => (
+											<option key={value} value={value}>
+												{value === "auto" ? `${label}: ${AUTOMATIC}` : label}
+											</option>
+										))}
 									</select>
 								</span>
 							</div>
+							{backend && (
+								<Rows
+									rows={[["Drawing with", fellBack ? `${backend}, no WebGPU here` : backend]]}
+								/>
+							)}
 						</div>
 					)}
 					{summary && summary.notes.length > 0 && (
