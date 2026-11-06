@@ -5,6 +5,11 @@
 
 import { type LightingParams, lightingBlock } from "../../core/rbx/lighting.js";
 import { MATERIALS, materialBlock } from "../../core/rbx/materials.js";
+import { sceneGlows } from "./geometry.js";
+
+/** How strong the glow round Neon is, over the frame, as in WebGpuView. */
+const GLOW = 0.9;
+
 import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene.js";
 import { boxEdges, meshFor } from "./geometry.js";
 import { HANDLE_KINDS, type Handles, handleMesh } from "./handles.js";
@@ -44,9 +49,128 @@ vec3 air(vec3 c, float d, float y) {
 	return mix(c, L[10].rgb, 1.0 - exp(-d * L[4].w * thin));
 }
 `;
+// A material's pattern, as WebGpuView's \`pattern\` draws it.
+const PATTERNS = `
+float hash1(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+vec2 hash2(vec2 p) { return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }
+float noise2(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	vec2 w = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash1(i), hash1(i + vec2(1.0, 0.0)), w.x), mix(hash1(i + vec2(0.0, 1.0)), hash1(i + vec2(1.0, 1.0)), w.x), w.y);
+}
+vec2 cells(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	float d1 = 8.0;
+	float d2 = 8.0;
+	float id = 0.0;
+	for (int y = -1; y <= 1; y++) {
+		for (int x = -1; x <= 1; x++) {
+			vec2 g = vec2(float(x), float(y));
+			vec2 r = g + hash2(i + g) - f;
+			float d = dot(r, r);
+			if (d < d1) { d2 = d1; d1 = d; id = hash1(i + g); } else if (d < d2) { d2 = d; }
+		}
+	}
+	return vec2(sqrt(d2) - sqrt(d1), id);
+}
+float edgeOf(float v) { return min(fract(v), 1.0 - fract(v)); }
+vec3 pattern(int kind, vec2 uv, float size) {
+	switch (kind) {
+		case 1: {
+			float g = noise2(uv * vec2(0.5, 4.0) / size);
+			float s = sin(uv.y * 10.0 / size + g * 7.0) * 0.5 + 0.5;
+			return vec3(0.86 + 0.24 * s, 1.0, 0.0);
+		}
+		case 2: {
+			float row = floor(uv.y);
+			float x = uv.x + hash1(vec2(row, 7.0)) * 4.0;
+			float line = 1.0 - smoothstep(0.02, 0.05, min(edgeOf(uv.y), edgeOf(x / 4.0) * 4.0));
+			float g = noise2(vec2(x * 0.5, uv.y * 4.0) / size);
+			float s = sin(uv.y * 14.0 + g * 6.0) * 0.5 + 0.5;
+			float tint = 0.9 + 0.18 * hash1(vec2(row, floor(x / 4.0)));
+			return vec3(tint * (0.88 + 0.16 * s) * (1.0 - 0.5 * line), 1.0 - line, 0.0);
+		}
+		case 3: {
+			float row = floor(uv.y);
+			float x = uv.x / 2.0 + 0.5 * (row - 2.0 * floor(row / 2.0));
+			float mortar = 1.0 - smoothstep(0.05, 0.09, min(edgeOf(x) * 2.0, edgeOf(uv.y)));
+			float tint = 0.86 + 0.24 * hash1(vec2(floor(x), row));
+			return vec3(mix(tint, 1.3, mortar), 1.0 - 0.7 * mortar, 0.0);
+		}
+		case 4:
+		case 5: {
+			vec2 c = cells(uv * (kind == 5 ? 2.6 : 0.9) / size);
+			float edge = 1.0 - smoothstep(0.03, 0.14, c.x);
+			return vec3((0.82 + 0.3 * c.y) * (1.0 - 0.55 * edge), 1.0 - edge, 0.0);
+		}
+		case 6: {
+			vec2 r = vec2(uv.x + uv.y, uv.x - uv.y) * 1.2;
+			vec2 q = abs(fract(r) - 0.5);
+			float bump = 1.0 - smoothstep(0.12, 0.18, q.x * 0.45 + q.y);
+			return vec3(0.9 + 0.22 * bump, 1.0 + 0.8 * bump, 0.0);
+		}
+		case 7: {
+			vec2 t = uv / 2.0;
+			float grout = 1.0 - smoothstep(0.03, 0.06, min(edgeOf(t.x), edgeOf(t.y)) * 2.0);
+			float tint = 0.94 + 0.1 * hash1(floor(t));
+			return vec3(mix(tint, 0.68, grout), 1.0 - grout, 0.0);
+		}
+		case 8: {
+			float row = floor(uv.y * 1.5);
+			float x = uv.x + 0.5 * (row - 2.0 * floor(row / 2.0));
+			float line = 1.0 - smoothstep(0.02, 0.05, edgeOf(x));
+			float tint = 0.92 + 0.12 * hash1(vec2(floor(x), row));
+			return vec3((0.72 + 0.34 * fract(uv.y * 1.5)) * tint * (1.0 - 0.35 * line), 1.0, 0.0);
+		}
+		case 9: {
+			float w = sin(uv.x * 30.0 / size) * sin(uv.y * 30.0 / size);
+			return vec3(0.93 + 0.1 * w, 1.0, 0.0);
+		}
+		case 10: {
+			float n = noise2(uv * 4.0 / size) * 0.5 + hash1(floor(uv * 20.0 / size)) * 0.5;
+			return vec3(0.86 + 0.26 * n, 1.0, 0.0);
+		}
+		case 11: {
+			float n = noise2(uv * 0.7 / size) * 0.6 + noise2(uv * 3.0 / size) * 0.4;
+			return vec3(0.78 + 0.4 * n, 1.0, 0.0);
+		}
+		case 12: {
+			float n = noise2(uv * 0.6 / size);
+			float s = hash1(floor(uv * 28.0 / size));
+			return vec3((0.82 + 0.26 * n) * (0.86 + 0.26 * s), 1.0, 0.0);
+		}
+		case 13: {
+			float n = noise2(uv * 1.1 / size) * 0.7 + noise2(uv * 5.0 / size) * 0.3;
+			float b = smoothstep(0.42, 0.62, n);
+			return vec3(1.0 - 0.32 * b, 1.0 - 0.6 * b, 0.0);
+		}
+		case 14: {
+			vec2 c = cells(uv * 0.8 / size);
+			float crack = 1.0 - smoothstep(0.02, 0.08, c.x);
+			return vec3((0.4 + 0.25 * c.y) * (1.0 - crack), 1.0 - crack, crack);
+		}
+		case 15: {
+			float n = noise2(uv * 0.5 / size) * 3.0 + noise2(uv * 2.0 / size);
+			float vein = 1.0 - smoothstep(0.0, 0.1, abs(sin((uv.x + uv.y) * 0.7 + n * 2.0)));
+			return vec3(1.0 - 0.35 * vein, 1.0, 0.0);
+		}
+	}
+	return vec3(1.0, 1.0, 0.0);
+}
+vec2 faceUv(vec3 local, vec3 ln) {
+	vec3 a = abs(ln);
+	if (a.y >= a.x && a.y >= a.z) return local.xz;
+	if (a.x >= a.z) return local.zy;
+	return local.xy;
+}
+const vec3 LAVA = vec3(1.0, 0.36, 0.06);
+`;
 // A surface in its material, as WebGpuView's \`surface\` draws it.
 const SURFACE = `
 uniform vec4 M[${MATERIALS.length * 2}];
+${PATTERNS}
 float hash3(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
 float noise3(vec3 p) {
 	vec3 i = floor(p);
@@ -56,7 +180,7 @@ float noise3(vec3 p) {
 	float x1 = mix(mix(hash3(i + vec3(0.0, 0.0, 1.0)), hash3(i + vec3(1.0, 0.0, 1.0)), w.x), mix(hash3(i + vec3(0.0, 1.0, 1.0)), hash3(i + vec3(1.0, 1.0, 1.0)), w.x), w.y);
 	return mix(x0, x1, w.z);
 }
-vec4 surface(vec3 colour, vec3 n, vec3 world, float alpha, uint look) {
+vec4 surface(vec3 colour, vec3 n, vec3 world, float alpha, uint look, vec3 local, vec3 ln) {
 	int row = int(look & 255u);
 	float shine = float((look >> 8u) & 255u) / 255.0;
 	vec4 a = M[row * 2];
@@ -66,9 +190,11 @@ vec4 surface(vec3 colour, vec3 n, vec3 world, float alpha, uint look) {
 	vec3 v = toEye / max(d, 1e-4);
 	vec3 albedo = colour;
 	if (a.w > 0.0) {
-		float g = noise3(world / b.x) * 0.65 + noise3(world / b.x * 3.1) * 0.35;
+		float g = noise3(local / b.x) * 0.65 + noise3(local / b.x * 3.1) * 0.35;
 		albedo *= 1.0 + a.w * (g - 0.5) * 2.0;
 	}
+	vec3 pat = pattern(int(b.z), faceUv(local, ln), b.x);
+	albedo *= pat.x;
 	vec3 c;
 	if (b.y > 0.5 && b.y < 1.5) {
 		c = albedo * 2.4;
@@ -80,7 +206,7 @@ vec4 surface(vec3 colour, vec3 n, vec3 world, float alpha, uint look) {
 		vec3 l = L[0].xyz;
 		float ndl = max(dot(n, l), 0.0);
 		vec3 h = normalize(l + v);
-		float spec = pow(max(dot(n, h), 0.0), a.y) * a.x;
+		float spec = pow(max(dot(n, h), 0.0), a.y) * a.x * pat.y;
 		vec3 fill = L[2].rgb * (0.9 + 0.1 * n.y);
 		c = albedo * (1.0 - a.z * 0.6) * (fill + L[1].rgb * ndl) + L[1].rgb * mix(vec3(1.0), albedo, a.z) * spec * ndl;
 		vec3 seen = sky(reflect(-v, n));
@@ -88,6 +214,7 @@ vec4 surface(vec3 colour, vec3 n, vec3 world, float alpha, uint look) {
 		float mirror = shine;
 		if (b.y > 1.5) mirror = max(mirror, 0.2 + 0.5 * pow(1.0 - abs(dot(n, v)), 3.0));
 		c = mix(c, seen, mirror);
+		c += LAVA * pat.z * 3.0;
 	}
 	return vec4(air(c, d, world.y), alpha);
 }
@@ -97,7 +224,7 @@ layout(location=0) in vec3 pos; layout(location=1) in vec3 nrm;
 layout(location=2) in vec3 c0; layout(location=3) in vec3 c1; layout(location=4) in vec3 c2; layout(location=5) in vec3 p;
 layout(location=6) in vec4 colour; layout(location=7) in uint id; layout(location=8) in uint look;
 uniform mat4 viewProj; uniform float outline; uniform float handle; uniform vec3 screen;
-out vec3 vColour; out vec3 vWorld; out vec3 vNormal; flat out uint vId; out float vAlpha; flat out uint vLook;
+out vec3 vColour; out vec3 vWorld; out vec3 vNormal; flat out uint vId; out float vAlpha; flat out uint vLook; out vec3 vLocal; out vec3 vLNormal;
 void main() {
 	mat3 m = mat3(c0, c1, c2);
 	vec3 s = vec3(length(c0), length(c1), length(c2));
@@ -120,12 +247,14 @@ void main() {
 	vId = id;
 	vAlpha = colour.a;
 	vLook = look;
+	vLocal = pos * s;
+	vLNormal = nrm;
 	// A handle's depth squeezed into the front hundredth, as in WebGpuView.
 	if (handle > 0.5) gl_Position.z = ((gl_Position.z / gl_Position.w + 1.0) * 0.01 - 1.0) * gl_Position.w;
 }`;
 const FS = `#version 300 es
 precision highp float;
-in vec3 vColour; in vec3 vWorld; in vec3 vNormal; flat in uint vId; in float vAlpha; flat in uint vLook;
+in vec3 vColour; in vec3 vWorld; in vec3 vNormal; flat in uint vId; in float vAlpha; flat in uint vLook; in vec3 vLocal; in vec3 vLNormal;
 uniform float outline; uniform vec3 select; uniform float handle; uniform float alpha;
 ${COMMON}
 ${SURFACE}
@@ -135,7 +264,7 @@ void main() {
 	if (outline > 0.5) o = vec4(select, 1.0);
 	else if (handle > 0.5) o = vec4(pow(vColour * (0.72 + 0.38 * max(dot(n, normalize(vec3(0.4, 1.0, 0.25))), 0.0)), vec3(1.0 / 2.2)), alpha);
 	else {
-		vec4 s = surface(vColour, n, vWorld, vAlpha, vLook);
+		vec4 s = surface(vColour, n, vWorld, vAlpha, vLook, vLocal, vLNormal);
 		o = vec4(display(s.rgb), s.a);
 	}
 }`;
@@ -162,6 +291,44 @@ void main() { gl_Position = viewProj * vec4(pos, 1.0); vColour = colour; }`;
 const FS_OVER = `#version 300 es
 precision highp float; in vec3 vColour; out vec4 o;
 void main() { o = vec4(vColour, 1.0); }`;
+const VS_FULL = `#version 300 es
+out vec2 uv;
+void main() {
+	vec2 xy = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2)) * 2.0 - 1.0;
+	uv = xy * 0.5 + 0.5;
+	gl_Position = vec4(xy, 0.0, 1.0);
+}`;
+// The glow round what gives light, as WebGpuView's POST blurs and adds it.
+const FS_BLUR = `#version 300 es
+precision highp float;
+in vec2 uv; uniform sampler2D tex; uniform vec4 p; out vec4 o;
+void main() {
+	float w[5] = float[5](0.227, 0.194, 0.121, 0.054, 0.016);
+	vec3 c = texture(tex, uv).rgb * w[0];
+	for (int k = 1; k < 5; k++) {
+		vec2 d = p.xy * float(k) * 1.5;
+		c += (texture(tex, uv + d).rgb + texture(tex, uv - d).rgb) * w[k];
+	}
+	o = vec4(c, 1.0);
+}`;
+const FS_ADD = `#version 300 es
+precision highp float;
+in vec2 uv; uniform sampler2D tex; uniform vec4 p; out vec4 o;
+void main() { o = vec4(texture(tex, uv).rgb * 2.0 * p.z, 1.0); }`;
+const FS_GLOW = `#version 300 es
+precision highp float;
+in vec3 vColour; in vec3 vWorld; in vec3 vNormal; flat in uint vId; in float vAlpha; flat in uint vLook; in vec3 vLocal; in vec3 vLNormal;
+uniform vec4 M[${MATERIALS.length * 2}];
+uniform float seen;
+${PATTERNS}
+out vec4 o;
+void main() {
+	vec4 b = M[int(vLook & 255u) * 2 + 1];
+	vec3 e = vec3(0.0);
+	if (b.y > 0.5 && b.y < 1.5) e = vColour * 0.5;
+	else if (int(b.z) == 14) e = LAVA * pattern(14, faceUv(vLocal, vLNormal), b.x).z * 0.5;
+	o = vec4(e * (seen > 0.5 ? vAlpha : 1.0), 1.0);
+}`;
 const FS_ID = `#version 300 es
 precision highp float; precision highp int; in vec3 vColour; flat in uint vId; out uint o;
 void main() { o = vId + 1u; }`;
@@ -212,6 +379,15 @@ export class WebGl2View implements ViewRenderer {
 		sorted: Float32Array;
 	}[] = [];
 	private clearEye: number[] | null = null;
+	// The glow: what gives light drawn small, blurred, and added over the frame.
+	private glowing = false;
+	private glowProgram!: Program;
+	private blurProgram!: Program;
+	private addProgram!: Program;
+	private glowTex: WebGLTexture[] = [];
+	private glowFbo: WebGLFramebuffer[] = [];
+	private glowDepth!: WebGLRenderbuffer;
+	private glowSize: [number, number] = [0, 0];
 	private edgeMesh!: { vertices: WebGLBuffer; indices: WebGLBuffer; count: number };
 	private selection: { vao: WebGLVertexArrayObject; buffer: WebGLBuffer; count: number } | null =
 		null;
@@ -238,6 +414,14 @@ export class WebGl2View implements ViewRenderer {
 		this.ids = this.link(VS, FS_ID);
 		this.over = this.link(VS_OVER, FS_OVER);
 		this.skyProgram = this.link(VS_SKY, FS_SKY);
+		this.glowProgram = this.link(VS, FS_GLOW);
+		gl.useProgram(this.glowProgram.program);
+		gl.uniform4fv(gl.getUniformLocation(this.glowProgram.program, "M[0]"), materialBlock());
+		this.blurProgram = this.link(VS_FULL, FS_BLUR);
+		this.addProgram = this.link(VS_FULL, FS_ADD);
+		this.glowTex = [gl.createTexture()!, gl.createTexture()!];
+		this.glowFbo = [gl.createFramebuffer()!, gl.createFramebuffer()!];
+		this.glowDepth = gl.createRenderbuffer()!;
 		this.setScene(scene);
 		for (const kind of HANDLE_KINDS) {
 			const m = handleMesh(kind);
@@ -273,6 +457,7 @@ export class WebGl2View implements ViewRenderer {
 		this.draws = [];
 		this.clear = [];
 		this.clearEye = null;
+		this.glowing = sceneGlows(scene);
 		this.sceneBuffers = [];
 		for (const kind of SCENE_KINDS) {
 			const mesh = meshFor(kind);
@@ -447,6 +632,93 @@ export class WebGl2View implements ViewRenderer {
 			this.pickDepth,
 		);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+		this.sizeGlow();
+	}
+
+	/** The glow's two targets, a quarter of the view's size; the first with depth. */
+	private sizeGlow(): void {
+		const gl = this.gl;
+		const w = Math.max(1, Math.round(this.width / 4));
+		const h = Math.max(1, Math.round(this.height / 4));
+		if (this.glowSize[0] === w && this.glowSize[1] === h) return;
+		this.glowSize = [w, h];
+		this.glowTex.forEach((tex, i) => {
+			gl.bindTexture(gl.TEXTURE_2D, tex);
+			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+			gl.bindFramebuffer(gl.FRAMEBUFFER, this.glowFbo[i]);
+			gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+		});
+		gl.bindRenderbuffer(gl.RENDERBUFFER, this.glowDepth);
+		gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, w, h);
+		gl.bindFramebuffer(gl.FRAMEBUFFER, this.glowFbo[0]);
+		gl.framebufferRenderbuffer(
+			gl.FRAMEBUFFER,
+			gl.DEPTH_ATTACHMENT,
+			gl.RENDERBUFFER,
+			this.glowDepth,
+		);
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+		gl.bindTexture(gl.TEXTURE_2D, null);
+	}
+
+	/** The place drawn small in the light it gives off, then blurred both ways, twice. */
+	private drawGlow(camera: Camera): void {
+		const gl = this.gl;
+		const [w, h] = this.glowSize;
+		gl.bindFramebuffer(gl.FRAMEBUFFER, this.glowFbo[0]);
+		gl.viewport(0, 0, w, h);
+		gl.clearColor(0, 0, 0, 1);
+		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+		this.use(this.glowProgram, camera, false);
+		const seen = gl.getUniformLocation(this.glowProgram.program, "seen");
+		gl.uniform1f(seen, 0);
+		this.solids();
+		if (this.clear.length > 0) {
+			gl.uniform1f(seen, 1);
+			gl.enable(gl.BLEND);
+			gl.blendFunc(gl.ONE, gl.ONE);
+			gl.depthMask(false);
+			this.solids(this.clear);
+			gl.depthMask(true);
+			gl.disable(gl.BLEND);
+		}
+		gl.disable(gl.DEPTH_TEST);
+		gl.useProgram(this.blurProgram.program);
+		const p = gl.getUniformLocation(this.blurProgram.program, "p");
+		gl.activeTexture(gl.TEXTURE0);
+		for (let round = 0; round < 2; round++)
+			for (const [from, into, step] of [
+				[0, 1, [1 / w, 0]],
+				[1, 0, [0, 1 / h]],
+			] as const) {
+				gl.bindFramebuffer(gl.FRAMEBUFFER, this.glowFbo[into]);
+				gl.bindTexture(gl.TEXTURE_2D, this.glowTex[from]);
+				gl.uniform4f(p, step[0], step[1], 0, 0);
+				gl.drawArrays(gl.TRIANGLES, 0, 3);
+			}
+		gl.bindTexture(gl.TEXTURE_2D, null);
+		gl.enable(gl.DEPTH_TEST);
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+	}
+
+	/** The glow added over the frame. */
+	private addGlow(): void {
+		const gl = this.gl;
+		gl.disable(gl.DEPTH_TEST);
+		gl.enable(gl.BLEND);
+		gl.blendFunc(gl.ONE, gl.ONE);
+		gl.useProgram(this.addProgram.program);
+		gl.uniform4f(gl.getUniformLocation(this.addProgram.program, "p"), 0, 0, GLOW, 0);
+		gl.activeTexture(gl.TEXTURE0);
+		gl.bindTexture(gl.TEXTURE_2D, this.glowTex[0]);
+		gl.drawArrays(gl.TRIANGLES, 0, 3);
+		gl.bindTexture(gl.TEXTURE_2D, null);
+		gl.disable(gl.BLEND);
+		gl.enable(gl.DEPTH_TEST);
 	}
 
 	setSelection(boxes: Float32Array): void {
@@ -496,6 +768,10 @@ export class WebGl2View implements ViewRenderer {
 
 	draw(camera: Camera): void {
 		const gl = this.gl;
+		if (this.glowing) {
+			if (this.clear.length > 0) this.sortClear(camera.eye);
+			this.drawGlow(camera);
+		}
 		gl.viewport(0, 0, this.width, this.height);
 		gl.clearColor(0.56, 0.71, 0.86, 1);
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -555,6 +831,7 @@ export class WebGl2View implements ViewRenderer {
 			gl.bindVertexArray(null);
 			gl.enable(gl.DEPTH_TEST);
 		}
+		if (this.glowing) this.addGlow();
 	}
 
 	destroy(): void {

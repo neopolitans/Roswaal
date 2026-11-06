@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.213.0",
+		date: "2026-11-06",
+		headline: "Each material has a pattern of its own, and Neon glows.",
+		added: [
+			"**Material patterns.** Wood has a grain, planks their seams, brick its mortar, cobblestone and pebbles their stones, diamond plate its raised diamonds, tiles and pavement their grout, roofs their rows, fabric and carpet a weave, marble its veins, and the rest a speckle or blotches of their own. They are measured in studs on the part, so they turn and scale with it.",
+			"**Glow.** Neon lights the air round it, and so do CrackedLava's cracks.",
+		],
+	},
+	{
 		version: "0.212.0",
 		date: "2026-11-06",
 		headline: "The place is drawn in its materials, with Transparency, Reflectance and Neon.",

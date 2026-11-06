@@ -3,7 +3,27 @@
  * vertex (6 floats), and a triangle list, counter-clockwise from outside.
  */
 
-import type { SceneKind } from "../../core/rbx/scene.js";
+import { MATERIAL_SHADE, MATERIALS } from "../../core/rbx/materials.js";
+import {
+	type PlaceScene,
+	SCENE_KINDS,
+	SCENE_STRIDE,
+	type SceneKind,
+} from "../../core/rbx/scene.js";
+
+/** Whether anything in the place gives light of its own -- Neon, CrackedLava -- for the glow. */
+export function sceneGlows(scene: PlaceScene): boolean {
+	for (const set of [scene.kinds, scene.translucent])
+		for (const k of SCENE_KINDS) {
+			const { data, count } = set[k];
+			const words = new Uint32Array(data.buffer, data.byteOffset, data.length);
+			for (let i = 0; i < count; i++) {
+				const m = MATERIALS[words[i * SCENE_STRIDE + 14] & 255];
+				if (m && (m.shade === MATERIAL_SHADE.neon || m.pattern === "lava")) return true;
+			}
+		}
+	return false;
+}
 
 export interface Mesh {
 	vertices: Float32Array;

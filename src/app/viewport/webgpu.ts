@@ -6,7 +6,7 @@
 import { type LightingParams, lightingBlock } from "../../core/rbx/lighting.js";
 import { MATERIALS, materialBlock } from "../../core/rbx/materials.js";
 import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene.js";
-import { boxEdges, meshFor } from "./geometry.js";
+import { boxEdges, meshFor, sceneGlows } from "./geometry.js";
 import { HANDLE_KINDS, type Handles, handleMesh } from "./handles.js";
 import { invert, lookAt, multiply, perspective } from "./math.js";
 import {
@@ -23,8 +23,43 @@ import {
 // interfaces but not these namespaces.
 const BUFFER = { MAP_READ: 0x1, COPY_DST: 0x8, INDEX: 0x10, VERTEX: 0x20, UNIFORM: 0x40 } as const;
 const STAGE = { VERTEX: 0x1, FRAGMENT: 0x2 } as const;
-const TEXTURE = { COPY_SRC: 0x1, RENDER_ATTACHMENT: 0x10 } as const;
+const TEXTURE = { COPY_SRC: 0x1, TEXTURE_BINDING: 0x4, RENDER_ATTACHMENT: 0x10 } as const;
+/** How strong the glow round Neon is, over the frame. */
+const GLOW = 0.9;
 const MAP_READ = 0x1;
+
+/**
+ * The glow round what gives light of its own: blurred one way and then the
+ * other at a quarter of the view's size, then added over the frame.
+ */
+const POST = /* wgsl */ `
+@group(0) @binding(0) var tex: texture_2d<f32>;
+@group(0) @binding(1) var samp: sampler;
+// One texel along the blur, in the source's own units, and how strong the glow is.
+@group(0) @binding(2) var<uniform> p: vec4f;
+struct Out { @builtin(position) clip: vec4f, @location(0) uv: vec2f };
+@vertex fn vsFull(@builtin(vertex_index) i: u32) -> Out {
+	let xy = vec2f(f32((i << 1u) & 2u), f32(i & 2u)) * 2.0 - 1.0;
+	var o: Out;
+	o.clip = vec4f(xy, 0.0, 1.0);
+	o.uv = vec2f(xy.x * 0.5 + 0.5, 0.5 - xy.y * 0.5);
+	return o;
+}
+// Nine taps of a Gaussian, spread a little wider than a texel apiece.
+@fragment fn fsBlur(i: Out) -> @location(0) vec4f {
+	var w = array<f32, 5>(0.227, 0.194, 0.121, 0.054, 0.016);
+	var c = textureSample(tex, samp, i.uv).rgb * w[0];
+	for (var k = 1; k < 5; k++) {
+		let o = p.xy * f32(k) * 1.5;
+		c = c + (textureSample(tex, samp, i.uv + o).rgb + textureSample(tex, samp, i.uv - o).rgb) * w[k];
+	}
+	return vec4f(c, 1.0);
+}
+// Twice what the glow holds, as it was halved going in.
+@fragment fn fsAdd(i: Out) -> @location(0) vec4f {
+	return vec4f(textureSample(tex, samp, i.uv).rgb * 2.0 * p.z, 1.0);
+}
+`;
 
 const SAMPLES = 4;
 const SHADER = /* wgsl */ `
@@ -46,6 +81,7 @@ struct VOut {
 	@builtin(position) clip: vec4f, @location(0) colour: vec3f, @location(1) @interpolate(flat) id: u32,
 	@location(2) world: vec3f, @location(3) normal: vec3f,
 	@location(4) alpha: f32, @location(5) @interpolate(flat) look: u32,
+	@location(6) local: vec3f, @location(7) lnormal: vec3f,
 };
 @vertex fn vs(v: VIn) -> VOut { return shade(v); }
 // The parts' transform, shared by the parts and the handles: an entry point cannot call another.
@@ -60,6 +96,9 @@ fn shade(v: VIn) -> VOut {
 	o.id = v.id;
 	o.alpha = v.colour.a;
 	o.look = v.look;
+	// Where on the part, in studs from its middle, for its material's pattern.
+	o.local = v.pos * s;
+	o.lnormal = v.nrm;
 	return o;
 }
 // The sky in a direction: blue overhead, the haze colour at the horizon,
@@ -99,6 +138,129 @@ fn air(c: vec3f, d: f32, y: f32) -> vec3f {
 	let thin = exp(-max(y, 0.0) * 0.004);
 	return mix(c, u.hazeColour.rgb, 1.0 - exp(-d * u.horizon.w * thin));
 }
+fn hash1(p: vec2f) -> f32 { return fract(sin(dot(p, vec2f(12.9898, 78.233))) * 43758.5453); }
+fn hash2(p: vec2f) -> vec2f {
+	return fract(sin(vec2f(dot(p, vec2f(127.1, 311.7)), dot(p, vec2f(269.5, 183.3)))) * 43758.5453);
+}
+fn noise2(p: vec2f) -> f32 {
+	let i = floor(p);
+	let f = fract(p);
+	let w = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash1(i), hash1(i + vec2f(1.0, 0.0)), w.x), mix(hash1(i + vec2f(0.0, 1.0)), hash1(i + vec2f(1.0, 1.0)), w.x), w.y);
+}
+// How far a point is from the nearest edge between cells, and its cell's own
+// random value: stones, pebbles and cracks.
+fn cells(p: vec2f) -> vec2f {
+	let i = floor(p);
+	let f = fract(p);
+	var d1 = 8.0;
+	var d2 = 8.0;
+	var id = 0.0;
+	for (var y = -1; y <= 1; y++) {
+		for (var x = -1; x <= 1; x++) {
+			let g = vec2f(f32(x), f32(y));
+			let r = g + hash2(i + g) - f;
+			let d = dot(r, r);
+			if (d < d1) { d2 = d1; d1 = d; id = hash1(i + g); } else if (d < d2) { d2 = d; }
+		}
+	}
+	return vec2f(sqrt(d2) - sqrt(d1), id);
+}
+fn edgeOf(v: f32) -> f32 { return min(fract(v), 1.0 - fract(v)); }
+// A material's pattern at a point on its face, in studs: x scales its colour,
+// y its highlight, z is light of its own.
+fn pattern(kind: u32, uv: vec2f, size: f32) -> vec3f {
+	switch kind {
+		case 1u: {
+			let g = noise2(uv * vec2f(0.5, 4.0) / size);
+			let s = sin(uv.y * 10.0 / size + g * 7.0) * 0.5 + 0.5;
+			return vec3f(0.86 + 0.24 * s, 1.0, 0.0);
+		}
+		case 2u: {
+			let row = floor(uv.y);
+			let x = uv.x + hash1(vec2f(row, 7.0)) * 4.0;
+			let line = 1.0 - smoothstep(0.02, 0.05, min(edgeOf(uv.y), edgeOf(x / 4.0) * 4.0));
+			let g = noise2(vec2f(x * 0.5, uv.y * 4.0) / size);
+			let s = sin(uv.y * 14.0 + g * 6.0) * 0.5 + 0.5;
+			let tint = 0.9 + 0.18 * hash1(vec2f(row, floor(x / 4.0)));
+			return vec3f(tint * (0.88 + 0.16 * s) * (1.0 - 0.5 * line), 1.0 - line, 0.0);
+		}
+		case 3u: {
+			let row = floor(uv.y);
+			let x = uv.x / 2.0 + 0.5 * (row - 2.0 * floor(row / 2.0));
+			let mortar = 1.0 - smoothstep(0.05, 0.09, min(edgeOf(x) * 2.0, edgeOf(uv.y)));
+			let tint = 0.86 + 0.24 * hash1(vec2f(floor(x), row));
+			return vec3f(mix(tint, 1.3, mortar), 1.0 - 0.7 * mortar, 0.0);
+		}
+		case 4u, 5u: {
+			let c = cells(uv * select(0.9, 2.6, kind == 5u) / size);
+			let edge = 1.0 - smoothstep(0.03, 0.14, c.x);
+			return vec3f((0.82 + 0.3 * c.y) * (1.0 - 0.55 * edge), 1.0 - edge, 0.0);
+		}
+		case 6u: {
+			let r = vec2f(uv.x + uv.y, uv.x - uv.y) * 1.2;
+			let q = abs(fract(r) - 0.5);
+			let bump = 1.0 - smoothstep(0.12, 0.18, q.x * 0.45 + q.y);
+			return vec3f(0.9 + 0.22 * bump, 1.0 + 0.8 * bump, 0.0);
+		}
+		case 7u: {
+			let t = uv / 2.0;
+			let grout = 1.0 - smoothstep(0.03, 0.06, min(edgeOf(t.x), edgeOf(t.y)) * 2.0);
+			let tint = 0.94 + 0.1 * hash1(floor(t));
+			return vec3f(mix(tint, 0.68, grout), 1.0 - grout, 0.0);
+		}
+		case 8u: {
+			let row = floor(uv.y * 1.5);
+			let x = uv.x + 0.5 * (row - 2.0 * floor(row / 2.0));
+			let line = 1.0 - smoothstep(0.02, 0.05, edgeOf(x));
+			let tint = 0.92 + 0.12 * hash1(vec2f(floor(x), row));
+			return vec3f((0.72 + 0.34 * fract(uv.y * 1.5)) * tint * (1.0 - 0.35 * line), 1.0, 0.0);
+		}
+		case 9u: {
+			let w = sin(uv.x * 30.0 / size) * sin(uv.y * 30.0 / size);
+			return vec3f(0.93 + 0.1 * w, 1.0, 0.0);
+		}
+		case 10u: {
+			let n = noise2(uv * 4.0 / size) * 0.5 + hash1(floor(uv * 20.0 / size)) * 0.5;
+			return vec3f(0.86 + 0.26 * n, 1.0, 0.0);
+		}
+		case 11u: {
+			let n = noise2(uv * 0.7 / size) * 0.6 + noise2(uv * 3.0 / size) * 0.4;
+			return vec3f(0.78 + 0.4 * n, 1.0, 0.0);
+		}
+		case 12u: {
+			let n = noise2(uv * 0.6 / size);
+			let s = hash1(floor(uv * 28.0 / size));
+			return vec3f((0.82 + 0.26 * n) * (0.86 + 0.26 * s), 1.0, 0.0);
+		}
+		case 13u: {
+			let n = noise2(uv * 1.1 / size) * 0.7 + noise2(uv * 5.0 / size) * 0.3;
+			let b = smoothstep(0.42, 0.62, n);
+			return vec3f(1.0 - 0.32 * b, 1.0 - 0.6 * b, 0.0);
+		}
+		case 14u: {
+			let c = cells(uv * 0.8 / size);
+			let crack = 1.0 - smoothstep(0.02, 0.08, c.x);
+			return vec3f((0.4 + 0.25 * c.y) * (1.0 - crack), 1.0 - crack, crack);
+		}
+		case 15u: {
+			let n = noise2(uv * 0.5 / size) * 3.0 + noise2(uv * 2.0 / size);
+			let vein = 1.0 - smoothstep(0.0, 0.1, abs(sin((uv.x + uv.y) * 0.7 + n * 2.0)));
+			return vec3f(1.0 - 0.35 * vein, 1.0, 0.0);
+		}
+		default: { return vec3f(1.0, 1.0, 0.0); }
+	}
+}
+// A face's own two directions, in studs on the part: the plane square to the
+// way it faces on the unit shape.
+fn faceUv(local: vec3f, ln: vec3f) -> vec2f {
+	let a = abs(ln);
+	if (a.y >= a.x && a.y >= a.z) { return local.xz; }
+	if (a.x >= a.z) { return local.zy; }
+	return local.xy;
+}
+// CrackedLava's light, where its cracks are.
+const LAVA = vec3f(1.0, 0.36, 0.06);
 // A cheap value noise, for a material's grain.
 fn hash3(p: vec3f) -> f32 { return fract(sin(dot(p, vec3f(127.1, 311.7, 74.7))) * 43758.5453); }
 fn noise3(p: vec3f) -> f32 {
@@ -123,9 +285,11 @@ fn surface(i: VOut) -> vec4f {
 	let v = toEye / max(d, 1e-4);
 	var albedo = i.colour;
 	if (a.w > 0.0) {
-		let g = noise3(i.world / b.x) * 0.65 + noise3(i.world / b.x * 3.1) * 0.35;
+		let g = noise3(i.local / b.x) * 0.65 + noise3(i.local / b.x * 3.1) * 0.35;
 		albedo = albedo * (1.0 + a.w * (g - 0.5) * 2.0);
 	}
+	let pat = pattern(u32(b.z), faceUv(i.local, i.lnormal), b.x);
+	albedo = albedo * pat.x;
 	var alpha = i.alpha;
 	var c: vec3f;
 	if (b.y > 0.5 && b.y < 1.5) {
@@ -138,7 +302,7 @@ fn surface(i: VOut) -> vec4f {
 		let l = u.sun.xyz;
 		let ndl = max(dot(n, l), 0.0);
 		let h = normalize(l + v);
-		let spec = pow(max(dot(n, h), 0.0), a.y) * a.x;
+		let spec = pow(max(dot(n, h), 0.0), a.y) * a.x * pat.y;
 		let fill = u.ambient.rgb * (0.9 + 0.1 * n.y);
 		c = albedo * (1.0 - a.z * 0.6) * (fill + u.sunColour.rgb * ndl) + u.sunColour.rgb * mix(vec3f(1.0), albedo, a.z) * spec * ndl;
 		let seen = sky(reflect(-v, n));
@@ -148,9 +312,21 @@ fn surface(i: VOut) -> vec4f {
 		var mirror = shine;
 		if (b.y > 1.5) { mirror = max(mirror, 0.2 + 0.5 * pow(1.0 - abs(dot(n, v)), 3.0)); }
 		c = mix(c, seen, mirror);
+		c = c + LAVA * pat.z * 3.0;
 	}
 	return vec4f(air(c, d, i.world.y), alpha);
 }
+// What gives light of its own, for the glow round it: Neon, and CrackedLava's
+// cracks. Halved, so the glow's 8 bits a channel hold up to twice full.
+fn emission(i: VOut) -> vec3f {
+	let row = i.look & 255u;
+	let b = u.mats[row * 2u + 1u];
+	if (b.y > 0.5 && b.y < 1.5) { return i.colour * 0.5; }
+	if (u32(b.z) == 14u) { return LAVA * pattern(14u, faceUv(i.local, i.lnormal), b.x).z * 0.5; }
+	return vec3f(0.0);
+}
+@fragment fn fsGlow(i: VOut) -> @location(0) vec4f { return vec4f(emission(i), 1.0); }
+@fragment fn fsGlowSeen(i: VOut) -> @location(0) vec4f { return vec4f(emission(i) * i.alpha, 1.0); }
 @fragment fn fs(i: VOut) -> @location(0) vec4f {
 	let s = surface(i);
 	return vec4f(display(s.rgb), s.a);
@@ -253,6 +429,23 @@ export class WebGpuView implements ViewRenderer {
 	private clear: (Draw & { source: Float32Array; sorted: Float32Array })[] = [];
 	private clearEye: number[] | null = null;
 	private blended!: GPURenderPipeline;
+	// The glow: what gives light drawn small, blurred, and added over the frame.
+	private glowing = false;
+	private glowSolid!: GPURenderPipeline;
+	private glowSeen!: GPURenderPipeline;
+	private blur!: GPURenderPipeline;
+	private add!: GPURenderPipeline;
+	private postLayout!: GPUBindGroupLayout;
+	private sampler!: GPUSampler;
+	private postParams: GPUBuffer[] = [];
+	private glow?: {
+		a: GPUTexture;
+		b: GPUTexture;
+		depth: GPUTexture;
+		groups: GPUBindGroup[];
+		w: number;
+		h: number;
+	};
 	private edges!: { vertices: GPUBuffer; indices: GPUBuffer; indexCount: number };
 	private selection: { buffer: GPUBuffer; count: number } | null = null;
 	private msaa?: GPUTexture;
@@ -407,6 +600,56 @@ export class WebGpuView implements ViewRenderer {
 			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "always" },
 			multisample: { count: SAMPLES },
 		});
+		// The glow's passes: the place drawn small in what it gives off, then blurred and added.
+		const glowTarget = { format: "rgba8unorm" as const };
+		this.glowSolid = d.createRenderPipeline({
+			layout: pipelineLayout,
+			vertex: { module, entryPoint: "vs", buffers },
+			fragment: { module, entryPoint: "fsGlow", targets: [glowTarget] },
+			primitive: { topology: "triangle-list", cullMode: "back" },
+			depthStencil: depth,
+		});
+		const adding = {
+			color: { srcFactor: "one" as const, dstFactor: "one" as const },
+			alpha: { srcFactor: "one" as const, dstFactor: "one" as const },
+		};
+		this.glowSeen = d.createRenderPipeline({
+			layout: pipelineLayout,
+			vertex: { module, entryPoint: "vs", buffers },
+			fragment: { module, entryPoint: "fsGlowSeen", targets: [{ ...glowTarget, blend: adding }] },
+			primitive: { topology: "triangle-list", cullMode: "back" },
+			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "less" },
+		});
+		const post = d.createShaderModule({ code: POST });
+		this.postLayout = d.createBindGroupLayout({
+			entries: [
+				{ binding: 0, visibility: STAGE.FRAGMENT, texture: {} },
+				{ binding: 1, visibility: STAGE.FRAGMENT, sampler: {} },
+				{ binding: 2, visibility: STAGE.FRAGMENT, buffer: {} },
+			],
+		});
+		const postPipeline = d.createPipelineLayout({ bindGroupLayouts: [this.postLayout] });
+		this.blur = d.createRenderPipeline({
+			layout: postPipeline,
+			vertex: { module: post, entryPoint: "vsFull" },
+			fragment: { module: post, entryPoint: "fsBlur", targets: [glowTarget] },
+			primitive: { topology: "triangle-list" },
+		});
+		this.add = d.createRenderPipeline({
+			layout: postPipeline,
+			vertex: { module: post, entryPoint: "vsFull" },
+			fragment: {
+				module: post,
+				entryPoint: "fsAdd",
+				targets: [{ format: this.format, blend: adding }],
+			},
+			primitive: { topology: "triangle-list" },
+		});
+		this.sampler = d.createSampler({ magFilter: "linear", minFilter: "linear" });
+		// Across, down, and the strength the glow is added at.
+		this.postParams = [0, 1, 2].map(() =>
+			d.createBuffer({ size: 16, usage: BUFFER.UNIFORM | BUFFER.COPY_DST }),
+		);
 		this.uniform = d.createBuffer({
 			size: 320 + MATERIALS.length * 32,
 			usage: BUFFER.UNIFORM | BUFFER.COPY_DST,
@@ -457,6 +700,7 @@ export class WebGpuView implements ViewRenderer {
 		this.draws = [];
 		this.clear = [];
 		this.clearEye = null;
+		this.glowing = sceneGlows(scene);
 		for (const kind of SCENE_KINDS) {
 			const mesh = meshFor(kind);
 			const solid = scene.kinds[kind];
@@ -537,6 +781,99 @@ export class WebGpuView implements ViewRenderer {
 			format: "depth32float",
 			usage: TEXTURE.RENDER_ATTACHMENT,
 		});
+		this.sizeGlow();
+	}
+
+	/** The glow's targets, a quarter of the view's size, and what reads them. */
+	private sizeGlow(): void {
+		const w = Math.max(1, Math.round(this.width / 4));
+		const h = Math.max(1, Math.round(this.height / 4));
+		if (this.glow && this.glow.w === w && this.glow.h === h) return;
+		const d = this.device;
+		for (const t of [this.glow?.a, this.glow?.b, this.glow?.depth]) t?.destroy();
+		const target = () =>
+			d.createTexture({
+				size: [w, h],
+				format: "rgba8unorm",
+				usage: TEXTURE.RENDER_ATTACHMENT | TEXTURE.TEXTURE_BINDING,
+			});
+		const a = target();
+		const b = target();
+		const depth = d.createTexture({
+			size: [w, h],
+			format: "depth32float",
+			usage: TEXTURE.RENDER_ATTACHMENT,
+		});
+		d.queue.writeBuffer(this.postParams[0], 0, new Float32Array([1 / w, 0, 0, 0]));
+		d.queue.writeBuffer(this.postParams[1], 0, new Float32Array([0, 1 / h, 0, 0]));
+		d.queue.writeBuffer(this.postParams[2], 0, new Float32Array([0, 0, GLOW, 0]));
+		const group = (tex: GPUTexture, params: GPUBuffer) =>
+			d.createBindGroup({
+				layout: this.postLayout,
+				entries: [
+					{ binding: 0, resource: tex.createView() },
+					{ binding: 1, resource: this.sampler },
+					{ binding: 2, resource: { buffer: params } },
+				],
+			});
+		// A across into B, B down into A, and A added over the frame.
+		const groups = [
+			group(a, this.postParams[0]),
+			group(b, this.postParams[1]),
+			group(a, this.postParams[2]),
+		];
+		this.glow = { a, b, depth, groups, w, h };
+	}
+
+	/** The place drawn small in the light it gives off, then blurred both ways. */
+	private drawGlow(encoder: GPUCommandEncoder): void {
+		const glow = this.glow;
+		if (!glow) return;
+		const pass = encoder.beginRenderPass({
+			colorAttachments: [
+				{
+					view: glow.a.createView(),
+					clearValue: { r: 0, g: 0, b: 0, a: 1 },
+					loadOp: "clear",
+					storeOp: "store",
+				},
+			],
+			depthStencilAttachment: {
+				view: glow.depth.createView(),
+				depthClearValue: 1,
+				depthLoadOp: "clear",
+				depthStoreOp: "discard",
+			},
+		});
+		pass.setBindGroup(0, this.bind);
+		pass.setPipeline(this.glowSolid);
+		this.solids(pass);
+		if (this.clear.length > 0) {
+			pass.setPipeline(this.glowSeen);
+			this.solids(pass, this.clear);
+		}
+		pass.end();
+		// Twice each way, for a glow wider than nine taps.
+		for (let round = 0; round < 2; round++)
+			for (const [from, into] of [
+				[0, glow.b],
+				[1, glow.a],
+			] as const) {
+				const blur = encoder.beginRenderPass({
+					colorAttachments: [
+						{
+							view: into.createView(),
+							loadOp: "clear",
+							storeOp: "store",
+							clearValue: { r: 0, g: 0, b: 0, a: 1 },
+						},
+					],
+				});
+				blur.setPipeline(this.blur);
+				blur.setBindGroup(0, glow.groups[from]);
+				blur.draw(3);
+				blur.end();
+			}
 	}
 
 	setSelection(boxes: Float32Array): void {
@@ -570,11 +907,16 @@ export class WebGpuView implements ViewRenderer {
 	draw(camera: Camera): void {
 		this.setCamera(camera);
 		const encoder = this.device.createCommandEncoder();
+		const screen = this.context.getCurrentTexture().createView();
+		if (this.glowing) {
+			if (this.clear.length > 0) this.sortClear(camera.eye);
+			this.drawGlow(encoder);
+		}
 		const pass = encoder.beginRenderPass({
 			colorAttachments: [
 				{
 					view: this.msaa!.createView(),
-					resolveTarget: this.context.getCurrentTexture().createView(),
+					resolveTarget: screen,
 					clearValue: { r: 0.56, g: 0.71, b: 0.86, a: 1 },
 					loadOp: "clear",
 					storeOp: "discard",
@@ -620,6 +962,15 @@ export class WebGpuView implements ViewRenderer {
 			pass.draw(this.overlay.count);
 		}
 		pass.end();
+		if (this.glowing && this.glow) {
+			const glowPass = encoder.beginRenderPass({
+				colorAttachments: [{ view: screen, loadOp: "load", storeOp: "store" }],
+			});
+			glowPass.setPipeline(this.add);
+			glowPass.setBindGroup(0, this.glow.groups[2]);
+			glowPass.draw(3);
+			glowPass.end();
+		}
 		this.device.queue.submit([encoder.finish()]);
 	}
 
