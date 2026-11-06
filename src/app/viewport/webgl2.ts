@@ -4,8 +4,9 @@
  */
 
 import { type LightingParams, lightingBlock } from "../../core/rbx/lighting.js";
-import { MATERIALS, materialBlock } from "../../core/rbx/materials.js";
+import { MATERIAL_TEXTURES, MATERIALS, materialBlock } from "../../core/rbx/materials.js";
 import { sceneGlows } from "./geometry.js";
+import { TEXTURE_LEVELS, TEXTURE_SIZE } from "./textures.js";
 
 /** How strong the glow round Neon is, over the frame, as in WebGpuView. */
 const GLOW = 0.9;
@@ -169,7 +170,8 @@ const vec3 LAVA = vec3(1.0, 0.36, 0.06);
 `;
 // A surface in its material, as WebGpuView's \`surface\` draws it.
 const SURFACE = `
-uniform vec4 M[${MATERIALS.length * 2}];
+uniform vec4 M[${MATERIALS.length * 3}];
+uniform mediump sampler2DArray looks;
 ${PATTERNS}
 float hash3(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
 float noise3(vec3 p) {
@@ -183,8 +185,9 @@ float noise3(vec3 p) {
 vec4 surface(vec3 colour, vec3 n, vec3 world, float alpha, uint look, vec3 local, vec3 ln) {
 	int row = int(look & 255u);
 	float shine = float((look >> 8u) & 255u) / 255.0;
-	vec4 a = M[row * 2];
-	vec4 b = M[row * 2 + 1];
+	vec4 a = M[row * 3];
+	vec4 b = M[row * 3 + 1];
+	vec4 tex = M[row * 3 + 2];
 	vec3 toEye = L[6].xyz - world;
 	float d = length(toEye);
 	vec3 v = toEye / max(d, 1e-4);
@@ -193,7 +196,11 @@ vec4 surface(vec3 colour, vec3 n, vec3 world, float alpha, uint look, vec3 local
 		float g = noise3(local / b.x) * 0.65 + noise3(local / b.x * 3.1) * 0.35;
 		albedo *= 1.0 + a.w * (g - 0.5) * 2.0;
 	}
-	vec3 pat = pattern(int(b.z), faceUv(local, ln), b.x);
+	// A texture once its layer has loaded; the material's own pattern until then.
+	vec2 uv = faceUv(local, ln);
+	int layer = int(b.w) - 1;
+	float detail = texture(looks, vec3(uv / tex.x, float(max(layer, 0)))).r * 2.0;
+	vec3 pat = layer >= 0 ? vec3(mix(1.0, detail, tex.y), 1.0, 0.0) : pattern(int(b.z), uv, b.x);
 	albedo *= pat.x;
 	vec3 c;
 	if (b.y > 0.5 && b.y < 1.5) {
@@ -328,12 +335,12 @@ void main() { o = vec4(texture(tex, uv).rgb * 2.0 * p.z, 1.0); }`;
 const FS_GLOW = `#version 300 es
 precision highp float;
 in vec3 vColour; in vec3 vWorld; in vec3 vNormal; flat in uint vId; in float vAlpha; flat in uint vLook; in vec3 vLocal; in vec3 vLNormal;
-uniform vec4 M[${MATERIALS.length * 2}];
+uniform vec4 M[${MATERIALS.length * 3}];
 uniform float seen;
 ${PATTERNS}
 out vec4 o;
 void main() {
-	vec4 b = M[int(vLook & 255u) * 2 + 1];
+	vec4 b = M[int(vLook & 255u) * 3 + 1];
 	vec3 e = vec3(0.0);
 	if (b.y > 0.5 && b.y < 1.5) e = vColour * 0.5;
 	else if (int(b.z) == 14) e = LAVA * pattern(14, faceUv(vLocal, vLNormal), b.x).z * 0.5;
@@ -428,6 +435,26 @@ export class WebGl2View implements ViewRenderer {
 		// The material table: the same for every frame, so set once.
 		gl.useProgram(this.main.program);
 		gl.uniform4fv(gl.getUniformLocation(this.main.program, "M[0]"), materialBlock());
+		// The material textures, on unit 1 for good: the glow's passes use unit 0.
+		gl.uniform1i(gl.getUniformLocation(this.main.program, "looks"), 1);
+		this.looks = gl.createTexture()!;
+		gl.activeTexture(gl.TEXTURE1);
+		gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.looks);
+		gl.texStorage3D(
+			gl.TEXTURE_2D_ARRAY,
+			TEXTURE_LEVELS,
+			gl.RGBA8,
+			TEXTURE_SIZE,
+			TEXTURE_SIZE,
+			MATERIAL_TEXTURES.length,
+		);
+		gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.REPEAT);
+		gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.REPEAT);
+		const aniso = gl.getExtension("EXT_texture_filter_anisotropic");
+		if (aniso) gl.texParameterf(gl.TEXTURE_2D_ARRAY, aniso.TEXTURE_MAX_ANISOTROPY_EXT, 4);
+		gl.activeTexture(gl.TEXTURE0);
 		this.ids = this.link(VS, FS_ID);
 		this.over = this.link(VS_OVER, FS_OVER);
 		this.skyProgram = this.link(VS_SKY, FS_SKY);
@@ -864,6 +891,37 @@ export class WebGl2View implements ViewRenderer {
 			gl.enable(gl.DEPTH_TEST);
 		}
 		if (this.glowing) this.addGlow();
+	}
+
+	private looks!: WebGLTexture;
+	private loaded = new Set<number>();
+
+	setLook(layer: number, levels: HTMLCanvasElement[]): void {
+		const gl = this.gl;
+		gl.activeTexture(gl.TEXTURE1);
+		gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.looks);
+		levels.forEach((source, level) => {
+			gl.texSubImage3D(
+				gl.TEXTURE_2D_ARRAY,
+				level,
+				0,
+				0,
+				layer,
+				source.width,
+				source.height,
+				1,
+				gl.RGBA,
+				gl.UNSIGNED_BYTE,
+				source,
+			);
+		});
+		gl.activeTexture(gl.TEXTURE0);
+		this.loaded.add(layer);
+		const block = materialBlock(this.loaded);
+		for (const prog of [this.main, this.glowProgram]) {
+			gl.useProgram(prog.program);
+			gl.uniform4fv(gl.getUniformLocation(prog.program, "M[0]"), block);
+		}
 	}
 
 	destroy(): void {

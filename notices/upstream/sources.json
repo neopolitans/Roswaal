@@ -88,5 +88,15 @@
 		"source": "TheRealMJP/BakingLab · LICENSE",
 		"url": "https://github.com/TheRealMJP/BakingLab/blob/master/LICENSE",
 		"retrieved": "2026-11-05"
+	},
+	{
+		"file": "ambientcg.txt",
+		"name": "ambientCG",
+		"holder": "Lennart Demes",
+		"spdx": "CC0-1.0",
+		"covers": "The viewport's material textures: grey detail maps made from eleven ambientCG colour maps.",
+		"source": "creativecommons.org · publicdomain/zero/1.0/legalcode.txt",
+		"url": "https://creativecommons.org/publicdomain/zero/1.0/legalcode.txt",
+		"retrieved": "2026-11-06"
 	}
 ]

@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.215.0",
+		date: "2026-11-06",
+		headline: "Eleven materials are drawn from textures, tinted by the part's Color.",
+		added: [
+			"**Material textures.** Brick, Cobblestone, Pavement, WoodPlanks, Wood, Concrete, Grass, LeafyGrass, Ground, Marble and Granite are drawn from textures made from ambientCG's (CC0), kept as light and dark and tinted by each part's Color. They load for the materials a place uses; the rest keep their patterns.",
+		],
+	},
+	{
 		version: "0.214.1",
 		date: "2026-11-06",
 		headline:

@@ -1,17 +1,22 @@
 /**
  * The viewport's material table: a row for every Enum.Material, each with a
- * pattern the shaders draw, read by them as two vec4s a row.
+ * pattern the shaders draw, some with a texture once it has loaded, read by
+ * the shaders as three vec4s a row.
  */
 
 import { describe, expect, it } from "vitest";
 
 import {
 	MATERIAL_PATTERN,
+	MATERIAL_ROW,
+	MATERIAL_TEXTURES,
 	MATERIALS,
 	materialBlock,
 	materialIndex,
 } from "../src/core/rbx/materials.js";
 import { ENGINE } from "../src/core/robloxEngine.js";
+
+const rowOf = (name: string) => MATERIALS.findIndex((m) => m.name === name) * MATERIAL_ROW;
 
 describe("The material table", () => {
 	it("has a row for every Enum.Material, by its value", () => {
@@ -23,9 +28,24 @@ describe("The material table", () => {
 
 	it("gives the shaders each row's pattern", () => {
 		const block = materialBlock();
-		const patternOf = (name: string) => block[MATERIALS.findIndex((m) => m.name === name) * 8 + 6];
-		expect(patternOf("Brick")).toBe(MATERIAL_PATTERN.brick);
-		expect(patternOf("CrackedLava")).toBe(MATERIAL_PATTERN.lava);
-		expect(patternOf("SmoothPlastic")).toBe(MATERIAL_PATTERN.none);
+		expect(block[rowOf("Brick") + 6]).toBe(MATERIAL_PATTERN.brick);
+		expect(block[rowOf("CrackedLava") + 6]).toBe(MATERIAL_PATTERN.lava);
+		expect(block[rowOf("SmoothPlastic") + 6]).toBe(MATERIAL_PATTERN.none);
+	});
+
+	it("names only materials it has, each textured once", () => {
+		const names = MATERIAL_TEXTURES.map((t) => t.material);
+		expect(new Set(names).size).toBe(names.length);
+		for (const name of names) expect(rowOf(name), name).toBeGreaterThanOrEqual(0);
+	});
+
+	it("draws a texture only once its layer has loaded, and its pattern until then", () => {
+		const brick = MATERIAL_TEXTURES.findIndex((t) => t.material === "Brick");
+		expect(materialBlock()[rowOf("Brick") + 7]).toBe(0);
+		const loaded = materialBlock(new Set([brick]));
+		expect(loaded[rowOf("Brick") + 7]).toBe(brick + 1);
+		expect(loaded[rowOf("Brick") + 8]).toBe(MATERIAL_TEXTURES[brick].studs);
+		// A material with no texture is never given one.
+		expect(loaded[rowOf("DiamondPlate") + 7]).toBe(0);
 	});
 });

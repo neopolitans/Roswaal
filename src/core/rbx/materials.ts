@@ -1,10 +1,10 @@
 /**
  * How the viewport draws each Enum.Material: our own numbers, chosen by eye
- * for what each material is, and our own patterns, drawn by the shaders in
- * studs on the part -- no textures, and nothing of Roblox's. A material's look
- * is a highlight (how strong, how tight), whether it is a metal, a grain of
- * variation in its colour, and its pattern; Neon, Glass and ForceField are
- * drawn their own ways.
+ * for what each material is, our own patterns drawn by the shaders in studs on
+ * the part, and for some materials a texture from ambientCG (CC0) -- nothing
+ * of Roblox's. A material's look is a highlight (how strong, how tight),
+ * whether it is a metal, a grain of variation in its colour, and its pattern
+ * or texture; Neon, Glass and ForceField are drawn their own ways.
  *
  * The values are Enum.Material's, from creator-docs. The host packs a part's
  * row here into its instance; the renderers read the rows as a uniform table.
@@ -119,7 +119,40 @@ export const MATERIALS: readonly MaterialLook[] = [
 	row("Rubber", 2311, 0.08, 10, false, 0.02, 1, "speckle"),
 ];
 
+/**
+ * The materials drawn from a texture rather than a pattern, in the order the
+ * renderers' texture array holds them. Each is a grey detail map made from
+ * one of ambientCG's colour maps: its brightness only, averaging middle grey,
+ * so the part's Color gives the hue and the texture its light and dark.
+ * `studs` is how far one copy of it spans; `strength` how much it shows.
+ */
+export interface MaterialTexture {
+	material: string;
+	/** The ambientCG asset it was made from. */
+	source: string;
+	studs: number;
+	strength: number;
+}
+
+export const MATERIAL_TEXTURES: readonly MaterialTexture[] = [
+	{ material: "Brick", source: "Bricks105", studs: 8, strength: 1 },
+	{ material: "Cobblestone", source: "PavingStones138", studs: 8, strength: 1 },
+	{ material: "Pavement", source: "PavingStones152", studs: 10, strength: 1 },
+	{ material: "WoodPlanks", source: "WoodFloor064", studs: 8, strength: 1 },
+	{ material: "Wood", source: "Wood095", studs: 6, strength: 1 },
+	{ material: "Concrete", source: "Concrete049", studs: 8, strength: 0.9 },
+	{ material: "Grass", source: "Grass005", studs: 6, strength: 0.9 },
+	{ material: "LeafyGrass", source: "Grass001", studs: 6, strength: 1 },
+	{ material: "Ground", source: "Ground037", studs: 8, strength: 0.9 },
+	{ material: "Marble", source: "Marble012", studs: 10, strength: 0.8 },
+	{ material: "Granite", source: "Marble016", studs: 8, strength: 0.6 },
+];
+
 const BY_VALUE = new Map(MATERIALS.map((m, i) => [m.value, i]));
+const TEXTURE_OF = new Map(MATERIAL_TEXTURES.map((t, layer) => [t.material, { ...t, layer }]));
+
+/** Floats a material takes in the shaders' table: three vec4s. */
+export const MATERIAL_ROW = 12;
 
 /** A material's row, by Enum.Material's value: Plastic's for one this table does not know. */
 export function materialIndex(value: unknown): number {
@@ -127,12 +160,16 @@ export function materialIndex(value: unknown): number {
 }
 
 /**
- * The table as the shaders read it: two vec4s a row --
- * (spec, gloss, metal, grain) and (grain size, shade, pattern, 0).
+ * The table as the shaders read it: three vec4s a row --
+ * (spec, gloss, metal, grain), (grain size, shade, pattern, texture) and
+ * (the texture's studs, its strength, 0, 0). `texture` is its layer + 1 once
+ * that layer has loaded, and 0 until then, when the pattern is drawn instead.
  */
-export function materialBlock(): Float32Array {
-	const out = new Float32Array(MATERIALS.length * 8);
+export function materialBlock(loaded: ReadonlySet<number> = new Set()): Float32Array {
+	const out = new Float32Array(MATERIALS.length * MATERIAL_ROW);
 	MATERIALS.forEach((m, i) => {
+		const t = TEXTURE_OF.get(m.name);
+		const layer = t && loaded.has(t.layer) ? t.layer + 1 : 0;
 		out.set(
 			[
 				m.spec,
@@ -142,9 +179,13 @@ export function materialBlock(): Float32Array {
 				m.grainSize,
 				m.shade,
 				MATERIAL_PATTERN[m.pattern],
+				layer,
+				t?.studs ?? 1,
+				t?.strength ?? 0,
+				0,
 				0,
 			],
-			i * 8,
+			i * MATERIAL_ROW,
 		);
 	});
 	return out;

@@ -200,8 +200,8 @@ export function placesAndRojoPage(): DocPage {
 				text:
 					"The bar's snaps set the steps a drag keeps to, in studs and degrees; on a narrower " +
 					"screen they are behind **Snap**. Parts are drawn in their colour and material, each " +
-					"material with a pattern of its own, with their Transparency and Reflectance, and Neon " +
-					"glows. It draws with WebGPU, or WebGL2 " +
+					"material with a pattern or texture of its own tinted by the part's Color, with their " +
+					"Transparency and Reflectance, and Neon glows. It draws with WebGPU, or WebGL2 " +
 					"where the browser has no WebGPU. For now a MeshPart is drawn as its box, nothing casts " +
 					"a shadow, and the handles do not drag yet.",
 			},

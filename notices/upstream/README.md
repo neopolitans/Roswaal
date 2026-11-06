@@ -14,6 +14,7 @@ is written by hand, edited, reformatted, or reconstructed from a template.
 | `creator-docs.txt` | [`Roblox/creator-docs` · `LICENSE`](https://github.com/Roblox/creator-docs/blob/main/LICENSE) | 2026-10-08 |
 | `vt323.txt` | [`google/fonts` · `ofl/vt323/OFL.txt`](https://github.com/google/fonts/blob/main/ofl/vt323/OFL.txt) | 2026-10-20 |
 | `bakinglab.txt` | [`TheRealMJP/BakingLab` · `LICENSE`](https://github.com/TheRealMJP/BakingLab/blob/master/LICENSE) | 2026-11-05 |
+| `ambientcg.txt` | [Creative Commons · CC0 1.0 legal code](https://creativecommons.org/publicdomain/zero/1.0/legalcode.txt) | 2026-11-06 |
 
 `luau-site.txt` covers the Luau logo, whose two squares are the `.luau` file icon. It was fetched
 directly, and reaches a user under **Settings → Licences** as the theme licences do.
@@ -27,6 +28,11 @@ covers the descriptions in `src/core/luneApi.ts`, taken at the tag they were gen
 `bakinglab.txt` covers the viewport's tone curve in `src/app/viewport/webgpu.ts` and `webgl2.ts`:
 Stephen Hill's fit of the ACES curve, as BakingLab's `ACES.hlsl` has it, its two matrices and its
 rational fit carried over to WGSL and GLSL.
+`ambientcg.txt` covers `src/app/viewport/textures/`: eleven grey detail maps made from ambientCG
+colour maps (Bricks105, PavingStones138, PavingStones152, WoodFloor064, Wood095, Concrete049,
+Grass005, Grass001, Ground037, Marble012, Marble016). ambientCG publishes its assets under CC0 1.0
+Universal, which its [licence page](https://docs.ambientcg.com/license/) names, and ships no licence
+file of its own; this is that licence's legal code, from Creative Commons.
 The upstream repository has no `NOTICE` file for the icons, so the licence is all Apache-2.0 asks
 to carry.
 

@@ -40,6 +40,8 @@ export interface ViewRenderer {
 	draw(camera: Camera): void;
 	/** The instance id under a pixel, or -1 for the sky. */
 	pick(camera: Camera, x: number, y: number): Promise<number>;
+	/** A material texture, as its mip levels, into its layer; drawn from then on. */
+	setLook(layer: number, levels: HTMLCanvasElement[]): void;
 	/** Gives the GPU back: a browser keeps only so many contexts. */
 	destroy(): void;
 }

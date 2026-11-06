@@ -4,11 +4,12 @@
  */
 
 import { type LightingParams, lightingBlock } from "../../core/rbx/lighting.js";
-import { MATERIALS, materialBlock } from "../../core/rbx/materials.js";
+import { MATERIAL_TEXTURES, MATERIALS, materialBlock } from "../../core/rbx/materials.js";
 import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene.js";
 import { boxEdges, meshFor, sceneGlows } from "./geometry.js";
 import { HANDLE_KINDS, type Handles, handleMesh } from "./handles.js";
 import { invert, lookAt, multiply, perspective } from "./math.js";
+import { TEXTURE_LEVELS, TEXTURE_SIZE } from "./textures.js";
 import {
 	backToFront,
 	type Camera,
@@ -23,7 +24,12 @@ import {
 // interfaces but not these namespaces.
 const BUFFER = { MAP_READ: 0x1, COPY_DST: 0x8, INDEX: 0x10, VERTEX: 0x20, UNIFORM: 0x40 } as const;
 const STAGE = { VERTEX: 0x1, FRAGMENT: 0x2 } as const;
-const TEXTURE = { COPY_SRC: 0x1, TEXTURE_BINDING: 0x4, RENDER_ATTACHMENT: 0x10 } as const;
+const TEXTURE = {
+	COPY_SRC: 0x1,
+	COPY_DST: 0x2,
+	TEXTURE_BINDING: 0x4,
+	RENDER_ATTACHMENT: 0x10,
+} as const;
 /** How strong the glow round Neon is, over the frame. */
 const GLOW = 0.9;
 const MAP_READ = 0x1;
@@ -69,9 +75,12 @@ struct U {
 	camPos: vec4f, select: vec4f, fog: vec4f, fogColour: vec4f, hazeColour: vec4f,
 	screen: vec4f,
 	// The material table: two rows a material, as \`materialBlock\` writes it.
-	mats: array<vec4f, ${MATERIALS.length * 2}>,
+	mats: array<vec4f, ${MATERIALS.length * 3}>,
 };
 @group(0) @binding(0) var<uniform> u: U;
+// The material textures, a layer each, tinted by the part's Color.
+@group(0) @binding(1) var looks: texture_2d_array<f32>;
+@group(0) @binding(2) var lookSampler: sampler;
 struct VIn {
 	@location(0) pos: vec3f, @location(1) nrm: vec3f,
 	@location(2) c0: vec3f, @location(3) c1: vec3f, @location(4) c2: vec3f, @location(5) p: vec3f,
@@ -277,8 +286,9 @@ fn noise3(p: vec3f) -> f32 {
 fn surface(i: VOut) -> vec4f {
 	let row = i.look & 255u;
 	let shine = f32((i.look >> 8u) & 255u) / 255.0;
-	let a = u.mats[row * 2u];
-	let b = u.mats[row * 2u + 1u];
+	let a = u.mats[row * 3u];
+	let b = u.mats[row * 3u + 1u];
+	let tex = u.mats[row * 3u + 2u];
 	let n = normalize(i.normal);
 	let toEye = u.camPos.xyz - i.world;
 	let d = length(toEye);
@@ -288,7 +298,14 @@ fn surface(i: VOut) -> vec4f {
 		let g = noise3(i.local / b.x) * 0.65 + noise3(i.local / b.x * 3.1) * 0.35;
 		albedo = albedo * (1.0 + a.w * (g - 0.5) * 2.0);
 	}
-	let pat = pattern(u32(b.z), faceUv(i.local, i.lnormal), b.x);
+	// A texture once its layer has loaded; the material's own pattern until then.
+	let uv = faceUv(i.local, i.lnormal);
+	let layer = i32(b.w) - 1;
+	let detail = textureSample(looks, lookSampler, uv / tex.x, max(layer, 0)).r * 2.0;
+	var pat = pattern(u32(b.z), uv, b.x);
+	if (layer >= 0) {
+		pat = vec3f(mix(1.0, detail, tex.y), 1.0, 0.0);
+	}
 	albedo = albedo * pat.x;
 	var alpha = i.alpha;
 	var c: vec3f;
@@ -320,7 +337,7 @@ fn surface(i: VOut) -> vec4f {
 // cracks. Halved, so the glow's 8 bits a channel hold up to twice full.
 fn emission(i: VOut) -> vec3f {
 	let row = i.look & 255u;
-	let b = u.mats[row * 2u + 1u];
+	let b = u.mats[row * 3u + 1u];
 	if (b.y > 0.5 && b.y < 1.5) { return i.colour * 0.5; }
 	if (u32(b.z) == 14u) { return LAVA * pattern(14u, faceUv(i.local, i.lnormal), b.x).z * 0.5; }
 	return vec3f(0.0);
@@ -516,7 +533,11 @@ export class WebGpuView implements ViewRenderer {
 			},
 		];
 		const layout = d.createBindGroupLayout({
-			entries: [{ binding: 0, visibility: STAGE.VERTEX | STAGE.FRAGMENT, buffer: {} }],
+			entries: [
+				{ binding: 0, visibility: STAGE.VERTEX | STAGE.FRAGMENT, buffer: {} },
+				{ binding: 1, visibility: STAGE.FRAGMENT, texture: { viewDimension: "2d-array" } },
+				{ binding: 2, visibility: STAGE.FRAGMENT, sampler: {} },
+			],
 		});
 		const pipelineLayout = d.createPipelineLayout({ bindGroupLayouts: [layout] });
 		const depth = {
@@ -685,13 +706,33 @@ export class WebGpuView implements ViewRenderer {
 			d.createBuffer({ size: 16, usage: BUFFER.UNIFORM | BUFFER.COPY_DST }),
 		);
 		this.uniform = d.createBuffer({
-			size: 320 + MATERIALS.length * 32,
+			size: 320 + MATERIALS.length * 48,
 			usage: BUFFER.UNIFORM | BUFFER.COPY_DST,
 		});
 		d.queue.writeBuffer(this.uniform, 320, materialBlock());
+		this.looks = d.createTexture({
+			size: [TEXTURE_SIZE, TEXTURE_SIZE, MATERIAL_TEXTURES.length],
+			mipLevelCount: TEXTURE_LEVELS,
+			format: "rgba8unorm",
+			usage: TEXTURE.TEXTURE_BINDING | TEXTURE.COPY_DST | TEXTURE.RENDER_ATTACHMENT,
+		});
 		this.bind = d.createBindGroup({
 			layout,
-			entries: [{ binding: 0, resource: { buffer: this.uniform } }],
+			entries: [
+				{ binding: 0, resource: { buffer: this.uniform } },
+				{ binding: 1, resource: this.looks.createView({ dimension: "2d-array" }) },
+				{
+					binding: 2,
+					resource: d.createSampler({
+						addressModeU: "repeat",
+						addressModeV: "repeat",
+						magFilter: "linear",
+						minFilter: "linear",
+						mipmapFilter: "linear",
+						maxAnisotropy: 4,
+					}),
+				},
+			],
 		});
 
 		this.setScene(scene);
@@ -1006,6 +1047,21 @@ export class WebGpuView implements ViewRenderer {
 			glowPass.end();
 		}
 		this.device.queue.submit([encoder.finish()]);
+	}
+
+	private looks!: GPUTexture;
+	private loaded = new Set<number>();
+
+	setLook(layer: number, levels: HTMLCanvasElement[]): void {
+		levels.forEach((source, mipLevel) => {
+			this.device.queue.copyExternalImageToTexture(
+				{ source },
+				{ texture: this.looks, mipLevel, origin: [0, 0, layer] },
+				[source.width, source.height],
+			);
+		});
+		this.loaded.add(layer);
+		this.device.queue.writeBuffer(this.uniform, 320, materialBlock(this.loaded));
 	}
 
 	destroy(): void {

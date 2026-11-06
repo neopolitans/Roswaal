@@ -10,6 +10,7 @@ import type { LightingParams } from "../../core/rbx/lighting.js";
 import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene.js";
 import { rayPick } from "./geometry.js";
 import { HandleBuilder } from "./handles.js";
+import { layersUsed, loadLayer } from "./textures.js";
 import { type Camera, FOV, SELECT, type ViewRenderer } from "./view.js";
 
 /** How the view is drawn, from Settings: which renderer, and the outline's width and depth. */
@@ -234,6 +235,7 @@ export class ViewportController {
 		});
 		if (this.view) {
 			this.view.setScene(place);
+			this.loadLooks(this.view, place);
 			this.view.setLighting(place.lighting);
 			this.view.setOverlay(this.frustumLines());
 			this.refreshSelection();
@@ -310,6 +312,33 @@ export class ViewportController {
 		}
 		this.view.setOutline(options.outlineWidth, options.hideBehind);
 		this.redraw();
+	}
+
+	/** The material textures, fetched once each and kept for the session, by layer. */
+	private looks = new Map<number, Promise<HTMLCanvasElement[]>>();
+
+	/**
+	 * The textures the place's materials use, into the view as each arrives;
+	 * until then a material is drawn in its own pattern.
+	 */
+	private loadLooks(view: ViewRenderer, place: PlaceScene): void {
+		for (const layer of layersUsed(place)) {
+			let levels = this.looks.get(layer);
+			if (!levels) {
+				levels = loadLayer(layer);
+				this.looks.set(layer, levels);
+				// A failed fetch is tried again by the next place or tab.
+				levels.catch(() => this.looks.delete(layer));
+			}
+			levels.then(
+				(ready) => {
+					if (this.view !== view) return;
+					view.setLook(layer, ready);
+					this.redraw();
+				},
+				() => {},
+			);
+		}
 	}
 
 	/** One pick at a time: WebGPU reads a pick back through one buffer. */
@@ -667,6 +696,7 @@ export class ViewportController {
 		this.view = view;
 		this.set({ backend: view.backend, fellBack, error: null });
 		if (this.place !== place) view.setScene(this.place ?? place);
+		this.loadLooks(view, this.place ?? place);
 		this.attach(this.canvas as HTMLCanvasElement);
 		this.refreshSelection();
 		this.fit();
