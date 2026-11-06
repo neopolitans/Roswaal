@@ -82,7 +82,7 @@ jobs:
       matrix:
         include:
           - name: macOS (Apple Silicon)
-            runner: macos-14
+            runner: macos-15
             asset: macos-aarch64
             binary: roswaal
           - name: Windows (x86-64)
