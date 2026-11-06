@@ -9,7 +9,31 @@ import type { PlaceOutline } from "../../core/rbx/browse.js";
 import type { LightingParams } from "../../core/rbx/lighting.js";
 import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene.js";
 import { HandleBuilder } from "./handles.js";
-import type { Camera, ViewRenderer } from "./view.js";
+import { type Camera, SELECT, type ViewRenderer } from "./view.js";
+
+/** How the view is drawn, from Settings: which renderer, and the outline's width and depth. */
+export interface ViewportOptions {
+	/** WebGPU where the browser has it, or WebGL2 always. */
+	renderer: "auto" | "webgl2";
+	/** In CSS pixels. */
+	outlineWidth: number;
+	/** What is in front of an outline hides it, rather than the outline showing through. */
+	hideBehind: boolean;
+}
+
+/** The outline round what is picked, and the fainter one round what the pointer is over. */
+const PICKED_ALPHA = 255;
+const HOVER_ALPHA = 105;
+const tintWord = (() => {
+	const f = new Float32Array(1);
+	const u = new Uint32Array(f.buffer);
+	const [r, g, b] = SELECT.map((v) => Math.round(v * 255));
+	return (alpha: number) => {
+		u[0] = (r | (g << 8) | (b << 16) | (alpha << 24)) >>> 0;
+		return f[0];
+	};
+})();
+
 import { WebGl2View } from "./webgl2.js";
 import { WebGpuView } from "./webgpu.js";
 
@@ -235,11 +259,64 @@ export class ViewportController {
 	}
 
 	private refreshSelection(): void {
-		this.view?.setSelection(
-			this.selected === null ? new Float32Array() : this.boxFor(this.selected),
-		);
+		this.view?.setSelection(this.outlines());
 		this.drawHandles();
 		this.redraw();
+	}
+
+	/** What is picked, solid, and what the pointer is over, faint, each in the selection's blue. */
+	private outlines(): Float32Array {
+		const boxes: Float32Array[] = [];
+		const add = (index: number | null, alpha: number) => {
+			if (index === null) return;
+			const box = this.boxFor(index);
+			if (box.length < SCENE_STRIDE) return;
+			const tinted = box.slice(0, SCENE_STRIDE);
+			tinted[12] = tintWord(alpha);
+			boxes.push(tinted);
+		};
+		add(this.selected, PICKED_ALPHA);
+		if (this.hover !== this.selected) add(this.hover, HOVER_ALPHA);
+		const out = new Float32Array(boxes.length * SCENE_STRIDE);
+		boxes.forEach((b, i) => {
+			out.set(b, i * SCENE_STRIDE);
+		});
+		return out;
+	}
+
+	/** The instance the pointer is over, outlined faintly; null for none. */
+	private hover: number | null = null;
+	private setHover(index: number | null): void {
+		if (index === this.hover) return;
+		this.hover = index;
+		this.refreshSelection();
+	}
+
+	private options: ViewportOptions = { renderer: "auto", outlineWidth: 3.5, hideBehind: false };
+
+	/** Settings' say in how the view is drawn: a new renderer starts the view again. */
+	setOptions(options: ViewportOptions): void {
+		const was = this.options;
+		this.options = options;
+		if (!this.view) return;
+		if (was.renderer !== options.renderer) {
+			this.view.destroy();
+			this.view = null;
+			this.canvas?.remove();
+			this.canvas = null;
+			void this.start();
+			return;
+		}
+		this.view.setOutline(options.outlineWidth, options.hideBehind);
+		this.redraw();
+	}
+
+	/** One pick at a time: WebGPU reads a pick back through one buffer. */
+	private picking: Promise<unknown> = Promise.resolve();
+	private pickId(x: number, y: number): Promise<number> {
+		const run = this.picking.then(() => (this.view ? this.view.pick(this.camera(), x, y) : -1));
+		this.picking = run.catch(() => -1);
+		return run;
 	}
 
 	/** A part's own box, or one round every part inside an instance, square to the world. */
@@ -544,12 +621,14 @@ export class ViewportController {
 			this.canvas = canvas;
 			return canvas;
 		};
-		let view: ViewRenderer = new WebGpuView();
+		const gl2 = this.options.renderer === "webgl2";
+		let view: ViewRenderer = gl2 ? new WebGl2View() : new WebGpuView();
 		let fellBack = false;
 		try {
 			try {
 				await view.init(make(), place);
-			} catch {
+			} catch (err) {
+				if (gl2) throw err;
 				fellBack = true;
 				view = new WebGl2View();
 				await view.init(make(), place);
@@ -567,6 +646,7 @@ export class ViewportController {
 		}
 		view.setLighting(place.lighting);
 		view.setOverlay(this.frustumLines());
+		view.setOutline(this.options.outlineWidth, this.options.hideBehind);
 		this.view = view;
 		this.set({ backend: view.backend, fellBack, error: null });
 		if (this.place !== place) view.setScene(this.place ?? place);
@@ -805,19 +885,35 @@ export class ViewportController {
 			clearTimeout(press);
 			press = undefined;
 		};
-		const pickAt = async (x: number, y: number, partItself: boolean) => {
-			if (!this.view) return;
+		const idAt = (x: number, y: number) => {
 			const box = el.getBoundingClientRect();
 			const dpr = el.width / box.width;
-			const id = await this.view.pick(
-				this.camera(),
-				Math.floor((x - box.left) * dpr),
-				Math.floor((y - box.top) * dpr),
-			);
+			return this.pickId(Math.floor((x - box.left) * dpr), Math.floor((y - box.top) * dpr));
+		};
+		const pickAt = async (x: number, y: number, partItself: boolean) => {
+			if (!this.view) return;
+			const id = await idAt(x, y);
 			const target = id >= 0 ? this.clickTarget(id, partItself) : null;
 			this.select(target);
 			this.onPick(target);
 		};
+		// A mouse resting over the view outlines, faintly, what a click there would pick.
+		let hovering: ReturnType<typeof setTimeout> | undefined;
+		el.addEventListener("pointermove", (e) => {
+			if (e.pointerType !== "mouse" || pointers.size > 0) return;
+			clearTimeout(hovering);
+			const { clientX: x, clientY: y } = e;
+			const itself = e.altKey || e.shiftKey;
+			hovering = setTimeout(async () => {
+				if (!this.view || pointers.size > 0) return;
+				const id = await idAt(x, y);
+				this.setHover(id >= 0 ? this.clickTarget(id, itself) : null);
+			}, 40);
+		});
+		el.addEventListener("pointerleave", () => {
+			clearTimeout(hovering);
+			this.setHover(null);
+		});
 		el.addEventListener("contextmenu", (e) => e.preventDefault());
 		el.addEventListener("pointerdown", (e) => {
 			el.setPointerCapture(e.pointerId);

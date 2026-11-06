@@ -358,25 +358,34 @@ struct SOut { @builtin(position) clip: vec4f, @location(0) ndc: vec2f };
 	let shadeK = 0.72 + 0.38 * max(dot(n, normalize(vec3f(0.4, 1.0, 0.25))), 0.0);
 	return vec4f(pow(i.colour * shadeK, vec3f(1.0 / 2.2)), u.sun.w);
 }
-// An edge of the outline as a band \`screen.z\` pixels wide, square to it on
-// screen and a little past each corner so the corners meet; on the part's
-// own box, a few hundredths of a stud out whatever its size.
+// An edge of an outline, as a band \`screen.z\` pixels wide, square to it on
+// screen and half its width past each corner so the corners meet. It is on
+// the box's own edge, drawn a touch towards the camera so the faces it runs
+// along do not hide it; an edge that passes behind the camera is cut where it
+// does, or it would bend across the view.
 @vertex fn vsLine(v: VIn, @builtin(vertex_index) vid: u32) -> VOut {
 	let m = mat3x3f(v.c0, v.c1, v.c2);
-	let s = vec3f(length(v.c0), length(v.c1), length(v.c2));
-	let grow = (s + vec3f(0.04)) / max(s, vec3f(1e-4));
-	let a = u.viewProj * vec4f(m * (v.pos * grow) + v.p, 1.0);
-	let b = u.viewProj * vec4f(m * (v.nrm * grow) + v.p, 1.0);
+	var wa = m * v.pos + v.p;
+	var wb = m * v.nrm + v.p;
+	wa = wa + (u.camPos.xyz - wa) * 0.004;
+	wb = wb + (u.camPos.xyz - wb) * 0.004;
+	var a = u.viewProj * vec4f(wa, 1.0);
+	var b = u.viewProj * vec4f(wb, 1.0);
+	let e = 0.001;
+	let behind = a.w < e && b.w < e;
+	if (a.w < e) { a = mix(a, b, (e - a.w) / (b.w - a.w)); }
+	if (b.w < e) { b = mix(b, a, (e - b.w) / (a.w - b.w)); }
 	let end = (vid & 2u) == 2u;
 	let side = select(-1.0, 1.0, (vid & 1u) == 1u);
-	let dir = normalize((b.xy / max(b.w, 1e-4) - a.xy / max(a.w, 1e-4)) * u.screen.xy + vec2f(1e-6, 0.0));
-	let along = select(-1.0, 1.0, end);
-	let off = (vec2f(-dir.y, dir.x) * side + dir * along) * u.screen.z / u.screen.xy;
+	let dir = normalize((b.xy / b.w - a.xy / a.w) * u.screen.xy + vec2f(1e-6, 0.0));
+	let off = (vec2f(-dir.y, dir.x) * side + dir * select(-1.0, 1.0, end)) * u.screen.z / u.screen.xy;
 	var o: VOut;
 	o.clip = select(a, b, end);
 	o.clip = vec4f(o.clip.xy + off * o.clip.w, o.clip.zw);
-	o.world = select(v.pos, v.nrm, end);
-	o.colour = u.select.rgb;
+	if (behind) { o.clip = vec4f(2.0, 2.0, 2.0, 1.0); }
+	o.world = select(wa, wb, end);
+	o.colour = v.colour.rgb;
+	o.alpha = v.colour.a;
 	o.normal = vec3f(0.0, 1.0, 0.0);
 	o.id = v.id;
 	return o;
@@ -390,7 +399,7 @@ struct LOut { @builtin(position) clip: vec4f, @location(0) colour: vec3f };
 	return o;
 }
 @fragment fn fsOver(i: LOut) -> @location(0) vec4f { return vec4f(i.colour, 1.0); }
-@fragment fn fsLine(i: VOut) -> @location(0) vec4f { return vec4f(i.colour, 1.0); }
+@fragment fn fsLine(i: VOut) -> @location(0) vec4f { return vec4f(i.colour, i.alpha); }
 @fragment fn fsId(i: VOut) -> @location(0) u32 { return i.id + 1u; }
 `;
 
@@ -458,9 +467,18 @@ export class WebGpuView implements ViewRenderer {
 
 	private canvas: HTMLCanvasElement | null = null;
 
+	private linesBehind!: GPURenderPipeline;
+	private outlineWidth = SELECT_WIDTH;
+	private hideBehind = false;
+
+	setOutline(width: number, hideBehind: boolean): void {
+		this.outlineWidth = width;
+		this.hideBehind = hideBehind;
+	}
+
 	/** The outline's width in the canvas's own pixels. */
 	private band(): number {
-		return SELECT_WIDTH * (this.width / (this.canvas?.clientWidth || this.width));
+		return this.outlineWidth * (this.width / (this.canvas?.clientWidth || this.width));
 	}
 
 	async init(canvas: HTMLCanvasElement, scene: PlaceScene): Promise<void> {
@@ -537,14 +555,30 @@ export class WebGpuView implements ViewRenderer {
 			multisample: { count: SAMPLES },
 		});
 		// Over everything, as Studio's selection box is.
-		this.lines = d.createRenderPipeline({
-			layout: pipelineLayout,
-			vertex: { module, entryPoint: "vsLine", buffers },
-			fragment: { module, entryPoint: "fsLine", targets: [{ format: this.format }] },
-			primitive: { topology: "triangle-list" },
-			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "always" },
-			multisample: { count: SAMPLES },
-		});
+		// Through everything, as Studio's selection box is, or hidden by what is in front.
+		const line = (depthCompare: GPUCompareFunction) =>
+			d.createRenderPipeline({
+				layout: pipelineLayout,
+				vertex: { module, entryPoint: "vsLine", buffers },
+				fragment: {
+					module,
+					entryPoint: "fsLine",
+					targets: [
+						{
+							format: this.format,
+							blend: {
+								color: { srcFactor: "src-alpha", dstFactor: "one-minus-src-alpha" },
+								alpha: { srcFactor: "one", dstFactor: "one-minus-src-alpha" },
+							},
+						},
+					],
+				},
+				primitive: { topology: "triangle-list" },
+				depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare },
+				multisample: { count: SAMPLES },
+			});
+		this.lines = line("always");
+		this.linesBehind = line("less-equal");
 		this.ids = d.createRenderPipeline({
 			layout: pipelineLayout,
 			vertex: { module, entryPoint: "vs", buffers },
@@ -940,7 +974,7 @@ export class WebGpuView implements ViewRenderer {
 			this.solids(pass, this.clear);
 		}
 		if (this.selection) {
-			pass.setPipeline(this.lines);
+			pass.setPipeline(this.hideBehind ? this.linesBehind : this.lines);
 			pass.setVertexBuffer(0, this.edges.vertices);
 			pass.setVertexBuffer(1, this.selection.buffer);
 			pass.setIndexBuffer(this.edges.indices, "uint16");

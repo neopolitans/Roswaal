@@ -9,6 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.214.0",
+		date: "2026-11-06",
+		headline:
+			"The place outlines what the mouse is over, and Settings chooses its renderer and outline.",
+		added: [
+			"**Hover.** Resting the mouse over the place outlines faintly what a click there would pick.",
+			"**Place in 3D in Settings.** Renderer, Automatic or WebGL2; how wide the selection outline is; and whether it shows through the parts in front of it. The place's Properties has the renderer too.",
+		],
+		changed: ["**The selection outline.** On the box's own edges, and wider."],
+		fixed: [
+			"**The selection outline close up.** An edge that passes behind the camera no longer bends across the view.",
+		],
+	},
+	{
 		version: "0.213.0",
 		date: "2026-11-06",
 		headline: "Each material has a pattern of its own, and Neon glows.",

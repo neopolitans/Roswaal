@@ -462,9 +462,14 @@ function Rows({ rows }: { rows: [string, string][] }) {
 export function PlaceSummary({
 	controller,
 	file,
+	renderer,
+	onRenderer,
 }: {
 	controller: ViewportController;
 	file: string;
+	/** The renderer Settings asks for, chosen here too. */
+	renderer: "auto" | "webgl2";
+	onRenderer: (renderer: "auto" | "webgl2") => void;
 }) {
 	const { summary, backend, fellBack } = useViewport(controller);
 	const name = file.split("/").pop() ?? file;
@@ -488,16 +493,25 @@ export function PlaceSummary({
 									["MeshParts", `${summary.meshes.toLocaleString()}, as their boxes`],
 									["Seen through", `${summary.translucent.toLocaleString()}, blended`],
 									["Left out", `${summary.transparent.toLocaleString()} fully transparent`],
-									...(backend
-										? [
-												["Renderer", fellBack ? `${backend}, no WebGPU here` : backend] as [
-													string,
-													string,
-												],
-											]
-										: []),
 								]}
 							/>
+							<div className="place-prop" title="What draws the view. Settings has it too.">
+								<span className="place-prop-name">Renderer</span>
+								<span className="place-prop-value">
+									<select
+										className="tb place-edit-field"
+										value={renderer}
+										onChange={(e) => onRenderer(e.target.value as "auto" | "webgl2")}
+									>
+										<option value="auto">
+											{renderer === "auto" && backend
+												? `Automatic: ${fellBack ? "WebGL2, no WebGPU here" : backend}`
+												: "Automatic"}
+										</option>
+										<option value="webgl2">WebGL2</option>
+									</select>
+								</span>
+							</div>
 						</div>
 					)}
 					{summary && summary.notes.length > 0 && (

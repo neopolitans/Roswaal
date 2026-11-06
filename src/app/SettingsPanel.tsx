@@ -43,6 +43,8 @@ import {
 	FUNCTION_TAB_CHOICES,
 	GRID_CONTRASTS,
 	GRID_PATTERNS,
+	OUTLINE_WIDTHS,
+	type OutlineWidth,
 	PREVIEW_SCALE,
 	type Preferences,
 	previewScaleOf,
@@ -836,6 +838,53 @@ function WorkspaceSettings({ prefs, onPrefs }: SettingsPanelProps) {
 						on={prefs.modifyDataModel}
 						onChange={(on) => onPrefs({ modifyDataModel: on })}
 						label={prefs.modifyDataModel ? "Properties can be changed" : "Properties are read-only"}
+					/>
+				</Row>
+			</Group>
+
+			<Group title="Place in 3D">
+				<Row
+					label="Renderer"
+					help="WebGPU where the browser has it, and WebGL2 where it does not; or WebGL2 always."
+				>
+					<div className="segmented">
+						{(
+							[
+								["auto", "Automatic"],
+								["webgl2", "WebGL2"],
+							] as const
+						).map(([value, label]) => (
+							<button
+								key={value}
+								className={prefs.viewportRenderer === value ? "on" : ""}
+								onClick={() => onPrefs({ viewportRenderer: value })}
+							>
+								{label}
+							</button>
+						))}
+					</div>
+				</Row>
+				<Row label="Selection outline" help="How wide the outline round what is picked is drawn.">
+					<div className="segmented">
+						{(Object.keys(OUTLINE_WIDTHS) as OutlineWidth[]).map((width) => (
+							<button
+								key={width}
+								className={prefs.outlineWidth === width ? "on" : ""}
+								onClick={() => onPrefs({ outlineWidth: width })}
+							>
+								{width[0].toUpperCase() + width.slice(1)}
+							</button>
+						))}
+					</div>
+				</Row>
+				<Row
+					label="Hidden edges"
+					help="Whether the outline shows through the parts in front of it, as Studio's does."
+				>
+					<Toggle
+						on={prefs.outlineThrough}
+						onChange={(on) => onPrefs({ outlineThrough: on })}
+						label={prefs.outlineThrough ? "Shown through parts" : "Hidden by parts in front"}
 					/>
 				</Row>
 			</Group>

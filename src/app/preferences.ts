@@ -79,6 +79,10 @@ export const FILTER_SUMMARY: Record<MenuFilter, string> = {
 export const PREFERENCES_KEY = "roswaal.preferences";
 const KEY = PREFERENCES_KEY;
 
+/** The place's selection outline, by name, in CSS pixels. */
+export const OUTLINE_WIDTHS = { thin: 2, medium: 3.5, thick: 5 } as const;
+export type OutlineWidth = keyof typeof OUTLINE_WIDTHS;
+
 export interface Preferences {
 	/**
 	 * The colour scheme by name, or `null` to follow the operating system.
@@ -234,6 +238,12 @@ export interface Preferences {
 	 * only showing them. Off until asked for: it writes a file Studio owns.
 	 */
 	modifyDataModel: boolean;
+	/** What draws the place in 3D: WebGPU where the browser has it, or WebGL2 always. */
+	viewportRenderer: "auto" | "webgl2";
+	/** How wide the place's selection outline is. */
+	outlineWidth: OutlineWidth;
+	/** The outline shows through what is in front of it, as Studio's does, rather than being hidden by it. */
+	outlineThrough: boolean;
 	/** The hidden schemes found on the Themes page, by name: listed from then on. */
 	foundThemes: string[];
 	/**
@@ -417,6 +427,9 @@ export const DEFAULTS: Preferences = {
 	showPreReleaseNotes: false,
 	analysisScope: "script",
 	modifyDataModel: false,
+	viewportRenderer: "auto",
+	outlineWidth: "medium",
+	outlineThrough: true,
 	foundThemes: [],
 	// Everything the target allows, which is what the menu did before there was
 	// a filter at all.
@@ -515,6 +528,13 @@ export function readPreferences(): Preferences {
 			typeof stored.modifyDataModel === "boolean"
 				? stored.modifyDataModel
 				: DEFAULTS.modifyDataModel,
+		viewportRenderer: stored.viewportRenderer === "webgl2" ? "webgl2" : DEFAULTS.viewportRenderer,
+		outlineWidth:
+			typeof stored.outlineWidth === "string" && stored.outlineWidth in OUTLINE_WIDTHS
+				? (stored.outlineWidth as OutlineWidth)
+				: DEFAULTS.outlineWidth,
+		outlineThrough:
+			typeof stored.outlineThrough === "boolean" ? stored.outlineThrough : DEFAULTS.outlineThrough,
 		foundThemes: Array.isArray(stored.foundThemes)
 			? stored.foundThemes.filter((name): name is string => typeof name === "string")
 			: DEFAULTS.foundThemes,

@@ -215,6 +215,18 @@ export function settingsPage(): DocPage {
 						"Modify DataModel Instances",
 						"Off by default. On, **Properties** changes values in the place file and **DataModel** adds, moves and deletes instances, after a backup. See Places and Rojo.",
 					],
+					[
+						"Renderer",
+						"What draws the place in 3D: **Automatic**, WebGPU where the browser has it and WebGL2 where it does not, or **WebGL2** always. The place's Properties has it too.",
+					],
+					[
+						"Selection outline",
+						"How wide the outline round what is picked is drawn: **Thin**, **Medium** or **Thick**.",
+					],
+					[
+						"Hidden edges",
+						"Whether the outline shows through the parts in front of it, as Studio's does, or is hidden by them.",
+					],
 					["On opening Roswaal", "Reopen the last project, or start at the picker."],
 					[
 						"Docs font",

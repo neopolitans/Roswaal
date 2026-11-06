@@ -21,8 +21,14 @@ export interface ViewRenderer {
 	readonly backend: "WebGPU" | "WebGL2";
 	init(canvas: HTMLCanvasElement, scene: PlaceScene): Promise<void>;
 	resize(width: number, height: number): void;
-	/** The instances to outline, in the scene's own 14-word layout. */
+	/**
+	 * The boxes to outline, in the scene's own instance layout, each in the
+	 * colour and alpha its colour word holds: what is picked, and what the
+	 * pointer is over.
+	 */
 	setSelection(boxes: Float32Array): void;
+	/** How wide the outline is, in CSS pixels, and whether what is in front of it hides it. */
+	setOutline(width: number, hideBehind: boolean): void;
 	/** Coloured lines over everything -- a tool's handles: x, y, z, r, g, b for each end. */
 	setOverlay(lines: Float32Array): void;
 	/** The tool's handles, as solid shapes drawn in front of everything. */

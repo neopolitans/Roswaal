@@ -223,7 +223,7 @@ const VS = `#version 300 es
 layout(location=0) in vec3 pos; layout(location=1) in vec3 nrm;
 layout(location=2) in vec3 c0; layout(location=3) in vec3 c1; layout(location=4) in vec3 c2; layout(location=5) in vec3 p;
 layout(location=6) in vec4 colour; layout(location=7) in uint id; layout(location=8) in uint look;
-uniform mat4 viewProj; uniform float outline; uniform float handle; uniform vec3 screen;
+uniform mat4 viewProj; uniform float outline; uniform float handle; uniform vec3 screen; uniform vec3 eye;
 out vec3 vColour; out vec3 vWorld; out vec3 vNormal; flat out uint vId; out float vAlpha; flat out uint vLook; out vec3 vLocal; out vec3 vLNormal;
 void main() {
 	mat3 m = mat3(c0, c1, c2);
@@ -232,18 +232,28 @@ void main() {
 	vWorld = m * pos + p;
 	gl_Position = viewProj * vec4(vWorld, 1.0);
 	// An outline's edge as a band, as WebGpuView's vsLine draws it.
+	vColour = pow(colour.rgb, vec3(2.2));
 	if (outline > 0.5) {
-		vec3 grow = (s + vec3(0.04)) / max(s, vec3(1e-4));
-		vec4 a = viewProj * vec4(m * (pos * grow) + p, 1.0);
-		vec4 b = viewProj * vec4(m * (nrm * grow) + p, 1.0);
+		vec3 wa = m * pos + p;
+		vec3 wb = m * nrm + p;
+		wa += (eye - wa) * 0.004;
+		wb += (eye - wb) * 0.004;
+		vec4 a = viewProj * vec4(wa, 1.0);
+		vec4 b = viewProj * vec4(wb, 1.0);
+		float e = 0.001;
+		bool behind = a.w < e && b.w < e;
+		if (a.w < e) a = mix(a, b, (e - a.w) / (b.w - a.w));
+		if (b.w < e) b = mix(b, a, (e - b.w) / (a.w - b.w));
 		bool end = (gl_VertexID & 2) == 2;
 		float side = (gl_VertexID & 1) == 1 ? 1.0 : -1.0;
-		vec2 dir = normalize((b.xy / max(b.w, 1e-4) - a.xy / max(a.w, 1e-4)) * screen.xy + vec2(1e-6, 0.0));
+		vec2 dir = normalize((b.xy / b.w - a.xy / a.w) * screen.xy + vec2(1e-6, 0.0));
 		vec2 off = (vec2(-dir.y, dir.x) * side + dir * (end ? 1.0 : -1.0)) * screen.z / screen.xy;
 		gl_Position = end ? b : a;
 		gl_Position.xy += off * gl_Position.w;
+		if (behind) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+		// The outline's own colour, as it is to be seen.
+		vColour = colour.rgb;
 	}
-	vColour = pow(colour.rgb, vec3(2.2));
 	vId = id;
 	vAlpha = colour.a;
 	vLook = look;
@@ -261,7 +271,7 @@ ${SURFACE}
 out vec4 o;
 void main() {
 	vec3 n = normalize(vNormal);
-	if (outline > 0.5) o = vec4(select, 1.0);
+	if (outline > 0.5) o = vec4(vColour, vAlpha);
 	else if (handle > 0.5) o = vec4(pow(vColour * (0.72 + 0.38 * max(dot(n, normalize(vec3(0.4, 1.0, 0.25))), 0.0)), vec3(1.0 / 2.2)), alpha);
 	else {
 		vec4 s = surface(vColour, n, vWorld, vAlpha, vLook, vLocal, vLNormal);
@@ -398,6 +408,13 @@ export class WebGl2View implements ViewRenderer {
 	private height = 1;
 
 	private canvas: HTMLCanvasElement | null = null;
+	private outlineWidth = SELECT_WIDTH;
+	private hideBehind = false;
+
+	setOutline(width: number, hideBehind: boolean): void {
+		this.outlineWidth = width;
+		this.hideBehind = hideBehind;
+	}
 
 	async init(canvas: HTMLCanvasElement, scene: PlaceScene): Promise<void> {
 		this.canvas = canvas;
@@ -749,8 +766,14 @@ export class WebGl2View implements ViewRenderer {
 		if (prog.block)
 			gl.uniform4fv(prog.block, lightingBlock(this.lighting, camera.eye, SELECT, HANDLE_ALPHA));
 		gl.uniform1f(prog.outline, outline ? 1 : 0);
-		const band = SELECT_WIDTH * (this.width / (this.canvas?.clientWidth || this.width));
+		const band = this.outlineWidth * (this.width / (this.canvas?.clientWidth || this.width));
 		gl.uniform3f(prog.screen, this.width, this.height, band);
+		gl.uniform3f(
+			gl.getUniformLocation(prog.program, "eye"),
+			camera.eye[0],
+			camera.eye[1],
+			camera.eye[2],
+		);
 		gl.uniform3f(prog.select, SELECT[0], SELECT[1], SELECT[2]);
 		gl.uniform1f(prog.handle, 0);
 	}
@@ -795,7 +818,13 @@ export class WebGl2View implements ViewRenderer {
 		}
 		if (this.selection) {
 			this.use(this.main, camera, true);
-			gl.disable(gl.DEPTH_TEST);
+			// Through everything, as Studio's selection box is, or hidden by what is in front.
+			if (this.hideBehind) {
+				gl.depthFunc(gl.LEQUAL);
+				gl.depthMask(false);
+			} else gl.disable(gl.DEPTH_TEST);
+			gl.enable(gl.BLEND);
+			gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 			gl.bindVertexArray(this.selection.vao);
 			gl.disable(gl.CULL_FACE);
 			gl.drawElementsInstanced(
@@ -806,6 +835,9 @@ export class WebGl2View implements ViewRenderer {
 				this.selection.count,
 			);
 			gl.bindVertexArray(null);
+			gl.disable(gl.BLEND);
+			gl.depthMask(true);
+			gl.depthFunc(gl.LESS);
 			gl.enable(gl.CULL_FACE);
 			gl.enable(gl.DEPTH_TEST);
 		}

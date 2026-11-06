@@ -85,7 +85,7 @@ import { setEditorOpener, setPageReady, switchMode, useOnShown, useShowing } fro
 import { IS_STATIC_HOST, openHome, openPage } from "./pages.js";
 import { cardOf, DEFAULT_LAYOUT, foldCard, type PanelId, reopenPanel, showTab } from "./panels.js";
 import { readOutline, rememberOutline } from "./placeOutline.js";
-import { readPreferences, wheelAction } from "./preferences.js";
+import { OUTLINE_WIDTHS, readPreferences, wheelAction } from "./preferences.js";
 import { SiteBanner } from "./previewBuild.jsx";
 import { setProjectAliases } from "./projectAliases.js";
 import { setProjectFunctions, setProjectTypes } from "./projectTypes.js";
@@ -353,6 +353,16 @@ export function App() {
 		[project?.root],
 	);
 	const onPlaceSelect = useCallback((index: number | null) => viewport.select(index), [viewport]);
+	// Settings' say in how the place is drawn.
+	useEffect(
+		() =>
+			viewport.setOptions({
+				renderer: prefs.viewportRenderer,
+				outlineWidth: OUTLINE_WIDTHS[prefs.outlineWidth],
+				hideBehind: !prefs.outlineThrough,
+			}),
+		[viewport, prefs.viewportRenderer, prefs.outlineWidth, prefs.outlineThrough],
+	);
 	// The folder from a previous session, when one is waiting on a click.
 	const rememberedFolders = useRememberedFolders();
 	// What this host can do, for the project actions in the panel's footer.
@@ -1996,7 +2006,12 @@ export function App() {
 								ask={ask}
 							/>
 						) : project.place && placeDoc ? (
-							<PlaceSummary controller={viewport} file={project.place} />
+							<PlaceSummary
+								controller={viewport}
+								file={project.place}
+								renderer={prefs.viewportRenderer}
+								onRenderer={(viewportRenderer) => updatePrefs({ viewportRenderer })}
+							/>
 						) : undefined,
 					code:
 						codeShown && editor.path ? (
