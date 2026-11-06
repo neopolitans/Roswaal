@@ -83,6 +83,13 @@ describe("putting the page back", () => {
 		expect(workspace.scrollTop).toBe(0);
 	});
 
+	it("leaves a row of tabs scrolled sideways, which is hidden only up and down", () => {
+		const root = box("html", "hidden hidden", null);
+		const tabs = { ...box("tabs", "hidden auto", root), scrollLeft: 736 };
+		expect(settle(tabs, page(), (b) => (b as Box).overflow)).toBe(0);
+		expect(tabs.scrollLeft).toBe(736);
+	});
+
 	it("scrolls the page itself back to the top", () => {
 		const shifted = page();
 		shifted.scrollY = 420;

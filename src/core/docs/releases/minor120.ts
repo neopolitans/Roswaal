@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.211.1",
+		date: "2026-11-06",
+		headline: "The tab in front stays in sight, and the place's toolbar has only what it uses.",
+		changed: [
+			"**The toolbar with the place in front.** Compiling, New graph and New node map are hidden, and the right-hand button shows and hides Properties.",
+			"**Touch sticks.** Further in from the edges of the screen.",
+		],
+		fixed: [
+			"**Tabs.** In a row of tabs too long for the window, the tab in front stays in sight when you go between the place, a Luau file and a graph, and the row stays where you scroll it.",
+		],
+	},
+	{
 		version: "0.211.0",
 		date: "2026-11-05",
 		headline: "What DataModel picks is outlined in the place, and the outline sits on it.",

@@ -49,6 +49,11 @@ export interface ProjectBarProps {
 	busy: string | null;
 	/** The open document's groups: its tab and its tools. */
 	document?: ReactNode;
+	/**
+	 * The place is in front: compiling and making graphs and maps are a
+	 * graph's, and give way, and the right card is Properties.
+	 */
+	place?: boolean;
 	/** The open document's primary action, at the end of the compile group. */
 	action?: ReactNode;
 	/** The document's tools as entries of the More menu, on a phone: `graphMenuEntries`. */
@@ -77,6 +82,10 @@ export function ProjectBar(props: ProjectBarProps) {
 	// Narrower than the whole row: the rarely used half folds into More.
 	const narrow = useNarrowBar();
 	const cards = useWorkspaceControls();
+	const scripting = !props.place;
+	const rightTitle = scripting
+		? "Inspector — the selected node, or the graph's own settings"
+		: "Properties — the picked instance, or the place";
 
 	// The axis, named. Two buttons reading "Manual | Dynamic" say nothing about
 	// what they are manual and dynamic *about*; the group's title says it.
@@ -131,22 +140,26 @@ export function ProjectBar(props: ProjectBarProps) {
 							>
 								<Icon name="refresh" size={16} />
 							</button>
-							<button
-								className="tb icon-only"
-								title="New graph — a .nodescript: one Script, LocalScript or ModuleScript"
-								aria-label="New graph"
-								onClick={props.onNewGraph}
-							>
-								<Icon name="newFile" size={16} />
-							</button>
-							<button
-								className="tb icon-only"
-								title="New node map — where things live in the DataModel"
-								aria-label="New node map"
-								onClick={props.onNewMap}
-							>
-								<Icon name="map" size={16} />
-							</button>
+							{scripting && (
+								<>
+									<button
+										className="tb icon-only"
+										title="New graph — a .nodescript: one Script, LocalScript or ModuleScript"
+										aria-label="New graph"
+										onClick={props.onNewGraph}
+									>
+										<Icon name="newFile" size={16} />
+									</button>
+									<button
+										className="tb icon-only"
+										title="New node map — where things live in the DataModel"
+										aria-label="New node map"
+										onClick={props.onNewMap}
+									>
+										<Icon name="map" size={16} />
+									</button>
+								</>
+							)}
 						</>
 					)}
 				</ToolGroup>
@@ -163,7 +176,7 @@ export function ProjectBar(props: ProjectBarProps) {
 						{!phone && (
 							<button
 								className={cx("tb icon-only", cards.isOpen("right") && "on")}
-								title="Inspector — the selected node, or the graph's own settings"
+								title={rightTitle}
 								aria-label="Show or hide the Inspector"
 								aria-pressed={cards.isOpen("right")}
 								disabled={!cards.has("right")}
@@ -188,25 +201,27 @@ export function ProjectBar(props: ProjectBarProps) {
 							title="More"
 							align="end"
 							sections={[
-								{
-									content: mode,
-									entries: [
-										{
-											label: "Compile project",
-											icon: "build",
-											disabled: props.busy !== null,
-											run: props.onCompileProject,
-										},
-									],
-								},
+								scripting
+									? {
+											content: mode,
+											entries: [
+												{
+													label: "Compile project",
+													icon: "build",
+													disabled: props.busy !== null,
+													run: props.onCompileProject,
+												},
+											],
+										}
+									: { entries: [] },
 								// The open graph's tools, on a phone: they act on the graph
 								// on screen rather than the project.
 								{ entries: phone ? (props.phoneMenu ?? []) : [] },
 								{
 									entries: [
 										{ label: "Refresh", icon: "refresh", run: props.onRefresh },
-										{ label: "New graph", icon: "newFile", run: props.onNewGraph },
-										{ label: "New node map", icon: "map", run: props.onNewMap },
+										scripting && { label: "New graph", icon: "newFile", run: props.onNewGraph },
+										scripting && { label: "New node map", icon: "map", run: props.onNewMap },
 									],
 								},
 								{
@@ -224,25 +239,27 @@ export function ProjectBar(props: ProjectBarProps) {
 				</>
 			) : (
 				<>
-					<ToolGroup title="How generated Luau reaches disk">
-						{mode}
-						<span className="divider" />
-						<button
-							className="tb with-icon tb-collapsible"
-							title="Compile project — every graph and node map in the project"
-							disabled={props.busy !== null}
-							onClick={props.onCompileProject}
-						>
-							{/* Drawn only where the row is short of room: see `tb-collapsible`. */}
-							<Icon name="build" size={15} className="tb-icon-when-narrow" />
-							<span className="tb-label">Compile project</span>
-						</button>
-						{props.action}
-					</ToolGroup>
+					{scripting && (
+						<ToolGroup title="How generated Luau reaches disk">
+							{mode}
+							<span className="divider" />
+							<button
+								className="tb with-icon tb-collapsible"
+								title="Compile project — every graph and node map in the project"
+								disabled={props.busy !== null}
+								onClick={props.onCompileProject}
+							>
+								{/* Drawn only where the row is short of room: see `tb-collapsible`. */}
+								<Icon name="build" size={15} className="tb-icon-when-narrow" />
+								<span className="tb-label">Compile project</span>
+							</button>
+							{props.action}
+						</ToolGroup>
+					)}
 					<ToolGroup>
 						<button
 							className={cx("tb icon-only", cards.isOpen("right") && "on")}
-							title="Inspector — the selected node, or the graph's own settings"
+							title={rightTitle}
 							aria-label="Show or hide the Inspector"
 							aria-pressed={cards.isOpen("right")}
 							disabled={!cards.has("right")}

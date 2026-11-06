@@ -34,7 +34,7 @@
  * outgrown the window and the tab you are after has scrolled off it.
  */
 
-import { type PointerEvent as ReactPointerEvent, useRef, useState } from "react";
+import { type PointerEvent as ReactPointerEvent, useLayoutEffect, useRef, useState } from "react";
 
 import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
@@ -113,6 +113,20 @@ export function GraphTabs({
 }: GraphTabsProps) {
 	const row = useRef<HTMLDivElement>(null);
 	useSidewaysWheel(row, documents.length);
+	// The tab in front stays in sight, however it came to the front: a tab
+	// clicked, one picked from the list, or a file opened from the tree.
+	const activeKey = documents.find((d) => d.active)?.key;
+	useLayoutEffect(() => {
+		const el = row.current;
+		const tab = [...(el?.querySelectorAll<HTMLElement>("[data-tab]") ?? [])].find(
+			(t) => t.dataset.tab === activeKey,
+		);
+		if (!el || !tab) return;
+		const box = el.getBoundingClientRect();
+		const at = tab.getBoundingClientRect();
+		if (at.left < box.left) el.scrollLeft -= box.left - at.left + 8;
+		else if (at.right > box.right) el.scrollLeft += at.right - box.right + 8;
+	}, [activeKey]);
 	// The tab being dragged, and the one it would land before.
 	const [drag, setDrag] = useState<{ key: string; before: string | null } | null>(null);
 	const [listOpen, setListOpen] = useState(false);

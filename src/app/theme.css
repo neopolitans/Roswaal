@@ -21166,10 +21166,11 @@ textarea.tb:where(:disabled) {
 		display: contents;
 	}
 
+	/* Well in from the edges, where a thumb rests holding the tablet. */
 	.vp-touch {
 		position: absolute;
-		left: 20px;
-		right: calc(var(--right-w, 0px) + 20px);
+		left: calc(40px + env(safe-area-inset-left, 0px));
+		right: calc(var(--right-w, 0px) + 40px + env(safe-area-inset-right, 0px));
 		bottom: calc(var(--edge) + 72px);
 		display: flex;
 		justify-content: space-between;

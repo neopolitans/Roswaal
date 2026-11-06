@@ -11,7 +11,8 @@
  *
  * A box that is meant to scroll -- the docs, a list -- is left as it is: only
  * the page and hidden-overflow boxes are reset, and those never scroll on
- * purpose. A text field is left too: its overflow reads as clipped, but its
+ * purpose. Each way on its own: a row of tabs is hidden up and down but
+ * scrolls sideways, and its sideways scroll is the tab in front kept in sight. A text field is left too: its overflow reads as clipped, but its
  * scroll is the browser keeping the caret in sight as you type.
  */
 
@@ -33,9 +34,13 @@ interface Scrolled {
 /** A field that scrolls its own text to show the caret. */
 const TEXT_FIELD = /^(input|textarea|select)$/i;
 
+const STILL = /^(hidden|clip)$/;
+
 /**
  * Puts back what the keyboard scrolled: the page, and every hidden-overflow
- * box from `from` up. Returns how many boxes were moved, for the tests.
+ * box from `from` up. `overflowOf` answers a box's overflow up and down, then
+ * sideways, as "hidden auto"; one word is both. Returns how many boxes were
+ * moved, for the tests.
  */
 export function settle(
 	from: Scrolled | null,
@@ -47,11 +52,12 @@ export function settle(
 	for (let box = from; box; box = box.parentElement) {
 		if (box.scrollTop === 0 && box.scrollLeft === 0) continue;
 		if (TEXT_FIELD.test(box.tagName ?? "")) continue;
-		const overflow = overflowOf(box);
-		if (!/\b(hidden|clip)\b/.test(overflow)) continue;
-		box.scrollTop = 0;
-		box.scrollLeft = 0;
-		moved++;
+		const [y, x = y] = overflowOf(box).trim().split(/\s+/);
+		const top = box.scrollTop !== 0 && STILL.test(y);
+		const left = box.scrollLeft !== 0 && STILL.test(x);
+		if (top) box.scrollTop = 0;
+		if (left) box.scrollLeft = 0;
+		if (top || left) moved++;
 	}
 	return moved;
 }

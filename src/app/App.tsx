@@ -1674,6 +1674,7 @@ export function App() {
 					<ProjectBar
 						config={project.config}
 						busy={busy}
+						place={placeDoc !== null}
 						document={
 							<>
 								{/* The open documents: the active one's name, the others
