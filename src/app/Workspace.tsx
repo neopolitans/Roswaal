@@ -162,6 +162,14 @@ export interface WorkspaceControlsValue {
 	/** The side's dock is on screen, or its drawer is out. */
 	isOpen: (side: "left" | "right") => boolean;
 	toggle: (side: "left" | "right") => void;
+	/**
+	 * One card is on screen: docked on a side that is out, floating, or its
+	 * drawer out -- folded or not. For a button that stands for one card
+	 * rather than a side, as the place's Explorer and Properties do.
+	 */
+	cardShown: (id: PanelId) => boolean;
+	/** Shows or hides that card: its side, its own float, or its drawer. */
+	toggleCard: (id: PanelId) => void;
 }
 
 const NO_CONTROLS: WorkspaceControlsValue = {
@@ -169,6 +177,8 @@ const NO_CONTROLS: WorkspaceControlsValue = {
 	has: () => false,
 	isOpen: () => false,
 	toggle: () => {},
+	cardShown: () => false,
+	toggleCard: () => {},
 };
 
 const WorkspaceControls = createContext<WorkspaceControlsValue>(NO_CONTROLS);
@@ -315,12 +325,23 @@ export function Workspace({
 		const last = lastShown.current[side];
 		setDrawer(last && ids.includes(last) ? last : (ids[0] ?? null));
 	};
+	// A card is on screen when it is open, and floating or on a side that is out.
+	const cardOnScreen = (id: PanelId) => {
+		if (contents[id] === undefined || !effective.panels[id].open) return false;
+		const head = effective.panels[cardOf(effective, id)];
+		return head.floating ? head.open : dockVisible(effective, head.dock);
+	};
 	const controls: WorkspaceControlsValue = compact
 		? {
 				compact,
 				has: (side) => drawers[side].length > 0,
 				isOpen: (side) => openPanel !== null && drawers[side].includes(openPanel),
 				toggle: toggleDrawer,
+				cardShown: (id) => openPanel === id,
+				toggleCard: (id) => {
+					if (contents[id] === undefined) return;
+					setDrawer(openPanel === id ? null : id);
+				},
 			}
 		: {
 				compact,
@@ -328,6 +349,17 @@ export function Workspace({
 					PANEL_IDS.some((id) => layout.panels[id].dock === side && contents[id] !== undefined),
 				isOpen: (side) => dockVisible(effective, side),
 				toggle: (side) => onToggle?.(side),
+				cardShown: (id) => cardOnScreen(id),
+				toggleCard: (id) => {
+					if (contents[id] === undefined) return;
+					const head = effective.panels[cardOf(effective, id)];
+					if (cardOnScreen(id)) {
+						// A floating card shuts by itself; a docked one goes with its side.
+						if (head.floating) onLayout?.((l) => closePanel(l, id));
+						else onToggle?.(head.dock);
+					} else if (!effective.panels[id].open) onLayout?.((l) => reopenPanel(l, id));
+					else onToggle?.(head.dock);
+				},
 			};
 
 	const shown = (id: PanelId) => contents[id] !== undefined;

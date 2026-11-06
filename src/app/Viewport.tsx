@@ -419,20 +419,18 @@ export function ViewportBar({ controller }: { controller: ViewportController }) 
 				<Tile
 					icon="vpExplorer"
 					label="Explorer"
-					title="Show or hide the left cards: DataModel"
-					aria-pressed={cards.isOpen("left")}
-					on={cards.isOpen("left")}
-					disabled={!cards.has("left")}
-					onClick={() => cards.toggle("left")}
+					title="Show or hide the Project card, with DataModel"
+					aria-pressed={cards.cardShown("tree")}
+					on={cards.cardShown("tree")}
+					onClick={() => cards.toggleCard("tree")}
 				/>
 				<Tile
 					icon="vpProperties"
 					label="Properties"
-					title="Show or hide the right cards: Properties"
-					aria-pressed={cards.isOpen("right")}
-					on={cards.isOpen("right")}
-					disabled={!cards.has("right")}
-					onClick={() => cards.toggle("right")}
+					title="Show or hide Properties"
+					aria-pressed={cards.cardShown("properties")}
+					on={cards.cardShown("properties")}
+					onClick={() => cards.toggleCard("properties")}
 				/>
 				<span className="vp-rule" />
 				<span

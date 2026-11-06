@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.211.3",
+		date: "2026-11-06",
+		headline: "The place's Explorer and Properties buttons follow their cards, floating or docked.",
+		fixed: [
+			"**Explorer and Properties in the place's bar.** Each is lit while its card is on screen, floating or docked, folded or not, and shows or hides it.",
+		],
+	},
+	{
 		version: "0.211.2",
 		date: "2026-11-06",
 		headline: "The place's bar stays centred, and the place is the top row of DataModel.",
