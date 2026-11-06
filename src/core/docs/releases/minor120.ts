@@ -14,7 +14,7 @@ export const RELEASES_0_120: Release[] = [
 		date: "2026-11-04",
 		headline: "StyLua, Node, Explorer and PowerShell are started by their full paths.",
 		fixed: [
-			"**Programs by their full paths.** StyLua and Node are found in PATH's absolute folders outside the project, and Explorer and Windows PowerShell in the Windows folder.",
+			"**Programs by their full paths.** StyLua and Node are found in PATH's absolute folders outside the project, and Explorer and Windows PowerShell in the Windows folder. Advisory: [GHSA-2c7q-r3r3-267v](https://github.com/neopolitans/Roswaal/security/advisories/GHSA-2c7q-r3r3-267v).",
 		],
 	},
 	{
