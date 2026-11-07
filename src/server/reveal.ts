@@ -13,7 +13,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import { HttpError } from "./errors.js";
-import { findOnPath, windowsProgram } from "./programs.js";
+import { findOnPath, macProgram, windowsProgram } from "./programs.js";
 
 export async function revealInFileManager(absolutePath: string): Promise<void> {
 	const stat = await fs.stat(absolutePath).catch(() => null);
@@ -37,12 +37,20 @@ export async function revealInFileManager(absolutePath: string): Promise<void> {
 		case "darwin":
 			// `-R` for a folder too, which selects it in Finder. Plain `open` on a
 			// folder named `Something.app` -- or any bundle -- launches it.
-			detach("open", ["-R", absolutePath]);
+			detach(macProgram("open"), ["-R", absolutePath]);
 			return;
-		default:
+		default: {
 			// Freedesktop has no "select this file", so open the containing folder.
-			detach("xdg-open", [isDirectory ? absolutePath : path.dirname(absolutePath)]);
+			const xdgOpen = findOnPath("xdg-open");
+			if (!xdgOpen) {
+				throw new HttpError(
+					501,
+					"Could not find xdg-open on the machine running the daemon. Install xdg-utils, or open the folder yourself.",
+				);
+			}
+			detach(xdgOpen, [isDirectory ? absolutePath : path.dirname(absolutePath)]);
 			return;
+		}
 	}
 }
 
@@ -110,7 +118,7 @@ async function findVsCode(): Promise<Launcher | null> {
 			if (await isThere(`/Applications/${app}.app`)) {
 				// `open` is a real binary and takes the name as one argument, so
 				// nothing is parsed on the way through.
-				return { name: app, command: "open", args: ["-a", app] };
+				return { name: app, command: macProgram("open"), args: ["-a", app] };
 			}
 		}
 		return null;

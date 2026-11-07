@@ -79,17 +79,20 @@ export function privacyPage(): DocPage {
 					"usual details of each request, such as your IP address and browser, under its own " +
 					"privacy statement, listed below. Roswaal itself receives nothing.",
 			},
+			{ t: "h", level: 3, text: "Your files, in each browser" },
 			{
 				t: "ul",
 				items: [
-					"**A project made in the browser** is kept in the browser's private storage for this site.",
-					"**A folder you open** stays where it is on your disk; the browser remembers which one, with your permission.",
-					"**Your preferences and recent projects** are kept in the browser's local storage.",
+					"**Chrome and Edge on a computer** can open a folder on your disk through the browser's File System Access API. You choose the folder in the browser's own dialog and grant access. Roswaal reads and writes only inside it, and the browser may ask again in a later session. The site never learns the folder's path: it keeps the browser's handle to it in its IndexedDB storage, so the folder can be reopened.",
+					"**Other browsers**, including Safari, Firefox, other browsers built on Chromium, and every browser on iPad and iPhone, cannot open a folder. A project you make there is kept in the browser's private storage for this site, its origin private file system, which is separate from your other files. Projects come in as a zip you import, and leave as a zip you download.",
+					"**Your preferences and recent projects** are kept in the browser's local storage, under names that begin with `roswaal`.",
 				],
 			},
 			{
 				t: "p",
-				text: "None of it leaves your device. Clearing this site's data in your browser removes it.",
+				text:
+					"None of it leaves your device. Clearing this site's data in your browser removes it; " +
+					"a folder you opened stays on your disk as it is.",
 			},
 
 			{ t: "h", level: 2, text: "The command line and its daemon" },
@@ -103,10 +106,33 @@ export function privacyPage(): DocPage {
 				t: "ul",
 				items: [
 					"**Only your computer can reach it.** The daemon listens on 127.0.0.1, so nothing else on your network can connect to it.",
-					"**Only your project.** It reads and writes the project folder you choose, and nothing else of yours.",
+					"**Only your project.** It reads and writes the project folder you choose, and any file you name to the command, such as a place you export, and nothing else of yours.",
 					"**Online only when you ask.** It installs a package from the [Wally](https://wally.run) registry, or fetches a repository from GitHub, when you tell it to, and makes no other requests.",
 					"**Those services' own policies** cover those requests; they are listed below.",
 				],
+			},
+			{ t: "h", level: 3, text: "Your files, on each system" },
+			{
+				t: "p",
+				text:
+					"On every system, the daemon writes each file whole: to a temporary file beside it, " +
+					"which is then renamed into place, so a crash never leaves half a file. It follows no " +
+					"link that leads out of the project, and it starts every program by its full path, never one " +
+					"from the project folder. If [StyLua](https://github.com/JohnnyMorganz/StyLua) " +
+					"is installed, the daemon runs it to format the Luau it writes. Beyond that, it opens " +
+					"your system's own programs only when you ask:",
+			},
+			{
+				t: "ul",
+				items: [
+					"**Windows**, through the release build or npm. Choosing a folder opens the Windows folder dialog, through Windows PowerShell. Show in file manager opens File Explorer. Edit in the code editor finds Visual Studio Code, its Insiders build, VSCodium or Cursor on your PATH or in its usual install folder.",
+					"**macOS**, through the release build or npm. Choosing a folder opens the macOS folder dialog, through AppleScript. Show in file manager opens Finder. Edit in the code editor opens Visual Studio Code, VSCodium or Cursor from Applications.",
+					"**Linux**, through npm. Choosing a folder opens zenity or kdialog if one is installed; otherwise you type the path. Show in file manager uses xdg-open. Edit in the code editor finds Visual Studio Code, its Insiders build, VSCodium or Cursor on your PATH.",
+				],
+			},
+			{
+				t: "p",
+				text: "Those programs show you what you chose. The daemon reads nothing back from them but the folder you picked.",
 			},
 
 			{ t: "h", level: 2, text: "Sign in with Roblox" },
@@ -119,7 +145,8 @@ export function privacyPage(): DocPage {
 			{
 				t: "ul",
 				items: [
-					"**Only when you choose.** Roblox asks for your consent on its own page, listing the permissions Roswaal asks for: downloading assets, and identifying your account so Roswaal can show who is signed in.",
+					"**Only when you choose.** Roblox asks for your consent on its own page, listing the permissions Roswaal asks for: to download assets (`legacy-asset:manage`), to read who made an asset (`asset:read`), and to identify your account (`openid` and `profile`) so Roswaal can show who is signed in.",
+					'**Read only.** Roswaal reads and downloads assets, and never uploads, changes or deletes them, although Roblox names one of these permissions "manage".',
 					"**Kept on your computer.** The daemon stores the sign-in in your user profile, never in a project folder and never in a log.",
 					`**Used for one thing.** Roswaal downloads the assets your places refer to, through Roblox's official [Open Cloud API](${ROBLOX.openCloud}), and keeps copies in the project's own folder, kept out of Git by default. It never sends them, or your sign-in, anywhere else.`,
 					"**Roblox's own assets are not downloaded.** Roswaal draws a plain stand-in for anything Roblox made.",

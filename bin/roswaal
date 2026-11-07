@@ -7,11 +7,21 @@
 # every rebuild of a packaged roswaal.exe would be blocked afresh. A script that
 # calls an already-trusted interpreter sidesteps that entirely, and costs
 # nothing on the platforms that would not have cared.
+#
+# Nothing is started by a bare name. A PATH with `.` or an empty entry in it --
+# a trailing `:` is enough -- looks in the current folder, which is the
+# project's when you run `roswaal serve` there, so Node is found on PATH's
+# absolute entries only, and the folder is found without `dirname`.
 
 set -e
+set -f
 
 ROSWAAL_CWD="$(pwd)"
-ROSWAAL_HOME="$(cd "$(dirname "$0")/.." && pwd)"
+case "$0" in
+  */*) ROSWAAL_BIN="${0%/*}" ;;
+  *) ROSWAAL_BIN="." ;;
+esac
+ROSWAAL_HOME="$(cd "$ROSWAAL_BIN/.." && pwd)"
 export ROSWAAL_CWD ROSWAAL_HOME
 
 ENTRY="$ROSWAAL_HOME/dist-cli/roswaal.mjs"
@@ -21,10 +31,25 @@ if [ ! -f "$ENTRY" ]; then
   exit 1
 fi
 
-if ! command -v node >/dev/null 2>&1; then
+ROSWAAL_NODE=""
+SAVED_IFS="$IFS"
+IFS=":"
+for dir in $PATH; do
+  case "$dir" in
+    /*) ;;
+    *) continue ;;
+  esac
+  if [ -f "$dir/node" ] && [ -x "$dir/node" ]; then
+    ROSWAAL_NODE="$dir/node"
+    break
+  fi
+done
+IFS="$SAVED_IFS"
+
+if [ -z "$ROSWAAL_NODE" ]; then
   echo "roswaal: could not find Node." >&2
   echo "  Install Node 20 or newer, or put it on your PATH." >&2
   exit 1
 fi
 
-exec node "$ENTRY" "$@"
+exec "$ROSWAAL_NODE" "$ENTRY" "$@"

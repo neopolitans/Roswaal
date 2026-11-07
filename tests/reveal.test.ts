@@ -46,14 +46,14 @@ describe("on macOS", () => {
 		const bundle = path.join(base, "Looks Harmless.app");
 		await mkdir(bundle);
 		await revealInFileManager(bundle);
-		expect(spawned).toEqual([{ command: "open", args: ["-R", bundle] }]);
+		expect(spawned).toEqual([{ command: "/usr/bin/open", args: ["-R", bundle] }]);
 	});
 
 	it("selects an ordinary folder the same way", async () => {
 		const folder = path.join(base, "src");
 		await mkdir(folder);
 		await revealInFileManager(folder);
-		expect(spawned).toEqual([{ command: "open", args: ["-R", folder] }]);
+		expect(spawned).toEqual([{ command: "/usr/bin/open", args: ["-R", folder] }]);
 	});
 });
 

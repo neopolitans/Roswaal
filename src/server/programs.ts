@@ -45,6 +45,17 @@ export function windowsProgram(...segments: string[]): string {
 	return path.win32.join(root, ...segments);
 }
 
+/**
+ * A program that ships with macOS, by its full path: `macProgram("open")` is
+ * `/usr/bin/open`. On macOS and Linux a bare name is looked up on PATH alone,
+ * but a PATH with `.` or an empty entry in it -- a trailing `:` is enough --
+ * looks in the working directory too, which is the project's when the daemon
+ * was started there.
+ */
+export function macProgram(name: string): string {
+	return path.posix.join("/usr/bin", name);
+}
+
 /** Windows lets a PATH entry be quoted, for one with a `;` in it. */
 function stripQuotes(entry: string): string {
 	return entry.length > 1 && entry.startsWith('"') && entry.endsWith('"')

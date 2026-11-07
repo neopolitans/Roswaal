@@ -26,6 +26,9 @@ vi.mock("node:child_process", () => ({
 		const child = Object.assign(new EventEmitter(), {
 			stdout: new EventEmitter(),
 			stderr: new EventEmitter(),
+			unref: () => {
+				// Detached children are let go; there is nothing to let go of here.
+			},
 		});
 		setTimeout(() => child.emit("close", 1));
 		return child;
@@ -35,6 +38,7 @@ vi.mock("node:child_process", () => ({
 const { findOnPath, windowsProgram } = await import("../src/server/programs.js");
 const { formatLuau } = await import("../src/server/format.js");
 const { chooseDirectory } = await import("../src/server/browse.js");
+const { revealInFileManager } = await import("../src/server/reveal.js");
 
 const STYLUA = process.platform === "win32" ? "stylua.exe" : "stylua";
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -150,6 +154,61 @@ describe("the folder picker on Windows", () => {
 		expect(spawned[0].command.toLowerCase()).toMatch(
 			/\\windowspowershell\\v1\.0\\powershell\.exe$/,
 		);
+	});
+});
+
+describe("the folder picker on macOS", () => {
+	it("starts osascript by its full path", async () => {
+		Object.defineProperty(process, "platform", { value: "darwin" });
+		await chooseDirectory();
+		expect(spawned.map((s) => s.command)).toEqual(["/usr/bin/osascript"]);
+	});
+});
+
+describe("showing a file in the file manager", () => {
+	it("starts open by its full path on macOS", async () => {
+		Object.defineProperty(process, "platform", { value: "darwin" });
+		await revealInFileManager(base);
+		expect(spawned.map((s) => s.command)).toEqual(["/usr/bin/open"]);
+	});
+
+	it("starts xdg-open by the full path PATH gives it on Linux", async () => {
+		Object.defineProperty(process, "platform", { value: "linux" });
+		const tools = program("tools", "xdg-open");
+		process.env.PATH = tools;
+		await revealInFileManager(base);
+		expect(spawned.map((s) => s.command)).toEqual([path.join(tools, "xdg-open")]);
+	});
+
+	it("starts no xdg-open found only through a relative entry", async () => {
+		Object.defineProperty(process, "platform", { value: "linux" });
+		const planted = program("project", "xdg-open");
+		// A relative entry that holds it, where one can be written: across Windows
+		// drives there is no relative path, so `.` and an empty entry stand alone.
+		const relative = path.relative(process.cwd(), planted);
+		process.env.PATH = [".", ...(path.isAbsolute(relative) ? [] : [relative]), ""].join(
+			path.delimiter,
+		);
+		await expect(revealInFileManager(base)).rejects.toThrow(/xdg-open/);
+		expect(spawned).toEqual([]);
+	});
+});
+
+describe("the macOS and Linux launcher", () => {
+	const launcher = readFileSync(path.join(ROOT, "bin", "roswaal"), "utf8");
+	const lines = launcher.split(/\r?\n/).filter((line) => line.trim() && !/^\s*#/.test(line));
+
+	it("starts Node by the full path it found on PATH's absolute entries", () => {
+		expect(lines.at(-1)).toBe('exec "$ROSWAAL_NODE" "$ENTRY" "$@"');
+		expect(lines).toContain("    /*) ;;");
+		expect(lines).toContain('    ROSWAAL_NODE="$dir/node"');
+	});
+
+	it("starts nothing else by a bare name", () => {
+		const bare = lines.filter((line) =>
+			/(^|[;&|(`]\s*|\$\(\s*)(node|dirname|which)\b/.test(line.trim()),
+		);
+		expect(bare).toEqual([]);
 	});
 });
 
