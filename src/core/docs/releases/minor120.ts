@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.219.6",
+		date: "2026-11-07",
+		headline: "The Privacy Policy links each address and Roblox policy it names, and lists what the daemon does.",
+		affects: ["docs"],
+		changed: [
+			"**The three sites are links.** roswaal.app, its preview at canary.roswaal.app and its backup at neopolitans.github.io/Roswaal.",
+			"**The daemon, point by point.** Only your computer can reach it, it touches only your project, and it goes online only when you ask.",
+			"**Every Roblox policy is linked** where either page names it: the Open Cloud API, the Terms of Use, and the Privacy and Cookie Policy for younger users.",
+		],
+	},
+	{
 		version: "0.219.5",
 		date: "2026-11-07",
 		headline: "The Terms of Service say the 0BSD licence covers Roswaal's own work, and that Wally packages keep their licences.",

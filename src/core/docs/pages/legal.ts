@@ -28,6 +28,18 @@ const DATES = [
 	},
 ];
 
+/** Roblox's documents, linked wherever either page mentions one. */
+const ROBLOX = {
+	terms: "https://en.help.roblox.com/hc/en-us/articles/115004647846-Roblox-Terms-of-Use",
+	appTerms:
+		"https://en.help.roblox.com/hc/en-us/articles/15887203369620-Creator-Third-Party-App-Terms",
+	appPolicy:
+		"https://en.help.roblox.com/hc/en-gb/articles/37924211313044-Creator-Third-Party-App-Policy",
+	privacy:
+		"https://en.help.roblox.com/hc/en-us/articles/115004630823-Roblox-Privacy-and-Cookie-Policy",
+	openCloud: "https://create.roblox.com/docs/cloud",
+};
+
 /**
  * Every service Roswaal relies on, what for, and its own terms and privacy
  * policy. Wally's registry publishes neither; it says so rather than leave a
@@ -37,7 +49,7 @@ const SERVICES = [
 	"**GitHub** hosts the website through GitHub Pages, Roswaal's source and its releases, which Rokit installs from; the daemon fetches a repository from GitHub when you ask. [GitHub Terms of Service](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) · [GitHub General Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement).",
 	"**Cloudflare** registers the roswaal.app domain and answers its DNS; it does not carry the website's traffic. [Cloudflare Website and Online Services Terms of Use](https://www.cloudflare.com/website-terms/) · [Cloudflare Privacy Policy](https://www.cloudflare.com/privacypolicy/).",
 	"**The Wally registry**, at api.wally.run, is where the daemon installs a package from when you ask. It publishes no terms or privacy policy of its own; its software is [UpliftGames/wally](https://github.com/UpliftGames/wally), under the Mozilla Public License 2.0, and each package carries its own licence, which governs what you may do with it.",
-	"**Roblox** is where Sign in with Roblox and asset downloads go, through its Open Cloud API. [Roblox Terms of Use](https://en.help.roblox.com/hc/en-us/articles/115004647846-Roblox-Terms-of-Use) · [Creator Third Party App Terms](https://en.help.roblox.com/hc/en-us/articles/15887203369620-Creator-Third-Party-App-Terms) · [Creator Third Party App Policy](https://en.help.roblox.com/hc/en-gb/articles/37924211313044-Creator-Third-Party-App-Policy) · [Roblox Privacy and Cookie Policy](https://en.help.roblox.com/hc/en-us/articles/115004630823-Roblox-Privacy-and-Cookie-Policy).",
+	`**Roblox** is where Sign in with Roblox and asset downloads go, through its [Open Cloud API](${ROBLOX.openCloud}). [Roblox Terms of Use](${ROBLOX.terms}) · [Creator Third Party App Terms](${ROBLOX.appTerms}) · [Creator Third Party App Policy](${ROBLOX.appPolicy}) · [Roblox Privacy and Cookie Policy](${ROBLOX.privacy}).`,
 ];
 const CONTACT = `Questions about this page go to [roswaal-feedback](${FEEDBACK_REPOSITORY}/issues/new).`;
 
@@ -61,8 +73,9 @@ export function privacyPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"roswaal.app, canary.roswaal.app and neopolitans.github.io/Roswaal are static files " +
-					"served by GitHub Pages, and Cloudflare answers the domain's DNS. GitHub receives the " +
+					"[roswaal.app](https://roswaal.app), its preview at [canary.roswaal.app](https://canary.roswaal.app) " +
+					"and its backup at [neopolitans.github.io/Roswaal](https://neopolitans.github.io/Roswaal/) " +
+					"are static files served by GitHub Pages, and Cloudflare answers the domain's DNS. GitHub receives the " +
 					"usual details of each request, such as your IP address and browser, under its own " +
 					"privacy statement, listed below. Roswaal itself receives nothing.",
 			},
@@ -83,11 +96,17 @@ export function privacyPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"The `roswaal` command runs on your computer. Its daemon listens only on 127.0.0.1, " +
-					"so nothing else on your network can reach it, and it reads and writes only the " +
-					"project folder you choose. It goes online only when you ask it to: to install a " +
-					"package from the [Wally](https://wally.run) registry, or to fetch a repository from " +
-					"GitHub. Those services' own policies cover those requests.",
+					"The `roswaal` command and its daemon, the background process the editor talks to, " +
+					"run on your computer.",
+			},
+			{
+				t: "ul",
+				items: [
+					"**Only your computer can reach it.** The daemon listens on 127.0.0.1, so nothing else on your network can connect to it.",
+					"**Only your project.** It reads and writes the project folder you choose, and nothing else of yours.",
+					"**Online only when you ask.** It installs a package from the [Wally](https://wally.run) registry, or fetches a repository from GitHub, when you tell it to, and makes no other requests.",
+					"**Those services' own policies** cover those requests; they are listed below.",
+				],
 			},
 
 			{ t: "h", level: 2, text: "Sign in with Roblox" },
@@ -102,7 +121,7 @@ export function privacyPage(): DocPage {
 				items: [
 					"**Only when you choose.** Roblox asks for your consent on its own page, listing the permissions Roswaal asks for: downloading assets, and identifying your account so Roswaal can show who is signed in.",
 					"**Kept on your computer.** The daemon stores the sign-in in your user profile, never in a project folder and never in a log.",
-					"**Used for one thing.** Roswaal downloads the assets your places refer to, through Roblox's official API, and keeps copies in the project's own folder, kept out of Git by default. It never sends them, or your sign-in, anywhere else.",
+					`**Used for one thing.** Roswaal downloads the assets your places refer to, through Roblox's official [Open Cloud API](${ROBLOX.openCloud}), and keeps copies in the project's own folder, kept out of Git by default. It never sends them, or your sign-in, anywhere else.`,
 					"**Roblox's own assets are not downloaded.** Roswaal draws a plain stand-in for anything Roblox made.",
 					"**Never sold, and never used to train AI.**",
 					"**Deleted when access ends.** Signing out revokes the sign-in and deletes it and the downloaded copies. If Roswaal loses access to Roblox's APIs, the daemon deletes them the next time it runs.",
@@ -123,7 +142,8 @@ export function privacyPage(): DocPage {
 				t: "p",
 				text:
 					"Roswaal collects no personal information from anyone, of any age. Signing in with " +
-					"Roblox is subject to Roblox's own rules for younger users.",
+					`Roblox is subject to Roblox's own rules for younger users, in its [Terms of Use](${ROBLOX.terms}) ` +
+					`and its [Privacy and Cookie Policy](${ROBLOX.privacy}).`,
 			},
 
 			{ t: "h", level: 2, text: "Changes" },
@@ -194,7 +214,7 @@ export function termsPage(): DocPage {
 				t: "ul",
 				items: [
 					"**You are responsible for having the right** to open, edit and share what you work on.",
-					"**Assets downloaded from Roblox belong to their creators**, and Roblox's Terms of Use govern them. Roswaal keeps copies for your own work on your Roblox projects. Do not share them, for example by committing them to a public repository, unless you have the right to.",
+					`**Assets downloaded from Roblox belong to their creators**, and [Roblox's Terms of Use](${ROBLOX.terms}) govern them. Roswaal keeps copies for your own work on your Roblox projects. Do not share them, for example by committing them to a public repository, unless you have the right to.`,
 					"**Roblox's own assets are not downloaded**, and Roswaal draws a stand-in for them.",
 				],
 			},
