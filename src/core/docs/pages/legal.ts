@@ -115,10 +115,12 @@ export function privacyPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"On every system, the daemon writes each file whole: to a temporary file beside it, " +
-					"which is then renamed into place, so a crash never leaves half a file. It follows no " +
-					"link that leads out of the project, and it starts every program by its full path, never one " +
-					"from the project folder. If [StyLua](https://github.com/JohnnyMorganz/StyLua) " +
+					"On every system, the daemon writes graphs, node maps, the place and `roswaal.json` " +
+					"through a temporary file beside each, which is then renamed into place, so a crash " +
+					"never leaves half of one; other files it writes directly. Before it changes the place, " +
+					"it can keep a copy in `.roswaal/backups`. It follows no link that leads out of the " +
+					"project, and it starts every program by its full path, never one from the project " +
+					"folder. If [StyLua](https://github.com/JohnnyMorganz/StyLua) " +
 					"is installed, the daemon runs it to format the Luau it writes. Beyond that, it opens " +
 					"your system's own programs only when you ask:",
 			},

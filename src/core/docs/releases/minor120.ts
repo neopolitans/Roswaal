@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.220.4",
+		date: "2026-11-07",
+		headline: "The Privacy Policy says which files the daemon writes through a temporary file.",
+		affects: ["docs"],
+		fixed: [
+			"**Which files are written whole.** Graphs, node maps, the place and roswaal.json go through a temporary file; other files are written directly. It also names the place's backups in .roswaal/backups.",
+		],
+	},
+	{
 		version: "0.220.3",
 		date: "2026-11-07",
 		headline: "Programs on macOS and Linux are started by their full path, and the Privacy Policy is verified.",
