@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.219.4",
+		date: "2026-11-07",
+		headline: "The Terms of Service open with what you may and may not do.",
+		affects: ["docs"],
+		changed: [
+			"**You May and You May Not.** Two short lists at the head of the Terms of Service, before the details they summarise.",
+		],
+	},
+	{
 		version: "0.219.3",
 		date: "2026-11-07",
 		headline: "The docs' contents scroll on a phone or tablet, and the policies' dates stand apart.",

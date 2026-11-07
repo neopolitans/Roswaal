@@ -146,6 +146,30 @@ export function termsPage(): DocPage {
 		blocks: [
 			...DATES,
 
+			// The short version first, each line one the sections below back up.
+			{ t: "h", level: 2, text: "You May" },
+			{
+				t: "ul",
+				items: [
+					"**Use Roswaal for anything**, personal or commercial, with no account.",
+					"**Copy, change and share Roswaal**, as it is or modified, under its 0BSD licence, without needing to credit anyone.",
+					"**Keep, publish and sell what you make with it.** Your graphs, scripts and places are yours.",
+					"**Sign in with Roblox** to draw your places' meshes, images and sky, and sign out at any time, which deletes what was downloaded.",
+				],
+			},
+
+			{ t: "h", level: 2, text: "You May Not" },
+			{
+				t: "ul",
+				items: [
+					"**Share assets Roswaal downloaded for you**, for example by committing them to a public repository, unless you have the right to.",
+					"**Sell, or train AI on**, assets or data that came to you through Sign in with Roblox.",
+					"**Use Roswaal to break the terms** of Roblox or the other services listed below, or to infringe anyone's rights.",
+					"**Use Roswaal to reach what you are not allowed to**, or to get around a service's limits or security.",
+					"**Present Roswaal as made or endorsed by Roblox Corporation.**",
+				],
+			},
+
 			{ t: "h", level: 2, text: "The software" },
 			{
 				t: "p",
