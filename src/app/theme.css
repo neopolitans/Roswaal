@@ -20833,6 +20833,15 @@ textarea.tb:where(:disabled) {
 	user-select: none;
 }
 
+/* The box a left-drag draws: thin, in the outline's blue. */
+.vp-marquee {
+	position: absolute;
+	box-sizing: border-box;
+	border: 1px solid rgb(13 153 255);
+	background: rgb(13 153 255 / 0.12);
+	pointer-events: none;
+}
+
 .vp-bar .vp-clear {
 	display: none;
 }

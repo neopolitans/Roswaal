@@ -8,8 +8,10 @@
 import type { PlaceOutline } from "../../core/rbx/browse.js";
 import type { LightingParams } from "../../core/rbx/lighting.js";
 import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene.js";
+import { addTo, sameItems } from "../placeSelection.js";
 import { rayPick } from "./geometry.js";
 import { HandleBuilder } from "./handles.js";
+import { partsInRect, rectBetween, type ViewShot } from "./marquee.js";
 import { layersUsed, loadLayer } from "./textures.js";
 import { type Camera, FOV, SELECT, type ViewRenderer } from "./view.js";
 
@@ -24,6 +26,9 @@ export interface ViewportOptions {
 	/** See-through Glass hides the see-through parts behind it, as Studio's does. */
 	glassHides: boolean;
 }
+
+/** How far a press moves, in CSS pixels, before it is a drag rather than a click. */
+const DRAG = 6;
 
 /** The outline round what is picked, and the fainter one round what the pointer is over. */
 const PICKED_ALPHA = 255;
@@ -167,7 +172,8 @@ export class ViewportController {
 	private words = new Map<number, Float32Array>();
 	private kids: number[][] = [];
 	private workspace = -1;
-	private selected: number | null = null;
+	/** What is picked, by row, the last picked last: the browser's selection too. */
+	private selection: readonly number[] = [];
 	private cam = { target: [0, 0, 0], yaw: 0.8, pitch: 0.42, dist: 60 };
 	private framed = false;
 	private view: ViewRenderer | null = null;
@@ -186,7 +192,8 @@ export class ViewportController {
 	private flying = false;
 	private turning = 0;
 
-	constructor(private readonly onPick: (index: number | null) => void) {}
+	/** `onPick` hears each pick made in the view: everything picked, the last picked last. */
+	constructor(private readonly onPick: (indices: readonly number[]) => void) {}
 
 	// -- for React ---------------------------------------------------------------
 
@@ -225,8 +232,9 @@ export class ViewportController {
 			if (parent >= 0) this.kids[parent].push(i);
 			else if (classes[cls] === "Workspace") this.workspace = i;
 		});
-		if (this.selected !== null && this.selected >= nodes.length) this.selected = null;
+		this.selection = this.selection.filter((i) => i < nodes.length);
 		this.set({
+			picked: this.selection.length > 0,
 			summary: {
 				parts: this.words.size,
 				meshes: place.kinds.mesh.count + place.translucent.mesh.count,
@@ -248,19 +256,25 @@ export class ViewportController {
 		}
 	}
 
-	/** The instance picked elsewhere -- the tree, or Properties -- to outline. Leaves the camera be. */
-	select(index: number | null): void {
-		if (index === this.selected) return;
-		this.selected = index;
-		if (this.state.picked !== (index !== null)) this.set({ picked: index !== null });
+	/** What is picked elsewhere -- the tree, or Properties -- to outline, each on its own. Leaves the camera be. */
+	select(indices: readonly number[]): void {
+		if (sameItems(indices, this.selection)) return;
+		this.selection = [...indices];
+		if (this.state.picked !== indices.length > 0) this.set({ picked: indices.length > 0 });
 		this.refreshSelection();
 	}
 
 	/** Picks nothing: the bar's Clear, and Esc. */
 	clear(): void {
-		if (this.selected === null) return;
-		this.select(null);
-		this.onPick(null);
+		if (this.selection.length === 0) return;
+		this.select([]);
+		this.onPick([]);
+	}
+
+	/** What a pick in the view picks, told to the browser. */
+	private pickHere(indices: readonly number[]): void {
+		this.select(indices);
+		this.onPick(this.selection);
 	}
 
 	private refreshSelection(): void {
@@ -269,7 +283,7 @@ export class ViewportController {
 		this.redraw();
 	}
 
-	/** What is picked, solid, and what the pointer is over, faint, each in the selection's blue. */
+	/** Each thing picked, solid, and what the pointer is over, faint, each in the selection's blue. */
 	private outlines(): Float32Array {
 		const boxes: Float32Array[] = [];
 		const add = (index: number | null, alpha: number) => {
@@ -280,8 +294,8 @@ export class ViewportController {
 			tinted[12] = tintWord(alpha);
 			boxes.push(tinted);
 		};
-		add(this.selected, PICKED_ALPHA);
-		if (this.hover !== this.selected) add(this.hover, HOVER_ALPHA);
+		for (const index of this.selection) add(index, PICKED_ALPHA);
+		if (this.hover !== null && !this.selection.includes(this.hover)) add(this.hover, HOVER_ALPHA);
 		const out = new Float32Array(boxes.length * SCENE_STRIDE);
 		boxes.forEach((b, i) => {
 			out.set(b, i * SCENE_STRIDE);
@@ -359,7 +373,12 @@ export class ViewportController {
 
 	/** A part's own box, or one round every part inside an instance, square to the world. */
 	private boxFor(index: number): Float32Array {
-		const own = this.words.get(index);
+		return this.boxRound([index]);
+	}
+
+	/** One part's own box, or one round every part in all of these, square to the world. */
+	private boxRound(indices: readonly number[]): Float32Array {
+		const own = indices.length === 1 ? this.words.get(indices[0]) : undefined;
 		if (own) return own;
 		const lo = [Infinity, Infinity, Infinity];
 		const hi = [-Infinity, -Infinity, -Infinity];
@@ -376,7 +395,7 @@ export class ViewportController {
 				}
 			for (const k of this.kids[i] ?? []) visit(k);
 		};
-		visit(index);
+		for (const index of indices) visit(index);
 		if (lo[0] === Infinity) return new Float32Array();
 		return new Float32Array([
 			hi[0] - lo[0],
@@ -445,18 +464,38 @@ export class ViewportController {
 		};
 	}
 
+	/** How the camera sees the view now, for what a box drawn on it holds. */
+	private shot(box: { width: number; height: number }): ViewShot {
+		const forward = this.back().map((v) => -v);
+		const right = [Math.cos(this.cam.yaw), 0, -Math.sin(this.cam.yaw)];
+		const up = [
+			right[1] * forward[2] - right[2] * forward[1],
+			right[2] * forward[0] - right[0] * forward[2],
+			right[0] * forward[1] - right[1] * forward[0],
+		];
+		return {
+			eye: this.eye(),
+			forward,
+			right,
+			up,
+			tan: Math.tan(FOV / 2),
+			width: box.width,
+			height: box.height,
+		};
+	}
+
 	/** Frames the selection (F); Studio's camera by what its frustum covers. */
 	frameSelection(): void {
-		if (this.selected === null) return;
+		if (this.selection.length === 0) return;
 		const studio = this.place?.camera;
-		if (studio && this.selected === studio.id) {
+		if (studio && this.selection.length === 1 && this.selection[0] === studio.id) {
 			const r = studio.rotation;
 			this.cam.target = [0, 1, 2].map((a) => studio.position[a] - r[a * 3 + 2] * 5);
 			this.cam.dist = 34;
 			this.redraw();
 			return;
 		}
-		const b = this.boxFor(this.selected);
+		const b = this.boxRound(this.selection);
 		if (b.length < SCENE_STRIDE) return;
 		this.cam.target = [b[9], b[10], b[11]];
 		const r =
@@ -524,7 +563,7 @@ export class ViewportController {
 
 	/** Round the selection where it is on screen, or round the point looked at when nothing is picked. */
 	private orbit(dx: number, dy: number): void {
-		const b = this.selected === null ? null : this.boxFor(this.selected);
+		const b = this.selection.length === 0 ? null : this.boxRound(this.selection);
 		const dyaw = -dx * 0.008;
 		const pitch = clampPitch(this.cam.pitch + dy * 0.008);
 		if (!b || b.length < SCENE_STRIDE) {
@@ -636,6 +675,7 @@ export class ViewportController {
 			this.held.clear();
 			this.sticks = { move: [0, 0], look: [0, 0] };
 			this.rise = 0;
+			this.hideMarquee();
 			this.view?.destroy();
 			this.view = null;
 			this.canvas?.remove();
@@ -733,7 +773,7 @@ export class ViewportController {
 			this.pending = false;
 			if (!this.view) return;
 			const camera = this.camera();
-			if (this.state.tool !== "select" && this.selected !== null) this.drawHandles(camera.eye);
+			if (this.state.tool !== "select" && this.selection.length > 0) this.drawHandles(camera.eye);
 			this.view.draw(camera);
 			this.frames.push(now);
 			this.showRotation();
@@ -823,13 +863,13 @@ export class ViewportController {
 	}
 
 	/**
-	 * The chosen tool's handles round the selection, square to the world, in
-	 * Studio's axis colours, the same size on screen near or far.
+	 * The chosen tool's handles round the selection, all of it in one box, square
+	 * to the world, in Studio's axis colours, the same size on screen near or far.
 	 */
 	private drawHandles(eye?: number[]): void {
 		if (!this.view) return;
 		const { tool } = this.state;
-		const b = this.selected !== null && tool !== "select" ? this.boxFor(this.selected) : null;
+		const b = this.selection.length > 0 && tool !== "select" ? this.boxRound(this.selection) : null;
 		const built = new HandleBuilder();
 		if (b && b.length >= SCENE_STRIDE) {
 			const c = [b[9], b[10], b[11]];
@@ -925,15 +965,68 @@ export class ViewportController {
 		};
 	}
 
+	/** The box a left-drag draws, over the canvas; there only while it is drawn. */
+	private marquee: HTMLElement | null = null;
+
+	private hideMarquee(): void {
+		this.marquee?.remove();
+		this.marquee = null;
+	}
+
 	/**
-	 * Mouse and touch: left-drag orbits, right-drag looks, middle or Shift-drag
-	 * pans, two fingers pinch and pan, and a tap that did not move picks.
+	 * The mouse: a click picks, as below. A left-drag draws a box and picks each
+	 * part whose centre is inside it, and with Shift adds them to what is
+	 * picked. Alt and a left-drag orbits round what is picked, right-drag looks,
+	 * and middle-drag, or Shift and a right-drag, pans. Scroll zooms.
+	 *
+	 * Touch and pen: one finger orbits, or pans with Shift held, two fingers
+	 * pinch and pan, a tap picks and a long press picks the part itself.
+	 *
+	 * A press that moves no more than DRAG is a click: the GPU's pick, of the
+	 * highest Model in Workspace there, or with Alt or Shift the part.
 	 */
 	private attach(el: HTMLCanvasElement): void {
 		const pointers = new Map<number, { x: number; y: number }>();
 		let moved = 0;
-		let mode: "orbit" | "look" | "pan" = "orbit";
+		let mode: "orbit" | "look" | "pan" | "box" = "orbit";
+		// Where a left-drag's box started, and whether it adds to what is picked.
+		let start: { x: number; y: number; adding: boolean } | null = null;
 		let pinch = 0;
+		const modeFor = (e: PointerEvent): typeof mode => {
+			if (e.button === 1) return "pan";
+			if (e.button === 2) return e.shiftKey ? "pan" : "look";
+			if (e.pointerType !== "mouse") return e.shiftKey ? "pan" : "orbit";
+			return e.altKey ? "orbit" : "box";
+		};
+		/** The box from where the drag started to the pointer, in CSS pixels from the canvas's corner. */
+		const boxTo = (from: { x: number; y: number }, e: PointerEvent) => {
+			const r = el.getBoundingClientRect();
+			return {
+				r,
+				rect: rectBetween(from.x - r.left, from.y - r.top, e.clientX - r.left, e.clientY - r.top),
+			};
+		};
+		const drawBox = (from: { x: number; y: number }, e: PointerEvent) => {
+			const holder = el.parentElement;
+			if (!holder) return;
+			if (!this.marquee) {
+				this.marquee = document.createElement("div");
+				this.marquee.className = "vp-marquee";
+				holder.append(this.marquee);
+			}
+			const { rect } = boxTo(from, e);
+			const s = this.marquee.style;
+			s.left = `${el.offsetLeft + rect.left}px`;
+			s.top = `${el.offsetTop + rect.top}px`;
+			s.width = `${rect.right - rect.left}px`;
+			s.height = `${rect.bottom - rect.top}px`;
+		};
+		const takeBox = (from: { x: number; y: number; adding: boolean }, e: PointerEvent) => {
+			const { r, rect } = boxTo(from, e);
+			const inside = partsInRect(this.words, this.shot(r), rect);
+			if (from.adding && inside.length === 0) return;
+			this.pickHere(from.adding ? addTo(this.selection, inside) : inside);
+		};
 		// A touch held still picks the part itself, where a touch screen has no Alt.
 		let press: ReturnType<typeof setTimeout> | undefined;
 		let pressed = false;
@@ -949,9 +1042,7 @@ export class ViewportController {
 		const pickAt = async (x: number, y: number, partItself: boolean) => {
 			if (!this.view) return;
 			const id = await idAt(x, y);
-			const target = id >= 0 ? this.clickTarget(id, partItself) : null;
-			this.select(target);
-			this.onPick(target);
+			this.pickHere(id >= 0 ? [this.clickTarget(id, partItself)] : []);
 		};
 		// The mouse over the view outlines, faintly, what a click there would pick:
 		// a ray against the parts' own shapes, once a frame while it moves.
@@ -984,13 +1075,15 @@ export class ViewportController {
 			pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 			moved = 0;
 			pressed = false;
-			mode = e.button === 2 ? "look" : e.button === 1 || e.shiftKey ? "pan" : "orbit";
+			mode = modeFor(e);
+			start = mode === "box" ? { x: e.clientX, y: e.clientY, adding: e.shiftKey } : null;
+			this.hideMarquee();
 			unpress();
 			if (pointers.size === 1 && e.pointerType !== "mouse") {
 				const { clientX: x, clientY: y } = e;
 				press = setTimeout(() => {
 					press = undefined;
-					if (moved > 6 || pointers.size !== 1) return;
+					if (moved > DRAG || pointers.size !== 1) return;
 					pressed = true;
 					void pickAt(x, y, true);
 				}, LONG_PRESS);
@@ -1006,8 +1099,12 @@ export class ViewportController {
 			const dx = e.clientX - last.x;
 			const dy = e.clientY - last.y;
 			moved += Math.abs(dx) + Math.abs(dy);
-			if (moved > 6) unpress();
+			if (moved > DRAG) unpress();
 			pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+			if (mode === "box") {
+				if (start && moved > DRAG) drawBox(start, e);
+				return;
+			}
 			if (pointers.size === 2) {
 				const [a, b] = [...pointers.values()];
 				const d = Math.hypot(a.x - b.x, a.y - b.y);
@@ -1024,12 +1121,21 @@ export class ViewportController {
 			pointers.delete(e.pointerId);
 			this.hold(false);
 			unpress();
+			this.hideMarquee();
+			const from = start;
+			start = null;
+			if (mode === "box" && from && moved > DRAG && e.button === 0) {
+				takeBox(from, e);
+				return;
+			}
 			// A long press has picked already.
-			if (pressed || pointers.size > 0 || moved > 6 || e.button !== 0) return;
+			if (pressed || pointers.size > 0 || moved > DRAG || e.button !== 0) return;
 			void pickAt(e.clientX, e.clientY, e.altKey || e.shiftKey);
 		});
 		el.addEventListener("pointercancel", (e) => {
 			unpress();
+			this.hideMarquee();
+			start = null;
 			if (pointers.delete(e.pointerId)) this.hold(false);
 		});
 		el.addEventListener(

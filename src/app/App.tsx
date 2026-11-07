@@ -347,12 +347,19 @@ export function App() {
 	// biome-ignore lint/correctness/useExhaustiveDependencies: a new project is a new view.
 	const viewport = useMemo(
 		() =>
-			new ViewportController((index) =>
-				setPlaceReveal((prev) => ({ index: index ?? -1, seq: (prev?.seq ?? 0) + 1, open: false })),
+			new ViewportController((indices) =>
+				setPlaceReveal((prev) => ({
+					index: indices.at(-1) ?? -1,
+					seq: (prev?.seq ?? 0) + 1,
+					open: false,
+				})),
 			),
 		[project?.root],
 	);
-	const onPlaceSelect = useCallback((index: number | null) => viewport.select(index), [viewport]);
+	const onPlaceSelect = useCallback(
+		(index: number | null) => viewport.select(index === null ? [] : [index]),
+		[viewport],
+	);
 	// Settings' say in how the place is drawn.
 	useEffect(
 		() =>

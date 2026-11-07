@@ -179,11 +179,13 @@ export function placesAndRojoPage(): DocPage {
 				rows: [
 					["Pick a model", "Click a part: the highest Model in Workspace that holds it"],
 					["Pick the part itself", "`Alt` or `Shift` + click, or a long press"],
+					["Pick every part in a box", "Drag a box: a part is in when its centre is"],
+					["Add a box's parts to what is picked", "`Shift` + drag a box"],
 					["Pick nothing", "`Esc`, or **Clear** on a touch screen"],
 					["See what a click would pick", "Rest the mouse over it: it is outlined faintly"],
-					["Orbit round what is picked", "Drag"],
+					["Orbit round what is picked", "`Alt` + drag, or drag a finger"],
 					["Look round", "Right-drag"],
-					["Pan", "Middle-drag, or `Shift` + drag"],
+					["Pan", "Middle-drag, or `Shift` + right-drag"],
 					["Zoom", "Scroll, or pinch"],
 					["Fly", "`W` `A` `S` `D`, `Q` down and `E` up; `Shift` + scroll sets the speed"],
 					[
