@@ -45,6 +45,7 @@ import { creatingCustomNodesPage } from "./pages/creatingCustomNodes.js";
 import { functionsPage } from "./pages/functions.js";
 import { gettingStartedPage } from "./pages/gettingStarted.js";
 import { handWrittenLuauPage } from "./pages/handWrittenLuau.js";
+import { privacyPage, termsPage } from "./pages/legal.js";
 import { luneDemosPage } from "./pages/luneDemos.js";
 import { luneLibraryPage } from "./pages/luneLibrary.js";
 import { membersAndFieldsPage } from "./pages/membersAndFields.js";
@@ -721,10 +722,13 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 	const guides = [...writingGraphs, ...forRoblox, ...forLune, ...theTool];
 	const attributions = attributionsPage();
 	const contributing = contributingPage();
+	const legal = [privacyPage(), termsPage()];
 	// Every page's title by slug, so the release notes can name the articles
 	// they list without holding a second copy of each title.
 	const titles = new Map<string, string>([
-		...[...start, ...guides, attributions, contributing].map((p) => [p.slug, p.title] as const),
+		...[...start, ...guides, attributions, contributing, ...legal].map(
+			(p) => [p.slug, p.title] as const,
+		),
 		...nodes.map((doc) => [`node/${doc.id}`, doc.title] as const),
 	]);
 
@@ -743,6 +747,7 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 			},
 			{ title: "Attributions", slug: "attributions", group: GROUPS.learn, pages: [attributions] },
 			{ title: "Contributing", slug: "contributing", group: GROUPS.learn, pages: [contributing] },
+			{ title: "Legal", slug: "legal", group: GROUPS.learn, pages: legal },
 			...technicalSections(GROUPS.technical, ctx),
 			...reference(GROUPS.builtin, false),
 			...engineTypeSections(),

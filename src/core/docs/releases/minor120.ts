@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.219.0",
+		date: "2026-11-07",
+		headline: "The docs have a Privacy Policy and Terms of Service.",
+		affects: ["docs"],
+		added: [
+			"**Privacy Policy.** What Roswaal keeps and where: nothing about you, projects and preferences in your browser or your own folders, and the coming Sign in with Roblox kept on your computer and deleted when you sign out.",
+			"**Terms of Service.** Roswaal's licence, what is yours, and what belongs to others, including assets downloaded from Roblox.",
+		],
+	},
+	{
 		version: "0.218.4",
 		date: "2026-11-07",
 		headline: "Under WebGL2 too, faces a thousandth of a stud apart no longer fight.",
