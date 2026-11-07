@@ -7273,6 +7273,51 @@ button.tb.icon-only.on {
 	gap: 2px;
 }
 
+/* Room under the last section, so Legal scrolls clear of the bottom edge. A
+   spacer rather than padding: a scrolling flex column drops its own end
+   padding in some browsers. */
+.docs-nav::after {
+	content: "";
+	flex: none;
+	height: 32px;
+}
+
+/* ----------------------------------------------------------------- facts */
+
+/* Date Effective and Last Edited at the head of a policy: one block, its
+   rows close together, small and set apart from the prose by a rule and a
+   tint, so it reads as the page's record rather than its first paragraph. */
+.docs-facts {
+	display: grid;
+	gap: 2px;
+	margin: 0 0 18px;
+	padding: 8px 12px;
+	border-left: 3px solid var(--accent);
+	border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+	background: color-mix(in srgb, var(--accent) 8%, transparent);
+	font-size: 0.86em;
+}
+
+.docs-facts > div {
+	display: flex;
+	gap: 8px;
+	align-items: baseline;
+}
+
+.docs-facts dt {
+	min-width: 8.5em;
+	color: var(--text-muted);
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	font-size: 0.86em;
+}
+
+.docs-facts dd {
+	margin: 0;
+	font-variant-numeric: tabular-nums;
+}
+
 .docs-nav .search {
 	background: var(--bg-input);
 	border: 1px solid var(--border);
@@ -17044,13 +17089,19 @@ select:not(.literal):not([multiple]) {
 	display: none;
 }
 
-/* As a drawer, the contents are already a sheet: no second card. */
+/* As a drawer, the contents are already a sheet: no second card. Stretched
+   to the body, too: the card's `align-self: start` sized the drawer to its
+   list, past the bottom of the screen, so the list never scrolled and its
+   last sections could not be reached on a phone or a tablet. */
 @media (max-width: 760px), (hover: none) and (pointer: coarse) {
 	.docs-window .docs-nav {
 		margin: 0;
 		border-radius: 0;
 		box-shadow: none;
 		max-height: none;
+		align-self: stretch;
+		overscroll-behavior: contain;
+		-webkit-overflow-scrolling: touch;
 	}
 
 	.docs-window .docs-nav .docs-card-fold {

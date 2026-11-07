@@ -45,6 +45,7 @@ import { creatingCustomNodesPage } from "./pages/creatingCustomNodes.js";
 import { functionsPage } from "./pages/functions.js";
 import { gettingStartedPage } from "./pages/gettingStarted.js";
 import { handWrittenLuauPage } from "./pages/handWrittenLuau.js";
+import { privacyPage, termsPage } from "./pages/legal.js";
 import { luneDemosPage } from "./pages/luneDemos.js";
 import { luneLibraryPage } from "./pages/luneLibrary.js";
 import { membersAndFieldsPage } from "./pages/membersAndFields.js";
@@ -254,6 +255,11 @@ export type Block =
 	 * a label over it: "In Roswaal" beside "A profile must not".
 	 */
 	| { t: "compare"; items: { label: string; text: string; tone?: "plain" | "warn" }[] }
+	/**
+	 * Short labelled facts at the head of a page, set apart from its prose and
+	 * close together: a policy's Date Effective and Last Edited.
+	 */
+	| { t: "facts"; rows: [label: string, value: string][] }
 	/** Pin tables on a node page, which want their own rendering. */
 	| { t: "pins"; title: string; pins: NodeDoc["inputs"] }
 	/**
@@ -581,6 +587,12 @@ export const GROUPS = {
 	 * for a different reason: someone building an editor, not using one.
 	 */
 	technical: "Technical specification",
+	/**
+	 * Attributions, the Privacy Policy and the Terms of Service: read for what
+	 * Roswaal owes, keeps and promises rather than for how to use it, so last,
+	 * under a heading of their own.
+	 */
+	legal: "Legal",
 } as const;
 
 export interface DocSite {
@@ -721,10 +733,13 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 	const guides = [...writingGraphs, ...forRoblox, ...forLune, ...theTool];
 	const attributions = attributionsPage();
 	const contributing = contributingPage();
+	const legal = [privacyPage(), termsPage()];
 	// Every page's title by slug, so the release notes can name the articles
 	// they list without holding a second copy of each title.
 	const titles = new Map<string, string>([
-		...[...start, ...guides, attributions, contributing].map((p) => [p.slug, p.title] as const),
+		...[...start, ...guides, attributions, contributing, ...legal].map(
+			(p) => [p.slug, p.title] as const,
+		),
 		...nodes.map((doc) => [`node/${doc.id}`, doc.title] as const),
 	]);
 
@@ -741,13 +756,19 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 				group: GROUPS.learn,
 				pages: releaseNotesPages(titles),
 			},
-			{ title: "Attributions", slug: "attributions", group: GROUPS.learn, pages: [attributions] },
 			{ title: "Contributing", slug: "contributing", group: GROUPS.learn, pages: [contributing] },
 			...technicalSections(GROUPS.technical, ctx),
 			...reference(GROUPS.builtin, false),
 			...engineTypeSections(),
 			...conversionSections(),
 			...reference(GROUPS.project, true),
+			{ title: "Attributions", slug: "attributions", group: GROUPS.legal, pages: [attributions] },
+			...legal.map((page) => ({
+				title: page.title,
+				slug: page.slug,
+				group: GROUPS.legal,
+				pages: [page],
+			})),
 		]),
 	};
 }

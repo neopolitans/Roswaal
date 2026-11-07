@@ -353,6 +353,17 @@ function renderBlock(
 					.join("") +
 				"</div>"
 			);
+		case "facts":
+			return (
+				`<dl class="docs-facts">` +
+				block.rows
+					.map(
+						([label, value]) =>
+							`<div><dt>${escapeHtml(label)}</dt><dd>${inline(value, up)}</dd></div>`,
+					)
+					.join("") +
+				"</dl>"
+			);
 		case "pins":
 			return renderPins(block, options, up);
 		case "graph": {
@@ -710,7 +721,10 @@ function renderPins(block: Block & { t: "pins" }, options: RenderOptions, up: Up
 function renderNav(site: DocSite, current: DocPage, options: RenderOptions): string {
 	const up = upTo(current.slug);
 	// Where you are, as the window's contents card says it: open or folded.
-	const section = site.sections.find((s) => s.pages.some((p) => p.slug === current.slug));
+	// A section holding only this page under its own name adds nothing: "Terms of Service ›
+	// Terms of Service" reads as a mistake.
+	const found = site.sections.find((s) => s.pages.some((p) => p.slug === current.slug));
+	const section = found && found.title !== current.title ? found : undefined;
 	const where =
 		`<div class="docs-card-head"><span class="docs-card-where" title="${escapeHtml(section ? `${section.title} › ${current.title}` : current.title)}">` +
 		`${section ? `<span class="crumb">${escapeHtml(section.title)}</span>` : ""}<span class="here">${escapeHtml(current.title)}</span></span>` +

@@ -141,6 +141,12 @@ export const REVIEWS: Record<
 	// Verified again for 0.160.1, as the browser 0.160.0 made it: every holder,
 	// usage type and licence, on the website and in the editor.
 	attributions: { status: "verified", date: "2026-10-08", reviewers: ["neopolitans"] },
+	// Verified by the author for 0.219.7: the You May and You May Not lists,
+	// the services and their terms, and what is Roswaal's and what is not.
+	terms: { status: "verified", date: "2026-11-07", reviewers: ["neopolitans"] },
+	// Verified by the author for 0.219.9: what Roswaal keeps and where, the
+	// daemon, Sign in with Roblox as it will work, and every service linked.
+	privacy: { status: "verified", date: "2026-11-07", reviewers: ["neopolitans"] },
 	// Read by the author for 0.65.0, against the RFC and against the editor.
 	// Not verified, and deliberately: every rule on it is checked against
 	// `require-by-string-aliases.html` and against what Roswaal does with it,

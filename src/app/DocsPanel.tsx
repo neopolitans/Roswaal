@@ -220,7 +220,10 @@ export function DocsView({
 	const page = findPage(site, slug) ?? findPage(site, HOME)!;
 	// The section the page is in, for the folded contents to say where you are.
 	const where = {
-		section: site.sections.find((s) => s.pages.some((p) => p.slug === page.slug))?.title ?? "",
+		// Left out when it only repeats the page's own title, as the docs site's does.
+		section: ((title) => (title === page.title ? "" : title))(
+			site.sections.find((s) => s.pages.some((p) => p.slug === page.slug))?.title ?? "",
+		),
 	};
 	const [contentsFolded, setContentsFolded] = useState(() => recall(CONTENTS_FOLD));
 	const results = useMemo(() => searchDocs(index, query), [index, query]);
@@ -974,6 +977,19 @@ function BlockView({ block }: { block: Block }) {
 						</div>
 					))}
 				</div>
+			);
+		case "facts":
+			return (
+				<dl className="docs-facts">
+					{block.rows.map(([label, value]) => (
+						<div key={label}>
+							<dt>{label}</dt>
+							<dd>
+								<Rich text={value} />
+							</dd>
+						</div>
+					))}
+				</dl>
 			);
 		case "graph": {
 			// A function is drawn in a graph of its own, a tab each, as the

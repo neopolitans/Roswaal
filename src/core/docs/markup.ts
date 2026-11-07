@@ -127,6 +127,12 @@ export function blockStrings(block: Block): BlockString[] {
 			add("inline", block.text);
 			for (const item of block.items ?? []) add("inline", item);
 			break;
+		case "facts":
+			for (const [label, value] of block.rows) {
+				add("plain", label);
+				add("inline", value);
+			}
+			break;
 		case "req":
 			add("plain", block.id);
 			add("inline", block.text);

@@ -8,6 +8,8 @@
  *
  *     index.html      the holding page, until the landing page exists
  *     404.html        so a mistyped path goes somewhere rather than to GitHub
+ *     terms.html, privacy.html
+ *                     short addresses, /terms and /privacy, on to the docs' pages
  *     try.html        the editor
  *     designer.html   Node Design
  *     docs.html       the docs, in the app: the same bundle, with your packs
@@ -118,6 +120,15 @@ async function main() {
 		"utf8",
 	);
 	await writeFile(join(out, "404.html"), notFoundPage(base, version), "utf8");
+	// `/terms` and `/privacy`: the addresses Roswaal's Roblox app registration
+	// and anyone typing them by hand use. Pages serves `terms.html` for
+	// `/terms`, and a relative link reaches the docs under any base.
+	await writeFile(join(out, "terms.html"), shortcut("docs/terms.html", "Terms of Service"), "utf8");
+	await writeFile(
+		join(out, "privacy.html"),
+		shortcut("docs/privacy.html", "Privacy Policy"),
+		"utf8",
+	);
 	// `/technical/`: the specification as its own site, as spec.roswaal.app
 	// serves it -- the canary's preview of it, and a copy on roswaal.app for the
 	// address it was first given. Every page names spec.roswaal.app as its
@@ -144,6 +155,24 @@ async function main() {
 	console.log(
 		`site: ${base} -> dist-pages/ (editor, ${pages} node pages, docs; ${policed} pages with the policy)`,
 	);
+}
+
+/** A short address on to a docs page, relative so it holds under any base. */
+function shortcut(to, title) {
+	return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="0; url=${to}">
+<link rel="canonical" href="${to}">
+<title>${title} · Roswaal</title>
+</head>
+<body>
+<p><a href="${to}">Roswaal's ${title}</a></p>
+</body>
+</html>
+`;
 }
 
 /** The page at `/technical/` when the specification was not built: on to its site. */
