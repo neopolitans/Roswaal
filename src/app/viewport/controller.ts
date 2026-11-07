@@ -12,6 +12,7 @@ import { addTo, sameItems } from "../placeSelection.js";
 import { rayPick } from "./geometry.js";
 import { HandleBuilder } from "./handles.js";
 import { partsInRect, rectBetween, type ViewShot } from "./marquee.js";
+import { clampSpeed, SPEED_NOTCH } from "./speed.js";
 import { layersUsed, loadLayer } from "./textures.js";
 import { type Camera, FOV, SELECT, type ViewRenderer } from "./view.js";
 
@@ -523,7 +524,7 @@ export class ViewportController {
 	}
 
 	setSpeed(speed: number): void {
-		this.set({ speed: Math.max(0.05, Math.min(50, speed)) });
+		this.set({ speed: clampSpeed(speed) });
 	}
 
 	setSnap(patch: Partial<Snap>): void {
@@ -1145,7 +1146,7 @@ export class ViewportController {
 				// Shift turns a wheel's turn sideways in most browsers: either way, a notch.
 				if (e.shiftKey) {
 					const d = e.deltaY || e.deltaX;
-					if (d !== 0) this.setSpeed(this.state.speed * (d > 0 ? 1 / 1.25 : 1.25));
+					if (d !== 0) this.setSpeed(this.state.speed * (d > 0 ? 1 / SPEED_NOTCH : SPEED_NOTCH));
 					return;
 				}
 				this.cam.dist = Math.max(2, this.cam.dist * Math.exp(e.deltaY * 0.0012));
