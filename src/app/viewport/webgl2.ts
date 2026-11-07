@@ -354,7 +354,10 @@ void main() {
 	if (b.y > 0.5 && b.y < 1.5) e = vColour;
 	else if (tex.z > 0.5 && layer >= 0) e = lavaLight(texture(looks, vec3(uv / tex.x, float(layer))).g);
 	else if (int(b.z) == 14) e = lavaLight(pattern(14, uv, b.x).z);
-	e = pow(min(e, vec3(1.0)), vec3(1.0 / 2.2)) * 0.5;
+	e = pow(min(e, vec3(1.0)), vec3(1.0 / 2.2));
+	// Neon's glow evened out by how bright its colour looks, as WebGpuView's emission does.
+	if (b.y > 0.5 && b.y < 1.5) e *= clamp(0.8 / max(dot(e, vec3(0.2126, 0.7152, 0.0722)), 0.05), 1.0, 1.8);
+	e *= 0.5;
 	o = vec4(e * (seen > 0.5 ? vAlpha : 1.0), 1.0);
 }`;
 const FS_ID = `#version 300 es

@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.217.2",
+		date: "2026-11-07",
+		headline: "Neon blooms as far in red as in cyan.",
+		fixed: [
+			"**Neon's glow is even across colours.** A darker-looking colour, red or blue, glows as far as a light one.",
+		],
+	},
+	{
 		version: "0.217.1",
 		date: "2026-11-07",
 		headline: "Neon's glow blooms evenly, and CrackedLava is rough rock with jagged cracks.",

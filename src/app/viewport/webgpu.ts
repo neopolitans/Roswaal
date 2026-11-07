@@ -340,7 +340,14 @@ fn surface(i: VOut) -> vec4f {
 // cracks. In display terms, as the frame it is added to is: blurred and added
 // as linear light it shifted hue and fell away in a dark band at a glowing
 // part's edge. Halved, so the glow's 8 bits a channel hold up to twice full.
-fn emission(i: VOut) -> vec3f { return pow(light(i), vec3f(1.0 / 2.2)) * 0.5; }
+fn emission(i: VOut) -> vec3f {
+	let e = pow(light(i), vec3f(1.0 / 2.2));
+	// Neon's glow evened out by how bright its colour looks, so a red blooms as far as a cyan.
+	let neon = u.mats[(i.look & 255u) * 3u + 1u].y;
+	let seen = dot(e, vec3f(0.2126, 0.7152, 0.0722));
+	let even = select(1.0, clamp(0.8 / max(seen, 0.05), 1.0, 1.8), neon > 0.5 && neon < 1.5);
+	return e * even * 0.5;
+}
 fn light(i: VOut) -> vec3f {
 	let row = i.look & 255u;
 	let b = u.mats[row * 3u + 1u];
