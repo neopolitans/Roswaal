@@ -123,7 +123,7 @@ export function privacyPage(): DocPage {
 					"**Kept on your computer.** The daemon stores the sign-in in your user profile, never in a project folder and never in a log.",
 					`**Used for one thing.** Roswaal downloads the assets your places refer to, through Roblox's official [Open Cloud API](${ROBLOX.openCloud}), and keeps copies in the project's own folder, kept out of Git by default. It never sends them, or your sign-in, anywhere else.`,
 					"**Roblox's own assets are not downloaded.** Roswaal draws a plain stand-in for anything Roblox made.",
-					"**Never sold, and never used to train AI.**",
+					`**Never sold, never rebroadcast online, and never used to train AI.** Nothing downloaded through Sign in with Roblox is put back online by Roswaal, and all of it remains subject to Roblox's applicable terms: its [Terms of Use](${ROBLOX.terms}) and its [Creator Third Party App Terms](${ROBLOX.appTerms}).`,
 					"**Deleted when access ends.** Signing out revokes the sign-in and deletes it and the downloaded copies. If Roswaal loses access to Roblox's APIs, the daemon deletes them the next time it runs.",
 				],
 			},
