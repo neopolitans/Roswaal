@@ -34,6 +34,13 @@ import { Menu } from "./Menu.jsx";
 import type { MenuAnchor } from "./menuPlace.js";
 import { AddButton, depthStyle, Ident, SectionHead } from "./PanelParts.jsx";
 import { currentOutline, rememberOutline } from "./placeOutline.js";
+import {
+	clickMode,
+	clickRow,
+	NO_SELECTION,
+	primaryOf,
+	type RowSelection,
+} from "./placeSelection.js";
 import type { Dialogs } from "./useDialogs.js";
 import { classDetail, ValuePicker } from "./ValuePicker.jsx";
 
@@ -131,11 +138,12 @@ export interface PlaceBrowserProps {
 	/**
 	 * Pick and show this instance: a reference followed from Properties, or a
 	 * pick in the place's view. `open` false shows it in Properties without
-	 * bringing the panel out; an index of -1 picks nothing.
+	 * bringing the panel out; an index of -1 picks nothing. A pick of many in the
+	 * view gives them all as `selection`, the last of them as `index`.
 	 */
-	reveal: { index: number; seq: number; open?: boolean } | null;
-	/** The row picked here changed, however it was picked: for the place's view to follow. */
-	onSelect?: (index: number | null) => void;
+	reveal: { index: number; seq: number; open?: boolean; selection?: readonly number[] } | null;
+	/** The rows picked here changed, however they were picked, the last picked last: for the place's view to follow. */
+	onSelect?: (indices: readonly number[]) => void;
 	/**
 	 * The DataModel row at the top: the place itself, which opens its view.
 	 * Without it the services are the top rows.
@@ -167,11 +175,14 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 	const [showAll, setShowAll] = useState<ReadonlySet<number>>(new Set());
 	const [tucked, setTucked] = useState(false);
 	const [filter, setFilter] = useState("");
-	const [selected, setSelected] = useState<number | null>(null);
+	// What is picked: one row or many. The last picked is the one Properties shows.
+	const [selection, setSelection] = useState<RowSelection>(NO_SELECTION);
+	const selected = primaryOf(selection);
+	const chosen = useMemo(() => new Set(selection.items), [selection.items]);
 	const { onSelect, onOpenPlace, placeOpen } = props;
 	// The DataModel row's own fold: the services under it.
 	const [placeShut, setPlaceShut] = useState(false);
-	useEffect(() => onSelect?.(selected), [selected, onSelect]);
+	useEffect(() => onSelect?.(selection.items), [selection.items, onSelect]);
 	const treeRef = useRef<HTMLDivElement>(null);
 	// The version of the file on screen: a new one renumbers everything.
 	const stampRef = useRef<string | null>(null);
@@ -198,7 +209,7 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 			) {
 				setOpen(new Set());
 				setShowAll(new Set());
-				setSelected(null);
+				setSelection(NO_SELECTION);
 				onInspect(null, false);
 			}
 			// A version written here keeps the tree as it was, renumbered.
@@ -213,7 +224,10 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 					new Set([...set].map(map).filter((i): i is number => i !== undefined));
 				setOpen(each);
 				setShowAll(each);
-				setSelected((was) => (was === null ? null : (map(was) ?? null)));
+				setSelection((was) => ({
+					items: was.items.map(map).filter((i): i is number => i !== undefined),
+					anchor: was.anchor === null ? null : (map(was.anchor) ?? null),
+				}));
 				const shown = inspectingRef.current;
 				if (treeChanges.has(answer.stamp) && shown !== null) {
 					const now = map(shown);
@@ -268,13 +282,28 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 
 	const targetOf = useCallback((index: number): PlaceTarget => targetIn(place!, index), [place]);
 
-	// Picks an instance, and shows it in Properties when that is open or asked for.
+	// Picks an instance alone, and shows it in Properties when that is open or asked for.
 	const pick = useCallback(
 		(index: number, openPanel: boolean) => {
-			setSelected(index);
+			setSelection({ items: [index], anchor: index });
 			if (openPanel || inspecting !== null) onInspect(targetOf(index), openPanel);
 		},
 		[inspecting, onInspect, targetOf],
+	);
+
+	// Opens every folder above these instances, so they can be seen.
+	const showRows = useCallback(
+		(indices: readonly number[]) => {
+			if (!nodes) return;
+			const above = new Set<number>();
+			for (const index of indices)
+				for (let p = nodes[index][2]; p !== -1 && !above.has(p); p = nodes[p][2]) above.add(p);
+			// Past the first children of a big folder too, or it stays unseen.
+			setOpen((prev) => new Set([...prev, ...above]));
+			setShowAll((prev) => new Set([...prev, ...above]));
+			if (indices.some((i) => nodes[i][3] & TUCKED)) setTucked(true);
+		},
+		[nodes],
 	);
 
 	// Picks an instance and opens every folder above it, so it can be seen.
@@ -282,14 +311,9 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 		(index: number, openPanel = false) => {
 			if (!nodes) return;
 			pick(index, openPanel);
-			const above: number[] = [];
-			for (let p = nodes[index][2]; p !== -1; p = nodes[p][2]) above.push(p);
-			// Past the first children of a big folder too, or it stays unseen.
-			setOpen((prev) => new Set([...prev, ...above]));
-			setShowAll((prev) => new Set([...prev, ...above]));
-			if (nodes[index][3] & TUCKED) setTucked(true);
+			showRows([index]);
 		},
-		[nodes, pick],
+		[nodes, pick, showRows],
 	);
 
 	// Shift+click on an arrow: the instance and every descendant with children
@@ -320,8 +344,15 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 	useEffect(() => {
 		if (!revealRequest || !nodes) return;
 		const { index, open = true } = revealRequest;
-		if (index < 0) {
-			setSelected(null);
+		const many = revealRequest.selection?.filter((i) => i >= 0 && i < nodes.length);
+		if (many && many.length > 1) {
+			// The view's pick of many: each row picked, the last shown.
+			const last = many[many.length - 1];
+			setSelection({ items: many, anchor: last });
+			showRows(many);
+			onInspect(targetOf(last), false);
+		} else if (index < 0) {
+			setSelection(NO_SELECTION);
 			onInspect(null, false);
 		} else if (index < nodes.length) {
 			reveal(index, open);
@@ -395,6 +426,28 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 		return out;
 	}, [nodes, classes, children, open, showAll, tucked, filter]);
 
+	/**
+	 * A click on a row, read by `clickMode`: alone, or with Ctrl or Shift to pick
+	 * many. Properties follows the last picked while it is open.
+	 */
+	const clickPick = (
+		index: number,
+		e: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean },
+	) => {
+		const mode = clickMode(e);
+		const row = rows.find((r) => r.kind === "node" && r.index === index);
+		if (mode === "only") {
+			if (row?.kind === "node" && row.match) reveal(index);
+			else pick(index, false);
+			return;
+		}
+		const order = rows.flatMap((r) => (r.kind === "node" ? [r.index] : []));
+		const next = clickRow(selection, index, mode, order);
+		setSelection(next);
+		const last = primaryOf(next);
+		if (last !== null && inspecting !== null) onInspect(targetOf(last), false);
+	};
+
 	/** One change to the tree written, the tree following it and showing what it made or moved. */
 	const change = useCallback(
 		async (body: PlaceInstanceChange, moved?: { from: string[]; to: string[] }) => {
@@ -414,7 +467,7 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 					for (let p = answer.outline.nodes[made][2]; p !== -1; p = answer.outline.nodes[p][2])
 						above.push(p);
 					setOpen((prev) => new Set([...prev, ...above]));
-					setSelected(made);
+					setSelection({ items: [made], anchor: made });
 				}
 				onChanged?.(answer.stamp, answer.backup);
 			} catch (err) {
@@ -508,13 +561,13 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 				</button>
 			</div>
 
-			<div className="tree place-tree" ref={treeRef} role="tree">
+			<div className="tree place-tree" ref={treeRef} role="tree" aria-multiselectable>
 				{rows.map((row, n) => {
 					if (row.kind === "datamodel") {
 						// The place itself: a click opens its view, and Properties
 						// describes it while nothing in it is picked.
 						const openPlace = () => {
-							setSelected(null);
+							setSelection(NO_SELECTION);
 							onInspect(null, false);
 							onOpenPlace?.();
 						};
@@ -573,11 +626,11 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 							key={i}
 							data-index={i}
 							role="treeitem"
-							aria-selected={selected === i}
+							aria-selected={chosen.has(i)}
 							aria-expanded={kids && !row.match ? isOpen : undefined}
 							className={cx(
 								"tree-row place-row",
-								selected === i && "selected",
+								chosen.has(i) && "selected",
 								inspecting === i && "open-doc",
 								dropAt === i && "drop-target",
 							)}
@@ -621,10 +674,11 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 							}}
 							onContextMenu={(e) => {
 								e.preventDefault();
-								pick(i, false);
+								// A row already picked keeps the rest picked with it.
+								if (!chosen.has(i)) pick(i, false);
 								setMenu({ at: { x: e.clientX, y: e.clientY }, index: i });
 							}}
-							onClick={() => (row.match ? reveal(i) : pick(i, false))}
+							onClick={(e) => clickPick(i, e)}
 							onDoubleClick={() => (row.match ? reveal(i, true) : pick(i, true))}
 						>
 							{kids && !row.match ? (

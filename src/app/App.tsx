@@ -313,6 +313,7 @@ export function App() {
 		index: number;
 		seq: number;
 		open?: boolean;
+		selection?: readonly number[];
 	} | null>(null);
 	/** Slides a drawer out on a phone or a tablet: Properties, when it is asked for. */
 	const [showDrawer, setShowDrawer] = useState<{ panel: PanelId; seq: number } | null>(null);
@@ -341,18 +342,27 @@ export function App() {
 	 * The place in 3D, kept for the session so the camera is where it was when
 	 * its tab comes back. A pick in the view picks in the browser, which shows
 	 * it in Properties without bringing the panel out -- on a tablet its drawer
-	 * would cover the view -- and the sky picks nothing. The view follows the
-	 * browser's picked row. Another project's place is a new view.
+	 * would cover the view -- and the sky picks nothing. A box drawn in the view
+	 * picks many, and the browser picks each. The view follows the browser's
+	 * picked rows. Another project's place is a new view.
 	 */
 	// biome-ignore lint/correctness/useExhaustiveDependencies: a new project is a new view.
 	const viewport = useMemo(
 		() =>
-			new ViewportController((index) =>
-				setPlaceReveal((prev) => ({ index: index ?? -1, seq: (prev?.seq ?? 0) + 1, open: false })),
+			new ViewportController((indices) =>
+				setPlaceReveal((prev) => ({
+					index: indices.at(-1) ?? -1,
+					seq: (prev?.seq ?? 0) + 1,
+					open: false,
+					selection: indices,
+				})),
 			),
 		[project?.root],
 	);
-	const onPlaceSelect = useCallback((index: number | null) => viewport.select(index), [viewport]);
+	const onPlaceSelect = useCallback(
+		(indices: readonly number[]) => viewport.select(indices),
+		[viewport],
+	);
 	// Settings' say in how the place is drawn.
 	useEffect(
 		() =>

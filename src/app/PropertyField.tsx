@@ -15,6 +15,7 @@ import { readOnlyToScripts } from "../core/robloxEngine.js";
 import { propertiesOf } from "../core/robloxProperties.js";
 import { cx } from "./cx.js";
 import { Icon } from "./icons.jsx";
+import { acceptsSuggestion } from "./keys.js";
 import { LAYER } from "./layers.js";
 import { pinColor } from "./palette.js";
 
@@ -81,7 +82,7 @@ export function PropertyField({
 			setOpen(true);
 			const step = e.key === "ArrowDown" ? 1 : -1;
 			setActive((i) => Math.max(0, Math.min(shown.length - 1, i + step)));
-		} else if (e.key === "Enter" && open && shown[active]) {
+		} else if (acceptsSuggestion(e) && open && shown[active]) {
 			e.preventDefault();
 			pick(shown[active].name);
 		} else if (e.key === "Escape" && open) {
