@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.218.2",
+		date: "2026-11-07",
+		headline: "Cylinders are round, closed at both ends and smoothly lit, and balls are smooth.",
+		fixed: [
+			"**Cylinders have their ends.** Both caps were turned inward and never drawn.",
+			"**A cylinder is round whatever its box.** It runs the length of the part's X and is as wide as the narrower of Y and Z, as in Studio, rather than stretched oval. A CylinderMesh still fills its part.",
+			"**Cylinders and balls are smoothly lit**, rather than faceted.",
+		],
+	},
+	{
 		version: "0.218.1",
 		date: "2026-11-07",
 		headline: "A Neon part is one even shade with its glow round it, and the place's row in DataModel opens and closes.",

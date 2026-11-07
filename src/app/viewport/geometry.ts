@@ -139,6 +139,40 @@ function build(faces: V3[][]): Mesh {
 	return { vertices: new Float32Array(v), indices: new Uint16Array(idx) };
 }
 
+/**
+ * Faces of a curved surface, each corner lit by the surface's own normal there
+ * rather than its face's, so the curve reads smooth instead of faceted.
+ */
+function buildSmooth(faces: V3[][], normalAt: (p: V3) => V3): Mesh {
+	const v: number[] = [];
+	const idx: number[] = [];
+	for (const face of faces) {
+		const base = v.length / 6;
+		for (const p of face) {
+			const n = normalAt(p);
+			const l = Math.hypot(n[0], n[1], n[2]) || 1;
+			v.push(p[0], p[1], p[2], n[0] / l, n[1] / l, n[2] / l);
+		}
+		for (let i = 1; i < face.length - 1; i++) idx.push(base, base + i, base + i + 1);
+	}
+	return { vertices: new Float32Array(v), indices: new Uint16Array(idx) };
+}
+
+/** Two meshes as one. */
+function merge(a: Mesh, b: Mesh): Mesh {
+	const offset = a.vertices.length / 6;
+	const indices = new Uint16Array(a.indices.length + b.indices.length);
+	indices.set(a.indices);
+	indices.set(
+		b.indices.map((i) => i + offset),
+		a.indices.length,
+	);
+	const vertices = new Float32Array(a.vertices.length + b.vertices.length);
+	vertices.set(a.vertices);
+	vertices.set(b.vertices, a.vertices.length);
+	return { vertices, indices };
+}
+
 const h = 0.5;
 function block(): Mesh {
 	return build([
@@ -233,9 +267,10 @@ function cornerWedge(): Mesh {
 	]);
 }
 
-// Along X, as a Roblox cylinder is.
-function cylinder(segments = 24): Mesh {
-	const faces: V3[][] = [];
+// Along X, as a Roblox cylinder is: a smooth side, and a flat cap at each end
+// wound to face out, as every face is, or the back-face cull drops it.
+function cylinder(segments = 32): Mesh {
+	const sides: V3[][] = [];
 	const ring = (i: number): [number, number] => {
 		const a = (i / segments) * Math.PI * 2;
 		return [Math.cos(a) * h, Math.sin(a) * h];
@@ -245,7 +280,7 @@ function cylinder(segments = 24): Mesh {
 	for (let i = 0; i < segments; i++) {
 		const [y0, z0] = ring(i);
 		const [y1, z1] = ring(i + 1);
-		faces.push([
+		sides.push([
 			[-h, y0, z0],
 			[-h, y1, z1],
 			[h, y1, z1],
@@ -254,8 +289,10 @@ function cylinder(segments = 24): Mesh {
 		capR.push([h, y0, z0]);
 		capL.unshift([-h, y0, z0]);
 	}
-	faces.push(capR.slice().reverse(), capL.slice().reverse());
-	return build(faces);
+	return merge(
+		buildSmooth(sides, (p) => [0, p[1], p[2]]),
+		build([capR, capL]),
+	);
 }
 
 function ball(rings = 10, segments = 16): Mesh {
@@ -276,7 +313,7 @@ function ball(rings = 10, segments = 16): Mesh {
 			else faces.push([a, b, c, d]);
 		}
 	}
-	return build(faces);
+	return buildSmooth(faces, (p) => p);
 }
 
 /** A cone along +X, its base at x = -0.5 and its point at +0.5, as the cylinder lies along X. */

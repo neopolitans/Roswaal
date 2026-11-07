@@ -117,6 +117,9 @@ describe("A place's scene", () => {
 		expect(ball.transform.slice(0, 9)).toEqual([2, 0, 0, 0, 2, 0, 0, 0, 2]);
 		expect(ball.colour).toBe(0xff1000ff);
 		expect(scene.kinds.cylinder.count).toBe(1);
+		// A cylinder runs the part's X and is as wide as the narrower of Y and Z.
+		const cylinder = rows(scene.kinds.cylinder.data)[0];
+		expect(cylinder.transform.slice(0, 9)).toEqual([2, 0, 0, 0, 4, 0, 0, 0, 4]);
 		expect(rows(scene.kinds.wedge.data)[0].id).toBe(2);
 	});
 

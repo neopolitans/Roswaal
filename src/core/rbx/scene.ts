@@ -156,6 +156,13 @@ export function buildPlaceScene(
 			const d = Math.min(size[0], size[1], size[2]);
 			size = [d, d, d];
 		}
+		// A cylinder part runs the length of X and is round across, as wide as
+		// the narrower of Y and Z: Studio never draws it oval. A CylinderMesh
+		// stretches to its part, so it keeps both.
+		if (kind === "cylinder" && !modifier) {
+			const d = Math.min(size[1], size[2]);
+			size = [size[0], d, d];
+		}
 
 		const r = cf.rotation;
 		let x = [r[0], r[3], r[6]];
