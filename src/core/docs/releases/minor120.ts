@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.218.4",
+		date: "2026-11-07",
+		headline: "Under WebGL2 too, faces a thousandth of a stud apart no longer fight.",
+		fixed: [
+			"**Close faces stay in order under WebGL2.** A part a thousandth of a stud above another is drawn cleanly in front of it from across the place, as under WebGPU.",
+		],
+	},
+	{
 		version: "0.218.3",
 		date: "2026-11-07",
 		headline: "Under WebGPU, faces a thousandth of a stud apart no longer fight, however far off.",

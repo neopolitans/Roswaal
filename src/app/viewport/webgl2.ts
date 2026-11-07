@@ -235,6 +235,7 @@ layout(location=2) in vec3 c0; layout(location=3) in vec3 c1; layout(location=4)
 layout(location=6) in vec4 colour; layout(location=7) in uint id; layout(location=8) in uint look;
 uniform mat4 viewProj; uniform float outline; uniform float handle; uniform vec3 screen; uniform vec3 eye;
 out vec3 vColour; out vec3 vWorld; out vec3 vNormal; flat out uint vId; out float vAlpha; flat out uint vLook; out vec3 vLocal; out vec3 vLNormal;
+out float vDepthW;
 void main() {
 	mat3 m = mat3(c0, c1, c2);
 	vec3 s = vec3(length(c0), length(c1), length(c2));
@@ -271,15 +272,27 @@ void main() {
 	vLNormal = nrm;
 	// A handle's depth squeezed into the front hundredth, as in WebGpuView.
 	if (handle > 0.5) gl_Position.z = ((gl_Position.z / gl_Position.w + 1.0) * 0.01 - 1.0) * gl_Position.w;
+	vDepthW = 1.0 + gl_Position.w;
 }`;
+// Depth by the logarithm of distance, written by every pass that draws the
+// place: WebGL2's depth buffer is 24 fixed bits, which the usual depth spends
+// close to the camera, so two faces a thousandth of a stud apart fought a few
+// hundred studs out. Spread evenly by distance, the same bits hold them apart
+// across the place. (WebGpuView reverses its float depth instead.)
+const LOG_DEPTH = `
+in float vDepthW; uniform float logFar;
+float logDepth() { return log2(max(vDepthW, 1e-6)) * logFar; }
+`;
 const FS = `#version 300 es
 precision highp float;
 in vec3 vColour; in vec3 vWorld; in vec3 vNormal; flat in uint vId; in float vAlpha; flat in uint vLook; in vec3 vLocal; in vec3 vLNormal;
 uniform float outline; uniform vec3 select; uniform float handle; uniform float alpha;
 ${COMMON}
 ${SURFACE}
+${LOG_DEPTH}
 out vec4 o;
 void main() {
+	gl_FragDepth = handle > 0.5 ? logDepth() * 0.01 : logDepth();
 	vec3 n = normalize(vNormal);
 	if (outline > 0.5) o = vec4(vColour, vAlpha);
 	else if (handle > 0.5) o = vec4(pow(vColour * (0.72 + 0.38 * max(dot(n, normalize(vec3(0.4, 1.0, 0.25))), 0.0)), vec3(1.0 / 2.2)), alpha);
@@ -344,8 +357,10 @@ uniform vec4 M[${MATERIALS.length * 3}];
 uniform mediump sampler2DArray looks;
 uniform float seen;
 ${PATTERNS}
+${LOG_DEPTH}
 out vec4 o;
 void main() {
+	gl_FragDepth = logDepth();
 	int row = int(vLook & 255u);
 	vec4 b = M[row * 3 + 1];
 	vec4 tex = M[row * 3 + 2];
@@ -364,7 +379,8 @@ void main() {
 }`;
 const FS_ID = `#version 300 es
 precision highp float; precision highp int; in vec3 vColour; flat in uint vId; out uint o;
-void main() { o = vId + 1u; }`;
+${LOG_DEPTH}
+void main() { gl_FragDepth = logDepth(); o = vId + 1u; }`;
 
 interface Program {
 	program: WebGLProgram;
@@ -834,6 +850,7 @@ export class WebGl2View implements ViewRenderer {
 			lookAt(camera.eye, camera.at),
 		);
 		gl.uniformMatrix4fv(prog.viewProj, false, vp);
+		gl.uniform1f(gl.getUniformLocation(prog.program, "logFar"), 1 / Math.log2(camera.far + 1));
 		if (prog.invViewProj) gl.uniformMatrix4fv(prog.invViewProj, false, invert(vp));
 		if (prog.block)
 			gl.uniform4fv(prog.block, lightingBlock(this.lighting, camera.eye, SELECT, HANDLE_ALPHA));
