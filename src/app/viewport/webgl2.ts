@@ -168,6 +168,8 @@ vec2 faceUv(vec3 local, vec3 ln) {
 	return local.xy;
 }
 const vec3 LAVA = vec3(1.0, 0.36, 0.06);
+const vec3 LAVA_HOT = vec3(1.0, 0.82, 0.38);
+vec3 lavaLight(float m) { return mix(LAVA, LAVA_HOT, m * m) * m; }
 `;
 // A surface in its material, as WebGpuView's \`surface\` draws it.
 const SURFACE = `
@@ -200,8 +202,8 @@ vec4 surface(vec3 colour, vec3 n, vec3 world, float alpha, uint look, vec3 local
 	// A texture once its layer has loaded; the material's own pattern until then.
 	vec2 uv = faceUv(local, ln);
 	int layer = int(b.w) - 1;
-	float detail = texture(looks, vec3(uv / tex.x, float(max(layer, 0)))).r * 2.0;
-	vec3 pat = layer >= 0 ? vec3(mix(1.0, detail, tex.y), 1.0, 0.0) : pattern(int(b.z), uv, b.x);
+	vec4 lk = texture(looks, vec3(uv / tex.x, float(max(layer, 0))));
+	vec3 pat = layer >= 0 ? vec3(mix(1.0, lk.r * 2.0, tex.y), 1.0, tex.z * lk.g) : pattern(int(b.z), uv, b.x);
 	albedo *= pat.x;
 	vec3 c;
 	if (b.y > 0.5 && b.y < 1.5) {
@@ -222,7 +224,7 @@ vec4 surface(vec3 colour, vec3 n, vec3 world, float alpha, uint look, vec3 local
 		float mirror = shine;
 		if (b.y > 1.5) mirror = max(mirror, 0.2 + 0.5 * pow(1.0 - abs(dot(n, v)), 3.0));
 		c = mix(c, seen, mirror);
-		c += LAVA * pat.z * 3.0;
+		c += lavaLight(pat.z) * 3.0;
 	}
 	return vec4(air(c, d, world.y), alpha);
 }
@@ -337,14 +339,20 @@ const FS_GLOW = `#version 300 es
 precision highp float;
 in vec3 vColour; in vec3 vWorld; in vec3 vNormal; flat in uint vId; in float vAlpha; flat in uint vLook; in vec3 vLocal; in vec3 vLNormal;
 uniform vec4 M[${MATERIALS.length * 3}];
+uniform mediump sampler2DArray looks;
 uniform float seen;
 ${PATTERNS}
 out vec4 o;
 void main() {
-	vec4 b = M[int(vLook & 255u) * 3 + 1];
+	int row = int(vLook & 255u);
+	vec4 b = M[row * 3 + 1];
+	vec4 tex = M[row * 3 + 2];
+	vec2 uv = faceUv(vLocal, vLNormal);
+	int layer = int(b.w) - 1;
 	vec3 e = vec3(0.0);
 	if (b.y > 0.5 && b.y < 1.5) e = vColour * 0.5;
-	else if (int(b.z) == 14) e = LAVA * pattern(14, faceUv(vLocal, vLNormal), b.x).z * 0.5;
+	else if (tex.z > 0.5 && layer >= 0) e = lavaLight(texture(looks, vec3(uv / tex.x, float(layer))).g) * 0.5;
+	else if (int(b.z) == 14) e = lavaLight(pattern(14, uv, b.x).z) * 0.5;
 	o = vec4(e * (seen > 0.5 ? vAlpha : 1.0), 1.0);
 }`;
 const FS_ID = `#version 300 es
@@ -472,6 +480,7 @@ export class WebGl2View implements ViewRenderer {
 		this.glowProgram = this.link(VS, FS_GLOW);
 		gl.useProgram(this.glowProgram.program);
 		gl.uniform4fv(gl.getUniformLocation(this.glowProgram.program, "M[0]"), materialBlock());
+		gl.uniform1i(gl.getUniformLocation(this.glowProgram.program, "looks"), 1);
 		this.blurProgram = this.link(VS_FULL, FS_BLUR);
 		this.addProgram = this.link(VS_FULL, FS_ADD);
 		this.glowTex = [gl.createTexture()!, gl.createTexture()!];

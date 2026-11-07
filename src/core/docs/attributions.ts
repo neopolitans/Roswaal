@@ -258,7 +258,7 @@ export const ATTRIBUTIONS: Attribution[] = [
 		ships: true,
 		where: "`src/app/viewport/textures/`. Licence: `notices/upstream/ambientcg.txt`.",
 		note:
-			"Roswaal draws eleven of the viewport's materials, Brick and Grass among them, from grey " +
+			"Roswaal draws forty of the viewport's materials, Brick and Grass among them, from grey " +
 			"maps made from ambientCG's textures.",
 		url: "https://ambientcg.com/",
 	},

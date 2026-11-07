@@ -1,14 +1,19 @@
 /**
- * The viewport's material textures: grey detail maps made from ambientCG's
- * (CC0) colour maps, one a material, in `MATERIAL_TEXTURES`' order. Fetched
- * only for the materials a place uses, and drawn tinted by the part's Color.
+ * The viewport's material textures: grey detail maps, most made from
+ * ambientCG's (CC0) maps, one a material, in `MATERIAL_TEXTURES`' order.
+ * Fetched only for the materials a place uses, and drawn tinted by the part's
+ * Color. CrackedLava's is a PNG, its glow kept apart in green.
  */
 
 import { MATERIAL_TEXTURES, MATERIALS } from "../../core/rbx/materials.js";
 import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene.js";
 
-/** Each map's side, in pixels: the texture array's size. */
-export const TEXTURE_SIZE = 512;
+/**
+ * Each map's side, in pixels: the texture array's size. Half on a touch
+ * screen, where a tablet's memory is shared with everything else it runs.
+ */
+export const TEXTURE_SIZE =
+	typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches ? 256 : 512;
 /** Its mip levels, down to one pixel. */
 export const TEXTURE_LEVELS = Math.log2(TEXTURE_SIZE) + 1;
 
@@ -25,6 +30,35 @@ const URLS: Record<string, string> = {
 	Ground: new URL("./textures/Ground.jpg", import.meta.url).href,
 	Marble: new URL("./textures/Marble.jpg", import.meta.url).href,
 	Granite: new URL("./textures/Granite.jpg", import.meta.url).href,
+	Asphalt: new URL("./textures/Asphalt.jpg", import.meta.url).href,
+	Basalt: new URL("./textures/Basalt.jpg", import.meta.url).href,
+	Cardboard: new URL("./textures/Cardboard.jpg", import.meta.url).href,
+	Carpet: new URL("./textures/Carpet.jpg", import.meta.url).href,
+	CeramicTiles: new URL("./textures/CeramicTiles.jpg", import.meta.url).href,
+	ClayRoofTiles: new URL("./textures/ClayRoofTiles.jpg", import.meta.url).href,
+	CorrodedMetal: new URL("./textures/CorrodedMetal.jpg", import.meta.url).href,
+	CrackedLava: new URL("./textures/CrackedLava.png", import.meta.url).href,
+	DiamondPlate: new URL("./textures/DiamondPlate.jpg", import.meta.url).href,
+	Fabric: new URL("./textures/Fabric.jpg", import.meta.url).href,
+	Foil: new URL("./textures/Foil.jpg", import.meta.url).href,
+	Glacier: new URL("./textures/Glacier.jpg", import.meta.url).href,
+	Glass: new URL("./textures/Glass.jpg", import.meta.url).href,
+	Ice: new URL("./textures/Ice.jpg", import.meta.url).href,
+	Leather: new URL("./textures/Leather.jpg", import.meta.url).href,
+	Limestone: new URL("./textures/Limestone.jpg", import.meta.url).href,
+	Metal: new URL("./textures/Metal.jpg", import.meta.url).href,
+	Mud: new URL("./textures/Mud.jpg", import.meta.url).href,
+	Pebble: new URL("./textures/Pebble.jpg", import.meta.url).href,
+	Plaster: new URL("./textures/Plaster.jpg", import.meta.url).href,
+	Plastic: new URL("./textures/Plastic.jpg", import.meta.url).href,
+	Rock: new URL("./textures/Rock.jpg", import.meta.url).href,
+	RoofShingles: new URL("./textures/RoofShingles.jpg", import.meta.url).href,
+	Rubber: new URL("./textures/Rubber.jpg", import.meta.url).href,
+	Salt: new URL("./textures/Salt.jpg", import.meta.url).href,
+	Sand: new URL("./textures/Sand.jpg", import.meta.url).href,
+	Sandstone: new URL("./textures/Sandstone.jpg", import.meta.url).href,
+	Slate: new URL("./textures/Slate.jpg", import.meta.url).href,
+	Snow: new URL("./textures/Snow.jpg", import.meta.url).href,
 };
 
 /** The texture layers the place's parts use, so only those are fetched. */

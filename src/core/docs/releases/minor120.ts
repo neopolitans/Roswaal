@@ -9,6 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.217.0",
+		date: "2026-11-07",
+		headline: "Forty materials are drawn from textures, and CrackedLava's cracks glow from theirs.",
+		added: [
+			"**Twenty-nine more material textures.** Every material but SmoothPlastic, Neon, ForceField, Air and Water is now drawn from a texture tinted by the part's Color, from Basalt to Rubber. Plastic has a faint stipple and Glass faint grooves. Salt, Ice and CrackedLava layer ambientCG's maps with Roswaal's own.",
+			"**CrackedLava glows from its texture.** Its cracks light from orange to lava-yellow, whatever the part's Color.",
+		],
+		changed: [
+			"**Metal reflects less.** Its highlight is softer and wider, and it shows less of the sky.",
+			"**Granite** is drawn from a granite texture rather than a dark marble.",
+			"**Textures are 256 pixels on a touch screen**, and 512 elsewhere.",
+		],
+	},
+	{
 		version: "0.216.0",
 		date: "2026-11-07",
 		headline:

@@ -4,6 +4,8 @@
  * the shaders as three vec4s a row.
  */
 
+import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -46,6 +48,26 @@ describe("The material table", () => {
 		expect(loaded[rowOf("Brick") + 7]).toBe(brick + 1);
 		expect(loaded[rowOf("Brick") + 8]).toBe(MATERIAL_TEXTURES[brick].studs);
 		// A material with no texture is never given one.
-		expect(loaded[rowOf("DiamondPlate") + 7]).toBe(0);
+		expect(loaded[rowOf("SmoothPlastic") + 7]).toBe(0);
+	});
+
+	it("lights only CrackedLava's texture from within", () => {
+		const block = materialBlock();
+		const glowing = MATERIALS.filter((_, i) => block[i * MATERIAL_ROW + 10] === 1).map(
+			(m) => m.name,
+		);
+		expect(glowing).toEqual(["CrackedLava"]);
+	});
+
+	it("has a map in the viewport's textures for every textured material", () => {
+		const dir = path.join(__dirname, "../src/app/viewport/textures");
+		const files = new Set(fs.readdirSync(dir));
+		for (const t of MATERIAL_TEXTURES) {
+			const file = t.glows ? `${t.material}.png` : `${t.material}.jpg`;
+			expect(files.has(file), file).toBe(true);
+		}
+		const source = fs.readFileSync(path.join(__dirname, "../src/app/viewport/textures.ts"), "utf8");
+		for (const t of MATERIAL_TEXTURES)
+			expect(source, t.material).toContain(`./textures/${t.material}.`);
 	});
 });

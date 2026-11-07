@@ -152,7 +152,7 @@ export const CARRIED_LICENCES: CarriedLicence[] = [
 		"name": "ambientCG",
 		"holder": "Lennart Demes",
 		"spdx": "CC0-1.0",
-		"covers": "The viewport's material textures: grey detail maps made from eleven ambientCG colour maps.",
+		"covers": "The viewport's material textures: forty grey detail maps made from 39 ambientCG assets.",
 		"source": "creativecommons.org · publicdomain/zero/1.0/legalcode.txt",
 		"url": "https://creativecommons.org/publicdomain/zero/1.0/legalcode.txt",
 		"retrieved": "2026-11-06",

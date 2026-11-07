@@ -28,9 +28,14 @@ covers the descriptions in `src/core/luneApi.ts`, taken at the tag they were gen
 `bakinglab.txt` covers the viewport's tone curve in `src/app/viewport/webgpu.ts` and `webgl2.ts`:
 Stephen Hill's fit of the ACES curve, as BakingLab's `ACES.hlsl` has it, its two matrices and its
 rational fit carried over to WGSL and GLSL.
-`ambientcg.txt` covers `src/app/viewport/textures/`: eleven grey detail maps made from ambientCG
-colour maps (Bricks105, PavingStones138, PavingStones152, WoodFloor064, Wood095, Concrete049,
-Grass005, Grass001, Ground037, Marble012, Marble016). ambientCG publishes its assets under CC0 1.0
+`ambientcg.txt` covers `src/app/viewport/textures/`: forty grey detail maps made from ambientCG
+assets' colour, occlusion, displacement and roughness maps, some layered with Roswaal's own
+(`src/core/rbx/materials.ts` names each map's sources). The assets: 39 of them,
+Asphalt031, Bricks105, Cardboard002, Carpet012, Concrete049, DiamondPlate008B, Fabric086, Foil001,
+Granite003A, Granite005A, Grass001, Grass005, Ground037, Ground093C, Ground106, Leather037,
+Marble012, Metal022, Metal055A, PavingStones138, PavingStones141, PavingStones152, Plaster001,
+Plastic010, Plastic013A, Rock018, Rock031, Rock048, Rock050, Rock058, Rock061, RoofingTiles003,
+RoofingTiles012A, Rubber004, Snow006, Snow010A, Tiles141, Wood095, WoodFloor064. ambientCG publishes its assets under CC0 1.0
 Universal, which its [licence page](https://docs.ambientcg.com/license/) names, and ships no licence
 file of its own; this is that licence's legal code, from Creative Commons.
 The upstream repository has no `NOTICE` file for the icons, so the licence is all Apache-2.0 asks

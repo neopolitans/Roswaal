@@ -269,8 +269,10 @@ fn faceUv(local: vec3f, ln: vec3f) -> vec2f {
 	if (a.x >= a.z) { return local.zy; }
 	return local.xy;
 }
-// CrackedLava's light, where its cracks are.
+// CrackedLava's light, where its cracks are: orange at their edges, lava-yellow at their hearts.
 const LAVA = vec3f(1.0, 0.36, 0.06);
+const LAVA_HOT = vec3f(1.0, 0.82, 0.38);
+fn lavaLight(m: f32) -> vec3f { return mix(LAVA, LAVA_HOT, m * m) * m; }
 // A cheap value noise, for a material's grain.
 fn hash3(p: vec3f) -> f32 { return fract(sin(dot(p, vec3f(127.1, 311.7, 74.7))) * 43758.5453); }
 fn noise3(p: vec3f) -> f32 {
@@ -302,10 +304,10 @@ fn surface(i: VOut) -> vec4f {
 	// A texture once its layer has loaded; the material's own pattern until then.
 	let uv = faceUv(i.local, i.lnormal);
 	let layer = i32(b.w) - 1;
-	let detail = textureSample(looks, lookSampler, uv / tex.x, max(layer, 0)).r * 2.0;
+	let look = textureSample(looks, lookSampler, uv / tex.x, max(layer, 0));
 	var pat = pattern(u32(b.z), uv, b.x);
 	if (layer >= 0) {
-		pat = vec3f(mix(1.0, detail, tex.y), 1.0, 0.0);
+		pat = vec3f(mix(1.0, look.r * 2.0, tex.y), 1.0, tex.z * look.g);
 	}
 	albedo = albedo * pat.x;
 	var alpha = i.alpha;
@@ -330,7 +332,7 @@ fn surface(i: VOut) -> vec4f {
 		var mirror = shine;
 		if (b.y > 1.5) { mirror = max(mirror, 0.2 + 0.5 * pow(1.0 - abs(dot(n, v)), 3.0)); }
 		c = mix(c, seen, mirror);
-		c = c + LAVA * pat.z * 3.0;
+		c = c + lavaLight(pat.z) * 3.0;
 	}
 	return vec4f(air(c, d, i.world.y), alpha);
 }
@@ -339,8 +341,14 @@ fn surface(i: VOut) -> vec4f {
 fn emission(i: VOut) -> vec3f {
 	let row = i.look & 255u;
 	let b = u.mats[row * 3u + 1u];
+	let tex = u.mats[row * 3u + 2u];
+	let uv = faceUv(i.local, i.lnormal);
+	let layer = i32(b.w) - 1;
+	// Sampled before any branch: WGSL samples only in uniform control flow.
+	let look = textureSample(looks, lookSampler, uv / tex.x, max(layer, 0));
 	if (b.y > 0.5 && b.y < 1.5) { return i.colour * 0.5; }
-	if (u32(b.z) == 14u) { return LAVA * pattern(14u, faceUv(i.local, i.lnormal), b.x).z * 0.5; }
+	if (tex.z > 0.5 && layer >= 0) { return lavaLight(look.g) * 0.5; }
+	if (u32(b.z) == 14u) { return lavaLight(pattern(14u, uv, b.x).z) * 0.5; }
 	return vec3f(0.0);
 }
 @fragment fn fsGlow(i: VOut) -> @location(0) vec4f { return vec4f(emission(i), 1.0); }

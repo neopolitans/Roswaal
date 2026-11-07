@@ -93,7 +93,7 @@ export const MATERIALS: readonly MaterialLook[] = [
 	row("CorrodedMetal", 1040, 0.25, 20, true, 0.12, 0.5, "blotch"),
 	row("DiamondPlate", 1056, 0.6, 60, true, 0.04, 0.3, "diamond"),
 	row("Foil", 1072, 0.8, 40, true, 0.05, 0.2, "speckle"),
-	row("Metal", 1088, 0.6, 50, true, 0.03, 1),
+	row("Metal", 1088, 0.35, 24, true, 0.03, 1),
 	row("Grass", 1280, 0.03, 6, false, 0.1, 0.5, "grass"),
 	row("LeafyGrass", 1284, 0.03, 6, false, 0.12, 0.5, "grass"),
 	row("Sand", 1296, 0.03, 6, false, 0.08, 0.3, "speckle"),
@@ -121,17 +121,21 @@ export const MATERIALS: readonly MaterialLook[] = [
 
 /**
  * The materials drawn from a texture rather than a pattern, in the order the
- * renderers' texture array holds them. Each is a grey detail map made from
- * one of ambientCG's colour maps: its brightness only, averaging middle grey,
- * so the part's Color gives the hue and the texture its light and dark.
+ * renderers' texture array holds them. Each is a grey detail map: brightness
+ * only, averaging middle grey, so the part's Color gives the hue and the
+ * texture its light and dark. Most are made from ambientCG's maps -- the
+ * colour map's brightness, and for the later ones its occlusion and the
+ * crevices of its displacement too -- and a few from Roswaal's own.
  * `studs` is how far one copy of it spans; `strength` how much it shows.
  */
 export interface MaterialTexture {
 	material: string;
-	/** The ambientCG asset it was made from. */
+	/** What it was made from: ambientCG assets by id, Roswaal's own maps by name. */
 	source: string;
 	studs: number;
 	strength: number;
+	/** Its green channel is light of its own, CrackedLava's cracks, which the shaders draw lava-yellow. */
+	glows?: boolean;
 }
 
 export const MATERIAL_TEXTURES: readonly MaterialTexture[] = [
@@ -145,7 +149,42 @@ export const MATERIAL_TEXTURES: readonly MaterialTexture[] = [
 	{ material: "LeafyGrass", source: "Grass001", studs: 6, strength: 1 },
 	{ material: "Ground", source: "Ground037", studs: 8, strength: 0.9 },
 	{ material: "Marble", source: "Marble012", studs: 10, strength: 0.8 },
-	{ material: "Granite", source: "Marble016", studs: 8, strength: 0.6 },
+	{ material: "Granite", source: "Granite005A", studs: 6, strength: 0.7 },
+	{ material: "Asphalt", source: "Asphalt031", studs: 8, strength: 0.8 },
+	{ material: "Basalt", source: "Rock031", studs: 8, strength: 0.6 },
+	{ material: "Cardboard", source: "Cardboard002", studs: 4, strength: 0.7 },
+	{ material: "Carpet", source: "Carpet012", studs: 4, strength: 0.5 },
+	{ material: "CeramicTiles", source: "Tiles141", studs: 8, strength: 1 },
+	{ material: "ClayRoofTiles", source: "RoofingTiles012A", studs: 6, strength: 1 },
+	{ material: "CorrodedMetal", source: "Metal022", studs: 6, strength: 0.7 },
+	{
+		material: "CrackedLava",
+		source: "Rock050 and Roswaal Lava 1",
+		studs: 10,
+		strength: 1,
+		glows: true,
+	},
+	{ material: "DiamondPlate", source: "DiamondPlate008B", studs: 4, strength: 0.9 },
+	{ material: "Fabric", source: "Fabric086", studs: 4, strength: 0.7 },
+	{ material: "Foil", source: "Foil001", studs: 4, strength: 0.8 },
+	{ material: "Glacier", source: "Snow006", studs: 10, strength: 0.8 },
+	{ material: "Glass", source: "Plastic010", studs: 6, strength: 0.5 },
+	{ material: "Ice", source: "Roswaal Ice 2 and Granite003A", studs: 10, strength: 0.8 },
+	{ material: "Leather", source: "Leather037", studs: 4, strength: 0.7 },
+	{ material: "Limestone", source: "Rock018", studs: 8, strength: 0.8 },
+	{ material: "Metal", source: "Metal055A", studs: 6, strength: 0.7 },
+	{ material: "Mud", source: "Ground106", studs: 8, strength: 0.8 },
+	{ material: "Pebble", source: "PavingStones141", studs: 6, strength: 0.9 },
+	{ material: "Plaster", source: "Plaster001", studs: 8, strength: 0.7 },
+	{ material: "Plastic", source: "Plastic013A", studs: 4, strength: 0.5 },
+	{ material: "Rock", source: "Rock048", studs: 8, strength: 0.8 },
+	{ material: "RoofShingles", source: "RoofingTiles003", studs: 6, strength: 1 },
+	{ material: "Rubber", source: "Rubber004", studs: 4, strength: 0.6 },
+	{ material: "Salt", source: "Snow010A and Roswaal Salt 2", studs: 10, strength: 0.9 },
+	{ material: "Sand", source: "Ground093C", studs: 8, strength: 0.8 },
+	{ material: "Sandstone", source: "Rock061", studs: 8, strength: 0.9 },
+	{ material: "Slate", source: "Rock058", studs: 8, strength: 0.9 },
+	{ material: "Snow", source: "Snow010A", studs: 8, strength: 0.7 },
 ];
 
 const BY_VALUE = new Map(MATERIALS.map((m, i) => [m.value, i]));
@@ -162,7 +201,7 @@ export function materialIndex(value: unknown): number {
 /**
  * The table as the shaders read it: three vec4s a row --
  * (spec, gloss, metal, grain), (grain size, shade, pattern, texture) and
- * (the texture's studs, its strength, 0, 0). `texture` is its layer + 1 once
+ * (the texture's studs, its strength, whether it glows, 0). `texture` is its layer + 1 once
  * that layer has loaded, and 0 until then, when the pattern is drawn instead.
  */
 export function materialBlock(loaded: ReadonlySet<number> = new Set()): Float32Array {
@@ -182,7 +221,7 @@ export function materialBlock(loaded: ReadonlySet<number> = new Set()): Float32A
 				layer,
 				t?.studs ?? 1,
 				t?.strength ?? 0,
-				0,
+				t?.glows ? 1 : 0,
 				0,
 			],
 			i * MATERIAL_ROW,
