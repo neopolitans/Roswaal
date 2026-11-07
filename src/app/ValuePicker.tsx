@@ -40,6 +40,7 @@ import { createPortal } from "react-dom";
 import { classChain } from "../core/roblox.js";
 import { cx } from "./cx.js";
 import { Icon } from "./icons.jsx";
+import { acceptsSuggestion } from "./keys.js";
 import { LAYER } from "./layers.js";
 import { SectionHead } from "./PanelParts.jsx";
 
@@ -209,6 +210,13 @@ export function ValuePicker(props: ValuePickerProps) {
 			// list at all: that is the only way to reach a name this build has
 			// never heard of, and it is why the field is not a filter alone.
 			commit(matches !== null && matches.length === 0 ? query.trim() : active || query.trim());
+			return;
+		}
+		// Tab takes the highlight too, from the search field only and only when
+		// the list shows one. Anywhere else it moves focus as usual.
+		if (acceptsSuggestion(e) && e.target === field.current && order.includes(active)) {
+			e.preventDefault();
+			commit(active);
 			return;
 		}
 		const step = e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0;

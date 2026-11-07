@@ -34,6 +34,7 @@ import { classify } from "../core/nodes/runtimes.js";
 import type { NodeConfig, NodeDef } from "../core/schema.js";
 import { cx } from "./cx.js";
 import { Icon } from "./icons.jsx";
+import { acceptsSuggestion } from "./keys.js";
 import { LAYER } from "./layers.js";
 import { commentRows, type Preset } from "./NodeMenu.jsx";
 import { COMMENT_DEFAULT_COLOR, DOC_COMMENT_COLOR } from "./palette.js";
@@ -311,11 +312,13 @@ export function NodePicker({
 							} else if (e.key === "ArrowUp") {
 								e.preventDefault();
 								move(-1);
+							} else if (acceptsSuggestion(e) && chosen) {
+								e.preventDefault();
+								onPick(chosen.def, chosen.config, chosen.member);
 							} else if (e.key === "Enter") {
 								e.preventDefault();
-								if (chosen) onPick(chosen.def, chosen.config, chosen.member);
 								// Nothing in the library matched "moonwave": the comment it named.
-								else if (comments.doc && query.trim() !== "") onAddDocComment?.();
+								if (comments.doc && query.trim() !== "") onAddDocComment?.();
 							} else if (e.key === "Escape") {
 								e.preventDefault();
 								e.stopPropagation();

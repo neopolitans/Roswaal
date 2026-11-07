@@ -18,6 +18,7 @@ import type { Registry } from "../core/nodes/index.js";
 import type { Literal, NodeConfig, NodeDef } from "../core/schema.js";
 import { cx } from "./cx.js";
 import { Icon } from "./icons.jsx";
+import { acceptsSuggestion } from "./keys.js";
 import { MenuSurface } from "./Menu.jsx";
 import {
 	buildPresets,
@@ -255,7 +256,10 @@ export function NodeMenu({
 						e.preventDefault();
 						setActive((i) => Math.max(i - 1, 0));
 					}
-					if (e.key === "Enter" && flat[active]) pick(flat[active]);
+					if (acceptsSuggestion(e) && flat[active]) {
+						e.preventDefault();
+						pick(flat[active]);
+					}
 					// Nothing in the library matched "moonwave": the comment it named.
 					else if (e.key === "Enter" && comments.doc && query.trim() !== "") onAddDocComment?.();
 				}}

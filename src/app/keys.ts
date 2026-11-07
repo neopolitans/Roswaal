@@ -15,3 +15,24 @@ export function isEditableTarget(target: EventTarget | null): boolean {
 		return true;
 	return target.closest('[role="dialog"]') !== null;
 }
+
+/** The keys a key event needs, so a test can make one without a DOM. */
+export interface KeyPress {
+	key: string;
+	shiftKey: boolean;
+	ctrlKey: boolean;
+	altKey: boolean;
+	metaKey: boolean;
+}
+
+/**
+ * Whether a key takes the highlighted suggestion in a list.
+ *
+ * Enter does, and so does a plain Tab, as in a code editor. Shift+Tab does not:
+ * it still walks focus back. Each list checks that something is highlighted
+ * before it takes Tab, so with nothing to take, Tab moves focus on as usual.
+ */
+export function acceptsSuggestion(e: KeyPress): boolean {
+	if (e.key === "Enter") return true;
+	return e.key === "Tab" && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey;
+}

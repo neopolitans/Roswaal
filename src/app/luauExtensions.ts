@@ -13,6 +13,7 @@
  */
 
 import {
+	acceptCompletion,
 	autocompletion,
 	type CompletionSource,
 	closeBrackets,
@@ -185,10 +186,13 @@ export function luauExtensions(options: LuauExtensionOptions = {}): Extension[] 
 			);
 		// Completion and bracket keymaps first: they only claim keys while
 		// they are actually active, and indentWithTab must not shadow them.
+		// Tab takes a highlighted completion as Enter does; with no list open
+		// it falls through and indents.
 		extensions.push(
 			keymap.of([
 				...closeBracketsKeymap,
 				...completionKeymap,
+				{ key: "Tab", run: acceptCompletion },
 				...defaultKeymap,
 				...historyKeymap,
 				indentWithTab,

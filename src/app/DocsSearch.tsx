@@ -23,6 +23,7 @@ import { createPortal } from "react-dom";
 import { type DocsHit, rankDocs, type SearchEntry } from "../core/docs/site.js";
 import { cx } from "./cx.js";
 import { Icon } from "./icons.jsx";
+import { acceptsSuggestion } from "./keys.js";
 import { LAYER } from "./layers.js";
 
 export interface DocsSearchProps {
@@ -123,10 +124,11 @@ export function DocsSearch({ index, recent, onPick, onClose }: DocsSearchProps) 
 							} else if (e.key === "ArrowUp") {
 								e.preventDefault();
 								move(-1);
+							} else if (acceptsSuggestion(e) && flat[active]) {
+								e.preventDefault();
+								onPick(flat[active].entry.slug);
 							} else if (e.key === "Enter") {
 								e.preventDefault();
-								const hit = flat[active];
-								if (hit) onPick(hit.entry.slug);
 							} else if (e.key === "Escape") {
 								e.preventDefault();
 								e.stopPropagation();
