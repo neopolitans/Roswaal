@@ -21096,10 +21096,9 @@ textarea.tb:where(:disabled) {
 	background: var(--border);
 }
 
+/* The camera's speed, at the bar's end where there is room, with the snaps
+   behind the Snap tile where there is not. */
 .vp-bar .vp-speed {
-	font-size: 11px;
-	font-variant-numeric: tabular-nums;
-	color: var(--fg-muted);
 	padding: 0 2px 0 4px;
 	white-space: nowrap;
 }
@@ -21184,6 +21183,11 @@ textarea.tb:where(:disabled) {
 	border: 1px solid var(--border);
 	border-radius: var(--radius-md);
 	box-shadow: var(--shadow-raised);
+}
+
+.vp-snap-rows {
+	display: grid;
+	gap: inherit;
 }
 
 .vp-snap-pop .vp-snap {
@@ -21285,5 +21289,20 @@ textarea.tb:where(:disabled) {
 
 	.vp-rise-button:active {
 		background: rgb(255 255 255 / 0.35);
+	}
+
+	/* A stick or the up and down pair, left alone a while: dimmed, not gone, and
+	   still working. A touch brings it straight back. */
+	.vp-stick.vp-faded,
+	.vp-rise.vp-faded {
+		opacity: 0.2;
+		transition: opacity 0.6s ease;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.vp-stick.vp-faded,
+	.vp-rise.vp-faded {
+		transition: none;
 	}
 }

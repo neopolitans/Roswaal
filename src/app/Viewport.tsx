@@ -27,6 +27,8 @@ import {
 	type Tool,
 	type ViewportController,
 } from "./viewport/controller.js";
+import { fader } from "./viewport/fade.js";
+import { readSpeed, SPEED_MAX, SPEED_MIN, SPEED_STEP, speedText } from "./viewport/speed.js";
 import { useWorkspaceControls } from "./Workspace.jsx";
 
 const GIZMO = 104;
@@ -84,6 +86,7 @@ export function Viewport({
 		};
 	}, [controller, refreshKey, written]);
 
+	const rise = useFade<HTMLSpanElement>();
 	const shown = problem ?? state.error;
 	return (
 		<div className="viewport">
@@ -92,7 +95,7 @@ export function Viewport({
 			<div className="vp-touch">
 				<TouchStick stick="move" label="Move" controller={controller} />
 				<span className="vp-touch-right">
-					<span className="vp-rise">
+					<span className="vp-rise" ref={rise}>
 						<RiseButton rise={1} label="Up" controller={controller} />
 						<RiseButton rise={-1} label="Down" controller={controller} />
 					</span>
@@ -101,6 +104,32 @@ export function Viewport({
 			</div>
 		</div>
 	);
+}
+
+/**
+ * Fades a touch control a while after the last touch in it lets go, and wakes
+ * it at the next. The class goes straight on the element, so the viewport does
+ * not draw again for it.
+ */
+function useFade<T extends HTMLElement>() {
+	const area = useRef<T>(null);
+	useEffect(() => {
+		const el = area.current;
+		if (!el) return;
+		const f = fader((faded) => el.classList.toggle("vp-faded", faded));
+		const down = (e: PointerEvent) => f.down(e.pointerId);
+		const up = (e: PointerEvent) => f.up(e.pointerId);
+		const ends = ["pointerup", "pointercancel", "lostpointercapture"] as const;
+		el.addEventListener("pointerdown", down, true);
+		for (const end of ends) el.addEventListener(end, up, true);
+		return () => {
+			f.stop();
+			el.removeEventListener("pointerdown", down, true);
+			for (const end of ends) el.removeEventListener(end, up, true);
+			el.classList.remove("vp-faded");
+		};
+	}, []);
+	return area;
 }
 
 /** How far a stick's knob goes from the middle, in pixels. */
@@ -120,6 +149,7 @@ function TouchStick({
 	controller: ViewportController;
 }) {
 	const knob = useRef<HTMLSpanElement>(null);
+	const area = useFade<HTMLSpanElement>();
 	const held = useRef<{ id: number; x: number; y: number } | null>(null);
 	const push = (e: ReactPointerEvent) => {
 		const at = held.current;
@@ -145,6 +175,7 @@ function TouchStick({
 	return (
 		<span
 			className="vp-stick"
+			ref={area}
 			role="img"
 			aria-label={label}
 			title={label}
@@ -249,6 +280,43 @@ function SnapFields({ snap, controller }: { snap: Snap; controller: ViewportCont
 	);
 }
 
+/** How fast the camera flies, typed: what Shift+scroll sets too, which the field follows. */
+function SpeedField({ speed, controller }: { speed: number; controller: ViewportController }) {
+	const field = useRef<HTMLInputElement>(null);
+	// Not while it is being typed in, which would take the text from under the caret.
+	useEffect(() => {
+		const el = field.current;
+		if (el && el !== document.activeElement) el.value = speedText(speed);
+	}, [speed]);
+	return (
+		<label className="vp-snap vp-speed-field" title={SPEED_TITLE}>
+			<span>Speed</span>
+			<input
+				ref={field}
+				className="vp-step"
+				type="number"
+				inputMode="decimal"
+				min={SPEED_MIN}
+				max={SPEED_MAX}
+				step={SPEED_STEP}
+				defaultValue={speedText(speed)}
+				aria-label="Camera speed"
+				onChange={(e) => {
+					const n = readSpeed(e.target.value);
+					if (n !== null) controller.setSpeed(n);
+				}}
+				onBlur={(e) => {
+					e.target.value = speedText(controller.getState().speed);
+				}}
+			/>
+			<span>×</span>
+		</label>
+	);
+}
+
+const SPEED_TITLE =
+	"How fast the camera flies, with WASD or the move stick. Shift+scroll changes it too.";
+
 /** One of the bar's tiles: a large icon over its name, after Studio's compact bar. */
 function Tile({
 	icon,
@@ -305,7 +373,6 @@ export function ViewportBar({ controller }: { controller: ViewportController }) 
 		});
 	}, [controller]);
 	const cards = useWorkspaceControls();
-	const speed = state.speed;
 	/** The snaps behind a tile, where the bar has no room for them: open, and where. */
 	const [snapAt, setSnapAt] = useState<number | null>(null);
 	const pop = useRef<HTMLDivElement>(null);
@@ -319,6 +386,7 @@ export function ViewportBar({ controller }: { controller: ViewportController }) 
 		return () => removeEventListener("pointerdown", away);
 	}, [snapAt]);
 	const snapTitle = "Snapping, for dragging the handles, which comes with editing";
+	const popTitle = "Snapping, and the camera's speed";
 	return (
 		// The bar centred in the window, as the view is, with the axes and the
 		// readout standing on its right-hand end: none of them moves when a card
@@ -386,15 +454,18 @@ export function ViewportBar({ controller }: { controller: ViewportController }) 
 					<Tile
 						icon="vpSnap"
 						label="Snap"
-						title={snapTitle}
+						title={popTitle}
 						caret
 						on={snapAt !== null}
 						aria-pressed={snapAt !== null}
 					/>
 				</span>
 				{snapAt !== null && (
-					<div className="vp-snap-pop" ref={pop} style={{ left: snapAt }} title={snapTitle}>
-						<SnapFields snap={state.snap} controller={controller} />
+					<div className="vp-snap-pop" ref={pop} style={{ left: snapAt }}>
+						<span className="vp-snap-rows" title={snapTitle}>
+							<SnapFields snap={state.snap} controller={controller} />
+						</span>
+						<SpeedField speed={state.speed} controller={controller} />
 					</div>
 				)}
 				<span className="vp-rule" />
@@ -436,11 +507,8 @@ export function ViewportBar({ controller }: { controller: ViewportController }) 
 					onClick={() => cards.toggleCard("properties")}
 				/>
 				<span className="vp-rule" />
-				<span
-					className="vp-speed"
-					title="How fast WASD moves the camera. Shift+scroll to change it."
-				>
-					Speed {speed >= 10 ? speed.toFixed(0) : speed >= 1 ? speed.toFixed(1) : speed.toFixed(2)}×
+				<span className="vp-speed">
+					<SpeedField speed={state.speed} controller={controller} />
 				</span>
 			</div>
 		</div>
