@@ -63,6 +63,7 @@ const PAGES = [
 	{ id: "canvas", title: "Canvas", keeper: "browser" },
 	{ id: "nodes", title: "Nodes", keeper: "browser" },
 	{ id: "workspace", title: "Workspace", keeper: "browser" },
+	{ id: "scene", title: "Scene view", keeper: "browser" },
 	{ id: "themes", title: "Themes", keeper: "browser" },
 	{ id: "docs", title: "Docs", keeper: "browser" },
 	{ id: "made", title: "How Roswaal is made", keeper: "about" },
@@ -165,6 +166,8 @@ export function SettingsPanel(props: SettingsPanelProps) {
 				return <NodeSettings {...props} />;
 			case "workspace":
 				return <WorkspaceSettings {...props} />;
+			case "scene":
+				return <SceneSettings {...props} />;
 			case "themes":
 				return <ThemeSettings {...props} />;
 			case "docs":
@@ -843,7 +846,25 @@ function WorkspaceSettings({ prefs, onPrefs }: SettingsPanelProps) {
 				</Row>
 			</Group>
 
-			<Group title="Place in 3D">
+			<Group title="Starting">
+				<Row label="On opening Roswaal" help="Which project this tab starts on.">
+					<Toggle
+						on={prefs.reopenLastProject}
+						onChange={(on) => onPrefs({ reopenLastProject: on })}
+						label={
+							prefs.reopenLastProject ? "Reopen the last project" : "Start at the project picker"
+						}
+					/>
+				</Row>
+			</Group>
+		</Page>
+	);
+}
+
+function SceneSettings({ prefs, onPrefs }: SettingsPanelProps) {
+	return (
+		<Page id="scene" note="How a place is drawn in 3D. Kept in this browser.">
+			<Group title="Renderer">
 				<Row
 					label="Renderer"
 					help="Automatic draws with WebGPU where the browser has it, and WebGL2 where it does not. WebGPU falls back to WebGL2 where there is none."
@@ -860,6 +881,9 @@ function WorkspaceSettings({ prefs, onPrefs }: SettingsPanelProps) {
 						))}
 					</div>
 				</Row>
+			</Group>
+
+			<Group title="Selection">
 				<Row label="Selection outline" help="How wide the outline round what is picked is drawn.">
 					<div className="segmented">
 						{(Object.keys(OUTLINE_WIDTHS) as OutlineWidth[]).map((width) => (
@@ -885,14 +909,15 @@ function WorkspaceSettings({ prefs, onPrefs }: SettingsPanelProps) {
 				</Row>
 			</Group>
 
-			<Group title="Starting">
-				<Row label="On opening Roswaal" help="Which project this tab starts on.">
+			<Group title="Transparency">
+				<Row
+					label="Glass"
+					help="Whether see-through Glass hides the see-through parts behind it, as Studio's does. Places are often built around it."
+				>
 					<Toggle
-						on={prefs.reopenLastProject}
-						onChange={(on) => onPrefs({ reopenLastProject: on })}
-						label={
-							prefs.reopenLastProject ? "Reopen the last project" : "Start at the project picker"
-						}
+						on={prefs.glassHides}
+						onChange={(on) => onPrefs({ glassHides: on })}
+						label={prefs.glassHides ? "Hides see-through parts behind it" : "Shows them through it"}
 					/>
 				</Row>
 			</Group>

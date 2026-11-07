@@ -63,6 +63,11 @@ export function settingsPage(): DocPage {
 						"This browser",
 						"Writing a graph, the Variables panel, function tabs, the action row, and what opens first",
 					],
+					[
+						"**Scene view**",
+						"This browser",
+						"How a place is drawn in 3D: the renderer, the selection outline, and Glass",
+					],
 					["**Themes**", "This browser", "The colour scheme"],
 					["**Docs**", "This browser", "The docs' font and the size of their pictures"],
 				],
@@ -226,6 +231,10 @@ export function settingsPage(): DocPage {
 					[
 						"Hidden edges",
 						"Whether the outline shows through the parts in front of it, as Studio's does, or is hidden by them.",
+					],
+					[
+						"Glass",
+						"On by default. See-through Glass hides the see-through parts behind it, as Studio's does, and places are often built around that. Off, they show through it.",
 					],
 					["On opening Roswaal", "Reopen the last project, or start at the picker."],
 					[

@@ -360,8 +360,9 @@ export function App() {
 				renderer: prefs.viewportRenderer,
 				outlineWidth: OUTLINE_WIDTHS[prefs.outlineWidth],
 				hideBehind: !prefs.outlineThrough,
+				glassHides: prefs.glassHides,
 			}),
-		[viewport, prefs.viewportRenderer, prefs.outlineWidth, prefs.outlineThrough],
+		[viewport, prefs.viewportRenderer, prefs.outlineWidth, prefs.outlineThrough, prefs.glassHides],
 	);
 	// The folder from a previous session, when one is waiting on a click.
 	const rememberedFolders = useRememberedFolders();

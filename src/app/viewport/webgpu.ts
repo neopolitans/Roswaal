@@ -17,6 +17,7 @@ import {
 	HANDLE_ALPHA,
 	SELECT,
 	SELECT_WIDTH,
+	seeThroughSets,
 	type ViewRenderer,
 } from "./view.js";
 
@@ -455,6 +456,13 @@ export class WebGpuView implements ViewRenderer {
 	private clear: (Draw & { source: Float32Array; sorted: Float32Array })[] = [];
 	private clearEye: number[] | null = null;
 	private blended!: GPURenderPipeline;
+	/** See-through Glass: its depth first, then its colour, so nothing see-through shows behind it. */
+	private glass: Draw[] = [];
+	private glassHides = true;
+	private scene?: PlaceScene;
+	private glassDepth!: GPURenderPipeline;
+	private glassBlended!: GPURenderPipeline;
+	private glowGlassDepth!: GPURenderPipeline;
 	// The glow: what gives light drawn small, blurred, and added over the frame.
 	private glowing = false;
 	private glowSolid!: GPURenderPipeline;
@@ -491,6 +499,12 @@ export class WebGpuView implements ViewRenderer {
 	setOutline(width: number, hideBehind: boolean): void {
 		this.outlineWidth = width;
 		this.hideBehind = hideBehind;
+	}
+
+	setGlassHides(on: boolean): void {
+		if (on === this.glassHides) return;
+		this.glassHides = on;
+		if (this.scene) this.setScene(this.scene);
 	}
 
 	/** The outline's width in the canvas's own pixels. */
@@ -573,6 +587,39 @@ export class WebGpuView implements ViewRenderer {
 			},
 			primitive: { topology: "triangle-list", cullMode: "back" },
 			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "less" },
+			multisample: { count: SAMPLES },
+		});
+		// See-through Glass: the nearest's depth, then its colour blended at that depth.
+		this.glassDepth = d.createRenderPipeline({
+			layout: pipelineLayout,
+			vertex: { module, entryPoint: "vs", buffers },
+			fragment: { module, entryPoint: "fs", targets: [{ format: this.format, writeMask: 0 }] },
+			primitive: { topology: "triangle-list", cullMode: "back" },
+			depthStencil: depth,
+			multisample: { count: SAMPLES },
+		});
+		this.glassBlended = d.createRenderPipeline({
+			layout: pipelineLayout,
+			vertex: { module, entryPoint: "vs", buffers },
+			fragment: {
+				module,
+				entryPoint: "fs",
+				targets: [
+					{
+						format: this.format,
+						blend: {
+							color: { srcFactor: "src-alpha", dstFactor: "one-minus-src-alpha" },
+							alpha: { srcFactor: "one", dstFactor: "one-minus-src-alpha" },
+						},
+					},
+				],
+			},
+			primitive: { topology: "triangle-list", cullMode: "back" },
+			depthStencil: {
+				format: "depth32float",
+				depthWriteEnabled: false,
+				depthCompare: "less-equal",
+			},
 			multisample: { count: SAMPLES },
 		});
 		// Over everything, as Studio's selection box is.
@@ -675,6 +722,13 @@ export class WebGpuView implements ViewRenderer {
 			primitive: { topology: "triangle-list", cullMode: "back" },
 			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "less" },
 		});
+		this.glowGlassDepth = d.createRenderPipeline({
+			layout: pipelineLayout,
+			vertex: { module, entryPoint: "vs", buffers },
+			fragment: { module, entryPoint: "fsGlow", targets: [{ ...glowTarget, writeMask: 0 }] },
+			primitive: { topology: "triangle-list", cullMode: "back" },
+			depthStencil: depth,
+		});
 		const post = d.createShaderModule({ code: POST });
 		this.postLayout = d.createBindGroupLayout({
 			entries: [
@@ -770,16 +824,28 @@ export class WebGpuView implements ViewRenderer {
 	}
 
 	setScene(scene: PlaceScene): void {
-		for (const d of [...this.draws, ...this.clear])
+		for (const d of [...this.draws, ...this.clear, ...this.glass])
 			for (const b of [d.vertices, d.indices, d.instances]) b.destroy();
+		this.scene = scene;
 		this.draws = [];
 		this.clear = [];
+		this.glass = [];
 		this.clearEye = null;
 		this.glowing = sceneGlows(scene);
+		const sets = seeThroughSets(scene, this.glassHides);
 		for (const kind of SCENE_KINDS) {
 			const mesh = meshFor(kind);
 			const solid = scene.kinds[kind];
-			const seen = scene.translucent[kind];
+			const seen = sets.clear[kind];
+			const glass = sets.glass[kind];
+			if (glass.count > 0)
+				this.glass.push({
+					vertices: this.make(mesh.vertices, BUFFER.VERTEX),
+					indices: this.make(mesh.indices, BUFFER.INDEX),
+					indexCount: mesh.indices.length,
+					instances: this.make(glass.data, BUFFER.VERTEX),
+					count: glass.count,
+				});
 			if (solid.count > 0)
 				this.draws.push({
 					vertices: this.make(mesh.vertices, BUFFER.VERTEX),
@@ -923,6 +989,10 @@ export class WebGpuView implements ViewRenderer {
 		pass.setBindGroup(0, this.bind);
 		pass.setPipeline(this.glowSolid);
 		this.solids(pass);
+		if (this.glass.length > 0) {
+			pass.setPipeline(this.glowGlassDepth);
+			this.solids(pass, this.glass);
+		}
 		if (this.clear.length > 0) {
 			pass.setPipeline(this.glowSeen);
 			this.solids(pass, this.clear);
@@ -1009,6 +1079,12 @@ export class WebGpuView implements ViewRenderer {
 		pass.draw(3);
 		pass.setPipeline(this.solid);
 		this.solids(pass);
+		if (this.glass.length > 0) {
+			pass.setPipeline(this.glassDepth);
+			this.solids(pass, this.glass);
+			pass.setPipeline(this.glassBlended);
+			this.solids(pass, this.glass);
+		}
 		if (this.clear.length > 0) {
 			this.sortClear(camera.eye);
 			pass.setPipeline(this.blended);
@@ -1092,6 +1168,7 @@ export class WebGpuView implements ViewRenderer {
 		pass.setScissorRect(Math.min(x, this.width - 1), Math.min(y, this.height - 1), 1, 1);
 		this.solids(pass);
 		this.solids(pass, this.clear);
+		this.solids(pass, this.glass);
 		pass.end();
 		encoder.copyTextureToBuffer(
 			{

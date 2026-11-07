@@ -17,6 +17,7 @@ describe("the pages Settings offers", () => {
 			"Canvas",
 			"Nodes",
 			"Workspace",
+			"Scene view",
 			"Themes",
 			"Docs",
 			"How Roswaal is made",

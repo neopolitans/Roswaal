@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.216.0",
+		date: "2026-11-07",
+		headline:
+			"See-through Glass hides the see-through parts behind it, and Settings has a Scene view page.",
+		added: [
+			"**Glass hides what is see-through behind it.** As in Studio, a part with Transparency that is behind see-through Glass is not drawn through it; solid parts still are. Settings › Scene view can turn it off.",
+			"**Settings › Scene view.** The renderer, the selection outline and Glass, moved from Workspace to a page of their own.",
+		],
+	},
+	{
 		version: "0.215.0",
 		date: "2026-11-06",
 		headline: "Eleven materials are drawn from textures, tinted by the part's Color.",

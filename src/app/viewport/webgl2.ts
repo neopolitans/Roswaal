@@ -22,6 +22,7 @@ import {
 	HANDLE_ALPHA,
 	SELECT,
 	SELECT_WIDTH,
+	seeThroughSets,
 	type ViewRenderer,
 } from "./view.js";
 
@@ -396,6 +397,10 @@ export class WebGl2View implements ViewRenderer {
 		sorted: Float32Array;
 	}[] = [];
 	private clearEye: number[] | null = null;
+	/** See-through Glass: its depth first, then its colour, so nothing see-through shows behind it. */
+	private glass: { vao: WebGLVertexArrayObject; indexCount: number; count: number }[] = [];
+	private glassHides = true;
+	private scene?: PlaceScene;
 	// The glow: what gives light drawn small, blurred, and added over the frame.
 	private glowing = false;
 	private glowProgram!: Program;
@@ -421,6 +426,12 @@ export class WebGl2View implements ViewRenderer {
 	setOutline(width: number, hideBehind: boolean): void {
 		this.outlineWidth = width;
 		this.hideBehind = hideBehind;
+	}
+
+	setGlassHides(on: boolean): void {
+		if (on === this.glassHides) return;
+		this.glassHides = on;
+		if (this.scene) this.setScene(this.scene);
 	}
 
 	async init(canvas: HTMLCanvasElement, scene: PlaceScene): Promise<void> {
@@ -496,17 +507,23 @@ export class WebGl2View implements ViewRenderer {
 
 	setScene(scene: PlaceScene): void {
 		const gl = this.gl;
-		for (const d of [...this.draws, ...this.clear]) gl.deleteVertexArray(d.vao);
+		for (const d of [...this.draws, ...this.clear, ...this.glass]) gl.deleteVertexArray(d.vao);
 		for (const b of this.sceneBuffers) gl.deleteBuffer(b);
+		this.scene = scene;
 		this.draws = [];
 		this.clear = [];
+		this.glass = [];
 		this.clearEye = null;
 		this.glowing = sceneGlows(scene);
 		this.sceneBuffers = [];
+		const sets = seeThroughSets(scene, this.glassHides);
 		for (const kind of SCENE_KINDS) {
 			const mesh = meshFor(kind);
-			for (const seeThrough of [false, true]) {
-				const { data, count } = (seeThrough ? scene.translucent : scene.kinds)[kind];
+			for (const set of ["solid", "clear", "glass"] as const) {
+				const { data, count } = (
+					set === "solid" ? scene.kinds : set === "clear" ? sets.clear : sets.glass
+				)[kind];
+				const seeThrough = set === "clear";
 				if (count === 0) continue;
 				const vb = this.buffer(gl.ARRAY_BUFFER, mesh.vertices);
 				const eb = this.buffer(gl.ELEMENT_ARRAY_BUFFER, mesh.indices);
@@ -520,6 +537,7 @@ export class WebGl2View implements ViewRenderer {
 						source: data,
 						sorted: new Float32Array(data.length),
 					});
+				else if (set === "glass") this.glass.push(draw);
 				else this.draws.push(draw);
 			}
 		}
@@ -721,6 +739,11 @@ export class WebGl2View implements ViewRenderer {
 		const seen = gl.getUniformLocation(this.glowProgram.program, "seen");
 		gl.uniform1f(seen, 0);
 		this.solids();
+		if (this.glass.length > 0) {
+			gl.colorMask(false, false, false, false);
+			this.solids(this.glass);
+			gl.colorMask(true, true, true, true);
+		}
 		if (this.clear.length > 0) {
 			gl.uniform1f(seen, 1);
 			gl.enable(gl.BLEND);
@@ -833,6 +856,20 @@ export class WebGl2View implements ViewRenderer {
 		gl.enable(gl.DEPTH_TEST);
 		this.use(this.main, camera, false);
 		this.solids();
+		// See-through Glass: the nearest's depth, then its colour blended at that depth.
+		if (this.glass.length > 0) {
+			gl.colorMask(false, false, false, false);
+			this.solids(this.glass);
+			gl.colorMask(true, true, true, true);
+			gl.enable(gl.BLEND);
+			gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+			gl.depthFunc(gl.LEQUAL);
+			gl.depthMask(false);
+			this.solids(this.glass);
+			gl.depthMask(true);
+			gl.depthFunc(gl.LESS);
+			gl.disable(gl.BLEND);
+		}
 		// The see-through parts: blended, farthest first, hiding nothing themselves.
 		if (this.clear.length > 0) {
 			this.sortClear(camera.eye);
@@ -941,6 +978,7 @@ export class WebGl2View implements ViewRenderer {
 		this.use(this.ids, camera, false);
 		this.solids();
 		this.solids(this.clear);
+		this.solids(this.glass);
 		const out = new Uint32Array(4);
 		gl.readPixels(px, py, 1, 1, gl.RGBA_INTEGER, gl.UNSIGNED_INT, out);
 		gl.disable(gl.SCISSOR_TEST);

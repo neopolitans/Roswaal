@@ -252,6 +252,8 @@ export interface Preferences {
 	outlineWidth: OutlineWidth;
 	/** The outline shows through what is in front of it, as Studio's does, rather than being hidden by it. */
 	outlineThrough: boolean;
+	/** See-through Glass hides the see-through parts behind it, as Studio's does. */
+	glassHides: boolean;
 	/** The hidden schemes found on the Themes page, by name: listed from then on. */
 	foundThemes: string[];
 	/**
@@ -438,6 +440,7 @@ export const DEFAULTS: Preferences = {
 	viewportRenderer: "auto",
 	outlineWidth: "medium",
 	outlineThrough: true,
+	glassHides: true,
 	foundThemes: [],
 	// Everything the target allows, which is what the menu did before there was
 	// a filter at all.
@@ -546,6 +549,7 @@ export function readPreferences(): Preferences {
 				: DEFAULTS.outlineWidth,
 		outlineThrough:
 			typeof stored.outlineThrough === "boolean" ? stored.outlineThrough : DEFAULTS.outlineThrough,
+		glassHides: typeof stored.glassHides === "boolean" ? stored.glassHides : DEFAULTS.glassHides,
 		foundThemes: Array.isArray(stored.foundThemes)
 			? stored.foundThemes.filter((name): name is string => typeof name === "string")
 			: DEFAULTS.foundThemes,

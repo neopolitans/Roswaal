@@ -21,6 +21,8 @@ export interface ViewportOptions {
 	outlineWidth: number;
 	/** What is in front of an outline hides it, rather than the outline showing through. */
 	hideBehind: boolean;
+	/** See-through Glass hides the see-through parts behind it, as Studio's does. */
+	glassHides: boolean;
 }
 
 /** The outline round what is picked, and the fainter one round what the pointer is over. */
@@ -295,7 +297,12 @@ export class ViewportController {
 		this.refreshSelection();
 	}
 
-	private options: ViewportOptions = { renderer: "auto", outlineWidth: 3.5, hideBehind: false };
+	private options: ViewportOptions = {
+		renderer: "auto",
+		outlineWidth: 3.5,
+		hideBehind: false,
+		glassHides: true,
+	};
 
 	/** Settings' say in how the view is drawn: a new renderer starts the view again. */
 	setOptions(options: ViewportOptions): void {
@@ -311,6 +318,7 @@ export class ViewportController {
 			return;
 		}
 		this.view.setOutline(options.outlineWidth, options.hideBehind);
+		this.view.setGlassHides(options.glassHides);
 		this.redraw();
 	}
 
@@ -693,6 +701,7 @@ export class ViewportController {
 		view.setLighting(place.lighting);
 		view.setOverlay(this.frustumLines());
 		view.setOutline(this.options.outlineWidth, this.options.hideBehind);
+		view.setGlassHides(this.options.glassHides);
 		this.view = view;
 		this.set({ backend: view.backend, fellBack, error: null });
 		if (this.place !== place) view.setScene(this.place ?? place);

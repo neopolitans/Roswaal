@@ -201,8 +201,10 @@ export function placesAndRojoPage(): DocPage {
 					"The bar's snaps set the steps a drag keeps to, in studs and degrees; on a narrower " +
 					"screen they are behind **Snap**. Parts are drawn in their colour and material, each " +
 					"material with a pattern or texture of its own tinted by the part's Color, with their " +
-					"Transparency and Reflectance, and Neon glows. It draws with WebGPU, or WebGL2 " +
-					"where the browser has no WebGPU. For now a MeshPart is drawn as its box, nothing casts " +
+					"Transparency and Reflectance, and Neon glows. See-through Glass hides the see-through " +
+					"parts behind it, as Studio's does. It draws with WebGPU, or WebGL2 where the browser " +
+					"has no WebGPU; **Settings › Scene view** chooses, and can let parts show through " +
+					"Glass. For now a MeshPart is drawn as its box, nothing casts " +
 					"a shadow, and the handles do not drag yet.",
 			},
 

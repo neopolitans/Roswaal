@@ -5,7 +5,13 @@
  */
 
 import type { LightingParams } from "../../core/rbx/lighting.js";
-import { type PlaceScene, SCENE_STRIDE } from "../../core/rbx/scene.js";
+import { MATERIAL_SHADE, MATERIALS } from "../../core/rbx/materials.js";
+import {
+	type PlaceScene,
+	SCENE_KINDS,
+	SCENE_STRIDE,
+	type SceneKind,
+} from "../../core/rbx/scene.js";
 import type { Handles } from "./handles.js";
 
 export interface Camera {
@@ -29,6 +35,8 @@ export interface ViewRenderer {
 	setSelection(boxes: Float32Array): void;
 	/** How wide the outline is, in CSS pixels, and whether what is in front of it hides it. */
 	setOutline(width: number, hideBehind: boolean): void;
+	/** Whether see-through Glass hides the see-through parts behind it, as Studio's does. */
+	setGlassHides(on: boolean): void;
 	/** Coloured lines over everything -- a tool's handles: x, y, z, r, g, b for each end. */
 	setOverlay(lines: Float32Array): void;
 	/** The tool's handles, as solid shapes drawn in front of everything. */
@@ -73,6 +81,43 @@ export function backToFront(
 	order.forEach((from_, to) => {
 		out.set(from.subarray(from_ * stride, (from_ + 1) * stride), to * stride);
 	});
+}
+
+type Instances = { data: Float32Array; count: number };
+
+/**
+ * A scene's see-through parts in the two sets they are drawn in: see-through
+ * Glass, and the rest. Studio draws no see-through part behind see-through
+ * Glass, and places are built for that; with `glassHides` off, every
+ * see-through part shows through Glass instead, and the Glass set is empty.
+ */
+export function seeThroughSets(
+	scene: PlaceScene,
+	glassHides: boolean,
+): { clear: Record<SceneKind, Instances>; glass: Record<SceneKind, Instances> } {
+	const clear = {} as Record<SceneKind, Instances>;
+	const glass = {} as Record<SceneKind, Instances>;
+	const stride = SCENE_STRIDE;
+	for (const kind of SCENE_KINDS) {
+		const all = scene.translucent[kind];
+		const words = new Uint32Array(all.data.buffer, all.data.byteOffset, all.count * stride);
+		const isGlass = (i: number) =>
+			glassHides && MATERIALS[words[i * stride + 14] & 255]?.shade === MATERIAL_SHADE.glass;
+		const pick = (want: boolean): Instances => {
+			const rows = Array.from({ length: all.count }, (_, i) => i).filter(
+				(i) => isGlass(i) === want,
+			);
+			if (rows.length === all.count) return all;
+			const data = new Float32Array(rows.length * stride);
+			rows.forEach((from, to) => {
+				data.set(all.data.subarray(from * stride, (from + 1) * stride), to * stride);
+			});
+			return { data, count: rows.length };
+		};
+		clear[kind] = pick(false);
+		glass[kind] = pick(true);
+	}
+	return { clear, glass };
 }
 
 /** How wide the outline round what is picked is drawn, in CSS pixels. */
