@@ -27,6 +27,7 @@ import {
 	type Tool,
 	type ViewportController,
 } from "./viewport/controller.js";
+import { fader } from "./viewport/fade.js";
 import { useWorkspaceControls } from "./Workspace.jsx";
 
 const GIZMO = 104;
@@ -84,6 +85,7 @@ export function Viewport({
 		};
 	}, [controller, refreshKey, written]);
 
+	const rise = useFade<HTMLSpanElement>();
 	const shown = problem ?? state.error;
 	return (
 		<div className="viewport">
@@ -92,7 +94,7 @@ export function Viewport({
 			<div className="vp-touch">
 				<TouchStick stick="move" label="Move" controller={controller} />
 				<span className="vp-touch-right">
-					<span className="vp-rise">
+					<span className="vp-rise" ref={rise}>
 						<RiseButton rise={1} label="Up" controller={controller} />
 						<RiseButton rise={-1} label="Down" controller={controller} />
 					</span>
@@ -101,6 +103,32 @@ export function Viewport({
 			</div>
 		</div>
 	);
+}
+
+/**
+ * Fades a touch control a while after the last touch in it lets go, and wakes
+ * it at the next. The class goes straight on the element, so the viewport does
+ * not draw again for it.
+ */
+function useFade<T extends HTMLElement>() {
+	const area = useRef<T>(null);
+	useEffect(() => {
+		const el = area.current;
+		if (!el) return;
+		const f = fader((faded) => el.classList.toggle("vp-faded", faded));
+		const down = (e: PointerEvent) => f.down(e.pointerId);
+		const up = (e: PointerEvent) => f.up(e.pointerId);
+		const ends = ["pointerup", "pointercancel", "lostpointercapture"] as const;
+		el.addEventListener("pointerdown", down, true);
+		for (const end of ends) el.addEventListener(end, up, true);
+		return () => {
+			f.stop();
+			el.removeEventListener("pointerdown", down, true);
+			for (const end of ends) el.removeEventListener(end, up, true);
+			el.classList.remove("vp-faded");
+		};
+	}, []);
+	return area;
 }
 
 /** How far a stick's knob goes from the middle, in pixels. */
@@ -120,6 +148,7 @@ function TouchStick({
 	controller: ViewportController;
 }) {
 	const knob = useRef<HTMLSpanElement>(null);
+	const area = useFade<HTMLSpanElement>();
 	const held = useRef<{ id: number; x: number; y: number } | null>(null);
 	const push = (e: ReactPointerEvent) => {
 		const at = held.current;
@@ -145,6 +174,7 @@ function TouchStick({
 	return (
 		<span
 			className="vp-stick"
+			ref={area}
 			role="img"
 			aria-label={label}
 			title={label}

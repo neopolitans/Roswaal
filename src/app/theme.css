@@ -21286,4 +21286,19 @@ textarea.tb:where(:disabled) {
 	.vp-rise-button:active {
 		background: rgb(255 255 255 / 0.35);
 	}
+
+	/* A stick or the up and down pair, left alone a while: dimmed, not gone, and
+	   still working. A touch brings it straight back. */
+	.vp-stick.vp-faded,
+	.vp-rise.vp-faded {
+		opacity: 0.2;
+		transition: opacity 0.6s ease;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.vp-stick.vp-faded,
+	.vp-rise.vp-faded {
+		transition: none;
+	}
 }
