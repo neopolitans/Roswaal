@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.219.3",
+		date: "2026-11-07",
+		headline: "The docs' contents scroll on a phone or tablet, and the policies' dates stand apart.",
+		affects: ["docs"],
+		fixed: [
+			"**The contents scroll on a phone or tablet.** The drawer ran past the bottom of the screen, so its last sections could not be reached.",
+		],
+		changed: [
+			"**Date Effective and Last Edited** sit together in one small panel at the head of each policy, set apart from the text.",
+			"**Room below Legal.** The contents leave space under their last section, so it scrolls clear of the edge.",
+		],
+	},
+	{
 		version: "0.219.2",
 		date: "2026-11-07",
 		headline: "The Terms of Service and Privacy Policy say when they took effect and were last edited, at short addresses of their own.",

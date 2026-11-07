@@ -353,6 +353,17 @@ function renderBlock(
 					.join("") +
 				"</div>"
 			);
+		case "facts":
+			return (
+				`<dl class="docs-facts">` +
+				block.rows
+					.map(
+						([label, value]) =>
+							`<div><dt>${escapeHtml(label)}</dt><dd>${inline(value, up)}</dd></div>`,
+					)
+					.join("") +
+				"</dl>"
+			);
 		case "pins":
 			return renderPins(block, options, up);
 		case "graph": {

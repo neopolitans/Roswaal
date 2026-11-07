@@ -978,6 +978,19 @@ function BlockView({ block }: { block: Block }) {
 					))}
 				</div>
 			);
+		case "facts":
+			return (
+				<dl className="docs-facts">
+					{block.rows.map(([label, value]) => (
+						<div key={label}>
+							<dt>{label}</dt>
+							<dd>
+								<Rich text={value} />
+							</dd>
+						</div>
+					))}
+				</dl>
+			);
 		case "graph": {
 			// A function is drawn in a graph of its own, a tab each, as the
 			// editor opens it.

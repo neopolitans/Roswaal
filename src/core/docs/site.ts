@@ -255,6 +255,11 @@ export type Block =
 	 * a label over it: "In Roswaal" beside "A profile must not".
 	 */
 	| { t: "compare"; items: { label: string; text: string; tone?: "plain" | "warn" }[] }
+	/**
+	 * Short labelled facts at the head of a page, set apart from its prose and
+	 * close together: a policy's Date Effective and Last Edited.
+	 */
+	| { t: "facts"; rows: [label: string, value: string][] }
 	/** Pin tables on a node page, which want their own rendering. */
 	| { t: "pins"; title: string; pins: NodeDoc["inputs"] }
 	/**

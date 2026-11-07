@@ -19,8 +19,13 @@ import type { DocPage } from "../site.js";
 const EFFECTIVE = "7 November 2026";
 const EDITED = "7 November 2026";
 const DATES = [
-	{ t: "p" as const, text: `**Date Effective:** ${EFFECTIVE}` },
-	{ t: "p" as const, text: `**Last Edited:** ${EDITED}` },
+	{
+		t: "facts" as const,
+		rows: [
+			["Date Effective", EFFECTIVE],
+			["Last Edited", EDITED],
+		] as [string, string][],
+	},
 ];
 
 /**
