@@ -36,7 +36,7 @@ const DATES = [
 const SERVICES = [
 	"**GitHub** hosts the website through GitHub Pages, Roswaal's source and its releases, which Rokit installs from; the daemon fetches a repository from GitHub when you ask. [GitHub Terms of Service](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) · [GitHub General Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement).",
 	"**Cloudflare** registers the roswaal.app domain and answers its DNS; it does not carry the website's traffic. [Cloudflare Website and Online Services Terms of Use](https://www.cloudflare.com/website-terms/) · [Cloudflare Privacy Policy](https://www.cloudflare.com/privacypolicy/).",
-	"**The Wally registry**, at api.wally.run, is where the daemon installs a package from when you ask. It publishes no terms or privacy policy of its own; its software is [UpliftGames/wally](https://github.com/UpliftGames/wally), under the Mozilla Public License 2.0, and each package carries its own licence.",
+	"**The Wally registry**, at api.wally.run, is where the daemon installs a package from when you ask. It publishes no terms or privacy policy of its own; its software is [UpliftGames/wally](https://github.com/UpliftGames/wally), under the Mozilla Public License 2.0, and each package carries its own licence, which governs what you may do with it.",
 	"**Roblox** is where Sign in with Roblox and asset downloads go, through its Open Cloud API. [Roblox Terms of Use](https://en.help.roblox.com/hc/en-us/articles/115004647846-Roblox-Terms-of-Use) · [Creator Third Party App Terms](https://en.help.roblox.com/hc/en-us/articles/15887203369620-Creator-Third-Party-App-Terms) · [Creator Third Party App Policy](https://en.help.roblox.com/hc/en-gb/articles/37924211313044-Creator-Third-Party-App-Policy) · [Roblox Privacy and Cookie Policy](https://en.help.roblox.com/hc/en-us/articles/115004630823-Roblox-Privacy-and-Cookie-Policy).",
 ];
 const CONTACT = `Questions about this page go to [roswaal-feedback](${FEEDBACK_REPOSITORY}/issues/new).`;
@@ -152,7 +152,7 @@ export function termsPage(): DocPage {
 				t: "ul",
 				items: [
 					"**Use Roswaal for anything**, personal or commercial, with no account.",
-					"**Copy, change and share Roswaal**, as it is or modified, under its 0BSD licence, without needing to credit anyone.",
+					"**Copy, change and share Roswaal's own code and assets**, as they are or modified, under its 0BSD licence, without needing to credit anyone. The third-party parts it includes keep their own licences, which you must follow; the [Attributions](attributions) page lists each one.",
 					"**Keep, publish and sell what you make with it.** Your graphs, scripts and places are yours.",
 					"**Sign in with Roblox** to draw your places' meshes, images and sky, and sign out at any time, which deletes what was downloaded.",
 				],
@@ -164,6 +164,7 @@ export function termsPage(): DocPage {
 				items: [
 					"**Share assets Roswaal downloaded for you**, for example by committing them to a public repository, unless you have the right to.",
 					"**Sell, or train AI on**, assets or data that came to you through Sign in with Roblox.",
+					"**Sell, or train AI on, packages from the Wally registry**, unless the package's own licence allows it.",
 					"**Use Roswaal to break the terms** of Roblox or the other services listed below, or to infringe anyone's rights.",
 					"**Use Roswaal to reach what you are not allowed to**, or to get around a service's limits or security.",
 					"**Present Roswaal as made or endorsed by Roblox Corporation.**",

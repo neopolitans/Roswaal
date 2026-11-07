@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.219.5",
+		date: "2026-11-07",
+		headline: "The Terms of Service say the 0BSD licence covers Roswaal's own work, and that Wally packages keep their licences.",
+		affects: ["docs"],
+		changed: [
+			"**The 0BSD licence covers Roswaal's own code and assets.** The third-party parts it includes keep their own licences, listed on the Attributions page.",
+			"**Wally packages keep their licences.** You may not sell or train AI on a package from the Wally registry unless its licence allows it.",
+		],
+	},
+	{
 		version: "0.219.4",
 		date: "2026-11-07",
 		headline: "The Terms of Service open with what you may and may not do.",
