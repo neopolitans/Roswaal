@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.220.2",
+		date: "2026-11-07",
+		headline: "The Privacy Policy says how Roswaal reaches your files on each system, and roswaal.app/attributions works.",
+		affects: ["docs"],
+		added: [
+			"**roswaal.app/attributions** opens the Attributions page, as /terms and /privacy open theirs.",
+		],
+		changed: [
+			"**Your files, in each browser.** What Chrome and Edge can open, what Safari, Firefox and iPad keep instead, and what local storage holds.",
+			"**Your files, on each system.** How the daemon writes, and the dialogs, file managers and editors it opens on Windows, macOS and Linux.",
+		],
+	},
+	{
 		version: "0.220.1",
 		date: "2026-11-07",
 		headline: "The Privacy Policy names each permission Sign in with Roblox asks for.",

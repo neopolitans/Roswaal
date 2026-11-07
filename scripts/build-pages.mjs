@@ -8,8 +8,9 @@
  *
  *     index.html      the holding page, until the landing page exists
  *     404.html        so a mistyped path goes somewhere rather than to GitHub
- *     terms.html, privacy.html
- *                     short addresses, /terms and /privacy, on to the docs' pages
+ *     terms.html, privacy.html, attributions.html
+ *                     short addresses, /terms, /privacy and /attributions, on to
+ *                     the docs' pages
  *     try.html        the editor
  *     designer.html   Node Design
  *     docs.html       the docs, in the app: the same bundle, with your packs
@@ -113,15 +114,17 @@ async function main() {
 	// What makes the tour's demonstrations answer: the page's only script.
 	await writeFile(join(out, "landing.js"), TOUR_SCRIPT, "utf8");
 	await writeFile(join(out, "404.html"), notFoundPage(base, version), "utf8");
-	// `/terms` and `/privacy`: the addresses Roswaal's Roblox app registration
-	// and anyone typing them by hand use. Pages serves `terms.html` for
-	// `/terms`, and a relative link reaches the docs under any base.
-	await writeFile(join(out, "terms.html"), shortcut("docs/terms.html", "Terms of Service"), "utf8");
-	await writeFile(
-		join(out, "privacy.html"),
-		shortcut("docs/privacy.html", "Privacy Policy"),
-		"utf8",
-	);
+	// `/terms`, `/privacy` and `/attributions`: the addresses Roswaal's Roblox
+	// app registration and anyone typing them by hand use. Pages serves
+	// `terms.html` for `/terms`, and a relative link reaches the docs under any
+	// base.
+	for (const [slug, title] of [
+		["terms", "Terms of Service"],
+		["privacy", "Privacy Policy"],
+		["attributions", "Attributions"],
+	]) {
+		await writeFile(join(out, `${slug}.html`), shortcut(`docs/${slug}.html`, title), "utf8");
+	}
 	// `/technical/`: the specification as its own site, as spec.roswaal.app
 	// serves it -- the canary's preview of it, and a copy on roswaal.app for the
 	// address it was first given. Every page names spec.roswaal.app as its
