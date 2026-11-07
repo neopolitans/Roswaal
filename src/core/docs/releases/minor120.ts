@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.219.2",
+		date: "2026-11-07",
+		headline: "The Terms of Service and Privacy Policy say when they took effect and were last edited, at short addresses of their own.",
+		affects: ["docs"],
+		changed: [
+			"**Date Effective and Last Edited** head both pages.",
+			"**Short addresses.** roswaal.app/terms and roswaal.app/privacy go to the two pages.",
+		],
+	},
+	{
 		version: "0.219.1",
 		date: "2026-11-07",
 		headline: "Legal has its own heading in the docs, and both policies name every service Roswaal uses.",

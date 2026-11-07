@@ -15,7 +15,13 @@
 import { FEEDBACK_REPOSITORY } from "../links.js";
 import type { DocPage } from "../site.js";
 
-const EFFECTIVE = "Effective 7 November 2026.";
+/** When these pages took effect, and when they last changed: both said at the top of each. */
+const EFFECTIVE = "7 November 2026";
+const EDITED = "7 November 2026";
+const DATES = [
+	{ t: "p" as const, text: `**Date Effective:** ${EFFECTIVE}` },
+	{ t: "p" as const, text: `**Last Edited:** ${EDITED}` },
+];
 
 /**
  * Every service Roswaal relies on, what for, and its own terms and privacy
@@ -37,7 +43,7 @@ export function privacyPage(): DocPage {
 		title: "Privacy Policy",
 		summary: "What Roswaal keeps, where, and what it never collects.",
 		blocks: [
-			{ t: "p", text: EFFECTIVE },
+			...DATES,
 			{
 				t: "p",
 				text:
@@ -119,7 +125,7 @@ export function privacyPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"A change to this policy is made on this page, with its new date, and named in the " +
+					"A change to this policy is made on this page, with its Last Edited date, and named in the " +
 					`release notes. ${CONTACT}`,
 			},
 		],
@@ -133,7 +139,7 @@ export function termsPage(): DocPage {
 		title: "Terms of Service",
 		summary: "Using Roswaal, what is yours, and what belongs to others.",
 		blocks: [
-			{ t: "p", text: EFFECTIVE },
+			...DATES,
 
 			{ t: "h", level: 2, text: "The software" },
 			{
@@ -185,7 +191,7 @@ export function termsPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"A change to these terms is made on this page, with its new date, and named in the " +
+					"A change to these terms is made on this page, with its Last Edited date, and named in the " +
 					`release notes. ${CONTACT}`,
 			},
 		],
