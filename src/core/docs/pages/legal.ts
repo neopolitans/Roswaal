@@ -16,6 +16,18 @@ import { FEEDBACK_REPOSITORY } from "../links.js";
 import type { DocPage } from "../site.js";
 
 const EFFECTIVE = "Effective 7 November 2026.";
+
+/**
+ * Every service Roswaal relies on, what for, and its own terms and privacy
+ * policy. Wally's registry publishes neither; it says so rather than leave a
+ * gap that reads as an oversight.
+ */
+const SERVICES = [
+	"**GitHub** hosts the website through GitHub Pages, Roswaal's source and its releases, which Rokit installs from; the daemon fetches a repository from GitHub when you ask. [GitHub Terms of Service](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) · [GitHub General Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement).",
+	"**Cloudflare** registers the roswaal.app domain and answers its DNS; it does not carry the website's traffic. [Cloudflare Website and Online Services Terms of Use](https://www.cloudflare.com/website-terms/) · [Cloudflare Privacy Policy](https://www.cloudflare.com/privacypolicy/).",
+	"**The Wally registry**, at api.wally.run, is where the daemon installs a package from when you ask. It publishes no terms or privacy policy of its own; its software is [UpliftGames/wally](https://github.com/UpliftGames/wally), under the Mozilla Public License 2.0, and each package carries its own licence.",
+	"**Roblox** is where Sign in with Roblox and asset downloads go, through its Open Cloud API. [Roblox Terms of Use](https://en.help.roblox.com/hc/en-us/articles/115004647846-Roblox-Terms-of-Use) · [Creator Third Party App Terms](https://en.help.roblox.com/hc/en-us/articles/15887203369620-Creator-Third-Party-App-Terms) · [Creator Third Party App Policy](https://en.help.roblox.com/hc/en-gb/articles/37924211313044-Creator-Third-Party-App-Policy) · [Roblox Privacy and Cookie Policy](https://en.help.roblox.com/hc/en-us/articles/115004630823-Roblox-Privacy-and-Cookie-Policy).",
+];
 const CONTACT = `Questions about this page go to [roswaal-feedback](${FEEDBACK_REPOSITORY}/issues/new).`;
 
 export function privacyPage(): DocPage {
@@ -39,10 +51,9 @@ export function privacyPage(): DocPage {
 				t: "p",
 				text:
 					"roswaal.app, canary.roswaal.app and neopolitans.github.io/Roswaal are static files " +
-					"served by GitHub Pages, and Cloudflare provides the domain's DNS. GitHub receives the " +
-					"usual details of each request, such as your IP address and browser, under " +
-					"[GitHub's privacy statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement). " +
-					"Roswaal itself receives nothing.",
+					"served by GitHub Pages, and Cloudflare answers the domain's DNS. GitHub receives the " +
+					"usual details of each request, such as your IP address and browser, under its own " +
+					"privacy statement, listed below. Roswaal itself receives nothing.",
 			},
 			{
 				t: "ul",
@@ -86,6 +97,15 @@ export function privacyPage(): DocPage {
 					"**Deleted when access ends.** Signing out revokes the sign-in and deletes it and the downloaded copies. If Roswaal loses access to Roblox's APIs, the daemon deletes them the next time it runs.",
 				],
 			},
+
+			{ t: "h", level: 2, text: "Services Roswaal uses" },
+			{
+				t: "p",
+				text:
+					"Each of these handles what you send it under its own policies, which Roswaal does " +
+					"not control.",
+			},
+			{ t: "ul", items: SERVICES },
 
 			{ t: "h", level: 2, text: "Children" },
 			{
@@ -143,23 +163,22 @@ export function termsPage(): DocPage {
 				],
 			},
 
+			{ t: "h", level: 2, text: "Services Roswaal uses" },
+			{
+				t: "p",
+				text:
+					"Using a part of Roswaal that relies on one of these services means agreeing to that " +
+					"service's own terms as well as these. Do not use Roswaal in a way they forbid.",
+			},
+			{ t: "ul", items: SERVICES },
+
 			{ t: "h", level: 2, text: "Roblox" },
 			{
 				t: "p",
 				text:
-					"Signing in with Roblox is also subject to [Roblox's Terms of Use](https://www.roblox.com/info/terms). " +
-					"Do not use Roswaal in a way those terms forbid. Roswaal is not affiliated with, " +
-					"endorsed by, or approved by Roblox Corporation. Luau is a trademark of Roblox " +
-					"Corporation. Roblox, and the names of the engine's classes and services, belong to " +
-					"Roblox Corporation.",
-			},
-
-			{ t: "h", level: 2, text: "Other services" },
-			{
-				t: "p",
-				text:
-					"Installing a Wally package or fetching a repository from GitHub uses those services, " +
-					"under their own terms.",
+					"Roswaal is not affiliated with, endorsed by, or approved by Roblox Corporation. Luau " +
+					"is a trademark of Roblox Corporation. Roblox, and the names of the engine's classes " +
+					"and services, belong to Roblox Corporation.",
 			},
 
 			{ t: "h", level: 2, text: "Changes" },

@@ -582,6 +582,12 @@ export const GROUPS = {
 	 * for a different reason: someone building an editor, not using one.
 	 */
 	technical: "Technical specification",
+	/**
+	 * Attributions, the Privacy Policy and the Terms of Service: read for what
+	 * Roswaal owes, keeps and promises rather than for how to use it, so last,
+	 * under a heading of their own.
+	 */
+	legal: "Legal",
 } as const;
 
 export interface DocSite {
@@ -745,14 +751,19 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 				group: GROUPS.learn,
 				pages: releaseNotesPages(titles),
 			},
-			{ title: "Attributions", slug: "attributions", group: GROUPS.learn, pages: [attributions] },
 			{ title: "Contributing", slug: "contributing", group: GROUPS.learn, pages: [contributing] },
-			{ title: "Legal", slug: "legal", group: GROUPS.learn, pages: legal },
 			...technicalSections(GROUPS.technical, ctx),
 			...reference(GROUPS.builtin, false),
 			...engineTypeSections(),
 			...conversionSections(),
 			...reference(GROUPS.project, true),
+			{ title: "Attributions", slug: "attributions", group: GROUPS.legal, pages: [attributions] },
+			...legal.map((page) => ({
+				title: page.title,
+				slug: page.slug,
+				group: GROUPS.legal,
+				pages: [page],
+			})),
 		]),
 	};
 }

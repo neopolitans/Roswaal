@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.219.1",
+		date: "2026-11-07",
+		headline: "Legal has its own heading in the docs, and both policies name every service Roswaal uses.",
+		affects: ["docs"],
+		changed: [
+			"**A Legal heading.** Attributions, the Privacy Policy and the Terms of Service sit together under it, after the reference.",
+			"**Every service, with its own terms.** Both pages list GitHub, Cloudflare, the Wally registry and Roblox, what Roswaal uses each for, and links to each one's terms and privacy policy.",
+			"**No repeated breadcrumb.** A page alone in its section no longer shows its title twice above the contents.",
+		],
+	},
+	{
 		version: "0.219.0",
 		date: "2026-11-07",
 		headline: "The docs have a Privacy Policy and Terms of Service.",
