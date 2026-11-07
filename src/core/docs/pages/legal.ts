@@ -119,7 +119,8 @@ export function privacyPage(): DocPage {
 			{
 				t: "ul",
 				items: [
-					"**Only when you choose.** Roblox asks for your consent on its own page, listing the permissions Roswaal asks for: downloading assets, and identifying your account so Roswaal can show who is signed in.",
+					"**Only when you choose.** Roblox asks for your consent on its own page, listing the permissions Roswaal asks for: to download assets (`legacy-asset:manage`), to read who made an asset (`asset:read`), and to identify your account (`openid` and `profile`) so Roswaal can show who is signed in.",
+					'**Read only.** Roswaal reads and downloads assets, and never uploads, changes or deletes them, although Roblox names one of these permissions "manage".',
 					"**Kept on your computer.** The daemon stores the sign-in in your user profile, never in a project folder and never in a log.",
 					`**Used for one thing.** Roswaal downloads the assets your places refer to, through Roblox's official [Open Cloud API](${ROBLOX.openCloud}), and keeps copies in the project's own folder, kept out of Git by default. It never sends them, or your sign-in, anywhere else.`,
 					"**Roblox's own assets are not downloaded.** Roswaal draws a plain stand-in for anything Roblox made.",

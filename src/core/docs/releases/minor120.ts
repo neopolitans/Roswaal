@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.220.1",
+		date: "2026-11-07",
+		headline: "The Privacy Policy names each permission Sign in with Roblox asks for.",
+		affects: ["docs"],
+		changed: [
+			"**The permissions, by name.** Downloading assets, reading who made one, and identifying your account, each with the scope Roblox shows.",
+			"**Read only.** Roswaal never uploads, changes or deletes assets, whatever Roblox calls the permission.",
+		],
+	},
+	{
 		version: "0.220.0",
 		date: "2026-11-07",
 		headline: "The place's touch controls fade when left alone, and the camera's speed can be set by hand.",
