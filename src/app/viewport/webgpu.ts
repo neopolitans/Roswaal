@@ -32,7 +32,7 @@ const TEXTURE = {
 	RENDER_ATTACHMENT: 0x10,
 } as const;
 /** How strong the glow round Neon is, over the frame. */
-const GLOW = 0.9;
+const GLOW = 0.7;
 const MAP_READ = 0x1;
 
 /**
@@ -57,7 +57,7 @@ struct Out { @builtin(position) clip: vec4f, @location(0) uv: vec2f };
 	var w = array<f32, 5>(0.227, 0.194, 0.121, 0.054, 0.016);
 	var c = textureSample(tex, samp, i.uv).rgb * w[0];
 	for (var k = 1; k < 5; k++) {
-		let o = p.xy * f32(k) * 1.5;
+		let o = p.xy * f32(k) * 2.5;
 		c = c + (textureSample(tex, samp, i.uv + o).rgb + textureSample(tex, samp, i.uv - o).rgb) * w[k];
 	}
 	return vec4f(c, 1.0);
@@ -269,9 +269,9 @@ fn faceUv(local: vec3f, ln: vec3f) -> vec2f {
 	if (a.x >= a.z) { return local.zy; }
 	return local.xy;
 }
-// CrackedLava's light, where its cracks are: orange at their edges, lava-yellow at their hearts.
-const LAVA = vec3f(1.0, 0.36, 0.06);
-const LAVA_HOT = vec3f(1.0, 0.82, 0.38);
+// CrackedLava's light, where its cracks are: deep red at their edges, orange at their hearts.
+const LAVA = vec3f(1.0, 0.1, 0.02);
+const LAVA_HOT = vec3f(1.0, 0.45, 0.1);
 fn lavaLight(m: f32) -> vec3f { return mix(LAVA, LAVA_HOT, m * m) * m; }
 // A cheap value noise, for a material's grain.
 fn hash3(p: vec3f) -> f32 { return fract(sin(dot(p, vec3f(127.1, 311.7, 74.7))) * 43758.5453); }
@@ -332,13 +332,16 @@ fn surface(i: VOut) -> vec4f {
 		var mirror = shine;
 		if (b.y > 1.5) { mirror = max(mirror, 0.2 + 0.5 * pow(1.0 - abs(dot(n, v)), 3.0)); }
 		c = mix(c, seen, mirror);
-		c = c + lavaLight(pat.z) * 3.0;
+		c = c + lavaLight(pat.z) * 2.2;
 	}
 	return vec4f(air(c, d, i.world.y), alpha);
 }
 // What gives light of its own, for the glow round it: Neon, and CrackedLava's
-// cracks. Halved, so the glow's 8 bits a channel hold up to twice full.
-fn emission(i: VOut) -> vec3f {
+// cracks. In display terms, as the frame it is added to is: blurred and added
+// as linear light it shifted hue and fell away in a dark band at a glowing
+// part's edge. Halved, so the glow's 8 bits a channel hold up to twice full.
+fn emission(i: VOut) -> vec3f { return pow(light(i), vec3f(1.0 / 2.2)) * 0.5; }
+fn light(i: VOut) -> vec3f {
 	let row = i.look & 255u;
 	let b = u.mats[row * 3u + 1u];
 	let tex = u.mats[row * 3u + 2u];
@@ -346,9 +349,9 @@ fn emission(i: VOut) -> vec3f {
 	let layer = i32(b.w) - 1;
 	// Sampled before any branch: WGSL samples only in uniform control flow.
 	let look = textureSample(looks, lookSampler, uv / tex.x, max(layer, 0));
-	if (b.y > 0.5 && b.y < 1.5) { return i.colour * 0.5; }
-	if (tex.z > 0.5 && layer >= 0) { return lavaLight(look.g) * 0.5; }
-	if (u32(b.z) == 14u) { return lavaLight(pattern(14u, uv, b.x).z) * 0.5; }
+	if (b.y > 0.5 && b.y < 1.5) { return min(i.colour, vec3f(1.0)); }
+	if (tex.z > 0.5 && layer >= 0) { return min(lavaLight(look.g), vec3f(1.0)); }
+	if (u32(b.z) == 14u) { return min(lavaLight(pattern(14u, uv, b.x).z), vec3f(1.0)); }
 	return vec3f(0.0);
 }
 @fragment fn fsGlow(i: VOut) -> @location(0) vec4f { return vec4f(emission(i), 1.0); }
@@ -1006,8 +1009,8 @@ export class WebGpuView implements ViewRenderer {
 			this.solids(pass, this.clear);
 		}
 		pass.end();
-		// Twice each way, for a glow wider than nine taps.
-		for (let round = 0; round < 2; round++)
+		// Three times each way, for a glow wider than nine taps.
+		for (let round = 0; round < 3; round++)
 			for (const [from, into] of [
 				[0, glow.b],
 				[1, glow.a],

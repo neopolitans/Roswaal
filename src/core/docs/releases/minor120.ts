@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.217.1",
+		date: "2026-11-07",
+		headline: "Neon's glow blooms evenly, and CrackedLava is rough rock with jagged cracks.",
+		fixed: [
+			"**Neon's glow keeps its colour.** It fades smoothly from the part, wider than before, with no dark band at its edge and no shift towards purple.",
+		],
+		changed: [
+			"**CrackedLava looks grittier.** Rough rock plates, scorched near jagged cracks of uneven width and finer cracks between, glowing deep red to orange.",
+		],
+	},
+	{
 		version: "0.217.0",
 		date: "2026-11-07",
 		headline: "Forty materials are drawn from textures, and CrackedLava's cracks glow from theirs.",

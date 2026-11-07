@@ -9,7 +9,7 @@ import { sceneGlows } from "./geometry.js";
 import { TEXTURE_LEVELS, TEXTURE_SIZE } from "./textures.js";
 
 /** How strong the glow round Neon is, over the frame, as in WebGpuView. */
-const GLOW = 0.9;
+const GLOW = 0.7;
 
 import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene.js";
 import { boxEdges, meshFor } from "./geometry.js";
@@ -167,8 +167,8 @@ vec2 faceUv(vec3 local, vec3 ln) {
 	if (a.x >= a.z) return local.zy;
 	return local.xy;
 }
-const vec3 LAVA = vec3(1.0, 0.36, 0.06);
-const vec3 LAVA_HOT = vec3(1.0, 0.82, 0.38);
+const vec3 LAVA = vec3(1.0, 0.1, 0.02);
+const vec3 LAVA_HOT = vec3(1.0, 0.45, 0.1);
 vec3 lavaLight(float m) { return mix(LAVA, LAVA_HOT, m * m) * m; }
 `;
 // A surface in its material, as WebGpuView's \`surface\` draws it.
@@ -224,7 +224,7 @@ vec4 surface(vec3 colour, vec3 n, vec3 world, float alpha, uint look, vec3 local
 		float mirror = shine;
 		if (b.y > 1.5) mirror = max(mirror, 0.2 + 0.5 * pow(1.0 - abs(dot(n, v)), 3.0));
 		c = mix(c, seen, mirror);
-		c += lavaLight(pat.z) * 3.0;
+		c += lavaLight(pat.z) * 2.2;
 	}
 	return vec4(air(c, d, world.y), alpha);
 }
@@ -326,7 +326,7 @@ void main() {
 	float w[5] = float[5](0.227, 0.194, 0.121, 0.054, 0.016);
 	vec3 c = texture(tex, uv).rgb * w[0];
 	for (int k = 1; k < 5; k++) {
-		vec2 d = p.xy * float(k) * 1.5;
+		vec2 d = p.xy * float(k) * 2.5;
 		c += (texture(tex, uv + d).rgb + texture(tex, uv - d).rgb) * w[k];
 	}
 	o = vec4(c, 1.0);
@@ -350,9 +350,11 @@ void main() {
 	vec2 uv = faceUv(vLocal, vLNormal);
 	int layer = int(b.w) - 1;
 	vec3 e = vec3(0.0);
-	if (b.y > 0.5 && b.y < 1.5) e = vColour * 0.5;
-	else if (tex.z > 0.5 && layer >= 0) e = lavaLight(texture(looks, vec3(uv / tex.x, float(layer))).g) * 0.5;
-	else if (int(b.z) == 14) e = lavaLight(pattern(14, uv, b.x).z) * 0.5;
+	// In display terms, as WebGpuView's emission is.
+	if (b.y > 0.5 && b.y < 1.5) e = vColour;
+	else if (tex.z > 0.5 && layer >= 0) e = lavaLight(texture(looks, vec3(uv / tex.x, float(layer))).g);
+	else if (int(b.z) == 14) e = lavaLight(pattern(14, uv, b.x).z);
+	e = pow(min(e, vec3(1.0)), vec3(1.0 / 2.2)) * 0.5;
 	o = vec4(e * (seen > 0.5 ? vAlpha : 1.0), 1.0);
 }`;
 const FS_ID = `#version 300 es
@@ -736,7 +738,7 @@ export class WebGl2View implements ViewRenderer {
 		gl.bindTexture(gl.TEXTURE_2D, null);
 	}
 
-	/** The place drawn small in the light it gives off, then blurred both ways, twice. */
+	/** The place drawn small in the light it gives off, then blurred both ways, three times. */
 	private drawGlow(camera: Camera): void {
 		const gl = this.gl;
 		const [w, h] = this.glowSize;
@@ -766,7 +768,7 @@ export class WebGl2View implements ViewRenderer {
 		gl.useProgram(this.blurProgram.program);
 		const p = gl.getUniformLocation(this.blurProgram.program, "p");
 		gl.activeTexture(gl.TEXTURE0);
-		for (let round = 0; round < 2; round++)
+		for (let round = 0; round < 3; round++)
 			for (const [from, into, step] of [
 				[0, 1, [1 / w, 0]],
 				[1, 0, [0, 1 / h]],
