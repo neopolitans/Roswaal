@@ -83,8 +83,8 @@ export function privacyPage(): DocPage {
 			{
 				t: "ul",
 				items: [
-					"**Chrome, Edge and other Chromium browsers on a computer** can open a folder on your disk through the browser's File System Access API. You choose the folder in the browser's own dialog and grant access. Roswaal reads and writes only inside it, and the browser may ask again in a later session. The site never learns the folder's path: it keeps the browser's handle to it in its IndexedDB storage, so the folder can be reopened.",
-					"**Safari, Firefox, and every browser on iPad and iPhone** cannot open a folder. A project you make there is kept in the browser's private storage for this site, its origin private file system, which is separate from your other files. Projects come in as a zip you import, and leave as a zip you download.",
+					"**Chrome and Edge on a computer** can open a folder on your disk through the browser's File System Access API. You choose the folder in the browser's own dialog and grant access. Roswaal reads and writes only inside it, and the browser may ask again in a later session. The site never learns the folder's path: it keeps the browser's handle to it in its IndexedDB storage, so the folder can be reopened.",
+					"**Other browsers**, including Safari, Firefox, other browsers built on Chromium, and every browser on iPad and iPhone, cannot open a folder. A project you make there is kept in the browser's private storage for this site, its origin private file system, which is separate from your other files. Projects come in as a zip you import, and leave as a zip you download.",
 					"**Your preferences and recent projects** are kept in the browser's local storage, under names that begin with `roswaal`.",
 				],
 			},
@@ -117,14 +117,15 @@ export function privacyPage(): DocPage {
 				text:
 					"On every system, the daemon writes each file whole: to a temporary file beside it, " +
 					"which is then renamed into place, so a crash never leaves half a file. It follows no " +
-					"link that leads out of the project. If [StyLua](https://github.com/JohnnyMorganz/StyLua) " +
+					"link that leads out of the project, and it starts every program by its full path, never one " +
+					"from the project folder. If [StyLua](https://github.com/JohnnyMorganz/StyLua) " +
 					"is installed, the daemon runs it to format the Luau it writes. Beyond that, it opens " +
 					"your system's own programs only when you ask:",
 			},
 			{
 				t: "ul",
 				items: [
-					"**Windows**, through the release build or npm. Choosing a folder opens the Windows folder dialog, through Windows PowerShell. Show in file manager opens File Explorer. Edit in the code editor finds Visual Studio Code, its Insiders build, VSCodium or Cursor on your PATH or in its usual install folder. Every program is started by its full path, never one from the project folder.",
+					"**Windows**, through the release build or npm. Choosing a folder opens the Windows folder dialog, through Windows PowerShell. Show in file manager opens File Explorer. Edit in the code editor finds Visual Studio Code, its Insiders build, VSCodium or Cursor on your PATH or in its usual install folder.",
 					"**macOS**, through the release build or npm. Choosing a folder opens the macOS folder dialog, through AppleScript. Show in file manager opens Finder. Edit in the code editor opens Visual Studio Code, VSCodium or Cursor from Applications.",
 					"**Linux**, through npm. Choosing a folder opens zenity or kdialog if one is installed; otherwise you type the path. Show in file manager uses xdg-open. Edit in the code editor finds Visual Studio Code, its Insiders build, VSCodium or Cursor on your PATH.",
 				],

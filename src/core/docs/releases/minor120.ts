@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.220.3",
+		date: "2026-11-07",
+		headline: "Programs on macOS and Linux are started by their full path, and the Privacy Policy is verified.",
+		affects: ["docs"],
+		verified: ["privacy"],
+		fixed: [
+			"**Programs on macOS and Linux are started by their full path.** The folder picker, Show in file manager, Edit in the code editor and the launcher's Node were looked up by name, so a PATH with `.` or an empty entry in it could start a program of the same name from the project folder.",
+		],
+		changed: [
+			"**Folders in the browser.** Chrome and Edge on a computer open one; other browsers, those built on Chromium among them, keep the project in the browser instead.",
+		],
+	},
+	{
 		version: "0.220.2",
 		date: "2026-11-07",
 		headline: "The Privacy Policy says how Roswaal reaches your files on each system, and roswaal.app/attributions works.",

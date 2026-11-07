@@ -25,7 +25,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import { findOnPath, windowsProgram } from "./programs.js";
+import { findOnPath, macProgram, windowsProgram } from "./programs.js";
 
 /**
  * True while a dialog is on screen.
@@ -274,7 +274,7 @@ async function macPicker(start?: string): Promise<string | null> {
 	].join("\n");
 
 	const args = ["-e", script, ...(start ? ["--", start] : [])];
-	return run("osascript", args, process.env);
+	return run(macProgram("osascript"), args, process.env);
 }
 
 /**
