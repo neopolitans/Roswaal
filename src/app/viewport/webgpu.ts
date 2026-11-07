@@ -363,9 +363,15 @@ fn light(i: VOut) -> vec3f {
 }
 @fragment fn fsGlow(i: VOut) -> @location(0) vec4f { return vec4f(emission(i), 1.0); }
 @fragment fn fsGlowSeen(i: VOut) -> @location(0) vec4f { return vec4f(emission(i) * i.alpha, 1.0); }
+// A solid Neon part marks itself with no alpha, so the glow is added round it
+// and not over it: blurred, the glow is weaker at a face's edges and weaker
+// again at its corners, and over the part it showed as a shadow there. Drawn
+// one even shade, the part meets its glow at its outline, as Studio's does.
 @fragment fn fs(i: VOut) -> @location(0) vec4f {
 	let s = surface(i);
-	return vec4f(display(s.rgb), s.a);
+	let shade = u.mats[(i.look & 255u) * 3u + 1u].y;
+	let glows = shade > 0.5 && shade < 1.5 && s.a > 0.999;
+	return vec4f(display(s.rgb), select(s.a, 0.0, glows));
 }
 // The sky behind everything: a triangle that covers the screen, each pixel's ray worked out from where it is.
 struct SOut { @builtin(position) clip: vec4f, @location(0) ndc: vec2f };
@@ -768,7 +774,16 @@ export class WebGpuView implements ViewRenderer {
 			fragment: {
 				module: post,
 				entryPoint: "fsAdd",
-				targets: [{ format: this.format, blend: adding }],
+				// Over what the frame has marked as not glowing itself: its alpha.
+				targets: [
+					{
+						format: this.format,
+						blend: {
+							color: { srcFactor: "dst-alpha", dstFactor: "one" },
+							alpha: { srcFactor: "zero", dstFactor: "one" },
+						},
+					},
+				],
 			},
 			primitive: { topology: "triangle-list" },
 		});

@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.218.1",
+		date: "2026-11-07",
+		headline: "A Neon part is one even shade with its glow round it, and the place's row in DataModel opens and closes.",
+		fixed: [
+			"**Neon is one even shade.** Its glow is drawn round the part rather than over it, so its faces no longer dim towards their edges and corners.",
+			"**The place's row opens and closes.** Its arrow in DataModel shuts and opens the whole tree at once, whatever Workspace was left as.",
+		],
+	},
+	{
 		version: "0.218.0",
 		date: "2026-11-07",
 		headline: "A left-drag in the place picks a box of parts, DataModel picks many rows, and Tab takes a suggestion.",

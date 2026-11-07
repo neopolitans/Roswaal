@@ -285,7 +285,9 @@ void main() {
 	else if (handle > 0.5) o = vec4(pow(vColour * (0.72 + 0.38 * max(dot(n, normalize(vec3(0.4, 1.0, 0.25))), 0.0)), vec3(1.0 / 2.2)), alpha);
 	else {
 		vec4 s = surface(vColour, n, vWorld, vAlpha, vLook, vLocal, vLNormal);
-		o = vec4(display(s.rgb), s.a);
+		// A solid Neon part marks itself with no alpha, as WebGpuView's fs does.
+		float shade = M[int(vLook & 255u) * 3 + 1].y;
+		o = vec4(display(s.rgb), shade > 0.5 && shade < 1.5 && s.a > 0.999 ? 0.0 : s.a);
 	}
 }`;
 const VS_SKY = `#version 300 es
@@ -791,7 +793,8 @@ export class WebGl2View implements ViewRenderer {
 		const gl = this.gl;
 		gl.disable(gl.DEPTH_TEST);
 		gl.enable(gl.BLEND);
-		gl.blendFunc(gl.ONE, gl.ONE);
+		// Over what the frame has marked as not glowing itself: its alpha.
+		gl.blendFuncSeparate(gl.DST_ALPHA, gl.ONE, gl.ZERO, gl.ONE);
 		gl.useProgram(this.addProgram.program);
 		gl.uniform4f(gl.getUniformLocation(this.addProgram.program, "p"), 0, 0, GLOW, 0);
 		gl.activeTexture(gl.TEXTURE0);
@@ -800,6 +803,11 @@ export class WebGl2View implements ViewRenderer {
 		gl.bindTexture(gl.TEXTURE_2D, null);
 		gl.disable(gl.BLEND);
 		gl.enable(gl.DEPTH_TEST);
+		// The page composites this canvas by its alpha: opaque again.
+		gl.colorMask(false, false, false, true);
+		gl.clearColor(0, 0, 0, 1);
+		gl.clear(gl.COLOR_BUFFER_BIT);
+		gl.colorMask(true, true, true, true);
 	}
 
 	setSelection(boxes: Float32Array): void {

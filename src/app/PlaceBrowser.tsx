@@ -424,7 +424,7 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 			if (tucked) for (const root of hidden) add(root, top);
 		}
 		return out;
-	}, [nodes, classes, children, open, showAll, tucked, filter]);
+	}, [nodes, classes, children, open, showAll, tucked, filter, placeShut, onOpenPlace]);
 
 	/**
 	 * A click on a row, read by `clickMode`: alone, or with Ctrl or Shift to pick
