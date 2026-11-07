@@ -156,6 +156,13 @@ export function placesAndRojoPage(): DocPage {
 			{
 				t: "p",
 				text:
+					"`Shift` + click adds an instance to what is picked, or takes it out. `Ctrl` + click, " +
+					"`Cmd` on a Mac, picks every row from the last one you picked. What is picked here is " +
+					"picked in the 3D view too.",
+			},
+			{
+				t: "p",
+				text:
 					"Double-click or double-tap an instance to open the **Properties** panel on the right: " +
 					"its properties, tags and attributes under Studio's headings. While it is open it follows " +
 					"what you pick, and a reference goes to what it names. For a script a project file " +
