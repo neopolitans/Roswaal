@@ -388,11 +388,12 @@ struct SOut { @builtin(position) clip: vec4f, @location(0) ndc: vec2f };
 	return vec4f(display(sky(dir)), 1.0);
 }
 // A handle: in the tool's colour, shaded but not lit by the place, with its
-// depth squeezed into the front hundredth of the range, so it is in front of
-// the place and still in front of or behind the other handles as it should be.
+// depth squeezed into the front hundredth of the range -- by 1, as depth here
+// is reversed -- so it is in front of the place and still in front of or
+// behind the other handles as it should be.
 @vertex fn vsHandle(v: VIn) -> VOut {
 	var o = shade(v);
-	o.clip.z = o.clip.z * 0.01;
+	o.clip.z = o.clip.w - (o.clip.w - o.clip.z) * 0.01;
 	return o;
 }
 @fragment fn fsHandle(i: VOut) -> @location(0) vec4f {
@@ -581,7 +582,7 @@ export class WebGpuView implements ViewRenderer {
 		const depth = {
 			format: "depth32float" as const,
 			depthWriteEnabled: true,
-			depthCompare: "less" as const,
+			depthCompare: "greater" as const,
 		};
 		this.solid = d.createRenderPipeline({
 			layout: pipelineLayout,
@@ -610,7 +611,7 @@ export class WebGpuView implements ViewRenderer {
 				],
 			},
 			primitive: { topology: "triangle-list", cullMode: "back" },
-			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "less" },
+			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "greater" },
 			multisample: { count: SAMPLES },
 		});
 		// See-through Glass: the nearest's depth, then its colour blended at that depth.
@@ -642,7 +643,7 @@ export class WebGpuView implements ViewRenderer {
 			depthStencil: {
 				format: "depth32float",
 				depthWriteEnabled: false,
-				depthCompare: "less-equal",
+				depthCompare: "greater-equal",
 			},
 			multisample: { count: SAMPLES },
 		});
@@ -670,7 +671,7 @@ export class WebGpuView implements ViewRenderer {
 				multisample: { count: SAMPLES },
 			});
 		this.lines = line("always");
-		this.linesBehind = line("less-equal");
+		this.linesBehind = line("greater-equal");
 		this.ids = d.createRenderPipeline({
 			layout: pipelineLayout,
 			vertex: { module, entryPoint: "vs", buffers },
@@ -744,7 +745,7 @@ export class WebGpuView implements ViewRenderer {
 			vertex: { module, entryPoint: "vs", buffers },
 			fragment: { module, entryPoint: "fsGlowSeen", targets: [{ ...glowTarget, blend: adding }] },
 			primitive: { topology: "triangle-list", cullMode: "back" },
-			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "less" },
+			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "greater" },
 		});
 		this.glowGlassDepth = d.createRenderPipeline({
 			layout: pipelineLayout,
@@ -1014,7 +1015,7 @@ export class WebGpuView implements ViewRenderer {
 			],
 			depthStencilAttachment: {
 				view: glow.depth.createView(),
-				depthClearValue: 1,
+				depthClearValue: 0,
 				depthLoadOp: "clear",
 				depthStoreOp: "discard",
 			},
@@ -1062,7 +1063,7 @@ export class WebGpuView implements ViewRenderer {
 
 	private setCamera(camera: Camera): void {
 		const vp = multiply(
-			perspective(FOV, this.width / this.height, camera.near, camera.far, true),
+			perspective(FOV, this.width / this.height, camera.near, camera.far, true, true),
 			lookAt(camera.eye, camera.at),
 		);
 		const u = new Float32Array(80);
@@ -1102,7 +1103,7 @@ export class WebGpuView implements ViewRenderer {
 			],
 			depthStencilAttachment: {
 				view: this.depth!.createView(),
-				depthClearValue: 1,
+				depthClearValue: 0,
 				depthLoadOp: "clear",
 				depthStoreOp: "discard",
 			},
@@ -1191,7 +1192,7 @@ export class WebGpuView implements ViewRenderer {
 			],
 			depthStencilAttachment: {
 				view: this.pickDepth!.createView(),
-				depthClearValue: 1,
+				depthClearValue: 0,
 				depthLoadOp: "clear",
 				depthStoreOp: "discard",
 			},

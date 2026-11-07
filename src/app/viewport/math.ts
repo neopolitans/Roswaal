@@ -2,19 +2,29 @@
 
 export type Mat4 = Float32Array;
 
+/**
+ * A perspective projection. `reversed` puts the near plane at depth 1 and the
+ * far one at 0: a float depth buffer then keeps its precision nearly even out
+ * to the horizon, where the usual way spends it all close to the camera and
+ * two faces a thousandth of a stud apart fight a few hundred studs out.
+ */
 export function perspective(
 	fovY: number,
 	aspect: number,
 	near: number,
 	far: number,
 	zeroToOne: boolean,
+	reversed = false,
 ): Mat4 {
 	const f = 1 / Math.tan(fovY / 2);
 	const m = new Float32Array(16);
 	m[0] = f / aspect;
 	m[5] = f;
 	m[11] = -1;
-	if (zeroToOne) {
+	if (zeroToOne && reversed) {
+		m[10] = near / (far - near);
+		m[14] = (near * far) / (far - near);
+	} else if (zeroToOne) {
 		m[10] = far / (near - far);
 		m[14] = (near * far) / (near - far);
 	} else {
