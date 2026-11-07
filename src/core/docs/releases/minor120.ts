@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.218.0",
+		date: "2026-11-07",
+		headline: "A left-drag in the place picks a box of parts, DataModel picks many rows, and Tab takes a suggestion.",
+		added: [
+			"**Box select in the place.** A left-drag draws a box and picks every part whose centre is inside it, each with its own outline; Shift adds to what is picked, and an empty box clears it.",
+			"**Many rows in DataModel.** Ctrl-click (Cmd on a Mac) picks the run from the last row picked, Shift-click adds a row or takes it out, and the rows and the place's view always show the same pick.",
+			"**Tab takes a suggestion.** In the code editor, the node menu and picker, the property and value pickers and the docs search, Tab takes the highlighted suggestion as Enter does, and moves focus as before when none is highlighted.",
+		],
+		watch: [
+			"**Orbiting the place is Alt-drag**, as a left-drag now picks a box. Right-drag still looks round, and Shift-right-drag pans for a mouse with no middle button.",
+		],
+	},
+	{
 		version: "0.217.2",
 		date: "2026-11-07",
 		headline: "Neon blooms as far in red as in cyan.",
