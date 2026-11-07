@@ -9,6 +9,13 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.219.9",
+		date: "2026-11-07",
+		headline: "The Privacy Policy is verified.",
+		affects: ["docs"],
+		verified: ["privacy"],
+	},
+	{
 		version: "0.219.8",
 		date: "2026-11-07",
 		headline: "The Privacy Policy says nothing from Sign in with Roblox is put back online.",

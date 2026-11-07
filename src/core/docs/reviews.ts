@@ -144,6 +144,9 @@ export const REVIEWS: Record<
 	// Verified by the author for 0.219.7: the You May and You May Not lists,
 	// the services and their terms, and what is Roswaal's and what is not.
 	terms: { status: "verified", date: "2026-11-07", reviewers: ["neopolitans"] },
+	// Verified by the author for 0.219.9: what Roswaal keeps and where, the
+	// daemon, Sign in with Roblox as it will work, and every service linked.
+	privacy: { status: "verified", date: "2026-11-07", reviewers: ["neopolitans"] },
 	// Read by the author for 0.65.0, against the RFC and against the editor.
 	// Not verified, and deliberately: every rule on it is checked against
 	// `require-by-string-aliases.html` and against what Roswaal does with it,
