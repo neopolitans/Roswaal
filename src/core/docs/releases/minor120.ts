@@ -9,6 +9,13 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.219.7",
+		date: "2026-11-07",
+		headline: "The Terms of Service are verified.",
+		affects: ["docs"],
+		verified: ["terms"],
+	},
+	{
 		version: "0.219.6",
 		date: "2026-11-07",
 		headline: "The Privacy Policy links each address and Roblox policy it names, and lists what the daemon does.",
