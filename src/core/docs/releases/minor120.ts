@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.220.0",
+		date: "2026-11-07",
+		headline: "The place's touch controls fade when left alone, and the camera's speed can be set by hand.",
+		added: [
+			"**Touch controls fade.** Each stick, and the up and down buttons, fades to a faint outline three seconds after the last touch in its area, and comes back at the next touch, which works as it wakes it.",
+			"**A camera speed field.** Beside the stud and rotation snaps, behind Snap where the bar is narrow and at the bar's end on a wide screen. Shift+scroll still sets it, from 0.05× to 50×.",
+		],
+	},
+	{
 		version: "0.219.9",
 		date: "2026-11-07",
 		headline: "The Privacy Policy is verified.",
