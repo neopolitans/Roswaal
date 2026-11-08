@@ -12,9 +12,22 @@ being true that day and are marked where they appear.
 
 ## Licensing
 
-The author's own work, built entirely on Roblox's renderer — SmoothPlastic and
-`BrickColor`, no imported meshes, textures, decals or sounds. No third-party
-asset travels with it, so it ships **0BSD** with the rest of the repository.
+The author's own work. The tank's 22 meshes and its track texture were made by
+the author, as vehicle artist and programmer, in their own independent work on
+Teensy Tiny Tankery; the author keeps the source `.blend` as provenance. They
+were uploaded to Roblox by the author, so these files hold only their asset IDs,
+and the collision data Studio worked out from each mesh (`PhysicalConfigData`).
+
+The rest of the place is Studio's own starting point: its services, a Baseplate
+and a SpawnLocation. Those name Roblox's grid texture and spawn decal by ID, and
+hold none of Roblox's content. `TestService.LuauLSP_Settings` is a settings
+module the Luau LSP companion plugin left behind.
+
+No third-party asset travels with it, so it ships **0BSD** with the rest of the
+repository.
+
+*Corrected 8 November 2026.* This section used to say the tank had no imported
+meshes or textures. It has, and they are the author's.
 
 ## The files
 

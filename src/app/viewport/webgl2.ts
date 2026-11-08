@@ -53,8 +53,20 @@ vec3 air(vec3 c, float d, float y) {
 `;
 // A material's pattern, as WebGpuView's \`pattern\` draws it.
 const PATTERNS = `
-float hash1(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
-vec2 hash2(vec2 p) { return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }
+// Roswaal's own hash, as WebGpuView's \`mixBits\`: see \`scripts/find-hash.mjs\`.
+uint mixBits(uint v) {
+	uint x = v;
+	x ^= x >> 18u;
+	x *= 0xe71d6283u;
+	x ^= x >> 15u;
+	x *= 0x1f04730du;
+	x ^= x >> 18u;
+	return x;
+}
+float toUnit(uint h) { return float(h >> 8u) / 16777216.0; }
+uint cellBits(vec2 p) { uvec2 q = uvec2(ivec2(p)); return mixBits(q.x ^ mixBits(q.y)); }
+float hash1(vec2 p) { return toUnit(cellBits(p)); }
+vec2 hash2(vec2 p) { uint h = cellBits(p); return vec2(toUnit(h), toUnit(mixBits(h))); }
 float noise2(vec2 p) {
 	vec2 i = floor(p);
 	vec2 f = fract(p);
@@ -176,7 +188,7 @@ const SURFACE = `
 uniform vec4 M[${MATERIALS.length * 3}];
 uniform mediump sampler2DArray looks;
 ${PATTERNS}
-float hash3(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+float hash3(vec3 p) { uvec3 q = uvec3(ivec3(p)); return toUnit(mixBits(q.x ^ mixBits(q.y ^ mixBits(q.z)))); }
 float noise3(vec3 p) {
 	vec3 i = floor(p);
 	vec3 f = fract(p);
@@ -285,6 +297,7 @@ float logDepth() { return log2(max(vDepthW, 1e-6)) * logFar; }
 `;
 const FS = `#version 300 es
 precision highp float;
+precision highp int;
 in vec3 vColour; in vec3 vWorld; in vec3 vNormal; flat in uint vId; in float vAlpha; flat in uint vLook; in vec3 vLocal; in vec3 vLNormal;
 uniform float outline; uniform vec3 select; uniform float handle; uniform float alpha;
 ${COMMON}

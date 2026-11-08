@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.220.7",
+		date: "2026-11-08",
+		headline: "The viewport's patterns come from a hash of Roswaal's own, and the Attributions page credits the place-file formats.",
+		affects: ["editor", "docs"],
+		changed: [
+			"**Patterns from Roswaal's own hash.** The viewport's material patterns, grain and CrackedLava's cracks take their random values from a hash whose constants `scripts/find-hash.mjs` found by search. Each pattern keeps its look; where each speck, stone and crack falls has moved.",
+			"**Place files on the Attributions page.** It lists Roblox's place and model files, Zstandard and LZ4, and says how Rojo, rbx-dom and Lune were used to check Roswaal's own reader and writer.",
+		],
+	},
+	{
 		version: "0.220.6",
 		date: "2026-11-08",
 		headline: "A wire connected by touch no longer leaves the canvas zooming, and Dynamic mode compiles a moved node only when its Luau changes.",

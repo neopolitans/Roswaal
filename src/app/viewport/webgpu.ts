@@ -148,10 +148,23 @@ fn air(c: vec3f, d: f32, y: f32) -> vec3f {
 	let thin = exp(-max(y, 0.0) * 0.004);
 	return mix(c, u.hazeColour.rgb, 1.0 - exp(-d * u.horizon.w * thin));
 }
-fn hash1(p: vec2f) -> f32 { return fract(sin(dot(p, vec2f(12.9898, 78.233))) * 43758.5453); }
-fn hash2(p: vec2f) -> vec2f {
-	return fract(sin(vec2f(dot(p, vec2f(127.1, 311.7)), dot(p, vec2f(269.5, 183.3)))) * 43758.5453);
+// Roswaal's own hash, for a random-looking value per cell of a pattern. The
+// shifts and multipliers were found by \`scripts/find-hash.mjs\`, which says how.
+// Every caller passes whole numbers: a cell's corner, after \`floor\`.
+fn mixBits(v: u32) -> u32 {
+	var x = v;
+	x ^= x >> 18u;
+	x *= 0xe71d6283u;
+	x ^= x >> 15u;
+	x *= 0x1f04730du;
+	x ^= x >> 18u;
+	return x;
 }
+// Its top 24 bits as a number from 0 up to 1, which a float holds exactly.
+fn toUnit(h: u32) -> f32 { return f32(h >> 8u) / 16777216.0; }
+fn cellBits(p: vec2f) -> u32 { let q = bitcast<vec2u>(vec2i(p)); return mixBits(q.x ^ mixBits(q.y)); }
+fn hash1(p: vec2f) -> f32 { return toUnit(cellBits(p)); }
+fn hash2(p: vec2f) -> vec2f { let h = cellBits(p); return vec2f(toUnit(h), toUnit(mixBits(h))); }
 fn noise2(p: vec2f) -> f32 {
 	let i = floor(p);
 	let f = fract(p);
@@ -274,7 +287,7 @@ const LAVA = vec3f(1.0, 0.1, 0.02);
 const LAVA_HOT = vec3f(1.0, 0.45, 0.1);
 fn lavaLight(m: f32) -> vec3f { return mix(LAVA, LAVA_HOT, m * m) * m; }
 // A cheap value noise, for a material's grain.
-fn hash3(p: vec3f) -> f32 { return fract(sin(dot(p, vec3f(127.1, 311.7, 74.7))) * 43758.5453); }
+fn hash3(p: vec3f) -> f32 { let q = bitcast<vec3u>(vec3i(p)); return toUnit(mixBits(q.x ^ mixBits(q.y ^ mixBits(q.z)))); }
 fn noise3(p: vec3f) -> f32 {
 	let i = floor(p);
 	let f = fract(p);

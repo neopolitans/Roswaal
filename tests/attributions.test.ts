@@ -373,7 +373,7 @@ describe("finding an entry", () => {
 	});
 
 	it("finds a holder by name, and narrows by every word", () => {
-		expect(found("all", "roblox corporation")).toBe(4);
+		expect(found("all", "roblox corporation")).toBe(5);
 		expect(found("all", "Roblox CC")).toBe(1);
 		expect(found("all", "nord")).toBe(1);
 	});

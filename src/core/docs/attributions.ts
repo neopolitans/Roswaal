@@ -178,7 +178,9 @@ export const ATTRIBUTIONS: Attribution[] = [
 		licence: null,
 		ships: false,
 		where: NOTHING_SHIPS,
-		note: "Roswaal can compile a graph to a `.luau` file that Lune runs.",
+		note:
+			"Roswaal can compile a graph to a `.luau` file that Lune runs, and its place files were " +
+			"checked through Lune.",
 		url: "https://lune-org.github.io/docs",
 	},
 	{
@@ -371,11 +373,15 @@ export const ATTRIBUTIONS: Attribution[] = [
 		licence: "MPL-2.0",
 		ships: false,
 		where: NOTHING_SHIPS,
-		note: "Roswaal writes the files Rojo syncs into a place.",
+		note:
+			"Roswaal writes the files Rojo syncs into a place, and its place-file code was compared " +
+			"with Rojo's builds.",
 		url: "https://rojo.space/",
 	},
-	// Roswaal's place-file code is its own. rbx-dom was only an outside reader:
-	// places Roswaal wrote were opened with it, through Lune, to check them.
+	// Roswaal's place-file code is its own, and none of rbx-dom's is in it. It
+	// was built by comparing: the same files read and written by rbx-dom, run
+	// through Lune, and by Roswaal, until the two agreed. rbx-dom also
+	// documents the binary format, linked from Roblox's own entry below.
 	{
 		name: "rbx-dom",
 		usage: "works",
@@ -383,8 +389,51 @@ export const ATTRIBUTIONS: Attribution[] = [
 		licence: "MIT",
 		ships: false,
 		where: NOTHING_SHIPS,
-		note: "Roswaal's .rbxl writes were checked by reading them back with rbx-dom, through Lune.",
+		note:
+			"Roswaal's place-file reader and writer were built by comparing what they read and " +
+			"write with what rbx-dom reads and writes, through Lune.",
 		url: "https://github.com/rojo-rbx/rbx-dom",
+	},
+	// Worked out by hand, over many hours: a property or two of each class
+	// changed in Studio, saved, read back, and the file opened again in Studio,
+	// with each class and property taken from creator-docs. The DataModel
+	// panel's editing came out of the same work.
+	{
+		name: "Roblox place and model files",
+		short: "Place files",
+		usage: "works",
+		holder: "Roblox Corporation",
+		licence: null,
+		ships: false,
+		where: NOTHING_SHIPS,
+		note:
+			"Roswaal reads and writes .rbxl, .rbxm, .rbxlx and .rbxmx files with code of its own, " +
+			"worked out by changing files in Roblox Studio, reading them back, and opening them again.",
+		url: "https://dom.rojo.space/binary",
+	},
+	{
+		name: "Zstandard",
+		usage: "works",
+		holder: "Meta Platforms, Inc.",
+		licence: null,
+		ships: false,
+		where: NOTHING_SHIPS,
+		note:
+			"Roswaal reads Studio's compressed place files with a Zstandard decoder of its own, " +
+			"written to RFC 8878.",
+		url: "https://www.rfc-editor.org/rfc/rfc8878",
+	},
+	{
+		name: "LZ4",
+		usage: "works",
+		holder: "Yann Collet",
+		licence: null,
+		ships: false,
+		where: NOTHING_SHIPS,
+		note:
+			"Roswaal reads and writes LZ4-compressed place files with code of its own, written to " +
+			"the LZ4 block format.",
+		url: "https://github.com/lz4/lz4/blob/dev/doc/lz4_Block_format.md",
 	},
 	{
 		name: "Wally",
