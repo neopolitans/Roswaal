@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.220.5",
+		date: "2026-11-08",
+		headline: "The daemon answers every error in its own words, and releases run the tests first.",
+		fixed: [
+			"**Errors from the daemon are its own.** A request body that is not JSON or is too large, an API path nothing answers, and a page address that will not decode are answered with the daemon's usual error, not a page listing the folders Roswaal is installed in.",
+		],
+		changed: [
+			"**Releases run the tests.** The binaries are built only after the full test suite passes, as the site is.",
+		],
+	},
+	{
 		version: "0.220.4",
 		date: "2026-11-07",
 		headline: "The Privacy Policy says which files the daemon writes through a temporary file.",

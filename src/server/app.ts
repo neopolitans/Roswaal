@@ -18,6 +18,7 @@
  */
 
 import fs from "node:fs";
+import type http from "node:http";
 import path from "node:path";
 import sea from "node:sea";
 import { fileURLToPath } from "node:url";
@@ -223,6 +224,8 @@ export interface Daemon {
 	readonly session: ApiSession;
 	/** Opens `root` if given, mounts the editor, and listens on loopback. */
 	start(options?: DaemonOptions): Promise<void>;
+	/** Closes the socket and the watcher, for a test that started one. */
+	stop(): Promise<void>;
 }
 
 /**
@@ -259,15 +262,30 @@ export function createDaemon(): Daemon {
 	guardProject(app, session);
 	mountRoutes(app, session);
 	mountDaemonRoutes(app, session, dynamic);
+	// The editor's pages go on this when the daemon starts. Mounted here, so
+	// the answers below come after them as well as after the API.
+	const editor = express.Router();
+	app.use(editor);
+	app.use("/api", answerUnknownRoute);
+	app.use(answerStrayErrors);
 
+	let server: http.Server | null = null;
 	return {
 		app,
 		session,
 		async start(options = {}) {
 			trusted = trustedOrigins(options.port ?? DEFAULT_PORT, options.trustOrigins);
 			if (options.root) await session.openAt(options.root);
-			mountEditor(app, options.staticDir);
-			await listen(app, options);
+			mountEditor(editor, options.staticDir);
+			server = await listen(app, options);
+		},
+		async stop() {
+			dynamic.stop();
+			const closing = server;
+			server = null;
+			if (!closing) return;
+			closing.closeAllConnections();
+			await new Promise<void>((resolve) => closing.close(() => resolve()));
 		},
 	};
 }
@@ -408,6 +426,44 @@ function mountDaemonRoutes(
 	});
 }
 
+/** An API path no route answers, in the API's one error shape. */
+function answerUnknownRoute(req: express.Request, res: express.Response): void {
+	res.status(404).json({ error: `Nothing answers ${req.method} /api${req.path}.` });
+}
+
+/** What each status a stray error can carry tells the caller. */
+const STRAY_ERRORS: Readonly<Record<number, string>> = {
+	400: "The request could not be read: its body is not valid JSON.",
+	413: "The request is larger than Roswaal accepts.",
+	415: "The request's body is in an encoding Roswaal does not read.",
+};
+
+/**
+ * Errors that never reached a route, which `route` answers for itself: a
+ * body that is not JSON or is too large, a page address that will not decode.
+ *
+ * Express's own answer to these is an HTML page with the stack in it, and a
+ * stack names the folders Roswaal is installed in. This is the API's one
+ * error shape instead: a status and a sentence, and nothing about the machine.
+ */
+function answerStrayErrors(
+	err: unknown,
+	_req: express.Request,
+	res: express.Response,
+	next: express.NextFunction,
+): void {
+	if (res.headersSent) return next(err);
+	const given = (err as { status?: unknown } | null)?.status;
+	let status = typeof given === "number" && given >= 400 && given < 600 ? given : 500;
+	if (err instanceof URIError) status = 400;
+	const error =
+		err instanceof URIError
+			? "The address could not be read: it is not valid percent-encoding."
+			: (STRAY_ERRORS[status] ??
+				(status < 500 ? "The request could not be read." : "Something went wrong in the daemon."));
+	res.status(status).json({ error });
+}
+
 /** Everything the daemon can do that a browser tab cannot. */
 function hostCapabilities(): HostCapabilities {
 	return {
@@ -544,7 +600,7 @@ async function duplicateDemo(dir: string, into: string): Promise<string> {
  * otherwise from a directory on disk. In development Vite serves it instead
  * and proxies /api here, so this is simply absent.
  */
-function mountEditor(app: express.Express, staticDir: string | undefined): void {
+function mountEditor(app: express.Router, staticDir: string | undefined): void {
 	// A packaged build carries the editor as assets, and should use them rather
 	// than looking for a directory it will not find.
 	if (mountEmbeddedEditor(app)) return;
@@ -565,13 +621,13 @@ function mountEditor(app: express.Express, staticDir: string | undefined): void 
 	});
 }
 
-/** Listens on loopback, resolving once the socket is open. */
-function listen(app: express.Express, options: DaemonOptions): Promise<void> {
+/** Listens on loopback, resolving with the server once the socket is open. */
+function listen(app: express.Express, options: DaemonOptions): Promise<http.Server> {
 	const port = options.port ?? DEFAULT_PORT;
-	return new Promise<void>((resolve, reject) => {
+	return new Promise<http.Server>((resolve, reject) => {
 		const server = app.listen(port, "127.0.0.1", () => {
 			options.onListening?.(port);
-			resolve();
+			resolve(server);
 		});
 		server.on("error", reject);
 	});
@@ -617,7 +673,7 @@ const CONTENT_TYPES: Record<string, string> = ownTable({
  * that is not `/api/` and does not name a file is the application's own route
  * -- `/docs`, `/designer` -- and gets the page that knows how to draw it.
  */
-function mountEmbeddedEditor(app: express.Express): boolean {
+function mountEmbeddedEditor(app: express.Router): boolean {
 	if (embeddedAsset("index.html") === null) return false;
 
 	app.get(/^(?!\/api\/).*/, (req, res) => {
