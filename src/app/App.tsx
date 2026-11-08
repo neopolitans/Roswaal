@@ -978,6 +978,13 @@ export function App() {
 				outcome?: CompileOutcome;
 				message?: string;
 			};
+			// A save that changed nothing the file says, such as a node moved:
+			// nothing was written, so there is nothing to show or reload. The
+			// graph's own file did change, which `followDisk` still hears.
+			if (detail.outcome?.unchanged) {
+				void followDiskRef.current(detail.type, detail.path);
+				return;
+			}
 			if (detail.outcome) {
 				setOutcomes([detail.outcome]);
 				noteOutcomes([detail.outcome], false);

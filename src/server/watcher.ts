@@ -110,7 +110,7 @@ export class DynamicCompiler {
 		try {
 			// Never force. A generated file edited by hand is still refused in hot
 			// mode; the editor surfaces it and the developer decides.
-			const outcome = await compileScript(project, rel, { write: true });
+			const outcome = await compileScript(project, rel, { write: true, skipUnchanged: true });
 			this.emit({ type: "compiled", path: rel, outcome });
 		} catch (err) {
 			this.emit({ type: "error", path: rel, message: errorMessage(err) });

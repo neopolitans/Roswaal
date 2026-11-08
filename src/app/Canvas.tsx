@@ -644,14 +644,26 @@ export function Canvas({
 			}
 		};
 
+		/**
+		 * A finger leaving the glass, forgotten before anything else hears of it.
+		 *
+		 * In the capture phase, on the window, so it runs first and nothing can
+		 * stop it. A pin that takes a dropped wire stops the release's propagation,
+		 * and while this was done in `onUp` the finger that drew the wire stayed
+		 * down here for good: every touch after it was a second finger, and so a
+		 * pinch against a finger that had gone.
+		 */
+		const onLift = (e: PointerEvent) => {
+			touches.current.delete(e.pointerId);
+		};
+
 		const onUp = (e: PointerEvent) => {
-			const lifted = touches.current.delete(e.pointerId);
 			const g = gesture.current;
 			if (g.kind === "pinch") {
 				// Either finger ends it. The one left behind does not pick up a
 				// pan halfway through: it would jump by however far the middle
 				// of the pinch was from it.
-				if (lifted && g.ids.includes(e.pointerId)) endGesture();
+				if (g.ids.includes(e.pointerId)) endGesture();
 				return;
 			}
 			if (activePointer.current !== null && e.pointerId !== activePointer.current) return;
@@ -732,7 +744,6 @@ export function Canvas({
 		// gesture starts. Whatever was half-done stays where it got to, and no
 		// menu opens for a release that never happened.
 		const onCancel = (e: PointerEvent) => {
-			touches.current.delete(e.pointerId);
 			const g = gesture.current;
 			if (g.kind === "none") return;
 			if (
@@ -742,10 +753,14 @@ export function Canvas({
 			}
 		};
 
+		window.addEventListener("pointerup", onLift, { capture: true });
+		window.addEventListener("pointercancel", onLift, { capture: true });
 		window.addEventListener("pointermove", onMove);
 		window.addEventListener("pointerup", onUp);
 		window.addEventListener("pointercancel", onCancel);
 		return () => {
+			window.removeEventListener("pointerup", onLift, { capture: true });
+			window.removeEventListener("pointercancel", onLift, { capture: true });
 			window.removeEventListener("pointermove", onMove);
 			window.removeEventListener("pointerup", onUp);
 			window.removeEventListener("pointercancel", onCancel);

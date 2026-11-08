@@ -181,6 +181,8 @@ export interface CompileOutcome {
 	superseded?: string[];
 	/** Why StyLua left the file as emitted, when it ran and refused. */
 	unformatted?: string;
+	/** A Dynamic compile that would have written what is already there, so wrote nothing. */
+	unchanged?: true;
 	diagnostics: Diagnostic[];
 	sourceMap: { line: number; node: string }[];
 	code: string;

@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.220.6",
+		date: "2026-11-08",
+		headline: "A wire connected by touch no longer leaves the canvas zooming, and Dynamic mode compiles a moved node only when its Luau changes.",
+		affects: ["editor"],
+		fixed: [
+			"**Touch after connecting a wire.** Once a wire was connected with a finger, every touch on the canvas zoomed it, until the page was reloaded. A finger now pans again as soon as the wire lands.",
+			"**Moving a node in Dynamic mode.** A save that leaves the generated Luau as it is, such as moving a node, no longer formats or rewrites the file, so Rojo has nothing to sync. A move that does change the file, such as lifting a function above another, still compiles.",
+			"**One compile per save on the website.** In Dynamic mode the website compiled every saved graph twice, and said so each time.",
+		],
+	},
+	{
 		version: "0.220.5",
 		date: "2026-11-08",
 		headline: "The daemon answers every error in its own words, and releases run the tests first.",

@@ -125,6 +125,13 @@ export function workerTransport(worker: Worker): WorkerTransport {
 				}
 				set.add(handler);
 				mine.push([type, handler]);
+				// What the daemon's stream says first. It tells the editor the
+				// host compiles each graph it saves in Dynamic mode, which the
+				// worker does too (`dynamicCompile`). Without it the editor
+				// compiled every save a second time, toast and all.
+				if (type === "ready") {
+					queueMicrotask(() => handler(new MessageEvent("ready", { data: "{}" })));
+				}
 			},
 			close() {
 				for (const [type, handler] of mine) listeners.get(type)?.delete(handler);

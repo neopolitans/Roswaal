@@ -51,6 +51,11 @@ export interface CompileOutcome {
 	 * StyLua refuses every file would otherwise never learn.
 	 */
 	unformatted?: string;
+	/**
+	 * Set when a Dynamic compile found the graph would write exactly what is
+	 * already there: nothing was formatted or written. See `skipUnchanged`.
+	 */
+	unchanged?: true;
 	diagnostics: CompileResult["diagnostics"];
 	sourceMap: CompileResult["sourceMap"];
 	code: string;
@@ -146,6 +151,55 @@ async function removeSupersededOutputs(
 	return stale;
 }
 
+/**
+ * What each graph last wrote, for each open project: the Luau the compiler
+ * emitted, where it went, and the bytes that landed after formatting.
+ *
+ * Keyed by the project object, which a reopen replaces, so a change to
+ * roswaal.json or to the packs starts it empty.
+ */
+const lastWrites = new WeakMap<
+	OpenProject,
+	Map<string, { emitted: string; outputPath: string; bytes: string }>
+>();
+
+/**
+ * Whether this graph's write would change nothing: the compiler emitted what
+ * it emitted for the last write, to the same file, and that file still holds
+ * what was written then.
+ *
+ * Compared on the emitted Luau rather than on the graph, because the graph
+ * is the wrong question. Most of what moving a node changes never reaches the
+ * file, but some does: the order of hoisted functions and of Script Starts
+ * follows their height, and a comment's header follows the nodes inside it.
+ * Emitting is quick and needs no StyLua; it is the formatting and the write,
+ * which Rojo then syncs into Studio, that a nudge should not cost.
+ */
+async function unchangedSince(
+	project: OpenProject,
+	relPath: string,
+	emitted: string,
+	outputPath: string,
+): Promise<string | null> {
+	const last = lastWrites.get(project)?.get(relPath);
+	if (!last || last.emitted !== emitted || last.outputPath !== outputPath) return null;
+	const disk = await fs.readFile(safeJoin(project.root, outputPath), "utf8").catch(() => null);
+	return disk === last.bytes ? disk : null;
+}
+
+function rememberWrite(
+	project: OpenProject,
+	relPath: string,
+	entry: { emitted: string; outputPath: string; bytes: string },
+): void {
+	let writes = lastWrites.get(project);
+	if (!writes) {
+		writes = new Map();
+		lastWrites.set(project, writes);
+	}
+	writes.set(relPath, entry);
+}
+
 export async function compileScript(
 	project: OpenProject,
 	relPath: string,
@@ -162,6 +216,12 @@ export async function compileScript(
 		 * would otherwise walk the tree once per script.
 		 */
 		luaurc?: LuaurcSource[];
+		/**
+		 * Write nothing when the file would come out as it already is. For
+		 * Dynamic mode, which compiles on every save: a node moved is a save.
+		 * A compile somebody asks for always writes.
+		 */
+		skipUnchanged?: boolean;
 	} = {},
 ): Promise<CompileOutcome> {
 	const script = await readScript(project, relPath);
@@ -172,6 +232,22 @@ export async function compileScript(
 		castsByHierarchy: project.config.castsByHierarchy === true,
 		specifiers: specifierContext(sources, relPath),
 	});
+
+	if (opts.write && opts.skipUnchanged && result.ok) {
+		const outputPath = outputPathFor(project, relPath, result.fileName);
+		const same = await unchangedSince(project, relPath, result.code, outputPath);
+		if (same !== null) {
+			return {
+				scriptPath: relPath,
+				outputPath,
+				written: false,
+				unchanged: true,
+				diagnostics: result.diagnostics,
+				sourceMap: result.sourceMap,
+				code: same,
+			};
+		}
+	}
 
 	// Formatting happens before the output hash is stamped, so the hash always
 	// describes the bytes that actually land on disk. Only for a write: a check
@@ -221,9 +297,29 @@ export async function compileScript(
 		return outcome;
 	}
 
+	// Nothing remembered yet, the first save after opening: the file may still
+	// hold these exact bytes, and rewriting it would only wake Rojo.
+	if (opts.skipUnchanged) {
+		const disk = await fs.readFile(abs, "utf8").catch(() => null);
+		if (disk === code) {
+			rememberWrite(project, relPath, {
+				emitted: result.code,
+				outputPath: outcome.outputPath,
+				bytes: code,
+			});
+			outcome.unchanged = true;
+			return outcome;
+		}
+	}
+
 	await fs.mkdir(path.dirname(abs), { recursive: true });
 	await fs.writeFile(abs, code, "utf8");
 	outcome.written = true;
+	rememberWrite(project, relPath, {
+		emitted: result.code,
+		outputPath: outcome.outputPath,
+		bytes: code,
+	});
 	// After the write, not before: if writing fails, the file the graph used to
 	// produce is the only one left and deleting it first would lose both.
 	outcome.superseded = await removeSupersededOutputs(project, script.id, outcome.outputPath);

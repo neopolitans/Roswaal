@@ -1403,11 +1403,18 @@ export class ApiSession {
 					path: relPath,
 					write,
 					force,
-				} = fields<{ path: string; write: boolean; force: boolean }>(req);
+					skipUnchanged,
+				} = fields<{ path: string; write: boolean; force: boolean; skipUnchanged: boolean }>(req);
 				// Only the whole-project walk narrates itself. One file has nothing
 				// to report a position in, and the POST answering is the news.
 				const results = relPath
-					? [await compileScript(project, relPath, { write, force })]
+					? [
+							await compileScript(project, relPath, {
+								write,
+								force,
+								skipUnchanged: skipUnchanged === true,
+							}),
+						]
 					: await compileAll(project, { write, force }, this.hooks.compileStep);
 				return { results };
 			},

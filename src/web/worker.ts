@@ -170,7 +170,7 @@ async function dynamicCompile(method: string, path: string, body: unknown): Prom
 
 	try {
 		const { results } = (await session.handle("POST", "/compile", {
-			body: { path: relPath, write: true },
+			body: { path: relPath, write: true, skipUnchanged: true },
 		})) as { results: unknown[] };
 		post({
 			kind: "event",
