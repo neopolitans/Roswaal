@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.220.8",
+		date: "2026-11-08",
+		headline: "The Attributions page's place-file entry links to Roblox's documentation and to rbx-dom's.",
+		affects: ["docs"],
+		changed: [
+			"**Two links for place files.** Roblox place and model files leads to Roblox's Studio documentation, and its note to rbx-dom's description of the binary format.",
+		],
+	},
+	{
 		version: "0.220.7",
 		date: "2026-11-08",
 		headline: "The viewport's patterns come from a hash of Roswaal's own, and the Attributions page credits the place-file formats.",

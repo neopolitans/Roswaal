@@ -406,10 +406,14 @@ export const ATTRIBUTIONS: Attribution[] = [
 		licence: null,
 		ships: false,
 		where: NOTHING_SHIPS,
+		// Two links, because no one page is the whole story: Roblox, who hold
+		// the format, publish Studio's documentation but no description of the
+		// binary file; rbx-dom publishes one.
 		note:
 			"Roswaal reads and writes .rbxl, .rbxm, .rbxlx and .rbxmx files with code of its own, " +
-			"worked out by changing files in Roblox Studio, reading them back, and opening them again.",
-		url: "https://dom.rojo.space/binary",
+			"worked out by changing files in Roblox Studio, reading them back, and opening them " +
+			"again; [rbx-dom describes the binary format](https://dom.rojo.space/binary) publicly.",
+		url: "https://create.roblox.com/docs/studio",
 	},
 	{
 		name: "Zstandard",
