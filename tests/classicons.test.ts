@@ -19,6 +19,8 @@ import {
 	purposeLabel,
 	typeIconOf,
 } from "../src/core/classIcons.js";
+import { LUAU_PRIMITIVES } from "../src/core/luauTypes.js";
+import { TYPE_OPTIONS, typeGroup } from "../src/core/roblox.js";
 import { ENGINE } from "../src/core/robloxEngine.js";
 import { derivedTokens } from "../src/core/theme.js";
 
@@ -80,6 +82,11 @@ describe("class icons", () => {
 
 	it("draws an unknown name with the fallback", () => {
 		expect(classIconMarkup(NO_CLASS_ICON.body, "n")).toContain("<");
+	});
+
+	it("puts every Luau type under Luau, buffer with the rest", () => {
+		for (const name of LUAU_PRIMITIVES) expect(typeGroup(name), name).toBe("Luau");
+		expect(TYPE_OPTIONS).toContain("buffer");
 	});
 
 	it("labels every purpose", () => {

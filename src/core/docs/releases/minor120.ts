@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.221.2",
+		date: "2026-11-09",
+		headline: "The type picker lists buffer under Luau.",
+		fixed: [
+			"**buffer is under Luau.** The type picker listed Luau's byte buffer type on its own under Other, and type pins did not offer it.",
+		],
+	},
+	{
 		version: "0.221.1",
 		date: "2026-11-09",
 		headline: "The icon for a class Roswaal does not know is the same on every machine.",

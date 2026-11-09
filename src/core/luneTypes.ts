@@ -15,31 +15,15 @@
  * support for.
  */
 
+import { LUAU_PRIMITIVES } from "./luauTypes.js";
 import { LUNE_MODULES, LUNE_ROBLOX_DATATYPES } from "./luneApi.js";
 import type { NodeScript } from "./schema.js";
 
 /**
- * Luau's own, which both runtimes have.
- *
- * `buffer` is here because it is Luau's and the picker did not have it —
- * `fs.readFile` can return one and `serde` takes one, so a Lune graph needed to
- * name a type the list could not offer. `thread` and `nil` are the same
- * oversight from the other direction: base Luau, offered by neither. So were
- * `unknown` and `never`, the top and bottom of Luau's types, until 0.74.3.
+ * Luau's own, which both runtimes have: see `luauTypes.ts`. Re-exported for
+ * the modules that have always read it from here.
  */
-export const LUAU_PRIMITIVES = [
-	"any",
-	"unknown",
-	"never",
-	"boolean",
-	"number",
-	"string",
-	"table",
-	"function",
-	"thread",
-	"buffer",
-	"nil",
-];
+export { LUAU_PRIMITIVES };
 
 const PRIMITIVE = new Set([...LUAU_PRIMITIVES, "true", "false", "never", "unknown"]);
 

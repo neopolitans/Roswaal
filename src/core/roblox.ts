@@ -15,6 +15,7 @@
 
 import { quoteString } from "./compiler/quote.js";
 import { RESERVED_WORDS } from "./luau/lexer.js";
+import { LUAU_PRIMITIVES } from "./luauTypes.js";
 import { CLASS_PARENTS, CLASSES, DATATYPES } from "./robloxData.js";
 
 /** Services offered in the Get Service dropdown, in rough order of use. */
@@ -196,18 +197,7 @@ export const CLASS_OPTIONS: string[] = [
 ];
 
 /** What Luau has before Roblox adds anything, in the order a graph reaches. */
-const LUAU_TYPES = [
-	"any",
-	"unknown",
-	"never",
-	"boolean",
-	"number",
-	"string",
-	"table",
-	"function",
-	"thread",
-	"nil",
-];
+const LUAU_TYPES = LUAU_PRIMITIVES;
 
 /**
  * Roblox's own values that are not instances, common ones first.
