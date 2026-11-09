@@ -1264,9 +1264,9 @@ function Properties({
 								)}
 								key={p.name}
 								title={
-									category !== "Attributes" && readOnlyToScripts(className, p.name)
-										? `${p.name}: ${p.type}. Drag onto a graph for a Get Member. Read-only: a script can read it, not set it.`
-										: `${p.name}: ${p.type}. Drag onto a graph for a Get Member; hold Ctrl as you drop to set it.`
+									category !== "Attributes" && readOnlyToScripts(className, p.member ?? p.name)
+										? `${p.member ?? p.name}: ${p.type}. Drag onto a graph for a Get Member. Read-only: a script can read it, not set it.`
+										: `${p.member ?? p.name}: ${p.type}. Drag onto a graph for a Get Member; hold Ctrl as you drop to set it.`
 								}
 								draggable
 								onDragStart={(e) =>
@@ -1274,7 +1274,7 @@ function Properties({
 										e,
 										category === "Attributes"
 											? { path, className, attribute: p.name }
-											: { path, className, property: p.name },
+											: { path, className, property: p.member ?? p.name },
 									)
 								}
 							>

@@ -205,8 +205,10 @@ export function editFor(
 			if (!isInstanceClass(type)) return undefined;
 			return { stored, kind: "ref", value: (v as RbxInstance | null)?.name ?? "", refClass: type };
 		}
+		case "OptionalCFrame":
 		case "CFrame": {
-			if (type !== "CFrame") return undefined;
+			// An OptionalCFrame with nothing in it -- a model with no pivot of its own -- is left alone.
+			if (type !== "CFrame" || !v) return undefined;
 			const cf = v as CFrameValue;
 			return {
 				stored,
@@ -396,7 +398,8 @@ function same(type: PropType, a: unknown, b: unknown): boolean {
 	// Floats as the file holds them: 32 bits, whichever format read them.
 	const numbers = (x: readonly number[], y: readonly number[]) =>
 		x.length === y.length && x.every((n, i) => Math.fround(n) === Math.fround(y[i]));
-	if (type === "CFrame") {
+	if (type === "OptionalCFrame" && (a === null || b === null)) return a === b;
+	if (type === "CFrame" || type === "OptionalCFrame") {
 		const [p, q] = [a as CFrameValue, b as CFrameValue];
 		return numbers(p.position, q.position) && numbers(p.rotation, q.rotation);
 	}
@@ -620,6 +623,7 @@ const TYPE_BYTE: Partial<Record<PropType, number>> = {
 	Vector3: 14,
 	CFrame: 16,
 	Enum: 18,
+	OptionalCFrame: 30,
 	NumberRange: 23,
 	Rect: 24,
 	Ref: 19,
@@ -730,6 +734,7 @@ function patch(
 ): Uint8Array {
 	if (type === 1) return patchString(data, base, slot, count, value as Uint8Array);
 	if (type === 16) return patchCFrame(data, base, slot, count, value as CFrameValue);
+	if (type === 30) return patchOptionalCFrame(data, base, slot, count, value as CFrameValue);
 	if (data.length !== base + count * SIZE[type])
 		throw new RbxError("a property chunk is not the length its values need");
 	const out = data.slice();
@@ -822,12 +827,35 @@ function patch(
  * are not all one size, so the chunk is rebuilt: the changed one as its
  * matrix, the others as the bytes they were.
  */
+/**
+ * An OptionalCFrame column: a CFrame column under its own type byte, then a
+ * Bool column under its own, saying which values are there. The value goes in
+ * the first and is marked there in the second.
+ */
+function patchOptionalCFrame(
+	data: Uint8Array,
+	base: number,
+	slot: number,
+	count: number,
+	value: CFrameValue,
+): Uint8Array {
+	if (data[base] !== 16) throw new RbxError("an OptionalCFrame without its CFrames");
+	// The Bool column is the last `count` bytes, after its type byte.
+	const flags = data.length - count;
+	if (data[flags - 1] !== 2) throw new RbxError("an OptionalCFrame without its flags");
+	const out = patchCFrame(data, base + 1, slot, count, value, count + 1);
+	out[out.length - count + slot] = 1;
+	return out;
+}
+
+/** `tail` bytes after the positions are kept as they are: an OptionalCFrame's flags. */
 function patchCFrame(
 	data: Uint8Array,
 	base: number,
 	slot: number,
 	count: number,
 	value: CFrameValue,
+	tail = 0,
 ): Uint8Array {
 	const rotations: Uint8Array[] = [];
 	let at = base;
@@ -837,7 +865,7 @@ function patchCFrame(
 		rotations.push(data.subarray(at, at + size));
 		at += size;
 	}
-	if (data.length - at !== 12 * count)
+	if (data.length - at !== 12 * count + tail)
 		throw new RbxError("a property chunk is not the length its values need");
 	const matrix = new Uint8Array(37);
 	const view = new DataView(matrix.buffer);
@@ -845,7 +873,7 @@ function patchCFrame(
 	rotations[slot] = matrix;
 
 	const head = base + rotations.reduce((sum, r) => sum + r.length, 0);
-	const out = new Uint8Array(head + 12 * count);
+	const out = new Uint8Array(head + 12 * count + tail);
 	out.set(data.subarray(0, base), 0);
 	let o = base;
 	for (const r of rotations) {
@@ -912,6 +940,7 @@ const ELEMENT: Partial<Record<PropType, string>> = {
 	NumberRange: "NumberRange",
 	Rect: "Rect2D",
 	CFrame: "CoordinateFrame",
+	OptionalCFrame: "OptionalCoordinateFrame",
 	Ref: "Ref",
 	SharedString: "SharedString",
 };
@@ -1006,6 +1035,20 @@ function writeXml(
 	} else if (link) {
 		const url = new TextDecoder().decode(value as Uint8Array);
 		splices.push(content(source, el, url ? `<url>${escapeText(url)}</url>` : "<null></null>"));
+	} else if (type === "OptionalCFrame") {
+		// The value inside its CFrame element, each component in its own.
+		const fields = childFields("CFrame", value)!;
+		const inner = el.children.find((c) => c.name === "CFrame");
+		const each = inner && spliceChildren(inner, fields);
+		if (each) splices.push(...each);
+		else
+			splices.push(
+				content(
+					source,
+					el,
+					`<CFrame>${fields.map(([n, t]) => `<${n}>${t}</${n}>`).join("")}</CFrame>`,
+				),
+			);
 	} else if (childFields(type, value)) {
 		// Each component's own element, so the file keeps its layout; written
 		// out whole only when one is missing.

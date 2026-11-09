@@ -163,6 +163,12 @@ export interface PlaceProperty {
 	ref?: number;
 	/** How it is changed, for a property the engine lets a script set and of a simple kind. */
 	edit?: PropertyEdit;
+	/**
+	 * The member a script names it by, where the row shows Studio's label for
+	 * part of it instead: `WorldPivot` for Origin Position. What a drag onto a
+	 * graph gets.
+	 */
+	member?: string;
 }
 
 export interface PlaceInstanceInfo {
@@ -252,6 +258,16 @@ const RENAMED: Record<string, string> = ownTable({
 	Color3uint8: "Color",
 	formFactorRaw: "FormFactor",
 	MaterialVariantSerialized: "MaterialVariant",
+	WorldPivotData: "WorldPivot",
+});
+
+/**
+ * The pivots, shown as Studio shows them: under Pivot, a Position row and an
+ * Orientation row, by Studio's labels rather than the member a script names.
+ */
+const PIVOT_LABELS: Record<string, string> = ownTable({
+	WorldPivot: "Origin",
+	PivotOffset: "Pivot Offset",
 });
 
 /**
@@ -475,6 +491,11 @@ function fixedName(inst: RbxInstance, stored: string): boolean {
 	return stored === "Name" && (inst.service || inst.parent === null);
 }
 
+/** Where a row sorts: by name, but a pivot's Position before its Orientation, as Studio has them. */
+function sortKey(p: PlaceProperty): string {
+	return p.member ? p.name.replace(/ Position$/, " 0").replace(/ Orientation$/, " 1") : p.name;
+}
+
 /** Everything the browser shows about one instance. */
 export function describeInstance(
 	inst: RbxInstance,
@@ -487,6 +508,25 @@ export function describeInstance(
 		const engine = findProperty(inst.className, RENAMED[stored] ?? stored);
 		const name = engine?.name ?? RENAMED[stored] ?? stored;
 		const edit = fixedName(inst, stored) ? undefined : editFor(stored, prop, engine);
+		const pivot = PIVOT_LABELS[name];
+		const frame = prop.value as { position: number[]; rotation: number[] } | null;
+		if (pivot && (prop.type === "CFrame" || prop.type === "OptionalCFrame") && frame) {
+			// Position and Orientation, each its own row, as Studio shows them; either
+			// opens the one editor, which has both.
+			const row = (part: string, value: string) => ({
+				name: `${pivot} ${part}`,
+				member: name,
+				type: "CFrame",
+				category: "Pivot",
+				value,
+				...(edit ? { edit } : {}),
+			});
+			properties.push(
+				row("Position", frame.position.map(num).join(", ")),
+				row("Orientation", orientationOf(frame.rotation).map(num).join(", ")),
+			);
+			continue;
+		}
 		properties.push({
 			name,
 			type: prop.type,
@@ -526,7 +566,7 @@ export function describeInstance(
 		name: inst.name,
 		path,
 		...(summary ? { summary } : {}),
-		properties: properties.sort((a, b) => byName.compare(a.name, b.name)),
+		properties: properties.sort((a, b) => byName.compare(sortKey(a), sortKey(b))),
 		...(rewritable ? { attributes: true as const } : {}),
 		tags: true as const,
 	};

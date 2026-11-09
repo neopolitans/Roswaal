@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.222.2",
+		date: "2026-11-09",
+		headline: "Properties shows a pivot under Pivot, as its Position and Orientation.",
+		changed: [
+			"**Pivots under Pivot.** A model's pivot is Origin Position and Origin Orientation, and a part's PivotOffset is Pivot Offset Position and Pivot Offset Orientation, each its own row under Pivot, as Studio shows them. A model's pivot was one WorldPivotData row under Other.",
+		],
+		added: [
+			"**A model's pivot can be changed.** With Modify DataModel Instances on, Origin Position and Origin Orientation are written into the place, binary or XML.",
+		],
+	},
+	{
 		version: "0.222.1",
 		date: "2026-11-09",
 		headline: "Services have their own icons in DataModel.",

@@ -7,8 +7,13 @@
 import { describe, expect, it } from "vitest";
 
 import { boxAround } from "../src/app/viewport/box.js";
+import { blankPlace } from "../src/core/rbx/blankPlace.js";
+import { describeInstance, propertyEdit } from "../src/core/rbx/browse.js";
 import type { Prop, PropType, RbxInstance } from "../src/core/rbx/dom.js";
+import { storedValue, writeProperty } from "../src/core/rbx/edit.js";
+import { readRbx } from "../src/core/rbx/index.js";
 import { buildPlaceScene, modelPivot, partPivot, SCENE_STRIDE } from "../src/core/rbx/scene.js";
+import { writeBinaryPlace, writeXmlPlace } from "../src/core/rbx/serialize.js";
 
 function inst(
 	className: string,
@@ -147,5 +152,118 @@ describe("the box round a model", () => {
 
 	it("is empty round nothing", () => {
 		expect(boxAround([]).length).toBe(0);
+	});
+});
+
+describe("the pivot in Properties", () => {
+	const utf8 = new TextEncoder();
+	/** A place with a turned model holding one part with a PivotOffset, read back from bytes. */
+	function place(pivot: { position: number[]; rotation: number[] } | null) {
+		const doc = blankPlace();
+		const ws = doc.roots.find((r) => r.className === "Workspace") as RbxInstance;
+		const made = (
+			className: string,
+			name: string,
+			parent: RbxInstance,
+			props: [string, Prop][],
+		) => {
+			const it: RbxInstance = {
+				className,
+				name,
+				parent,
+				children: [],
+				service: false,
+				props: new Map<string, Prop>([
+					["Name", { type: "String", value: utf8.encode(name) }],
+					...props,
+				]),
+			};
+			parent.children.push(it);
+			doc.instances.push(it);
+			return it;
+		};
+		const model = made("Model", "Gate", ws, [
+			["PrimaryPart", { type: "Ref", value: null }],
+			["WorldPivotData", { type: "OptionalCFrame", value: pivot }],
+		]);
+		made("Part", "Bar", model, [
+			["CFrame", { type: "CFrame", value: frame([0, 0, 0]) }],
+			["PivotOffset", { type: "CFrame", value: frame([0, 2, 0], TURNED) }],
+			["size", { type: "Vector3", value: [4, 1, 1] }],
+		]);
+		const bytes = writeBinaryPlace(doc);
+		const read = readRbx(bytes);
+		const find = (name: string) => read.instances.find((i) => i.name === name) as RbxInstance;
+		return { bytes, read, gate: find("Gate"), bar: find("Bar") };
+	}
+	const rows = (inst: RbxInstance) =>
+		describeInstance(inst, 0, () => undefined).properties.filter((p) => p.category === "Pivot");
+
+	it("shows a model's WorldPivot as Origin Position and Origin Orientation, under Pivot", () => {
+		const { gate } = place(frame([5, 6, 7], TURNED));
+		const shown = rows(gate).filter((p) => p.member === "WorldPivot");
+		expect(shown.map((p) => [p.name, p.value])).toEqual([
+			["Origin Position", "5, 6, 7"],
+			["Origin Orientation", "0, 45, 0"],
+		]);
+		expect(shown.every((p) => p.edit?.stored === "WorldPivotData")).toBe(true);
+	});
+
+	it("shows a part's PivotOffset as Pivot Offset Position and Orientation", () => {
+		const { bar } = place(null);
+		expect(rows(bar).map((p) => [p.name, p.member, p.value])).toEqual([
+			["Pivot Offset Position", "PivotOffset", "0, 2, 0"],
+			["Pivot Offset Orientation", "PivotOffset", "0, 45, 0"],
+		]);
+	});
+
+	it("leaves out a model with no pivot of its own, and offers no edit for it", () => {
+		const { gate } = place(null);
+		expect(rows(gate).some((p) => p.member === "WorldPivot")).toBe(false);
+		expect(propertyEdit(gate, "WorldPivotData")).toBeUndefined();
+	});
+
+	it("writes a moved Origin into an XML place, keeping its turn", () => {
+		const binary = place(frame([5, 6, 7], TURNED));
+		const bytes = new TextEncoder().encode(writeXmlPlace(binary.read));
+		const read = readRbx(bytes);
+		const gate = read.instances.find((i) => i.name === "Gate") as RbxInstance;
+		const edit = propertyEdit(gate, "WorldPivotData");
+		if (!edit) throw new Error("no edit");
+		const prop = gate.props.get("WorldPivotData") as Prop;
+		const out = writeProperty(
+			bytes,
+			read,
+			gate,
+			"WorldPivotData",
+			storedValue(edit, prop, { position: [1, 2, 3] }),
+		);
+		const after = readRbx(out)
+			.instances.find((i) => i.name === "Gate")
+			?.props.get("WorldPivotData");
+		const value = after?.value as { position: number[]; rotation: number[] };
+		close(value.position, [1, 2, 3]);
+		close(value.rotation, TURNED);
+	});
+
+	it("writes a moved Origin into the file, keeping its turn", () => {
+		const { bytes, read, gate } = place(frame([5, 6, 7], TURNED));
+		const edit = propertyEdit(gate, "WorldPivotData");
+		if (!edit) throw new Error("no edit");
+		const prop = gate.props.get("WorldPivotData") as Prop;
+		const out = writeProperty(
+			bytes,
+			read,
+			gate,
+			"WorldPivotData",
+			storedValue(edit, prop, { position: [1, 2, 3] }),
+		);
+		const after = readRbx(out)
+			.instances.find((i) => i.name === "Gate")
+			?.props.get("WorldPivotData");
+		expect(after?.type).toBe("OptionalCFrame");
+		const value = after?.value as { position: number[]; rotation: number[] };
+		close(value.position, [1, 2, 3]);
+		close(value.rotation, TURNED);
 	});
 });
