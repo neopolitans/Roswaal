@@ -57,6 +57,16 @@ export interface PlaceScene {
 	radius: number;
 	/** Fully transparent parts, left out. */
 	transparent: number;
+	/**
+	 * Pivots, by row in the DataModel browser: a row-major 3x3 rotation, then the
+	 * position. Each Model's is its PrimaryPart's pivot, else its WorldPivot; a
+	 * model with neither is left out, and is square to the world. A part is here
+	 * only when its pivot is not its drawn box's centre and axes: a PivotOffset,
+	 * or a mesh modifier that moves or turns what is drawn. A model's selection
+	 * box and handles are square to its pivot, as Studio's are and as
+	 * `Model:GetBoundingBox` describes.
+	 */
+	pivots?: Record<number, number[]>;
 	/** Where Studio's camera was when the place was saved: Workspace's Camera. */
 	camera?: { id: number; position: number[]; rotation: number[]; fieldOfView: number };
 }
@@ -71,6 +81,55 @@ const PARTS = new Set([
 	"VehicleSeat",
 	"MeshPart",
 ]);
+
+type Frame = { position: number[]; rotation: number[] };
+
+/** `a` then `b`, each a row-major 3x3. */
+function rotate(a: number[], b: number[]): number[] {
+	return Array.from({ length: 9 }, (_, n) => {
+		const i = Math.floor(n / 3);
+		const j = n % 3;
+		return a[i * 3] * b[j] + a[i * 3 + 1] * b[3 + j] + a[i * 3 + 2] * b[6 + j];
+	});
+}
+
+/** `frame` then `by`: CFrame multiplication. */
+function compose(frame: Frame, by: Frame): Frame {
+	const r = frame.rotation;
+	const o = by.position;
+	return {
+		rotation: rotate(r, by.rotation),
+		position: [0, 1, 2].map(
+			(a) => frame.position[a] + r[a * 3] * o[0] + r[a * 3 + 1] * o[1] + r[a * 3 + 2] * o[2],
+		),
+	};
+}
+
+const IDENTITY = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+
+/** Whether an offset moves or turns anything. */
+function moves(offset: Frame): boolean {
+	return offset.position.some((v) => v !== 0) || offset.rotation.some((v, i) => v !== IDENTITY[i]);
+}
+
+/** A part's pivot: its CFrame turned and moved by its PivotOffset. */
+export function partPivot(part: RbxInstance): Frame | undefined {
+	const cf = part.props.get("CFrame")?.value as Frame | undefined;
+	if (!cf) return undefined;
+	const offset = part.props.get("PivotOffset")?.value as Frame | undefined;
+	return offset && moves(offset) ? compose(cf, offset) : cf;
+}
+
+/** A Model's pivot: its PrimaryPart's, else its WorldPivot, else nothing. */
+export function modelPivot(model: RbxInstance): Frame | undefined {
+	const primary = model.props.get("PrimaryPart")?.value as RbxInstance | null | undefined;
+	const pivot = primary && partPivot(primary);
+	if (pivot) return pivot;
+	const world = model.props.get("WorldPivotData")?.value as Frame | null | undefined;
+	return world ?? undefined;
+}
+
+const flat = (f: Frame) => [...f.rotation, ...f.position];
 
 function vec3(inst: RbxInstance, name: string): number[] | undefined {
 	const v = inst.props.get(name)?.value;
@@ -134,10 +193,16 @@ export function buildPlaceScene(
 	const lists = empty();
 	const seeThrough = empty();
 	const positions: number[] = [];
+	const pivots: Record<number, number[]> = {};
 	let transparent = 0;
 
 	const visit = (inst: RbxInstance) => {
 		for (const child of inst.children) visit(child);
+		if (inst.props.has("WorldPivotData") || inst.props.has("PrimaryPart")) {
+			const id = idOf(inst);
+			const pivot = modelPivot(inst);
+			if (id !== undefined && pivot) pivots[id] = flat(pivot);
+		}
 		if (!PARTS.has(inst.className)) return;
 		const transparency = inst.props.get("Transparency")?.value;
 		if (typeof transparency === "number" && transparency >= 0.999) {
@@ -221,6 +286,12 @@ export function buildPlaceScene(
 			material | (shine << 8),
 		);
 		positions.push(p[0], p[1], p[2]);
+		// The pivot, where it is not the drawn box's centre and axes.
+		const pivotOffset = inst.props.get("PivotOffset")?.value as Frame | undefined;
+		if (modifier || (pivotOffset && moves(pivotOffset))) {
+			const pivot = partPivot(inst);
+			if (pivot) pivots[id] = flat(pivot);
+		}
 	};
 	if (workspace) visit(workspace);
 
@@ -253,6 +324,7 @@ export function buildPlaceScene(
 		centre,
 		radius,
 		transparent,
+		pivots,
 	};
 	const studio = workspace?.children.find((c) => c.className === "Camera");
 	const cf = studio?.props.get("CFrame")?.value as

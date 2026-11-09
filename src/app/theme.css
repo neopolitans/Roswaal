@@ -20969,6 +20969,13 @@ textarea.tb:where(:disabled) {
 	display: none;
 }
 
+/* The pivot of what is picked: over the canvas, so over every part. */
+.vp-pivot {
+	position: absolute;
+	overflow: visible;
+	pointer-events: none;
+}
+
 .vp-problem {
 	position: absolute;
 	top: 50%;

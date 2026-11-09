@@ -9,9 +9,10 @@ import type { PlaceOutline } from "../../core/rbx/browse.js";
 import type { LightingParams } from "../../core/rbx/lighting.js";
 import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene.js";
 import { addTo, sameItems } from "../placeSelection.js";
+import { boxAround } from "./box.js";
 import { rayPick } from "./geometry.js";
 import { HandleBuilder } from "./handles.js";
-import { partsInRect, rectBetween, type ViewShot } from "./marquee.js";
+import { partsInRect, rectBetween, screenPoint, type ViewShot } from "./marquee.js";
 import { clampSpeed, SPEED_NOTCH } from "./speed.js";
 import { layersUsed, loadLayer } from "./textures.js";
 import { type Camera, FOV, tintedOutline, type ViewRenderer } from "./view.js";
@@ -68,6 +69,8 @@ export interface ViewportState {
 	snap: Snap;
 	/** Something is picked, for the bar's Clear. */
 	picked: boolean;
+	/** Edit Pivot: the handles stand at the pivot of what is picked, square to it. */
+	pivotEdit: boolean;
 }
 
 export interface Snap {
@@ -115,6 +118,19 @@ const GIZMO_AXES = [
 	{ name: "Y", dir: [0, 1, 0], col: "#6fdc5a", dark: "#3f7a35" },
 	{ name: "Z", dir: [0, 0, 1], col: "#5a8dff", dark: "#34508f" },
 ];
+/** The world's axes. */
+const WORLD = [
+	[1, 0, 0],
+	[0, 1, 0],
+	[0, 0, 1],
+];
+
+/** `v` at length 1, or the world's axis `j` where `v` has no length: a part flat on that side. */
+function unit(v: number[], j: number): number[] {
+	const n = Math.hypot(v[0], v[1], v[2]);
+	return n > 1e-9 ? v.map((x) => x / n) : WORLD[j];
+}
+
 /** Where the camera stands to look along an axis: on that axis's side, looking back to the centre. */
 const ALONG: Record<string, [number, number]> = {
 	"+X": [Math.PI / 2, 0],
@@ -157,12 +173,15 @@ export class ViewportController {
 		summary: null,
 		snap: { move: 0.5, moveOn: true, rotate: 5, rotateOn: true },
 		picked: false,
+		pivotEdit: false,
 	};
 	private listeners = new Set<() => void>();
 	private place: ViewportPlace | null = null;
 	/** Each drawn part's 14 words, by its row in the DataModel browser. */
 	private words = new Map<number, Float32Array>();
 	private kids: number[][] = [];
+	/** Pivots from the scene: see `PlaceScene.pivots`. */
+	private pivots: Record<number, number[]> = {};
 	private workspace = -1;
 	/** What is picked, by row, the last picked last: the browser's selection too. */
 	private selection: readonly number[] = [];
@@ -217,6 +236,7 @@ export class ViewportController {
 						data.slice(i * SCENE_STRIDE, (i + 1) * SCENE_STRIDE),
 					);
 			}
+		this.pivots = place.pivots ?? {};
 		const { nodes, classes } = place.outline;
 		this.kids = nodes.map(() => []);
 		this.workspace = -1;
@@ -317,6 +337,8 @@ export class ViewportController {
 			this.view.destroy();
 			this.view = null;
 			this.canvas?.remove();
+			this.pivotMark?.remove();
+			this.pivotMark = null;
 			this.canvas = null;
 			void this.start();
 			return;
@@ -366,44 +388,39 @@ export class ViewportController {
 		return this.boxRound([index]);
 	}
 
-	/** One part's own box, or one round every part in all of these, square to the world. */
+	/**
+	 * One part's own box, or one round every part in all of these: square to a
+	 * single model's pivot, as Studio's selection box is, else to the world.
+	 */
 	private boxRound(indices: readonly number[]): Float32Array {
 		const own = indices.length === 1 ? this.words.get(indices[0]) : undefined;
 		if (own) return own;
-		const lo = [Infinity, Infinity, Infinity];
-		const hi = [-Infinity, -Infinity, -Infinity];
+		const pivot = indices.length === 1 ? this.pivots[indices[0]] : undefined;
+		const rows: ArrayLike<number>[] = [];
 		const visit = (i: number) => {
 			const w = this.words.get(i);
-			if (w)
-				for (let c = 0; c < 8; c++) {
-					const s = [c & 1 ? 0.5 : -0.5, c & 2 ? 0.5 : -0.5, c & 4 ? 0.5 : -0.5];
-					for (let a = 0; a < 3; a++) {
-						const v = w[9 + a] + w[a] * s[0] + w[3 + a] * s[1] + w[6 + a] * s[2];
-						lo[a] = Math.min(lo[a], v);
-						hi[a] = Math.max(hi[a], v);
-					}
-				}
+			if (w) rows.push(w);
 			for (const k of this.kids[i] ?? []) visit(k);
 		};
 		for (const index of indices) visit(index);
-		if (lo[0] === Infinity) return new Float32Array();
-		return new Float32Array([
-			hi[0] - lo[0],
-			0,
-			0,
-			0,
-			hi[1] - lo[1],
-			0,
-			0,
-			0,
-			hi[2] - lo[2],
-			(lo[0] + hi[0]) / 2,
-			(lo[1] + hi[1]) / 2,
-			(lo[2] + hi[2]) / 2,
-			0,
-			0,
-			0,
-		]);
+		return boxAround(rows, pivot);
+	}
+
+	/**
+	 * Where one picked thing's pivot is, and its axes: the scene's, else a part's
+	 * drawn box's centre and axes, else the middle of its box, square to the world.
+	 */
+	private pivotOf(index: number): { at: number[]; axes: number[][] } | null {
+		const p = this.pivots[index];
+		if (p)
+			return { at: [p[9], p[10], p[11]], axes: [0, 1, 2].map((j) => [p[j], p[3 + j], p[6 + j]]) };
+		const b = this.boxRound([index]);
+		if (b.length < SCENE_STRIDE) return null;
+		const own = this.words.has(index);
+		return {
+			at: [b[9], b[10], b[11]],
+			axes: own ? [0, 1, 2].map((j) => unit([b[j * 3], b[j * 3 + 1], b[j * 3 + 2]], j)) : WORLD,
+		};
 	}
 
 	/** What a click on a part picks: the highest Model in Workspace that holds it, or with Alt or Shift the part. */
@@ -669,6 +686,8 @@ export class ViewportController {
 			this.view?.destroy();
 			this.view = null;
 			this.canvas?.remove();
+			this.pivotMark?.remove();
+			this.pivotMark = null;
 			this.canvas = null;
 			this.els = null;
 		};
@@ -696,6 +715,8 @@ export class ViewportController {
 		const run = this.mounted;
 		const make = () => {
 			this.canvas?.remove();
+			this.pivotMark?.remove();
+			this.pivotMark = null;
 			const canvas = document.createElement("canvas");
 			canvas.className = "vp-canvas";
 			els.holder.append(canvas);
@@ -763,8 +784,10 @@ export class ViewportController {
 			this.pending = false;
 			if (!this.view) return;
 			const camera = this.camera();
-			if (this.state.tool !== "select" && this.selection.length > 0) this.drawHandles(camera.eye);
+			if ((this.state.tool !== "select" || this.state.pivotEdit) && this.selection.length > 0)
+				this.drawHandles(camera.eye);
 			this.view.draw(camera);
+			this.drawPivot();
 			this.frames.push(now);
 			this.showRotation();
 		});
@@ -854,44 +877,119 @@ export class ViewportController {
 
 	/**
 	 * The chosen tool's handles round the selection, all of it in one box, square
-	 * to the world, in Studio's axis colours, the same size on screen near or far.
+	 * to that box -- a part's own axes, a model's pivot -- in Studio's axis
+	 * colours, the same size on screen near or far. With Edit Pivot on, the move
+	 * and rotate handles both, at the pivot of the one thing picked.
 	 */
 	private drawHandles(eye?: number[]): void {
 		if (!this.view) return;
-		const { tool } = this.state;
-		const b = this.selection.length > 0 && tool !== "select" ? this.boxRound(this.selection) : null;
+		const { tool, pivotEdit } = this.state;
 		const built = new HandleBuilder();
-		if (b && b.length >= SCENE_STRIDE) {
-			const c = [b[9], b[10], b[11]];
-			const half = [0, 1, 2].map(
-				(a) => (Math.abs(b[a]) + Math.abs(b[3 + a]) + Math.abs(b[6 + a])) / 2,
-			);
+		const pivot = pivotEdit && this.selection.length === 1 ? this.pivotOf(this.selection[0]) : null;
+		const b =
+			!pivot && this.selection.length > 0 && tool !== "select"
+				? this.boxRound(this.selection)
+				: null;
+		const frame = pivot
+			? { c: pivot.at, axes: pivot.axes, half: [0, 0, 0] }
+			: b && b.length >= SCENE_STRIDE
+				? {
+						c: [b[9], b[10], b[11]],
+						axes: [0, 1, 2].map((j) => unit([b[j * 3], b[j * 3 + 1], b[j * 3 + 2]], j)),
+						half: [0, 1, 2].map((j) => Math.hypot(b[j * 3], b[j * 3 + 1], b[j * 3 + 2]) / 2),
+					}
+				: null;
+		if (frame) {
+			const { c, axes, half } = frame;
 			const from = eye ?? this.camera().eye;
 			const k = Math.hypot(from[0] - c[0], from[1] - c[1], from[2] - c[2]) * 0.016;
 			// Out at the selection's faces, but never further than this on screen:
 			// a 2048-stud baseplate keeps its handles in view.
 			const out = (a: number) => Math.min(half[a], k * 12);
 			const at = (dir: number[], d: number) => c.map((v, a) => v + dir[a] * d);
-			for (const [axis, col] of AXES) {
-				const a = axis[0] ? 0 : axis[1] ? 1 : 2;
-				if (tool === "rotate") {
-					const radius = Math.min(
-						Math.max(Math.hypot(half[0], half[1], half[2]) * 1.05, k * 6),
-						k * 16,
-					);
+			const rings = pivot || tool === "rotate";
+			const arrows = pivot || tool !== "rotate";
+			axes.forEach((axis, a) => {
+				const col = AXES[a][1];
+				if (rings) {
+					const radius = pivot
+						? k * 8
+						: Math.min(Math.max(Math.hypot(half[0], half[1], half[2]) * 1.05, k * 6), k * 16);
 					built.ring(c, axis, radius, k * 0.36, col);
-					continue;
 				}
+				if (!arrows) return;
 				for (const sign of [1, -1]) {
 					const dir = axis.map((v) => v * sign);
 					const tip = at(dir, out(a) + k * 6.5);
 					built.along("cylinder", at(dir, out(a) + k * 0.8), tip, k * 0.36, col);
-					if (tool === "move") built.along("cone", tip, at(dir, out(a) + k * 9), k * 1.6, col);
+					if (pivot || tool === "move")
+						built.along("cone", tip, at(dir, out(a) + k * 9), k * 1.6, col);
 					else built.ball(at(dir, out(a) + k * 7.3), k * 2.1, col);
 				}
-			}
+			});
 		}
 		this.view.setHandles(built.build());
+	}
+
+	/** The pivot's mark over the view: drawn over everything, on what one thing is picked. */
+	private pivotMark: SVGSVGElement | null = null;
+
+	/**
+	 * The pivot of the one thing picked, as Studio shows it: a dot, with its
+	 * three axes in their colours, over every part in front of it.
+	 */
+	private drawPivot(): void {
+		const canvas = this.canvas;
+		const holder = canvas?.parentElement;
+		const pivot = this.selection.length === 1 ? this.pivotOf(this.selection[0]) : null;
+		if (!canvas || !holder || !pivot) {
+			this.pivotMark?.remove();
+			this.pivotMark = null;
+			return;
+		}
+		if (!this.pivotMark || this.pivotMark.parentElement !== holder) {
+			this.pivotMark?.remove();
+			this.pivotMark = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+			this.pivotMark.setAttribute("class", "vp-pivot");
+			this.pivotMark.setAttribute("aria-hidden", "true");
+			holder.append(this.pivotMark);
+		}
+		const mark = this.pivotMark;
+		const box = canvas.getBoundingClientRect();
+		Object.assign(mark.style, {
+			left: `${canvas.offsetLeft}px`,
+			top: `${canvas.offsetTop}px`,
+			width: `${box.width}px`,
+			height: `${box.height}px`,
+		});
+		const shot = this.shot(box);
+		const centre = screenPoint(shot, pivot.at);
+		if (!centre) {
+			mark.innerHTML = "";
+			return;
+		}
+		const eye = this.eye();
+		const k = Math.hypot(...pivot.at.map((v, a) => v - eye[a])) * 0.016;
+		const lines = pivot.axes
+			.map((axis, a) => {
+				const end = screenPoint(
+					shot,
+					pivot.at.map((v, i) => v + axis[i] * k * 4),
+				);
+				if (!end) return "";
+				const [x, y] = end.map((v) => v.toFixed(1));
+				const col = GIZMO_AXES[a].col;
+				return `<line x1="${centre[0].toFixed(1)}" y1="${centre[1].toFixed(1)}" x2="${x}" y2="${y}" stroke="${col}" stroke-width="2.5" stroke-linecap="round"/><circle cx="${x}" cy="${y}" r="3" fill="${col}"/>`;
+			})
+			.join("");
+		mark.innerHTML = `${lines}<circle cx="${centre[0].toFixed(1)}" cy="${centre[1].toFixed(1)}" r="5" fill="#fff" stroke="#14171c" stroke-width="1.5"/>`;
+	}
+
+	/** Edit Pivot, on or off: the bar's toggle. */
+	setPivotEdit(on: boolean): void {
+		this.set({ pivotEdit: on });
+		this.drawHandles();
+		this.redraw();
 	}
 
 	/**

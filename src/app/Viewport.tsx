@@ -429,6 +429,14 @@ export function ViewportBar({ controller }: { controller: ViewportController }) 
 						/>
 					))}
 				</span>
+				<Tile
+					icon="vpPivot"
+					label="Pivot"
+					title={`Edit Pivot: the handles stand at the pivot of what is picked; dragging them ${LATER}`}
+					on={state.pivotEdit}
+					aria-pressed={state.pivotEdit}
+					onClick={() => controller.setPivotEdit(!state.pivotEdit)}
+				/>
 				{/* Esc's job, where a touch screen has no keys. */}
 				<span className="vp-clear">
 					<Tile

@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.222.0",
+		date: "2026-11-09",
+		headline: "The 3D view shows what is picked square to itself, with its pivot, and has Edit Pivot.",
+		added: [
+			"**The pivot is shown.** One thing picked in the 3D view shows its pivot over every part in front of it: a white dot with its X, Y and Z.",
+			"**Edit Pivot.** **Pivot** in the 3D view's bar puts the move and rotate handles on the pivot of what is picked.",
+		],
+		fixed: [
+			"**A model's selection box turns with it.** It was square to the world. It is square to the model's pivot, as Studio's is: its PrimaryPart's, else its WorldPivot.",
+			"**The handles turn with what is picked.** They stood square to the world; they follow a part's own sides and a model's pivot.",
+		],
+	},
+	{
 		version: "0.221.2",
 		date: "2026-11-09",
 		headline: "The type picker lists buffer under Luau.",

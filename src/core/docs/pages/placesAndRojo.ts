@@ -202,7 +202,15 @@ export function placesAndRojoPage(): DocPage {
 					["Frame what is picked, or everything", "`F`, or `Home`"],
 					["Look along an axis", "Click its end on the axes, bottom right"],
 					["Show a tool's handles", "`1` to `4`: Select, Move, Rotate, Scale"],
+					["Put the handles on the pivot", "**Pivot** in the bar: Edit Pivot"],
 				],
+			},
+			{
+				t: "p",
+				text:
+					"What is picked is outlined square to itself: a part to its own sides, a model to its " +
+					"pivot, as Studio's selection box is. The handles stand the same way. One thing picked " +
+					"shows its pivot over everything in front of it: a white dot with its X, Y and Z.",
 			},
 			{
 				t: "p",
