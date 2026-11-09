@@ -87,16 +87,18 @@ export interface IdentProps {
 	/** The badge's colour: the node's, the folder's. */
 	color: string;
 	icon?: IconName;
+	/** A glyph drawn some other way, in place of `icon`: a class's icon. */
+	glyph?: ReactNode;
 	children?: ReactNode;
 	className?: string;
 }
 
 /** What the panel is showing: a badge in its colour, its name, and its kind. */
-export function Ident({ name, kind, color, icon, children, className }: IdentProps) {
+export function Ident({ name, kind, color, icon, glyph, children, className }: IdentProps) {
 	return (
 		<div className={cx("ident", className)}>
 			<span className="ident-badge" style={{ background: color }}>
-				{icon && <Icon name={icon} size={17} />}
+				{glyph ?? (icon && <Icon name={icon} size={17} />)}
 			</span>
 			<span className="ident-text">
 				<span className="ident-name">{name}</span>

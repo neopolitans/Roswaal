@@ -1093,6 +1093,7 @@ function OptionEditor({
 						groupOf={isType ? types.groupOf : groupingFor(pin)}
 						groupsFirst={isType ? types.groupsFirst : undefined}
 						detailOf={groupingFor(pin) ? classDetail : undefined}
+						classes={isType || groupingFor(pin) !== undefined}
 						onPick={onChange}
 						onClose={() => setPicking(false)}
 					/>

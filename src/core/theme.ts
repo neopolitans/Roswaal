@@ -45,6 +45,8 @@
  * colour, and a scheme has no business changing where a wire attaches.
  */
 
+import { PURPOSE_ORDER, PURPOSES } from "./classIconPurposes.js";
+
 // ---------------------------------------------------------------------------
 // The file
 // ---------------------------------------------------------------------------
@@ -260,6 +262,11 @@ export function derivedTokens(dark: boolean): Record<string, string> {
 		"--tree-folder-plain": "var(--fg-muted)",
 		"--tree-folder-special": dark ? "#5ea2ee" : "#1f64c4",
 		"--tree-folder-packages": dark ? "#b48cf0" : "#7048c0",
+		// Class icons, a colour for each purpose: fixed hues, like the tree's,
+		// with a shade for each background. See classIcons.ts.
+		...Object.fromEntries(
+			PURPOSE_ORDER.map((id) => [`--purpose-${id}`, PURPOSES[id][dark ? 1 : 2]]),
+		),
 	};
 }
 

@@ -125,6 +125,9 @@ export function applyChrome(prefs: Preferences): void {
 	// surface that draws one reads these, so a window has nothing else to do.
 	document.documentElement.dataset.grid = prefs.gridPattern;
 	document.documentElement.dataset.gridContrast = prefs.gridContrast;
+	// Filled or outline class icons: every icon holds both, and the stylesheet
+	// shows one by this. See classIcons.ts.
+	document.documentElement.dataset.classIcons = prefs.classIcons;
 }
 
 /**

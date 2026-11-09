@@ -247,8 +247,9 @@ export const ATTRIBUTIONS: Attribution[] = [
 		holder: "Google LLC",
 		licence: "Apache-2.0",
 		ships: true,
-		where: "`src/app/icons.tsx`. Licence: `notices/upstream/material-symbols.txt`.",
-		note: "Roswaal draws every icon in the editor from Material Symbols.",
+		where:
+			"`src/app/icons.tsx`, and the class icons in `src/core/classIconData.ts`. Licence: `notices/upstream/material-symbols.txt`.",
+		note: "Roswaal draws every icon in the editor from Material Symbols, and most class icons; the rest are Roswaal's own drawings.",
 		url: "https://fonts.google.com/icons",
 	},
 	{

@@ -302,6 +302,7 @@ export function TypePicker(props: TypePickerProps) {
 					groupsFirst={groupsFirst}
 					detailOf={detailOf}
 					colorOf={typeColor}
+					classes
 					onPick={(type) => props.onChange(type.trim() || "any")}
 					onClose={() => setPicking(false)}
 				/>

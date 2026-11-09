@@ -149,6 +149,17 @@ export interface Preferences {
 	 */
 	gridContrast: GridContrast;
 	/**
+	 * Class icons filled, or drawn as outlines. Filled by default: at 14px a
+	 * filled icon reads as its colour first, which is what says its purpose.
+	 */
+	classIcons: ClassIconStyle;
+	/**
+	 * How a list of classes is grouped: by purpose -- every sound class together,
+	 * whatever it inherits from -- or by family, the ancestor just below
+	 * `Instance`, as it was before 0.221.0.
+	 */
+	classGroups: ClassGroups;
+	/**
 	 * What scrolling over the graph does, with nothing held.
 	 *
 	 * A mouse wheel has one axis and is how Windows users have always zoomed a
@@ -324,6 +335,28 @@ export const GRID_PATTERNS: { value: GridPattern; label: string; what: string }[
 	},
 ];
 
+export type ClassIconStyle = "filled" | "outline";
+
+export const CLASS_ICON_STYLES: { value: ClassIconStyle; label: string; what: string }[] = [
+	{ value: "filled", label: "Filled", what: "Solid icons. The default." },
+	{ value: "outline", label: "Outline", what: "Icons drawn as outlines." },
+];
+
+export type ClassGroups = "purpose" | "family";
+
+export const CLASS_GROUPS: { value: ClassGroups; label: string; what: string }[] = [
+	{
+		value: "purpose",
+		label: "By purpose",
+		what: "Sound with sound, interface with interface. The default.",
+	},
+	{
+		value: "family",
+		label: "By family",
+		what: "Under the class each derives from, just below Instance.",
+	},
+];
+
 export type GridContrast = "auto" | "light" | "standard" | "strong";
 
 export const GRID_CONTRASTS: { value: GridContrast; label: string; what: string }[] = [
@@ -422,6 +455,8 @@ export const DEFAULTS: Preferences = {
 	roundedNodes: true,
 	gridPattern: "dots",
 	gridContrast: "auto",
+	classIcons: "filled",
+	classGroups: "purpose",
 	wheel: "auto",
 	actionLabels: "icons",
 	actionRow: "separate",
@@ -497,6 +532,12 @@ export function readPreferences(): Preferences {
 		gridContrast: GRID_CONTRASTS.some((g) => g.value === stored.gridContrast)
 			? (stored.gridContrast as GridContrast)
 			: DEFAULTS.gridContrast,
+		classIcons: CLASS_ICON_STYLES.some((c) => c.value === stored.classIcons)
+			? (stored.classIcons as ClassIconStyle)
+			: DEFAULTS.classIcons,
+		classGroups: CLASS_GROUPS.some((c) => c.value === stored.classGroups)
+			? (stored.classGroups as ClassGroups)
+			: DEFAULTS.classGroups,
 		actionLabels: ACTION_LABEL_CHOICES.some((c) => c.value === stored.actionLabels)
 			? (stored.actionLabels as ActionLabels)
 			: DEFAULTS.actionLabels,

@@ -19,6 +19,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 /** Every generated module, and the script that writes it. */
 const GENERATED: Record<string, string> = {
+	"src/core/classIconData.ts": "build-class-icons.mjs",
+	"src/core/classIconPurposes.ts": "build-class-icons.mjs",
 	"src/core/docs/demoLayout.gen.ts": "fold-demo-layout.mjs",
 	"src/core/docs/robloxDemos.gen.ts": "build-roblox-demos.mjs",
 	"src/core/licenceData.ts": "build-licences.mjs",

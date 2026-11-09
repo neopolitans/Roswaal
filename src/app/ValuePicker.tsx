@@ -37,12 +37,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { classChain } from "../core/roblox.js";
+import { classIconOf, purposeLabel } from "../core/classIcons.js";
+import { classGlyph, isScriptClass } from "../core/rbx/browse.js";
+import { classChain, classGroup, isInstanceClass } from "../core/roblox.js";
+import { ClassIcon, iconFor } from "./ClassIcon.jsx";
 import { cx } from "./cx.js";
-import { Icon } from "./icons.jsx";
+import { Icon, type IconName } from "./icons.jsx";
 import { acceptsSuggestion } from "./keys.js";
 import { LAYER } from "./layers.js";
 import { SectionHead } from "./PanelParts.jsx";
+import { pinColor } from "./palette.js";
+import { readPreferences } from "./preferences.js";
 
 export interface ValuePickerProps {
 	/** What is being chosen, for the heading: "class", "enum". */
@@ -71,9 +76,17 @@ export interface ValuePickerProps {
 	 * a local is picked by its node's id and read as its name.
 	 */
 	labelOf?: (value: string) => string;
+	/**
+	 * The values are classes and types: each with an icon has it beside it, and
+	 * the classes are grouped as Settings › Group classes says.
+	 */
+	classes?: boolean;
 	onPick: (value: string) => void;
 	onClose: () => void;
 }
+
+/** The wire colour of a type with none of its own. */
+const PLAIN = pinColor("any", "data");
 
 /** Prefix beats substring, and a shorter name beats a longer one. */
 function score(name: string, query: string): number {
@@ -91,7 +104,21 @@ export function classDetail(name: string): string {
 }
 
 export function ValuePicker(props: ValuePickerProps) {
-	const { options, groupOf, detailOf, groupsFirst, colorOf, labelOf } = props;
+	const { options, detailOf, groupsFirst, colorOf, labelOf } = props;
+	// By purpose, a class leaves its family's heading for its purpose's. Only a
+	// class the caller put under its family: a type this graph declares stays
+	// under the graph's own heading.
+	const [groupOf] = useState(() => {
+		const given = props.groupOf;
+		if (!given || !props.classes || readPreferences().classGroups !== "purpose") return given;
+		return (value: string) => {
+			const group = given(value);
+			if (!isInstanceClass(value) || group !== classGroup(value)) return group;
+			if (isScriptClass(value)) return purposeLabel("script");
+			const icon = classIconOf(value);
+			return icon ? purposeLabel(icon.purpose) : group;
+		};
+	});
 	const [query, setQuery] = useState("");
 	const [active, setActive] = useState(props.value);
 	const [shut, setShut] = useState<ReadonlySet<string>>(new Set());
@@ -233,6 +260,10 @@ export function ValuePicker(props: ValuePickerProps) {
 
 	const option = (name: string) => {
 		const color = colorOf?.(name);
+		// A type whose wire is the plain grey takes its purpose's colour instead.
+		const icon = props.classes && iconFor(name);
+		// A script class is drawn as the project tree draws a script.
+		const script = props.classes && isScriptClass(name) && classGlyph(name, false, false);
 		return (
 			<button
 				key={name}
@@ -240,7 +271,13 @@ export function ValuePicker(props: ValuePickerProps) {
 				onPointerEnter={() => setActive(name)}
 				onClick={() => commit(name)}
 			>
-				{color && <span className="value-dot" style={{ background: color }} />}
+				{script ? (
+					<Icon name={script.icon as IconName} size={14} className={script.tone} />
+				) : icon ? (
+					<ClassIcon name={name} tint={color && color !== PLAIN ? color : undefined} />
+				) : (
+					color && <span className="value-dot" style={{ background: color }} />
+				)}
 				<span className="value-name">{labelOf?.(name) ?? name}</span>
 			</button>
 		);

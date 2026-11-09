@@ -40,6 +40,7 @@
  * it says is said again in the legend, which is the part a screen reader gets.
  */
 
+import { classIconMarkup, classIconOf, purposeColor } from "../classIcons.js";
 import { classGlyph, describeInstance, groupProperties } from "../rbx/browse.js";
 import type { Prop, RbxInstance } from "../rbx/dom.js";
 import type { NodeScript } from "../schema.js";
@@ -522,6 +523,24 @@ function iconSvg(
 	);
 }
 
+/** Gives each class icon on a page its own mask ids. */
+let classIcons = 0;
+
+/**
+ * A class's icon as `ClassIcon.tsx` draws it, or "" for a class without one.
+ * `tint` draws it in one colour rather than its purpose's: on a badge.
+ */
+function classIconHtml(className: string, size: number, cls = "", tint?: string): string {
+	const icon = classIconOf(className);
+	if (!icon) return "";
+	const id = `dci${++classIcons}`;
+	return (
+		`<svg class="icon class-icon${cls ? ` ${escapeXml(cls)}` : ""}" data-purpose="${icon.purpose}" viewBox="0 -960 960 960"` +
+		` width="${size}" height="${size}" fill="currentColor"${tint ? ` style="color:${escapeXml(tint)}"` : ""} aria-hidden="true">` +
+		`${classIconMarkup(icon.body, id)}</svg>`
+	);
+}
+
 /** A tab's kind icon, as `GraphTabs`' `TabIcon` draws it. */
 const TAB_ICONS = {
 	nodescript: "document",
@@ -563,10 +582,11 @@ export function identHtml(
 	color: string,
 	icon: string,
 	art: ToolbarArt,
+	glyph?: string,
 ): string {
 	return (
 		`<div class="ident"><span class="ident-badge" style="background:${escapeXml(color)}">` +
-		iconSvg(icon, 17, art) +
+		(glyph || iconSvg(icon, 17, art)) +
 		`</span><span class="ident-text"><span class="ident-name">${escapeXml(name)}</span>` +
 		`<span class="ident-kind">${escapeXml(kind)}</span></span></div>`
 	);
@@ -841,7 +861,10 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 			return (
 				`<div class="${classes}"${tie} style="padding-left:${6 + item.depth * 13}px;--depth:${item.depth}">` +
 				twist +
-				iconSvg(item.icon, 15, art, `kind${item.tone ? ` ${item.tone}` : ""}`) +
+				// The class's own icon wherever the editor draws one: see `wearsClassIcon`.
+				((item.place && item.icon === "instance" && item.className
+					? classIconHtml(item.className, 15, "kind")
+					: "") || iconSvg(item.icon, 15, art, `kind${item.tone ? ` ${item.tone}` : ""}`)) +
 				`<span class="label">${escapeXml(item.label)}</span>` +
 				`${item.badge ? `<span class="badge">${escapeXml(item.badge)}</span>` : ""}` +
 				`${item.className ? `<span class="place-class">${escapeXml(item.className)}</span>` : ""}` +
@@ -851,14 +874,18 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 			);
 		}
 
-		case "propHead":
+		case "propHead": {
 			// `Ident`'s markup, from PanelParts.tsx, in the badge colour the
-			// project tree draws the class's glyph in.
+			// project tree draws the class's glyph in, or the class's purpose's.
+			const engine = item.icon === "instance" ? classIconOf(item.className) : undefined;
+			const color = engine ? purposeColor(engine.purpose) : toneColor(item.tone);
+			const glyph = engine ? classIconHtml(item.className, 17, "", "var(--bg-panel)") : undefined;
 			return (
 				`<div class="place-props-head"${tie}>` +
-				identHtml(item.label, item.className, toneColor(item.tone), item.icon, art) +
+				identHtml(item.label, item.className, color, item.icon, art, glyph) +
 				`</div>`
 			);
+		}
 		case "propPath":
 			return `<div class="place-path"${tie}>${escapeXml(item.text)}</div>`;
 		case "propSummary":

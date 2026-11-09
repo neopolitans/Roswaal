@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.221.0",
+		date: "2026-11-09",
+		headline: "Every class and Roblox type has an icon, coloured by what it is for.",
+		added: [
+			"**Class icons.** Every engine class has an icon in the type picker, beside its name in DataModel, and on its Properties badge, in the colour of its purpose: sound, interface, physics and so on. Scripts, folders and services keep the project tree's icons.",
+			"**Datatype icons.** `Vector3`, `CFrame`, `Color3` and the other Roblox types have icons in the type picker, in their wire colour.",
+			"**Classes are grouped by purpose.** The type picker and Add Instance put every sound class together, every interface class together, and so on.",
+			"**Two settings.** Settings › Workspace › Classes: **Class icons** is Filled or Outline, and **Group classes** is By purpose or By family.",
+		],
+	},
+	{
 		version: "0.220.11",
 		date: "2026-11-09",
 		headline: "The engine catalogue is Studio 0.746's.",

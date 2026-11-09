@@ -209,6 +209,14 @@ export function settingsPage(): DocPage {
 						"What a function's tab says. **None** keeps `ƒ hide (Occupancy)`; **Function name** and **Script name** keep one of the two. The tooltip has both.",
 					],
 					[
+						"Class icons",
+						"Every engine class and Roblox datatype has an icon in the colour of its purpose, in the type picker and the DataModel panel. **Filled**, the default, or **Outline**.",
+					],
+					[
+						"Group classes",
+						"How a list of classes is headed. **By purpose**, the default, puts every sound class together and every interface class together. **By family** puts each under its ancestor just below `Instance`, as before 0.221.0.",
+					],
+					[
 						"Write a graph",
 						"How long after your last edit a graph is written. A delay, not a switch — there is no unsaved copy of a graph, so switching it off would give you a document that quietly stops matching itself rather than a buffer.",
 					],

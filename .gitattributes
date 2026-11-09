@@ -10,6 +10,8 @@ notices/upstream/*.txt -text
 # `tests/generated.test.ts` holds this list to those lines. Marked so a review
 # folds their diffs and language statistics leave them out.
 src/core/docs/*.gen.ts linguist-generated=true
+src/core/classIconData.ts linguist-generated=true
+src/core/classIconPurposes.ts linguist-generated=true
 src/core/luneApi.ts linguist-generated=true
 src/core/robloxData.ts linguist-generated=true
 src/core/robloxEngine.json linguist-generated=true

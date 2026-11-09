@@ -1,6 +1,6 @@
 {
   "name": "roswaal",
-  "version": "0.220.11",
+  "version": "0.221.0",
   "private": true,
   "license": "0BSD",
   "type": "module",
@@ -25,6 +25,7 @@
     "build:members": "tsx scripts/build-members.mjs",
     "build:properties": "tsx scripts/build-properties.mjs",
     "build:engine": "tsx scripts/build-engine.mjs",
+    "build:icons": "node scripts/build-class-icons.mjs",
     "build:lune": "node scripts/build-lune.mjs",
     "build:docs": "tsx scripts/build-docs.mjs",
     "build:spec": "tsx scripts/build-spec.mjs",

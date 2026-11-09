@@ -146,6 +146,22 @@
 	--tree-folder-special: #1f64c4;
 	--tree-folder-packages: #7048c0;
 
+	/* Class icons, a colour for each purpose; see derivedTokens and classIcons.ts. */
+	--purpose-world: #9a5b1e;
+	--purpose-script: #4b5563;
+	--purpose-value: #6d3fd6;
+	--purpose-event: #c2410c;
+	--purpose-physics: #0f7a5c;
+	--purpose-light: #9a7206;
+	--purpose-effect: #a2289f;
+	--purpose-sound: #0369a1;
+	--purpose-gui: #0e7470;
+	--purpose-input: #5f6b0a;
+	--purpose-avatar: #2f7d26;
+	--purpose-people: #be1844;
+	--purpose-cloud: #3343c4;
+	--purpose-studio: #5c636e;
+
 	--select: #ff9c2e;
 	/* A pinned node's ring and pin: not the selection's orange, not a warning's amber. */
 	--pin: #2fbfa8;
@@ -168,6 +184,21 @@
 		--tree-folder-plain: var(--fg-muted);
 		--tree-folder-special: #5ea2ee;
 		--tree-folder-packages: #b48cf0;
+
+		--purpose-world: #d9a066;
+		--purpose-script: #e4e7ec;
+		--purpose-value: #b18cff;
+		--purpose-event: #ff7a45;
+		--purpose-physics: #4cc9a0;
+		--purpose-light: #f5c84c;
+		--purpose-effect: #e47ce8;
+		--purpose-sound: #36b5ff;
+		--purpose-gui: #3fd0d0;
+		--purpose-input: #c5d94a;
+		--purpose-avatar: #7bc96f;
+		--purpose-people: #ff6b8b;
+		--purpose-cloud: #7f95ff;
+		--purpose-studio: #9aa2af;
 
 		--fg: #e4e7ec;
 		--fg-muted: #9aa2af;
@@ -1011,6 +1042,47 @@ select optgroup {
 	width: 8px;
 	height: 8px;
 	border-radius: 50%;
+}
+
+/* ---------------------------------------------------------------------------
+   Class icons: every engine class and Roblox datatype, in its purpose's
+   colour. The markup holds filled and outline both; Settings › Class icons
+   picks which shows, by a root attribute `applyChrome` sets. See classIcons.ts.
+   ------------------------------------------------------------------------- */
+
+.class-icon {
+	flex: none;
+	color: var(--purpose-studio);
+}
+
+.class-icon[data-purpose="world"] { color: var(--purpose-world); }
+.class-icon[data-purpose="script"] { color: var(--purpose-script); }
+.class-icon[data-purpose="value"] { color: var(--purpose-value); }
+.class-icon[data-purpose="event"] { color: var(--purpose-event); }
+.class-icon[data-purpose="physics"] { color: var(--purpose-physics); }
+.class-icon[data-purpose="light"] { color: var(--purpose-light); }
+.class-icon[data-purpose="effect"] { color: var(--purpose-effect); }
+.class-icon[data-purpose="sound"] { color: var(--purpose-sound); }
+.class-icon[data-purpose="gui"] { color: var(--purpose-gui); }
+.class-icon[data-purpose="input"] { color: var(--purpose-input); }
+.class-icon[data-purpose="avatar"] { color: var(--purpose-avatar); }
+.class-icon[data-purpose="people"] { color: var(--purpose-people); }
+.class-icon[data-purpose="cloud"] { color: var(--purpose-cloud); }
+.class-icon[data-purpose="studio"] { color: var(--purpose-studio); }
+
+/* A script class in a list of classes, coloured as the project tree colours it. */
+.value-option .tree-script-server { color: var(--tree-script-server); }
+.value-option .tree-script-local { color: var(--tree-script-local); }
+.value-option .tree-script-module { color: var(--tree-script-module); }
+
+/* A name with no icon of its own is drawn quieter than any purpose. */
+.class-icon.none {
+	color: var(--fg-faint);
+}
+
+:root:not([data-class-icons="outline"]) .class-icon .ci-o,
+:root[data-class-icons="outline"] .class-icon .ci-f {
+	display: none;
 }
 
 .value-option.on {

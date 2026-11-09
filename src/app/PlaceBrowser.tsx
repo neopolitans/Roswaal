@@ -13,6 +13,7 @@
  */
 
 import { memo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { classIconOf, purposeColor } from "../core/classIcons.js";
 import { errorMessage } from "../core/errorMessage.js";
 import {
 	assetIdOf,
@@ -28,6 +29,7 @@ import { classGroup, isSubclassOf } from "../core/roblox.js";
 import { readOnlyToScripts } from "../core/robloxEngine.js";
 import { api, type PlaceInstanceChange, type PlaceTree } from "./api.js";
 import { PanelHead } from "./Cards.jsx";
+import { ClassIcon as EngineIcon } from "./ClassIcon.jsx";
 import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
 import { Menu } from "./Menu.jsx";
@@ -781,6 +783,7 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 					value=""
 					groupOf={classGroup}
 					detailOf={classDetail}
+					classes
 					onPick={(className) => {
 						const parent = adding;
 						setAdding(null);
@@ -967,6 +970,11 @@ export const PlaceProperties = memo(function PlaceProperties(props: PlacePropert
 						kind={target.service ? `${target.className} · service` : target.className}
 						color={badgeColor(target.className, target.service)}
 						icon={classGlyph(target.className, target.service, false).icon as IconName}
+						glyph={
+							wearsClassIcon(target.className, target.service) ? (
+								<EngineIcon name={target.className} size={17} tint="var(--bg-panel)" />
+							) : undefined
+						}
 					/>
 				</div>
 				<div className="place-path">{target.path.join(" › ")}</div>
@@ -1071,7 +1079,20 @@ function badgeColor(className: string, service: boolean): string {
 	const script = /tree-script-(\w+)/.exec(tone);
 	if (script) return `var(--tree-script-${script[1]})`;
 	if (tone === "tree-folder-special" || tone === "tree-folder-plain") return `var(--${tone})`;
-	return "var(--fg-faint)";
+	const icon = wearsClassIcon(className, service) ? classIconOf(className) : undefined;
+	return icon ? purposeColor(icon.purpose) : "var(--fg-faint)";
+}
+
+/**
+ * Whether an instance is drawn with its class's icon: everything the project
+ * tree has no glyph of its own for. Scripts, folders and services keep the
+ * tree's, so a place reads the same in both panels.
+ */
+function wearsClassIcon(className: string, service: boolean): boolean {
+	return (
+		classGlyph(className, service, false).icon === "instance" &&
+		classIconOf(className) !== undefined
+	);
 }
 
 /** Engine summaries mark code with backticks; show it as code rather than as backticks. */
@@ -1115,7 +1136,7 @@ function PropValue({ value }: { value: string }) {
 	return <>{value}</>;
 }
 
-/** The glyph the project tree uses for the same thing, and a cube for the rest. */
+/** The glyph the project tree uses for the same thing, and the class's own icon for the rest. */
 function ClassIcon({
 	className,
 	service,
@@ -1125,6 +1146,7 @@ function ClassIcon({
 	service: boolean;
 	open: boolean;
 }) {
+	if (wearsClassIcon(className, service)) return <EngineIcon name={className} size={15} />;
 	const { icon, tone } = classGlyph(className, service, open);
 	return <Icon name={icon as IconName} size={15} className={cx("kind", tone)} />;
 }

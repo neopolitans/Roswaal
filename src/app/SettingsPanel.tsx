@@ -39,6 +39,8 @@ import {
 	ACTION_LABEL_CHOICES,
 	ACTION_ROW_CHOICES,
 	AUTOSAVE_CHOICES,
+	CLASS_GROUPS,
+	CLASS_ICON_STYLES,
 	DOCS_FONTS,
 	FUNCTION_TAB_CHOICES,
 	GRID_CONTRASTS,
@@ -825,6 +827,42 @@ function WorkspaceSettings({ prefs, onPrefs }: SettingsPanelProps) {
 								key={c.value}
 								className={prefs.actionRow === c.value ? "on" : ""}
 								onClick={() => onPrefs({ actionRow: c.value })}
+							>
+								{c.label}
+							</button>
+						))}
+					</div>
+				</Row>
+			</Group>
+
+			<Group title="Classes">
+				<Row
+					label="Class icons"
+					help={CLASS_ICON_STYLES.find((c) => c.value === prefs.classIcons)?.what ?? ""}
+				>
+					<div className="segmented">
+						{CLASS_ICON_STYLES.map((c) => (
+							<button
+								key={c.value}
+								className={prefs.classIcons === c.value ? "on" : ""}
+								onClick={() => onPrefs({ classIcons: c.value })}
+							>
+								{c.label}
+							</button>
+						))}
+					</div>
+				</Row>
+
+				<Row
+					label="Group classes"
+					help={CLASS_GROUPS.find((c) => c.value === prefs.classGroups)?.what ?? ""}
+				>
+					<div className="segmented">
+						{CLASS_GROUPS.map((c) => (
+							<button
+								key={c.value}
+								className={prefs.classGroups === c.value ? "on" : ""}
+								onClick={() => onPrefs({ classGroups: c.value })}
 							>
 								{c.label}
 							</button>
