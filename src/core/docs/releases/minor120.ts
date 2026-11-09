@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.221.1",
+		date: "2026-11-09",
+		headline: "The icon for a class Roswaal does not know is the same on every machine.",
+		fixed: [
+			"**The question mark is a shape.** The grey icon for a class with no icon of its own drew its question mark in a font many machines do not have.",
+		],
+	},
+	{
 		version: "0.221.0",
 		date: "2026-11-09",
 		headline: "Every class and Roblox type has an icon, coloured by what it is for.",

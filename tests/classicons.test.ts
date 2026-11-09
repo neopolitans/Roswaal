@@ -64,7 +64,8 @@ describe("class icons", () => {
 
 	it("puts every icon on Material's grid, with nothing fetched", () => {
 		for (const style of ICON_BODIES.flat(2)) {
-			expect(style).not.toMatch(/href|url\(|https?:|<script|<image/i);
+			// Shapes only: a <text> would be drawn in whatever font the reader has.
+			expect(style).not.toMatch(/href|url\(|https?:|<script|<image|<text/i);
 		}
 	});
 
