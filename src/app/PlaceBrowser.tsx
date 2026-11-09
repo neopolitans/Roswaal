@@ -13,7 +13,7 @@
  */
 
 import { memo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { classIconOf, purposeColor } from "../core/classIcons.js";
+import { classIconOf, purposeColor, wearsClassIcon } from "../core/classIcons.js";
 import { errorMessage } from "../core/errorMessage.js";
 import {
 	assetIdOf,
@@ -971,7 +971,7 @@ export const PlaceProperties = memo(function PlaceProperties(props: PlacePropert
 						color={badgeColor(target.className, target.service)}
 						icon={classGlyph(target.className, target.service, false).icon as IconName}
 						glyph={
-							wearsClassIcon(target.className, target.service) ? (
+							wearsClassIcon(target.className) ? (
 								<EngineIcon name={target.className} size={17} tint="var(--bg-panel)" />
 							) : undefined
 						}
@@ -1073,26 +1073,15 @@ function pathTo(nodes: readonly [number, string, number, number][], index: numbe
 	return names;
 }
 
-/** A class's badge: the colour the project tree draws its glyph in. */
+/** A class's badge: its purpose's colour, or the colour the project tree draws its glyph in. */
 function badgeColor(className: string, service: boolean): string {
+	const icon = wearsClassIcon(className) ? classIconOf(className) : undefined;
+	if (icon) return purposeColor(icon.purpose);
 	const { tone } = classGlyph(className, service, false);
 	const script = /tree-script-(\w+)/.exec(tone);
 	if (script) return `var(--tree-script-${script[1]})`;
 	if (tone === "tree-folder-special" || tone === "tree-folder-plain") return `var(--${tone})`;
-	const icon = wearsClassIcon(className, service) ? classIconOf(className) : undefined;
-	return icon ? purposeColor(icon.purpose) : "var(--fg-faint)";
-}
-
-/**
- * Whether an instance is drawn with its class's icon: everything the project
- * tree has no glyph of its own for. Scripts, folders and services keep the
- * tree's, so a place reads the same in both panels.
- */
-function wearsClassIcon(className: string, service: boolean): boolean {
-	return (
-		classGlyph(className, service, false).icon === "instance" &&
-		classIconOf(className) !== undefined
-	);
+	return "var(--fg-faint)";
 }
 
 /** Engine summaries mark code with backticks; show it as code rather than as backticks. */
@@ -1136,7 +1125,7 @@ function PropValue({ value }: { value: string }) {
 	return <>{value}</>;
 }
 
-/** The glyph the project tree uses for the same thing, and the class's own icon for the rest. */
+/** The class's own icon, or for a script or a Folder the glyph the project tree uses. */
 function ClassIcon({
 	className,
 	service,
@@ -1146,7 +1135,7 @@ function ClassIcon({
 	service: boolean;
 	open: boolean;
 }) {
-	if (wearsClassIcon(className, service)) return <EngineIcon name={className} size={15} />;
+	if (wearsClassIcon(className)) return <EngineIcon name={className} size={15} />;
 	const { icon, tone } = classGlyph(className, service, open);
 	return <Icon name={icon as IconName} size={15} className={cx("kind", tone)} />;
 }

@@ -40,7 +40,7 @@
  * it says is said again in the legend, which is the part a screen reader gets.
  */
 
-import { classIconMarkup, classIconOf, purposeColor } from "../classIcons.js";
+import { classIconMarkup, classIconOf, purposeColor, wearsClassIcon } from "../classIcons.js";
 import { classGlyph, describeInstance, groupProperties } from "../rbx/browse.js";
 import type { Prop, RbxInstance } from "../rbx/dom.js";
 import type { NodeScript } from "../schema.js";
@@ -862,7 +862,7 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 				`<div class="${classes}"${tie} style="padding-left:${6 + item.depth * 13}px;--depth:${item.depth}">` +
 				twist +
 				// The class's own icon wherever the editor draws one: see `wearsClassIcon`.
-				((item.place && item.icon === "instance" && item.className
+				((item.place && item.className && wearsClassIcon(item.className)
 					? classIconHtml(item.className, 15, "kind")
 					: "") || iconSvg(item.icon, 15, art, `kind${item.tone ? ` ${item.tone}` : ""}`)) +
 				`<span class="label">${escapeXml(item.label)}</span>` +
@@ -877,7 +877,7 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 		case "propHead": {
 			// `Ident`'s markup, from PanelParts.tsx, in the badge colour the
 			// project tree draws the class's glyph in, or the class's purpose's.
-			const engine = item.icon === "instance" ? classIconOf(item.className) : undefined;
+			const engine = wearsClassIcon(item.className) ? classIconOf(item.className) : undefined;
 			const color = engine ? purposeColor(engine.purpose) : toneColor(item.tone);
 			const glyph = engine ? classIconHtml(item.className, 17, "", "var(--bg-panel)") : undefined;
 			return (

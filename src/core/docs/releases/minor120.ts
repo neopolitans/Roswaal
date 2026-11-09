@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.222.1",
+		date: "2026-11-09",
+		headline: "Services have their own icons in DataModel.",
+		changed: [
+			"**Services have their own icons.** Workspace, Lighting, Players and the other services, and StarterPlayerScripts, StarterCharacterScripts and StarterGear, are drawn with their class's icon in DataModel and on their Properties badge. Scripts and folders keep the project tree's.",
+		],
+	},
+	{
 		version: "0.222.0",
 		date: "2026-11-09",
 		headline: "The 3D view shows what is picked square to itself, with its pivot, and has Edit Pivot.",

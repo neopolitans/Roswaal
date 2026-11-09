@@ -43,6 +43,15 @@ export function typeIconOf(name: string): ClassIcon | undefined {
 	return entry && { purpose: PURPOSE_ORDER[entry[0]], body: entry[1] };
 }
 
+/**
+ * Whether an instance in DataModel is drawn with its class's icon: every class
+ * that has one, services included, but Folder, which keeps the project tree's
+ * folder. The scripts have none here and keep the tree's script glyph.
+ */
+export function wearsClassIcon(className: string): boolean {
+	return className !== "Folder" && classIconOf(className) !== undefined;
+}
+
 /** The icon for a name with none of its own: grey, a question in a box. */
 export const NO_CLASS_ICON: ClassIcon = { purpose: "studio", body: NO_ICON };
 

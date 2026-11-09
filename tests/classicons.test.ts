@@ -18,6 +18,7 @@ import {
 	PURPOSES,
 	purposeLabel,
 	typeIconOf,
+	wearsClassIcon,
 } from "../src/core/classIcons.js";
 import { LUAU_PRIMITIVES } from "../src/core/luauTypes.js";
 import { TYPE_OPTIONS, typeGroup } from "../src/core/roblox.js";
@@ -87,6 +88,20 @@ describe("class icons", () => {
 	it("puts every Luau type under Luau, buffer with the rest", () => {
 		for (const name of LUAU_PRIMITIVES) expect(typeGroup(name), name).toBe("Luau");
 		expect(TYPE_OPTIONS).toContain("buffer");
+	});
+
+	it("draws services in DataModel with their own icons, and leaves folders and scripts the tree's", () => {
+		for (const name of [
+			"Workspace",
+			"Lighting",
+			"Players",
+			"StarterPlayerScripts",
+			"Part",
+			"Model",
+		])
+			expect(wearsClassIcon(name), name).toBe(true);
+		for (const name of ["Folder", "Script", "LocalScript", "ModuleScript", "NotAClass"])
+			expect(wearsClassIcon(name), name).toBe(false);
 	});
 
 	it("labels every purpose", () => {
