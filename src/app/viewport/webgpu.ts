@@ -800,6 +800,9 @@ export class WebGpuView implements ViewRenderer {
 				],
 			},
 			primitive: { topology: "triangle-list" },
+			// In the frame's own pass: see draw.
+			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "always" },
+			multisample: { count: SAMPLES },
 		});
 		this.sampler = d.createSampler({ magFilter: "linear", minFilter: "linear" });
 		// Across, down, and the strength the glow is added at.
@@ -1137,6 +1140,13 @@ export class WebGpuView implements ViewRenderer {
 			pass.setPipeline(this.blended);
 			this.solids(pass, this.clear);
 		}
+		// The glow is part of the place: what marks the place is drawn over it.
+		if (this.glowing && this.glow) {
+			pass.setPipeline(this.add);
+			pass.setBindGroup(0, this.glow.groups[2]);
+			pass.draw(3);
+			pass.setBindGroup(0, this.bind);
+		}
 		if (this.selection) {
 			pass.setPipeline(this.hideBehind ? this.linesBehind : this.lines);
 			pass.setVertexBuffer(0, this.edges.vertices);
@@ -1160,15 +1170,6 @@ export class WebGpuView implements ViewRenderer {
 			pass.draw(this.overlay.count);
 		}
 		pass.end();
-		if (this.glowing && this.glow) {
-			const glowPass = encoder.beginRenderPass({
-				colorAttachments: [{ view: screen, loadOp: "load", storeOp: "store" }],
-			});
-			glowPass.setPipeline(this.add);
-			glowPass.setBindGroup(0, this.glow.groups[2]);
-			glowPass.draw(3);
-			glowPass.end();
-		}
 		this.device.queue.submit([encoder.finish()]);
 	}
 

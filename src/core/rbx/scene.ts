@@ -29,6 +29,24 @@ export const SCENE_KINDS = ["block", "wedge", "cornerWedge", "cylinder", "ball",
 export type SceneKind = (typeof SCENE_KINDS)[number];
 /** Words an instance. */
 export const SCENE_STRIDE = 15;
+/** Where an instance's whole numbers start: its colour, its id and its look. */
+const FIRST_WORD = 12;
+
+/**
+ * Rows of numbers as the renderers read them: the transform as floats, and the
+ * whole numbers as the bits they are. Those must not pass through a float on
+ * the way, as JS numbers: an opaque colour with a lot of blue is a NaN as a
+ * float, and Safari and Firefox read every NaN as the same one.
+ */
+export function instanceData(rows: readonly number[]): Float32Array {
+	const data = new Float32Array(rows.length);
+	const words = new Uint32Array(data.buffer);
+	rows.forEach((value, i) => {
+		if (i % SCENE_STRIDE < FIRST_WORD) data[i] = value;
+		else words[i] = value;
+	});
+	return data;
+}
 
 export interface PlaceScene {
 	kinds: Record<SceneKind, { data: Float32Array; count: number }>;
@@ -115,12 +133,6 @@ export function buildPlaceScene(
 	});
 	const lists = empty();
 	const seeThrough = empty();
-	const f32 = new Float32Array(1);
-	const u32 = new Uint32Array(f32.buffer);
-	const word = (bits: number) => {
-		u32[0] = bits >>> 0;
-		return f32[0];
-	};
 	const positions: number[] = [];
 	let transparent = 0;
 
@@ -204,9 +216,9 @@ export function buildPlaceScene(
 			p[0],
 			p[1],
 			p[2],
-			word(colour),
-			word(id),
-			word(material | (shine << 8)),
+			colour,
+			id,
+			material | (shine << 8),
 		);
 		positions.push(p[0], p[1], p[2]);
 	};
@@ -232,7 +244,7 @@ export function buildPlaceScene(
 	const pack = (from: Record<SceneKind, number[]>) => {
 		const out = {} as PlaceScene["kinds"];
 		for (const k of SCENE_KINDS)
-			out[k] = { data: new Float32Array(from[k]), count: from[k].length / SCENE_STRIDE };
+			out[k] = { data: instanceData(from[k]), count: from[k].length / SCENE_STRIDE };
 		return out;
 	};
 	const scene: PlaceScene = {

@@ -5,6 +5,7 @@
  * with the pipeline the parts use, in front of everything.
  */
 
+import { instanceData } from "../../core/rbx/scene.js";
 import { type Mesh, meshFor } from "./geometry.js";
 
 export const HANDLE_KINDS = ["cylinder", "cone", "ball"] as const;
@@ -15,13 +16,7 @@ export function handleMesh(kind: HandleKind): Mesh {
 	return meshFor(kind);
 }
 
-const f32 = new Float32Array(1);
-const u32 = new Uint32Array(f32.buffer);
-const bits = (n: number) => {
-	u32[0] = n >>> 0;
-	return f32[0];
-};
-const NO_ID = bits(0xfffffffe);
+const NO_ID = 0xfffffffe;
 
 const sub = (a: number[], b: number[]) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const add = (a: number[], b: number[], k = 1) => [
@@ -61,7 +56,7 @@ export class HandleBuilder {
 			(Math.round(rgb[1] * 255) << 8) |
 			(Math.round(rgb[2] * 255) << 16) |
 			(255 << 24);
-		this.lists[kind].push(...c0, ...c1, ...c2, ...p, bits(colour), NO_ID, 0);
+		this.lists[kind].push(...c0, ...c1, ...c2, ...p, colour, NO_ID, 0);
 	}
 
 	/** A shape stretched from `from` to `to`, `thick` across. */
@@ -103,9 +98,9 @@ export class HandleBuilder {
 
 	build(): Handles {
 		return {
-			cylinder: new Float32Array(this.lists.cylinder),
-			cone: new Float32Array(this.lists.cone),
-			ball: new Float32Array(this.lists.ball),
+			cylinder: instanceData(this.lists.cylinder),
+			cone: instanceData(this.lists.cone),
+			ball: instanceData(this.lists.ball),
 		};
 	}
 }

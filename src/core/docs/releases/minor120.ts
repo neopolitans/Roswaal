@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.220.10",
+		date: "2026-11-09",
+		headline: "The selection box is its own blue in Safari and Firefox, and shows over Neon.",
+		fixed: [
+			"**The selection box is its own blue in Safari and Firefox.** It was drawn half-clear and dark, so it looked purple, and faint over Neon.",
+			"**Parts keep their colour in Safari and Firefox on roswaal.app.** An opaque part with a lot of blue in its colour was drawn dark blue.",
+			"**The selection box shows over Neon.** The glow round Neon was added over it, and washed it out.",
+		],
+	},
+	{
 		version: "0.220.9",
 		date: "2026-11-08",
 		headline: "The macOS and Linux launcher runs from a clone.",

@@ -125,3 +125,12 @@ export const SELECT_WIDTH = 2.5;
 
 /** Studio's selection blue, as the outline round what is picked. */
 export const SELECT: [number, number, number] = [0.05, 0.6, 1];
+
+/** A part's row, to outline it in the selection's blue at this alpha, from 0 to 255. */
+export function tintedOutline(box: Float32Array, alpha: number): Float32Array {
+	const tinted = box.slice(0, SCENE_STRIDE);
+	const [r, g, b] = SELECT.map((v) => Math.round(v * 255));
+	new Uint32Array(tinted.buffer, tinted.byteOffset, tinted.length)[12] =
+		r | (g << 8) | (b << 16) | (alpha << 24);
+	return tinted;
+}

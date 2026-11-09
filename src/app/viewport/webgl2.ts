@@ -932,6 +932,8 @@ export class WebGl2View implements ViewRenderer {
 			gl.depthMask(true);
 			gl.disable(gl.BLEND);
 		}
+		// The glow is part of the place: what marks the place is drawn over it.
+		if (this.glowing) this.addGlow();
 		if (this.selection) {
 			this.use(this.main, camera, true);
 			// Through everything, as Studio's selection box is, or hidden by what is in front.
@@ -979,7 +981,6 @@ export class WebGl2View implements ViewRenderer {
 			gl.bindVertexArray(null);
 			gl.enable(gl.DEPTH_TEST);
 		}
-		if (this.glowing) this.addGlow();
 	}
 
 	private looks!: WebGLTexture;

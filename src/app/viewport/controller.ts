@@ -14,7 +14,7 @@ import { HandleBuilder } from "./handles.js";
 import { partsInRect, rectBetween, type ViewShot } from "./marquee.js";
 import { clampSpeed, SPEED_NOTCH } from "./speed.js";
 import { layersUsed, loadLayer } from "./textures.js";
-import { type Camera, FOV, SELECT, type ViewRenderer } from "./view.js";
+import { type Camera, FOV, tintedOutline, type ViewRenderer } from "./view.js";
 
 /** How the view is drawn, from Settings: which renderer, and the outline's width and depth. */
 export interface ViewportOptions {
@@ -34,15 +34,6 @@ const DRAG = 6;
 /** The outline round what is picked, and the fainter one round what the pointer is over. */
 const PICKED_ALPHA = 255;
 const HOVER_ALPHA = 105;
-const tintWord = (() => {
-	const f = new Float32Array(1);
-	const u = new Uint32Array(f.buffer);
-	const [r, g, b] = SELECT.map((v) => Math.round(v * 255));
-	return (alpha: number) => {
-		u[0] = (r | (g << 8) | (b << 16) | (alpha << 24)) >>> 0;
-		return f[0];
-	};
-})();
 
 import { WebGl2View } from "./webgl2.js";
 import { WebGpuView } from "./webgpu.js";
@@ -291,9 +282,7 @@ export class ViewportController {
 			if (index === null) return;
 			const box = this.boxFor(index);
 			if (box.length < SCENE_STRIDE) return;
-			const tinted = box.slice(0, SCENE_STRIDE);
-			tinted[12] = tintWord(alpha);
-			boxes.push(tinted);
+			boxes.push(tintedOutline(box, alpha));
 		};
 		for (const index of this.selection) add(index, PICKED_ALPHA);
 		if (this.hover !== null && !this.selection.includes(this.hover)) add(this.hover, HOVER_ALPHA);
