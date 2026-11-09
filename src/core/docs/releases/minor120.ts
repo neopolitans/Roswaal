@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.220.11",
+		date: "2026-11-09",
+		headline: "The engine catalogue is Studio 0.746's.",
+		changed: [
+			"**The engine catalogue is read from Studio 0.746's documentation.** It adds four classes, among them `IntegrityService` and `Logger`, and fifteen enums, and drops `PrimalPhysicsSolver`.",
+			"**Services offer the methods their documentation now lists,** such as `RunService:IsEdit` and `CollectionService:GetCollections`.",
+		],
+	},
+	{
 		version: "0.220.10",
 		date: "2026-11-09",
 		headline: "The selection box is its own blue in Safari and Firefox, and shows over Neon.",

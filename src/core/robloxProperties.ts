@@ -30,7 +30,6 @@ export interface ClassProperty {
 	type: string;
 	/** Set when the value is an enum item: the enum it belongs to. */
 	enum?: string;
-	/** Only when generated with `--summaries`; see the header. */
 	summary?: string;
 }
 
@@ -127,6 +126,7 @@ export const CLASS_PROPERTIES: Readonly<Record<string, readonly ClassProperty[]>
 		{ name: "Transform", type: "CFrame" },
 	],
 	AnimationNodeDefinition: [
+		{ name: "NodeId", type: "string" },
 		{ name: "NodeType", type: "string", enum: "AnimationNodeType" },
 	],
 	AnimationTrack: [
@@ -323,8 +323,10 @@ export const CLASS_PROPERTIES: Readonly<Record<string, readonly ClassProperty[]>
 		{ name: "Artist", type: "string" },
 		{ name: "AudioSubType", type: "string", enum: "AudioSubType" },
 		{ name: "MaxDuration", type: "number" },
+		{ name: "MaxPageSize", type: "number" },
 		{ name: "MinDuration", type: "number" },
 		{ name: "SearchKeyword", type: "string" },
+		{ name: "SortType", type: "AudioSortType" },
 		{ name: "Tag", type: "string" },
 		{ name: "Title", type: "string" },
 	],
@@ -334,6 +336,7 @@ export const CLASS_PROPERTIES: Readonly<Record<string, readonly ClassProperty[]>
 		{ name: "VoiceDetected", type: "boolean" },
 	],
 	AudioTextToSpeech: [
+		{ name: "AutoLocalize", type: "boolean" },
 		{ name: "IsLoaded", type: "boolean" },
 		{ name: "IsPlaying", type: "boolean" },
 		{ name: "Looping", type: "boolean" },
@@ -587,7 +590,11 @@ export const CLASS_PROPERTIES: Readonly<Record<string, readonly ClassProperty[]>
 		{ name: "HeadScale", type: "number" },
 		{ name: "MaxAxisFieldOfView", type: "number" },
 		{ name: "NearPlaneZ", type: "number" },
-		{ name: "ViewportSize", type: "ScreenSafeInsetsModel" },
+		{ name: "OrthographicMode", type: "OrthographicMode" },
+		{ name: "OrthographicSize", type: "number" },
+		{ name: "ProjectionType", type: "ProjectionType" },
+		{ name: "ViewportSize", type: "Vector2" },
+		{ name: "ViewStretch", type: "number" },
 		{ name: "VRTiltAndRollEnabled", type: "boolean" },
 	],
 	CanvasGroup: [
@@ -858,10 +865,16 @@ export const CLASS_PROPERTIES: Readonly<Record<string, readonly ClassProperty[]>
 		{ name: "Color3", type: "Color3" },
 		{ name: "ColorMap", type: "string" },
 		{ name: "ColorMapContent", type: "string" },
+		{ name: "EmissiveMaskContent", type: "string" },
+		{ name: "EmissiveStrength", type: "number" },
+		{ name: "EmissiveTint", type: "Color3" },
 		{ name: "LocalTransparencyModifier", type: "number" },
+		{ name: "MetalnessMap", type: "string" },
 		{ name: "MetalnessMapContent", type: "string" },
+		{ name: "NormalMap", type: "string" },
 		{ name: "NormalMapContent", type: "string" },
 		{ name: "Rotation", type: "number" },
+		{ name: "RoughnessMap", type: "string" },
 		{ name: "RoughnessMapContent", type: "string" },
 		{ name: "Transparency", type: "number" },
 		{ name: "UVOffset", type: "Vector2" },
@@ -1149,7 +1162,7 @@ export const CLASS_PROPERTIES: Readonly<Record<string, readonly ClassProperty[]>
 	],
 	GuiBase2d: [
 		{ name: "AbsolutePosition", type: "Vector2" },
-		{ name: "AbsoluteRotation", type: "Rotation2D" },
+		{ name: "AbsoluteRotation", type: "number" },
 		{ name: "AbsoluteSize", type: "Vector2" },
 		{ name: "AutoLocalize", type: "boolean" },
 		{ name: "RootLocalizationTable", type: "LocalizationTable" },
@@ -1390,6 +1403,7 @@ export const CLASS_PROPERTIES: Readonly<Record<string, readonly ClassProperty[]>
 		{ name: "NeckRangeMin", type: "Vector3" },
 		{ name: "NeckSize", type: "number" },
 		{ name: "NeckTposeAdjustment", type: "CFrame" },
+		{ name: "OriginOffset", type: "CFrame" },
 		{ name: "RightAnkle", type: "Instance" },
 		{ name: "RightAnkleRangeMax", type: "Vector3" },
 		{ name: "RightAnkleRangeMin", type: "Vector3" },
@@ -1505,6 +1519,7 @@ export const CLASS_PROPERTIES: Readonly<Record<string, readonly ClassProperty[]>
 		{ name: "ZstdCompression", type: "boolean" },
 	],
 	InputAction: [
+		{ name: "DisplayName", type: "string" },
 		{ name: "Enabled", type: "boolean" },
 		{ name: "PreferredBinding", type: "InputBinding" },
 		{ name: "Type", type: "string", enum: "InputActionType" },
@@ -1615,7 +1630,7 @@ export const CLASS_PROPERTIES: Readonly<Record<string, readonly ClassProperty[]>
 		{ name: "OutdoorAmbient", type: "Color3" },
 		{ name: "PrioritizeLightingQuality", type: "boolean" },
 		{ name: "ShadowSoftness", type: "number" },
-		{ name: "TimeOfDay", type: "time_duration" },
+		{ name: "TimeOfDay", type: "string" },
 	],
 	LinearVelocity: [
 		{ name: "ForceLimitMode", type: "string", enum: "ForceLimitMode" },
@@ -1679,6 +1694,7 @@ export const CLASS_PROPERTIES: Readonly<Record<string, readonly ClassProperty[]>
 		{ name: "TextureID", type: "string" },
 	],
 	Model: [
+		{ name: "LevelOfDetail", type: "string", enum: "ModelLevelOfDetail" },
 		{ name: "ModelStreamingMode", type: "string", enum: "ModelStreamingMode" },
 		{ name: "PrimaryPart", type: "BasePart" },
 		{ name: "WorldPivot", type: "CFrame" },
@@ -1839,10 +1855,12 @@ export const CLASS_PROPERTIES: Readonly<Record<string, readonly ClassProperty[]>
 		{ name: "DevComputerCameraMode", type: "string", enum: "DevComputerCameraMovementMode" },
 		{ name: "DevComputerMovementMode", type: "string", enum: "DevComputerMovementMode" },
 		{ name: "DevEnableMouseLock", type: "boolean" },
+		{ name: "DeviceTrustLevel", type: "PlayerDeviceTrustLevel" },
 		{ name: "DevTouchCameraMode", type: "string", enum: "DevTouchCameraMovementMode" },
 		{ name: "DevTouchMovementMode", type: "string", enum: "DevTouchMovementMode" },
 		{ name: "DisplayName", type: "string" },
 		{ name: "FollowUserId", type: "number" },
+		{ name: "FrustumStreaming", type: "FrustumStreamingMode" },
 		{ name: "GameplayPaused", type: "boolean" },
 		{ name: "HasRobloxSubscription", type: "boolean" },
 		{ name: "HasVerifiedBadge", type: "boolean" },
@@ -1867,6 +1885,7 @@ export const CLASS_PROPERTIES: Readonly<Record<string, readonly ClassProperty[]>
 		{ name: "Open", type: "boolean" },
 	],
 	Players: [
+		{ name: "BanningEnabled", type: "boolean" },
 		{ name: "BubbleChat", type: "boolean" },
 		{ name: "CharacterAutoLoads", type: "boolean" },
 		{ name: "ClassicChat", type: "boolean" },
@@ -1874,6 +1893,7 @@ export const CLASS_PROPERTIES: Readonly<Record<string, readonly ClassProperty[]>
 		{ name: "MaxPlayers", type: "number" },
 		{ name: "PreferredPlayers", type: "number" },
 		{ name: "RespawnTime", type: "number" },
+		{ name: "UseStrafingAnimations", type: "boolean" },
 	],
 	Plugin: [
 		{ name: "CollisionEnabled", type: "boolean" },
@@ -2020,6 +2040,9 @@ export const CLASS_PROPERTIES: Readonly<Record<string, readonly ClassProperty[]>
 	],
 	RotationCurve: [
 		{ name: "Length", type: "number" },
+	],
+	RunService: [
+		{ name: "RunState", type: "string", enum: "RunState" },
 	],
 	ScreenGui: [
 		{ name: "ClipToDeviceSafeArea", type: "boolean" },
@@ -2181,6 +2204,7 @@ export const CLASS_PROPERTIES: Readonly<Record<string, readonly ClassProperty[]>
 		{ name: "AcousticSimulationEnabled", type: "boolean" },
 		{ name: "AmbientReverb", type: "string", enum: "ReverbType" },
 		{ name: "CharacterSoundsUseNewApi", type: "string", enum: "RolloutState" },
+		{ name: "DefaultListenerLocation", type: "string", enum: "ListenerLocation" },
 		{ name: "DistanceFactor", type: "number" },
 		{ name: "DopplerScale", type: "number" },
 		{ name: "ListenerCFrame", type: "CFrame" },
@@ -2243,6 +2267,7 @@ export const CLASS_PROPERTIES: Readonly<Record<string, readonly ClassProperty[]>
 		{ name: "CharacterUseJumpPower", type: "boolean" },
 		{ name: "CharacterWalkSpeed", type: "number" },
 		{ name: "ClassicDeath", type: "boolean" },
+		{ name: "CreateDefaultPlayerModule", type: "boolean" },
 		{ name: "DevCameraOcclusionMode", type: "string", enum: "DevCameraOcclusionMode" },
 		{ name: "DevComputerCameraMovementMode", type: "string", enum: "DevComputerCameraMovementMode" },
 		{ name: "DevComputerMovementMode", type: "string", enum: "DevComputerMovementMode" },
@@ -2371,11 +2396,13 @@ export const CLASS_PROPERTIES: Readonly<Record<string, readonly ClassProperty[]>
 		{ name: "ReservedServerAccessCode", type: "string" },
 	],
 	TeleportOptions: [
-		{ name: "ReservedServerAccessCode", type: "string" },
+		{ name: "ReservedServerId", type: "string" },
 		{ name: "ServerInstanceId", type: "string" },
-		{ name: "ShouldReserveServer", type: "boolean" },
+		{ name: "VipServerId", type: "string" },
 	],
 	Terrain: [
+		{ name: "Decoration", type: "boolean" },
+		{ name: "GrassLength", type: "number" },
 		{ name: "MaxExtents", type: "Region3int16" },
 		{ name: "WaterColor", type: "Color3" },
 		{ name: "WaterReflectance", type: "number" },
@@ -2468,7 +2495,9 @@ export const CLASS_PROPERTIES: Readonly<Record<string, readonly ClassProperty[]>
 		{ name: "DirectChatRequester", type: "Player" },
 	],
 	TextChannelWindow: [
+		{ name: "FontFace", type: "Font" },
 		{ name: "Target", type: "TextChannel" },
+		{ name: "UseDefaultFont", type: "boolean" },
 	],
 	TextChatCommand: [
 		{ name: "AutocompleteVisible", type: "boolean" },
@@ -2714,7 +2743,10 @@ export const CLASS_PROPERTIES: Readonly<Record<string, readonly ClassProperty[]>
 		{ name: "BlurRadius", type: "UDim" },
 		{ name: "Color", type: "Color3" },
 		{ name: "Enabled", type: "boolean" },
+		{ name: "Inset", type: "boolean" },
+		{ name: "Mode", type: "string", enum: "ApplyShadowMode" },
 		{ name: "Offset", type: "UDim2" },
+		{ name: "ShowBehindParent", type: "boolean" },
 		{ name: "Spread", type: "UDim2" },
 		{ name: "Transparency", type: "number" },
 		{ name: "ZIndex", type: "number" },
@@ -2862,6 +2894,11 @@ export const CLASS_PROPERTIES: Readonly<Record<string, readonly ClassProperty[]>
 		{ name: "LightColor", type: "Color3" },
 		{ name: "LightDirection", type: "Vector3" },
 	],
+	VoiceChatService: [
+		{ name: "DefaultDistanceAttenuation", type: "string", enum: "VoiceChatDistanceAttenuationType" },
+		{ name: "EnableDefaultVoice", type: "boolean" },
+		{ name: "UseAudioApi", type: "string", enum: "AudioApiRollout" },
+	],
 	VRService: [
 		{ name: "AutomaticScaling", type: "string", enum: "VRScaling" },
 		{ name: "AvatarGestures", type: "boolean" },
@@ -2896,6 +2933,7 @@ export const CLASS_PROPERTIES: Readonly<Record<string, readonly ClassProperty[]>
 		{ name: "AirDensity", type: "number" },
 		{ name: "AirTurbulenceIntensity", type: "number" },
 		{ name: "AllowThirdPartySales", type: "boolean" },
+		{ name: "AuthorityMode", type: "string", enum: "AuthorityMode" },
 		{ name: "ClientAnimatorThrottling", type: "string", enum: "ClientAnimatorThrottlingMode" },
 		{ name: "CurrentCamera", type: "Camera" },
 		{ name: "DistributedGameTime", type: "number" },
@@ -2904,8 +2942,15 @@ export const CLASS_PROPERTIES: Readonly<Record<string, readonly ClassProperty[]>
 		{ name: "GlobalWind", type: "Vector3" },
 		{ name: "Gravity", type: "number" },
 		{ name: "InsertPoint", type: "Vector3" },
+		{ name: "LuauTypeCheckMode", type: "string", enum: "LuauTypeCheckMode" },
+		{ name: "NextGenerationPhysicsSolver", type: "string", enum: "RolloutState" },
+		{ name: "PredictiveStreamingMode", type: "string", enum: "PredictiveStreamingMode" },
 		{ name: "Retargeting", type: "string", enum: "AnimatorRetargetingMode" },
 		{ name: "StreamingEnabled", type: "boolean" },
+		{ name: "StreamingIntegrityMode", type: "string", enum: "StreamingIntegrityMode" },
+		{ name: "StreamingMinRadius", type: "number" },
+		{ name: "StreamingTargetRadius", type: "number" },
+		{ name: "StreamOutBehavior", type: "string", enum: "StreamOutBehavior" },
 		{ name: "Terrain", type: "Terrain" },
 	],
 	WorldModel: [
