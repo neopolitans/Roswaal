@@ -24,6 +24,27 @@ export function scriptSuffix(className: string): string {
 	return className === "LocalScript" ? ".client.luau" : ".luau";
 }
 
+/**
+ * Whether a path written in a project's settings or a node map stays inside
+ * the project: relative, on any platform's reading of it, and never climbing
+ * above where it starts. `src/../src` stays; `../shared`, `/etc`, `C:\Users`
+ * and `src/../../outside` do not.
+ *
+ * Spelling alone, so it can be asked anywhere -- the map editor as a path is
+ * typed, `roswaal.json` as it is read -- with no disk to look at. A link on
+ * disk that leads out is the filesystem's to refuse (`server/host.ts`).
+ */
+export function staysInside(folder: string): boolean {
+	if (/^[\\/]/.test(folder) || /^[A-Za-z]:/.test(folder)) return false;
+	let depth = 0;
+	for (const segment of folder.split(/[\\/]+/)) {
+		if (segment === "..") depth--;
+		else if (segment !== "" && segment !== ".") depth++;
+		if (depth < 0) return false;
+	}
+	return true;
+}
+
 /** A path as one spelling: forward slashes, no leading `./`, no trailing slash. */
 export function normalisePath(value: string): string {
 	return value.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+$/, "");

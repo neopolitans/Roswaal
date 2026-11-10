@@ -13,7 +13,13 @@
  */
 
 import { ROBLOX_SERVICES } from "./roblox.js";
-import { instanceNameOf, isModuleFile, locateUnder, mappedPaths } from "./rojoPaths.js";
+import {
+	instanceNameOf,
+	isModuleFile,
+	locateUnder,
+	mappedPaths,
+	staysInside,
+} from "./rojoPaths.js";
 import { SCHEMA_VERSION, type Target } from "./schema.js";
 
 /** Instances Rojo will create for us, beyond the services it already knows. */
@@ -219,11 +225,19 @@ const LEGAL_SEGMENT = /^[A-Za-z0-9_.-]+$/;
  * refuse — and finding that out from a map, with the two things named, beats
  * finding it out from a stack trace.
  */
-function validateFilesystem(node: MapNode, diagnostics: MapDiagnostic[]): void {
+function validateFilesystem(node: MapNode, diagnostics: MapDiagnostic[], isRoot = false): void {
 	if (node.name.trim() === "") {
 		diagnostics.push({
 			severity: "error",
 			message: "Something here has no name.",
+			node: node.id,
+		});
+	} else if (!isRoot && (node.name.trim() === "." || node.name.trim() === "..")) {
+		// Legal characters, but a name that means this folder or the one above it.
+		// The root is `.` by design: it is the project folder itself.
+		diagnostics.push({
+			severity: "error",
+			message: `"${node.name.trim()}" names a folder, not something in this one.`,
 			node: node.id,
 		});
 	} else if (!LEGAL_SEGMENT.test(node.name.trim())) {
@@ -321,7 +335,7 @@ export function compileNodeMap(map: NodeMap): MapCompileResult {
 	 * incidentally and the only part that transfers.
 	 */
 	if (isFilesystemMap(map)) {
-		validateFilesystem(map.root, diagnostics);
+		validateFilesystem(map.root, diagnostics, true);
 		return {
 			json: "",
 			diagnostics,
@@ -335,6 +349,12 @@ export function compileNodeMap(map: NodeMap): MapCompileResult {
 			severity: "warning",
 			message: "The root of a node map is normally a DataModel.",
 			node: map.root.id,
+		});
+	}
+	if (map.output && !staysInside(map.output)) {
+		diagnostics.push({
+			severity: "error",
+			message: `The project file would be written to ${map.output}, outside the project.`,
 		});
 	}
 	validateNode(map.root, diagnostics, true);
@@ -375,6 +395,14 @@ function validateNode(node: MapNode, diagnostics: MapDiagnostic[], isRoot: boole
 			node: node.id,
 		});
 	}
+	for (const where of pathsOf(node)) {
+		if (staysInside(where)) continue;
+		diagnostics.push({
+			severity: "error",
+			message: `"${node.name}" points at ${where}, outside the project. A map syncs only what is inside it.`,
+			node: node.id,
+		});
+	}
 
 	const seen = new Set<string>();
 	for (const child of node.children) {
@@ -388,6 +416,23 @@ function validateNode(node: MapNode, diagnostics: MapDiagnostic[], isRoot: boole
 		seen.add(child.name);
 		validateNode(child, diagnostics, false);
 	}
+}
+
+/**
+ * Every path a node writes as its `$path`: the map's own field, and the object
+ * form an imported project file kept (`{ "optional": "…" }`), which is written
+ * back as it was and so is checked as well.
+ */
+function pathsOf(node: MapNode): string[] {
+	const out: string[] = [];
+	if (node.path) out.push(node.path);
+	const kept = node.rojo?.$path;
+	if (typeof kept === "string" && kept !== "") out.push(kept);
+	else if (kept && typeof kept === "object") {
+		const optional = (kept as { optional?: unknown }).optional;
+		if (typeof optional === "string" && optional !== "") out.push(optional);
+	}
+	return out;
 }
 
 /**

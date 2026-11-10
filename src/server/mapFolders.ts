@@ -17,7 +17,7 @@ import { walkFiles } from "./files.js";
 import { fs, path } from "./host.js";
 import { readManifest } from "./manifest.js";
 import { graphOutputPath } from "./outputs.js";
-import { safeJoin, tidyPath, toPosix } from "./paths.js";
+import { safeJoin, staysInside, tidyPath, toPosix } from "./paths.js";
 
 /** A folder a map syncs, and the folder under the graphs directory mirroring it. */
 export interface SyncedFolder {
@@ -45,6 +45,10 @@ function folderAt(project: OpenProject, at: string): SyncedFolder | null {
 	const within =
 		at === outDir ? "" : at.startsWith(`${outDir}/`) ? at.slice(outDir.length + 1) : undefined;
 	if (within === undefined || last.includes(".")) return null;
+	// `src/../../outside` starts with the output folder and leads out of the
+	// project: nothing is made or moved for it, whatever the map, or the last
+	// project file, says (F12).
+	if (!staysInside(at)) return null;
 	return { output: at, graphs: within === "" ? sourceDir : path.posix.join(sourceDir, within) };
 }
 

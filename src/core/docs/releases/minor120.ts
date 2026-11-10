@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.228.4",
+		date: "2026-11-10",
+		headline: "A node map's paths stay inside the project.",
+		fixed: [
+			"**Map paths stay inside the project.** A path, or the project file's output, that leads out of the project, such as `../shared` or `C:/Users/…`, is an error in the map, shown as it is typed, and the project file is not written. It used to go into the project file without a word, pointing Rojo outside the project.",
+			"**A Lune map's names cannot climb.** A folder or file called `..` or `.` is an error.",
+		],
+		watch: [
+			"**A map that synced a folder above the project stops compiling.** Move the folder into the project. If your project needs one outside it, [tell us](https://github.com/neopolitans/roswaal-feedback/issues/new).",
+		],
+	},
+	{
 		version: "0.228.3",
 		date: "2026-11-10",
 		headline: "A save cut off part-way leaves nothing behind, and Dynamic mode says when it cannot compile.",

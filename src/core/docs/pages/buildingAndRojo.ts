@@ -3,6 +3,7 @@
  */
 
 import type { MapNode, NodeMap } from "../../nodemap.js";
+import { FEEDBACK_REPOSITORY } from "../links.js";
 import type { DocPage } from "../site.js";
 import { EDITOR_BAR, MAP_BAR } from "../toolbars.js";
 
@@ -298,7 +299,7 @@ export function buildingAndRojoPage(): DocPage {
 					],
 					[
 						"Path",
-						"The folder or file on disk that fills the instance. A folder under `src` is made when the map is written, with its mirror under `.roswaal/scripts` for the graphs; anything else is marked when Roswaal cannot find it",
+						"The folder or file on disk that fills the instance, inside the project. A folder under `src` is made when the map is written, with its mirror under `.roswaal/scripts` for the graphs; anything else is marked when Roswaal cannot find it",
 					],
 					["Ignore unknown", "Rojo leaves alone anything in Studio that it did not put there"],
 					[
@@ -330,6 +331,14 @@ export function buildingAndRojoPage(): DocPage {
 				text:
 					"A graph in a folder no map syncs is listed in Script analysis, under **Project**, as **unsynced**: " +
 					"its Luau is written, but Rojo never sees it.",
+			},
+			{
+				t: "note",
+				kind: "danger",
+				text:
+					"**Paths stay inside the project.** A path or output that leads out, such as `../shared`, " +
+					"is an error, and the project file is not written. If your project needs one, " +
+					`[tell us](${FEEDBACK_REPOSITORY}/issues/new).`,
 			},
 
 			{ t: "h", level: 2, text: "Requiring a module" },

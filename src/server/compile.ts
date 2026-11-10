@@ -22,7 +22,7 @@ import { readLuaurcFiles, specifierContext } from "./luaurc.js";
 import { isGenerated, recordGenerated, recordSynced } from "./manifest.js";
 import { makeSyncedFolders, moveSyncedFolders } from "./mapFolders.js";
 import { generatedIndex, outputPathFor, removeEmptyFolders } from "./outputs.js";
-import { safeJoin } from "./paths.js";
+import { safeJoin, staysInside } from "./paths.js";
 
 /**
  * Ownership key written into project files by an earlier build. Rojo refuses
@@ -642,6 +642,9 @@ export async function checkMapPaths(project: OpenProject, map: NodeMap): Promise
 	visit(map.root);
 
 	for (const { node, path: relPath } of paths) {
+		// One that leads out is already the map's own error, and is not looked
+		// for outside the project (F12).
+		if (!staysInside(relPath)) continue;
 		const abs = path.resolve(project.root, relPath);
 		const stat = await fs.stat(abs).catch(() => null);
 		if (!stat) {
