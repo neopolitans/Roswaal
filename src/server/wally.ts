@@ -253,7 +253,19 @@ export async function addFromWally(
 	}
 }
 
-/** The entries under one folder all share, when a zip was made of a folder: GitHub's always is. */
+/**
+ * A zip's entries with the one folder they all sit in taken off their paths.
+ *
+ * Zipping a folder, rather than what is in it, puts every entry under that
+ * folder's name, and GitHub's archives always do: `signal-2.0.0/wally.toml`,
+ * `signal-2.0.0/src/init.luau`. The installer looks for `wally.toml` and `src/`
+ * at the top, so that shared first folder is removed and the entries become
+ * `wally.toml` and `src/init.luau`. The folder's own entry, which is left with
+ * an empty path, is dropped.
+ *
+ * Left as they are: a zip with more than one thing at its top, and a zip whose
+ * entries are all files at the top, which has no folder to take off.
+ */
 function unwrapped(files: ZipEntry[]): ZipEntry[] {
 	const tops = new Set(files.map((f) => f.path.split("/")[0]));
 	if (tops.size !== 1 || files.every((f) => !f.path.includes("/"))) return files;

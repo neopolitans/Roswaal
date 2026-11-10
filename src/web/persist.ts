@@ -7,20 +7,23 @@
  * do, and the people most likely to lose an hour are the ones who did not know
  * there was anything to remember.
  *
- * The origin private filesystem is the store. It is per-origin and invisible to
- * the developer's own filesystem, which is the right shape for this: the
- * playground's project is not a project on their disk and should not pretend to
- * be one. Slice 5 is where the editor reaches a real directory.
+ * The origin private filesystem is the store. It belongs to this site alone and
+ * is invisible to the developer's own filesystem, which is the right shape for
+ * this: the playground's project -- the demo, or a zip taken in -- is not a
+ * project on their disk and should not pretend to be one. A real folder, opened
+ * where the browser can open one, is not kept here: its files are on the disk
+ * already, and `directoryFs.ts` reaches them there.
  *
- * **The whole volume, as one document, debounced.** Not because it is elegant
- * but because it is the shape that cannot half-fail: a project is a few dozen
- * kilobytes of text, one write either lands or does not, and what comes back is
- * either a project or nothing. Mirroring file-by-file would be faster to write
- * and would eventually leave somebody with four of their six graphs.
+ * **The text, as one document, debounced.** Not because it is elegant but
+ * because it is the shape that cannot half-fail: one write either lands or does
+ * not, and what comes back is either a project or nothing. Mirroring file by
+ * file would be faster to write and would eventually leave somebody with four of
+ * their six graphs. Binary files -- a place, a model -- are kept beside the
+ * document instead, for the reason `SnapshotStore` gives.
  *
  * The store is an interface so the decisions here — when to write, what to do
  * when writing fails, what a missing document means — can be tested without a
- * browser. `opfsStore()` is the real one, and it is eleven lines.
+ * browser. `opfsStore()` is the real one.
  */
 
 import { errorMessage } from "../server/errors.js";
