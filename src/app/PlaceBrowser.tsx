@@ -47,8 +47,37 @@ import {
 import type { Dialogs } from "./useDialogs.js";
 import { classDetail, ValuePicker } from "./ValuePicker.jsx";
 
-/** Mirrors `TUCKED` in core/rbx/browse.ts, which the editor does not bundle. */
-const TUCKED = 1;
+/** Where the services added to Explorer by hand are kept: per project and place, in this browser. */
+const ADDED_SERVICES_KEY = "roswaal.explorerServices";
+
+function addedServicesKey(file: string): string {
+	return `${api.projectRoot() ?? ""}|${file}`;
+}
+
+function readAddedServices(file: string): ReadonlySet<string> {
+	try {
+		const all = JSON.parse(localStorage.getItem(ADDED_SERVICES_KEY) ?? "{}") as Record<
+			string,
+			string[]
+		>;
+		return new Set(all[addedServicesKey(file)] ?? []);
+	} catch {
+		return new Set();
+	}
+}
+
+function writeAddedServices(file: string, services: ReadonlySet<string>): void {
+	try {
+		const all = JSON.parse(localStorage.getItem(ADDED_SERVICES_KEY) ?? "{}") as Record<
+			string,
+			string[]
+		>;
+		all[addedServicesKey(file)] = [...services].sort();
+		localStorage.setItem(ADDED_SERVICES_KEY, JSON.stringify(all));
+	} catch {
+		// Storage refused: the service shows for now, and is gone next time.
+	}
+}
 
 /** Children listed before a "Show all" row, so a folder of parts opens at once. */
 const CHILD_LIMIT = 200;
@@ -180,7 +209,14 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 	const [loading, setLoading] = useState(true);
 	const [open, setOpen] = useState<ReadonlySet<number>>(new Set());
 	const [showAll, setShowAll] = useState<ReadonlySet<number>>(new Set());
-	const [tucked, setTucked] = useState(false);
+	// Which services are listed: those holding something, those the project's
+	// Luau reaches, and those added by hand. The rest wait behind Add Service.
+	const [used, setUsed] = useState<ReadonlySet<string>>(new Set());
+	const [added, setAdded] = useState<ReadonlySet<string>>(() => readAddedServices(file));
+	// Shown for this visit because something on it was asked for: a pick in the view.
+	const [revealed, setRevealed] = useState<ReadonlySet<number>>(new Set());
+	const [serviceMenu, setServiceMenu] = useState<Element | null>(null);
+	useEffect(() => setAdded(readAddedServices(file)), [file]);
 	const [filter, setFilter] = useState("");
 	// What is picked: one row or many. The last picked is the one Properties shows.
 	const [selection, setSelection] = useState<RowSelection>(NO_SELECTION);
@@ -271,6 +307,13 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 		void load();
 	}, [load, file, refreshKey, written]);
 
+	useEffect(() => {
+		api.placeServices().then(
+			(answer) => setUsed(new Set(answer.used)),
+			() => setUsed(new Set()),
+		);
+	}, [file, refreshKey, written]);
+
 	const nodes = place?.outline.nodes;
 	const classes = place?.outline.classes;
 
@@ -308,7 +351,8 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 			// Past the first children of a big folder too, or it stays unseen.
 			setOpen((prev) => new Set([...prev, ...above]));
 			setShowAll((prev) => new Set([...prev, ...above]));
-			if (indices.some((i) => nodes[i][3] & TUCKED)) setTucked(true);
+			const services = indices.filter((i) => nodes[i][2] === -1);
+			if (services.length) setRevealed((prev) => new Set([...prev, ...services]));
 		},
 		[nodes],
 	);
@@ -418,20 +462,50 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 			if (placeShut) return out;
 		}
 		const roots = children.get(-1) ?? [];
-		const hidden = roots.filter((i) => nodes[i][3] & TUCKED);
-		for (const root of roots) if (!(nodes[root][3] & TUCKED)) add(root, top);
-		if (hidden.length) {
-			out.push({
-				kind: "tucked",
-				depth: top,
-				text: tucked
-					? `Hide ${hidden.length} empty services`
-					: `${hidden.length} more services, all empty`,
-			});
-			if (tucked) for (const root of hidden) add(root, top);
-		}
+		const listed = (i: number) =>
+			(children.get(i)?.length ?? 0) > 0 ||
+			used.has(classes?.[nodes[i][0]] ?? "") ||
+			added.has(classes?.[nodes[i][0]] ?? "") ||
+			revealed.has(i);
+		for (const root of roots) if (listed(root)) add(root, top);
+		if (roots.some((i) => !listed(i)))
+			out.push({ kind: "addService", depth: top, text: "Add Service to Explorer" });
 		return out;
-	}, [nodes, classes, children, open, showAll, tucked, filter, placeShut, onOpenPlace]);
+	}, [
+		nodes,
+		classes,
+		children,
+		open,
+		showAll,
+		filter,
+		placeShut,
+		onOpenPlace,
+		used,
+		added,
+		revealed,
+	]);
+
+	/** The services DataModel holds and does not list, for Add Service's menu. */
+	const unlisted = useMemo(() => {
+		if (!nodes || !classes) return [];
+		return (children.get(-1) ?? []).filter(
+			(i) =>
+				(children.get(i)?.length ?? 0) === 0 &&
+				!used.has(classes[nodes[i][0]]) &&
+				!added.has(classes[nodes[i][0]]) &&
+				!revealed.has(i),
+		);
+	}, [nodes, classes, children, used, added, revealed]);
+
+	/** Lists a service from now on, in this project, in this browser. */
+	const addService = useCallback(
+		(className: string) => {
+			const next = new Set(added).add(className);
+			setAdded(next);
+			writeAddedServices(file, next);
+		},
+		[added, file],
+	);
 
 	/**
 	 * A click on a row, read by `clickMode`: alone, or with Ctrl or Shift to pick
@@ -614,8 +688,8 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 								key={`more-${n}`}
 								className="tree-row place-more"
 								style={{ ...depthStyle(row.depth), paddingLeft: 6 + row.depth * 13 + 20 }}
-								onClick={() => {
-									if (row.kind === "tucked") setTucked((t) => !t);
+								onClick={(e) => {
+									if (row.kind === "addService") setServiceMenu(e.currentTarget);
 									else if (row.parent !== undefined) setShowAll((s) => new Set(s).add(row.parent!));
 								}}
 							>
@@ -733,6 +807,23 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 				<p className={cx("place-note", refusal && "place-refused")}>
 					{busy ? "Writing the place…" : refusal}
 				</p>
+			)}
+
+			{serviceMenu && nodes && classes && (
+				<Menu
+					at={{ element: serviceMenu, align: "start" }}
+					label="Add Service to Explorer"
+					onClose={() => setServiceMenu(null)}
+					sections={[
+						{
+							entries: unlisted.map((i) => ({
+								label: nodes[i][1],
+								hint: "Holds nothing yet",
+								run: () => addService(classes[nodes[i][0]]),
+							})),
+						},
+					]}
+				/>
 			)}
 
 			{menu && nodes![menu.index] && (
@@ -1068,7 +1159,7 @@ function targetIn(place: Loaded, index: number): PlaceTarget {
 type Row =
 	| { kind: "datamodel"; depth: number }
 	| { kind: "node"; index: number; depth: number; match?: boolean }
-	| { kind: "more" | "tucked"; depth: number; parent?: number; text: string };
+	| { kind: "more" | "addService"; depth: number; parent?: number; text: string };
 
 function toggle(set: (f: (s: ReadonlySet<number>) => ReadonlySet<number>) => void, i: number) {
 	set((prev) => {

@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.224.0",
+		date: "2026-11-10",
+		headline: "DataModel lists the services in use, Add Service to Explorer lists another, and Ctrl+click adds to what the 3D view picks.",
+		added: [
+			"**Add Service to Explorer.** DataModel lists the services that hold something and those the project's Luau reaches. The rest wait behind **Add Service to Explorer**, at the foot of the list, and one picked there stays listed for the project.",
+			"**Ctrl+click in the 3D view.** `Ctrl` + click, `Cmd` on a Mac, adds what it reaches to what is picked, or takes it out; with `Alt` too, the part itself. `Ctrl` + drag adds a box's parts, as `Shift` + drag does.",
+		],
+		changed: [
+			"**Three service icons.** ServerScriptService is a server. ServerStorage is ReplicatedStorage's box with a server in its corner, and ReplicatedFirst the box with a rocket.",
+		],
+	},
+	{
 		version: "0.223.1",
 		date: "2026-11-10",
 		headline: "The 3D view's editing tools wait on Modify DataModel Instances, and importing a place asks whether to edit it.",

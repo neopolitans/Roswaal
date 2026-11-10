@@ -70,8 +70,9 @@ import { buildPlaceScene, type PlaceScene, SCENE_KINDS } from "../core/rbx/scene
 import { convertPlace, leftOutOf, placeFormatOf } from "../core/rbx/serialize.js";
 import { legacyBinaryUniqueId } from "../core/rbx/uniqueId.js";
 import { emptyScript, type NodeDef, type NodeScript, type Target } from "../core/schema.js";
+import { servicesUsed } from "../core/servicesUsed.js";
 import { errorMessage, HttpError, UserError } from "./errors.js";
-import { exists } from "./files.js";
+import { exists, walkFiles } from "./files.js";
 import { fs, path } from "./host.js";
 import { makeGraphFolders } from "./mapFolders.js";
 import { createProject } from "./newProject.js";
@@ -923,6 +924,32 @@ export class ApiSession {
 			 * what the node maps' files add, for instance-aware lint, hover and
 			 * completion. Answers without a place too, from the files alone.
 			 */
+			/**
+			 * The services the project's Luau reaches -- its files, and the
+			 * scripts inside the place -- for DataModel, which lists those and the
+			 * ones holding something, and keeps the rest behind Add Service.
+			 */
+			"GET /place/services": async () => {
+				const project = this.project();
+				const used = new Set<string>();
+				const take = (source: string) => {
+					for (const name of servicesUsed(source)) used.add(name);
+				};
+				const luau = await walkFiles(project.root, { accept: (n) => /\.(luau|lua)$/.test(n) });
+				for (const file of luau) take(await fs.readFile(file.abs, "utf8").catch(() => ""));
+				const place = await findPlaceFile(project.root, project.config);
+				if (place) {
+					const loaded = await this.loadPlace(project, place).catch(() => null);
+					const text = new TextDecoder();
+					for (const inst of loaded?.doc.instances ?? []) {
+						const source = inst.props.get("Source")?.value;
+						if (source instanceof Uint8Array) take(text.decode(source));
+						else if (typeof source === "string") take(source);
+					}
+				}
+				return { used: [...used].sort() };
+			},
+
 			"GET /instances": async () => {
 				const project = this.project();
 				const file = await findPlaceFile(project.root, project.config);

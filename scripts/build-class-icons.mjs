@@ -203,6 +203,14 @@ const COMPOSITES = {
 		SERVER_CUT,
 		await server(f),
 	],
+	// ReplicatedStorage's box, with what sets the other two apart in the corner:
+	// the server for ServerStorage, a rocket for ReplicatedFirst.
+	storage_server: async (f) => [await glyph("inventory_2", f), SERVER_CUT, await server(f)],
+	storage_first: async (f) => [
+		await glyph("inventory_2", f),
+		SERVER_CUT,
+		await glyph("rocket_launch", f, 540, -420, 380),
+	],
 	// Functions: a cube in motion.
 	deployed_code_motion: async (f) => [`${await glyph("deployed_code", f, 200, -860, 760)}${LINES}`],
 	deployed_code_motion_server: async (f) => [

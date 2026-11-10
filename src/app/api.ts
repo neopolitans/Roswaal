@@ -297,6 +297,8 @@ export const api = {
 	setProjectRoot: (root: string | null) => {
 		projectRoot = root;
 	},
+	/** The open project's root, for what is remembered per project. */
+	projectRoot: (): string | null => projectRoot,
 
 	/** What is serving, and what it can do — see `host.ts`. */
 	health: () =>
@@ -401,6 +403,8 @@ export const api = {
 		post<{ file: string }>("/api/place/import", { fileName, data }),
 	/** The place as a tree of names and classes, for the DataModel browser. */
 	place: () => request<PlaceTree>("/api/place"),
+	/** The services the project's Luau reaches, for which DataModel lists. */
+	placeServices: () => request<{ used: string[] }>("/api/place/services"),
 	/** One instance of the place, its properties as text. */
 	placeInstance: (stamp: string, index: number) =>
 		request<PlaceInstanceInfo>(

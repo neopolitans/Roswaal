@@ -1184,10 +1184,22 @@ export class ViewportController {
 			const dpr = el.width / box.width;
 			return this.pickId(Math.floor((x - box.left) * dpr), Math.floor((y - box.top) * dpr));
 		};
-		const pickAt = async (x: number, y: number, partItself: boolean) => {
+		// `toggle` is Ctrl, Cmd on a Mac: what the click reaches joins what is
+		// picked, or leaves it, rather than replacing it -- the part itself with Alt.
+		const pickAt = async (x: number, y: number, partItself: boolean, toggle = false) => {
 			if (!this.view) return;
 			const id = await idAt(x, y);
-			this.pickHere(id >= 0 ? [this.clickTarget(id, partItself)] : []);
+			if (!toggle) {
+				this.pickHere(id >= 0 ? [this.clickTarget(id, partItself)] : []);
+				return;
+			}
+			if (id < 0) return;
+			const target = this.clickTarget(id, partItself);
+			this.pickHere(
+				this.selection.includes(target)
+					? this.selection.filter((i) => i !== target)
+					: [...this.selection, target],
+			);
 		};
 		// The mouse over the view outlines, faintly, what a click there would pick:
 		// a ray against the parts' own shapes, once a frame while it moves.
@@ -1221,7 +1233,10 @@ export class ViewportController {
 			moved = 0;
 			pressed = false;
 			mode = modeFor(e);
-			start = mode === "box" ? { x: e.clientX, y: e.clientY, adding: e.shiftKey } : null;
+			start =
+				mode === "box"
+					? { x: e.clientX, y: e.clientY, adding: e.shiftKey || e.ctrlKey || e.metaKey }
+					: null;
 			this.hideMarquee();
 			unpress();
 			if (pointers.size === 1 && e.pointerType !== "mouse") {
@@ -1275,7 +1290,7 @@ export class ViewportController {
 			}
 			// A long press has picked already.
 			if (pressed || pointers.size > 0 || moved > DRAG || e.button !== 0) return;
-			void pickAt(e.clientX, e.clientY, e.altKey || e.shiftKey);
+			void pickAt(e.clientX, e.clientY, e.altKey || e.shiftKey, e.ctrlKey || e.metaKey);
 		});
 		el.addEventListener("pointercancel", (e) => {
 			unpress();

@@ -149,8 +149,9 @@ export function placesAndRojoPage(): DocPage {
 				text:
 					"When the project has a place, the Project panel switches between **Files** and " +
 					"**DataModel**. DataModel lists the place's instances as Studio's Explorer does: its " +
-					"usual services first, children by name, and empty services at the end. Filter by " +
-					"name, or by a class name typed in full.",
+					"usual services first and children by name. It lists the services that hold something " +
+					"and those the project's Luau reaches; **Add Service to Explorer** lists another, " +
+					"from then on. Filter by name, or by a class name typed in full.",
 			},
 			{ t: "toolbar", bar: DATAMODEL_BROWSER, hint: true },
 			{
@@ -186,8 +187,12 @@ export function placesAndRojoPage(): DocPage {
 				rows: [
 					["Pick a model", "Click a part: the highest Model in Workspace that holds it"],
 					["Pick the part itself", "`Alt` or `Shift` + click, or a long press"],
+					[
+						"Add to what is picked, or take out",
+						"`Ctrl` + click, `Cmd` on a Mac; with `Alt` too, the part itself",
+					],
 					["Pick every part in a box", "Drag a box: a part is in when its centre is"],
-					["Add a box's parts to what is picked", "`Shift` + drag a box"],
+					["Add a box's parts to what is picked", "`Shift` or `Ctrl` + drag a box"],
 					["Pick nothing", "`Esc`, or **Clear** on a touch screen"],
 					["See what a click would pick", "Rest the mouse over it: it is outlined faintly"],
 					["Orbit round what is picked", "`Alt` + drag, or drag a finger"],
