@@ -71,6 +71,10 @@ const treeChanges = new Set<string>();
 /** What a drag out of the tree carries when it can move the instance: its index. */
 const PLACE_MOVE = "application/x-roswaal-place-move";
 
+/** Properties, while Modify DataModel Instances is off. */
+const READ_ONLY =
+	"Read-only. Settings › Workspace › Modify DataModel Instances lets you change values.";
+
 /** Said on an instance change while Modify DataModel Instances is off. */
 const TURN_ON = "Turn on Modify DataModel Instances in Settings to change the place.";
 
@@ -966,21 +970,28 @@ export const PlaceProperties = memo(function PlaceProperties(props: PlacePropert
 					onDragStart={(e) => dragOut(e, { path: target.path, className: target.className })}
 				>
 					<Ident
+						className="place-ident"
 						name={target.name}
-						kind={target.service ? `${target.className} · service` : target.className}
-						color={badgeColor(target.className, target.service)}
-						icon={classGlyph(target.className, target.service, false).icon as IconName}
+						kind={headLine(target)}
+						color="transparent"
 						glyph={
 							wearsClassIcon(target.className) ? (
-								<EngineIcon name={target.className} size={17} tint="var(--bg-panel)" />
-							) : undefined
+								<EngineIcon name={target.className} size={20} />
+							) : (
+								<span style={{ color: badgeColor(target.className, target.service) }}>
+									<Icon
+										name={classGlyph(target.className, target.service, false).icon as IconName}
+										size={20}
+									/>
+								</span>
+							)
 						}
 					/>
 				</div>
-				<div className="place-path">{target.path.join(" › ")}</div>
 				{info?.summary && info.index === target.index && (
 					<p className="place-summary">{withCode(info.summary)}</p>
 				)}
+				{!editable && <p className="place-note place-readonly">{READ_ONLY}</p>}
 				{target.file ? (
 					<div className="place-owner">
 						<button className="tb" onClick={() => onOpenFile(target.file!)} title={target.file}>
@@ -1073,7 +1084,16 @@ function pathTo(nodes: readonly [number, string, number, number][], index: numbe
 	return names;
 }
 
-/** A class's badge: its purpose's colour, or the colour the project tree draws its glyph in. */
+/**
+ * The line under an instance's name in Properties: its class, a service said
+ * so, then where it is, from the service down, when that is more than itself.
+ */
+function headLine(target: { className: string; service: boolean; path: string[] }): string {
+	const kind = target.service ? `${target.className} · service` : target.className;
+	return target.path.length > 1 ? `${kind} · ${target.path.join(" › ")}` : kind;
+}
+
+/** A class's colour: its purpose's, or the colour the project tree draws its glyph in. */
 function badgeColor(className: string, service: boolean): string {
 	const icon = wearsClassIcon(className) ? classIconOf(className) : undefined;
 	if (icon) return purposeColor(icon.purpose);

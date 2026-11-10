@@ -7157,11 +7157,25 @@ button.tb.primary.danger:hover:not(:disabled) {
 	cursor: grab;
 }
 
-.place-path {
-	margin-top: 3px;
-	font-size: var(--text-sm);
-	color: var(--fg-faint);
+/* The instance at the top of Properties: its class's icon as it is, not on a
+   badge, its name, and its class and where it is on the line under. */
+.place-ident {
+	grid-template-columns: 20px minmax(0, 1fr) auto;
+}
+
+.place-ident .ident-badge {
+	width: 20px;
+	height: 20px;
+	background: none;
+}
+
+.place-ident .ident-kind {
+	white-space: normal;
 	overflow-wrap: anywhere;
+}
+
+.place-readonly {
+	margin: 6px 0 0;
 }
 
 .place-summary {
@@ -7400,6 +7414,8 @@ select.place-edit-field {
 	color: var(--fg-faint);
 	font-style: italic;
 	font-weight: 400;
+	/* "none" is one word: the value column breaks anywhere, and broke it. */
+	white-space: nowrap;
 }
 
 /* A vector's components, or a CFrame's position and orientation: a small

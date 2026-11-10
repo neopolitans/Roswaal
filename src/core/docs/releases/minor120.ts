@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.222.3",
+		date: "2026-11-10",
+		headline: "Properties opens with a simpler header, and says when it is read-only.",
+		changed: [
+			"**A simpler header.** The top of Properties shows the class's own icon beside the name, with the class and its path on the line under. The path is no longer a line of its own.",
+			"**Properties says when it is read-only.** While Modify DataModel Instances is off, a line under the summary says where to turn it on.",
+		],
+		fixed: [
+			"**An empty reference reads none.** With Modify DataModel Instances on, an empty PrimaryPart broke none across two lines.",
+		],
+	},
+	{
 		version: "0.222.2",
 		date: "2026-11-09",
 		headline: "Properties shows a pivot under Pivot, as its Position and Orientation.",

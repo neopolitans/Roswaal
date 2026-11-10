@@ -40,7 +40,7 @@
  * it says is said again in the legend, which is the part a screen reader gets.
  */
 
-import { classIconMarkup, classIconOf, purposeColor, wearsClassIcon } from "../classIcons.js";
+import { classIconMarkup, classIconOf, wearsClassIcon } from "../classIcons.js";
 import { classGlyph, describeInstance, groupProperties } from "../rbx/browse.js";
 import type { Prop, RbxInstance } from "../rbx/dom.js";
 import type { NodeScript } from "../schema.js";
@@ -316,9 +316,16 @@ export type ToolbarItem = Documented &
 				readonly?: boolean;
 		  }
 		/** The instance at the top of the Properties panel: glyph, name, class. */
-		| { t: "propHead"; label: string; className: string; icon: string; tone?: string }
+		| {
+				t: "propHead";
+				label: string;
+				className: string;
+				icon: string;
+				tone?: string;
+				/** Where it is, from the service down: on the line under its name. */
+				path?: string[];
+		  }
 		/** Its path, under it. */
-		| { t: "propPath"; text: string }
 		/** The class's line from the engine documentation, under the path. */
 		| { t: "propSummary"; text: string }
 		/** The Export panel's foot: what the zip holds. */
@@ -583,9 +590,10 @@ export function identHtml(
 	icon: string,
 	art: ToolbarArt,
 	glyph?: string,
+	cls?: string,
 ): string {
 	return (
-		`<div class="ident"><span class="ident-badge" style="background:${escapeXml(color)}">` +
+		`<div class="ident${cls ? ` ${escapeXml(cls)}` : ""}"><span class="ident-badge" style="background:${escapeXml(color)}">` +
 		(glyph || iconSvg(icon, 17, art)) +
 		`</span><span class="ident-text"><span class="ident-name">${escapeXml(name)}</span>` +
 		`<span class="ident-kind">${escapeXml(kind)}</span></span></div>`
@@ -875,19 +883,22 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 		}
 
 		case "propHead": {
-			// `Ident`'s markup, from PanelParts.tsx, in the badge colour the
-			// project tree draws the class's glyph in, or the class's purpose's.
-			const engine = wearsClassIcon(item.className) ? classIconOf(item.className) : undefined;
-			const color = engine ? purposeColor(engine.purpose) : toneColor(item.tone);
-			const glyph = engine ? classIconHtml(item.className, 17, "", "var(--bg-panel)") : undefined;
+			// `Ident`'s markup, from PanelParts.tsx, as PlaceBrowser.tsx draws it at
+			// the top of Properties: the class's icon as it is, then its class and
+			// where it is under its name.
+			const glyph = wearsClassIcon(item.className)
+				? classIconHtml(item.className, 20)
+				: `<span style="color:${toneColor(item.tone)}">${iconSvg(item.icon, 20, art)}</span>`;
+			const kind =
+				item.path && item.path.length > 1
+					? `${item.className} · ${item.path.join(" › ")}`
+					: item.className;
 			return (
 				`<div class="place-props-head"${tie}>` +
-				identHtml(item.label, item.className, color, item.icon, art, glyph) +
+				identHtml(item.label, kind, "transparent", item.icon, art, glyph, "place-ident") +
 				`</div>`
 			);
 		}
-		case "propPath":
-			return `<div class="place-path"${tie}>${escapeXml(item.text)}</div>`;
 		case "propSummary":
 			return `<p class="place-summary"${tie}>${escapeXml(item.text)}</p>`;
 		case "footNote":
@@ -3231,12 +3242,12 @@ export const PROPERTIES_PANEL: ToolbarSpec = (() => {
 						className: info.className,
 						icon: glyph.icon,
 						tone: glyph.tone,
+						path: info.path,
 						name: "The instance",
 						what: "Drag it onto a graph for an Instance node at its path.",
 					},
 				],
 			},
-			{ items: [{ t: "propPath", text: info.path.join(" › ") }] },
 			...(info.summary
 				? [{ items: [{ t: "propSummary", text: info.summary } as ToolbarItem] }]
 				: []),
