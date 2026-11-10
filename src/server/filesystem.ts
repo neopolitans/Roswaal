@@ -58,6 +58,15 @@ export interface ProjectFs {
 	access(target: string): Promise<void>;
 	rename(from: string, to: string): Promise<void>;
 	copyFile(from: string, to: string): Promise<void>;
+	/**
+	 * True when `writeFile` already leaves a file whole or as it was, never
+	 * half-written, so `writeFileAtomically` writes straight to it rather than
+	 * through a temporary file beside it. The browser's `createWritable` is one
+	 * (the File System standard: nothing reaches the file until the stream
+	 * closes), and so is a volume in memory. Node's `writeFile` empties the file
+	 * first, so the disk has no flag.
+	 */
+	readonly writesWhole?: boolean;
 }
 
 /**

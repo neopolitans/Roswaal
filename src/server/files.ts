@@ -81,6 +81,11 @@ export async function walkFiles(root: string, options: WalkOptions = {}): Promis
  *
  * Windows refuses that rename while another program has the file open, so a
  * refused rename falls back to an ordinary write rather than losing the save.
+ *
+ * The temporary is removed whenever the save does not finish, not only when the
+ * rename fails: a write that failed part-way used to leave it, empty, beside
+ * the file (F11). A filesystem whose own writes are already whole -- the
+ * browser's, see `ProjectFs.writesWhole` -- is written straight to.
  */
 export async function writeTextAtomically(abs: string, text: string): Promise<void> {
 	return writeFileAtomically(abs, text);
@@ -90,8 +95,15 @@ export async function writeTextAtomically(abs: string, text: string): Promise<vo
 export async function writeFileAtomically(abs: string, data: string | Uint8Array): Promise<void> {
 	const write = (target: string) =>
 		typeof data === "string" ? fs.writeFile(target, data, "utf8") : fs.writeFile(target, data);
+	if (fs.writesWhole) return write(abs);
 	const temporary = `${abs}.${Math.random().toString(36).slice(2, 10)}.tmp`;
-	await write(temporary);
+	try {
+		await write(temporary);
+	} catch (error) {
+		// Already gone, or never made, is what this wants.
+		await fs.rm(temporary, { force: true }).catch(() => undefined);
+		throw error;
+	}
 	try {
 		await fs.rename(temporary, abs);
 	} catch (error) {

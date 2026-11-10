@@ -182,6 +182,9 @@ export class Volume implements ProjectFs {
 		return typeof contents === "string" ? encode.encode(contents) : contents.slice();
 	}
 
+	/** A file is replaced in one step here: see `ProjectFs.writesWhole`. */
+	readonly writesWhole = true;
+
 	async writeFile(target: string, data: string, encoding: "utf8"): Promise<void>;
 	async writeFile(target: string, data: Uint8Array): Promise<void>;
 	async writeFile(target: string, data: string | Uint8Array, _encoding?: "utf8"): Promise<void> {

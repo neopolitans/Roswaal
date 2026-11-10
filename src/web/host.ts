@@ -66,6 +66,10 @@ export const fs: ProjectFs = {
 	access: (target) => backing.access(target),
 	rename: (from, to) => backing.rename(from, to),
 	copyFile: (from, to) => backing.copyFile(from, to),
+	// A getter, so it answers for whichever filesystem is behind it now.
+	get writesWhole() {
+		return backing.writesWhole === true;
+	},
 };
 
 export const path: ProjectPath = posixPath;

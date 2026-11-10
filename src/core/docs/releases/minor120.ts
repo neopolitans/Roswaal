@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.228.3",
+		date: "2026-11-10",
+		headline: "A save cut off part-way leaves nothing behind, and Dynamic mode says when it cannot compile.",
+		fixed: [
+			"**A cut-off save leaves nothing behind.** A save that failed part-way could leave an empty `<name>.<random>.tmp` file beside the graph. It is removed now, and on the website a save writes straight to the file, which the browser keeps unchanged until the write is complete.",
+			"**Dynamic mode says when it cannot compile.** A graph it could not compile, such as one that no longer reads as a graph, was skipped without a word. The editor now names the file and the reason, once for each new problem.",
+		],
+	},
+	{
 		version: "0.228.2",
 		date: "2026-11-10",
 		headline: "roswaal status and roswaal stop exit cleanly on Windows.",

@@ -119,6 +119,14 @@ export class DirectoryFs implements ProjectFs {
 		);
 	}
 
+	/**
+	 * `createWritable` writes to a file of its own and the target changes only
+	 * when the stream closes, so a write cut off part-way leaves the old file. A
+	 * temporary beside it would add a second full write -- `rename` here is a copy
+	 * and a delete -- and was how empty `.tmp` files were left behind (F11).
+	 */
+	readonly writesWhole = true;
+
 	async writeFile(target: string, data: string, encoding: "utf8"): Promise<void>;
 	async writeFile(target: string, data: Uint8Array): Promise<void>;
 	async writeFile(target: string, data: string | Uint8Array, _encoding?: "utf8"): Promise<void> {

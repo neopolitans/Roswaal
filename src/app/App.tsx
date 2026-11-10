@@ -605,6 +605,12 @@ export function App() {
 	);
 	/** What StyLua last said about a file Dynamic mode wrote, so it is said once. */
 	const hotUnformatted = useRef<string | null>(null);
+	/**
+	 * The last compile Dynamic mode could not do, so it is said once rather than
+	 * on every save until it is fixed. These used to arrive and go unshown: a
+	 * graph whose output a link led out of the project was refused in silence.
+	 */
+	const hotFailure = useRef<string | null>(null);
 
 	/**
 	 * Autosave's queue: one pending write per file, graphs and node maps alike.
@@ -1118,6 +1124,12 @@ export function App() {
 				void followDiskRef.current(detail.type, detail.path);
 				return;
 			}
+			if (detail.type === "error") {
+				const said = `${detail.path}: ${detail.message ?? "it could not be compiled."}`;
+				if (said !== hotFailure.current) notify("Dynamic mode could not compile", said);
+				hotFailure.current = said;
+			}
+			if (detail.type === "compiled") hotFailure.current = null;
 			if (detail.outcome) {
 				setOutcomes([detail.outcome]);
 				noteOutcomes([detail.outcome], false);
