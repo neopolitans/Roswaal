@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.228.2",
+		date: "2026-11-10",
+		headline: "roswaal status and roswaal stop exit cleanly on Windows.",
+		fixed: [
+			"**Status and stop exit cleanly on Windows.** With a daemon running, both did their work and then failed with exit code 127 and an assertion from Node. They exit with 0.",
+			"**Status says when it was told nothing.** For a daemon started by another account, or with no key for the port in `~/.roswaal`, it says so instead of reporting no project open.",
+		],
+	},
+	{
 		version: "0.228.1",
 		date: "2026-11-10",
 		headline: "A link inside the project opens again on macOS and Linux.",

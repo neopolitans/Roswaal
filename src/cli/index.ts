@@ -52,6 +52,7 @@ import {
 import { keepToken, newToken, readToken, TOKEN_HEADER, tokenFileFor } from "../server/token.js";
 import { DynamicCompiler } from "../server/watcher.js";
 import { type Args, flagNumber, flagString, parseInvocation } from "./args.js";
+import { askDaemon } from "./daemonCall.js";
 import { EXAMPLE_PACK } from "./examplePack.js";
 import { helpLines } from "./help.js";
 import { banner, bold, cyan, dim, green, red, yellow } from "./style.js";
@@ -102,7 +103,13 @@ interface Health {
 	ok: boolean;
 	project: string | null;
 	version?: string;
+	/** Answered without the key: this account has none for the port, so it is told nothing else. */
+	locked?: boolean;
 }
+
+/** What to say a daemon is serving, when it would not say without its key. */
+const LOCKED =
+	"not told: no key for this port in ~/.roswaal, so another account may have started it";
 
 /**
  * The key of the daemon on `port`, for the CLI's own calls to it: the one
@@ -115,13 +122,10 @@ function keyHeaders(port: number): Record<string, string> {
 
 /** Nothing listening returns null rather than throwing. */
 async function probeDaemon(port: number): Promise<Health | null> {
+	const answer = await askDaemon(port, "GET", "/api/health", keyHeaders(port), HEALTH_TIMEOUT_MS);
+	if (answer === null || answer.status < 200 || answer.status >= 300) return null;
 	try {
-		const response = await fetch(`http://127.0.0.1:${port}/api/health`, {
-			headers: keyHeaders(port),
-			signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS),
-		});
-		if (!response.ok) return null;
-		return (await response.json()) as Health;
+		return JSON.parse(answer.body) as Health;
 	} catch {
 		return null;
 	}
@@ -139,16 +143,9 @@ async function probeDaemon(port: number): Promise<Health | null> {
 async function stopDaemon(port: number): Promise<"stopped" | "none" | "failed"> {
 	if ((await probeDaemon(port)) === null) return "none";
 
-	try {
-		await fetch(`http://127.0.0.1:${port}/api/shutdown`, {
-			method: "POST",
-			headers: keyHeaders(port),
-			signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS),
-		});
-	} catch {
-		// Deliberately ignored: the daemon exits mid-response, so a transport
-		// error here says nothing about whether it is going to stop.
-	}
+	// The answer is deliberately ignored: the daemon exits mid-response, so a
+	// transport error here says nothing about whether it is going to stop.
+	await askDaemon(port, "POST", "/api/shutdown", keyHeaders(port), HEALTH_TIMEOUT_MS);
 
 	const deadline = Date.now() + STOP_TIMEOUT_MS;
 	while (Date.now() < deadline) {
@@ -402,7 +399,9 @@ async function commandServe(args: Args): Promise<number> {
 	const existing = await probeDaemon(port);
 	if (existing !== null) {
 		console.log(red(`a daemon is already running on :${port}`));
-		console.log(dim(`  it is serving ${existing.project ?? "no project"}`));
+		console.log(
+			dim(`  it is serving ${existing.locked ? LOCKED : (existing.project ?? "no project")}`),
+		);
 		console.log(dim("  use `roswaal restart`, `roswaal stop`, or pass --port for a second one"));
 		return 1;
 	}
@@ -491,6 +490,10 @@ async function commandStatus(args: Args): Promise<number> {
 		return 0;
 	}
 	console.log(green(`daemon running on :${port}`));
+	if (health.locked) {
+		console.log(`  ${"project".padEnd(10)} ${dim(LOCKED)}`);
+		return 0;
+	}
 	console.log(`  ${"project".padEnd(10)} ${health.project ?? dim("none open")}`);
 	console.log(`  ${"version".padEnd(10)} ${health.version ?? dim("unknown")}`);
 	return 0;
