@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.228.1",
+		date: "2026-11-10",
+		headline: "A link inside the project opens again on macOS and Linux.",
+		fixed: [
+			"**Links inside the project open.** On macOS and Linux, 0.228.0 refused a file reached through a link that stays inside the project. It is followed as before; a link put in its place while it is being opened is still refused.",
+		],
+	},
+	{
 		version: "0.228.0",
 		date: "2026-11-10",
 		headline: "The daemon asks for a key, so other accounts on the computer cannot use it.",

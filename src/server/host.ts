@@ -107,22 +107,44 @@ const NO_FOLLOW = fsConstants.O_NOFOLLOW ?? 0;
  */
 async function openConfined(target: string, flags: number): Promise<nodeFs.FileHandle> {
 	await confined(target);
-	const handle = await nodeFs.open(target, flags | NO_FOLLOW, 0o666);
+	// Opened at where the path leads now, so a link inside the project is still
+	// followed; a link appearing at that place after this is not.
+	const real = await whereItLeads(target);
+	let handle: nodeFs.FileHandle;
+	try {
+		handle = await nodeFs.open(real, flags | NO_FOLLOW, 0o666);
+	} catch (err) {
+		if ((err as NodeJS.ErrnoException).code === "ELOOP") throw changedWhileOpening(target);
+		throw err;
+	}
 	try {
 		await confined(target);
 		const [opened, now] = await Promise.all([handle.stat(), nodeFs.stat(target)]);
-		if (opened.dev !== now.dev || opened.ino !== now.ino) {
-			const root = rootOf(target);
-			const shown = root ? nodePath.relative(root, nodePath.resolve(target)) : target;
-			throw new UserError(
-				`${shown} changed while it was being opened, so Roswaal will not use it.`,
-			);
-		}
+		if (opened.dev !== now.dev || opened.ino !== now.ino) throw changedWhileOpening(target);
 		return handle;
 	} catch (err) {
 		await handle.close();
 		throw err;
 	}
+}
+
+/** The real path `target` leads to; for a file not made yet, its real folder and its name. */
+async function whereItLeads(target: string): Promise<string> {
+	try {
+		return await nodeFs.realpath(target);
+	} catch (err) {
+		if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+		return nodePath.join(
+			await nodeFs.realpath(nodePath.dirname(target)),
+			nodePath.basename(target),
+		);
+	}
+}
+
+function changedWhileOpening(target: string): UserError {
+	const root = rootOf(target);
+	const shown = root ? nodePath.relative(root, nodePath.resolve(target)) : target;
+	return new UserError(`${shown} changed while it was being opened, so Roswaal will not use it.`);
 }
 
 /**
