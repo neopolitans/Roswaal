@@ -43,6 +43,7 @@ import { CodePanel, type CodeTab, codeTabKey, codeValue } from "./CodePanel.jsx"
 import { CompileToast } from "./CompileToast.jsx";
 import { type CodeOpenRequest, onCodeEditRequest } from "./codeEditRequests.js";
 import { cx } from "./cx.js";
+import type { FormAnswers } from "./Dialog.jsx";
 import { previewFor } from "./DocsPanel.jsx";
 import { DocsSearch } from "./DocsSearch.jsx";
 import { ExportMenu } from "./ExportMenu.jsx";
@@ -103,7 +104,7 @@ import { useAutosave } from "./useAutosave.js";
 import { useDialogs } from "./useDialogs.js";
 import { useGraphCommands } from "./useGraphCommands.js";
 import { useLayoutPrefs } from "./useLayoutPrefs.js";
-import { useProjectActions } from "./useProjectActions.js";
+import { dataModelField, useProjectActions } from "./useProjectActions.js";
 import { SpecifierHints, VariablesPanel } from "./VariablesPanel.jsx";
 import { PlaceSummary, Viewport, ViewportBar } from "./Viewport.jsx";
 import { ViewportController } from "./viewport/controller.js";
@@ -371,8 +372,16 @@ export function App() {
 				outlineWidth: OUTLINE_WIDTHS[prefs.outlineWidth],
 				hideBehind: !prefs.outlineThrough,
 				glassHides: prefs.glassHides,
+				editable: prefs.modifyDataModel,
 			}),
-		[viewport, prefs.viewportRenderer, prefs.outlineWidth, prefs.outlineThrough, prefs.glassHides],
+		[
+			viewport,
+			prefs.viewportRenderer,
+			prefs.outlineWidth,
+			prefs.outlineThrough,
+			prefs.glassHides,
+			prefs.modifyDataModel,
+		],
 	);
 	// The folder from a previous session, when one is waiting on a click.
 	const rememberedFolders = useRememberedFolders();
@@ -1054,9 +1063,27 @@ export function App() {
 	/** The directory a file is in, project-relative. */
 	const dirOf = (filePath: string) => filePath.split("/").slice(0, -1).join("/");
 
-	/** A place file the developer has, as the open project's place, shown in DataModel. */
+	/** Modify DataModel Instances, as an import's answer sets it. */
+	const setModifyDataModel = useCallback(
+		(on: boolean) => updatePrefs({ modifyDataModel: on }),
+		[updatePrefs],
+	);
+
+	/**
+	 * A place file the developer has, as the open project's place, shown in
+	 * DataModel. Asked first, as an import is, whether it is to be edited here.
+	 */
 	const addPlaceFile = useCallback(
 		async (picked: File) => {
+			const answer = await ask({
+				kind: "form",
+				title: "Import a place",
+				message: `${picked.name} becomes the project's place. With View and Edit, Properties and DataModel can change it, with a backup first; Settings › Workspace changes this later.`,
+				fields: [dataModelField(prefs.modifyDataModel)],
+				confirmLabel: "Import",
+			});
+			if (typeof answer !== "string") return;
+			setModifyDataModel((JSON.parse(answer) as FormAnswers).dataModel === "edit");
 			try {
 				const data = toBase64(new Uint8Array(await picked.arrayBuffer()));
 				const { file } = await api.addPlaceFile(picked.name, data);
@@ -1068,7 +1095,7 @@ export function App() {
 				notify("No place was added", errorMessage(err));
 			}
 		},
-		[notify, refreshTree],
+		[ask, notify, refreshTree, prefs.modifyDataModel, setModifyDataModel],
 	);
 
 	/** Adds Studio's starting place to a project that has none, and shows it in DataModel. */
@@ -1545,6 +1572,8 @@ export function App() {
 		refreshTree,
 		openEntry,
 		setIntroOpen,
+		modifyDataModel: prefs.modifyDataModel,
+		setModifyDataModel,
 	});
 
 	openExport.current = () => setExportOpen(true);

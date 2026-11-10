@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.223.1",
+		date: "2026-11-10",
+		headline: "The 3D view's editing tools wait on Modify DataModel Instances, and importing a place asks whether to edit it.",
+		changed: [
+			"**Editing tools are greyed out while editing is off.** Move, Rotate, Scale, Pivot and Object in the 3D view's bar, and their keys, are offered with Modify DataModel Instances on. Each says where to turn it on.",
+			"**Importing asks about the DataModel.** Import a place file, and Import Rojo project when the project has a place, ask whether to view the place only or to view and edit it. The answer sets Modify DataModel Instances.",
+		],
+	},
+	{
 		version: "0.223.0",
 		date: "2026-11-10",
 		headline: "Ctrl+L turns the 3D view's handles between the object's axes and the world's, and a CFrame reads as its Position and Orientation.",

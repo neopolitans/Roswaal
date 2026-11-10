@@ -53,12 +53,32 @@ export interface ProjectActionsContext {
 	refreshTree: () => Promise<void>;
 	openEntry: (entry: TreeEntry) => Promise<void>;
 	setIntroOpen: React.Dispatch<React.SetStateAction<boolean>>;
+	/** Modify DataModel Instances, which an import asks about when there is a place. */
+	modifyDataModel: boolean;
+	setModifyDataModel: (on: boolean) => void;
 }
 
 /**
  * Whether statements kept as code share Code Blocks: offered for Tidy and
  * Modern, the modes that do it, starting from what the graph was given before.
  */
+/**
+ * Whether the place is to be edited here, asked as a project's place comes in:
+ * Modify DataModel Instances, which Settings › Workspace changes later.
+ */
+export function dataModelField(on: boolean): FormField {
+	return {
+		id: "dataModel",
+		kind: "choice",
+		label: "DataModel",
+		value: on ? "edit" : "view",
+		options: [
+			{ value: "view", label: "View Only" },
+			{ value: "edit", label: "View and Edit" },
+		],
+	};
+}
+
 function codeRunsField(before: boolean | undefined): FormField {
 	return {
 		id: "codeRuns",
@@ -85,6 +105,8 @@ export function useProjectActions(context: ProjectActionsContext) {
 		refreshTree,
 		openEntry,
 		setIntroOpen,
+		modifyDataModel,
+		setModifyDataModel,
 	} = context;
 
 	/**
@@ -140,7 +162,10 @@ export function useProjectActions(context: ProjectActionsContext) {
 					(sorted.length === 1
 						? `${where} has ${sorted[0].file}${sorted[0].mappedBy ? `, which ${mapName(sorted[0])} writes already` : ""}${others}.`
 						: `${where} has ${sorted.length} Rojo project files${others}.`) +
-					" Its Luau stays hand-written unless you import it as graphs, and no file is changed.",
+					" Its Luau stays hand-written unless you import it as graphs, and no file is changed." +
+					(project?.place
+						? ` With View and Edit, Properties and DataModel can change ${project.place.split("/").pop()}.`
+						: ""),
 				fields: [
 					...(sorted.length > 1
 						? [
@@ -166,18 +191,20 @@ export function useProjectActions(context: ProjectActionsContext) {
 							{ value: "whole", label: "Project File + Luau as Graphs" },
 						],
 					},
+					...(project?.place ? [dataModelField(modifyDataModel)] : []),
 				],
 				confirmLabel: "Import",
 			});
 			if (typeof answer !== "string") return null;
 			const chosen = JSON.parse(answer) as FormAnswers;
+			if (chosen.dataModel !== undefined) setModifyDataModel(chosen.dataModel === "edit");
 			const file = sorted.length > 1 ? String(chosen.file) : sorted[0].file;
 			return {
 				project: sorted.find((p) => p.file === file) ?? sorted[0],
 				whole: chosen.scope === "whole",
 			};
 		},
-		[ask],
+		[ask, project?.place, modifyDataModel, setModifyDataModel],
 	);
 
 	/**

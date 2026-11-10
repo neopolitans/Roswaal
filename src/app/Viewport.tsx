@@ -39,6 +39,8 @@ const TOOL_ICON: Record<Tool, IconName> = {
 	scale: "vpScale",
 };
 const LATER = "comes with editing";
+/** Said by an editing tool while Modify DataModel Instances is off. */
+const EDITING_OFF = "Editing is off: turn on Modify DataModel Instances in Settings › Workspace";
 /** What Automatic draws with here: WebGPU where the browser offers it at all. */
 const AUTOMATIC = typeof navigator !== "undefined" && "gpu" in navigator ? "WebGPU" : "WebGL2";
 
@@ -421,10 +423,17 @@ export function ViewportBar({ controller }: { controller: ViewportController }) 
 							key={id}
 							icon={TOOL_ICON[id]}
 							label={label}
-							title={`${label} (${key})${id === "select" ? "" : `: the handles show; dragging them ${LATER}`}`}
+							title={
+								id === "select"
+									? `${label} (${key})`
+									: state.editable
+										? `${label} (${key}): the handles show; dragging them ${LATER}`
+										: `${label}. ${EDITING_OFF}`
+							}
 							role="radio"
 							aria-checked={state.tool === id}
 							on={state.tool === id}
+							disabled={id !== "select" && !state.editable}
 							onClick={() => controller.setTool(id)}
 						/>
 					))}
@@ -432,7 +441,12 @@ export function ViewportBar({ controller }: { controller: ViewportController }) 
 				<Tile
 					icon="vpPivot"
 					label="Pivot"
-					title={`Edit Pivot: the handles stand at the pivot of what is picked; dragging them ${LATER}`}
+					title={
+						state.editable
+							? `Edit Pivot: the handles stand at the pivot of what is picked; dragging them ${LATER}`
+							: `Edit Pivot. ${EDITING_OFF}`
+					}
+					disabled={!state.editable}
 					on={state.pivotEdit}
 					aria-pressed={state.pivotEdit}
 					onClick={() => controller.setPivotEdit(!state.pivotEdit)}
@@ -440,7 +454,12 @@ export function ViewportBar({ controller }: { controller: ViewportController }) 
 				<Tile
 					icon={state.space === "world" ? "vpGlobe" : "instance"}
 					label={state.space === "world" ? "Global" : "Object"}
-					title="The handles' axes: the object's own, or the world's (Ctrl+L)"
+					title={
+						state.editable
+							? "The handles' axes: the object's own, or the world's (Ctrl+L)"
+							: `The handles' axes. ${EDITING_OFF}`
+					}
+					disabled={!state.editable}
 					onClick={() => controller.setSpace(state.space === "world" ? "object" : "world")}
 				/>
 				{/* Esc's job, where a touch screen has no keys. */}

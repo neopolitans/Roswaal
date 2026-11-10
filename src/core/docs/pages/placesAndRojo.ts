@@ -219,6 +219,13 @@ export function placesAndRojoPage(): DocPage {
 			{
 				t: "p",
 				text:
+					"Move, Rotate, Scale, **Pivot** and **Object** are editing tools, offered with " +
+					"**Settings › Workspace › Modify DataModel Instances** on. Importing a place, or a Rojo " +
+					"project with one, asks whether to view it only or to view and edit it.",
+			},
+			{
+				t: "p",
+				text:
 					"The bar's snaps set the steps a drag keeps to, in studs and degrees; on a narrower " +
 					"screen they are behind **Snap**. Parts are drawn in their colour and material, each " +
 					"material with a pattern or texture of its own tinted by the part's Color, with their " +

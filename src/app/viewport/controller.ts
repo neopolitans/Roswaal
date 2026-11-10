@@ -27,6 +27,8 @@ export interface ViewportOptions {
 	hideBehind: boolean;
 	/** See-through Glass hides the see-through parts behind it, as Studio's does. */
 	glassHides: boolean;
+	/** Modify DataModel Instances: the editing tools are offered only with it on. */
+	editable: boolean;
 }
 
 /** How far a press moves, in CSS pixels, before it is a drag rather than a click. */
@@ -73,6 +75,8 @@ export interface ViewportState {
 	pivotEdit: boolean;
 	/** The handles' axes: what is picked's own, or the world's. Ctrl+L, as in Studio. */
 	space: "object" | "world";
+	/** Modify DataModel Instances is on: the editing tools are offered. */
+	editable: boolean;
 }
 
 export interface Snap {
@@ -177,6 +181,7 @@ export class ViewportController {
 		picked: false,
 		pivotEdit: false,
 		space: "object",
+		editable: false,
 	};
 	private listeners = new Set<() => void>();
 	private place: ViewportPlace | null = null;
@@ -329,12 +334,24 @@ export class ViewportController {
 		outlineWidth: 3.5,
 		hideBehind: false,
 		glassHides: true,
+		editable: false,
 	};
 
 	/** Settings' say in how the view is drawn: a new renderer starts the view again. */
 	setOptions(options: ViewportOptions): void {
 		const was = this.options;
 		this.options = options;
+		if (options.editable !== this.state.editable) {
+			// Editing off takes the editing tools away: back to Select, the handles
+			// off the pivot, as they would be in a place opened read-only.
+			this.set(
+				options.editable
+					? { editable: true }
+					: { editable: false, tool: "select", pivotEdit: false },
+			);
+			this.drawHandles();
+			this.redraw();
+		}
 		if (!this.view) return;
 		if (was.renderer !== options.renderer) {
 			this.view.destroy();
@@ -537,6 +554,8 @@ export class ViewportController {
 	}
 
 	setTool(tool: Tool): void {
+		// The editing tools wait on Modify DataModel Instances.
+		if (tool !== "select" && !this.state.editable) return;
 		this.set({ tool });
 		this.drawHandles();
 		this.redraw();
@@ -1003,6 +1022,7 @@ export class ViewportController {
 
 	/** The handles' axes, object or world: Ctrl+L, and the bar's toggle. */
 	setSpace(space: "object" | "world"): void {
+		if (!this.state.editable) return;
 		this.set({ space });
 		this.drawHandles();
 		this.redraw();
@@ -1010,6 +1030,7 @@ export class ViewportController {
 
 	/** Edit Pivot, on or off: the bar's toggle. */
 	setPivotEdit(on: boolean): void {
+		if (on && !this.state.editable) return;
 		this.set({ pivotEdit: on });
 		this.drawHandles();
 		this.redraw();
