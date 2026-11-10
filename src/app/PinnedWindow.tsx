@@ -42,21 +42,38 @@ export function PinnedWindow({
 	children: ReactNode;
 }) {
 	const [slot, setSlot] = useState<HTMLElement | null>(null);
+	// The frame while it is being dragged, held here and handed up once, on
+	// release: handed up every move, the whole editor drew again each frame.
+	const [live, setLive] = useState<PinnedFrame | null>(null);
+	const shown = live ?? frame;
+	const follow = (next: PinnedFrame, last: { frame: PinnedFrame }) => {
+		last.frame = next;
+		setLive(next);
+	};
+	const settle = (last: { frame: PinnedFrame }) => {
+		onFrame(last.frame);
+		setLive(null);
+	};
 
 	/** Held from the press, as FloatingCard's are: a window worked out move by move walks away. */
 	const move = (e: ReactPointerEvent<HTMLElement>) => {
 		if (e.button !== 0 || !(e.target instanceof Element) || onControl(e.target)) return;
 		if (!e.target.closest(".card-head")) return;
 		e.preventDefault();
-		const from = frame;
+		const from = shown;
+		const last = { frame: from };
 		const [x0, y0] = [e.clientX, e.clientY];
 		trackPointer(e, {
 			move: (m) =>
-				onFrame({
-					...from,
-					x: Math.min(Math.max(from.x + m.clientX - x0, 8 - from.w + 80), innerWidth - 80),
-					y: Math.min(Math.max(from.y + m.clientY - y0, 0), innerHeight - 40),
-				}),
+				follow(
+					{
+						...from,
+						x: Math.min(Math.max(from.x + m.clientX - x0, 8 - from.w + 80), innerWidth - 80),
+						y: Math.min(Math.max(from.y + m.clientY - y0, 0), innerHeight - 40),
+					},
+					last,
+				),
+			end: () => settle(last),
 		});
 	};
 
@@ -64,7 +81,8 @@ export function PinnedWindow({
 		if (e.button !== 0) return;
 		e.preventDefault();
 		e.stopPropagation();
-		const from = frame;
+		const from = shown;
+		const last = { frame: from };
 		const [x0, y0] = [e.clientX, e.clientY];
 		trackPointer(e, {
 			move: (m) => {
@@ -83,15 +101,16 @@ export function PinnedWindow({
 					next.y = from.y + take;
 					next.h = from.h - take;
 				}
-				onFrame(next);
+				follow(next, last);
 			},
+			end: () => settle(last),
 		});
 	};
 
 	return createPortal(
 		<section
 			className="card float-panel pinned-window"
-			style={{ left: frame.x, top: frame.y, width: frame.w, height: frame.h }}
+			style={{ left: shown.x, top: shown.y, width: shown.w, height: shown.h }}
 			onPointerDown={move}
 		>
 			<header className="card-head" title="Drag to move">

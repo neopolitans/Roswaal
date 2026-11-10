@@ -221,7 +221,8 @@ export function placesAndRojoPage(): DocPage {
 				text:
 					"What is picked is outlined square to itself: a part to its own sides, a model to its " +
 					"pivot, as Studio's selection box is. The handles stand the same way. One thing picked " +
-					"shows its pivot over everything in front of it: a white dot with its X, Y and Z.",
+					"shows its pivot over everything in front of it: a white dot, with its X, Y and Z while " +
+					"**Pivot** is on.",
 			},
 			{
 				t: "p",

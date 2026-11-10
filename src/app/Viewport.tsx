@@ -438,30 +438,6 @@ export function ViewportBar({ controller }: { controller: ViewportController }) 
 						/>
 					))}
 				</span>
-				<Tile
-					icon="vpPivot"
-					label="Pivot"
-					title={
-						state.editable
-							? `Edit Pivot: the handles stand at the pivot of what is picked; dragging them ${LATER}`
-							: `Edit Pivot. ${EDITING_OFF}`
-					}
-					disabled={!state.editable}
-					on={state.pivotEdit}
-					aria-pressed={state.pivotEdit}
-					onClick={() => controller.setPivotEdit(!state.pivotEdit)}
-				/>
-				<Tile
-					icon={state.space === "world" ? "vpGlobe" : "instance"}
-					label={state.space === "world" ? "Global" : "Object"}
-					title={
-						state.editable
-							? "The handles' axes: the object's own, or the world's (Ctrl+L)"
-							: `The handles' axes. ${EDITING_OFF}`
-					}
-					disabled={!state.editable}
-					onClick={() => controller.setSpace(state.space === "world" ? "object" : "world")}
-				/>
 				{/* Esc's job, where a touch screen has no keys. */}
 				<span className="vp-clear">
 					<Tile
@@ -501,6 +477,31 @@ export function ViewportBar({ controller }: { controller: ViewportController }) 
 						<SpeedField speed={state.speed} controller={controller} />
 					</div>
 				)}
+				{/* Beside the steps a drag keeps to: how the handles stand, not a tool of their own. */}
+				<Tile
+					icon="vpPivot"
+					label="Pivot"
+					title={
+						state.editable
+							? `Edit Pivot: the handles stand at the pivot of what is picked; dragging them ${LATER}`
+							: `Edit Pivot. ${EDITING_OFF}`
+					}
+					disabled={!state.editable}
+					on={state.pivotEdit}
+					aria-pressed={state.pivotEdit}
+					onClick={() => controller.setPivotEdit(!state.pivotEdit)}
+				/>
+				<Tile
+					icon={state.space === "world" ? "vpGlobe" : "instance"}
+					label={state.space === "world" ? "Global" : "Object"}
+					title={
+						state.editable
+							? "The handles' axes: the object's own, or the world's (Ctrl+L)"
+							: `The handles' axes. ${EDITING_OFF}`
+					}
+					disabled={!state.editable}
+					onClick={() => controller.setSpace(state.space === "world" ? "object" : "world")}
+				/>
 				<span className="vp-rule" />
 				<Tile icon="instance" label="Part" title={`Add a part: ${LATER}`} caret disabled />
 				<span className="vp-rule" />

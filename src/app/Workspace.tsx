@@ -1177,13 +1177,19 @@ function FloatingCard({
 	onFrame?: (panel: PanelId, frame: PanelFrame) => void;
 	onFrameEnd?: () => void;
 }) {
+	// The frame while it is being resized, held here and handed up once, on
+	// release: handed up every move, the whole editor drew again each frame.
+	const [live, setLive] = useState<PanelFrame | null>(null);
+	const shown = live ?? frame;
+
 	// Held rather than read per move: working each frame out from the last
 	// accumulates rounding, and a window walks away from the pointer.
 	function resize(e: ReactPointerEvent<HTMLElement>, edge: string) {
 		if (e.button !== 0 || !onFrame) return;
 		e.preventDefault();
 		e.stopPropagation();
-		const from = frame;
+		const from = shown;
+		let last = from;
 		const x0 = e.clientX;
 		const y0 = e.clientY;
 		trackPointer(e, {
@@ -1205,9 +1211,14 @@ function FloatingCard({
 					next.y = from.y + take;
 					next.h = from.h - take;
 				}
-				onFrame(card.head, next);
+				last = next;
+				setLive(next);
 			},
-			end: () => onFrameEnd?.(),
+			end: () => {
+				onFrame(card.head, last);
+				setLive(null);
+				onFrameEnd?.();
+			},
 		});
 	}
 
@@ -1222,10 +1233,10 @@ function FloatingCard({
 			onMenu={onMenu}
 			className={cx("floating", "float-panel", `float-${card.head}`)}
 			style={{
-				left: frame.x,
-				top: frame.y,
-				width: frame.w,
-				height: card.folded || collapsed ? undefined : frame.h,
+				left: shown.x,
+				top: shown.y,
+				width: shown.w,
+				height: card.folded || collapsed ? undefined : shown.h,
 				// Its height is its bar's, folded, so nothing above it to drag.
 				minHeight: card.folded || collapsed ? 0 : undefined,
 			}}

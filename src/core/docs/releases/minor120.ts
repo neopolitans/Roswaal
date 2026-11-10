@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.225.1",
+		date: "2026-11-10",
+		headline: "Windows move smoothly, the pivot shows its axes only in Edit Pivot, and Pivot and Object sit by the steps.",
+		fixed: [
+			"**Windows keep up.** Moving or resizing a pinned Properties window, or resizing a panel's window, redrew the whole editor at every step and lagged behind the pointer.",
+		],
+		changed: [
+			"**The pivot is a dot.** A picked instance's pivot shows its X, Y and Z only while Pivot is on.",
+			"**Pivot and Object by the steps.** They sit beside the stud and rotation steps in the 3D view's bar, apart from the tools.",
+		],
+	},
+	{
 		version: "0.225.0",
 		date: "2026-11-10",
 		headline: "Properties can be pinned to an instance, in windows of their own.",

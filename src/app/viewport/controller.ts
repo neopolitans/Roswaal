@@ -1005,7 +1005,9 @@ export class ViewportController {
 		}
 		const eye = this.eye();
 		const k = Math.hypot(...pivot.at.map((v, a) => v - eye[a])) * 0.016;
-		const lines = pivot.axes
+		// Its axes only with Edit Pivot on, as Studio shows them: otherwise the dot alone.
+		const axes = this.state.pivotEdit ? pivot.axes : [];
+		const lines = axes
 			.map((axis, a) => {
 				const end = screenPoint(
 					shot,
