@@ -332,13 +332,17 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 
 	const targetOf = useCallback((index: number): PlaceTarget => targetIn(place!, index), [place]);
 
+	// Properties is out and showing something: an instance, or the place while
+	// its view is in front. A single click then changes what it shows.
+	const showing = inspecting !== null || placeOpen === true;
+
 	// Picks an instance alone, and shows it in Properties when that is open or asked for.
 	const pick = useCallback(
 		(index: number, openPanel: boolean) => {
 			setSelection({ items: [index], anchor: index });
-			if (openPanel || inspecting !== null) onInspect(targetOf(index), openPanel);
+			if (openPanel || showing) onInspect(targetOf(index), openPanel);
 		},
-		[inspecting, onInspect, targetOf],
+		[showing, onInspect, targetOf],
 	);
 
 	// Opens every folder above these instances, so they can be seen.
@@ -526,7 +530,7 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 		const next = clickRow(selection, index, mode, order);
 		setSelection(next);
 		const last = primaryOf(next);
-		if (last !== null && inspecting !== null) onInspect(targetOf(last), false);
+		if (last !== null && showing) onInspect(targetOf(last), false);
 	};
 
 	/** One change to the tree written, the tree following it and showing what it made or moved. */

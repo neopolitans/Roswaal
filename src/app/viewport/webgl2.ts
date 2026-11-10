@@ -359,10 +359,15 @@ void main() {
 	}
 	o = vec4(c, 1.0);
 }`;
+// With a dither under one step of the frame's 8 bits, as WebGpuView's fsAdd.
 const FS_ADD = `#version 300 es
 precision highp float;
 in vec2 uv; uniform sampler2D tex; uniform vec4 p; out vec4 o;
-void main() { o = vec4(texture(tex, uv).rgb * 2.0 * p.z, 1.0); }`;
+void main() {
+	vec3 c = texture(tex, uv).rgb * 2.0 * p.z;
+	float n = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) - 0.5;
+	o = vec4(max(c + n / 255.0 * step(1.0 / 512.0, max(c.r, max(c.g, c.b))), 0.0), 1.0);
+}`;
 const FS_GLOW = `#version 300 es
 precision highp float;
 in vec3 vColour; in vec3 vWorld; in vec3 vNormal; flat in uint vId; in float vAlpha; flat in uint vLook; in vec3 vLocal; in vec3 vLNormal;
@@ -749,9 +754,13 @@ export class WebGl2View implements ViewRenderer {
 		const h = Math.max(1, Math.round(this.height / 4));
 		if (this.glowSize[0] === w && this.glowSize[1] === h) return;
 		this.glowSize = [w, h];
+		// Half floats where the browser can draw into them, so six passes of blur
+		// do not round the glow's fall into steps; bytes elsewhere.
+		const half = gl.getExtension("EXT_color_buffer_float") !== null;
 		this.glowTex.forEach((tex, i) => {
 			gl.bindTexture(gl.TEXTURE_2D, tex);
-			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+			if (half) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
+			else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);

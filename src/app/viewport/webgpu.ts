@@ -62,9 +62,12 @@ struct Out { @builtin(position) clip: vec4f, @location(0) uv: vec2f };
 	}
 	return vec4f(c, 1.0);
 }
-// Twice what the glow holds, as it was halved going in.
+// Twice what the glow holds, as it was halved going in, with a dither under
+// one step of the frame's 8 bits, so its long soft fall does not come out in bands.
 @fragment fn fsAdd(i: Out) -> @location(0) vec4f {
-	return vec4f(textureSample(tex, samp, i.uv).rgb * 2.0 * p.z, 1.0);
+	let c = textureSample(tex, samp, i.uv).rgb * 2.0 * p.z;
+	let n = fract(52.9829189 * fract(dot(i.clip.xy, vec2f(0.06711056, 0.00583715)))) - 0.5;
+	return vec4f(max(c + n / 255.0 * step(1.0 / 512.0, max(c.r, max(c.g, c.b))), vec3f(0.0)), 1.0);
 }
 `;
 
@@ -741,7 +744,8 @@ export class WebGpuView implements ViewRenderer {
 			multisample: { count: SAMPLES },
 		});
 		// The glow's passes: the place drawn small in what it gives off, then blurred and added.
-		const glowTarget = { format: "rgba8unorm" as const };
+		// Half floats, so six passes of blur do not round the glow's fall into steps.
+		const glowTarget = { format: "rgba16float" as const };
 		this.glowSolid = d.createRenderPipeline({
 			layout: pipelineLayout,
 			vertex: { module, entryPoint: "vs", buffers },
@@ -985,7 +989,7 @@ export class WebGpuView implements ViewRenderer {
 		const target = () =>
 			d.createTexture({
 				size: [w, h],
-				format: "rgba8unorm",
+				format: "rgba16float",
 				usage: TEXTURE.RENDER_ATTACHMENT | TEXTURE.TEXTURE_BINDING,
 			});
 		const a = target();

@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.224.1",
+		date: "2026-11-10",
+		headline: "Neon's glow falls off smoothly, and one click in DataModel shows what it picks while the place is open.",
+		fixed: [
+			"**Neon's glow has no bands.** Its soft edge was drawn in visible steps. It is blurred at a finer depth now, where the browser allows, and laid over the view with a fine dither.",
+			"**One click shows an instance in Properties.** With the place open in 3D, Properties kept describing the place until an instance was double-clicked.",
+		],
+	},
+	{
 		version: "0.224.0",
 		date: "2026-11-10",
 		headline: "DataModel lists the services in use, Add Service to Explorer lists another, and Ctrl+click adds to what the 3D view picks.",
