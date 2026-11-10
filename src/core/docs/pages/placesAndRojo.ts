@@ -203,6 +203,10 @@ export function placesAndRojoPage(): DocPage {
 					["Look along an axis", "Click its end on the axes, bottom right"],
 					["Show a tool's handles", "`1` to `4`: Select, Move, Rotate, Scale"],
 					["Put the handles on the pivot", "**Pivot** in the bar: Edit Pivot"],
+					[
+						"Turn the handles to the world's axes, or back to the object's",
+						"`Ctrl` + `L`, `Cmd` + `L` on a Mac, or **Object** in the bar",
+					],
 				],
 			},
 			{

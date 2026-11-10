@@ -7245,6 +7245,12 @@ button.tb.primary.danger:hover:not(:disabled) {
 	white-space: nowrap;
 }
 
+/* A value shown as several rows, a CFrame's Position and Orientation: its
+   name once, and its parts set in under it. */
+.place-prop-sub .place-prop-name {
+	padding-left: 14px;
+}
+
 .place-prop-value {
 	color: var(--fg);
 	font-weight: 500;

@@ -188,6 +188,9 @@ export const ICONS = {
 	vpExplorer:
 		"M200-800H440V-680H200ZM320-680V-240H520M320-440H520M520-500H760V-380H520ZM520-300H760V-180H520Z",
 	vpSnap: "M280-800V-480A200 200 0 0 0 680-480V-800M280-680H400M560-680H680",
+	/** Global space: a globe, its equator and a meridian. */
+	vpGlobe:
+		"M480-120A360 360 0 1 1 480-840A360 360 0 1 1 480-120M120-480H840M480-840C360-720 360-240 480-120M480-840C600-720 600-240 480-120",
 	/** Edit Pivot: the pivot's ring, with its three axes going out from it. */
 	vpPivot:
 		"M400-480A80 80 0 1 0 560-480A80 80 0 1 0 400-480M480-560V-840M560-480H840M424-424L240-240",
@@ -271,4 +274,5 @@ export const STROKED: Partial<Record<string, number>> = {
 	vpProperties: 64,
 	vpSnap: 64,
 	vpPivot: 64,
+	vpGlobe: 64,
 };

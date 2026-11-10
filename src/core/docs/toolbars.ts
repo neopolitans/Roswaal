@@ -41,7 +41,7 @@
  */
 
 import { classIconMarkup, classIconOf, wearsClassIcon } from "../classIcons.js";
-import { classGlyph, describeInstance, groupProperties } from "../rbx/browse.js";
+import { classGlyph, describeInstance, groupProperties, propertyCount } from "../rbx/browse.js";
 import type { Prop, RbxInstance } from "../rbx/dom.js";
 import type { NodeScript } from "../schema.js";
 import { escapeXml } from "./preview.js";
@@ -333,7 +333,8 @@ export type ToolbarItem = Documented &
 		/** One of Studio's headings, starting a group of properties. */
 		| { t: "propGroup"; text: string; count?: number }
 		/** One property: its name, and its value as the panel formats it. */
-		| { t: "prop"; label: string; value: string; color?: string }
+		/** `sub`: a part of a value shown as several, set in under its name; `group`: that name, with no value. */
+		| { t: "prop"; label: string; value: string; color?: string; sub?: boolean; group?: boolean }
 		/** The Tags heading's chips. */
 		| { t: "tags"; tags: string[] }
 		/** A dialog's title. */
@@ -907,7 +908,7 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 			return paneHeadHtml(item.text, art, tie, true, "", item.count);
 		case "prop":
 			return (
-				`<div class="place-prop"${tie}><span class="place-prop-name">${escapeXml(item.label)}</span>` +
+				`<div class="place-prop${item.sub ? " place-prop-sub" : ""}${item.group ? " place-prop-group" : ""}"${tie}><span class="place-prop-name">${escapeXml(item.label)}</span>` +
 				`<span class="place-prop-value">` +
 				`${item.color ? `<span class="place-swatch" style="background:${escapeXml(item.color)}"></span>` : ""}` +
 				`${propValueHtml(item.value)}</span></div>`
@@ -3179,7 +3180,7 @@ export const PROPERTIES_PANEL: ToolbarSpec = (() => {
 	const glyph = classGlyph(info.className, false, false);
 	const groups: ToolbarGroup[] = groupProperties(info.properties).map(([category, list]) => ({
 		items: [
-			{ t: "propGroup", text: category, count: list.length },
+			{ t: "propGroup", text: category, count: propertyCount(list) },
 			...(category === "Tags"
 				? [
 						{
@@ -3189,11 +3190,16 @@ export const PROPERTIES_PANEL: ToolbarSpec = (() => {
 							what: "The instance's tags, as CollectionService reads them.",
 						} as ToolbarItem,
 					]
-				: list.map(
-						(p): ToolbarItem => ({
+				: list.flatMap((p, i): ToolbarItem[] => [
+						// As PlaceBrowser.tsx draws a value shown as several: its name once, above its parts.
+						...(p.group && list[i - 1]?.group !== p.group
+							? [{ t: "prop", label: p.group, value: "", group: true } as ToolbarItem]
+							: []),
+						{
 							t: "prop",
-							label: p.name,
+							label: p.sub ?? p.name,
 							value: p.value,
+							...(p.sub ? { sub: true } : {}),
 							...(p.color ? { color: p.color } : {}),
 							...(p.name === "Anchored"
 								? {
@@ -3206,8 +3212,8 @@ export const PROPERTIES_PANEL: ToolbarSpec = (() => {
 											what: "Drag it for Get Attribute, or Set Attribute with `Ctrl`.",
 										}
 									: {}),
-						}),
-					)),
+						},
+					])),
 		],
 	}));
 	return {

@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.223.0",
+		date: "2026-11-10",
+		headline: "Ctrl+L turns the 3D view's handles between the object's axes and the world's, and a CFrame reads as its Position and Orientation.",
+		added: [
+			"**Object and global space.** `Ctrl` + `L`, `Cmd` + `L` on a Mac, turns the handles between the axes of what is picked and the world's, as in Studio. **Object** in the 3D view's bar does the same and shows which is on.",
+		],
+		changed: [
+			"**A CFrame is its Position and Orientation.** In Properties, CFrame, Origin and Pivot Offset each show their Position and Orientation on rows of their own, under their name. A heading counts each of them once.",
+		],
+	},
+	{
 		version: "0.222.3",
 		date: "2026-11-10",
 		headline: "Properties opens with a simpler header, and says when it is read-only.",

@@ -217,6 +217,17 @@ describe("the pivot in Properties", () => {
 		]);
 	});
 
+	it("shows a part's CFrame as Position and Orientation under its name, in Transform", () => {
+		const { bar } = place(null);
+		const shown = describeInstance(bar, 0, () => undefined).properties.filter(
+			(p) => p.member === "CFrame",
+		);
+		expect(shown.map((p) => [p.group, p.sub, p.category, p.value])).toEqual([
+			["CFrame", "Position", "Transform", "0, 0, 0"],
+			["CFrame", "Orientation", "Transform", "0, 0, 0"],
+		]);
+	});
+
 	it("leaves out a model with no pivot of its own, and offers no edit for it", () => {
 		const { gate } = place(null);
 		expect(rows(gate).some((p) => p.member === "WorldPivot")).toBe(false);

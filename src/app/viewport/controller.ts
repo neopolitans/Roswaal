@@ -71,6 +71,8 @@ export interface ViewportState {
 	picked: boolean;
 	/** Edit Pivot: the handles stand at the pivot of what is picked, square to it. */
 	pivotEdit: boolean;
+	/** The handles' axes: what is picked's own, or the world's. Ctrl+L, as in Studio. */
+	space: "object" | "world";
 }
 
 export interface Snap {
@@ -174,6 +176,7 @@ export class ViewportController {
 		snap: { move: 0.5, moveOn: true, rotate: 5, rotateOn: true },
 		picked: false,
 		pivotEdit: false,
+		space: "object",
 	};
 	private listeners = new Set<() => void>();
 	private place: ViewportPlace | null = null;
@@ -396,6 +399,16 @@ export class ViewportController {
 		const own = indices.length === 1 ? this.words.get(indices[0]) : undefined;
 		if (own) return own;
 		const pivot = indices.length === 1 ? this.pivots[indices[0]] : undefined;
+		return boxAround(this.rowsOf(indices), pivot);
+	}
+
+	/** The box round these, square to the world: the handles' in global space. */
+	private worldBox(indices: readonly number[]): Float32Array {
+		return boxAround(this.rowsOf(indices));
+	}
+
+	/** Every drawn part in these and in what they hold. */
+	private rowsOf(indices: readonly number[]): ArrayLike<number>[] {
 		const rows: ArrayLike<number>[] = [];
 		const visit = (i: number) => {
 			const w = this.words.get(i);
@@ -403,7 +416,7 @@ export class ViewportController {
 			for (const k of this.kids[i] ?? []) visit(k);
 		};
 		for (const index of indices) visit(index);
-		return boxAround(rows, pivot);
+		return rows;
 	}
 
 	/**
@@ -883,15 +896,18 @@ export class ViewportController {
 	 */
 	private drawHandles(eye?: number[]): void {
 		if (!this.view) return;
-		const { tool, pivotEdit } = this.state;
+		const { tool, pivotEdit, space } = this.state;
+		const world = space === "world";
 		const built = new HandleBuilder();
 		const pivot = pivotEdit && this.selection.length === 1 ? this.pivotOf(this.selection[0]) : null;
 		const b =
 			!pivot && this.selection.length > 0 && tool !== "select"
-				? this.boxRound(this.selection)
+				? world
+					? this.worldBox(this.selection)
+					: this.boxRound(this.selection)
 				: null;
 		const frame = pivot
-			? { c: pivot.at, axes: pivot.axes, half: [0, 0, 0] }
+			? { c: pivot.at, axes: world ? WORLD : pivot.axes, half: [0, 0, 0] }
 			: b && b.length >= SCENE_STRIDE
 				? {
 						c: [b[9], b[10], b[11]],
@@ -985,6 +1001,13 @@ export class ViewportController {
 		mark.innerHTML = `${lines}<circle cx="${centre[0].toFixed(1)}" cy="${centre[1].toFixed(1)}" r="5" fill="#fff" stroke="#14171c" stroke-width="1.5"/>`;
 	}
 
+	/** The handles' axes, object or world: Ctrl+L, and the bar's toggle. */
+	setSpace(space: "object" | "world"): void {
+		this.set({ space });
+		this.drawHandles();
+		this.redraw();
+	}
+
 	/** Edit Pivot, on or off: the bar's toggle. */
 	setPivotEdit(on: boolean): void {
 		this.set({ pivotEdit: on });
@@ -1033,6 +1056,19 @@ export class ViewportController {
 			) || Boolean(document.querySelector("dialog[open], .dialog-backdrop"));
 		return {
 			down: (e: KeyboardEvent) => {
+				// Ctrl+L, Cmd+L on a Mac, as in Studio: the handles' axes, the object's
+				// or the world's. Taken from the browser, whose own is the address bar.
+				if (
+					(e.ctrlKey || e.metaKey) &&
+					!e.altKey &&
+					!e.shiftKey &&
+					e.code === "KeyL" &&
+					!typing(e)
+				) {
+					e.preventDefault();
+					this.setSpace(this.state.space === "world" ? "object" : "world");
+					return;
+				}
 				if (typing(e) || e.ctrlKey || e.metaKey) return;
 				if (MOVES[e.code] && !e.altKey) {
 					this.held.add(e.code);

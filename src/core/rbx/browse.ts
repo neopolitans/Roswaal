@@ -169,6 +169,12 @@ export interface PlaceProperty {
 	 * graph gets.
 	 */
 	member?: string;
+	/**
+	 * A row that is part of a value shown as several: the label the parts sit
+	 * under (`CFrame`, `Origin`), and this part's own (`Position`).
+	 */
+	group?: string;
+	sub?: string;
 }
 
 export interface PlaceInstanceInfo {
@@ -491,6 +497,11 @@ function fixedName(inst: RbxInstance, stored: string): boolean {
 	return stored === "Name" && (inst.service || inst.parent === null);
 }
 
+/** How many properties these rows show: a value shown as several rows is one. */
+export function propertyCount(rows: readonly PlaceProperty[]): number {
+	return new Set(rows.map((p) => p.group ?? p.name)).size;
+}
+
 /** Where a row sorts: by name, but a pivot's Position before its Orientation, as Studio has them. */
 function sortKey(p: PlaceProperty): string {
 	return p.member ? p.name.replace(/ Position$/, " 0").replace(/ Orientation$/, " 1") : p.name;
@@ -508,16 +519,19 @@ export function describeInstance(
 		const engine = findProperty(inst.className, RENAMED[stored] ?? stored);
 		const name = engine?.name ?? RENAMED[stored] ?? stored;
 		const edit = fixedName(inst, stored) ? undefined : editFor(stored, prop, engine);
-		const pivot = PIVOT_LABELS[name];
 		const frame = prop.value as { position: number[]; rotation: number[] } | null;
-		if (pivot && (prop.type === "CFrame" || prop.type === "OptionalCFrame") && frame) {
-			// Position and Orientation, each its own row, as Studio shows them; either
-			// opens the one editor, which has both.
+		if ((prop.type === "CFrame" || prop.type === "OptionalCFrame") && frame) {
+			// A CFrame as Studio shows one: its Position and its Orientation, each a
+			// row under its name, the pivots by Studio's labels and under Pivot.
+			// Either row opens the one editor, which has both.
+			const label = PIVOT_LABELS[name] ?? name;
 			const row = (part: string, value: string) => ({
-				name: `${pivot} ${part}`,
+				name: `${label} ${part}`,
 				member: name,
+				group: label,
+				sub: part,
 				type: "CFrame",
-				category: "Pivot",
+				category: PIVOT_LABELS[name] ? "Pivot" : engine?.category || "Other",
 				value,
 				...(edit ? { edit } : {}),
 			});

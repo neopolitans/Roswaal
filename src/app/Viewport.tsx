@@ -437,6 +437,12 @@ export function ViewportBar({ controller }: { controller: ViewportController }) 
 					aria-pressed={state.pivotEdit}
 					onClick={() => controller.setPivotEdit(!state.pivotEdit)}
 				/>
+				<Tile
+					icon={state.space === "world" ? "vpGlobe" : "instance"}
+					label={state.space === "world" ? "Global" : "Object"}
+					title="The handles' axes: the object's own, or the world's (Ctrl+L)"
+					onClick={() => controller.setSpace(state.space === "world" ? "object" : "world")}
+				/>
 				{/* Esc's job, where a touch screen has no keys. */}
 				<span className="vp-clear">
 					<Tile

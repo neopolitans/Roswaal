@@ -22,6 +22,7 @@ import {
 	isScriptClass,
 	type PlaceInstanceInfo,
 	type PlaceProperty,
+	propertyCount,
 } from "../core/rbx/browse.js";
 import type { CFrameEdit, PropertyEdit } from "../core/rbx/edit.js";
 import { addableClasses, parentProblem, targetProblem } from "../core/rbx/instanceRules.js";
@@ -1227,7 +1228,7 @@ function Properties({
 				<div className="place-group" key={category}>
 					<SectionHead
 						title={category}
-						count={list.length}
+						count={propertyCount(list)}
 						open={!shut.has(category)}
 						onToggle={() =>
 							setShut((was) => {
@@ -1272,10 +1273,25 @@ function Properties({
 							))}
 						</div>
 					) : (
-						list.map((p) => (
+						list.flatMap((p, i) => [
+							// A value shown as several rows: its name once, above its parts.
+							p.group && list[i - 1]?.group !== p.group && (
+								<div
+									key={`${p.group}:group`}
+									className="place-prop place-prop-group"
+									title={`${p.member ?? p.group}: ${p.type}. Drag onto a graph for a Get Member.`}
+									draggable
+									onDragStart={(e) =>
+										dragOut(e, { path, className, property: p.member ?? p.group })
+									}
+								>
+									<span className="place-prop-name">{p.group}</span>
+								</div>
+							),
 							<div
 								className={cx(
 									"place-prop",
+									p.sub && "place-prop-sub",
 									edits && p.edit && "place-prop-editable",
 									category === "Attributes" &&
 										edits?.removeAttribute &&
@@ -1298,7 +1314,7 @@ function Properties({
 									)
 								}
 							>
-								<span className="place-prop-name">{p.name}</span>
+								<span className="place-prop-name">{p.sub ?? p.name}</span>
 								<span className="place-prop-value">
 									{edits && p.edit ? (
 										<PropEditor
@@ -1340,8 +1356,8 @@ function Properties({
 										{edits.refused.message}
 									</span>
 								)}
-							</div>
-						))
+							</div>,
+						])
 					)}
 				</div>
 			))}
