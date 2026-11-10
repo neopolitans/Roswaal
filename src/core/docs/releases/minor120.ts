@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.225.2",
+		date: "2026-11-10",
+		headline: "A pinned Properties window stays on screen, and docks in the Properties panel.",
+		fixed: [
+			"**Pinned windows stay on screen.** One opened while the window was full screen was left off its edge when it was not. A pinned window is kept wholly inside the window as it changes size.",
+		],
+		added: [
+			"**Pins dock.** The dock button in a pinned window's header puts it in the Properties panel, under the instance the panel follows, where it folds on its own. Its float button puts it back in its window.",
+		],
+	},
+	{
 		version: "0.225.1",
 		date: "2026-11-10",
 		headline: "Windows move smoothly, the pivot shows its axes only in Edit Pivot, and Pivot and Object sit by the steps.",

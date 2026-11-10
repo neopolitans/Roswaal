@@ -1214,6 +1214,54 @@ select optgroup {
 	overflow: auto;
 }
 
+/* Pins docked in the Properties panel, under what it follows: the panel
+   scrolls as one, each part its own height. */
+.properties-stack {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+	overflow: auto;
+}
+
+.properties-stack .place-properties,
+.properties-stack .place-props {
+	flex: none;
+	overflow: visible;
+}
+
+.docked-pin {
+	border-top: 1px solid var(--border);
+}
+
+.docked-pin-head {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-height: 30px;
+	padding: 0 6px;
+	color: var(--fg-muted);
+	background: color-mix(in srgb, var(--accent) 5%, var(--bg-panel));
+}
+
+.docked-pin-slot {
+	display: flex;
+	align-items: center;
+	flex: 1;
+	min-width: 0;
+	gap: 4px;
+}
+
+.docked-pin-slot .card-sub {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--fg);
+	font-weight: 600;
+}
+
 /* The panel's own heading is the window's title bar, so it says what a title
    bar says and carries what the panel already put there. The room for the
    button over its right end is in `.dock h2`, which both shapes share. */

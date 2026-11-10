@@ -7,7 +7,15 @@
  * one source of truth.
  */
 
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import {
+	type ReactNode,
+	useCallback,
+	useDeferredValue,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 
 import { toBase64 } from "../core/base64.js";
 import { compile, type Diagnostic } from "../core/compiler/index.js";
@@ -79,7 +87,7 @@ import { NodePicker } from "./NodePicker.jsx";
 import { functionNameOf } from "./nodeConfig.js";
 import { Overlays } from "./Overlays.jsx";
 import type { PinMenuTarget } from "./PinMenu.jsx";
-import { type PinnedFrame, PinnedWindow } from "./PinnedWindow.jsx";
+import { DockedPin, type PinnedFrame, PinnedWindow } from "./PinnedWindow.jsx";
 import { PlaceBrowser, PlaceProperties, type PlaceTarget, targetAtPath } from "./PlaceBrowser.jsx";
 import { ProjectPicker } from "./ProjectPicker.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
@@ -465,7 +473,15 @@ export function App() {
 	 * docked panel follows the pick. Each finds what it shows again by its path
 	 * whenever the place is written, from whichever panel.
 	 */
-	const [pins, setPins] = useState<{ id: number; target: PlaceTarget; frame: PinnedFrame }[]>([]);
+	const [pins, setPins] = useState<
+		{ id: number; target: PlaceTarget; frame: PinnedFrame; docked?: boolean }[]
+	>([]);
+	/** A pin into the Properties panel, or out of it into its window again. */
+	const dockPin = useCallback(
+		(id: number, docked: boolean) =>
+			setPins((was) => was.map((p) => (p.id === id ? { ...p, docked } : p))),
+		[],
+	);
 	const pinSeq = useRef(0);
 	const pinProperties = useCallback(() => {
 		if (!placeInspect) return;
@@ -512,6 +528,36 @@ export function App() {
 			live = false;
 		};
 	}, [placeWritten, project?.tree]);
+	/**
+	 * The Properties panel's contents with the docked pins under them, each
+	 * folding on its own; the panel alone, as before, while none is docked.
+	 */
+	const withDockedPins = (shown: ReactNode): ReactNode => {
+		const docked = project?.place ? pins.filter((pin) => pin.docked) : [];
+		if (docked.length === 0) return shown;
+		return (
+			<div className="properties-stack">
+				{shown}
+				{docked.map((pin) => (
+					<DockedPin key={pin.id} onFloat={() => dockPin(pin.id, false)}>
+						<PlaceProperties
+							target={pin.target}
+							pinned
+							onPick={onPlacePick}
+							onOpenFile={onPlaceOpenFile}
+							graphFor={placeGraphFor}
+							onClose={() => setPins((was) => was.filter((p) => p.id !== pin.id))}
+							editable={prefs.modifyDataModel}
+							confirmEdit={confirmPlaceEdit}
+							onWritten={(stamp, _backup, now) => pinWritten(pin.id, stamp, now)}
+							ask={ask}
+						/>
+					</DockedPin>
+				))}
+			</div>
+		);
+	};
+
 	/** A change written from a pinned window: that window follows its instance, renamed or not. */
 	const pinWritten = useCallback((id: number, stamp: string, now?: PlaceInstanceInfo) => {
 		setPins((was) =>
@@ -2112,7 +2158,7 @@ export function App() {
 								onRealignAfter={(value) => updatePrefs({ realignAfterRefactor: value })}
 							/>
 						) : undefined,
-					properties:
+					properties: withDockedPins(
 						project.place && placeInspect ? (
 							<PlaceProperties
 								target={placeInspect}
@@ -2134,6 +2180,7 @@ export function App() {
 								onRenderer={(viewportRenderer) => updatePrefs({ viewportRenderer })}
 							/>
 						) : undefined,
+					),
 					code:
 						codeShown && editor.path ? (
 							<CodePanel
@@ -2403,29 +2450,32 @@ export function App() {
 			<Toasts />
 
 			{project?.place &&
-				pins.map((pin) => (
-					<PinnedWindow
-						key={pin.id}
-						title="Properties"
-						frame={pin.frame}
-						onFrame={(frame) =>
-							setPins((was) => was.map((p) => (p.id === pin.id ? { ...p, frame } : p)))
-						}
-					>
-						<PlaceProperties
-							target={pin.target}
-							pinned
-							onPick={onPlacePick}
-							onOpenFile={onPlaceOpenFile}
-							graphFor={placeGraphFor}
-							onClose={() => setPins((was) => was.filter((p) => p.id !== pin.id))}
-							editable={prefs.modifyDataModel}
-							confirmEdit={confirmPlaceEdit}
-							onWritten={(stamp, _backup, now) => pinWritten(pin.id, stamp, now)}
-							ask={ask}
-						/>
-					</PinnedWindow>
-				))}
+				pins
+					.filter((pin) => !pin.docked)
+					.map((pin) => (
+						<PinnedWindow
+							key={pin.id}
+							title="Properties"
+							onDock={() => dockPin(pin.id, true)}
+							frame={pin.frame}
+							onFrame={(frame) =>
+								setPins((was) => was.map((p) => (p.id === pin.id ? { ...p, frame } : p)))
+							}
+						>
+							<PlaceProperties
+								target={pin.target}
+								pinned
+								onPick={onPlacePick}
+								onOpenFile={onPlaceOpenFile}
+								graphFor={placeGraphFor}
+								onClose={() => setPins((was) => was.filter((p) => p.id !== pin.id))}
+								editable={prefs.modifyDataModel}
+								confirmEdit={confirmPlaceEdit}
+								onWritten={(stamp, _backup, now) => pinWritten(pin.id, stamp, now)}
+								ask={ask}
+							/>
+						</PinnedWindow>
+					))}
 
 			<Overlays
 				registry={registry}
