@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.226.1",
+		date: "2026-11-10",
+		headline: "Dragging a box in the 3D view no longer stalls it.",
+		fixed: [
+			"**A box drag is light.** Drawing a box to pick parts redrew the whole place every frame while it was held, though nothing in the view moved, and a large place stalled as the drag began. The view now draws only when what it shows changes.",
+		],
+	},
+	{
 		version: "0.226.0",
 		date: "2026-11-10",
 		headline: "A service's events are in the node menu, InputBegan among them.",

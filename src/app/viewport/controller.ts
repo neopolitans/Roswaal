@@ -1134,6 +1134,8 @@ export class ViewportController {
 	 */
 	private attach(el: HTMLCanvasElement): void {
 		const pointers = new Map<number, { x: number; y: number }>();
+		// The pointers that hold the view drawing every frame: see pointerdown.
+		const holding = new Set<number>();
 		let moved = 0;
 		let mode: "orbit" | "look" | "pan" | "box" = "orbit";
 		// Where a left-drag's box started, and whether it adds to what is picked.
@@ -1230,11 +1232,17 @@ export class ViewportController {
 		el.addEventListener("contextmenu", (e) => e.preventDefault());
 		el.addEventListener("pointerdown", (e) => {
 			el.setPointerCapture(e.pointerId);
-			this.hold(true);
 			pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 			moved = 0;
 			pressed = false;
 			mode = modeFor(e);
+			// Drawn every frame only while the camera can move. A box is drawn over
+			// the view and changes nothing in it: held, a box redrew the whole place
+			// each frame for nothing, and a large place stalled as the drag began.
+			if (mode !== "box" || pointers.size > 1) {
+				holding.add(e.pointerId);
+				this.hold(true);
+			}
 			start =
 				mode === "box"
 					? { x: e.clientX, y: e.clientY, adding: e.shiftKey || e.ctrlKey || e.metaKey }
@@ -1281,7 +1289,7 @@ export class ViewportController {
 		el.addEventListener("pointerup", (e) => {
 			if (!pointers.has(e.pointerId)) return;
 			pointers.delete(e.pointerId);
-			this.hold(false);
+			if (holding.delete(e.pointerId)) this.hold(false);
 			unpress();
 			this.hideMarquee();
 			const from = start;
@@ -1298,7 +1306,8 @@ export class ViewportController {
 			unpress();
 			this.hideMarquee();
 			start = null;
-			if (pointers.delete(e.pointerId)) this.hold(false);
+			pointers.delete(e.pointerId);
+			if (holding.delete(e.pointerId)) this.hold(false);
 		});
 		el.addEventListener(
 			"wheel",
