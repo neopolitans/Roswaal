@@ -69,9 +69,10 @@ export function servicesPage({ registry }: PageContext): DocPage {
 				text:
 					"**Drag a wire off a service and drop it on empty canvas.** The menu opens on " +
 					"that service's own methods, under its name — `GetPlayers`, `GetPlayerByUserId`, " +
-					"`BanAsync` — and picking one places the node with the wire already landed on it. " +
-					"Everything else the graph could do with an Instance is still underneath, where " +
-					"it always is.",
+					"`BanAsync` — and its events, `On PlayerAdded` or, off UserInputService, " +
+					"`On InputBegan`. Picking one places the node with the wire already landed on it; " +
+					"an event places On Event set to it, its parameters typed. Everything else the " +
+					"graph could do with an Instance is still underneath, where it always is.",
 			},
 			{
 				t: "p",

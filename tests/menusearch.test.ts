@@ -7,14 +7,17 @@
 
 import { describe, expect, it } from "vitest";
 
+import { landingPins } from "../src/app/edits.js";
 import {
 	buildPresets,
+	draggedServiceItems,
 	flattenGroups,
 	groupMenu,
 	libraryItems,
 	type MenuItem,
 	type MenuSources,
 	searchMenu,
+	serviceItems,
 } from "../src/app/menuSearch.js";
 import { createRegistry } from "../src/core/nodes/index.js";
 
@@ -248,5 +251,42 @@ describe("a function called with the dragged value", async () => {
 			text,
 		).map((item) => item.title);
 		expect(titles).not.toContain("Call drives");
+	});
+});
+
+describe("a service's events in the menu", () => {
+	const items = serviceItems(registry, "roblox", "UserInputService");
+	const dragged = draggedServiceItems(items, {
+		side: "out",
+		service: "UserInputService",
+	} as Parameters<typeof draggedServiceItems>[1]);
+
+	it("offers On InputBegan off a UserInputService, beside its methods", () => {
+		const titles = dragged.map((item) => item.title);
+		expect(titles).toContain("On InputBegan");
+		expect(titles).toContain("On InputEnded");
+		expect(titles).toContain("GetMouseLocation");
+	});
+
+	it("places On Event set to the event, its parameters typed, landing on the service", () => {
+		const began = dragged.find((item) => item.title === "On InputBegan");
+		expect(began?.def.id).toBe("event.on");
+		expect(began?.config).toEqual({
+			event: "InputBegan",
+			params: [
+				{ name: "input", type: "InputObject" },
+				{ name: "gameProcessedEvent", type: "boolean" },
+			],
+		});
+		const pin = { id: "service", name: "Service", type: "Instance", kind: "data" as const };
+		expect(landingPins(began!.def, began!.pins!.inputs, pin, "in").map((p) => p.id)).toEqual([
+			"instance",
+		]);
+	});
+
+	it("names the service when searched from nowhere in particular", () => {
+		const anywhere = serviceItems(registry, "roblox", undefined);
+		expect(anywhere.map((item) => item.title)).toContain("On UserInputService.InputBegan");
+		expect(anywhere.map((item) => item.title)).toContain("On RunService.Heartbeat");
 	});
 });

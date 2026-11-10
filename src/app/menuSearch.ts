@@ -30,6 +30,7 @@ import { categories, type Registry, resolveNodePins, subcategories } from "../co
 import { classify, classifyFor, runtimeLabelFor } from "../core/nodes/runtimes.js";
 import { pinTypeOf } from "../core/nodes/variables.js";
 import { TYPE_OPTIONS } from "../core/roblox.js";
+import { eventsOf } from "../core/robloxEvents.js";
 import type { GraphNode, Literal, NodeConfig, NodeDef, PinDef, PinRef } from "../core/schema.js";
 import {
 	callSignature,
@@ -308,29 +309,67 @@ export function serviceItems(
 ): MenuItem[] {
 	// Roblox-only twice over: this guard, and the node each entry configures.
 	if (target !== "roblox") return [];
-	return serviceMenuItems().flatMap((entry): MenuItem[] => {
-		const def = registry.get(entry.defId);
-		if (!def) return [];
-		const pure = def.pure === true;
-		const own = entry.service === dragged;
-		return [
-			{
-				runtime: classify(def),
-				// Off a service's own pin the service is not news — it is what you
-				// dragged — so the entries are the method names under a heading of
-				// the service, which is how the Creator Hub lists them. Searched
-				// from nowhere in particular, the service is half the name.
-				key: `service:${entry.service}:${entry.method.name}`,
-				title: own ? entry.method.name : `${entry.service}:${entry.method.name}`,
-				category: own ? entry.service : "Engine",
-				summary: entry.method.summary,
-				color: nodeColor(def),
-				pure,
-				def,
-				config: entry.config,
-				pins: servicePins(entry.config, pure),
-			},
-		];
+	return [
+		...serviceMenuItems().flatMap((entry): MenuItem[] => {
+			const def = registry.get(entry.defId);
+			if (!def) return [];
+			const pure = def.pure === true;
+			const own = entry.service === dragged;
+			return [
+				{
+					runtime: classify(def),
+					// Off a service's own pin the service is not news — it is what you
+					// dragged — so the entries are the method names under a heading of
+					// the service, which is how the Creator Hub lists them. Searched
+					// from nowhere in particular, the service is half the name.
+					key: `service:${entry.service}:${entry.method.name}`,
+					title: own ? entry.method.name : `${entry.service}:${entry.method.name}`,
+					category: own ? entry.service : "Engine",
+					summary: entry.method.summary,
+					color: nodeColor(def),
+					pure,
+					def,
+					config: entry.config,
+					pins: servicePins(entry.config, pure),
+				},
+			];
+		}),
+		...serviceEventItems(registry, dragged),
+	];
+}
+
+/**
+ * A service's events, beside its methods: **On InputBegan** off a
+ * UserInputService places On Event already set to it, its parameters typed,
+ * and wired to the service dragged. Without them the menu offered a service's
+ * methods and no way to hear what it fires but On Event and the Inspector.
+ */
+function serviceEventItems(registry: Registry, dragged: string | undefined): MenuItem[] {
+	const def = registry.get("event.on");
+	if (!def) return [];
+	const services = [...new Set(serviceMenuItems().map((entry) => entry.service))];
+	return services.flatMap((service) => {
+		const own = service === dragged;
+		// A service's own events only: the ones every Instance fires are not
+		// what dragging a service out is for.
+		return eventsOf(service)
+			.filter((event) => event.owner === service)
+			.map((event): MenuItem => {
+				const config = { event: event.name, params: event.params.map((p) => ({ ...p })) };
+				const pins = resolveNodePins(def, config);
+				return {
+					runtime: classify(def),
+					key: `service-event:${service}:${event.name}`,
+					title: own ? `On ${event.name}` : `On ${service}.${event.name}`,
+					category: own ? service : "Engine",
+					summary: event.summary,
+					color: nodeColor(def),
+					pure: false,
+					def,
+					config,
+					pins: { inputs: pins.inputs, outputs: pins.outputs },
+				};
+			});
 	});
 }
 

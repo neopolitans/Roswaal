@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.226.0",
+		date: "2026-11-10",
+		headline: "A service's events are in the node menu, InputBegan among them.",
+		added: [
+			"**Service events in the menu.** Dragging a wire off a service offers its events beside its methods: `On InputBegan` and `On InputEnded` off UserInputService, `On Heartbeat` off RunService, `On PlayerAdded` off Players. Each places On Event set to that event, its parameters typed, and wired to the service. Searched from anywhere, they read `On UserInputService.InputBegan`.",
+		],
+	},
+	{
 		version: "0.225.2",
 		date: "2026-11-10",
 		headline: "A pinned Properties window stays on screen, and docks in the Properties panel.",
