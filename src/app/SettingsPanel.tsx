@@ -50,7 +50,9 @@ import {
 	PREVIEW_SCALE,
 	type Preferences,
 	previewScaleOf,
+	VIEWPORT_FRAME_RATES,
 	VIEWPORT_RENDERERS,
+	type ViewportFrameRate,
 	WHEEL_CHOICES,
 	WIRE_STYLES,
 } from "./preferences.js";
@@ -918,6 +920,23 @@ function SceneSettings({ prefs, onPrefs }: SettingsPanelProps) {
 							</button>
 						))}
 					</div>
+				</Row>
+
+				<Row
+					label="Frame rate"
+					help="The most the view is drawn a second while it moves. VSync matches the display; Unlimited draws as fast as it can. The view is drawn only when something changes."
+				>
+					<select
+						className="tb"
+						value={prefs.viewportFrameRate}
+						onChange={(e) => onPrefs({ viewportFrameRate: e.target.value as ViewportFrameRate })}
+					>
+						{VIEWPORT_FRAME_RATES.map(([value, label]) => (
+							<option key={value} value={value}>
+								{label}
+							</option>
+						))}
+					</select>
 				</Row>
 			</Group>
 

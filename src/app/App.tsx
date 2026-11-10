@@ -382,6 +382,10 @@ export function App() {
 				hideBehind: !prefs.outlineThrough,
 				glassHides: prefs.glassHides,
 				editable: prefs.modifyDataModel,
+				frameRate:
+					prefs.viewportFrameRate === "vsync" || prefs.viewportFrameRate === "unlimited"
+						? prefs.viewportFrameRate
+						: Number(prefs.viewportFrameRate),
 			}),
 		[
 			viewport,
@@ -390,6 +394,7 @@ export function App() {
 			prefs.outlineThrough,
 			prefs.glassHides,
 			prefs.modifyDataModel,
+			prefs.viewportFrameRate,
 		],
 	);
 	// The folder from a previous session, when one is waiting on a click.
@@ -2178,6 +2183,8 @@ export function App() {
 								file={project.place}
 								renderer={prefs.viewportRenderer}
 								onRenderer={(viewportRenderer) => updatePrefs({ viewportRenderer })}
+								frameRate={prefs.viewportFrameRate}
+								onFrameRate={(viewportFrameRate) => updatePrefs({ viewportFrameRate })}
 							/>
 						) : undefined,
 					),

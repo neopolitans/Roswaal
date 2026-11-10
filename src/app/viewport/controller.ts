@@ -29,6 +29,8 @@ export interface ViewportOptions {
 	glassHides: boolean;
 	/** Modify DataModel Instances: the editing tools are offered only with it on. */
 	editable: boolean;
+	/** The most frames a second while it moves; `vsync` the display's, `unlimited` as fast as it goes. */
+	frameRate: number | "vsync" | "unlimited";
 }
 
 /** How far a press moves, in CSS pixels, before it is a drag rather than a click. */
@@ -124,6 +126,27 @@ const GIZMO_AXES = [
 	{ name: "Y", dir: [0, 1, 0], col: "#6fdc5a", dark: "#3f7a35" },
 	{ name: "Z", dir: [0, 0, 1], col: "#5a8dff", dark: "#34508f" },
 ];
+/** What waits on `asap`, and the one channel it is told by. */
+const waiting: ((now: number) => void)[] = [];
+let channel: MessageChannel | null = null;
+
+/**
+ * Runs `run` as soon as the browser has a moment, not at the next frame: what
+ * an Unlimited frame rate draws by. A message rather than a timeout, which the
+ * browser holds to 4ms apart.
+ */
+function asap(run: (now: number) => void): void {
+	if (!channel) {
+		channel = new MessageChannel();
+		channel.port1.onmessage = () => {
+			const now = performance.now();
+			for (const each of waiting.splice(0)) each(now);
+		};
+	}
+	waiting.push(run);
+	if (waiting.length === 1) channel.port2.postMessage(null);
+}
+
 /** The world's axes. */
 const WORLD = [
 	[1, 0, 0],
@@ -335,6 +358,7 @@ export class ViewportController {
 		hideBehind: false,
 		glassHides: true,
 		editable: false,
+		frameRate: "vsync",
 	};
 
 	/** Settings' say in how the view is drawn: a new renderer starts the view again. */
@@ -809,12 +833,34 @@ export class ViewportController {
 	}
 
 	/** Draws at the next frame, once however many things asked. */
+	/** When the last frame was drawn, for a frame rate's cap. */
+	private lastDraw = 0;
+
+	/** The next frame: the display's, or straight away when the rate is Unlimited. */
+	private nextFrame(run: (now: number) => void): void {
+		if (this.options.frameRate !== "unlimited") {
+			requestAnimationFrame(run);
+			return;
+		}
+		asap(run);
+	}
+
 	private redraw(): void {
 		if (this.pending || !this.view) return;
 		this.pending = true;
-		requestAnimationFrame((now) => {
+		const draw = (now: number) => {
+			if (!this.view) {
+				this.pending = false;
+				return;
+			}
+			// Capped: not yet this frame's turn, so the next one is asked again.
+			const rate = this.options.frameRate;
+			if (typeof rate === "number" && now - this.lastDraw < 1000 / rate - 1) {
+				this.nextFrame(draw);
+				return;
+			}
+			this.lastDraw = now;
 			this.pending = false;
-			if (!this.view) return;
 			const camera = this.camera();
 			if ((this.state.tool !== "select" || this.state.pivotEdit) && this.selection.length > 0)
 				this.drawHandles(camera.eye);
@@ -822,7 +868,8 @@ export class ViewportController {
 			this.drawPivot();
 			this.frames.push(now);
 			this.showRotation();
-		});
+		};
+		this.nextFrame(draw);
 	}
 
 	/** While any pointer or key is held, the view draws every frame. */
@@ -836,9 +883,9 @@ export class ViewportController {
 				return;
 			}
 			this.redraw();
-			requestAnimationFrame(tick);
+			this.nextFrame(tick);
 		};
-		requestAnimationFrame(tick);
+		this.nextFrame(tick);
 	}
 
 	/** Frames drawn in the last second; idle rather than slow when nothing has moved. */

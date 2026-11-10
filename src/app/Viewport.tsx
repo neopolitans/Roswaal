@@ -19,7 +19,12 @@ import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
 import { Ident, SectionHead } from "./PanelParts.jsx";
-import { VIEWPORT_RENDERERS, type ViewportRenderer } from "./preferences.js";
+import {
+	VIEWPORT_FRAME_RATES,
+	VIEWPORT_RENDERERS,
+	type ViewportFrameRate,
+	type ViewportRenderer,
+} from "./preferences.js";
 import {
 	type Snap,
 	type Stick,
@@ -569,12 +574,17 @@ export function PlaceSummary({
 	file,
 	renderer,
 	onRenderer,
+	frameRate,
+	onFrameRate,
 }: {
 	controller: ViewportController;
 	file: string;
 	/** The renderer Settings asks for, chosen here too. */
 	renderer: ViewportRenderer;
 	onRenderer: (renderer: ViewportRenderer) => void;
+	/** The frame rate Settings asks for, chosen here too. */
+	frameRate: ViewportFrameRate;
+	onFrameRate: (frameRate: ViewportFrameRate) => void;
 }) {
 	const { summary, backend, fellBack } = useViewport(controller);
 	const name = file.split("/").pop() ?? file;
@@ -611,6 +621,25 @@ export function PlaceSummary({
 										{VIEWPORT_RENDERERS.map(([value, label]) => (
 											<option key={value} value={value}>
 												{value === "auto" ? `${label}: ${AUTOMATIC}` : label}
+											</option>
+										))}
+									</select>
+								</span>
+							</div>
+							<div
+								className="place-prop"
+								title="The most the view is drawn a second while it moves. It is drawn only when something changes. Settings has it too."
+							>
+								<span className="place-prop-name">Frame rate</span>
+								<span className="place-prop-value">
+									<select
+										className="tb place-edit-field"
+										value={frameRate}
+										onChange={(e) => onFrameRate(e.target.value as ViewportFrameRate)}
+									>
+										{VIEWPORT_FRAME_RATES.map(([value, label]) => (
+											<option key={value} value={value}>
+												{label}
 											</option>
 										))}
 									</select>

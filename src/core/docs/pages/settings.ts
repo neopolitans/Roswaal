@@ -233,6 +233,10 @@ export function settingsPage(): DocPage {
 						"What draws the place in 3D: **Automatic**, WebGPU where the browser has it and WebGL2 where it does not; **WebGPU**, falling back to WebGL2 where there is none; or **WebGL2**. The place's Properties has it too.",
 					],
 					[
+						"Frame rate",
+						"The most the 3D view is drawn a second while it moves: 24 to 240, **VSync** to match the display, the default, or **Unlimited**. It is drawn only when something changes either way. The place's Properties has it too.",
+					],
+					[
 						"Selection outline",
 						"How wide the outline round what is picked is drawn: **Thin**, **Medium** or **Thick**.",
 					],

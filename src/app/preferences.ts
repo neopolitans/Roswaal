@@ -91,6 +91,25 @@ export const VIEWPORT_RENDERERS = [
 ] as const;
 export type ViewportRenderer = (typeof VIEWPORT_RENDERERS)[number][0];
 
+/**
+ * How often the place is drawn, at most, while it moves: frames a second, the
+ * display's own rate, or as fast as it will go. It is drawn only when it
+ * changes either way.
+ */
+export const VIEWPORT_FRAME_RATES = [
+	["24", "24"],
+	["30", "30"],
+	["60", "60"],
+	["120", "120"],
+	["144", "144"],
+	["165", "165"],
+	["180", "180"],
+	["240", "240"],
+	["vsync", "VSync"],
+	["unlimited", "Unlimited"],
+] as const;
+export type ViewportFrameRate = (typeof VIEWPORT_FRAME_RATES)[number][0];
+
 export interface Preferences {
 	/**
 	 * The colour scheme by name, or `null` to follow the operating system.
@@ -259,6 +278,8 @@ export interface Preferences {
 	modifyDataModel: boolean;
 	/** What draws the place in 3D: Automatic, WebGPU where the browser has it; or either by name. */
 	viewportRenderer: ViewportRenderer;
+	/** The most the place is drawn a second while it moves: see VIEWPORT_FRAME_RATES. */
+	viewportFrameRate: ViewportFrameRate;
 	/** How wide the place's selection outline is. */
 	outlineWidth: OutlineWidth;
 	/** The outline shows through what is in front of it, as Studio's does, rather than being hidden by it. */
@@ -473,6 +494,7 @@ export const DEFAULTS: Preferences = {
 	analysisScope: "script",
 	modifyDataModel: false,
 	viewportRenderer: "auto",
+	viewportFrameRate: "vsync",
 	outlineWidth: "medium",
 	outlineThrough: true,
 	glassHides: true,
@@ -584,6 +606,9 @@ export function readPreferences(): Preferences {
 			stored.viewportRenderer === "webgl2" || stored.viewportRenderer === "webgpu"
 				? stored.viewportRenderer
 				: DEFAULTS.viewportRenderer,
+		viewportFrameRate: VIEWPORT_FRAME_RATES.some(([value]) => value === stored.viewportFrameRate)
+			? (stored.viewportFrameRate as ViewportFrameRate)
+			: DEFAULTS.viewportFrameRate,
 		outlineWidth:
 			typeof stored.outlineWidth === "string" && stored.outlineWidth in OUTLINE_WIDTHS
 				? (stored.outlineWidth as OutlineWidth)

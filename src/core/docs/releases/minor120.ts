@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.227.0",
+		date: "2026-11-10",
+		headline: "The 3D view's frame rate can be capped, or left to the display or unlimited.",
+		added: [
+			"**Frame rate.** Beside Renderer in the place's Properties and in Settings › Scene view: 24, 30, 60, 120, 144, 165, 180 or 240 frames a second at most, VSync to match the display, which is the default, or Unlimited. The view is still drawn only when something in it changes.",
+		],
+	},
+	{
 		version: "0.226.1",
 		date: "2026-11-10",
 		headline: "Dragging a box in the 3D view no longer stalls it.",
