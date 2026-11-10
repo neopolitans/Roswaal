@@ -27,6 +27,11 @@ import {
 	SECURITY_HEADERS,
 	trustedOrigins,
 } from "../src/server/app.js";
+import { TOKEN_HEADER } from "../src/server/token.js";
+
+/** The key the daemons here are made with, which `through` sends. */
+const KEY = "fedcba9876543210".repeat(4);
+
 import { streamCount, streamEvents } from "../src/server/events.js";
 import { type CompileOutcome, describeOutcome } from "../src/server/project.js";
 import type { DynamicCompiler } from "../src/server/watcher.js";
@@ -335,7 +340,7 @@ async function through(
 	const req = new IncomingMessage(new Socket());
 	req.method = method;
 	req.url = url;
-	req.headers = { host: "127.0.0.1:4471", ...headers };
+	req.headers = { host: "127.0.0.1:4471", [TOKEN_HEADER]: KEY, ...headers };
 	req.push(null);
 	const res = new ServerResponse(req);
 	return new Promise((resolve) => {
@@ -357,14 +362,14 @@ async function through(
 
 describe("a daemon, before it listens", () => {
 	it("answers the API with nothing bound", async () => {
-		const { app } = createDaemon();
+		const { app } = createDaemon({ token: KEY });
 		const health = await through(app, "GET", "/api/health");
 		expect(health.status).toBe(200);
 		expect(health.body).toMatchObject({ ok: true, project: null });
 	});
 
 	it("answers a refusal in the one error shape", async () => {
-		const { app } = createDaemon();
+		const { app } = createDaemon({ token: KEY });
 		const refused = await through(app, "GET", "/api/tree");
 		expect(refused.status).toBe(409);
 		expect(refused.body).toEqual({ error: "No project is open. Open one first." });
@@ -377,7 +382,7 @@ describe("a daemon, before it listens", () => {
 	 * the router and a page to the guard.
 	 */
 	it("refuses the API to another site however the path is spelled", async () => {
-		const { app } = createDaemon();
+		const { app } = createDaemon({ token: KEY });
 		const crossSite = { "sec-fetch-site": "cross-site" };
 		for (const url of ["/api/health", "/API/health", "/Api/export", "/api/health/"]) {
 			expect((await through(app, "GET", url, crossSite)).status, url).toBe(403);
@@ -385,7 +390,7 @@ describe("a daemon, before it listens", () => {
 	});
 
 	it("answers its own pages, and only at the path as written", async () => {
-		const { app } = createDaemon();
+		const { app } = createDaemon({ token: KEY });
 		const sameOrigin = { "sec-fetch-site": "same-origin" };
 		const health = await through(app, "GET", "/api/health", sameOrigin);
 		expect(health.status).toBe(200);

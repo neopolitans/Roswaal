@@ -105,6 +105,23 @@ describe("a map entry's path changing", () => {
 		expect(await exists(".roswaal/scripts/ServerScriptService/Logic/Main.nodescript")).toBe(true);
 	});
 
+	// F4: the walk passes over .git and Packages, so a folder holding only those
+	// walked as empty and was removed with them before the old folder came in.
+	it("keeps what is in a folder holding only Packages and .git, moving in beside it", async () => {
+		await demo();
+		await compile();
+		await mkdir(path.join(root, LOGIC, "Packages"), { recursive: true });
+		await mkdir(path.join(root, LOGIC, ".git"), { recursive: true });
+		await writeFile(path.join(root, LOGIC, "Packages", "Thing.lua"), "return {}");
+		await writeFile(path.join(root, LOGIC, ".git", "HEAD"), "ref: refs/heads/main");
+		await moveSource(LOGIC);
+		await compile();
+
+		expect(await exists(`${LOGIC}/Packages/Thing.lua`)).toBe(true);
+		expect(await exists(`${LOGIC}/.git/HEAD`)).toBe(true);
+		expect(await exists(`${LOGIC}/Main.server.luau`)).toBe(true);
+	});
+
 	it("moves nothing in Dynamic mode, and keeps the last project file while the path is not there", async () => {
 		await demo();
 		await compile();

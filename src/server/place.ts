@@ -38,7 +38,15 @@ import { safeJoin, toPosix } from "./paths.js";
  */
 export async function findPlaceFile(root: string, config: RoswaalConfig): Promise<string | null> {
 	if (config.place) {
-		const found = await fs.stat(path.join(root, config.place)).catch(() => null);
+		// safeJoin as well as parseConfig's check, which a config made in code
+		// skips. A place outside the project is no place of this project's.
+		let abs: string;
+		try {
+			abs = safeJoin(root, config.place);
+		} catch {
+			return null;
+		}
+		const found = await fs.stat(abs).catch(() => null);
 		return found?.isFile() ? toPosix(config.place) : null;
 	}
 	const names = (await fs.readdir(root).catch(() => [] as string[]))

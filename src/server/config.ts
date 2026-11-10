@@ -132,8 +132,11 @@ export function parseConfig(value: unknown): RoswaalConfig {
 		if (!staysInside(config[key] as string)) throw wrong(key, "a folder inside the project");
 	}
 	for (const key of ["place", "rojoProject"]) {
-		if (config[key] !== undefined && typeof config[key] !== "string")
-			throw wrong(key, "a file path");
+		if (config[key] === undefined) continue;
+		if (typeof config[key] !== "string" || config[key] === "") throw wrong(key, "a file path");
+		// Checked as it is read, as sourceDir and outDir are, rather than only
+		// where it is used: one file outside the project is not this project's (F8).
+		if (!staysInside(config[key] as string)) throw wrong(key, "a file inside the project");
 	}
 	for (const key of ["format", "comments"]) {
 		if (typeof config[key] !== "boolean") throw wrong(key, "true or false");

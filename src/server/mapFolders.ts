@@ -173,6 +173,19 @@ async function holdsFiles(project: OpenProject, rel: string): Promise<boolean> {
 	return (await walkFiles(project.root, { from: rel })).length > 0;
 }
 
+/**
+ * Whether there is nothing at `abs` to lose: no entry there, or a folder with
+ * nothing at all in it. Read directly rather than walked: the walk passes over
+ * .git, Packages and the rest, so a folder holding only those walked as empty
+ * and was removed with them (F4).
+ */
+async function nothingAt(abs: string): Promise<boolean> {
+	const stat = await fs.stat(abs).catch(() => null);
+	if (!stat) return true;
+	if (!stat.isDirectory()) return false;
+	return (await fs.readdir(abs)).length === 0;
+}
+
 /** Removes the folders under and including `abs` that hold nothing. */
 async function pruneEmpty(abs: string): Promise<void> {
 	const entries = await fs.readdir(abs, { withFileTypes: true }).catch(() => null);
@@ -193,7 +206,8 @@ async function moveFolder(project: OpenProject, from: string, to: string): Promi
 	const source = safeJoin(project.root, from);
 	const target = safeJoin(project.root, to);
 	if (!(await fs.stat(source).catch(() => null))) return [];
-	if (!(await holdsFiles(project, to))) {
+	if (await nothingAt(target)) {
+		// Nothing to lose: an empty folder, or none.
 		await fs.rm(target, { recursive: true, force: true });
 		await fs.mkdir(path.dirname(target), { recursive: true });
 		await fs.rename(source, target);

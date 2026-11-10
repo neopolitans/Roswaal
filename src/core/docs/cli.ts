@@ -70,7 +70,9 @@ export const CLI_COMMANDS: CliCommand[] = [
 		blocks: true,
 		detail:
 			"The editor at `http://127.0.0.1:4471`, the documentation at `/docs`, and — when " +
-			"Compile is set to Dynamic — a watcher recompiling graphs as they change.",
+			"Compile is set to Dynamic — a watcher recompiling graphs as they change. The " +
+			"editor's address it prints holds a key, new each start: without it, other " +
+			"accounts on the computer cannot use the daemon.",
 	},
 	{
 		name: "stop",

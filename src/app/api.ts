@@ -264,6 +264,20 @@ export function useTransport(next: { request: Transport; events: () => EventStre
 	openStream = next.events;
 }
 
+/**
+ * Sends the daemon's key with every call: in its header, and as `?key=` on the
+ * event stream, which `EventSource` cannot give headers to. Called once by
+ * `main.tsx`, the daemon build's entry point. See `server/token.ts`.
+ */
+export function sendDaemonKey(key: string): void {
+	transport = (url, init) =>
+		fetch(url, {
+			...init,
+			headers: { ...(init.headers as Record<string, string>), "X-Roswaal-Token": key },
+		});
+	openStream = () => new EventSource(`/api/events?key=${encodeURIComponent(key)}`);
+}
+
 /** The daemon's event stream, or whatever is standing in for it. */
 export function openEventStream(): EventStream {
 	return openStream();
@@ -307,6 +321,8 @@ export const api = {
 			project: string | null;
 			version: string;
 			capabilities: string[];
+			/** The daemon asked for its key and this tab did not have it. */
+			locked?: boolean;
 		}>("/api/health"),
 
 	/**

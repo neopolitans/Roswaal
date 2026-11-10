@@ -35,6 +35,7 @@ import { broadcastCompile, broadcastProject, streamEvents } from "./events.js";
 import { collectScripts, isInitialised, readConfig } from "./project.js";
 import { openInEditor, revealInFileManager } from "./reveal.js";
 import { ApiSession, type HostCapabilities, type RouteRequest } from "./routes.js";
+import { isToken, newToken, tokenOf } from "./token.js";
 import { DynamicCompiler } from "./watcher.js";
 
 export const DEFAULT_PORT = 4471;
@@ -222,6 +223,8 @@ export interface Daemon {
 	/** The Express app, with the API mounted, for a test to drive. */
 	readonly app: express.Express;
 	readonly session: ApiSession;
+	/** The key a request to `/api` has to carry: see `token.ts`. */
+	readonly token: string;
 	/** Opens `root` if given, mounts the editor, and listens on loopback. */
 	start(options?: DaemonOptions): Promise<void>;
 	/** Closes the socket and the watcher, for a test that started one. */
@@ -232,7 +235,9 @@ export interface Daemon {
  * Builds a daemon: the session, the watcher and the Express app with every
  * route on it. Nothing listens until `start` is called.
  */
-export function createDaemon(): Daemon {
+export function createDaemon(options: { token?: string } = {}): Daemon {
+	// A key of its own when none is given, so no daemon ever answers without one.
+	const token = options.token ?? newToken();
 	const app = express();
 	// Express matches a route in any case by default, which gives every API
 	// path a second spelling the connection guard has to know about. Set
@@ -259,6 +264,7 @@ export function createDaemon(): Daemon {
 	let trusted = trustedOrigins(DEFAULT_PORT);
 	guardConnections(app, () => trusted);
 	app.use(express.json({ limit: "32mb" }));
+	guardToken(app, token);
 	guardProject(app, session);
 	mountRoutes(app, session);
 	mountDaemonRoutes(app, session, dynamic);
@@ -273,6 +279,7 @@ export function createDaemon(): Daemon {
 	return {
 		app,
 		session,
+		token,
 		async start(options = {}) {
 			trusted = trustedOrigins(options.port ?? DEFAULT_PORT, options.trustOrigins);
 			if (options.root) await session.openAt(options.root);
@@ -326,6 +333,37 @@ function guardConnections(app: express.Express, trusted: () => ReadonlySet<strin
 			return;
 		}
 		next();
+	});
+}
+
+/** What a request without the key is told. */
+const KEY_REFUSED =
+	"This tab does not have the key of the Roswaal daemon running now. Open the editor " +
+	"from the address `roswaal serve` printed: the key is in it, and it is new each start.";
+
+/**
+ * The key, on everything under `/api` (F2): see `token.ts`.
+ *
+ * In the header, except on `GET /api/events`, which an `EventSource` opens
+ * and cannot give headers to: there it may be `?key=`. That stream only
+ * reads, and the daemon writes no log for its address to end up in. Without
+ * the key, `GET /api/health` says only that a daemon is there -- not which
+ * project it has open or what version it is -- and everything else is refused.
+ */
+function guardToken(app: express.Express, token: string): void {
+	app.use("/api", (req, res, next) => {
+		const fromQuery =
+			req.method === "GET" && req.path === "/events" && typeof req.query.key === "string"
+				? req.query.key
+				: undefined;
+		if (isToken(tokenOf(req.headers) ?? fromQuery, token)) return next();
+		if (req.method === "GET" && req.path === "/health") {
+			// `locked`: so the editor can say what is missing. That a key is asked
+			// for is no secret; it is what every daemon does.
+			res.json({ ok: true, locked: true });
+			return;
+		}
+		res.status(401).json({ code: "token", error: KEY_REFUSED });
 	});
 }
 

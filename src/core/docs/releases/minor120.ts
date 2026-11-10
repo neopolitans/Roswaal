@@ -9,6 +9,26 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.228.0",
+		date: "2026-11-10",
+		headline: "The daemon asks for a key, so other accounts on the computer cannot use it.",
+		added: [
+			"**A key for the daemon.** `roswaal serve` makes a new key each time it starts and prints the editor's address with it. A tab opened from that address keeps the key for as long as it is open. Without the key, the daemon says only that it is running.",
+		],
+		changed: [
+			"**Getting started notes the path.** A from-source install runs the first `node` on your path, so folders other accounts can write to belong off it.",
+		],
+		fixed: [
+			"**Delete keeps to what Roswaal made.** It refuses `.git`, `Packages`, `roswaal.json`, the place backups and the output folder itself.",
+			"**A folder holding only Packages or .git keeps them.** A map folder moved into one is moved in beside them.",
+			"**Files are checked again once open.** A file swapped for a link between the check and the open is refused rather than read or written through.",
+			"**Place and Rojo project paths stay in the project.** A `place` or `rojoProject` in `roswaal.json` that leads outside the project is refused when the file is read.",
+		],
+		watch: [
+			"**Open the editor from the printed address.** A tab left open while the daemon restarts asks for the new key: paste the new address into it. `roswaal stop` and `roswaal status` read the key from `~/.roswaal/daemon-<port>.token`.",
+		],
+	},
+	{
 		version: "0.227.0",
 		date: "2026-11-10",
 		headline: "The 3D view's frame rate can be capped, or left to the display or unlimited.",

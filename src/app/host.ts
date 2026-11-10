@@ -65,6 +65,13 @@ let asked = false;
  */
 let failure: string | null = null;
 
+/**
+ * The failure of a daemon that asked for its key and was not given it: this
+ * tab was opened without the address `roswaal serve` printed, or before the
+ * daemon's last start. See `server/token.ts`.
+ */
+export const KEY_MISSING = "key";
+
 const listeners = new Set<() => void>();
 
 function announce(): void {
@@ -82,7 +89,7 @@ export async function loadCapabilities(): Promise<void> {
 	try {
 		const health = await api.health();
 		capabilities = new Set(health.capabilities ?? []);
-		failure = null;
+		failure = health.locked ? KEY_MISSING : null;
 	} catch (err) {
 		capabilities = new Set();
 		failure = errorMessage(err) || "It did not answer.";

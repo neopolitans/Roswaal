@@ -45,7 +45,7 @@ that PATH changes only apply to terminals opened afterwards.
 ```sh
 cd path/to/your/roblox/project
 roswaal init      # writes roswaal.json and .roswaal/. Once per project.
-roswaal serve     # editor on http://127.0.0.1:4471, docs at /docs
+roswaal serve     # prints the editor's address, with its key; docs at /docs
 ```
 
 There is a project you can open without writing anything first in

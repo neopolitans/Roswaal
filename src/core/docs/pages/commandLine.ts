@@ -33,7 +33,7 @@ export function commandLinePage(): DocPage {
 				text: code`
 					roswaal new my-game   # a new project, in a new folder
 					cd my-game            # or, in a project you have: roswaal init, once
-					roswaal serve         # editor on http://127.0.0.1:4471, docs at /docs
+					roswaal serve         # prints the editor's address, with its key; docs at /docs
 					`,
 			},
 			{ t: "h", level: 2, text: "Commands" },

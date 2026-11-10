@@ -49,6 +49,7 @@ import {
 	removeOutputs,
 	writePlaceImport,
 } from "../server/project.js";
+import { keepToken, newToken, readToken, TOKEN_HEADER, tokenFileFor } from "../server/token.js";
 import { DynamicCompiler } from "../server/watcher.js";
 import { type Args, flagNumber, flagString, parseInvocation } from "./args.js";
 import { EXAMPLE_PACK } from "./examplePack.js";
@@ -103,10 +104,20 @@ interface Health {
 	version?: string;
 }
 
+/**
+ * The key of the daemon on `port`, for the CLI's own calls to it: the one
+ * `roswaal serve` kept for this account when it started. See `server/token.ts`.
+ */
+function keyHeaders(port: number): Record<string, string> {
+	const token = readToken(tokenFileFor(port));
+	return token ? { [TOKEN_HEADER]: token } : {};
+}
+
 /** Nothing listening returns null rather than throwing. */
 async function probeDaemon(port: number): Promise<Health | null> {
 	try {
 		const response = await fetch(`http://127.0.0.1:${port}/api/health`, {
+			headers: keyHeaders(port),
 			signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS),
 		});
 		if (!response.ok) return null;
@@ -131,6 +142,7 @@ async function stopDaemon(port: number): Promise<"stopped" | "none" | "failed"> 
 	try {
 		await fetch(`http://127.0.0.1:${port}/api/shutdown`, {
 			method: "POST",
+			headers: keyHeaders(port),
 			signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS),
 		});
 	} catch {
@@ -398,9 +410,14 @@ async function commandServe(args: Args): Promise<number> {
 	const project = await projectHere(root);
 	if (!project) return 1;
 
-	await createDaemon().start({ port, root });
+	// A new key each start, kept where only this account can read it.
+	const token = newToken();
+	keepToken(tokenFileFor(port), token);
+	await createDaemon({ token }).start({ port, root });
 
 	const url = `http://127.0.0.1:${port}`;
+	// The key after the #, which the browser never sends: the editor hands it over once.
+	const editorUrl = `${url}/#token=${token}`;
 	// A packaged build has no editor beside it, and saying "editor <url>" over
 	// a URL that answers 404 is worse than not offering one. The API is still
 	// there, which is what a compile-in-CI install actually wants.
@@ -412,7 +429,7 @@ async function commandServe(args: Args): Promise<number> {
 		`graphs    ${project.config.sourceDir}  →  ${project.config.outDir}`,
 		`mode      ${project.config.compileMode}`,
 		editor
-			? `editor    ${cyan(url)}`
+			? `editor    ${cyan(editorUrl)}`
 			: `editor    ${dim("not in this build — install Roswaal from npm for the editor")}`,
 		// The documentation is the same daemon; said here, because otherwise it
 		// is reachable only from a button inside the editor.

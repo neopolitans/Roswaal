@@ -176,6 +176,14 @@ export function gettingStartedPage(): DocPage {
 													npm link
 													`,
 											},
+											{
+												t: "note",
+												kind: "warn",
+												text:
+													"Installed this way, `roswaal` runs the first `node` on your path. Keep " +
+													"folders that other accounts can write to off your path, or one of them " +
+													"could put a `node` there that runs as you.",
+											},
 										],
 									},
 								],
@@ -189,8 +197,9 @@ export function gettingStartedPage(): DocPage {
 										"and a spawn. `--lune` makes a Lune project, and `--no-place` leaves the place out.",
 									"For a project you already have, go to it and set it up once: `roswaal init` writes " +
 										"a `roswaal.json` and a `.roswaal/` folder, and nothing else.",
-									"Run `roswaal serve` in the project, and open the editor address it prints — " +
-										"`http://127.0.0.1:4471`. It opens on that project.",
+									"Run `roswaal serve` in the project, and open the editor address it prints. " +
+										"It opens on that project. The address holds the daemon's key, which is new " +
+										"each start, so open it from there rather than typing `127.0.0.1:4471`.",
 								],
 							},
 							{
@@ -199,7 +208,7 @@ export function gettingStartedPage(): DocPage {
 								text: code`
 									roswaal new my-game   # a new project, in a new folder
 									cd my-game
-									roswaal serve         # the editor, on 127.0.0.1:4471
+									roswaal serve         # prints the editor's address, with its key
 									`,
 							},
 							{

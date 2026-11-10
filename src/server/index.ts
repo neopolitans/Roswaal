@@ -8,6 +8,7 @@
 
 import { createDaemon, DEFAULT_PORT } from "./app.js";
 import { errorMessage } from "./errors.js";
+import { keepToken, newToken, readToken, tokenFileFor } from "./token.js";
 
 const port = Number(process.env.ROSWAAL_PORT ?? DEFAULT_PORT);
 // Vite's port, from `vite.config.ts`: the editor's pages come from there in
@@ -15,13 +16,21 @@ const port = Number(process.env.ROSWAAL_PORT ?? DEFAULT_PORT);
 // answers its own pages and nothing else.
 const web = Number(process.env.ROSWAAL_WEB_PORT ?? 4470);
 
-createDaemon()
+// Kept across restarts here, unlike `roswaal serve`: `tsx watch` restarts on
+// every save, and a new key each time would leave the tab asking for it.
+const keyFile = tokenFileFor(port);
+const token = readToken(keyFile) ?? newToken();
+keepToken(keyFile, token);
+
+createDaemon({ token })
 	.start({
 		port,
 		root: process.env.ROSWAAL_ROOT,
 		trustOrigins: [`http://localhost:${web}`, `http://127.0.0.1:${web}`],
 		onListening: (bound) => {
 			console.log(`Roswaal daemon listening on http://127.0.0.1:${bound}`);
+			// Vite's page is where the editor is in development; the key goes there.
+			console.log(`Open the editor at http://localhost:${web}/#token=${token}`);
 		},
 	})
 	.catch((err: unknown) => {

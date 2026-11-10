@@ -18,6 +18,7 @@
  * project: see `confined` below.
  */
 
+import { constants as fsConstants } from "node:fs";
 import nodeFs from "node:fs/promises";
 import nodePath from "node:path";
 
@@ -84,7 +85,52 @@ async function confined(target: string, own = false): Promise<void> {
 }
 
 /**
+ * Not following a link at the end of a path, where the system has the flag:
+ * macOS and Linux. Windows has no such flag; there a link at the end is caught
+ * by the check after opening, below.
+ */
+const NO_FOLLOW = fsConstants.O_NOFOLLOW ?? 0;
+
+/**
+ * Opens a file inside the project, closing the gap between checking where a
+ * path leads and using it (F3).
+ *
+ * `confined` checks the path, and then the file is opened -- and a program on
+ * this computer that swapped a folder along it for a link in between could
+ * have it open something outside the project. So the file is opened without
+ * following a link at its end, then the path is checked again, and the file
+ * that was opened has to be the very one the path now leads to: the same
+ * device and the same file number. A swap and a swap back between the two
+ * checks is the window left, which Node gives no way to close. A file opened
+ * to be written is not emptied until all of that has passed, so a lost race
+ * cannot empty a file outside the project.
+ */
+async function openConfined(target: string, flags: number): Promise<nodeFs.FileHandle> {
+	await confined(target);
+	const handle = await nodeFs.open(target, flags | NO_FOLLOW, 0o666);
+	try {
+		await confined(target);
+		const [opened, now] = await Promise.all([handle.stat(), nodeFs.stat(target)]);
+		if (opened.dev !== now.dev || opened.ino !== now.ino) {
+			const root = rootOf(target);
+			const shown = root ? nodePath.relative(root, nodePath.resolve(target)) : target;
+			throw new UserError(
+				`${shown} changed while it was being opened, so Roswaal will not use it.`,
+			);
+		}
+		return handle;
+	} catch (err) {
+		await handle.close();
+		throw err;
+	}
+}
+
+/**
  * Node's `fs`, keeping to the project.
+ *
+ * Reading and writing a file go through `openConfined`. The rest -- making a
+ * folder, renaming, removing -- have no form in Node that works on something
+ * already opened, so they check and then act.
  *
  * Typed as the interface rather than inferred, so the check runs both ways:
  * Node's own `fs` has to satisfy what the project layer asks for, and the
@@ -94,12 +140,23 @@ async function confined(target: string, own = false): Promise<void> {
 export const fs: ProjectFs = {
 	stat: async (target) => (await confined(target), nodeFs.stat(target)),
 	readFile: (async (target: string, encoding?: "utf8") => {
-		await confined(target);
-		return encoding ? nodeFs.readFile(target, encoding) : nodeFs.readFile(target);
+		const handle = await openConfined(target, fsConstants.O_RDONLY);
+		try {
+			return encoding ? await handle.readFile(encoding) : await handle.readFile();
+		} finally {
+			await handle.close();
+		}
 	}) as ProjectFs["readFile"],
 	writeFile: (async (target: string, data: string | Uint8Array, encoding?: "utf8") => {
-		await confined(target);
-		return encoding ? nodeFs.writeFile(target, data, encoding) : nodeFs.writeFile(target, data);
+		// Created if it is not there, but not emptied until openConfined has passed it.
+		const handle = await openConfined(target, fsConstants.O_WRONLY | fsConstants.O_CREAT);
+		try {
+			await handle.truncate(0);
+			if (encoding) await handle.writeFile(data, encoding);
+			else await handle.writeFile(data);
+		} finally {
+			await handle.close();
+		}
 	}) as ProjectFs["writeFile"],
 	mkdir: async (target, options) => (await confined(target), nodeFs.mkdir(target, options)),
 	readdir: (async (target: string, options?: { withFileTypes: true }) => {

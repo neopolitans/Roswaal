@@ -11,7 +11,7 @@ import { api, type NewProjectChoice, type ProjectLook } from "./api.js";
 import { cx } from "./cx.js";
 import { FloatingTools, ToolGroup } from "./FloatingTools.jsx";
 import { chooseFolder } from "./folderDialog.js";
-import { useHostCan, useHostFailure } from "./host.js";
+import { KEY_MISSING, useHostCan, useHostFailure } from "./host.js";
 import { Icon } from "./icons.jsx";
 import { guardLeave, IS_STATIC_HOST, pageHref, pagesShareTab, pageTarget } from "./pages.js";
 import { MarkedLogo } from "./previewBuild.jsx";
@@ -279,6 +279,26 @@ export function ProjectPicker({
 			</div>
 		</div>
 	);
+
+	if (hostFailure === KEY_MISSING) {
+		return (
+			<div className="start-page">
+				{chrome}
+				<div className="start-scroll">
+					<div className="start-column">
+						{hero}
+						<div className="start-card start-down">
+							<h2>This tab needs the daemon's key</h2>
+							<p>
+								Open the editor from the address <code>roswaal serve</code> printed. The key is in
+								it, and it is new each time the daemon starts.
+							</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		);
+	}
 
 	if (hostFailure !== null) {
 		return (

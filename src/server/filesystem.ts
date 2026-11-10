@@ -47,7 +47,14 @@ export interface ProjectFs {
 	mkdir(target: string, options: { recursive: boolean }): Promise<string | undefined>;
 	readdir(target: string): Promise<string[]>;
 	readdir(target: string, options: { withFileTypes: true }): Promise<DirEntry[]>;
-	rm(target: string, options?: { recursive?: boolean; force?: boolean }): Promise<void>;
+	/**
+	 * `maxRetries` and `retryDelay` are Node's, for a file Windows briefly refuses as busy;
+	 * the web build's volume has no such refusal and leaves them be.
+	 */
+	rm(
+		target: string,
+		options?: { recursive?: boolean; force?: boolean; maxRetries?: number; retryDelay?: number },
+	): Promise<void>;
 	access(target: string): Promise<void>;
 	rename(from: string, to: string): Promise<void>;
 	copyFile(from: string, to: string): Promise<void>;

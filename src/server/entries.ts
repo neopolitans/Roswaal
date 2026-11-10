@@ -4,12 +4,14 @@
  *
  * Every path goes through `entryPath`, which refuses the project folder
  * itself, and through `assertEditable`, which refuses the output directory.
+ * A deletion goes through `assertDeletable` as well, which refuses what
+ * Roswaal never writes into and the files it keeps for you.
  */
 
 import type { OpenProject } from "./config.js";
 import { graphName, readScript, writeScript } from "./documents.js";
 import { UserError } from "./errors.js";
-import { exists } from "./files.js";
+import { exists, SKIP_DIRS } from "./files.js";
 import { fs, path } from "./host.js";
 import { entryPath, isInside, safeJoin, toPosix } from "./paths.js";
 
@@ -106,6 +108,50 @@ export async function moveEntry(
 }
 
 export async function deleteEntry(project: OpenProject, relPath: string): Promise<void> {
-	// Recursive, because folders are now something the tree can create.
-	await fs.rm(entryPath(project.root, relPath), { recursive: true, force: false });
+	const abs = entryPath(project.root, relPath);
+	assertDeletable(project, relPath);
+	// Recursive, because folders are now something the tree can create. Tried
+	// again a few times over a third of a second: on Windows a file another
+	// program has just touched -- a virus scan, an indexer, Studio -- is
+	// briefly refused, and the first try failing should not fail the delete.
+	await fs.rm(abs, { recursive: true, force: false, maxRetries: 3, retryDelay: 100 });
+}
+
+/** What the tree's Delete refuses: see `assertDeletable`. */
+const KEPT_FILES = new Set(["roswaal.json"]);
+const KEPT_FOLDERS = [".roswaal/backups"];
+
+/**
+ * Refuses a deletion of something Roswaal never writes into, or keeps for you.
+ *
+ * The folders the project walk skips -- `.git`, `node_modules`, Wally's
+ * `Packages` -- wherever they are, and anything in them: they are another
+ * tool's, and deleting one is permanent. `roswaal.json`, which is the project.
+ * `.roswaal/backups`, the copies a place is backed up to before a change. And
+ * the output directory itself, though not what is in it: a generated file
+ * comes back at the next compile, and an orphan is worth clearing, but the
+ * folder is where the project says its Luau goes.
+ */
+function assertDeletable(project: OpenProject, relPath: string): void {
+	const normalised = toPosix(relPath).replace(/^\.\//, "").replace(/\/+$/, "");
+	const parts = normalised.split("/");
+	const skipped = parts.find((part) => SKIP_DIRS.has(part));
+	if (skipped)
+		throw new UserError(
+			`${skipped} belongs to another tool, so Roswaal does not delete it or anything in it. ` +
+				"Delete it outside Roswaal if you mean to.",
+		);
+	if (KEPT_FILES.has(normalised))
+		throw new UserError(
+			`${normalised} is the project's own settings, so it cannot be deleted here.`,
+		);
+	const kept = KEPT_FOLDERS.find((f) => normalised === f || normalised.startsWith(`${f}/`));
+	if (kept)
+		throw new UserError(
+			`${kept} holds the copies kept of the place before each change, so it cannot be deleted here.`,
+		);
+	if (normalised === project.config.outDir.replace(/^\.\//, "").replace(/\/+$/, ""))
+		throw new UserError(
+			`${normalised} is where the project's Luau is written, so it cannot be deleted here.`,
+		);
 }

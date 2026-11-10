@@ -23,11 +23,14 @@ import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createDaemon, type Daemon, SECURITY_HEADERS } from "../src/server/app.js";
+import { TOKEN_HEADER } from "../src/server/token.js";
 
 const DEMO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "examples", "demo");
 
 /** Written beside the project, where no request should ever read it from. */
 const SECRET = "SECRET-BESIDE-THE-PROJECT";
+/** The daemon's key here. `ask` sends it, as the CLI does; an empty one is no key. */
+const KEY = "0123456789abcdef".repeat(4);
 
 let base: string;
 let root: string;
@@ -65,7 +68,7 @@ function ask(
 				port,
 				method,
 				path: url,
-				headers: { host: `127.0.0.1:${port}`, ...headers },
+				headers: { host: `127.0.0.1:${port}`, [TOKEN_HEADER]: KEY, ...headers },
 			},
 			(res) => {
 				const chunks: Buffer[] = [];
@@ -109,7 +112,7 @@ beforeAll(async () => {
 	await mkdir(web);
 	await writeFile(path.join(web, "index.html"), "<!doctype html><title>Roswaal</title>");
 	port = await freePort();
-	daemon = createDaemon();
+	daemon = createDaemon({ token: KEY });
 	await daemon.start({ port, root, staticDir: web });
 });
 
@@ -354,5 +357,71 @@ describe("a request a website could make", () => {
 			expect(answer.status, JSON.stringify(headers)).toBe(403);
 			expect(answer.body).not.toContain("roswaal-graph:");
 		}
+	});
+});
+
+/**
+ * The key (F2): another account on this computer can reach 127.0.0.1 too, so
+ * the API asks for the key only this account can read. See `server/token.ts`.
+ */
+describe("a request without the daemon's key", () => {
+	const NONE = { [TOKEN_HEADER]: "" };
+
+	it("is refused everything but whether a daemon is there", async () => {
+		for (const [method, url] of [
+			["GET", "/api/tree"],
+			["GET", "/api/source?path=roswaal.json"],
+			["POST", "/api/shutdown"],
+			["POST", "/api/project/open"],
+		] as const) {
+			const answer = await ask(method, url, NONE);
+			expect(answer.status, url).toBe(401);
+			expect(JSON.parse(answer.body).code, url).toBe("token");
+		}
+		const health = await ask("GET", "/api/health", NONE);
+		expect(health.status).toBe(200);
+		// Not which project is open, nor which version.
+		expect(JSON.parse(health.body)).toEqual({ ok: true, locked: true });
+	});
+
+	it("is refused with a wrong key, however close", async () => {
+		const wrong = { [TOKEN_HEADER]: `${KEY.slice(0, -1)}0` };
+		expect((await ask("GET", "/api/tree", wrong)).status).toBe(401);
+	});
+
+	// A cookie for 127.0.0.1 goes to every port on it, other accounts' servers too.
+	it("is not let in by a cookie", async () => {
+		expect(
+			(await ask("GET", "/api/tree", { ...NONE, cookie: `roswaal_token=${KEY}` })).status,
+		).toBe(401);
+		expect(
+			(await ask("POST", "/api/session", { ...NONE, ...JSON_BODY }, JSON.stringify({ token: KEY })))
+				.status,
+		).toBe(401);
+	});
+
+	// An EventSource cannot send headers, so the stream alone takes the key in its address.
+	it("may give the key as ?key= on the event stream, and nowhere else", async () => {
+		const streamStatus = (url: string) =>
+			new Promise<number>((resolve, reject) => {
+				const req = http.get(
+					{ host: "127.0.0.1", port, path: url, headers: { host: `127.0.0.1:${port}` } },
+					(res) => {
+						resolve(res.statusCode ?? 0);
+						res.destroy();
+					},
+				);
+				req.on("error", reject);
+			});
+		expect(await streamStatus(`/api/events?key=${KEY}`)).toBe(200);
+		expect(await streamStatus("/api/events?key=nope")).toBe(401);
+		expect(await streamStatus("/api/events")).toBe(401);
+		expect((await ask("GET", `/api/tree?key=${KEY}`, NONE)).status).toBe(401);
+	});
+
+	it("is the editor's page as anybody's: the page itself is not the key", async () => {
+		const page = await ask("GET", "/", NONE);
+		expect(page.status).toBe(200);
+		expect(page.body).not.toContain(KEY);
 	});
 });
