@@ -1201,6 +1201,19 @@ select optgroup {
 	z-index: 60;
 }
 
+/* A Properties panel pinned to one instance: a window over the whole editor,
+   not inside the centre, so it stays where it was put as docks open and shut.
+   See PinnedWindow.tsx. */
+.float-panel.pinned-window {
+	position: fixed;
+}
+
+.pinned-window .card-body {
+	flex: 1;
+	min-height: 0;
+	overflow: auto;
+}
+
 /* The panel's own heading is the window's title bar, so it says what a title
    bar says and carries what the panel already put there. The room for the
    button over its right end is in `.dock h2`, which both shapes share. */

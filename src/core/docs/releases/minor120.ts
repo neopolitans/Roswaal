@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.225.0",
+		date: "2026-11-10",
+		headline: "Properties can be pinned to an instance, in windows of their own.",
+		added: [
+			"**Pinned Properties.** The pin in the Properties header keeps the instance it shows in a window of its own, which moves by its header and resizes from its edges. Properties goes on following what you pick, so several instances can be read and changed side by side. Each window finds its instance again after a change to the place, and closes when the instance is gone.",
+		],
+	},
+	{
 		version: "0.224.1",
 		date: "2026-11-10",
 		headline: "Neon's glow falls off smoothly, and one click in DataModel shows what it picks while the place is open.",

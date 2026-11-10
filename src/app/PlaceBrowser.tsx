@@ -918,12 +918,17 @@ export interface PlacePropertiesProps {
 	onWritten?: (stamp: string, backup?: string, instance?: PlaceInstanceInfo) => void;
 	/** For an attribute's name and type, and a tag's name, as one is added. */
 	ask?: Dialogs["ask"];
+	/** Pins what is shown in a window of its own, the panel left to follow the pick. */
+	onPin?: () => void;
+	/** This is a pinned window's: its close button closes the window. */
+	pinned?: boolean;
 }
 
 /** The Properties panel: one instance of the place, read from the host. */
 export const PlaceProperties = memo(function PlaceProperties(props: PlacePropertiesProps) {
 	const { target, onPick, onOpenFile, graphFor, onClose, editable, confirmEdit, onWritten, ask } =
 		props;
+	const { onPin, pinned } = props;
 	const [info, setInfo] = useState<PlaceInstanceInfo | null>(null);
 	const [problem, setProblem] = useState<string | null>(null);
 	/** The property being written, and the last change refused, by property name. */
@@ -1049,9 +1054,19 @@ export const PlaceProperties = memo(function PlaceProperties(props: PlacePropert
 	return (
 		<div className="place-properties">
 			<PanelHead sub={target.name}>
+				{onPin && (
+					<button
+						className="tb icon-only"
+						title={`Pin ${target.name} in a window of its own; this panel goes on following what you pick`}
+						aria-label="Pin in a window"
+						onClick={onPin}
+					>
+						<Icon name="pin" size={14} />
+					</button>
+				)}
 				<button
 					className="tb icon-only"
-					title="Stop showing this instance"
+					title={pinned ? "Close this window" : "Stop showing this instance"}
 					aria-label="Close"
 					onClick={onClose}
 				>
@@ -1144,6 +1159,26 @@ export const PlaceProperties = memo(function PlaceProperties(props: PlacePropert
 });
 
 /** The instance at `index` of `place`, as Properties is given it. */
+/**
+ * The instance at `path`, of `className`, in the place as now read: where a
+ * pinned window finds what it shows again after the place is written.
+ */
+export function targetAtPath(
+	place: PlaceTree,
+	path: readonly string[],
+	className: string,
+): PlaceTarget | null {
+	if (!("stamp" in place)) return null;
+	const { nodes, classes } = place.outline;
+	for (let i = 0; i < nodes.length; i++) {
+		if (nodes[i][1] !== path[path.length - 1] || classes[nodes[i][0]] !== className) continue;
+		const at = pathTo(nodes, i);
+		if (at.length === path.length && at.every((name, k) => name === path[k]))
+			return targetIn(place, i);
+	}
+	return null;
+}
+
 function targetIn(place: Loaded, index: number): PlaceTarget {
 	const { nodes, classes } = place.outline;
 	const [cls, name, parent] = nodes[index];

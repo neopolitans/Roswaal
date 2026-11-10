@@ -168,7 +168,9 @@ export function placesAndRojoPage(): DocPage {
 					"its properties, tags and attributes under Studio's headings. While it is open it follows " +
 					"what you pick, and a reference goes to what it names. For a script a project file " +
 					"writes, **Open** opens that file, and its graph when one generates it. An asset id " +
-					"links to its page on the Creator Store.",
+					"links to its page on the Creator Store. The pin in its header keeps what it shows in a " +
+					"window of its own, which you can move and resize, and Properties goes on following " +
+					"what you pick: pin as many as you like.",
 			},
 			{ t: "toolbar", bar: PROPERTIES_PANEL },
 

@@ -79,7 +79,8 @@ import { NodePicker } from "./NodePicker.jsx";
 import { functionNameOf } from "./nodeConfig.js";
 import { Overlays } from "./Overlays.jsx";
 import type { PinMenuTarget } from "./PinMenu.jsx";
-import { PlaceBrowser, PlaceProperties, type PlaceTarget } from "./PlaceBrowser.jsx";
+import { type PinnedFrame, PinnedWindow } from "./PinnedWindow.jsx";
+import { PlaceBrowser, PlaceProperties, type PlaceTarget, targetAtPath } from "./PlaceBrowser.jsx";
 import { ProjectPicker } from "./ProjectPicker.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
 import { setEditorOpener, setPageReady, switchMode, useOnShown, useShowing } from "./pageHost.jsx";
@@ -456,6 +457,78 @@ export function App() {
 				? { ...shown, stamp, ...(now ? { index: now.index, name: now.name, path: now.path } : {}) }
 				: shown,
 		);
+		setPlaceWritten(stamp);
+	}, []);
+
+	/**
+	 * Properties pinned to one instance each, in windows of their own, while the
+	 * docked panel follows the pick. Each finds what it shows again by its path
+	 * whenever the place is written, from whichever panel.
+	 */
+	const [pins, setPins] = useState<{ id: number; target: PlaceTarget; frame: PinnedFrame }[]>([]);
+	const pinSeq = useRef(0);
+	const pinProperties = useCallback(() => {
+		if (!placeInspect) return;
+		setPins((was) => {
+			const n = was.length % 8;
+			return [
+				...was,
+				{
+					id: ++pinSeq.current,
+					target: placeInspect,
+					frame: {
+						x: Math.max(16, innerWidth - 720 - n * 28),
+						y: 96 + n * 28,
+						w: 320,
+						h: Math.min(480, innerHeight - 140),
+					},
+				},
+			];
+		});
+	}, [placeInspect]);
+	useEffect(() => setPins([]), [project?.root]);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: the place's version is what moves them.
+	useEffect(() => {
+		if (pins.length === 0) return;
+		let live = true;
+		api.place().then(
+			(answer) => {
+				if (!live) return;
+				// The docked panel too: a rename in a window can sort what it shows elsewhere.
+				setPlaceInspect((shown) =>
+					shown ? (targetAtPath(answer, shown.path, shown.className) ?? shown) : shown,
+				);
+				setPins((was) =>
+					was.flatMap((pin) => {
+						const now = targetAtPath(answer, pin.target.path, pin.target.className);
+						// Gone from the place, deleted or moved out from under it: its window goes too.
+						return now ? [{ ...pin, target: now }] : [];
+					}),
+				);
+			},
+			() => {},
+		);
+		return () => {
+			live = false;
+		};
+	}, [placeWritten, project?.tree]);
+	/** A change written from a pinned window: that window follows its instance, renamed or not. */
+	const pinWritten = useCallback((id: number, stamp: string, now?: PlaceInstanceInfo) => {
+		setPins((was) =>
+			was.map((pin) =>
+				pin.id === id
+					? {
+							...pin,
+							target: {
+								...pin.target,
+								stamp,
+								...(now ? { index: now.index, name: now.name, path: now.path } : {}),
+							},
+						}
+					: pin,
+			),
+		);
+		setPlaceInspect((shown) => (shown ? { ...shown, stamp } : shown));
 		setPlaceWritten(stamp);
 	}, []);
 
@@ -2051,6 +2124,7 @@ export function App() {
 								confirmEdit={confirmPlaceEdit}
 								onWritten={onPlaceWritten}
 								ask={ask}
+								onPin={pinProperties}
 							/>
 						) : project.place && placeDoc ? (
 							<PlaceSummary
@@ -2327,6 +2401,31 @@ export function App() {
 			)}
 
 			<Toasts />
+
+			{project?.place &&
+				pins.map((pin) => (
+					<PinnedWindow
+						key={pin.id}
+						title="Properties"
+						frame={pin.frame}
+						onFrame={(frame) =>
+							setPins((was) => was.map((p) => (p.id === pin.id ? { ...p, frame } : p)))
+						}
+					>
+						<PlaceProperties
+							target={pin.target}
+							pinned
+							onPick={onPlacePick}
+							onOpenFile={onPlaceOpenFile}
+							graphFor={placeGraphFor}
+							onClose={() => setPins((was) => was.filter((p) => p.id !== pin.id))}
+							editable={prefs.modifyDataModel}
+							confirmEdit={confirmPlaceEdit}
+							onWritten={(stamp, _backup, now) => pinWritten(pin.id, stamp, now)}
+							ask={ask}
+						/>
+					</PinnedWindow>
+				))}
 
 			<Overlays
 				registry={registry}
