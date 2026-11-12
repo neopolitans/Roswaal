@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.229.0",
+		date: "2026-11-12",
+		headline: "Script analysis can be resized, the grid switches at once, and const is coloured.",
+		added: [
+			"**Script analysis resizes.** Under the graph, drag its top or right edge, or the corner between them. Double-click an edge to fit it to its list again. Floated over the graph, it fills its window.",
+		],
+		fixed: [
+			"**The grid switches at once.** Choosing Dots or Lines, a Grid contrast or a Class icons style in Settings changes the editor straight away, rather than after a reload.",
+			"**const is coloured.** Luau's `const x = 5` and `const function f()` are coloured as declarations, and `const` used as a name stays a name.",
+		],
+	},
+	{
 		version: "0.228.4",
 		date: "2026-11-10",
 		headline: "A node map's paths stay inside the project.",

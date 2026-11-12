@@ -113,6 +113,20 @@ export function applyTheme(theme: Theme | undefined): void {
  * by `Canvas.tsx` from the path `geometry.ts` builds — it is a route, not a
  * paint, and CSS cannot express it.
  */
+/**
+ * The preferences `applyChrome` writes onto the page. A window that changes
+ * one of these applies them at once; before this list, the editor reapplied
+ * them only for Rounded nodes, so Grid pattern, Grid contrast and Class icons
+ * waited for a reload, and switching between dots and lines looked stuck.
+ */
+export const CHROME_PREFERENCES: readonly (keyof Preferences)[] = [
+	"roundedNodes",
+	"docsFont",
+	"gridPattern",
+	"gridContrast",
+	"classIcons",
+];
+
 export function applyChrome(prefs: Preferences): void {
 	document.documentElement.style.setProperty(
 		"--node-radius",

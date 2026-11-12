@@ -260,6 +260,12 @@ function readLuau(stream: StringStream, state: LuauState): string | null {
 			state.aliasPending = true;
 			return "typeName";
 		}
+		// `const` declares where `local` could stand: before a name, or before
+		// `function` (the const keyword RFC). Anywhere else it is a name, as it
+		// was before Luau had it: `local const = 1`, `t.const`.
+		if (word === "const") {
+			return stream.match(/^\s+(?:function\b|[A-Za-z_])/, false) ? "keyword" : "variableName";
+		}
 		if (GLOBALS.has(word)) return "variableName.standard";
 		if (KEYWORDS.has(word)) return "keyword";
 		// A name immediately followed by "(" is being called.

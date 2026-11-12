@@ -86,12 +86,13 @@ export const RESERVED_WORDS: ReadonlySet<string> = new Set([
 
 /**
  * Words Luau reads as keywords only where they stand -- `continue` as a
- * statement, `export type`, `type X =`, `typeof(…)` in a type -- and as
- * ordinary names everywhere else, so the parser decides from context. Code
- * that writes names should still avoid them: a local called `type` hides the
- * global function.
+ * statement, `const x = …` where `local` could be, `export type`, `type X =`,
+ * `typeof(…)` in a type -- and as ordinary names everywhere else, so the
+ * parser decides from context. Code that writes names should still avoid them:
+ * a local called `type` hides the global function.
  */
 export const CONTEXTUAL_WORDS: ReadonlySet<string> = new Set([
+	"const",
 	"continue",
 	"export",
 	"type",

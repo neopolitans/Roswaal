@@ -4407,6 +4407,46 @@ button.tb.doc-error-remove:focus-visible {
 	max-height: 340px;
 }
 
+/* Under the graph its top and right edges resize it, the bottom-left corner
+   staying put; double-clicking one fits it to its list again. The size holds
+   while it is open, and the bottom dock's usual caps give way to it. In a side
+   dock the column sizes it, and in a window the window's own edges do. */
+.status {
+	position: relative;
+}
+
+.status > .status-size {
+	display: none;
+}
+
+.dock.bottom .status > .status-size {
+	display: block;
+}
+
+/* Held under the top row and inside the window, so a size dragged in a bigger
+   window does not climb over the toolbar in a smaller one. */
+.dock.bottom .status.sized {
+	width: min(var(--analysis-w), calc(100vw - var(--edge) * 2));
+	height: min(var(--analysis-h), calc(100dvh - var(--chrome-top) - var(--edge) * 3));
+	max-height: none;
+}
+
+.dock.bottom:has(.status.sized) {
+	max-width: calc(100% - var(--edge) * 2);
+	max-height: calc(100% - var(--chrome-top) - var(--edge) * 2);
+}
+
+.status.sized > .list,
+.floating .status > .list {
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.floating .status {
+	height: 100%;
+	max-height: none;
+}
+
 /* A severity mark: a tick, or an exclamation in a red or amber disc. */
 .sev-mark,
 .status .entry::before {

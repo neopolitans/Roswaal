@@ -272,6 +272,11 @@ export interface Preferences {
 	/** Which scope Script analysis shows: the open graph, or the whole project. */
 	analysisScope: "script" | "project";
 	/**
+	 * Script analysis's size in its place under the graph, dragged by its top
+	 * and right edges; null for as big as what it lists, up to its usual cap.
+	 */
+	analysisSize: AnalysisSize | null;
+	/**
 	 * The Properties panel changes the place file's properties, rather than
 	 * only showing them. Off until asked for: it writes a file Studio owns.
 	 */
@@ -492,6 +497,7 @@ export const DEFAULTS: Preferences = {
 	docsFont: "system",
 	showPreReleaseNotes: false,
 	analysisScope: "script",
+	analysisSize: null,
 	modifyDataModel: false,
 	viewportRenderer: "auto",
 	viewportFrameRate: "vsync",
@@ -505,6 +511,27 @@ export const DEFAULTS: Preferences = {
 	docsPreviewScale: 1,
 	layout: DEFAULT_LAYOUT,
 };
+
+/** Script analysis's dragged size, in CSS pixels. */
+export interface AnalysisSize {
+	width: number;
+	height: number;
+}
+
+/** The smallest Script analysis can be dragged to: its bar and a few problems. */
+export const ANALYSIS_MIN = { width: 280, height: 140 } as const;
+
+/** A stored size held to the minimum, or null for anything that is not one. */
+export function analysisSizeOf(value: unknown): AnalysisSize | null {
+	if (typeof value !== "object" || value === null) return null;
+	const { width, height } = value as Partial<AnalysisSize>;
+	if (typeof width !== "number" || typeof height !== "number") return null;
+	if (!Number.isFinite(width) || !Number.isFinite(height)) return null;
+	return {
+		width: Math.round(Math.max(ANALYSIS_MIN.width, width)),
+		height: Math.round(Math.max(ANALYSIS_MIN.height, height)),
+	};
+}
 
 /** A preview size snapped to the slider's steps and held in its range; anything else is 1. */
 export function previewScaleOf(value: unknown): number {
@@ -598,6 +625,7 @@ export function readPreferences(): Preferences {
 			stored.analysisScope === "script" || stored.analysisScope === "project"
 				? stored.analysisScope
 				: DEFAULTS.analysisScope,
+		analysisSize: analysisSizeOf(stored.analysisSize),
 		modifyDataModel:
 			typeof stored.modifyDataModel === "boolean"
 				? stored.modifyDataModel

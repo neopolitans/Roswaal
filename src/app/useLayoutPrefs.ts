@@ -28,7 +28,7 @@ import {
 } from "./panels.js";
 import { usePreferenceSync } from "./preferenceSync.js";
 import { type Preferences, readPreferences, writePreferences } from "./preferences.js";
-import { applyChrome, applyTheme, findTheme } from "./theme.js";
+import { applyChrome, applyTheme, CHROME_PREFERENCES, findTheme } from "./theme.js";
 
 export interface LayoutPrefs {
 	prefs: Preferences;
@@ -185,7 +185,7 @@ export function useLayoutPrefs(): LayoutPrefs {
 			const next = { ...current, ...patch };
 			if (persist) writePreferences(next);
 			if ("theme" in patch) applyTheme(findTheme(next.theme));
-			if ("roundedNodes" in patch) applyChrome(next);
+			if (CHROME_PREFERENCES.some((key) => key in patch)) applyChrome(next);
 			return next;
 		});
 	}, []);

@@ -2258,6 +2258,8 @@ export function App() {
 								updatePrefs({ analysisScope });
 								setStatusOpen(true);
 							}}
+							size={prefs.analysisSize}
+							onSize={(analysisSize, persist) => updatePrefs({ analysisSize }, persist)}
 							busy={busy}
 							graph={editor.path ? graphLabel(editor.path) : null}
 							graphPath={editor.path ?? null}

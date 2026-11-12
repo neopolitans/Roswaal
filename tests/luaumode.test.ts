@@ -64,6 +64,30 @@ describe("keywords", () => {
 	it("reads typeof outside a type as the function it is", () => {
 		expect(styleOf("print(typeof(x))", "typeof")).toBe("variableName.standard");
 	});
+
+	// The const keyword RFC: a keyword where `local` could stand, a name elsewhere.
+	it.each([
+		"const x = 5",
+		"const x: number = 5",
+		"const a, b = 1, 2",
+		"const function f() return 1 end",
+		"\tconst limit = 10",
+	])("colours const as a keyword in %j", (source) => {
+		expect(styleOf(source, "const")).toBe("keyword");
+	});
+
+	it.each(["local const = 1", "print(const)", "t.const = 2", "local y = const + 1", "const = 3"])(
+		"reads const as a name in %j",
+		(source) => {
+			expect(styleOf(source, "const")).toBe("variableName");
+		},
+	);
+
+	it("goes on reading the declaration after const as it does after local", () => {
+		const found = tokenise("const speed: number = 16");
+		expect(found.find((t) => t.text === "speed")?.style).toBe("variableName");
+		expect(found.find((t) => t.text === "number")?.style).toBe("typeName");
+	});
 });
 
 describe("long comments and long strings", () => {

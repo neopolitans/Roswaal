@@ -17,7 +17,14 @@
  * belongs to the Project summary it refreshes, on the line under it.
  */
 
-import { Fragment, type ReactNode, useEffect, useState } from "react";
+import {
+	type CSSProperties,
+	Fragment,
+	type ReactNode,
+	type PointerEvent as ReactPointerEvent,
+	useEffect,
+	useState,
+} from "react";
 
 import type { Diagnostic } from "../core/compiler/index.js";
 import {
@@ -31,6 +38,7 @@ import type { CompileOutcome } from "./api.js";
 import { useCardMenu } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import { Icon } from "./icons.jsx";
+import { ANALYSIS_MIN, type AnalysisSize } from "./preferences.js";
 
 export interface StatusPanelProps {
 	open: boolean;
@@ -59,6 +67,88 @@ export interface StatusPanelProps {
 	onGoTo: (path: string, nodeId?: string) => void;
 	/** The open graph's path, for a problem on it. */
 	graphPath: string | null;
+	/** The size it was dragged to under the graph; null for as big as its list. */
+	size?: AnalysisSize | null;
+	/**
+	 * A size dragged to, or null to fit what it lists again. `persist` is false
+	 * while the drag goes on, and true once, when it ends.
+	 */
+	onSize?: (size: AnalysisSize | null, persist: boolean) => void;
+}
+
+/** The edges that resize it under the graph: it sits in the bottom-left corner, so the top and the right. */
+const SIZE_EDGES = ["n", "e", "ne"] as const;
+
+/** Where and when an edge was last pressed, to tell a second press from a drag. */
+const lastPress = { at: 0, x: 0, y: 0 };
+
+/**
+ * Drags an edge of the card: up and right make it bigger, since its bottom-left
+ * corner stays where it is. Held inside the area over the graph.
+ */
+function dragSize(
+	e: ReactPointerEvent<HTMLElement>,
+	edge: (typeof SIZE_EDGES)[number],
+	onSize: NonNullable<StatusPanelProps["onSize"]>,
+): void {
+	if (e.button !== 0) return;
+	const card = e.currentTarget.closest<HTMLElement>(".status");
+	if (!card) return;
+	e.preventDefault();
+	e.stopPropagation();
+	// Two presses close together, by mouse or by finger, fit it to its list again.
+	// Counted here: a double tap on a handle that takes the touch is no dblclick.
+	const now = performance.now();
+	if (
+		now - lastPress.at < 400 &&
+		Math.hypot(e.clientX - lastPress.x, e.clientY - lastPress.y) < 8
+	) {
+		lastPress.at = 0;
+		onSize(null, true);
+		return;
+	}
+	lastPress.at = now;
+	lastPress.x = e.clientX;
+	lastPress.y = e.clientY;
+	const from = card.getBoundingClientRect();
+	// Room to the right of where it starts, and above it up to the top row, in
+	// the area its dock is placed in.
+	const dock = card.closest<HTMLElement>(".dock");
+	const area = (dock?.offsetParent as HTMLElement | null)?.getBoundingClientRect();
+	const css = dock ? getComputedStyle(dock) : null;
+	const chromeTop = Number.parseFloat(css?.getPropertyValue("--chrome-top") ?? "") || 58;
+	const gap = Number.parseFloat(css?.getPropertyValue("--edge") ?? "") || 10;
+	const most = {
+		width: area ? area.right - from.left - gap : window.innerWidth,
+		height: area ? from.bottom - area.top - chromeTop - gap : window.innerHeight,
+	};
+	const startX = e.clientX;
+	const startY = e.clientY;
+	const handle = e.currentTarget;
+	handle.setPointerCapture(e.pointerId);
+	let last: AnalysisSize = { width: from.width, height: from.height };
+	let moved = false;
+	const move = (ev: PointerEvent) => {
+		if (!moved && Math.hypot(ev.clientX - startX, ev.clientY - startY) < 3) return;
+		moved = true;
+		const width = edge === "n" ? from.width : from.width + ev.clientX - startX;
+		const height = edge === "e" ? from.height : from.height - (ev.clientY - startY);
+		last = {
+			width: Math.round(Math.min(most.width, Math.max(ANALYSIS_MIN.width, width))),
+			height: Math.round(Math.min(most.height, Math.max(ANALYSIS_MIN.height, height))),
+		};
+		onSize(last, false);
+	};
+	const end = () => {
+		handle.removeEventListener("pointermove", move);
+		handle.removeEventListener("pointerup", end);
+		handle.removeEventListener("pointercancel", end);
+		// A press that went nowhere leaves it as it was: fitted stays fitted.
+		if (moved) onSize(last, true);
+	};
+	handle.addEventListener("pointermove", move);
+	handle.addEventListener("pointerup", end);
+	handle.addEventListener("pointercancel", end);
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -210,8 +300,31 @@ export function StatusPanel(props: StatusPanelProps) {
 		</div>
 	);
 
+	// The dragged size holds while it is open; folded, it is its bar, as ever.
+	const sized = props.open && props.size ? props.size : null;
+	const onSize = props.onSize;
 	return (
-		<div className="status">
+		<div
+			className={cx("status", sized && "sized")}
+			style={
+				sized
+					? ({
+							"--analysis-w": `${sized.width}px`,
+							"--analysis-h": `${sized.height}px`,
+						} as CSSProperties)
+					: undefined
+			}
+		>
+			{props.open &&
+				onSize &&
+				SIZE_EDGES.map((edge) => (
+					<div
+						key={edge}
+						className={cx("card-size", "status-size", edge)}
+						title="Drag to resize. Double-click to fit what it lists."
+						onPointerDown={(e) => dragSize(e, edge, onSize)}
+					/>
+				))}
 			<header className="card-head bar">
 				<span className="card-tabs scopes" role="tablist" aria-label="Scope">
 					{tab("script", "This Script", "Script", <Badge counts={scriptCounts} />)}
