@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.230.3",
+		date: "2026-11-12",
+		headline: "The Privacy Policy names the daemon's key.",
+		changed: [
+			"**The Privacy Policy names the daemon's key.** The daemon answers only requests that carry its key, writes a new one to `.roswaal` in your home folder each time it starts, readable only by your account, and the editor keeps it in the tab's session storage.",
+		],
+	},
+	{
 		version: "0.230.2",
 		date: "2026-11-12",
 		headline: "The docs show Add from Wally's version question, and Attributions is verified again.",

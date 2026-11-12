@@ -105,8 +105,8 @@ export function privacyPage(): DocPage {
 			{
 				t: "ul",
 				items: [
-					"**Only your computer can reach it.** The daemon listens on 127.0.0.1, so nothing else on your network can connect to it.",
-					"**Only your project.** It reads and writes the project folder you choose, and any file you name to the command, such as a place you export, and nothing else of yours.",
+					"**Only your computer, and only your account, can use it.** The daemon listens on 127.0.0.1, so nothing else on your network can connect to it, and it answers only requests that carry its key.",
+					"**Only your project, and its key.** It reads and writes the project folder you choose, and any file you name to the command, such as a place you export. Each time it starts it writes a new key to `.roswaal` in your home folder, readable only by your account. The editor you open from it keeps that key in the tab's session storage, which the browser clears when the tab is closed. Nothing else of yours is touched.",
 					"**Online only when you ask.** It installs a package from the [Wally](https://wally.run) registry, or fetches a repository from GitHub, when you tell it to, and makes no other requests.",
 					"**Those services' own policies** cover those requests; they are listed below.",
 				],
