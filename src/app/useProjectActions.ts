@@ -380,11 +380,39 @@ export function useProjectActions(context: ProjectActionsContext) {
 					});
 					if (typeof answer !== "string") return;
 					const chosen = JSON.parse(answer) as FormAnswers;
-					const out = await api.wallyAdd(
-						String(chosen.spec),
-						chosen.realm as "shared" | "server" | "dev",
-						String(chosen.alias) || undefined,
-					);
+					const spec = String(chosen.spec).trim();
+					const realm = chosen.realm as "shared" | "server" | "dev";
+					const alias = String(chosen.alias) || undefined;
+					let out = await api.wallyAdd(spec, realm, alias, true);
+					// More than one version and none asked for: which one.
+					if (out.choose) {
+						const versions = out.choose;
+						const picked = await ask({
+							kind: "form",
+							title: "Which version?",
+							message: `${spec} has ${versions.length} versions on the Wally registry.`,
+							fields: [
+								{
+									id: "version",
+									kind: "select",
+									label: "Version",
+									value: versions[0],
+									options: versions.map((v, i) => ({
+										value: v,
+										label: i === 0 ? `${v} (newest)` : v,
+									})),
+								},
+							],
+							confirmLabel: "Add",
+						});
+						if (typeof picked !== "string") return;
+						const version = String((JSON.parse(picked) as FormAnswers).version);
+						// The newest goes in as ^newest, as adding with no version always
+						// has. An older one is pinned: a bare 1.0.0 means ^1.0.0 to Wally,
+						// and would install the newest 1.x rather than the one picked.
+						const requirement = version === versions[0] ? `^${version}` : `=${version}`;
+						out = await api.wallyAdd(`${spec}@${requirement}`, realm, alias);
+					}
 					await refreshTree();
 					reportPackage(out);
 					return;

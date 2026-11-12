@@ -422,7 +422,7 @@ export const ProjectTree = memo(function ProjectTree({
 							entry.kind === "package"
 								? entry.missing
 									? `${entry.name} is in wally.toml, and not installed: run wally install.`
-									: `${entry.name}${entry.version ? ` ${entry.version}` : ""}. Double-click to open ${entry.target}.`
+									: `${entry.name} ${shownVersion(entry)}. Double-click to open ${entry.target}.`
 								: isDir && !groups.isGraph(entry) && entry.role
 									? `${entry.path}: ${FOLDER_TITLE[entry.role]}`
 									: entry.path
@@ -489,7 +489,11 @@ export const ProjectTree = memo(function ProjectTree({
 						)}
 						<span className="label">{entry.name}</span>
 						{entry.generatedFrom && <span className="badge">generated</span>}
-						{entry.version && <span className="badge">{entry.version}</span>}
+						{entry.kind === "package" && !entry.missing ? (
+							<span className="badge">{shownVersion(entry)}</span>
+						) : (
+							entry.version && <span className="badge">{entry.version}</span>
+						)}
 						{entry.missing && <span className="badge">not installed</span>}
 					</div>
 				);
@@ -611,6 +615,15 @@ const FOLDER_CLASS: Record<NonNullable<TreeEntry["role"]> | "plain", string> = {
  * is drawn filled, and a plain one outlined, so what reaches Studio stands out
  * from what only organises. The colour says what it is there.
  */
+/**
+ * The version a package row shows: its own, or 1.0.0 for one with none, such as
+ * code put in a package's place. Shown only: wally.toml is never given it, so
+ * `wally install` is not sent looking for a 1.0.0 that is not this package.
+ */
+export function shownVersion(entry: TreeEntry): string {
+	return entry.version ?? "1.0.0";
+}
+
 function folderIcon(collapsed: boolean, filled: boolean): IconName {
 	if (filled) return collapsed ? "folderFilled" : "folderOpenFilled";
 	return collapsed ? "folder" : "folderOpen";

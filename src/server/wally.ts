@@ -24,6 +24,7 @@ import {
 	parseWallyToml,
 	pickVersion,
 	REALM_DIRS,
+	releaseVersions,
 	thunkFor,
 	thunkTarget,
 	type WallyRealm,
@@ -50,6 +51,8 @@ export interface WallyOutcome {
 	problem?: string;
 	/** How many requests the registry was asked. */
 	requests: number;
+	/** The versions to choose between, newest first, when nothing was installed for want of one. */
+	choose?: string[];
 }
 
 /**
@@ -136,6 +139,21 @@ class Installer {
 			() => false,
 		);
 
+	/** What the registry knows of a package: each version and what it depends on. */
+	private async metadata(scope: string, name: string): Promise<{ versions: VersionMetadata[] }> {
+		const listed = await readLimited(
+			await this.ask(`${REGISTRY}/package-metadata/${scope}/${name}`),
+			LARGEST_METADATA,
+			`The Wally registry's list of versions of ${scope}/${name}`,
+		);
+		return JSON.parse(new TextDecoder().decode(listed)) as { versions: VersionMetadata[] };
+	}
+
+	/** The versions of a package the registry lists, as it lists them. */
+	async versionsOf(scope: string, name: string): Promise<string[]> {
+		return (await this.metadata(scope, name)).versions.map((v) => v.package.version);
+	}
+
 	/**
 	 * One package and what it depends on: its thunk -- in the realm's folder,
 	 * or beside `parent` in `_Index` for a dependency -- and, unless the version
@@ -149,14 +167,7 @@ class Installer {
 		alias: string,
 		parent?: string,
 	): Promise<string> {
-		const listed = await readLimited(
-			await this.ask(`${REGISTRY}/package-metadata/${scope}/${name}`),
-			LARGEST_METADATA,
-			`The Wally registry's list of versions of ${scope}/${name}`,
-		);
-		const metadata = JSON.parse(new TextDecoder().decode(listed)) as {
-			versions: VersionMetadata[];
-		};
+		const metadata = await this.metadata(scope, name);
 		const version = pickVersion(
 			metadata.versions.map((v) => v.package.version),
 			requirement,
@@ -201,6 +212,14 @@ export async function addFromWally(
 	spec: string,
 	realm: WallyRealm = "shared",
 	alias?: string,
+	options: {
+		/**
+		 * With no version asked for, a package the registry lists more than one
+		 * version of is not installed: its versions come back as `choose`, newest
+		 * first, for the editor to ask which. One version installs as before.
+		 */
+		choose?: boolean;
+	} = {},
 ): Promise<WallyOutcome> {
 	const parsed = parseSpec(spec);
 	if (!parsed)
@@ -216,6 +235,11 @@ export async function addFromWally(
 		alias: name,
 	});
 	const installer = new Installer(project);
+	if (options.choose && !parsed.version) {
+		const versions = releaseVersions(await installer.versionsOf(parsed.scope, parsed.name));
+		if (versions.length > 1)
+			return { choose: versions, installed: [], requests: installer.requests };
+	}
 	let line: WallyOutcome["line"];
 	const writeLine = async (version: string) => {
 		const text = withDependency(

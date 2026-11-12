@@ -1040,9 +1040,18 @@ export class ApiSession {
 			 * can. What could not be installed is said, not retried.
 			 */
 			"POST /wally/add": async (req) => {
-				const { spec, realm, alias } = fields<{ spec: string; realm: string; alias: string }>(req);
+				const { spec, realm, alias, choose } = fields<{
+					spec: string;
+					realm: string;
+					alias: string;
+					choose: boolean;
+				}>(req);
 				const wanted = need(spec, "spec", "Which package? Pass its `spec`, scope/name.");
-				return addFromWally(this.project(), wanted, realmOf(realm), alias);
+				// `choose`: with no version given and more than one listed, answer
+				// the versions rather than install the newest.
+				return addFromWally(this.project(), wanted, realmOf(realm), alias, {
+					choose: choose === true,
+				});
 			},
 
 			/** A package from a zip: a Wally package where `wally install` puts one, anything else vendored. */

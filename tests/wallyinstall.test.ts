@@ -10,7 +10,12 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { zip } from "../src/app/zip.js";
-import { pickVersion, withDependency, withoutDependency } from "../src/core/wally.js";
+import {
+	pickVersion,
+	releaseVersions,
+	withDependency,
+	withoutDependency,
+} from "../src/core/wally.js";
 import { githubZipball } from "../src/server/download.js";
 import { openProject } from "../src/server/project.js";
 import { addFromWally, installGithub, installZip, removePackage } from "../src/server/wally.js";
@@ -27,6 +32,14 @@ describe("wally.toml and versions", () => {
 		expect(pickVersion(versions, "0.3.0")).toBe("0.3.9");
 		expect(pickVersion(versions, "=2.0.0")).toBe("2.0.0");
 		expect(pickVersion(versions, "3.0.0")).toBeUndefined();
+	});
+
+	it("lists the versions to choose from: releases only, newest first", () => {
+		expect(releaseVersions(["1.0.0", "2.0.0-rc.1", "1.10.0", "1.9.3", "nonsense"])).toEqual([
+			"1.10.0",
+			"1.9.3",
+			"1.0.0",
+		]);
 	});
 
 	it("adds a line to a table, replaces one, and adds the table", () => {
@@ -112,6 +125,7 @@ describe("adding from the registry", () => {
 			if (url.endsWith("/package-metadata/orchard/handle"))
 				return json({ versions: [{ package: { version: "0.1.4" }, dependencies: {} }] });
 			if (url.endsWith("/package-contents/orchard/basket/1.2.0")) return new Response(basket);
+			if (url.endsWith("/package-contents/orchard/basket/1.0.0")) return new Response(basket);
 			if (url.endsWith("/package-contents/orchard/handle/0.1.4")) return new Response(handle);
 			return new Response("?", { status: 404 });
 		});
@@ -150,6 +164,43 @@ describe("adding from the registry", () => {
 		const again = await addFromWally(project, "orchard/basket@1.2.0");
 		expect(again.installed).toEqual([]);
 		expect(asked).toEqual(["https://api.wally.run/v1/package-metadata/orchard/basket"]);
+	});
+
+	// Asked by the editor's Add from Wally: which version, when there is a choice.
+	it("answers the versions to choose from, newest first, and installs nothing", async () => {
+		const project = await registry();
+		const before = await read("wally.toml");
+		const out = await addFromWally(project, "orchard/basket", "shared", undefined, {
+			choose: true,
+		});
+		expect(out).toEqual({ choose: ["1.2.0", "1.0.0"], installed: [], requests: 1 });
+		expect(await read("wally.toml")).toBe(before);
+		await expect(read("Packages/Basket.lua")).rejects.toThrow();
+	});
+
+	it("installs the one there is when there is no choice to make", async () => {
+		const out = await addFromWally(await registry(), "orchard/handle", "shared", undefined, {
+			choose: true,
+		});
+		expect(out.choose).toBeUndefined();
+		expect(out.line).toMatchObject({ spec: "orchard/handle@^0.1.4" });
+		expect(out.installed).toEqual(["orchard_handle@0.1.4"]);
+	});
+
+	// What the editor sends for an older version picked from the list: pinned, as
+	// a bare 1.0.0 is ^1.0.0 and would install 1.2.0.
+	it("installs the version asked for, with nothing to choose", async () => {
+		const out = await addFromWally(await registry(), "orchard/basket@=1.0.0", "shared", undefined, {
+			choose: true,
+		});
+		expect(out.choose).toBeUndefined();
+		expect(out.installed).toEqual(["orchard_basket@1.0.0"]);
+		expect(await read("wally.toml")).toContain('Basket = "orchard/basket@=1.0.0"');
+	});
+
+	it("reads a bare version as Wally does: the newest it allows", async () => {
+		const out = await addFromWally(await registry(), "orchard/basket@1.0.0");
+		expect(out.installed).toContain("orchard_basket@1.2.0");
 	});
 
 	it("keeps the line when the download fails, and says so", async () => {

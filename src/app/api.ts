@@ -15,6 +15,8 @@ export interface WallyOutcome {
 	installed: string[];
 	problem?: string;
 	requests: number;
+	/** The versions to choose between, newest first, when nothing was installed for want of one. */
+	choose?: string[];
 }
 
 /** A module a local in a Luau file holds, as the host followed it. */
@@ -376,9 +378,18 @@ export const api = {
 		}),
 	/** The DataModel as the project knows it: the place and what the node maps add. */
 	instances: () => request<{ outline: InstanceOutline }>("/api/instances"),
-	/** Adds a Wally package to wally.toml and installs it from the registry. */
-	wallyAdd: (spec: string, realm: "shared" | "server" | "dev", alias?: string) =>
-		post<WallyOutcome>("/api/wally/add", { spec, realm, ...(alias ? { alias } : {}) }),
+	/**
+	 * Adds a Wally package to wally.toml and installs it from the registry. With
+	 * `choose`, a package with more than one version and none asked for comes
+	 * back with its versions to pick from, and nothing installed.
+	 */
+	wallyAdd: (spec: string, realm: "shared" | "server" | "dev", alias?: string, choose?: boolean) =>
+		post<WallyOutcome>("/api/wally/add", {
+			spec,
+			realm,
+			...(alias ? { alias } : {}),
+			...(choose ? { choose } : {}),
+		}),
 	/** A package from a zip, base64: a Wally package installed, anything else vendored. */
 	wallyZip: (data: string, fileName: string, alias?: string, realm?: "shared" | "server" | "dev") =>
 		post<WallyOutcome>("/api/wally/zip", {

@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.230.0",
+		date: "2026-11-12",
+		headline: "Add from Wally asks which version, and every package shows one.",
+		added: [
+			"**Add from Wally asks which version.** A package added without a version, when the registry lists more than one, asks which, with the newest picked already. An older one is pinned to exactly that version, so `wally install` keeps it.",
+		],
+		changed: [
+			"**Every package shows a version.** One with none of its own, such as code put in a package's place, shows 1.0.0 in the Project tree. Its line in `wally.toml` is left as it is.",
+		],
+	},
+	{
 		version: "0.229.0",
 		date: "2026-11-12",
 		headline: "Script analysis can be resized, the grid switches at once, and const is coloured.",

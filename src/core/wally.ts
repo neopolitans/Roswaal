@@ -137,6 +137,19 @@ export function pickVersion(versions: readonly string[], requirement?: string): 
 	return [...allowed].sort((a, b) => compare(b[1], a[1]))[0]?.[0];
 }
 
+/**
+ * The versions there are to choose between: releases only, as `pickVersion`
+ * reads them, newest first. What Add from Wally offers when a package has more
+ * than one and none was asked for.
+ */
+export function releaseVersions(versions: readonly string[]): string[] {
+	return versions
+		.map((v) => [v, semver(v)] as const)
+		.filter((p): p is readonly [string, Semver] => p[1] !== undefined)
+		.sort((a, b) => compare(b[1], a[1]))
+		.map(([v]) => v);
+}
+
 /** `_Index`'s folder for a package: `sleitnick_signal@2.0.3`. */
 export const indexFolder = (scope: string, name: string, version: string) =>
 	`${scope}_${name}@${version}`;
