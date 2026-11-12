@@ -1,6 +1,7 @@
 /** Public compiler surface. */
 
 import { retypeArrays } from "../arrayTypes.js";
+import { retypeBoundValues } from "../boundValues.js";
 import { retypeClassReads } from "../classReads.js";
 import { headersByNode } from "../comments.js";
 import { isStackOverflow } from "../errorMessage.js";
@@ -94,8 +95,8 @@ function compileScript(
 			? headersByNode({ ...source, comments: docs }, registry)
 			: undefined;
 	const sourceHash = hashString(semanticJson(source, { headers }));
-	const script = retypeArrays(
-		adoptWiredSignatures(syncScriptCalls(retypeClassReads(source))),
+	const script = retypeBoundValues(
+		retypeArrays(adoptWiredSignatures(syncScriptCalls(retypeClassReads(source))), registry),
 		registry,
 	);
 	const structural = validate(script, registry);

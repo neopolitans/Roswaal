@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.231.0",
+		date: "2026-11-12",
+		headline: "A Branch or a While Loop can bind its condition, as Luau's proposed if local does.",
+		added: [
+			"**Branch and While Loop can bind their condition.** Tick Bind the condition in the Inspector: the condition is kept in a local you name, and handed on as a pin to the True side or the loop's body, where it is not nil or false. It compiles to `local admin = admins[id]` and `if admin then`, which Luau runs today and which is what the proposed `if local` and `while local` mean. It can be `const`. Read anywhere else, the pin says where it exists.",
+		],
+	},
+	{
 		version: "0.230.3",
 		date: "2026-11-12",
 		headline: "The Privacy Policy names the daemon's key.",

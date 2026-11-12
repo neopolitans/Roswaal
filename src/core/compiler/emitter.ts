@@ -23,7 +23,7 @@
 import { commentLines, headersByNode, oneLine } from "../comments.js";
 import { docProblems, docSubject, docText } from "../docComments.js";
 import { compoundTemplate } from "../nodes/compound.js";
-import { FUNCTION_NODES, loopNamesOf, signatureOf } from "../nodes/flow.js";
+import { boundValueOf, FUNCTION_NODES, loopNamesOf, signatureOf } from "../nodes/flow.js";
 import { nodeTitle, type Registry } from "../nodes/index.js";
 import {
 	CAST_NODES,
@@ -814,6 +814,18 @@ export class Emitter {
 				`"${nodeTitle(src.def, src.node)}" is declared further down the flow than this, ` +
 					"so it does not exist yet. Move the Declare Function above this, or use the " +
 					"hoisted Function node.",
+				consumer.node.id,
+			);
+			return "nil";
+		}
+
+		// A bound value read where its Branch or While Loop does not hand it on.
+		if ((src.def.id === "flow.branch" || src.def.id === "flow.while") && pinId === "value") {
+			const name = boundValueOf(src.node.config)?.name ?? "value";
+			this.error(
+				src.def.id === "flow.branch"
+					? `"${name}" only exists on the True side of its Branch, where it is not nil or false.`
+					: `"${name}" only exists in its While Loop's body.`,
 				consumer.node.id,
 			);
 			return "nil";

@@ -40,6 +40,7 @@
  */
 
 import { retypeArrays } from "../arrayTypes.js";
+import { retypeBoundValues } from "../boundValues.js";
 import {
 	CODE_FACE,
 	type CodeFace,
@@ -1642,7 +1643,10 @@ export function graphSvg(
 	 * asked once, here, where every docs graph is rendered and the registry is
 	 * already in hand.
 	 */
-	const script = retypeArrays(retypeReroutes(scene, registry), registry);
+	const script = retypeBoundValues(
+		retypeArrays(retypeReroutes(scene, registry), registry),
+		registry,
+	);
 	const g = options.geometry;
 	const placed = placeGraph(script, registry, options);
 	if (placed.length === 0) return "";

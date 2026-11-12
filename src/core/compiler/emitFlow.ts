@@ -8,6 +8,7 @@
 import { LUAU_PRIMITIVES } from "../luneTypes.js";
 import { compoundOf } from "../nodes/compound.js";
 import {
+	boundValueOf,
 	isMethod,
 	loopNamesOf,
 	loopTypes,
@@ -74,11 +75,41 @@ function emitBranch(
 	keyword: "if" | "elseif",
 	condition?: string,
 ): void {
+	const bound = boundValueOf(r.node.config);
+	if (!bound) {
+		emitBranchArms(e, r, scope, keyword, condition);
+		return;
+	}
+	// Bind: Luau's `if local admin = admins[id] then` (RFC #238), written as
+	// the RFC says it means, since Luau cannot run that syntax yet: the
+	// condition in a local, then the test. Never an `elseif` -- there is
+	// nowhere to put the local -- which `emitBranchArms` sees to when it
+	// chains one. The name is the Branch's alone: the next one may use it too.
+	const id = r.node.id;
+	const cond = condition ?? e.resolveInput(r, e.pin(r, "condition", "in"), scope);
+	e.names.push();
+	const name = e.declareName(bound.name ?? "value", "value", id);
+	e.push(`${bound.constant ? "const" : "local"} ${name} = ${cond}`, id);
+	emitBranchArms(e, r, scope, "if", name, name);
+	e.names.pop();
+}
+
+/** A Branch's `if`, its arms and its `end`, with the condition worked out or given. */
+function emitBranchArms(
+	e: Emitter,
+	r: ResolvedNode,
+	scope: Scope,
+	keyword: "if" | "elseif",
+	condition?: string,
+	/** A bound value's local, which the True side reads as the Branch's Value pin. */
+	boundName?: string,
+): void {
 	const id = r.node.id;
 	const cond = condition ?? e.resolveInput(r, e.pin(r, "condition", "in"), scope);
 	e.push(`${keyword} ${cond} then`, id);
 	e.indent++;
 	const trueArm = new Scope(scope);
+	if (boundName !== undefined) trueArm.bindings.set(`${id}/value`, boundName);
 	// Whatever the condition proved holds here and only here.
 	for (const [key, classes] of narrowingsOf(e, r, "condition")) {
 		trueArm.narrowings.set(key, classes);
@@ -100,7 +131,8 @@ function emitBranch(
 		e.indent--;
 
 		e.execStack.add(chained.node.id);
-		if (captured.lines.length === 0) {
+		// A bound Branch declares its local first, so it cannot be an `elseif`.
+		if (captured.lines.length === 0 && !boundValueOf(chained.node.config)) {
 			// Nothing was declared, so there is no block for it to belong to:
 			// the chain carries on at this level and one `end` closes it all.
 			e.names.pop();
@@ -781,7 +813,18 @@ function whileLoop(e: Emitter, r: ResolvedNode, scope: Scope): string | undefine
 	e.names.push();
 	const captured = e.capture(() => e.resolveInput(r, condPin, loop));
 	e.indent--;
-	if (captured.lines.length === 0) {
+	const bound = boundValueOf(r.node.config);
+	if (bound) {
+		// Bind: `while local line = reader:nextLine() do` (RFC #238), as the RFC
+		// says it means: each pass keeps the condition in a local of its own,
+		// stops when it is nil or false, and hands it to the body.
+		e.push("while true do", id);
+		for (const line of captured.lines) e.out.push(line);
+		const name = e.declareName(bound.name ?? "value", "value", id);
+		e.push(`	${bound.constant ? "const" : "local"} ${name} = ${captured.value}`, id);
+		e.push(`	if not ${name} then break end`, id);
+		loop.bindings.set(`${id}/value`, name);
+	} else if (captured.lines.length === 0) {
 		e.push(`while ${captured.value} do`, id);
 	} else {
 		e.push("while true do", id);

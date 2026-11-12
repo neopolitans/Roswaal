@@ -49,6 +49,7 @@
 
 import { useSyncExternalStore } from "react";
 import { retypeArrays } from "../core/arrayTypes.js";
+import { retypeBoundValues } from "../core/boundValues.js";
 import { retypeClassReads } from "../core/classReads.js";
 import {
 	type FunctionInfo,
@@ -846,6 +847,9 @@ class Store {
 		next = retypeClassReads(next);
 		// And a Make Array's values, which say what the list holds. See `arrayTypes.ts`.
 		if (this.registry) next = retypeArrays(next, this.registry);
+		// And a bound Branch or While Loop's value, which carries what its
+		// condition is wired to. See `boundValues.ts`.
+		if (this.registry) next = retypeBoundValues(next, this.registry);
 		// The same reasoning for a Script Function: its pins are a copy of its
 		// function's signature, and a signature changes from the Inspector,
 		// the node's own − and +, an undo of either, and a paste. Every one of

@@ -30,6 +30,7 @@ import { membersFor } from "../core/members.js";
 import { namedResultRef } from "../core/namedResults.js";
 import { COMPOUND_NODES, COMPOUND_OPS, compoundOf } from "../core/nodes/compound.js";
 import {
+	boundValueOf,
 	FUNCTION_NODES,
 	HANDLER_NODES,
 	loopTypes,
@@ -82,6 +83,7 @@ import {
 	bindNodeToLocal,
 	bindNodeToVariable,
 	disconnectInput,
+	disconnectPin,
 	localRefFor,
 	removeListEntry,
 	setConfig,
@@ -150,6 +152,7 @@ const INSPECTOR_SECTIONS: readonly SectionRule[] = [
 	{ applies: (def) => CAST_NODES.has(def.id), Section: CastLabel },
 	{ applies: (def) => CAST_NODES.has(def.id), Section: CastMode },
 	{ applies: ids("flow.forEach", "flow.forIndex"), Section: LoopNames },
+	{ applies: ids("flow.branch", "flow.while"), Section: BindValue },
 	{ applies: ids("table.dictionary", "table.getKey", "table.setKey"), Section: KeyStyle },
 	{ applies: ids("table.pair"), Section: PairEditor },
 	{ applies: ids("table.dictionary"), Section: TableLayout },
@@ -1196,6 +1199,80 @@ function LoopNames({ node, def }: SectionProps) {
 			>
 				<TypePicker value={types.value ?? "any"} onChange={setType("valueType")} />
 			</Field>
+		</>
+	);
+}
+
+/**
+ * Bind: a Branch's or a While Loop's condition kept in a local and handed on as
+ * a pin, to the True side or the body. Luau's conditional bindings, RFC #238:
+ * `if local admin = admins[id] then`. Written as the RFC says it means, since
+ * Luau cannot run that syntax yet.
+ *
+ * Off again, the pin goes, and so do the wires from it: a wire into nothing is
+ * worse than none.
+ */
+function BindValue({ node, def }: SectionProps) {
+	const typing = useEditBurst();
+	const bound = boundValueOf(node.config);
+	const loop = def.id === "flow.while";
+	const toggle = (on: boolean) =>
+		store.edit((s) => {
+			const next = setConfig(s, node.id, { bind: on ? true : undefined });
+			const registry = store.getRegistry();
+			return on || !registry ? next : disconnectPin(next, node.id, "value", "out", registry);
+		});
+	return (
+		<>
+			<label
+				className="check-row"
+				title={
+					loop
+						? "Keep each pass's condition in a local, and hand it to the body as a pin."
+						: "Keep the condition in a local, and hand it to the True side as a pin."
+				}
+			>
+				<input
+					type="checkbox"
+					checked={bound !== null}
+					onChange={(e) => toggle(e.target.checked)}
+				/>
+				<span>Bind the condition</span>
+			</label>
+			{bound && (
+				<>
+					<Field
+						label="Name"
+						hint={loop ? "The local the body reads." : "The local the True side reads."}
+					>
+						<input
+							className="tb"
+							value={configText(node, "bindName") ?? ""}
+							placeholder="value"
+							onChange={(e) =>
+								typing.edit((s) => setConfig(s, node.id, { bindName: e.target.value }))
+							}
+							{...typing.field}
+						/>
+					</Field>
+					<Field label="Binding" hint="const cannot be reassigned.">
+						<div className="segmented">
+							<button
+								className={!bound.constant ? "on" : ""}
+								onClick={() => store.edit((s) => setConfig(s, node.id, { bindConst: undefined }))}
+							>
+								local
+							</button>
+							<button
+								className={bound.constant ? "on" : ""}
+								onClick={() => store.edit((s) => setConfig(s, node.id, { bindConst: true }))}
+							>
+								const
+							</button>
+						</div>
+					</Field>
+				</>
+			)}
 		</>
 	);
 }
