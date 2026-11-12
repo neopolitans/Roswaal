@@ -147,14 +147,16 @@ export const ATTRIBUTIONS: Attribution[] = [
 		usage: "target",
 		licenceFile: "luau-site",
 		licenceLabel: "MIT · logo",
-		also: { usage: "included", short: "Luau logo (canary)" },
+		also: { usage: "included", short: "Luau logo" },
 		holder: "Roblox Corporation",
 		licence: "MIT",
 		ships: true,
 		where:
-			"In the canary build only, the `.luau` file icon is the Luau logo, carried with its " +
-			"licence. Otherwise nothing of theirs ships.",
-		note: "Roswaal writes Luau code, and this page is the attribution Luau asks for.",
+			"The `.luau` file icon is the Luau logo, carried with its licence and used with the " +
+			"Luau team's permission. Otherwise nothing of theirs ships.",
+		note:
+			"Roswaal writes Luau code, and this page is the attribution Luau asks for. Roswaal is " +
+			"not made by the Luau team.",
 		url: "https://luau.org/",
 		quote:
 			"When Luau is integrated into external projects, we ask that you honor " +

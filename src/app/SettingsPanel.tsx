@@ -1292,7 +1292,7 @@ function RoleTable({ theme }: { theme: Theme }) {
  * `BundledNotices` reads, so this page shows what this copy really carries.
  * One open at a time: a licence is read one at a time, and the page stays a
  * list to find yours in. The same list as the notices file and the docs, the
- * Luau logo's included: its row says the logo is the canary's.
+ * Luau logo's included: its row says what the logo is for.
  */
 function Licences() {
 	const { query, page } = useContext(Search);

@@ -263,7 +263,8 @@ export function termsPage(): DocPage {
 				text:
 					"Roswaal is not affiliated with, endorsed by, or approved by Roblox Corporation. Luau " +
 					"is a trademark of Roblox Corporation. Roblox, and the names of the engine's classes " +
-					"and services, belong to Roblox Corporation.",
+					"and services, belong to Roblox Corporation. The Luau logo marks `.luau` files with " +
+					"the Luau team's permission; Roswaal is not made by the Luau team.",
 			},
 
 			{ t: "h", level: 2, text: "Changes" },

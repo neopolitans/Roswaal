@@ -20,7 +20,7 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 import { rowMatches, summaryText } from "../src/app/attributionsBrowser.js";
-import { ICONS, SHOWS_LUAU_MARK } from "../src/app/icons.jsx";
+import { ICONS } from "../src/app/icons.jsx";
 import {
 	ATTRIBUTIONS,
 	byHolder,
@@ -287,32 +287,21 @@ describe("the attributions browser", () => {
 });
 
 /**
- * The Luau logo is the `.luau` icon on the canary only, until Roblox has
- * answered whether the use is permitted.
- *
- * Asserted without asking which channel the suite is in: the test config pins
- * `ROSWAAL_CHANNEL` to stable, while the Vite define is read when the config
- * loads and so is canary on the canary's CI. Whether a stable bundle really
- * holds no copy of the mark was checked by searching every build's output.
+ * The Luau logo is the `.luau` icon in every build, with the Luau team's
+ * permission (12 Nov 2026), given on the condition that nobody is led to think
+ * Roswaal is a Luau team product. Until then it was the canary's only.
  */
-describe("the Luau mark stays on the canary", () => {
-	it("is drawn exactly when the gate says so", () => {
-		expect(ICONS.luauScript === ICONS.codeFile).toBe(!SHOWS_LUAU_MARK);
+describe("the Luau mark, used with the Luau team's permission", () => {
+	it("is the .luau icon, and not the plain code file", () => {
+		expect(ICONS.luauScript).not.toBe(ICONS.codeFile);
 	});
 
-	it("is gated on the canary channel, in the editor and under Node", () => {
-		const source = readFileSync(
-			join(dirname(fileURLToPath(import.meta.url)), "..", "src", "app", "icons.tsx"),
-			"utf8",
-		);
-		expect(source).toContain('__ROSWAAL_CHANNEL__ === "canary"');
-		expect(source).toMatch(/ROSWAAL_CHANNEL === "canary";/);
-		expect(source).toMatch(/luauScript: SHOWS_LUAU_MARK\s*\?/);
-	});
-
-	it("is described as canary-only wherever it is described", () => {
-		expect(NOTICE).toContain("In the canary build only");
-		expect(pageText).toContain("In the canary build only");
+	it("is described with the permission, and with who does not make Roswaal", () => {
+		for (const text of [NOTICE, pageText]) {
+			expect(text).toContain("used with the Luau team's permission");
+			expect(text).toContain("Roswaal is not made by the Luau team");
+			expect(text).not.toContain("canary build only");
+		}
 	});
 });
 

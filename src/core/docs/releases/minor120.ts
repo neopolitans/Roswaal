@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.230.1",
+		date: "2026-11-12",
+		headline: "The Luau logo marks .luau files in every build.",
+		changed: [
+			"**The Luau logo marks .luau files in every build**, not only the canary. It is used with the Luau team's permission. Roswaal is not made by the Luau team, as the Attributions page and the legal page say.",
+		],
+	},
+	{
 		version: "0.230.0",
 		date: "2026-11-12",
 		headline: "Add from Wally asks which version, and every package shows one.",
