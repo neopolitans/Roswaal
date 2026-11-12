@@ -139,8 +139,10 @@ export const REVIEWS: Record<
 	// Verified by the author for 0.43.1, once What Roswaal is designed for named
 	// Lune, Luau and Roblox alongside the borrowed names it credits.
 	// Verified again for 0.160.1, as the browser 0.160.0 made it: every holder,
-	// usage type and licence, on the website and in the editor.
-	attributions: { status: "verified", date: "2026-10-08", reviewers: ["neopolitans"] },
+	// usage type and licence, on the website and in the editor. And again on
+	// 12 Nov 2026, for 0.230.2, once the Luau team allowed the Luau logo: its
+	// entry, and that Roswaal is not made by the Luau team.
+	attributions: { status: "verified", date: "2026-11-12", reviewers: ["neopolitans"] },
 	// Verified by the author for 0.219.7: the You May and You May Not lists,
 	// the services and their terms, and what is Roswaal's and what is not.
 	terms: { status: "verified", date: "2026-11-07", reviewers: ["neopolitans"] },

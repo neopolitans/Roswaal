@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.230.2",
+		date: "2026-11-12",
+		headline: "The docs show Add from Wally's version question, and Attributions is verified again.",
+		changed: [
+			"**Wally packages shows the version question.** Add from Wally's steps include Which version?, and the project tree section says a package with no version of its own shows 1.0.0.",
+			"**The interface page says how Script analysis is sized**, by its top and right edges.",
+		],
+		verified: ["attributions"],
+	},
+	{
 		version: "0.230.1",
 		date: "2026-11-12",
 		headline: "The Luau logo marks .luau files in every build.",

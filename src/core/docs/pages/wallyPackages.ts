@@ -9,6 +9,7 @@ import {
 	PROJECT_TREE_WALLY_ADDED,
 	REMOVE_PACKAGE,
 	WALLY_MENU,
+	WHICH_VERSION,
 } from "../toolbars.js";
 import { code } from "./blocks.js";
 
@@ -36,7 +37,8 @@ export function wallyPackagesPage(): DocPage {
 				t: "p",
 				text:
 					"`wally.toml` is under Graph Content, with each package it lists and the version " +
-					"installed. Double-click one to open its code; one not installed yet says so. " +
+					"installed. One with no version of its own, such as code put in its place, shows " +
+					"1.0.0. Double-click one to open its code; one not installed yet says so. " +
 					"`Packages/` is under Compile Content, in purple, and starts closed.",
 			},
 			{ t: "toolbar", bar: PROJECT_TREE_WALLY, hint: true },
@@ -101,9 +103,15 @@ export function wallyPackagesPage(): DocPage {
 						picture: [ADD_FROM_WALLY],
 						point: "Package",
 					},
+					{ text: "Press **Add**.", picture: [ADD_FROM_WALLY], point: "Add" },
+					{
+						text: "If the registry has more than one version, pick one. The newest is picked already; an older one is pinned to exactly that version.",
+						picture: [WHICH_VERSION],
+						point: "Version",
+					},
 					{
 						text: "Press **Add**. The line goes into `wally.toml`, then the package installs with what it depends on.",
-						picture: [ADD_FROM_WALLY],
+						picture: [WHICH_VERSION],
 						point: "Add",
 					},
 					{
@@ -124,8 +132,8 @@ export function wallyPackagesPage(): DocPage {
 				t: "note",
 				kind: "info",
 				text:
-					"**Add from Wally asks the registry twice a package**, and stops at 16 requests. " +
-					"Nothing is retried.",
+					"**Add from Wally asks the registry twice a package**, and once more for its " +
+					"versions when it asks which. It stops at 16 requests, and nothing is retried.",
 			},
 			{
 				t: "p",

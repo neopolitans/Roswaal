@@ -63,7 +63,9 @@ export function theInterfacePage(): DocPage {
 								text:
 									"That is where each card starts. Drag one by its header onto another for " +
 									"tabs, to another edge, or out over the graph as a window; the line between " +
-									"two cards shares their height. The card you last used has its header lit.",
+									"two cards shares their height. The card you last used has its header lit. " +
+									"Script analysis, under the graph, is sized by its top and right edges; " +
+									"double-click one to fit it to its list again.",
 							},
 						],
 					},

@@ -3010,7 +3010,48 @@ export const ADD_FROM_WALLY: ToolbarSpec = {
 					text: "Add",
 					primary: true,
 					name: "Add",
-					what: "Writes the line, then asks the registry.",
+					what: "Writes the line, then installs. With no version typed, it first asks which, if the registry has more than one.",
+				},
+			],
+		},
+	],
+};
+
+/** What Add from Wally asks when the registry has more than one version and none was typed. */
+export const WHICH_VERSION: ToolbarSpec = {
+	id: "which-version",
+	title: "Which version?",
+	summary: "What Add from Wally asks when a package has more than one version.",
+	chrome: "modal",
+	groups: [
+		{
+			items: [
+				{ t: "dialogTitle", text: "Which version?" },
+				{ t: "message", text: "someone/flux has 6 versions on the Wally registry." },
+			],
+		},
+		{
+			items: [
+				{
+					t: "setting",
+					label: "Version",
+					value: "0.3.2 (newest)",
+					control: "select",
+					name: "Version",
+					what: "Every release on the registry, newest first. The newest goes into wally.toml as `^0.3.2`, taking its updates; an older one is pinned, as `=0.2.0`, to exactly that version.",
+				},
+			],
+		},
+		{
+			actions: true,
+			items: [
+				{ t: "button", text: "Cancel" },
+				{
+					t: "button",
+					text: "Add",
+					primary: true,
+					name: "Add",
+					what: "Writes the line, then installs that version.",
 				},
 			],
 		},
