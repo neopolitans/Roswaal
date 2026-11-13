@@ -141,8 +141,9 @@ export const REVIEWS: Record<
 	// Verified again for 0.160.1, as the browser 0.160.0 made it: every holder,
 	// usage type and licence, on the website and in the editor. And again on
 	// 12 Nov 2026, for 0.230.2, once the Luau team allowed the Luau logo: its
-	// entry, and that Roswaal is not made by the Luau team.
-	attributions: { status: "verified", date: "2026-11-12", reviewers: ["neopolitans"] },
+	// entry, and that Roswaal is not made by the Luau team. Verified again on
+	// 13 Nov 2026, for 0.236.3: its Definitions, and the Luau Team line in full.
+	attributions: { status: "verified", date: "2026-11-13", reviewers: ["neopolitans"] },
 	// Verified by the author for 0.219.7: the You May and You May Not lists,
 	// the services and their terms, and what is Roswaal's and what is not.
 	// Verified again on 13 Nov 2026, for 0.236.3: Who Roswaal is for, Sign in
@@ -153,6 +154,8 @@ export const REVIEWS: Record<
 	// permission named and the files on each browser and system. Verified again
 	// on 13 Nov 2026, for 0.236.3: the daemon's key, openid without profile,
 	// Sign in with Roblox being optional, and signing out within 15 minutes.
+	// For 0.236.5 it gained the Terms' Definitions, at the author's request,
+	// worded as the author verified them there.
 	privacy: { status: "verified", date: "2026-11-13", reviewers: ["neopolitans"] },
 	// Read by the author for 0.65.0, against the RFC and against the editor.
 	// Not verified, and deliberately: every rule on it is checked against

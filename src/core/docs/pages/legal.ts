@@ -109,6 +109,22 @@ export function privacyPage(): DocPage {
 					"cookies. What it keeps stays on your device.",
 			},
 
+			{ t: "h", level: 2, text: "Definitions" },
+			{ t: "p", text: "In this policy, as in the [Terms of Service](terms):" },
+			{
+				t: "ul",
+				items: [
+					DEFINED.Roswaal,
+					DEFINED.Daemon,
+					DEFINED.Website,
+					DEFINED.You,
+					DEFINED.Roblox,
+					DEFINED["Sign in with Roblox"],
+					DEFINED["Downloaded Assets"],
+					DEFINED.Services,
+				],
+			},
+
 			{ t: "h", level: 2, text: "The website" },
 			{
 				t: "p",
