@@ -147,11 +147,14 @@ jobs:
           node-version: 24
           cache: npm
 
-      # Within each package's current major: a new major is a decision.
+      # Within each package's current major: a new major is a decision. Never
+      # above a package's latest tag, where a stray release can sit.
       - name: Update
         run: |
           set -o pipefail
+          cp package.json "$RUNNER_TEMP/package.before.json"
           npx --yes npm-check-updates@17.1.18 --upgrade --target minor 2>&1 | tee "$RUNNER_TEMP/minor.log"
+          node scripts/upkeep/hold-to-latest.mjs "$RUNNER_TEMP/package.before.json" | tee "$RUNNER_TEMP/held.log"
           npm install --no-audit --no-fund
 
       - name: Anything new?
@@ -182,6 +185,14 @@ jobs:
             echo '```'
             grep -E '→' "$RUNNER_TEMP/minor.log" || true
             echo '```'
+            if grep -q '^Held back' "$RUNNER_TEMP/held.log"; then
+              echo
+              echo "Held back, as above the version each package marks latest:"
+              echo
+              echo '```'
+              grep '^Held back' "$RUNNER_TEMP/held.log"
+              echo '```'
+            fi
             if [ -n "$majors" ]; then
               echo
               echo "Newer majors, not taken: each is a decision."

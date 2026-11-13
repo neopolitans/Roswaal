@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-import { newer } from "../scripts/upkeep/versions.mjs";
+import { aboveLatest, newer } from "../scripts/upkeep/versions.mjs";
 
 describe("comparing releases", () => {
 	it.each([
@@ -20,6 +20,18 @@ describe("comparing releases", () => {
 		["v7.7.1", "7.7.1", false],
 	])("%s is newer than %s: %s", (a, b, expected) => {
 		expect(newer(a, b)).toBe(expected);
+	});
+});
+
+describe("holding packages to their latest tag", () => {
+	it.each([
+		["^6.65.7", "6.0.2", true],
+		["^6.0.2", "6.0.2", false],
+		["2.6.7", "2.6.7", false],
+		["~1.2.5", "1.3.0", false],
+		[">=3.1.0", "3.0.9", true],
+	])("%s against latest %s is above it: %s", (range, latest, expected) => {
+		expect(aboveLatest(range, latest)).toBe(expected);
 	});
 });
 

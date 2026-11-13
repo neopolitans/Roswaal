@@ -23,3 +23,12 @@ export function newer(a, b) {
 	}
 	return false;
 }
+
+/**
+ * Whether a package.json range such as `^6.65.7` asks for more than the
+ * version its maintainer marks `latest`: the lowest version the range allows
+ * is later than it.
+ */
+export function aboveLatest(range, latest) {
+	return newer(String(range).replace(/^[^\d]+/, ""), latest);
+}
