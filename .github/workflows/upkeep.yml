@@ -1,0 +1,255 @@
+# Upkeep: once a week, what Roswaal is built from is checked for anything new,
+# and what changed is handed over for a person to read -- a pull request, or an
+# issue where Actions may not open one. Nothing here pushes to main, and every
+# change is tested before it is offered.
+#
+# - engine:   the engine catalogue, members, properties and class icons, from
+#             Roblox/creator-docs (CC BY 4.0; never the API dump).
+# - packages: dependencies, up to the newest release in each one's current
+#             major. Newer majors are listed, not taken.
+# - releases: Luau, Lune, StyLua, Rojo, Wally and Material Symbols, against
+#             `.github/upkeep/upstream.json`. An issue, since each needs a
+#             decision rather than a bump.
+#
+# The work and the right to write are in different jobs, as in release.yml:
+# a job that installs packages can only read, and hands its change on as a
+# patch; the job that proposes it runs only git and gh, and refuses a patch
+# that touches anything but the files its job may change.
+#
+# The canary only. Its jobs are skipped in the public repository, which takes
+# finished work by promotion; Dependabot is not used for that reason, as its
+# config would act in both.
+
+name: Upkeep
+
+on:
+  schedule:
+    - cron: "17 6 * * 1" # Mondays, 06:17 UTC
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "One job only: engine, packages or releases. Blank runs all three."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upkeep
+  cancel-in-progress: false
+
+jobs:
+  engine:
+    if: >-
+      github.repository == 'neopolitans/roswaal-canary' &&
+      (github.event_name == 'schedule' || inputs.only == '' || inputs.only == 'engine')
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+    steps:
+      # Every action by the commit it is, as in the other workflows.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+
+      - name: Refresh from Roblox/creator-docs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -o pipefail
+          {
+            npm run --silent build:engine
+            npm run --silent build:members
+            npm run --silent build:properties
+            npm run --silent build:icons
+          } 2>&1 | tee "$RUNNER_TEMP/engine.log"
+
+      - name: Anything new?
+        id: diff
+        run: |
+          if git diff --quiet -- src/core; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "The engine catalogue is as it was."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Test
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          npx tsc --noEmit -p .
+          npm test
+
+      - name: Hand on the change
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/change"
+          git add -A -- src/core
+          git diff --cached --binary -- src/core > "$RUNNER_TEMP/change/change.patch"
+          {
+            echo "The week's refresh of the engine catalogue from [Roblox/creator-docs](https://github.com/Roblox/creator-docs), tested."
+            echo
+            echo '```'
+            grep -E "Studio|classes|members|properties|icons" "$RUNNER_TEMP/engine.log" | head -n 20 || true
+            echo '```'
+            echo
+            echo '```'
+            git diff --cached --stat -- src/core
+            echo '```'
+            echo
+            echo "Merging it is a release: give it a version and a release note, as for any change."
+          } > "$RUNNER_TEMP/change/body.md"
+      - if: steps.diff.outputs.changed == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: engine-change
+          path: ${{ runner.temp }}/change
+
+  propose-engine:
+    needs: engine
+    if: needs.engine.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: engine-change
+          path: ${{ runner.temp }}/change
+      - name: Propose
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/upkeep/propose.sh upkeep/engine "Upkeep: engine catalogue from creator-docs" "$RUNNER_TEMP/change" src/core/
+
+  packages:
+    if: >-
+      github.repository == 'neopolitans/roswaal-canary' &&
+      (github.event_name == 'schedule' || inputs.only == '' || inputs.only == 'packages')
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+
+      # Within each package's current major: a new major is a decision.
+      - name: Update
+        run: |
+          set -o pipefail
+          npx --yes npm-check-updates@17.1.18 --upgrade --target minor 2>&1 | tee "$RUNNER_TEMP/minor.log"
+          npm install --no-audit --no-fund
+
+      - name: Anything new?
+        id: diff
+        run: |
+          if git diff --quiet -- package.json package-lock.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Every package is at the newest release of its major."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Test
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          npx tsc --noEmit -p .
+          npm test
+
+      - name: Hand on the change
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          majors="$(npx --yes npm-check-updates@17.1.18 --target latest 2>&1 | grep -E '→' || true)"
+          mkdir -p "$RUNNER_TEMP/change"
+          git diff --binary -- package.json package-lock.json > "$RUNNER_TEMP/change/change.patch"
+          {
+            echo "The week's package updates, each within its current major, tested."
+            echo
+            echo '```'
+            grep -E '→' "$RUNNER_TEMP/minor.log" || true
+            echo '```'
+            if [ -n "$majors" ]; then
+              echo
+              echo "Newer majors, not taken: each is a decision."
+              echo
+              echo '```'
+              echo "$majors"
+              echo '```'
+            fi
+            echo
+            echo "Merging it is a release: give it a version and a release note, as for any change."
+          } > "$RUNNER_TEMP/change/body.md"
+      - if: steps.diff.outputs.changed == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: packages-change
+          path: ${{ runner.temp }}/change
+
+  propose-packages:
+    needs: packages
+    if: needs.packages.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: packages-change
+          path: ${{ runner.temp }}/change
+      - name: Propose
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/upkeep/propose.sh upkeep/packages "Upkeep: package updates" "$RUNNER_TEMP/change" package.json package-lock.json
+
+  releases:
+    if: >-
+      github.repository == 'neopolitans/roswaal-canary' &&
+      (github.event_name == 'schedule' || inputs.only == '' || inputs.only == 'releases')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+
+      # The script needs no packages: nothing is installed.
+      - name: Look
+        id: watch
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/upkeep/release-watch.mjs > "$RUNNER_TEMP/releases.md"
+
+      # One issue, kept up to date, rather than one a week.
+      - name: Say so
+        if: steps.watch.outputs.newer == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: "Upkeep: upstream releases to look at"
+        run: |
+          open_issue=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "in:title \"$TITLE\"" --json number,title --jq ".[] | select(.title == \"$TITLE\") | .number" | head -n 1)
+          if [ -n "$open_issue" ]; then
+            gh issue edit "$open_issue" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/releases.md"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body-file "$RUNNER_TEMP/releases.md"
+          fi

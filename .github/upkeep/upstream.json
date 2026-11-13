@@ -1,0 +1,35 @@
+{
+	"$comment": "What Roswaal is built from or written for, and the release of each last looked at. The Upkeep workflow's release watch opens an issue when one is newer; once it has been dealt with, raise `seen` here.",
+	"sources": {
+		"luau": {
+			"from": "github:luau-lang/luau",
+			"seen": "0.746",
+			"why": "The language Roswaal writes and reads. New syntax needs the parser (src/core/luau) and the emitter, as if local did."
+		},
+		"lune": {
+			"from": "github:lune-org/lune",
+			"seen": "0.10.5",
+			"why": "The Lune catalogue is built from this tag: LUNE_VERSION in scripts/build-lune.mjs."
+		},
+		"stylua": {
+			"from": "github:JohnnyMorganz/StyLua",
+			"seen": "2.6.0",
+			"why": "Formats the Luau Roswaal writes, when installed. A release can format syntax the last could not."
+		},
+		"rojo": {
+			"from": "github:rojo-rbx/rojo",
+			"seen": "7.7.1",
+			"why": "The project file format node maps compile to."
+		},
+		"wally": {
+			"from": "github:UpliftGames/wally",
+			"seen": "0.3.2",
+			"why": "The registry Add from Wally asks, as Wally-Version 0.3.2 (src/server/wally.ts)."
+		},
+		"material-symbols": {
+			"from": "npm:@material-symbols/svg-400",
+			"seen": "0.48.0",
+			"why": "Class icons are built from this version: MATERIAL in scripts/build-class-icons.mjs."
+		}
+	}
+}
