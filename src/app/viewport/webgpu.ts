@@ -14,6 +14,9 @@ import {
 	backToFront,
 	type Camera,
 	FOV,
+	GLOW_GAIN,
+	GLOW_ROUNDS,
+	glowStep,
 	HANDLE_ALPHA,
 	IMAGE_VERTEX,
 	type ImageLayer,
@@ -36,19 +39,19 @@ const TEXTURE = {
 	TEXTURE_BINDING: 0x4,
 	RENDER_ATTACHMENT: 0x10,
 } as const;
-/** How strong the glow round Neon is, over the frame. */
-const GLOW = 0.7;
 const MAP_READ = 0x1;
 
 /**
  * The glow round what gives light of its own: blurred one way and then the
- * other at a quarter of the view's size, then added over the frame.
+ * other at half the view's size, then added over the finished frame.
  */
 const POST = /* wgsl */ `
 @group(0) @binding(0) var tex: texture_2d<f32>;
 @group(0) @binding(1) var samp: sampler;
-// One texel along the blur, in the source's own units, and how strong the glow is.
+// One step along the blur, in the source's own units, and how strong the glow is.
 @group(0) @binding(2) var<uniform> p: vec4f;
+// The finished frame, for the glow to be added to.
+@group(0) @binding(3) var frame: texture_2d<f32>;
 struct Out { @builtin(position) clip: vec4f, @location(0) uv: vec2f };
 @vertex fn vsFull(@builtin(vertex_index) i: u32) -> Out {
 	let xy = vec2f(f32((i << 1u) & 2u), f32(i & 2u)) * 2.0 - 1.0;
@@ -62,17 +65,21 @@ struct Out { @builtin(position) clip: vec4f, @location(0) uv: vec2f };
 	var w = array<f32, 5>(0.227, 0.194, 0.121, 0.054, 0.016);
 	var c = textureSample(tex, samp, i.uv).rgb * w[0];
 	for (var k = 1; k < 5; k++) {
-		let o = p.xy * f32(k) * 2.5;
+		let o = p.xy * f32(k);
 		c = c + (textureSample(tex, samp, i.uv + o).rgb + textureSample(tex, samp, i.uv - o).rgb) * w[k];
 	}
 	return vec4f(c, 1.0);
 }
-// Twice what the glow holds, as it was halved going in, with a dither under
-// one step of the frame's 8 bits, so its long soft fall does not come out in bands.
-@fragment fn fsAdd(i: Out) -> @location(0) vec4f {
-	let c = textureSample(tex, samp, i.uv).rgb * 2.0 * p.z;
+// The frame with the glow added in linear light: it brightens a lit face by
+// what it adds, as Studio's does, and turns Neon's heart white where its
+// channels run past full. A dither under one step of the frame's 8 bits keeps
+// its long soft fall from coming out in bands.
+@fragment fn fsComposite(i: Out) -> @location(0) vec4f {
+	let f = textureLoad(frame, vec2i(i.clip.xy), 0).rgb;
+	let g = textureSample(tex, samp, i.uv).rgb * p.z;
+	let c = pow(min(pow(f, vec3f(2.2)) + g, vec3f(1.0)), vec3f(1.0 / 2.2));
 	let n = fract(52.9829189 * fract(dot(i.clip.xy, vec2f(0.06711056, 0.00583715)))) - 0.5;
-	return vec4f(max(c + n / 255.0 * step(1.0 / 512.0, max(c.r, max(c.g, c.b))), vec3f(0.0)), 1.0);
+	return vec4f(clamp(c + n / 255.0 * step(1.0 / 512.0, max(g.r, max(g.g, g.b))), vec3f(0.0), vec3f(1.0)), 1.0);
 }
 `;
 
@@ -306,7 +313,8 @@ fn noise3(p: vec3f) -> f32 {
 }
 // A surface in its material: the sun's light and highlight, the sky's fill, a
 // metal's tinted highlight, the material's grain, what it reflects, and the
-// air in front of it. Neon gives its own light; ForceField glows at its rim.
+// air in front of it. Neon is its colour three times over, as Studio's is;
+// ForceField glows at its rim.
 fn surface(i: VOut) -> vec4f {
 	let row = i.look & 255u;
 	let shine = f32((i.look >> 8u) & 255u) / 255.0;
@@ -334,7 +342,7 @@ fn surface(i: VOut) -> vec4f {
 	var alpha = i.alpha;
 	var c: vec3f;
 	if (b.y > 0.5 && b.y < 1.5) {
-		c = albedo * 2.4;
+		c = albedo * 3.0;
 	} else if (b.y > 2.5) {
 		let rim = pow(1.0 - abs(dot(n, v)), 2.0);
 		c = albedo * (0.6 + rim * 2.5);
@@ -357,19 +365,12 @@ fn surface(i: VOut) -> vec4f {
 	}
 	return vec4f(air(c, d, i.world.y), alpha);
 }
-// What gives light of its own, for the glow round it: Neon, and CrackedLava's
-// cracks. In display terms, as the frame it is added to is: blurred and added
-// as linear light it shifted hue and fell away in a dark band at a glowing
-// part's edge. Halved, so the glow's 8 bits a channel hold up to twice full.
-fn emission(i: VOut) -> vec3f {
-	let e = pow(light(i), vec3f(1.0 / 2.2));
-	// Neon's glow evened out by how bright its colour looks, so a red blooms as far as a cyan.
-	let neon = u.mats[(i.look & 255u) * 3u + 1u].y;
-	let seen = dot(e, vec3f(0.2126, 0.7152, 0.0722));
-	let even = select(1.0, clamp(0.8 / max(seen, 0.05), 1.0, 1.8), neon > 0.5 && neon < 1.5);
-	return e * even * 0.5;
-}
-fn light(i: VOut) -> vec3f {
+// What gives light of its own, for the glow round it, in linear light. Neon
+// as measured in Studio: each channel of its colour, three times over, glows
+// by how far it runs past half full, easing off towards full, so red glows
+// red and olive a greener yellow than itself; and a dark colour, as dark
+// blue, not at all. CrackedLava's cracks glow a little.
+fn glowSource(i: VOut) -> vec3f {
 	let row = i.look & 255u;
 	let b = u.mats[row * 3u + 1u];
 	let tex = u.mats[row * 3u + 2u];
@@ -377,22 +378,25 @@ fn light(i: VOut) -> vec3f {
 	let layer = i32(b.w) - 1;
 	// Sampled before any branch: WGSL samples only in uniform control flow.
 	let look = textureSample(looks, lookSampler, uv / tex.x, max(layer, 0));
-	if (b.y > 0.5 && b.y < 1.5) { return min(i.colour, vec3f(1.0)); }
-	if (tex.z > 0.5 && layer >= 0) { return min(lavaLight(look.g), vec3f(1.0)); }
-	if (u32(b.z) == 14u) { return min(lavaLight(pattern(14u, uv, b.x).z), vec3f(1.0)); }
+	if (b.y > 0.5 && b.y < 1.5) {
+		let e = i.colour * 3.0;
+		let seen = dot(min(e, vec3f(1.0)), vec3f(0.2126, 0.7152, 0.0722));
+		return (1.0 - exp(-2.0 * max(e - 0.5, vec3f(0.0)))) * smoothstep(0.05, 0.15, seen);
+	}
+	if (tex.z > 0.5 && layer >= 0) { return min(lavaLight(look.g), vec3f(1.0)) * 0.2; }
+	if (u32(b.z) == 14u) { return min(lavaLight(pattern(14u, uv, b.x).z), vec3f(1.0)) * 0.2; }
 	return vec3f(0.0);
 }
-@fragment fn fsGlow(i: VOut) -> @location(0) vec4f { return vec4f(emission(i), 1.0); }
-@fragment fn fsGlowSeen(i: VOut) -> @location(0) vec4f { return vec4f(emission(i) * i.alpha, 1.0); }
-// A solid Neon part marks itself with no alpha, so the glow is added round it
-// and not over it: blurred, the glow is weaker at a face's edges and weaker
-// again at its corners, and over the part it showed as a shadow there. Drawn
-// one even shade, the part meets its glow at its outline, as Studio's does.
+@fragment fn fsGlow(i: VOut) -> @location(0) vec4f { return vec4f(glowSource(i), 1.0); }
+// A see-through part over what glows behind it, as it lies over it in the frame.
+@fragment fn fsGlowSeen(i: VOut) -> @location(0) vec4f { return vec4f(glowSource(i) * i.alpha, i.alpha); }
+// Neon past the display curve, each channel capped: Studio's red Neon is pure
+// red, and its dark blue three times as bright as its colour.
 @fragment fn fs(i: VOut) -> @location(0) vec4f {
 	let s = surface(i);
 	let shade = u.mats[(i.look & 255u) * 3u + 1u].y;
-	let glows = shade > 0.5 && shade < 1.5 && s.a > 0.999;
-	return vec4f(display(s.rgb), select(s.a, 0.0, glows));
+	let neon = shade > 0.5 && shade < 1.5;
+	return vec4f(select(display(s.rgb), pow(min(s.rgb, vec3f(1.0)), vec3f(1.0 / 2.2)), neon), s.a);
 }
 // The sky behind everything: a triangle that covers the screen, each pixel's ray worked out from where it is.
 struct SOut { @builtin(position) clip: vec4f, @location(0) ndc: vec2f };
@@ -492,6 +496,10 @@ struct IOut {
 	let d = length(u.camPos.xyz - i.world);
 	return vec4f(display(air(c, d, i.world.y)), t.a * i.tint.a);
 }
+// A Decal or Texture in the glow's pass: it covers what glows beneath it.
+@fragment fn fsImageVeil(i: IOut) -> @location(0) vec4f {
+	return vec4f(0.0, 0.0, 0.0, textureSample(image, imageSampler, i.uv).a * i.tint.a);
+}
 `;
 
 interface Draw {
@@ -536,15 +544,20 @@ export class WebGpuView implements ViewRenderer {
 	private glassDepth!: GPURenderPipeline;
 	private glassBlended!: GPURenderPipeline;
 	private glowGlassDepth!: GPURenderPipeline;
-	// The glow: what gives light drawn small, blurred, and added over the frame.
+	// The glow: what gives light drawn small, blurred, and added over the
+	// finished frame, which is drawn into its own texture first for it.
 	private glowing = false;
 	private glowSolid!: GPURenderPipeline;
 	private glowSeen!: GPURenderPipeline;
+	private imageVeil!: GPURenderPipeline;
 	private blur!: GPURenderPipeline;
-	private add!: GPURenderPipeline;
+	private composite!: GPURenderPipeline;
 	private postLayout!: GPUBindGroupLayout;
+	private compositeLayout!: GPUBindGroupLayout;
+	private compositeGroup?: GPUBindGroup;
 	private sampler!: GPUSampler;
 	private postParams: GPUBuffer[] = [];
+	private frame?: GPUTexture;
 	private glow?: {
 		a: GPUTexture;
 		b: GPUTexture;
@@ -833,14 +846,16 @@ export class WebGpuView implements ViewRenderer {
 			primitive: { topology: "triangle-list", cullMode: "back" },
 			depthStencil: depth,
 		});
-		const adding = {
-			color: { srcFactor: "one" as const, dstFactor: "one" as const },
-			alpha: { srcFactor: "one" as const, dstFactor: "one" as const },
+		// Over what is behind it, as in the frame: what glows behind a
+		// see-through part is dimmed by it, and a see-through Neon part adds its own.
+		const over = {
+			color: { srcFactor: "one" as const, dstFactor: "one-minus-src-alpha" as const },
+			alpha: { srcFactor: "one" as const, dstFactor: "one-minus-src-alpha" as const },
 		};
 		this.glowSeen = d.createRenderPipeline({
 			layout: pipelineLayout,
 			vertex: { module, entryPoint: "vs", buffers },
-			fragment: { module, entryPoint: "fsGlowSeen", targets: [{ ...glowTarget, blend: adding }] },
+			fragment: { module, entryPoint: "fsGlowSeen", targets: [{ ...glowTarget, blend: over }] },
 			primitive: { topology: "triangle-list", cullMode: "back" },
 			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "greater" },
 		});
@@ -851,13 +866,37 @@ export class WebGpuView implements ViewRenderer {
 			primitive: { topology: "triangle-list", cullMode: "back" },
 			depthStencil: depth,
 		});
+		// Decals and Textures in the glow's pass: what they cover glows no more.
+		this.imageVeil = d.createRenderPipeline({
+			layout: d.createPipelineLayout({ bindGroupLayouts: [layout, this.imageLayout] }),
+			vertex: {
+				module,
+				entryPoint: "vsImage",
+				buffers: [
+					{
+						arrayStride: IMAGE_VERTEX * 4,
+						attributes: [
+							{ shaderLocation: 0, offset: 0, format: "float32x3" },
+							{ shaderLocation: 1, offset: 12, format: "float32x3" },
+							{ shaderLocation: 2, offset: 24, format: "float32x2" },
+							{ shaderLocation: 3, offset: 32, format: "float32x4" },
+						],
+					},
+				],
+			},
+			fragment: { module, entryPoint: "fsImageVeil", targets: [{ ...glowTarget, blend: over }] },
+			primitive: { topology: "triangle-list", cullMode: "back" },
+			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "greater" },
+		});
 		const post = d.createShaderModule({ code: POST });
-		this.postLayout = d.createBindGroupLayout({
-			entries: [
-				{ binding: 0, visibility: STAGE.FRAGMENT, texture: {} },
-				{ binding: 1, visibility: STAGE.FRAGMENT, sampler: {} },
-				{ binding: 2, visibility: STAGE.FRAGMENT, buffer: {} },
-			],
+		const postEntries: GPUBindGroupLayoutEntry[] = [
+			{ binding: 0, visibility: STAGE.FRAGMENT, texture: {} },
+			{ binding: 1, visibility: STAGE.FRAGMENT, sampler: {} },
+			{ binding: 2, visibility: STAGE.FRAGMENT, buffer: {} },
+		];
+		this.postLayout = d.createBindGroupLayout({ entries: postEntries });
+		this.compositeLayout = d.createBindGroupLayout({
+			entries: [...postEntries, { binding: 3, visibility: STAGE.FRAGMENT, texture: {} }],
 		});
 		const postPipeline = d.createPipelineLayout({ bindGroupLayouts: [this.postLayout] });
 		this.blur = d.createRenderPipeline({
@@ -866,25 +905,12 @@ export class WebGpuView implements ViewRenderer {
 			fragment: { module: post, entryPoint: "fsBlur", targets: [glowTarget] },
 			primitive: { topology: "triangle-list" },
 		});
-		this.add = d.createRenderPipeline({
-			layout: postPipeline,
+		this.composite = d.createRenderPipeline({
+			layout: d.createPipelineLayout({ bindGroupLayouts: [this.compositeLayout] }),
 			vertex: { module: post, entryPoint: "vsFull" },
-			fragment: {
-				module: post,
-				entryPoint: "fsAdd",
-				// Over what the frame has marked as not glowing itself: its alpha.
-				targets: [
-					{
-						format: this.format,
-						blend: {
-							color: { srcFactor: "dst-alpha", dstFactor: "one" },
-							alpha: { srcFactor: "zero", dstFactor: "one" },
-						},
-					},
-				],
-			},
+			fragment: { module: post, entryPoint: "fsComposite", targets: [{ format: this.format }] },
 			primitive: { topology: "triangle-list" },
-			// In the frame's own pass: see draw.
+			// Under the selection and the handles, in their pass: see draw.
 			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "always" },
 			multisample: { count: SAMPLES },
 		});
@@ -1032,7 +1058,8 @@ export class WebGpuView implements ViewRenderer {
 	resize(width: number, height: number): void {
 		this.width = Math.max(1, width);
 		this.height = Math.max(1, height);
-		for (const t of [this.msaa, this.depth, this.pickTarget, this.pickDepth]) t?.destroy();
+		for (const t of [this.msaa, this.depth, this.pickTarget, this.pickDepth, this.frame])
+			t?.destroy();
 		const size = [this.width, this.height];
 		const d = this.device;
 		this.msaa = d.createTexture({
@@ -1047,6 +1074,12 @@ export class WebGpuView implements ViewRenderer {
 			format: "depth32float",
 			usage: TEXTURE.RENDER_ATTACHMENT,
 		});
+		// The place drawn and resolved, for the glow to be added to.
+		this.frame = d.createTexture({
+			size,
+			format: this.format,
+			usage: TEXTURE.RENDER_ATTACHMENT | TEXTURE.TEXTURE_BINDING,
+		});
 		this.pickTarget = d.createTexture({
 			size,
 			format: "r32uint",
@@ -1058,12 +1091,21 @@ export class WebGpuView implements ViewRenderer {
 			usage: TEXTURE.RENDER_ATTACHMENT,
 		});
 		this.sizeGlow();
+		this.compositeGroup = d.createBindGroup({
+			layout: this.compositeLayout,
+			entries: [
+				{ binding: 0, resource: this.glow!.a.createView() },
+				{ binding: 1, resource: this.sampler },
+				{ binding: 2, resource: { buffer: this.postParams[2] } },
+				{ binding: 3, resource: this.frame.createView() },
+			],
+		});
 	}
 
-	/** The glow's targets, a quarter of the view's size, and what reads them. */
+	/** The glow's targets, half the view's size, and what reads them. */
 	private sizeGlow(): void {
-		const w = Math.max(1, Math.round(this.width / 4));
-		const h = Math.max(1, Math.round(this.height / 4));
+		const w = Math.max(1, Math.round(this.width / 2));
+		const h = Math.max(1, Math.round(this.height / 2));
 		if (this.glow && this.glow.w === w && this.glow.h === h) return;
 		const d = this.device;
 		for (const t of [this.glow?.a, this.glow?.b, this.glow?.depth]) t?.destroy();
@@ -1080,9 +1122,10 @@ export class WebGpuView implements ViewRenderer {
 			format: "depth32float",
 			usage: TEXTURE.RENDER_ATTACHMENT,
 		});
-		d.queue.writeBuffer(this.postParams[0], 0, new Float32Array([1 / w, 0, 0, 0]));
-		d.queue.writeBuffer(this.postParams[1], 0, new Float32Array([0, 1 / h, 0, 0]));
-		d.queue.writeBuffer(this.postParams[2], 0, new Float32Array([0, 0, GLOW, 0]));
+		const step = glowStep(h);
+		d.queue.writeBuffer(this.postParams[0], 0, new Float32Array([step / w, 0, 0, 0]));
+		d.queue.writeBuffer(this.postParams[1], 0, new Float32Array([0, step / h, 0, 0]));
+		d.queue.writeBuffer(this.postParams[2], 0, new Float32Array([0, 0, GLOW_GAIN, 0]));
 		const group = (tex: GPUTexture, params: GPUBuffer) =>
 			d.createBindGroup({
 				layout: this.postLayout,
@@ -1092,16 +1135,15 @@ export class WebGpuView implements ViewRenderer {
 					{ binding: 2, resource: { buffer: params } },
 				],
 			});
-		// A across into B, B down into A, and A added over the frame.
-		const groups = [
-			group(a, this.postParams[0]),
-			group(b, this.postParams[1]),
-			group(a, this.postParams[2]),
-		];
+		// A across into B, and B down into A, which is added over the frame.
+		const groups = [group(a, this.postParams[0]), group(b, this.postParams[1])];
 		this.glow = { a, b, depth, groups, w, h };
 	}
 
-	/** The place drawn small in the light it gives off, then blurred both ways. */
+	/**
+	 * The place drawn small in the light it gives off, under the see-through
+	 * parts and the Decals and Textures that cover it, then blurred both ways.
+	 */
 	private drawGlow(encoder: GPUCommandEncoder): void {
 		const glow = this.glow;
 		if (!glow) return;
@@ -1132,9 +1174,9 @@ export class WebGpuView implements ViewRenderer {
 			pass.setPipeline(this.glowSeen);
 			this.solids(pass, this.clear);
 		}
+		this.veilImages(pass);
 		pass.end();
-		// Three times each way, for a glow wider than nine taps.
-		for (let round = 0; round < 3; round++)
+		for (let round = 0; round < GLOW_ROUNDS; round++)
 			for (const [from, into] of [
 				[0, glow.b],
 				[1, glow.a],
@@ -1188,15 +1230,16 @@ export class WebGpuView implements ViewRenderer {
 		this.setCamera(camera);
 		const encoder = this.device.createCommandEncoder();
 		const screen = this.context.getCurrentTexture().createView();
-		if (this.glowing) {
+		const glow = this.glowing && this.glow ? this.compositeGroup : undefined;
+		if (glow) {
 			if (this.clear.length > 0) this.sortClear(camera.eye);
 			this.drawGlow(encoder);
 		}
-		const pass = encoder.beginRenderPass({
+		let pass = encoder.beginRenderPass({
 			colorAttachments: [
 				{
 					view: this.msaa!.createView(),
-					resolveTarget: screen,
+					resolveTarget: glow ? this.frame!.createView() : screen,
 					clearValue: { r: 0.56, g: 0.71, b: 0.86, a: 1 },
 					loadOp: "clear",
 					storeOp: "discard",
@@ -1206,7 +1249,7 @@ export class WebGpuView implements ViewRenderer {
 				view: this.depth!.createView(),
 				depthClearValue: 0,
 				depthLoadOp: "clear",
-				depthStoreOp: "discard",
+				depthStoreOp: glow ? "store" : "discard",
 			},
 		});
 		pass.setBindGroup(0, this.bind);
@@ -1228,15 +1271,31 @@ export class WebGpuView implements ViewRenderer {
 		}
 		// Over the see-through parts they are on.
 		this.drawImages(pass, "seeThrough", camera.eye);
-		// The glow is part of the place: what marks the place is drawn over it.
-		if (this.glowing && this.glow) {
-			pass.setPipeline(this.add);
-			pass.setBindGroup(0, this.glow.groups[2]);
+		// The glow is part of the place, added once the place is drawn; what
+		// marks the place goes over it, against the place's own depth.
+		if (glow) {
+			pass.end();
+			pass = encoder.beginRenderPass({
+				colorAttachments: [
+					{
+						view: this.msaa!.createView(),
+						resolveTarget: screen,
+						clearValue: { r: 0, g: 0, b: 0, a: 1 },
+						loadOp: "clear",
+						storeOp: "discard",
+					},
+				],
+				depthStencilAttachment: {
+					view: this.depth!.createView(),
+					depthLoadOp: "load",
+					depthStoreOp: "discard",
+				},
+			});
+			pass.setPipeline(this.composite);
+			pass.setBindGroup(0, glow);
 			pass.draw(3);
 			pass.setBindGroup(0, this.bind);
 		}
-		// Over the glow of the Neon parts they are on.
-		this.drawImages(pass, "glow", camera.eye);
 		if (this.selection) {
 			pass.setPipeline(this.hideBehind ? this.linesBehind : this.lines);
 			pass.setVertexBuffer(0, this.edges.vertices);
@@ -1321,6 +1380,19 @@ export class WebGpuView implements ViewRenderer {
 			}
 			pass.draw(6, 1, q * 6);
 		}
+	}
+
+	/** Every image whose texture has arrived, over what glows, in the glow's pass. */
+	private veilImages(pass: GPURenderPassEncoder): void {
+		if (!this.imageVertices || this.imageList.length === 0) return;
+		pass.setPipeline(this.imageVeil);
+		pass.setVertexBuffer(0, this.imageVertices);
+		this.imageList.forEach((quad, q) => {
+			const held = this.imageGroups.get(quad.asset);
+			if (!held) return;
+			pass.setBindGroup(1, held.group);
+			pass.draw(6, 1, q * 6);
+		});
 	}
 
 	private looks!: GPUTexture;

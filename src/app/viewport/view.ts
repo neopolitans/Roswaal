@@ -64,7 +64,26 @@ export interface ViewRenderer {
 export const IMAGE_VERTEX = 12;
 
 /** When an image is drawn: see `SceneImage.layer`. */
-export type ImageLayer = "solid" | "seeThrough" | "glow";
+export type ImageLayer = "solid" | "seeThrough";
+
+/**
+ * Neon's glow, as measured in Studio: blurred this wide, as a share of the
+ * view's height, and added over the finished frame in linear light at this
+ * strength, so a face's own edge glows half as bright again as its colour.
+ */
+export const GLOW_SPREAD = 0.0134;
+export const GLOW_GAIN = 2.6;
+/** How many times the glow is blurred each way. */
+export const GLOW_ROUNDS = 2;
+
+/**
+ * How far apart the blur's taps are, in the glow's texels, for a glow drawn
+ * at half the view's size and `high` texels high. The nine taps' weights are a
+ * Gaussian 1.79 taps wide, and each round widens it by the square root.
+ */
+export function glowStep(high: number): number {
+	return (GLOW_SPREAD * high) / (1.79 * Math.sqrt(GLOW_ROUNDS));
+}
 
 /** One Decal or Texture quad, for ordering: its image, its layer and its middle. */
 export interface ImageQuad {

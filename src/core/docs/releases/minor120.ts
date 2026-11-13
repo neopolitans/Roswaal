@@ -9,9 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.241.0",
+		date: "2026-11-13",
+		headline: "Neon in the place viewer glows as it does in Studio.",
+		changed: [
+			"**Neon glows as Studio's does.** Its face is brighter, its middle turns white where its colour runs past full, and its glow takes the colour of its brightest channels. A dark Neon colour does not glow.",
+			"**A Decal or Texture over Neon covers its glow**, as does a see-through part in front of it. Only the Neon left showing glows.",
+			"**The glow brightens what is near it** by as much as Studio's does, on light faces as well as dark.",
+		],
+	},
+	{
 		version: "0.240.1",
 		date: "2026-11-13",
-		headline: "Decals and Textures on Neon and see-through parts, and on top faces, are drawn as Studio draws them.",
+		headline:
+			"Decals and Textures on Neon and see-through parts, and on top faces, are drawn as Studio draws them.",
 		fixed: [
 			"**The nearest Decal or Texture is in front.** Images are drawn farthest first, so one behind no longer shows through one nearer.",
 			"**Images on see-through parts are drawn over them**, and images on Neon parts over their glow.",
@@ -21,7 +32,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.240.0",
 		date: "2026-11-13",
-		headline: "The place viewer draws Decals and Textures, from images Sign in with Roblox downloads.",
+		headline:
+			"The place viewer draws Decals and Textures, from images Sign in with Roblox downloads.",
 		added: [
 			"**Decals and Textures in the place viewer.** Signed in with Roblox through `roswaal serve`, a Decal stretches its image over its part's face and a Texture tiles it by StudsPerTile and OffsetStuds, in its Color3 and Transparency, lit as the face is. Each image is downloaded once into the project. Until then, and on the website, the face is its part's colour.",
 		],
@@ -29,7 +41,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.239.0",
 		date: "2026-11-13",
-		headline: "Panels in the toolbar, New graph and New node map on each folder, and Services picked from a list.",
+		headline:
+			"Panels in the toolbar, New graph and New node map on each folder, and Services picked from a list.",
 		added: [
 			"**Panels, in the toolbar.** Every panel, each with its icon: choose one to show or hide it, or bring back one you closed. A panel with nothing to show yet is greyed out. On a phone it is in More.",
 			"**New graph and New node map on each folder.** Point at a folder under `.roswaal` in the Project panel and its two buttons appear, making the graph or map in that folder without opening or shutting it.",
@@ -58,7 +71,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.238.0",
 		date: "2026-11-13",
-		headline: "Sign in with Roblox can download the assets a place uses, and keeps them only as long as needed.",
+		headline:
+			"Sign in with Roblox can download the assets a place uses, and keeps them only as long as needed.",
 		added: [
 			"**Downloads through Sign in with Roblox**, for the place viewer to draw. They are kept in the project's `.roswaal/assets` folder, which keeps itself out of Git, and are fetched only from Roblox's own download servers. Anything Roblox made is never downloaded.",
 			"**Downloaded assets, in Settings › Extended Features**, says how many the open project holds and clears them. Any not used for 30 days are deleted by themselves, and signing out deletes every project's.",
@@ -99,7 +113,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.236.3",
 		date: "2026-11-13",
-		headline: "Attributions uses the Terms' definitions, and the Terms and Privacy Policy are verified again.",
+		headline:
+			"Attributions uses the Terms' definitions, and the Terms and Privacy Policy are verified again.",
 		changed: [
 			"**Attributions defines Roswaal, Roblox and the Luau Team** as the Terms of Service do, and says Roswaal is not made by, endorsed by, affiliated with or approved by the Luau Team. ATTRIBUTIONS.md says the same.",
 			"**The Terms of Service and Privacy Policy are verified** as of 13 November 2026.",
@@ -108,7 +123,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.236.2",
 		date: "2026-11-13",
-		headline: "The Terms of Service define their terms, and the daemon's key never travels in an address.",
+		headline:
+			"The Terms of Service define their terms, and the daemon's key never travels in an address.",
 		changed: [
 			"**The Terms of Service open with Definitions**, among them the Luau Team: an internal team of Roblox Corporation dedicated to the research, development and maintenance of the Luau language.",
 			"**The Terms say Roswaal is not made by, endorsed by, affiliated with or approved by the Luau Team.**",
@@ -135,14 +151,13 @@ export const RELEASES_0_120: Release[] = [
 			"**Settings › Extended Features.** Parts of Roswaal you can turn off, each with a short description and a checkbox, as Studio lists its Beta Features. The first is the place viewer.",
 			"**The place viewer can be turned off.** Off, its 3D view is never loaded, which saves memory in the browser, and a place's tab says so with a button to turn it back on. The DataModel tree and Properties still work.",
 		],
-		changed: [
-			"**The place viewer loads when a place's tab first opens**, not with the editor.",
-		],
+		changed: ["**The place viewer loads when a place's tab first opens**, not with the editor."],
 	},
 	{
 		version: "0.235.0",
 		date: "2026-11-13",
-		headline: "The editor points to the Terms and Privacy Policy, and the Terms say who Roswaal is for.",
+		headline:
+			"The editor points to the Terms and Privacy Policy, and the Terms say who Roswaal is for.",
 		added: [
 			"**A notice of the Terms of Service and Privacy Policy.** The editor and Node Design show it on your first visit, and again when either changes, with a link to each.",
 			"**The Terms of Service say who Roswaal is for.** It is designed primarily for people aged 18 and over; if you are younger, ask a parent or guardian, and read the terms together first.",

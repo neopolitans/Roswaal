@@ -99,10 +99,11 @@ export interface SceneImage {
 	/** 1 - Transparency. */
 	alpha: number;
 	/**
-	 * When it is drawn: with the solid parts; after the see-through parts, as
-	 * its part is one; or after Neon's glow, which would otherwise cover it.
+	 * When it is drawn: with the solid parts, or after the see-through parts,
+	 * as its part is one. Either way before Neon's glow is added, which an
+	 * image over Neon dims as it covers it.
 	 */
-	layer?: "solid" | "seeThrough" | "glow";
+	layer?: "solid" | "seeThrough";
 }
 
 const PARTS = new Set([
@@ -305,12 +306,7 @@ export function buildPlaceScene(
 		const through = alpha < 255 || MATERIALS[material].shade === MATERIAL_SHADE.forceField;
 		// Decals and Textures: on a block or a mesh, which are drawn as their box.
 		if ((kind === "block" || kind === "mesh") && !modifier) {
-			const layer: SceneImage["layer"] =
-				MATERIALS[material].shade === MATERIAL_SHADE.neon
-					? "glow"
-					: through
-						? "seeThrough"
-						: "solid";
+			const layer: SceneImage["layer"] = through ? "seeThrough" : "solid";
 			for (const image of faceImages(inst, id, r, cf.position, size))
 				images.push({ ...image, layer });
 		}

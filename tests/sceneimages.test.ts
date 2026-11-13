@@ -137,7 +137,7 @@ describe("M103", () => {
 describe("the images' triangles", () => {
 	it("are six vertices a quad in the scene's order, each position, normal, uv and tint", async () => {
 		const { imageQuads, IMAGE_VERTEX } = await import("../src/app/viewport/view.js");
-		const quad = (asset: string, z: number, layer?: "solid" | "seeThrough" | "glow") => ({
+		const quad = (asset: string, z: number, layer?: "solid" | "seeThrough") => ({
 			asset,
 			part: 1,
 			corners: [0, 1, z, 1, 1, z, 1, 0, z, 0, 0, z],
@@ -147,10 +147,14 @@ describe("the images' triangles", () => {
 			alpha: 0.5,
 			layer,
 		});
-		const { vertices, quads } = imageQuads([quad("a", 1), quad("b", 2, "glow"), quad("a", 3)]);
+		const { vertices, quads } = imageQuads([
+			quad("a", 1),
+			quad("b", 2, "seeThrough"),
+			quad("a", 3),
+		]);
 		expect(quads.map((q) => [q.asset, q.layer, q.centre])).toEqual([
 			["a", "solid", [0.5, 0.5, 1]],
-			["b", "glow", [0.5, 0.5, 2]],
+			["b", "seeThrough", [0.5, 0.5, 2]],
 			["a", "solid", [0.5, 0.5, 3]],
 		]);
 		expect(vertices.length).toBe(18 * IMAGE_VERTEX);
@@ -162,15 +166,15 @@ describe("the images' triangles", () => {
 
 	it("are drawn farthest first within their layer, only once their image is here", async () => {
 		const { imageOrder } = await import("../src/app/viewport/view.js");
-		const at = (asset: string, z: number, layer: "solid" | "seeThrough" | "glow" = "solid") => ({
+		const at = (asset: string, z: number, layer: "solid" | "seeThrough" = "solid") => ({
 			asset,
 			layer,
 			centre: [0, 0, z],
 		});
-		const quads = [at("a", 1), at("b", 5), at("a", 3), at("c", 9), at("a", 7, "glow")];
+		const quads = [at("a", 1), at("b", 5), at("a", 3), at("c", 9), at("a", 7, "seeThrough")];
 		expect(imageOrder(quads, "solid", [0, 0, 0], () => true)).toEqual([3, 1, 2, 0]);
 		expect(imageOrder(quads, "solid", [0, 0, 0], (a) => a !== "c")).toEqual([1, 2, 0]);
-		expect(imageOrder(quads, "glow", [0, 0, 0], () => true)).toEqual([4]);
+		expect(imageOrder(quads, "seeThrough", [0, 0, 0], () => true)).toEqual([4]);
 	});
 });
 
