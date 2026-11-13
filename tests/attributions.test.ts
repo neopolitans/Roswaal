@@ -298,8 +298,12 @@ describe("the Luau mark, used with the Luau team's permission", () => {
 
 	it("is described with the permission, and with who does not make Roswaal", () => {
 		for (const text of [NOTICE, pageText]) {
-			expect(text).toContain("used with the Luau team's permission");
-			expect(text).toContain("Roswaal is not made by the Luau team");
+			expect(text).toContain("used with the Luau Team's permission");
+			expect(text).toContain(
+				"Roswaal is not made by, endorsed by, affiliated with or approved by the Luau Team",
+			);
+			// Bold in the file, and plain once the page's markup is stripped.
+			expect(text).toMatch(/(\*\*)?Luau Team(\*\*)? means an internal team of Roblox Corporation/);
 			expect(text).not.toContain("canary build only");
 		}
 	});

@@ -64,22 +64,32 @@ const SERVICES = [
 	`**Roblox** is where Sign in with Roblox and asset downloads go, through its [Open Cloud API](${ROBLOX.openCloud}). [Roblox Terms of Use](${ROBLOX.terms}) · [Creator Third Party App Terms](${ROBLOX.appTerms}) · [Creator Third Party App Policy](${ROBLOX.appPolicy}) · [Roblox Privacy and Cookie Policy](${ROBLOX.privacy}).`,
 ];
 /**
- * The Terms of Service's defined terms, at its top as Roblox's own Terms of
- * Use has them. Each is a name the page uses, said once so it means one thing
- * everywhere it appears.
+ * The defined terms, said once so each means one thing everywhere it appears:
+ * all of them at the top of the Terms of Service, as Roblox's own Terms of
+ * Use has them, and the ones it uses on the Attributions page.
  */
-const DEFINITIONS = [
-	"**Roswaal** means the visual scripting editor, its command line and Daemon, the Website, and its documentation.",
-	"**Daemon** means the background process that `roswaal serve` runs on your computer, which the editor talks to.",
-	"**Website** means [roswaal.app](https://roswaal.app), its preview at canary.roswaal.app, and its backup at neopolitans.github.io/Roswaal.",
-	"**You** means anyone who uses Roswaal.",
-	"**Your Work** means the graphs, scripts, places and other files you make with Roswaal.",
-	"**Roblox** means Roblox Corporation, and the platform and services it runs.",
-	"**Luau Team** means an internal team of Roblox Corporation dedicated to the research, development and maintenance of the Luau language.",
-	"**Sign in with Roblox** means Roswaal's optional sign-in through Roblox, used to download the assets your places use.",
-	"**Downloaded Assets** means the meshes, images and other assets Roswaal downloads for you through Sign in with Roblox.",
-	"**Services** means the third-party services Roswaal relies on, listed under Services Roswaal uses.",
-];
+export const DEFINED = {
+	Roswaal:
+		"**Roswaal** means the visual scripting editor, its command line and Daemon, the Website, and its documentation.",
+	Daemon:
+		"**Daemon** means the background process that `roswaal serve` runs on your computer, which the editor talks to.",
+	Website:
+		"**Website** means [roswaal.app](https://roswaal.app), its preview at canary.roswaal.app, and its backup at neopolitans.github.io/Roswaal.",
+	You: "**You** means anyone who uses Roswaal.",
+	"Your Work":
+		"**Your Work** means the graphs, scripts, places and other files you make with Roswaal.",
+	Roblox: "**Roblox** means Roblox Corporation, and the platform and services it runs.",
+	"Luau Team":
+		"**Luau Team** means an internal team of Roblox Corporation dedicated to the research, development and maintenance of the Luau language.",
+	"Sign in with Roblox":
+		"**Sign in with Roblox** means Roswaal's optional sign-in through Roblox, used to download the assets your places use.",
+	"Downloaded Assets":
+		"**Downloaded Assets** means the meshes, images and other assets Roswaal downloads for you through Sign in with Roblox.",
+	Services:
+		"**Services** means the third-party services Roswaal relies on, listed under Services Roswaal uses.",
+} as const;
+
+const DEFINITIONS = Object.values(DEFINED);
 
 const CONTACT = `Questions about this page go to [roswaal-feedback](${FEEDBACK_REPOSITORY}/issues/new).`;
 

@@ -7,6 +7,14 @@ table, by rights holder.
 **Roswaal is not affiliated with, endorsed by, or approved by anyone listed here.**
 Trademarks belong to their owners, and are named only to say what something is.
 
+## Definitions
+
+Here, as in the [Terms of Service](https://roswaal.app/terms):
+
+- **Roswaal** means the visual scripting editor, its command line and Daemon, the Website, and its documentation.
+- **Roblox** means Roblox Corporation, and the platform and services it runs.
+- **Luau Team** means an internal team of Roblox Corporation dedicated to the research, development and maintenance of the Luau language.
+
 The same list is a page in the documentation, **Attributions**, under Learn, where it can
 be searched and filtered and each licence Roswaal carries opens in full.
 `tests/attributions.test.ts` checks that neither copy lists something the other does not.
@@ -48,7 +56,7 @@ ships.
 | Marijn Haverbeke and contributors | [CodeMirror 6](https://codemirror.net/) | Included | MIT | Its code editor, source view and licence viewer are built on it. | The editor bundle; licence in `THIRD-PARTY-NOTICES.txt` |
 | OpenJS Foundation and Node.js contributors | [Node.js](https://nodejs.org/) | Included | MIT | The release binaries contain the Node.js runtime. | Release binaries; its licence in `THIRD-PARTY-NOTICES.txt` in each zip |
 | PUC-Rio | [Lua](https://www.lua.org/) | Works with | None needed | Luau, which Roswaal writes, is based on Lua. | Nothing of theirs ships. PUC-Rio's copyright line is in the Luau logo's licence. |
-| Roblox Corporation | [Luau](https://luau.org/) | Written for | MIT (the logo) | Writes Luau code; this file is the attribution Luau asks for. Roswaal is not made by the Luau team. | The `.luau` file icon is the Luau logo, carried with its licence and used with the Luau team's permission. |
+| Roblox Corporation | [Luau](https://luau.org/) | Written for | MIT (the logo) | Writes Luau code; this file is the attribution Luau asks for. Roswaal is not made by, endorsed by, affiliated with or approved by the Luau Team. | The `.luau` file icon is the Luau logo, carried with its licence and used with the Luau Team's permission. |
 | Roblox Corporation | [Roblox](https://create.roblox.com/docs) | Written for | None needed | Compiles to Luau that Roblox runs, and names the engine's classes, enums and services. | Nothing of theirs ships. |
 | Roblox Corporation | [Roblox Creator Documentation](https://github.com/Roblox/creator-docs) | Quoted | CC-BY-4.0 | Shows one-sentence summaries of the engine's API. Changed: shortened, and markup removed. | `src/core/robloxEngine.json`, `src/core/robloxMembers.ts`; licence in `notices/upstream/creator-docs.txt` |
 | Roblox Corporation | [Roblox place and model files](https://create.roblox.com/docs/studio) | Works with | None needed | Reads and writes .rbxl, .rbxm, .rbxlx and .rbxmx files with code of its own, worked out by changing files in Roblox Studio, reading them back, and opening them again; [rbx-dom describes the binary format](https://dom.rojo.space/binary) publicly. | Nothing of theirs ships. |

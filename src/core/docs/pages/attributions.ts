@@ -4,6 +4,7 @@
 
 import { HOW_IT_IS_MADE, NAME_NOTICE, NOT_AFFILIATED } from "../attributions.js";
 import type { Block, DocPage } from "../site.js";
+import { DEFINED } from "./legal.js";
 
 /**
  * Who made what Roswaal is built on, and what it is named after.
@@ -30,6 +31,9 @@ export function attributionsPage(): DocPage {
 				`**${NOT_AFFILIATED}** Trademarks belong to their owners, and are named only to say ` +
 				"what something is.",
 		},
+		{ t: "h", level: 2, text: "Definitions" },
+		{ t: "p", text: "On this page, as in the [Terms of Service](terms):" },
+		{ t: "ul", items: [DEFINED.Roswaal, DEFINED.Roblox, DEFINED["Luau Team"]] },
 		{ t: "attributions" },
 		{ t: "h", level: 2, text: "Licences" },
 		{

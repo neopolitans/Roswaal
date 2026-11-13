@@ -145,10 +145,14 @@ export const REVIEWS: Record<
 	attributions: { status: "verified", date: "2026-11-12", reviewers: ["neopolitans"] },
 	// Verified by the author for 0.219.7: the You May and You May Not lists,
 	// the services and their terms, and what is Roswaal's and what is not.
-	terms: { status: "verified", date: "2026-11-07", reviewers: ["neopolitans"] },
+	// Verified again on 13 Nov 2026, for 0.236.3: Who Roswaal is for, Sign in
+	// with Roblox being optional, the Definitions and the Luau Team.
+	terms: { status: "verified", date: "2026-11-13", reviewers: ["neopolitans"] },
 	// Verified by the author for 0.219.9, and again for 0.220.3 with each
-	// permission named and the files on each browser and system.
-	privacy: { status: "verified", date: "2026-11-07", reviewers: ["neopolitans"] },
+	// permission named and the files on each browser and system. Verified again
+	// on 13 Nov 2026, for 0.236.3: the daemon's key, openid without profile,
+	// Sign in with Roblox being optional, and signing out within 15 minutes.
+	privacy: { status: "verified", date: "2026-11-13", reviewers: ["neopolitans"] },
 	// Read by the author for 0.65.0, against the RFC and against the editor.
 	// Not verified, and deliberately: every rule on it is checked against
 	// `require-by-string-aliases.html` and against what Roswaal does with it,

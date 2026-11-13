@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.236.3",
+		date: "2026-11-13",
+		headline: "Attributions uses the Terms' definitions, and the Terms and Privacy Policy are verified again.",
+		changed: [
+			"**Attributions defines Roswaal, Roblox and the Luau Team** as the Terms of Service do, and says Roswaal is not made by, endorsed by, affiliated with or approved by the Luau Team. ATTRIBUTIONS.md says the same.",
+			"**The Terms of Service and Privacy Policy are verified** as of 13 November 2026.",
+		],
+	},
+	{
 		version: "0.236.2",
 		date: "2026-11-13",
 		headline: "The Terms of Service define their terms, and the daemon's key never travels in an address.",
