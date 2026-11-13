@@ -15,8 +15,7 @@ import {
 	type Camera,
 	FOV,
 	GLOW_GAIN,
-	GLOW_ROUNDS,
-	glowStep,
+	glowSpread,
 	HANDLE_ALPHA,
 	IMAGE_VERTEX,
 	type ImageLayer,
@@ -389,14 +388,23 @@ const FS_BLUR = `#version 300 es
 precision highp float;
 in vec2 uv; uniform sampler2D tex; uniform vec4 p; out vec4 o;
 void main() {
-	float w[5] = float[5](0.227, 0.194, 0.121, 0.054, 0.016);
-	vec3 c = texture(tex, uv).rgb * w[0];
-	for (int k = 1; k < 5; k++) {
-		vec2 d = p.xy * float(k);
-		c += (texture(tex, uv + d).rgb + texture(tex, uv - d).rgb) * w[k];
+	float s = max(p.w, 0.5);
+	vec3 c = textureLod(tex, uv, 0.0).rgb;
+	float total = 1.0;
+	for (float k = 1.0; k <= 3.0 * s; k += 2.0) {
+		float a = exp(-k * k / (2.0 * s * s));
+		float b = exp(-(k + 1.0) * (k + 1.0) / (2.0 * s * s));
+		vec2 d = p.xy * ((k * a + (k + 1.0) * b) / (a + b));
+		c += (textureLod(tex, uv + d, 0.0).rgb + textureLod(tex, uv - d, 0.0).rgb) * (a + b);
+		total += 2.0 * (a + b);
 	}
-	o = vec4(c, 1.0);
+	o = vec4(c / total, 1.0);
 }`;
+// The glow's source averaged down to half, as WebGpuView's fsDown.
+const FS_DOWN = `#version 300 es
+precision highp float;
+in vec2 uv; uniform sampler2D tex; out vec4 o;
+void main() { o = vec4(textureLod(tex, uv, 0.0).rgb, 1.0); }`;
 // The frame with the glow added in linear light, as WebGpuView's fsComposite.
 const FS_COMPOSITE = `#version 300 es
 precision highp float;
@@ -495,6 +503,7 @@ export class WebGl2View implements ViewRenderer {
 	private glowing = false;
 	private glowProgram!: Program;
 	private blurProgram!: Program;
+	private downProgram!: Program;
 	private compositeProgram!: Program;
 	private sceneFbo!: WebGLFramebuffer;
 	private sceneColour!: WebGLRenderbuffer;
@@ -503,7 +512,6 @@ export class WebGl2View implements ViewRenderer {
 	private frameTex!: WebGLTexture;
 	private glowTex: WebGLTexture[] = [];
 	private glowFbo: WebGLFramebuffer[] = [];
-	private glowDepth!: WebGLRenderbuffer;
 	private glowSize: [number, number] = [0, 0];
 	private edgeMesh!: { vertices: WebGLBuffer; indices: WebGLBuffer; count: number };
 	private selection: { vao: WebGLVertexArrayObject; buffer: WebGLBuffer; count: number } | null =
@@ -572,6 +580,7 @@ export class WebGl2View implements ViewRenderer {
 		gl.uniform4fv(gl.getUniformLocation(this.glowProgram.program, "M[0]"), materialBlock());
 		gl.uniform1i(gl.getUniformLocation(this.glowProgram.program, "looks"), 1);
 		this.blurProgram = this.link(VS_FULL, FS_BLUR);
+		this.downProgram = this.link(VS_FULL, FS_DOWN);
 		this.compositeProgram = this.link(VS_FULL, FS_COMPOSITE);
 		gl.useProgram(this.compositeProgram.program);
 		gl.uniform1i(gl.getUniformLocation(this.compositeProgram.program, "tex"), 0);
@@ -583,7 +592,6 @@ export class WebGl2View implements ViewRenderer {
 		this.frameTex = gl.createTexture()!;
 		this.glowTex = [gl.createTexture()!, gl.createTexture()!];
 		this.glowFbo = [gl.createFramebuffer()!, gl.createFramebuffer()!];
-		this.glowDepth = gl.createRenderbuffer()!;
 		this.setScene(scene);
 		for (const kind of HANDLE_KINDS) {
 			const m = handleMesh(kind);
@@ -839,8 +847,11 @@ export class WebGl2View implements ViewRenderer {
 			gl.UNSIGNED_BYTE,
 			null,
 		);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+		// Filtered, for the glow's source to be averaged down from it.
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, this.frameFbo);
 		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.frameTex, 0);
 		gl.bindTexture(gl.TEXTURE_2D, null);
@@ -855,8 +866,8 @@ export class WebGl2View implements ViewRenderer {
 		const h = Math.max(1, Math.round(this.height / 2));
 		if (this.glowSize[0] === w && this.glowSize[1] === h) return;
 		this.glowSize = [w, h];
-		// Half floats where the browser can draw into them, so six passes of blur
-		// do not round the glow's fall into steps; bytes elsewhere.
+		// Half floats where the browser can draw into them, so the blur's long
+		// fall does not round into steps; bytes elsewhere.
 		const half = gl.getExtension("EXT_color_buffer_float") !== null;
 		this.glowTex.forEach((tex, i) => {
 			gl.bindTexture(gl.TEXTURE_2D, tex);
@@ -869,15 +880,6 @@ export class WebGl2View implements ViewRenderer {
 			gl.bindFramebuffer(gl.FRAMEBUFFER, this.glowFbo[i]);
 			gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
 		});
-		gl.bindRenderbuffer(gl.RENDERBUFFER, this.glowDepth);
-		gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, w, h);
-		gl.bindFramebuffer(gl.FRAMEBUFFER, this.glowFbo[0]);
-		gl.framebufferRenderbuffer(
-			gl.FRAMEBUFFER,
-			gl.DEPTH_ATTACHMENT,
-			gl.RENDERBUFFER,
-			this.glowDepth,
-		);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 		gl.bindTexture(gl.TEXTURE_2D, null);
 	}
@@ -889,8 +891,10 @@ export class WebGl2View implements ViewRenderer {
 	private drawGlow(camera: Camera): void {
 		const gl = this.gl;
 		const [w, h] = this.glowSize;
-		gl.bindFramebuffer(gl.FRAMEBUFFER, this.glowFbo[0]);
-		gl.viewport(0, 0, w, h);
+		// At the view's size, antialiased as the frame is, so a sliver of Neon
+		// through a seam glows by as much of a pixel as it covers.
+		gl.bindFramebuffer(gl.FRAMEBUFFER, this.sceneFbo);
+		gl.viewport(0, 0, this.width, this.height);
 		gl.clearColor(0, 0, 0, 1);
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 		this.use(this.glowProgram, camera, false);
@@ -913,20 +917,29 @@ export class WebGl2View implements ViewRenderer {
 		gl.depthMask(true);
 		gl.disable(gl.BLEND);
 		gl.disable(gl.DEPTH_TEST);
+		// Resolved into the frame's texture, which the place is drawn into after.
+		gl.bindFramebuffer(gl.READ_FRAMEBUFFER, this.sceneFbo);
+		gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, this.frameFbo);
+		const { width: fw, height: fh } = this;
+		gl.blitFramebuffer(0, 0, fw, fh, 0, 0, fw, fh, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+		gl.viewport(0, 0, w, h);
+		gl.activeTexture(gl.TEXTURE0);
+		gl.useProgram(this.downProgram.program);
+		gl.bindFramebuffer(gl.FRAMEBUFFER, this.glowFbo[0]);
+		gl.bindTexture(gl.TEXTURE_2D, this.frameTex);
+		gl.drawArrays(gl.TRIANGLES, 0, 3);
 		gl.useProgram(this.blurProgram.program);
 		const p = gl.getUniformLocation(this.blurProgram.program, "p");
-		gl.activeTexture(gl.TEXTURE0);
-		const along = glowStep(h);
-		for (let round = 0; round < GLOW_ROUNDS; round++)
-			for (const [from, into, step] of [
-				[0, 1, [along / w, 0]],
-				[1, 0, [0, along / h]],
-			] as const) {
-				gl.bindFramebuffer(gl.FRAMEBUFFER, this.glowFbo[into]);
-				gl.bindTexture(gl.TEXTURE_2D, this.glowTex[from]);
-				gl.uniform4f(p, step[0], step[1], 0, 0);
-				gl.drawArrays(gl.TRIANGLES, 0, 3);
-			}
+		const spread = glowSpread(h);
+		for (const [from, into, step] of [
+			[0, 1, [1 / w, 0]],
+			[1, 0, [0, 1 / h]],
+		] as const) {
+			gl.bindFramebuffer(gl.FRAMEBUFFER, this.glowFbo[into]);
+			gl.bindTexture(gl.TEXTURE_2D, this.glowTex[from]);
+			gl.uniform4f(p, step[0], step[1], 0, spread);
+			gl.drawArrays(gl.TRIANGLES, 0, 3);
+		}
 		gl.bindTexture(gl.TEXTURE_2D, null);
 		gl.enable(gl.DEPTH_TEST);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);

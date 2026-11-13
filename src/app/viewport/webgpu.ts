@@ -15,8 +15,7 @@ import {
 	type Camera,
 	FOV,
 	GLOW_GAIN,
-	GLOW_ROUNDS,
-	glowStep,
+	glowSpread,
 	HANDLE_ALPHA,
 	IMAGE_VERTEX,
 	type ImageLayer,
@@ -60,15 +59,26 @@ struct Out { @builtin(position) clip: vec4f, @location(0) uv: vec2f };
 	o.uv = vec2f(xy.x * 0.5 + 0.5, 0.5 - xy.y * 0.5);
 	return o;
 }
-// Nine taps of a Gaussian, spread a little wider than a texel apiece.
+// The glow's source, drawn at the view's size, averaged down to half: one
+// sample between four texels weighs them evenly.
+@fragment fn fsDown(i: Out) -> @location(0) vec4f {
+	return vec4f(textureSampleLevel(tex, samp, i.uv, 0.0).rgb, 1.0);
+}
+// A Gaussian \`p.w\` texels wide along \`p.xy\`, one texel, out to three times
+// that, at every texel: a fetch between two texels weighs both, so each pair
+// costs one. Taps further apart than a texel left ripples round a thin source.
 @fragment fn fsBlur(i: Out) -> @location(0) vec4f {
-	var w = array<f32, 5>(0.227, 0.194, 0.121, 0.054, 0.016);
-	var c = textureSample(tex, samp, i.uv).rgb * w[0];
-	for (var k = 1; k < 5; k++) {
-		let o = p.xy * f32(k);
-		c = c + (textureSample(tex, samp, i.uv + o).rgb + textureSample(tex, samp, i.uv - o).rgb) * w[k];
+	let s = max(p.w, 0.5);
+	var c = textureSampleLevel(tex, samp, i.uv, 0.0).rgb;
+	var total = 1.0;
+	for (var k = 1.0; k <= 3.0 * s; k += 2.0) {
+		let a = exp(-k * k / (2.0 * s * s));
+		let b = exp(-(k + 1.0) * (k + 1.0) / (2.0 * s * s));
+		let o = p.xy * ((k * a + (k + 1.0) * b) / (a + b));
+		c = c + (textureSampleLevel(tex, samp, i.uv + o, 0.0).rgb + textureSampleLevel(tex, samp, i.uv - o, 0.0).rgb) * (a + b);
+		total = total + 2.0 * (a + b);
 	}
-	return vec4f(c, 1.0);
+	return vec4f(c / total, 1.0);
 }
 // The frame with the glow added in linear light: it brightens a lit face by
 // what it adds, as Studio's does, and turns Neon's heart white where its
@@ -550,6 +560,7 @@ export class WebGpuView implements ViewRenderer {
 	private glowSolid!: GPURenderPipeline;
 	private glowSeen!: GPURenderPipeline;
 	private imageVeil!: GPURenderPipeline;
+	private down!: GPURenderPipeline;
 	private blur!: GPURenderPipeline;
 	private composite!: GPURenderPipeline;
 	private postLayout!: GPUBindGroupLayout;
@@ -558,10 +569,11 @@ export class WebGpuView implements ViewRenderer {
 	private sampler!: GPUSampler;
 	private postParams: GPUBuffer[] = [];
 	private frame?: GPUTexture;
+	/** The glow's source at the view's size, resolved, before it is averaged down. */
+	private glowFull?: GPUTexture;
 	private glow?: {
 		a: GPUTexture;
 		b: GPUTexture;
-		depth: GPUTexture;
 		groups: GPUBindGroup[];
 		w: number;
 		h: number;
@@ -838,13 +850,17 @@ export class WebGpuView implements ViewRenderer {
 		});
 		// The glow's passes: the place drawn small in what it gives off, then blurred and added.
 		// Half floats, so six passes of blur do not round the glow's fall into steps.
-		const glowTarget = { format: "rgba16float" as const };
+		// Drawn at the view's size, antialiased as the frame is, so a sliver of
+		// Neon through a seam glows by as much of a pixel as it covers.
+		const glowTarget = { format: this.format };
+		const glowSamples = { count: SAMPLES };
 		this.glowSolid = d.createRenderPipeline({
 			layout: pipelineLayout,
 			vertex: { module, entryPoint: "vs", buffers },
 			fragment: { module, entryPoint: "fsGlow", targets: [glowTarget] },
 			primitive: { topology: "triangle-list", cullMode: "back" },
 			depthStencil: depth,
+			multisample: glowSamples,
 		});
 		// Over what is behind it, as in the frame: what glows behind a
 		// see-through part is dimmed by it, and a see-through Neon part adds its own.
@@ -858,6 +874,7 @@ export class WebGpuView implements ViewRenderer {
 			fragment: { module, entryPoint: "fsGlowSeen", targets: [{ ...glowTarget, blend: over }] },
 			primitive: { topology: "triangle-list", cullMode: "back" },
 			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "greater" },
+			multisample: glowSamples,
 		});
 		this.glowGlassDepth = d.createRenderPipeline({
 			layout: pipelineLayout,
@@ -865,6 +882,7 @@ export class WebGpuView implements ViewRenderer {
 			fragment: { module, entryPoint: "fsGlow", targets: [{ ...glowTarget, writeMask: 0 }] },
 			primitive: { topology: "triangle-list", cullMode: "back" },
 			depthStencil: depth,
+			multisample: glowSamples,
 		});
 		// Decals and Textures in the glow's pass: what they cover glows no more.
 		this.imageVeil = d.createRenderPipeline({
@@ -887,6 +905,7 @@ export class WebGpuView implements ViewRenderer {
 			fragment: { module, entryPoint: "fsImageVeil", targets: [{ ...glowTarget, blend: over }] },
 			primitive: { topology: "triangle-list", cullMode: "back" },
 			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "greater" },
+			multisample: glowSamples,
 		});
 		const post = d.createShaderModule({ code: POST });
 		const postEntries: GPUBindGroupLayoutEntry[] = [
@@ -899,10 +918,18 @@ export class WebGpuView implements ViewRenderer {
 			entries: [...postEntries, { binding: 3, visibility: STAGE.FRAGMENT, texture: {} }],
 		});
 		const postPipeline = d.createPipelineLayout({ bindGroupLayouts: [this.postLayout] });
+		// Half floats, so the blur's long soft fall does not round into steps.
+		const halfTarget = { format: "rgba16float" as const };
+		this.down = d.createRenderPipeline({
+			layout: postPipeline,
+			vertex: { module: post, entryPoint: "vsFull" },
+			fragment: { module: post, entryPoint: "fsDown", targets: [halfTarget] },
+			primitive: { topology: "triangle-list" },
+		});
 		this.blur = d.createRenderPipeline({
 			layout: postPipeline,
 			vertex: { module: post, entryPoint: "vsFull" },
-			fragment: { module: post, entryPoint: "fsBlur", targets: [glowTarget] },
+			fragment: { module: post, entryPoint: "fsBlur", targets: [halfTarget] },
 			primitive: { topology: "triangle-list" },
 		});
 		this.composite = d.createRenderPipeline({
@@ -1058,7 +1085,14 @@ export class WebGpuView implements ViewRenderer {
 	resize(width: number, height: number): void {
 		this.width = Math.max(1, width);
 		this.height = Math.max(1, height);
-		for (const t of [this.msaa, this.depth, this.pickTarget, this.pickDepth, this.frame])
+		for (const t of [
+			this.msaa,
+			this.depth,
+			this.pickTarget,
+			this.pickDepth,
+			this.frame,
+			this.glowFull,
+		])
 			t?.destroy();
 		const size = [this.width, this.height];
 		const d = this.device;
@@ -1074,12 +1108,21 @@ export class WebGpuView implements ViewRenderer {
 			format: "depth32float",
 			usage: TEXTURE.RENDER_ATTACHMENT,
 		});
-		// The place drawn and resolved, for the glow to be added to.
+		// The place drawn and resolved, for the glow to be added to, and the
+		// glow's own source, resolved the same way.
 		this.frame = d.createTexture({
 			size,
 			format: this.format,
 			usage: TEXTURE.RENDER_ATTACHMENT | TEXTURE.TEXTURE_BINDING,
 		});
+		this.glowFull = d.createTexture({
+			size,
+			format: this.format,
+			usage: TEXTURE.RENDER_ATTACHMENT | TEXTURE.TEXTURE_BINDING,
+		});
+		// Its bind groups name the source just made: made again with it.
+		for (const t of [this.glow?.a, this.glow?.b]) t?.destroy();
+		this.glow = undefined;
 		this.pickTarget = d.createTexture({
 			size,
 			format: "r32uint",
@@ -1108,7 +1151,7 @@ export class WebGpuView implements ViewRenderer {
 		const h = Math.max(1, Math.round(this.height / 2));
 		if (this.glow && this.glow.w === w && this.glow.h === h) return;
 		const d = this.device;
-		for (const t of [this.glow?.a, this.glow?.b, this.glow?.depth]) t?.destroy();
+		for (const t of [this.glow?.a, this.glow?.b]) t?.destroy();
 		const target = () =>
 			d.createTexture({
 				size: [w, h],
@@ -1117,14 +1160,9 @@ export class WebGpuView implements ViewRenderer {
 			});
 		const a = target();
 		const b = target();
-		const depth = d.createTexture({
-			size: [w, h],
-			format: "depth32float",
-			usage: TEXTURE.RENDER_ATTACHMENT,
-		});
-		const step = glowStep(h);
-		d.queue.writeBuffer(this.postParams[0], 0, new Float32Array([step / w, 0, 0, 0]));
-		d.queue.writeBuffer(this.postParams[1], 0, new Float32Array([0, step / h, 0, 0]));
+		const spread = glowSpread(h);
+		d.queue.writeBuffer(this.postParams[0], 0, new Float32Array([1 / w, 0, 0, spread]));
+		d.queue.writeBuffer(this.postParams[1], 0, new Float32Array([0, 1 / h, 0, spread]));
 		d.queue.writeBuffer(this.postParams[2], 0, new Float32Array([0, 0, GLOW_GAIN, 0]));
 		const group = (tex: GPUTexture, params: GPUBuffer) =>
 			d.createBindGroup({
@@ -1135,29 +1173,36 @@ export class WebGpuView implements ViewRenderer {
 					{ binding: 2, resource: { buffer: params } },
 				],
 			});
-		// A across into B, and B down into A, which is added over the frame.
-		const groups = [group(a, this.postParams[0]), group(b, this.postParams[1])];
-		this.glow = { a, b, depth, groups, w, h };
+		// The source averaged down into A, A across into B, and B down into A,
+		// which is added over the frame.
+		const groups = [
+			group(this.glowFull!, this.postParams[0]),
+			group(a, this.postParams[0]),
+			group(b, this.postParams[1]),
+		];
+		this.glow = { a, b, groups, w, h };
 	}
 
 	/**
-	 * The place drawn small in the light it gives off, under the see-through
-	 * parts and the Decals and Textures that cover it, then blurred both ways.
+	 * The place drawn in the light it gives off, under the see-through parts
+	 * and the Decals and Textures that cover it, in the frame's own targets
+	 * before the frame is; then averaged down to half and blurred both ways.
 	 */
 	private drawGlow(encoder: GPUCommandEncoder): void {
 		const glow = this.glow;
-		if (!glow) return;
+		if (!glow || !this.glowFull) return;
 		const pass = encoder.beginRenderPass({
 			colorAttachments: [
 				{
-					view: glow.a.createView(),
+					view: this.msaa!.createView(),
+					resolveTarget: this.glowFull.createView(),
 					clearValue: { r: 0, g: 0, b: 0, a: 1 },
 					loadOp: "clear",
-					storeOp: "store",
+					storeOp: "discard",
 				},
 			],
 			depthStencilAttachment: {
-				view: glow.depth.createView(),
+				view: this.depth!.createView(),
 				depthClearValue: 0,
 				depthLoadOp: "clear",
 				depthStoreOp: "discard",
@@ -1176,26 +1221,26 @@ export class WebGpuView implements ViewRenderer {
 		}
 		this.veilImages(pass);
 		pass.end();
-		for (let round = 0; round < GLOW_ROUNDS; round++)
-			for (const [from, into] of [
-				[0, glow.b],
-				[1, glow.a],
-			] as const) {
-				const blur = encoder.beginRenderPass({
-					colorAttachments: [
-						{
-							view: into.createView(),
-							loadOp: "clear",
-							storeOp: "store",
-							clearValue: { r: 0, g: 0, b: 0, a: 1 },
-						},
-					],
-				});
-				blur.setPipeline(this.blur);
-				blur.setBindGroup(0, glow.groups[from]);
-				blur.draw(3);
-				blur.end();
-			}
+		for (const [pipeline, from, into] of [
+			[this.down, 0, glow.a],
+			[this.blur, 1, glow.b],
+			[this.blur, 2, glow.a],
+		] as const) {
+			const step = encoder.beginRenderPass({
+				colorAttachments: [
+					{
+						view: into.createView(),
+						loadOp: "clear",
+						storeOp: "store",
+						clearValue: { r: 0, g: 0, b: 0, a: 1 },
+					},
+				],
+			});
+			step.setPipeline(pipeline);
+			step.setBindGroup(0, glow.groups[from]);
+			step.draw(3);
+			step.end();
+		}
 	}
 
 	setSelection(boxes: Float32Array): void {

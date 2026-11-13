@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.241.1",
+		date: "2026-11-13",
+		headline:
+			"Neon in a seam between parts no longer glows as a bright line, and Neon's glow is smooth.",
+		fixed: [
+			"**A sliver of Neon in a seam between parts** glows only by as much of a pixel as it covers, as in Studio, instead of as a bright line with a wide glow.",
+			"**Neon's glow is smooth**, without the ripples that showed in it beside a thin strip.",
+		],
+	},
+	{
 		version: "0.241.0",
 		date: "2026-11-13",
 		headline: "Neon in the place viewer glows as it does in Studio.",

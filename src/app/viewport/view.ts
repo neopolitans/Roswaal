@@ -73,16 +73,9 @@ export type ImageLayer = "solid" | "seeThrough";
  */
 export const GLOW_SPREAD = 0.0134;
 export const GLOW_GAIN = 2.6;
-/** How many times the glow is blurred each way. */
-export const GLOW_ROUNDS = 2;
-
-/**
- * How far apart the blur's taps are, in the glow's texels, for a glow drawn
- * at half the view's size and `high` texels high. The nine taps' weights are a
- * Gaussian 1.79 taps wide, and each round widens it by the square root.
- */
-export function glowStep(high: number): number {
-	return (GLOW_SPREAD * high) / (1.79 * Math.sqrt(GLOW_ROUNDS));
+/** How wide the glow's blur is, in its own texels, for a glow `high` texels high. */
+export function glowSpread(high: number): number {
+	return GLOW_SPREAD * high;
 }
 
 /** One Decal or Texture quad, for ordering: its image, its layer and its middle. */
