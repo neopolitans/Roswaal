@@ -15,6 +15,7 @@ import { Icon, type IconName } from "./icons.jsx";
 import { importableLuau } from "./importable.js";
 import { Menu } from "./Menu.jsx";
 import { AddButton, depthStyle, SectionHead } from "./PanelParts.jsx";
+import { useNarrowBar, usePhone } from "./Popout.jsx";
 import { fileMenu, packageMenu, type TreeAction } from "./treeMenus.js";
 
 const KIND_ICONS: Record<Exclude<TreeEntry["kind"], "directory">, IconName> = {
@@ -134,6 +135,12 @@ export const ProjectTree = memo(function ProjectTree({
 	// Graphs whose functions are listed. Shut until asked, unlike folders.
 	const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
 	const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+	// Where New graph is in the toolbar's More menu rather than on each folder.
+	// Both asked every render: a hook skipped by `||` changes the hook order
+	// when the window is resized across the narrow width, and React stops.
+	const narrowBar = useNarrowBar();
+	const phone = usePhone();
+	const menuNews = narrowBar || phone;
 	/** Whether the row is one of several selected. */
 	const multiple = (entry: TreeEntry) => selected.size > 1 && selected.has(entry.path);
 	/** The rows Import as graphs reads: the selection, or the folder the menu is on. */
@@ -382,10 +389,16 @@ export const ProjectTree = memo(function ProjectTree({
 						className={cx(
 							"tree-row",
 							selected.has(entry.path) && "selected",
-							// The folder the toolbar's New graph would use. Marked
-							// rather than left implicit, because a button that acts
-							// on something you clicked earlier has to show what.
-							isDir && entry.path === targetDir && holdsGraphs(entry.path) && "target-dir",
+							// The folder the More menu's New graph would use, where
+							// that menu is the way in: a narrow window or a phone.
+							// Marked rather than left implicit, because a command that
+							// acts on something you clicked earlier has to show what.
+							// Elsewhere each folder has its own buttons.
+							menuNews &&
+								isDir &&
+								entry.path === targetDir &&
+								holdsGraphs(entry.path) &&
+								"target-dir",
 							openPath === entry.path && "open-doc",
 							readonly && "readonly",
 							dropTarget === entry.path && "drop-target",
@@ -495,6 +508,34 @@ export const ProjectTree = memo(function ProjectTree({
 							entry.version && <span className="badge">{entry.version}</span>
 						)}
 						{entry.missing && <span className="badge">not installed</span>}
+						{/* New graph and New node map, in this folder. Their clicks stop
+						    here, so pressing one never folds or opens the folder. */}
+						{isDir && holdsGraphs(entry.path) && (
+							<span
+								className="tree-row-actions"
+								onClick={(e) => e.stopPropagation()}
+								onDoubleClick={(e) => e.stopPropagation()}
+							>
+								<button
+									type="button"
+									className="tb icon-only"
+									title={`New graph in ${entry.name}`}
+									aria-label={`New graph in ${entry.name}`}
+									onClick={() => onNewGraph(entry.path)}
+								>
+									<Icon name="newFile" size={14} />
+								</button>
+								<button
+									type="button"
+									className="tb icon-only"
+									title={`New node map in ${entry.name}`}
+									aria-label={`New node map in ${entry.name}`}
+									onClick={() => onNewMap(entry.path)}
+								>
+									<Icon name="map" size={14} />
+								</button>
+							</span>
+						)}
 					</div>
 				);
 			})}

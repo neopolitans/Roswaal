@@ -940,9 +940,8 @@ const MODES_WHAT =
 	"Editor, Design and Docs, with a box behind the one you are in. A click switches this tab and keeps the editor as you left it; `Ctrl`-click or right-click opens a new tab.";
 const PROJECT_CLUSTER: ToolbarItem[] = [
 	{ t: "icon", icon: "panelLeft", on: true },
+	{ t: "popout", icon: "layout" },
 	{ t: "icon", icon: "refresh" },
-	{ t: "icon", icon: "newFile" },
-	{ t: "icon", icon: "map" },
 ];
 const TOOLS_CLUSTER: ToolbarItem[] = [
 	{ t: "icon", icon: "search" },
@@ -1051,7 +1050,7 @@ export const EDITOR_LAYOUT: LayoutSpec = {
 				{
 					items: PROJECT_CLUSTER,
 					name: "The project",
-					what: "The button for the Project and Variables cards, then Refresh, New graph and New node map.",
+					what: "The button for the Project and Variables cards, then Panels, to show or hide any panel, and Refresh.",
 				},
 				{
 					wrap: "graph-tabs",

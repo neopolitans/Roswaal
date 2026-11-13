@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.239.0",
+		date: "2026-11-13",
+		headline: "Panels in the toolbar, New graph and New node map on each folder, and Services picked from a list.",
+		added: [
+			"**Panels, in the toolbar.** Every panel, each with its icon: choose one to show or hide it, or bring back one you closed. A panel with nothing to show yet is greyed out. On a phone it is in More.",
+			"**New graph and New node map on each folder.** Point at a folder under `.roswaal` in the Project panel and its two buttons appear, making the graph or map in that folder without opening or shutting it.",
+		],
+		changed: [
+			"**Add on Services opens a searchable list**, as the type picker does, with each service's class icon and what it is.",
+			"**The toolbar no longer has New graph and New node map.** On a narrow window or a phone they are still in More.",
+		],
+	},
+	{
 		version: "0.238.2",
 		date: "2026-11-13",
 		headline: "The notice of a change to the Terms reads as an update.",

@@ -170,6 +170,8 @@ export interface WorkspaceControlsValue {
 	cardShown: (id: PanelId) => boolean;
 	/** Shows or hides that card: its side, its own float, or its drawer. */
 	toggleCard: (id: PanelId) => void;
+	/** The panel has something to show now: Code with a field open, Properties with an instance. */
+	available: (id: PanelId) => boolean;
 }
 
 const NO_CONTROLS: WorkspaceControlsValue = {
@@ -179,6 +181,7 @@ const NO_CONTROLS: WorkspaceControlsValue = {
 	toggle: () => {},
 	cardShown: () => false,
 	toggleCard: () => {},
+	available: () => false,
 };
 
 const WorkspaceControls = createContext<WorkspaceControlsValue>(NO_CONTROLS);
@@ -342,6 +345,7 @@ export function Workspace({
 					if (contents[id] === undefined) return;
 					setDrawer(openPanel === id ? null : id);
 				},
+				available: (id) => contents[id] !== undefined,
 			}
 		: {
 				compact,
@@ -360,6 +364,7 @@ export function Workspace({
 					} else if (!effective.panels[id].open) onLayout?.((l) => reopenPanel(l, id));
 					else onToggle?.(head.dock);
 				},
+				available: (id) => contents[id] !== undefined,
 			};
 
 	const shown = (id: PanelId) => contents[id] !== undefined;

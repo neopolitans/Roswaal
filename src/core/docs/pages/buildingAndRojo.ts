@@ -5,7 +5,7 @@
 import type { MapNode, NodeMap } from "../../nodemap.js";
 import { FEEDBACK_REPOSITORY } from "../links.js";
 import type { DocPage } from "../site.js";
-import { EDITOR_BAR, MAP_BAR } from "../toolbars.js";
+import { MAP_BAR, PROJECT_TREE_NEW } from "../toolbars.js";
 
 /**
  * A map partway through being built, for the walkthrough: a new map's
@@ -122,10 +122,10 @@ export function buildingAndRojoPage(): DocPage {
 				steps: [
 					{
 						text:
-							"Press **New node map** on the top row, or right-click a folder in the Project " +
-							"panel, and name the map.",
-						picture: [EDITOR_BAR],
-						point: "New node map",
+							"Point at a folder in the Project panel and press its **New node map** button, or " +
+							"right-click the folder and choose **New map here**, then name the map.",
+						picture: [PROJECT_TREE_NEW],
+						point: "New graph and New node map",
 					},
 					{
 						text:

@@ -4175,6 +4175,52 @@ button.tb.doc-error-remove:focus-visible {
 	color: var(--fg-faint);
 }
 
+/* New graph and New node map on a folder that holds graphs: shown while the
+   row is hovered or has focus, and on a touch screen, which cannot hover, on
+   the selected folder. Hidden rather than see-through, so a tap cannot land
+   on a button nobody can see. */
+.tree-row-actions {
+	/* Over the end of the row rather than in it, so the folder's name keeps
+	   its width: painted the row's own colour, over the panel's. */
+	position: absolute;
+	right: 4px;
+	top: 50%;
+	transform: translateY(-50%);
+	padding-left: 4px;
+	display: flex;
+	gap: 2px;
+	visibility: hidden;
+	background: linear-gradient(var(--bg-hover), var(--bg-hover)), var(--bg-panel);
+}
+
+.tree-row.selected > .tree-row-actions {
+	background:
+		linear-gradient(
+			color-mix(in srgb, var(--accent) 16%, transparent),
+			color-mix(in srgb, var(--accent) 16%, transparent)
+		),
+		var(--bg-panel);
+}
+
+.tree-row-actions .tb.icon-only {
+	width: 22px;
+	height: 20px;
+	min-height: 0;
+	padding: 0;
+	flex: none;
+}
+
+.tree-row:hover > .tree-row-actions,
+.tree-row:focus-within > .tree-row-actions {
+	visibility: visible;
+}
+
+@media (hover: none) {
+	.tree-row.selected > .tree-row-actions {
+		visibility: visible;
+	}
+}
+
 /* The folder a new graph would go into. Quieter than a selection -- it is
    context, not a choice you made, and it has to sit under the selected and
    open-document styles without fighting them. */

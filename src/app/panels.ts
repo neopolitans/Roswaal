@@ -23,6 +23,8 @@
  * "the one you cannot get rid of", which is a worse trade than naming it apart.
  */
 
+import type { IconName } from "./icons.jsx";
+
 /** Docks, in the order they wrap the centre. */
 export type DockSide = "left" | "right" | "bottom";
 
@@ -218,6 +220,28 @@ export const PANEL_TITLES: Record<PanelId, string> = {
 	refactor: "Refactor",
 	analysis: "Script analysis",
 	code: "Code",
+};
+
+/** Each panel's icon, in the toolbar's Panels menu. */
+export const PANEL_ICONS: Record<PanelId, IconName> = {
+	tree: "folder",
+	variables: "function",
+	inspector: "panelRight",
+	properties: "vpProperties",
+	refactor: "straighten",
+	analysis: "warning",
+	code: "codeFile",
+};
+
+/** Why a panel cannot be shown yet, in the Panels menu: it has nothing to show. */
+export const PANEL_EMPTY: Record<PanelId, string> = {
+	tree: "Open a project first.",
+	variables: "Open a graph first.",
+	inspector: "Open a graph first.",
+	properties: "Pick an instance in the DataModel first.",
+	refactor: "Open a graph first.",
+	analysis: "Open a project first.",
+	code: "Open a Code Block, a Luau Expression or a type's code first.",
 };
 
 /**

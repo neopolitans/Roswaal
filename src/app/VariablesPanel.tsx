@@ -55,6 +55,7 @@ import { specifierSuggestions, useProjectLuaurc } from "./projectAliases.js";
 import { requiredTypes, useProjectTypes } from "./projectTypes.js";
 import { store, useEditor } from "./store.js";
 import { TypePicker } from "./TypePicker.jsx";
+import { classDetail, ValuePicker } from "./ValuePicker.jsx";
 
 export interface VariablesPanelProps {
 	/**
@@ -628,31 +629,22 @@ function ServicePicker({
 	declared: readonly string[];
 	onDone: (name: string | null) => void;
 }) {
-	const [value, setValue] = useState("");
+	// The type picker's list: searchable, each service with its class icon and
+	// what Roblox's documentation says it is. Those already declared are left out.
 	const offered = ROBLOX_SERVICES.filter((service) => !declared.includes(service));
+	let picked: string | null = null;
 	return (
-		<div className="variable-add">
-			<input
-				className="tb"
-				// Opened by Add, to type into straight away.
-				autoFocus
-				value={value}
-				placeholder="ReplicatedStorage"
-				list="roswaal-service-hints"
-				aria-label="Service to declare"
-				onChange={(e) => setValue(e.target.value)}
-				onKeyDown={(e) => {
-					if (e.key === "Enter") onDone(value.trim() || null);
-					else if (e.key === "Escape") onDone(null);
-				}}
-				onBlur={() => onDone(value.trim() || null)}
-			/>
-			<datalist id="roswaal-service-hints">
-				{offered.map((service) => (
-					<option key={service} value={service} />
-				))}
-			</datalist>
-		</div>
+		<ValuePicker
+			what="service"
+			options={offered}
+			value=""
+			detailOf={classDetail}
+			classes
+			onPick={(name) => {
+				picked = name.trim() || null;
+			}}
+			onClose={() => onDone(picked)}
+		/>
 	);
 }
 

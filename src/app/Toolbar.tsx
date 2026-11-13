@@ -40,6 +40,7 @@ import { MenuButton } from "./Menu.jsx";
 import { ModeStrip } from "./ModeStrip.jsx";
 import type { MenuEntry } from "./menuModel.js";
 import { useNarrowBar, usePhone } from "./Popout.jsx";
+import { PANEL_EMPTY, PANEL_ICONS, PANEL_IDS, PANEL_TITLES } from "./panels.js";
 import { WindowMark } from "./WindowMark.jsx";
 import { useWorkspaceControls } from "./Workspace.jsx";
 
@@ -82,6 +83,14 @@ export function ProjectBar(props: ProjectBarProps) {
 	// Narrower than the whole row: the rarely used half folds into More.
 	const narrow = useNarrowBar();
 	const cards = useWorkspaceControls();
+	const panelEntries: MenuEntry[] = PANEL_IDS.map((id) => ({
+		label: PANEL_TITLES[id],
+		icon: PANEL_ICONS[id],
+		checked: cards.available(id) && cards.cardShown(id),
+		disabled: !cards.available(id),
+		title: cards.available(id) ? undefined : PANEL_EMPTY[id],
+		run: () => cards.toggleCard(id),
+	}));
 	const scripting = !props.place;
 	const rightTitle = scripting
 		? "Inspector — the selected node, or the graph's own settings"
@@ -130,6 +139,15 @@ export function ProjectBar(props: ProjectBarProps) {
 					>
 						<Icon name="panelLeft" size={16} />
 					</button>
+					{/* Every panel, to bring back one that was closed or hide one.
+					    Always here, however narrow the bar: it is the way back to a
+					    panel. New graph and New node map are on each folder in the
+					    Project panel, where they say where they make it. */}
+					<MenuButton
+						label={<Icon name="layout" size={16} />}
+						title="Panels — show or hide each one"
+						sections={[{ label: "Panels", entries: panelEntries }]}
+					/>
 					{!narrow && (
 						<>
 							<button
@@ -140,26 +158,6 @@ export function ProjectBar(props: ProjectBarProps) {
 							>
 								<Icon name="refresh" size={16} />
 							</button>
-							{scripting && (
-								<>
-									<button
-										className="tb icon-only"
-										title="New graph — a .nodescript: one Script, LocalScript or ModuleScript"
-										aria-label="New graph"
-										onClick={props.onNewGraph}
-									>
-										<Icon name="newFile" size={16} />
-									</button>
-									<button
-										className="tb icon-only"
-										title="New node map — where things live in the DataModel"
-										aria-label="New node map"
-										onClick={props.onNewMap}
-									>
-										<Icon name="map" size={16} />
-									</button>
-								</>
-							)}
 						</>
 					)}
 				</ToolGroup>
@@ -217,6 +215,8 @@ export function ProjectBar(props: ProjectBarProps) {
 								// The open graph's tools, on a phone: they act on the graph
 								// on screen rather than the project.
 								{ entries: phone ? (props.phoneMenu ?? []) : [] },
+								// The panels, on a phone, where the bar has no Panels button.
+								{ label: phone ? "Panels" : undefined, entries: phone ? panelEntries : [] },
 								{
 									entries: [
 										{ label: "Refresh", icon: "refresh", run: props.onRefresh },

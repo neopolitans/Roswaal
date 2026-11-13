@@ -314,6 +314,10 @@ export type ToolbarItem = Documented &
 				selected?: boolean;
 				current?: boolean;
 				readonly?: boolean;
+				/** Drawn as the pointer is over it: the hover colour, and its buttons showing. */
+				hover?: boolean;
+				/** A folder's buttons at its right, as icons: New graph and New node map. */
+				actions?: string[];
 		  }
 		/** The instance at the top of the Properties panel: glyph, name, class. */
 		| {
@@ -867,8 +871,16 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 			]
 				.filter(Boolean)
 				.join(" ");
+			// A folder's buttons, as `ProjectTree.tsx` draws them: shown, since a
+			// picture cannot be pointed at.
+			const actions = item.actions?.length
+				? `<span class="tree-row-actions" style="visibility:visible">${item.actions
+						.map((icon) => `<span class="tb icon-only">${iconSvg(icon, 14, art)}</span>`)
+						.join("")}</span>`
+				: "";
+			const hovered = item.hover ? ";background:var(--bg-hover)" : "";
 			return (
-				`<div class="${classes}"${tie} style="padding-left:${6 + item.depth * 13}px;--depth:${item.depth}">` +
+				`<div class="${classes}"${tie} style="padding-left:${6 + item.depth * 13}px;--depth:${item.depth}${hovered}">` +
 				twist +
 				// The class's own icon wherever the editor draws one: see `wearsClassIcon`.
 				((item.place && item.className && wearsClassIcon(item.className)
@@ -879,6 +891,7 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 				`${item.className ? `<span class="place-class">${escapeXml(item.className)}</span>` : ""}` +
 				// The picked DataModel row's menu button, as `PlaceBrowser.tsx` draws it.
 				`${item.place && item.selected ? `<span class="tb icon-only place-more-button">${iconSvg("more", 14, art)}</span>` : ""}` +
+				actions +
 				`</div>`
 			);
 		}
@@ -1275,22 +1288,18 @@ export const EDITOR_BAR: ToolbarSpec = {
 						"[The Project panel](project-panel).",
 				},
 				{
+					t: "popout",
+					icon: "layout",
+					name: "Panels",
+					what:
+						"Every panel, each with its icon: choose one to show or hide it, and bring back " +
+						"one you closed. A panel with nothing to show yet is greyed out.",
+				},
+				{
 					t: "icon",
 					icon: "refresh",
 					name: "Refresh",
 					what: "Re-reads the project from disk, node packs included.",
-				},
-				{
-					t: "icon",
-					icon: "newFile",
-					name: "New graph",
-					what: "A new `.nodescript`: one Script, LocalScript or ModuleScript.",
-				},
-				{
-					t: "icon",
-					icon: "map",
-					name: "New node map",
-					what: "A new map of where things live in the DataModel. See [Node maps](building-and-rojo).",
 				},
 			],
 		},
@@ -1784,14 +1793,13 @@ export const EDITOR_BAR_BROWSER: ToolbarSpec = {
 		{
 			items: [
 				{ t: "icon", icon: "panelLeft", ...as(EDITOR_BAR, "Project") },
+				{ t: "popout", icon: "layout", ...as(EDITOR_BAR, "Panels") },
 				{
 					t: "icon",
 					icon: "refresh",
 					name: "Refresh",
 					what: "Re-reads the project you have open, node packs included.",
 				},
-				{ t: "icon", icon: "newFile", ...as(EDITOR_BAR, "New graph") },
-				{ t: "icon", icon: "map", ...as(EDITOR_BAR, "New node map") },
 			],
 		},
 		...openGraph(as(EDITOR_BAR, "The open graph")),
@@ -2211,6 +2219,7 @@ export const EDITOR_BAR_TABLET: ToolbarSpec = {
 					icon: "panelLeft",
 					...as(EDITOR_BAR_BROWSER, "Project", "On a touch screen they slide out over the graph."),
 				},
+				{ t: "popout", icon: "layout", ...as(EDITOR_BAR, "Panels") },
 			],
 		},
 		...openGraph(as(EDITOR_BAR_BROWSER, "The open graph")),
@@ -2362,18 +2371,43 @@ export const MORE_MENU_PHONE: ToolbarSpec = {
 		},
 		{
 			items: [
+				{
+					t: "button",
+					text: "Project",
+					icon: "folder",
+					name: "Panels",
+					what:
+						"Every panel, each with its icon: tap one to slide it out, and again to put it " +
+						"away. One with nothing to show yet is greyed out.",
+				},
+				{ t: "button", text: "Variables", icon: "function" },
+				{ t: "button", text: "Inspector", icon: "panelRight" },
+				{ t: "button", text: "Properties", icon: "vpProperties" },
+				{ t: "button", text: "Refactor", icon: "straighten" },
+				{ t: "button", text: "Script analysis", icon: "warning" },
+				{ t: "button", text: "Code", icon: "codeFile" },
+			],
+		},
+		{
+			items: [
 				{ t: "button", text: "Refresh", icon: "refresh", ...as(EDITOR_BAR_BROWSER, "Refresh") },
 				{
 					t: "button",
 					text: "New graph",
 					icon: "newFile",
-					...as(EDITOR_BAR_BROWSER, "New graph"),
+					name: "New graph",
+					what:
+						"A new `.nodescript`: one Script, LocalScript or ModuleScript, in the folder you " +
+						"last chose in the Project panel.",
 				},
 				{
 					t: "button",
 					text: "New node map",
 					icon: "map",
-					...as(EDITOR_BAR_BROWSER, "New node map"),
+					name: "New node map",
+					what:
+						"A new map of where things live in the DataModel, in the folder you last chose. " +
+						"See [Node maps](building-and-rojo).",
 				},
 			],
 		},
@@ -2812,6 +2846,45 @@ export const PROJECT_TREE_WALLY: ToolbarSpec = {
 					icon: "folder",
 					tone: "tree-folder-plain",
 				},
+			],
+		},
+	],
+};
+
+/** The Project panel with a graph folder pointed at: its New graph and New node map. */
+export const PROJECT_TREE_NEW: ToolbarSpec = {
+	id: "project-tree-new",
+	title: "A folder's New buttons",
+	summary: "Pointing at a folder under `.roswaal/` shows its two buttons.",
+	chrome: "filetree",
+	groups: [
+		{
+			items: [
+				{ t: "treeSection", text: "Graph Content" },
+				graphFolder(".roswaal", 0, true),
+				graphFolder("scripts", 1, true),
+				{
+					t: "treeRow",
+					label: "ServerScriptService",
+					depth: 2,
+					twist: "open",
+					icon: "folderOpenFilled",
+					tone: "tree-folder-special",
+				},
+				{
+					t: "treeRow",
+					label: "Server",
+					depth: 3,
+					twist: "open",
+					icon: "folderOpen",
+					tone: "tree-folder-plain",
+					hover: true,
+					actions: ["newFile", "map"],
+					name: "New graph and New node map",
+					what: "On the folder you point at: a new `.nodescript` or `.nodemap` in that folder. The folder stays open or shut as it was.",
+				},
+				{ t: "treeRow", label: "Main.nodescript", depth: 4, icon: "document", tone: "nodescript" },
+				graphFolder("ReplicatedStorage", 2, false),
 			],
 		},
 	],

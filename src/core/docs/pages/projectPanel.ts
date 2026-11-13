@@ -63,6 +63,15 @@ export function projectPanelPage(): DocPage {
 				],
 			},
 
+			{ t: "h", level: 2, text: "New graphs and node maps" },
+			{
+				t: "p",
+				text:
+					"Point at a folder under `.roswaal/` and two buttons appear at its right: **New graph** " +
+					"and **New node map**, made in that folder. Pressing one leaves the folder open or " +
+					"shut as it was. On a touch screen they show on the folder you tap.",
+			},
+
 			{ t: "h", level: 2, text: "Menus" },
 			{
 				t: "table",
