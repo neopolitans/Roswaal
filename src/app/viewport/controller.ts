@@ -12,6 +12,7 @@ import { addTo, sameItems } from "../placeSelection.js";
 import { boxAround } from "./box.js";
 import { rayPick } from "./geometry.js";
 import { HandleBuilder } from "./handles.js";
+import { loadImages } from "./images.js";
 import { partsInRect, rectBetween, screenPoint, type ViewShot } from "./marquee.js";
 import { clampSpeed, SPEED_NOTCH } from "./speed.js";
 import { layersUsed, loadLayer } from "./textures.js";
@@ -289,6 +290,7 @@ export class ViewportController {
 		if (this.view) {
 			this.view.setScene(place);
 			this.loadLooks(this.view, place);
+			this.loadImages(this.view, place);
 			this.view.setLighting(place.lighting);
 			this.view.setOverlay(this.frustumLines());
 			this.refreshSelection();
@@ -416,6 +418,42 @@ export class ViewportController {
 				},
 				() => {},
 			);
+		}
+	}
+
+	private images = new Map<string, Promise<ImageBitmap | null>>();
+
+	/**
+	 * The images the place's Decals and Textures show, into the view as each
+	 * arrives, where Sign in with Roblox has them. Kept for the session, so a
+	 * tab or renderer change does not ask again.
+	 */
+	private loadImages(view: ViewRenderer, place: PlaceScene): void {
+		const wanted = [...new Set((place.images ?? []).map((image) => image.asset))];
+		const fresh = wanted.filter((asset) => !this.images.has(asset));
+		const settled = new Map<string, (image: ImageBitmap | null) => void>();
+		for (const asset of fresh) {
+			this.images.set(asset, new Promise((resolve) => settled.set(asset, resolve)));
+		}
+		if (fresh.length > 0) {
+			void loadImages(fresh, (asset, image) => settled.get(asset)?.(image))
+				.catch(() => {})
+				.finally(() => {
+					// What did not arrive is asked for again next time.
+					for (const [asset, resolve] of settled) {
+						resolve(null);
+						void this.images.get(asset)?.then((image) => {
+							if (!image) this.images.delete(asset);
+						});
+					}
+				});
+		}
+		for (const asset of wanted) {
+			void this.images.get(asset)?.then((image) => {
+				if (!image || this.view !== view) return;
+				view.setImage(asset, image);
+				this.redraw();
+			});
 		}
 	}
 
@@ -813,6 +851,7 @@ export class ViewportController {
 		this.set({ backend: view.backend, fellBack, error: null });
 		if (this.place !== place) view.setScene(this.place ?? place);
 		this.loadLooks(view, this.place ?? place);
+		this.loadImages(view, this.place ?? place);
 		this.attach(this.canvas as HTMLCanvasElement);
 		this.refreshSelection();
 		this.fit();

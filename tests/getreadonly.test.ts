@@ -64,6 +64,7 @@ const SAMPLES: [
 	["GET /health", () => ({})],
 	["GET /roblox", () => ({})],
 	["GET /roblox/assets", () => ({})],
+	["GET /roblox/asset", () => ({ id: "1" })],
 	["GET /demos", () => ({})],
 	["GET /project", () => ({})],
 	["GET /project/inspect", (_, { other }) => ({ root: other })],

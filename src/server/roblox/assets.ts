@@ -290,6 +290,29 @@ export class AssetCache {
 		return { state: "ready", ...(typeof assetTypeId === "number" ? { assetTypeId } : {}) };
 	}
 
+	/**
+	 * One downloaded asset's bytes and type, or null when it is not here (or was
+	 * skipped as Roblox's own). Reads only: it does not count as a use, which
+	 * `fetchAll` records.
+	 */
+	async read(
+		root: string,
+		id: string,
+	): Promise<{ assetTypeId?: number; bytes: Uint8Array } | null> {
+		if (!/^\d{1,20}$/.test(id)) return null;
+		const record = await this.record(root, id);
+		if (!record || record.skipped) return null;
+		try {
+			const bytes = await fs.readFile(nodePath.join(this.folder(root), id));
+			return {
+				...(record.assetTypeId !== undefined ? { assetTypeId: record.assetTypeId } : {}),
+				bytes,
+			};
+		} catch {
+			return null;
+		}
+	}
+
 	/** How many assets this project holds, and how many bytes. Reads only. */
 	async summary(root: string): Promise<{ count: number; bytes: number }> {
 		let count = 0;

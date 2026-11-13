@@ -15,6 +15,8 @@ import {
 	type Camera,
 	FOV,
 	HANDLE_ALPHA,
+	IMAGE_VERTEX,
+	imageQuads,
 	SELECT,
 	SELECT_WIDTH,
 	seeThroughSets,
@@ -460,6 +462,33 @@ struct LOut { @builtin(position) clip: vec4f, @location(0) colour: vec3f };
 @fragment fn fsOver(i: LOut) -> @location(0) vec4f { return vec4f(i.colour, 1.0); }
 @fragment fn fsLine(i: VOut) -> @location(0) vec4f { return vec4f(i.colour, i.alpha); }
 @fragment fn fsId(i: VOut) -> @location(0) u32 { return i.id + 1u; }
+// A Decal's or Texture's image on its face: lit as a matte face is, by the
+// sun and the sky's fill, through the same air, in its Color3 and Transparency.
+@group(1) @binding(0) var image: texture_2d<f32>;
+@group(1) @binding(1) var imageSampler: sampler;
+struct IOut {
+	@builtin(position) clip: vec4f, @location(0) world: vec3f, @location(1) normal: vec3f,
+	@location(2) uv: vec2f, @location(3) tint: vec4f,
+};
+@vertex fn vsImage(@location(0) pos: vec3f, @location(1) nrm: vec3f, @location(2) uv: vec2f, @location(3) tint: vec4f) -> IOut {
+	var o: IOut;
+	o.world = pos;
+	o.clip = u.viewProj * vec4f(pos, 1.0);
+	o.normal = nrm;
+	o.uv = uv;
+	o.tint = tint;
+	return o;
+}
+@fragment fn fsImage(i: IOut) -> @location(0) vec4f {
+	let t = textureSample(image, imageSampler, i.uv);
+	let albedo = pow(t.rgb, vec3f(2.2)) * pow(i.tint.rgb, vec3f(2.2));
+	let n = normalize(i.normal);
+	let ndl = max(dot(n, u.sun.xyz), 0.0);
+	let fill = u.ambient.rgb * (0.9 + 0.1 * n.y);
+	let c = albedo * (fill + u.sunColour.rgb * ndl);
+	let d = length(u.camPos.xyz - i.world);
+	return vec4f(display(air(c, d, i.world.y)), t.a * i.tint.a);
+}
 `;
 
 interface Draw {
@@ -616,6 +645,54 @@ export class WebGpuView implements ViewRenderer {
 			fragment: {
 				module,
 				entryPoint: "fs",
+				targets: [
+					{
+						format: this.format,
+						blend: {
+							color: { srcFactor: "src-alpha", dstFactor: "one-minus-src-alpha" },
+							alpha: { srcFactor: "one", dstFactor: "one-minus-src-alpha" },
+						},
+					},
+				],
+			},
+			primitive: { topology: "triangle-list", cullMode: "back" },
+			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "greater" },
+			multisample: { count: SAMPLES },
+		});
+		// Decals and Textures: blended onto their faces, hidden by what is in
+		// front, hiding nothing. Their own vertices, and their image in group 1.
+		this.imageLayout = d.createBindGroupLayout({
+			entries: [
+				{ binding: 0, visibility: STAGE.FRAGMENT, texture: {} },
+				{ binding: 1, visibility: STAGE.FRAGMENT, sampler: {} },
+			],
+		});
+		this.imageSampler = d.createSampler({
+			magFilter: "linear",
+			minFilter: "linear",
+			addressModeU: "repeat",
+			addressModeV: "repeat",
+		});
+		this.imagePipeline = d.createRenderPipeline({
+			layout: d.createPipelineLayout({ bindGroupLayouts: [layout, this.imageLayout] }),
+			vertex: {
+				module,
+				entryPoint: "vsImage",
+				buffers: [
+					{
+						arrayStride: IMAGE_VERTEX * 4,
+						attributes: [
+							{ shaderLocation: 0, offset: 0, format: "float32x3" },
+							{ shaderLocation: 1, offset: 12, format: "float32x3" },
+							{ shaderLocation: 2, offset: 24, format: "float32x2" },
+							{ shaderLocation: 3, offset: 32, format: "float32x4" },
+						],
+					},
+				],
+			},
+			fragment: {
+				module,
+				entryPoint: "fsImage",
 				targets: [
 					{
 						format: this.format,
@@ -881,6 +958,7 @@ export class WebGpuView implements ViewRenderer {
 		for (const d of [...this.draws, ...this.clear, ...this.glass])
 			for (const b of [d.vertices, d.indices, d.instances]) b.destroy();
 		this.scene = scene;
+		this.setImages(scene);
 		this.draws = [];
 		this.clear = [];
 		this.glass = [];
@@ -1133,6 +1211,7 @@ export class WebGpuView implements ViewRenderer {
 		pass.draw(3);
 		pass.setPipeline(this.solid);
 		this.solids(pass);
+		this.drawImages(pass);
 		if (this.glass.length > 0) {
 			pass.setPipeline(this.glassDepth);
 			this.solids(pass, this.glass);
@@ -1175,6 +1254,61 @@ export class WebGpuView implements ViewRenderer {
 		}
 		pass.end();
 		this.device.queue.submit([encoder.finish()]);
+	}
+
+	private imageLayout!: GPUBindGroupLayout;
+	private imageSampler!: GPUSampler;
+	private imagePipeline!: GPURenderPipeline;
+	private imageVertices: GPUBuffer | null = null;
+	private imageRuns: { asset: string; first: number; count: number }[] = [];
+	private imageGroups = new Map<string, { texture: GPUTexture; group: GPUBindGroup }>();
+
+	/** The scene's Decals and Textures, as triangles grouped by image. */
+	private setImages(scene: PlaceScene): void {
+		this.imageVertices?.destroy();
+		this.imageVertices = null;
+		const { vertices, runs } = imageQuads(scene.images ?? []);
+		this.imageRuns = runs;
+		if (vertices.length === 0) return;
+		this.imageVertices = this.device.createBuffer({
+			size: vertices.byteLength,
+			usage: BUFFER.VERTEX | BUFFER.COPY_DST,
+		});
+		this.device.queue.writeBuffer(this.imageVertices, 0, vertices);
+	}
+
+	setImage(asset: string, image: ImageBitmap): void {
+		if (this.imageGroups.has(asset)) return;
+		const texture = this.device.createTexture({
+			size: [image.width, image.height],
+			format: "rgba8unorm",
+			usage: TEXTURE.TEXTURE_BINDING | TEXTURE.COPY_DST | TEXTURE.RENDER_ATTACHMENT,
+		});
+		this.device.queue.copyExternalImageToTexture({ source: image }, { texture }, [
+			image.width,
+			image.height,
+		]);
+		const group = this.device.createBindGroup({
+			layout: this.imageLayout,
+			entries: [
+				{ binding: 0, resource: texture.createView() },
+				{ binding: 1, resource: this.imageSampler },
+			],
+		});
+		this.imageGroups.set(asset, { texture, group });
+	}
+
+	/** Each image whose texture has arrived, onto its faces. */
+	private drawImages(pass: GPURenderPassEncoder): void {
+		if (!this.imageVertices || this.imageRuns.length === 0) return;
+		pass.setPipeline(this.imagePipeline);
+		pass.setVertexBuffer(0, this.imageVertices);
+		for (const run of this.imageRuns) {
+			const ready = this.imageGroups.get(run.asset);
+			if (!ready) continue;
+			pass.setBindGroup(1, ready.group);
+			pass.draw(run.count, 1, run.first);
+		}
 	}
 
 	private looks!: GPUTexture;

@@ -10,6 +10,7 @@ import {
 	type PlaceScene,
 	SCENE_KINDS,
 	SCENE_STRIDE,
+	type SceneImage,
 	type SceneKind,
 } from "../../core/rbx/scene.js";
 import type { Handles } from "./handles.js";
@@ -50,8 +51,54 @@ export interface ViewRenderer {
 	pick(camera: Camera, x: number, y: number): Promise<number>;
 	/** A material texture, as its mip levels, into its layer; drawn from then on. */
 	setLook(layer: number, levels: HTMLCanvasElement[]): void;
+	/**
+	 * A Decal's or Texture's image, by the asset id the scene's `images` name;
+	 * the faces showing it are drawn from then on.
+	 */
+	setImage(asset: string, image: ImageBitmap): void;
 	/** Gives the GPU back: a browser keeps only so many contexts. */
 	destroy(): void;
+}
+
+/** A Decal or Texture vertex: position, normal, image position, then tint and alpha. */
+export const IMAGE_VERTEX = 12;
+
+/**
+ * The scene's Decals and Textures as triangles, six vertices a quad, grouped
+ * by image so each image is one draw: where each image's run starts, and how
+ * many vertices it has.
+ */
+export function imageQuads(images: readonly SceneImage[]): {
+	vertices: Float32Array;
+	runs: { asset: string; first: number; count: number }[];
+} {
+	const byAsset = new Map<string, SceneImage[]>();
+	for (const image of images) {
+		const list = byAsset.get(image.asset);
+		if (list) list.push(image);
+		else byAsset.set(image.asset, [image]);
+	}
+	const vertices = new Float32Array(images.length * 6 * IMAGE_VERTEX);
+	const runs: { asset: string; first: number; count: number }[] = [];
+	let at = 0;
+	for (const [asset, list] of byAsset) {
+		const first = at / IMAGE_VERTEX;
+		for (const image of list) {
+			// Top left, bottom right, top right; top left, bottom left, bottom right:
+			// anticlockwise seen from in front of the face, which is what both
+			// renderers draw. The other way round, every image was culled as the
+			// back of its quad.
+			for (const corner of [0, 2, 1, 0, 3, 2]) {
+				vertices.set(image.corners.slice(corner * 3, corner * 3 + 3), at);
+				vertices.set(image.normal, at + 3);
+				vertices.set(image.uv.slice(corner * 2, corner * 2 + 2), at + 6);
+				vertices.set([...image.tint, image.alpha], at + 8);
+				at += IMAGE_VERTEX;
+			}
+		}
+		runs.push({ asset, first, count: list.length * 6 });
+	}
+	return { vertices, runs };
 }
 
 export const FOV = (70 * Math.PI) / 180;

@@ -403,6 +403,11 @@ export const api = {
 		}>("/api/roblox/assets", { ids }),
 	/** Deletes the open project's downloaded assets. */
 	robloxClearAssets: () => post<{ ok: boolean }>("/api/roblox/assets/clear", {}),
+	/** One downloaded asset's bytes, base64, for the place viewer: never fetched from Roblox here. */
+	robloxAsset: (id: string) =>
+		request<{ available: boolean; found: boolean; assetTypeId?: number; data?: string }>(
+			`/api/roblox/asset?id=${encodeURIComponent(id)}`,
+		),
 	/** What each `local X = require(…)` in a Luau file holds, followed to the module. */
 	luauModules: (path: string, text?: string) =>
 		post<{ modules: RequiredModule[]; self: string[] | null }>("/api/luau/modules", {

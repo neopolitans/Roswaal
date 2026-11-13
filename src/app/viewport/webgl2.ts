@@ -20,6 +20,8 @@ import {
 	type Camera,
 	FOV,
 	HANDLE_ALPHA,
+	IMAGE_VERTEX,
+	imageQuads,
 	SELECT,
 	SELECT_WIDTH,
 	seeThroughSets,
@@ -316,6 +318,36 @@ void main() {
 		o = vec4(display(s.rgb), shade > 0.5 && shade < 1.5 && s.a > 0.999 ? 0.0 : s.a);
 	}
 }`;
+// A Decal's or Texture's image on its face, as WebGpuView's vsImage and fsImage draw it.
+const VS_IMAGE = `#version 300 es
+layout(location=0) in vec3 pos; layout(location=1) in vec3 nrm; layout(location=2) in vec2 uv; layout(location=3) in vec4 tint;
+uniform mat4 viewProj;
+out vec3 vWorld; out vec3 vNormal; out vec2 vUv; out vec4 vTint; out float vDepthW;
+void main() {
+	vWorld = pos;
+	vNormal = nrm;
+	vUv = uv;
+	vTint = tint;
+	gl_Position = viewProj * vec4(pos, 1.0);
+	vDepthW = 1.0 + gl_Position.w;
+}`;
+const FS_IMAGE = `#version 300 es
+precision highp float;
+in vec3 vWorld; in vec3 vNormal; in vec2 vUv; in vec4 vTint;
+uniform sampler2D image;
+${COMMON}
+${LOG_DEPTH}
+out vec4 o;
+void main() {
+	gl_FragDepth = logDepth();
+	vec4 t = texture(image, vUv);
+	vec3 albedo = pow(t.rgb, vec3(2.2)) * pow(vTint.rgb, vec3(2.2));
+	vec3 n = normalize(vNormal);
+	float ndl = max(dot(n, L[0].xyz), 0.0);
+	vec3 fill = L[2].rgb * (0.9 + 0.1 * n.y);
+	vec3 c = albedo * (fill + L[1].rgb * ndl);
+	o = vec4(display(air(c, length(L[6].xyz - vWorld), vWorld.y)), t.a * vTint.a);
+}`;
 const VS_SKY = `#version 300 es
 out vec2 ndc;
 void main() {
@@ -518,6 +550,9 @@ export class WebGl2View implements ViewRenderer {
 		this.ids = this.link(VS, FS_ID);
 		this.over = this.link(VS_OVER, FS_OVER);
 		this.skyProgram = this.link(VS_SKY, FS_SKY);
+		this.imageProgram = this.link(VS_IMAGE, FS_IMAGE);
+		gl.useProgram(this.imageProgram.program);
+		gl.uniform1i(gl.getUniformLocation(this.imageProgram.program, "image"), 2);
 		this.glowProgram = this.link(VS, FS_GLOW);
 		gl.useProgram(this.glowProgram.program);
 		gl.uniform4fv(gl.getUniformLocation(this.glowProgram.program, "M[0]"), materialBlock());
@@ -560,6 +595,7 @@ export class WebGl2View implements ViewRenderer {
 		for (const d of [...this.draws, ...this.clear, ...this.glass]) gl.deleteVertexArray(d.vao);
 		for (const b of this.sceneBuffers) gl.deleteBuffer(b);
 		this.scene = scene;
+		this.setImages(scene);
 		this.draws = [];
 		this.clear = [];
 		this.glass = [];
@@ -917,6 +953,7 @@ export class WebGl2View implements ViewRenderer {
 		gl.enable(gl.DEPTH_TEST);
 		this.use(this.main, camera, false);
 		this.solids();
+		if (this.drawImages(camera)) this.use(this.main, camera, false);
 		// See-through Glass: the nearest's depth, then its colour blended at that depth.
 		if (this.glass.length > 0) {
 			gl.colorMask(false, false, false, false);
@@ -994,6 +1031,80 @@ export class WebGl2View implements ViewRenderer {
 
 	private looks!: WebGLTexture;
 	private loaded = new Set<number>();
+
+	private imageProgram!: Program;
+	private imageVao: WebGLVertexArrayObject | null = null;
+	private imageBuffer: WebGLBuffer | null = null;
+	private imageRuns: { asset: string; first: number; count: number }[] = [];
+	private imageTextures = new Map<string, WebGLTexture>();
+
+	/** The scene's Decals and Textures, as triangles grouped by image. */
+	private setImages(scene: PlaceScene): void {
+		const gl = this.gl;
+		if (this.imageVao) gl.deleteVertexArray(this.imageVao);
+		if (this.imageBuffer) gl.deleteBuffer(this.imageBuffer);
+		this.imageVao = null;
+		this.imageBuffer = null;
+		const { vertices, runs } = imageQuads(scene.images ?? []);
+		this.imageRuns = runs;
+		if (vertices.length === 0) return;
+		this.imageVao = gl.createVertexArray();
+		this.imageBuffer = gl.createBuffer();
+		gl.bindVertexArray(this.imageVao);
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.imageBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+		const stride = IMAGE_VERTEX * 4;
+		const attribs: [number, number, number][] = [
+			[0, 3, 0],
+			[1, 3, 12],
+			[2, 2, 24],
+			[3, 4, 32],
+		];
+		for (const [loc, size, offset] of attribs) {
+			gl.enableVertexAttribArray(loc);
+			gl.vertexAttribPointer(loc, size, gl.FLOAT, false, stride, offset);
+		}
+		gl.bindVertexArray(null);
+	}
+
+	setImage(asset: string, image: ImageBitmap): void {
+		if (this.imageTextures.has(asset)) return;
+		const gl = this.gl;
+		const texture = gl.createTexture()!;
+		gl.activeTexture(gl.TEXTURE2);
+		gl.bindTexture(gl.TEXTURE_2D, texture);
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+		gl.generateMipmap(gl.TEXTURE_2D);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+		gl.activeTexture(gl.TEXTURE0);
+		this.imageTextures.set(asset, texture);
+	}
+
+	/** Each image whose texture has arrived, onto its faces; whether any was drawn. */
+	private drawImages(camera: Camera): boolean {
+		const gl = this.gl;
+		if (!this.imageVao) return false;
+		const ready = this.imageRuns.filter((run) => this.imageTextures.has(run.asset));
+		if (ready.length === 0) return false;
+		this.use(this.imageProgram, camera, false);
+		gl.enable(gl.BLEND);
+		gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+		gl.depthMask(false);
+		gl.bindVertexArray(this.imageVao);
+		gl.activeTexture(gl.TEXTURE2);
+		for (const run of ready) {
+			gl.bindTexture(gl.TEXTURE_2D, this.imageTextures.get(run.asset) ?? null);
+			gl.drawArrays(gl.TRIANGLES, run.first, run.count);
+		}
+		gl.activeTexture(gl.TEXTURE0);
+		gl.bindVertexArray(null);
+		gl.depthMask(true);
+		gl.disable(gl.BLEND);
+		return true;
+	}
 
 	setLook(layer: number, levels: HTMLCanvasElement[]): void {
 		const gl = this.gl;

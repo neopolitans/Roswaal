@@ -216,6 +216,7 @@ export interface RobloxAssets {
 	fetchAll(root: string, ids: readonly string[]): Promise<Record<string, AssetOutcome>>;
 	summary(root: string): Promise<{ count: number; bytes: number }>;
 	clear(root: string): Promise<void>;
+	read(root: string, id: string): Promise<{ assetTypeId?: number; bytes: Uint8Array } | null>;
 }
 
 export interface SessionHooks {
@@ -525,6 +526,24 @@ export class ApiSession {
 				if (!status.signedIn) throw new HttpError(409, "Sign in with Roblox first.");
 				return {
 					assets: await this.ability("robloxAssets").fetchAll(this.project().root, ids as string[]),
+				};
+			},
+
+			/**
+			 * One downloaded asset's bytes, for the place viewer to draw: base64,
+			 * as every answer is JSON. Reads only, and asks Roblox nothing; an
+			 * asset not downloaded yet is `found: false`.
+			 */
+			"GET /roblox/asset": async (req) => {
+				const assets = this.hooks.capabilities?.robloxAssets;
+				if (!assets || !this.current) return { available: Boolean(assets), found: false };
+				const held = await assets.read(this.current.root, query(req, "id") ?? "");
+				if (!held) return { available: true, found: false };
+				return {
+					available: true,
+					found: true,
+					...(held.assetTypeId !== undefined ? { assetTypeId: held.assetTypeId } : {}),
+					data: toBase64(held.bytes),
 				};
 			},
 

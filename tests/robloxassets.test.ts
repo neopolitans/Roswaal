@@ -158,6 +158,23 @@ describe("downloading an asset", () => {
 	});
 });
 
+describe("reading a download back", () => {
+	it("hands over its bytes and type, touching nothing, and nothing for one skipped", async () => {
+		const { assets } = cache(fakeRoblox({ creator: { "81475938": "1" } }));
+		const root = await project();
+		await assets.fetchAll(root, ["15", "81475938"]);
+		const record = path.join(root, ASSET_FOLDER, "15.json");
+		const before = await readFile(record, "utf8");
+		const held = await assets.read(root, "15");
+		expect(held?.assetTypeId).toBe(4);
+		expect(held?.bytes.length).toBe(16);
+		expect(await readFile(record, "utf8")).toBe(before);
+		expect(await assets.read(root, "81475938")).toBeNull();
+		expect(await assets.read(root, "99")).toBeNull();
+		expect(await assets.read(root, "../x")).toBeNull();
+	});
+});
+
 describe("keeping downloads only as long as they are needed", () => {
 	it("deletes an asset unused for thirty days", async () => {
 		let clock = 1_000_000_000;

@@ -22,7 +22,8 @@
  * applied to the shape it stands for.
  */
 
-import type { RbxInstance } from "./dom.js";
+import { assetIdOf } from "./browse.js";
+import { type RbxInstance, stringProp } from "./dom.js";
 import { MATERIAL_SHADE, MATERIALS, materialIndex } from "./materials.js";
 
 export const SCENE_KINDS = ["block", "wedge", "cornerWedge", "cylinder", "ball", "mesh"] as const;
@@ -69,6 +70,34 @@ export interface PlaceScene {
 	pivots?: Record<number, number[]>;
 	/** Where Studio's camera was when the place was saved: Workspace's Camera. */
 	camera?: { id: number; position: number[]; rotation: number[]; fieldOfView: number };
+	/**
+	 * Decals and Textures, each a quad on its part's face, drawn once its image
+	 * has been downloaded through Sign in with Roblox. See `faceImages`.
+	 */
+	images?: SceneImage[];
+}
+
+/**
+ * A Decal or a Texture on one face of a part: the quad in world space, a
+ * hair off the face, and where on the image each corner is. A Decal stretches
+ * its image over the face; a Texture tiles it, StudsPerTile and OffsetStuds
+ * from the face's top left.
+ */
+export interface SceneImage {
+	/** The image's asset id, as the file names it. */
+	asset: string;
+	/** The part's row, which is its DataModel browser index. */
+	part: number;
+	/** Top left, top right, bottom right, bottom left: x, y, z each. */
+	corners: number[];
+	/** u, v for each corner in the same order. */
+	uv: number[];
+	/** Which way the face looks. */
+	normal: number[];
+	/** Color3, 0 to 1. */
+	tint: number[];
+	/** 1 - Transparency. */
+	alpha: number;
 }
 
 const PARTS = new Set([
@@ -194,6 +223,7 @@ export function buildPlaceScene(
 	const seeThrough = empty();
 	const positions: number[] = [];
 	const pivots: Record<number, number[]> = {};
+	const images: SceneImage[] = [];
 	let transparent = 0;
 
 	const visit = (inst: RbxInstance) => {
@@ -262,6 +292,10 @@ export function buildPlaceScene(
 		const see = typeof transparency === "number" ? Math.max(0, Math.min(1, transparency)) : 0;
 		const alpha = Math.round((1 - see) * 255);
 		const colour = (rgb[0] & 255) | ((rgb[1] & 255) << 8) | ((rgb[2] & 255) << 16) | (alpha << 24);
+		// Decals and Textures: on a block or a mesh, which are drawn as their box.
+		if ((kind === "block" || kind === "mesh") && !modifier) {
+			images.push(...faceImages(inst, id, r, cf.position, size));
+		}
 		const material = materialIndex(inst.props.get("Material")?.value);
 		const reflectance = inst.props.get("Reflectance")?.value;
 		const shine = Math.round(
@@ -325,6 +359,7 @@ export function buildPlaceScene(
 		radius,
 		transparent,
 		pivots,
+		...(images.length > 0 ? { images } : {}),
 	};
 	const studio = workspace?.children.find((c) => c.className === "Camera");
 	const cf = studio?.props.get("CFrame")?.value as
@@ -341,4 +376,94 @@ export function buildPlaceScene(
 		};
 	}
 	return scene;
+}
+
+/**
+ * Each face as Roblox names it (Enum.NormalId), as the part's axes: which way
+ * it looks, and which ways are up and right on the image to someone facing it.
+ * An axis is its index and sign. Right is up × normal. The side faces' up is
+ * the part's Y; Top's is towards Front, and Bottom's towards Back.
+ */
+const FACES: Record<
+	number,
+	{ n: [number, number]; up: [number, number]; right: [number, number] }
+> = {
+	0: { n: [0, 1], up: [1, 1], right: [2, -1] }, // Right
+	1: { n: [1, 1], up: [2, -1], right: [0, 1] }, // Top
+	2: { n: [2, 1], up: [1, 1], right: [0, 1] }, // Back
+	3: { n: [0, -1], up: [1, 1], right: [2, 1] }, // Left
+	4: { n: [1, -1], up: [2, 1], right: [0, 1] }, // Bottom
+	5: { n: [2, -1], up: [1, 1], right: [0, -1] }, // Front
+};
+
+/** How far off its face an image is drawn, in studs, so the face does not show through. */
+const IMAGE_LIFT = 0.02;
+
+/** An image's asset id: from a ContentId string, or a Content value's uri. */
+function imageAsset(inst: RbxInstance): string | undefined {
+	const content = inst.props.get("TextureContent")?.value as { uri?: string } | undefined;
+	const raw = content?.uri ?? stringProp(inst, "Texture") ?? "";
+	return assetIdOf(raw.trim());
+}
+
+function numberProp(inst: RbxInstance, name: string, fallback: number): number {
+	const v = inst.props.get(name)?.value;
+	return typeof v === "number" && Number.isFinite(v) ? v : fallback;
+}
+
+/**
+ * The Decals and Textures directly under a part, as quads. `rotation` is the
+ * part's, row-major; `size` its size in studs.
+ */
+export function faceImages(
+	part: RbxInstance,
+	id: number,
+	rotation: number[],
+	position: number[],
+	size: number[],
+): SceneImage[] {
+	const out: SceneImage[] = [];
+	const axis = (a: number, sign: number) =>
+		[rotation[a], rotation[3 + a], rotation[6 + a]].map((v) => v * sign + 0);
+	for (const child of part.children) {
+		if (child.className !== "Decal" && child.className !== "Texture") continue;
+		const asset = imageAsset(child);
+		if (!asset) continue;
+		const transparency = numberProp(child, "Transparency", 0);
+		if (transparency >= 0.999) continue;
+		const face = FACES[numberProp(child, "Face", 5)] ?? FACES[5];
+		const n = axis(face.n[0], face.n[1]);
+		const up = axis(face.up[0], face.up[1]);
+		const right = axis(face.right[0], face.right[1]);
+		const out_ = size[face.n[0]] / 2 + IMAGE_LIFT;
+		const hu = size[face.up[0]] / 2;
+		const hr = size[face.right[0]] / 2;
+		const centre = [0, 1, 2].map((k) => position[k] + n[k] * out_);
+		const corner = (r: number, u: number) =>
+			[0, 1, 2].map((k) => centre[k] + right[k] * hr * r + up[k] * hu * u);
+		let uv = [0, 0, 1, 0, 1, 1, 0, 1];
+		if (child.className === "Texture") {
+			const su = Math.max(numberProp(child, "StudsPerTileU", 2), 0.01);
+			const sv = Math.max(numberProp(child, "StudsPerTileV", 2), 0.01);
+			const ou = numberProp(child, "OffsetStudsU", 0);
+			const ov = numberProp(child, "OffsetStudsV", 0);
+			const u0 = ou / su;
+			const u1 = (hr * 2 + ou) / su;
+			const v0 = ov / sv;
+			const v1 = (hu * 2 + ov) / sv;
+			uv = [u0, v0, u1, v0, u1, v1, u0, v1];
+		}
+		const colour = child.props.get("Color3")?.value;
+		const tint = Array.isArray(colour) && colour.length === 3 ? (colour as number[]) : [1, 1, 1];
+		out.push({
+			asset,
+			part: id,
+			corners: [...corner(-1, 1), ...corner(1, 1), ...corner(1, -1), ...corner(-1, -1)],
+			uv,
+			normal: n,
+			tint,
+			alpha: 1 - Math.max(0, Math.min(1, transparency)),
+		});
+	}
+	return out;
 }

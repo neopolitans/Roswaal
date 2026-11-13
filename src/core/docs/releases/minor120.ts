@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.240.0",
+		date: "2026-11-13",
+		headline: "The place viewer draws Decals and Textures, from images Sign in with Roblox downloads.",
+		added: [
+			"**Decals and Textures in the place viewer.** Signed in with Roblox through `roswaal serve`, a Decal stretches its image over its part's face and a Texture tiles it by StudsPerTile and OffsetStuds, in its Color3 and Transparency, lit as the face is. Each image is downloaded once into the project. Until then, and on the website, the face is its part's colour.",
+		],
+	},
+	{
 		version: "0.239.0",
 		date: "2026-11-13",
 		headline: "Panels in the toolbar, New graph and New node map on each folder, and Services picked from a list.",
