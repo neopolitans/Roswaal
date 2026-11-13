@@ -328,6 +328,18 @@ export function termsPage(): DocPage {
 					"the Luau Team's permission. Roswaal is not made by, endorsed by, affiliated with or " +
 					"approved by the Luau Team.",
 			},
+			// What Roblox's Creator Third Party App Terms ask of an app's own terms
+			// (their App Terms section), as the author approved it on 13 Nov 2026.
+			{
+				t: "p",
+				text:
+					`Using Roswaal means agreeing to and following the [Roblox Terms of Use](${ROBLOX.terms}), ` +
+					"Sign in with Roblox included. These terms are between you and Roswaal's authors only, " +
+					"and not with Roblox. Roblox is not affiliated with Roswaal in any way, is not " +
+					"responsible or liable for anyone's use of it, and has no obligation to maintain or " +
+					"support it. By using Roswaal, you waive and release any and all claims, liabilities, " +
+					"damages, losses and expenses against Roblox arising from or related to Roswaal.",
+			},
 
 			{ t: "h", level: 2, text: "Changes" },
 			{

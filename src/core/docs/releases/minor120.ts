@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.236.4",
+		date: "2026-11-13",
+		headline: "The Terms of Service say what Roblox's terms for third-party apps ask them to.",
+		changed: [
+			"**The Terms of Service ask you to follow the Roblox Terms of Use.** They also say the terms are between you and Roswaal's authors only, that Roblox is not affiliated, liable or obliged to support Roswaal, and that you release Roblox from claims arising from it.",
+		],
+	},
+	{
 		version: "0.236.3",
 		date: "2026-11-13",
 		headline: "Attributions uses the Terms' definitions, and the Terms and Privacy Policy are verified again.",

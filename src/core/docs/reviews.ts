@@ -146,7 +146,8 @@ export const REVIEWS: Record<
 	// Verified by the author for 0.219.7: the You May and You May Not lists,
 	// the services and their terms, and what is Roswaal's and what is not.
 	// Verified again on 13 Nov 2026, for 0.236.3: Who Roswaal is for, Sign in
-	// with Roblox being optional, the Definitions and the Luau Team.
+	// with Roblox being optional, the Definitions and the Luau Team. For 0.236.4
+	// the author approved the Roblox App Terms paragraph word for word.
 	terms: { status: "verified", date: "2026-11-13", reviewers: ["neopolitans"] },
 	// Verified by the author for 0.219.9, and again for 0.220.3 with each
 	// permission named and the files on each browser and system. Verified again
