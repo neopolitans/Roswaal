@@ -148,14 +148,17 @@ export const REVIEWS: Record<
 	// the services and their terms, and what is Roswaal's and what is not.
 	// Verified again on 13 Nov 2026, for 0.236.3: Who Roswaal is for, Sign in
 	// with Roblox being optional, the Definitions and the Luau Team. For 0.236.4
-	// the author approved the Roblox App Terms paragraph word for word.
+	// the author approved the Roblox App Terms paragraph word for word. Read
+	// again by the author on 13 Nov 2026, as it stands at 0.239.0.
 	terms: { status: "verified", date: "2026-11-13", reviewers: ["neopolitans"] },
 	// Verified by the author for 0.219.9, and again for 0.220.3 with each
 	// permission named and the files on each browser and system. Verified again
 	// on 13 Nov 2026, for 0.236.3: the daemon's key, openid without profile,
 	// Sign in with Roblox being optional, and signing out within 15 minutes.
 	// For 0.236.5 it gained the Terms' Definitions, at the author's request,
-	// worded as the author verified them there.
+	// worded as the author verified them there. Read again by the author on
+	// 13 Nov 2026, as it stands at 0.239.0: where the sign-in is kept on each
+	// system, and the downloads' folder, 30 days and list of project folders.
 	privacy: { status: "verified", date: "2026-11-13", reviewers: ["neopolitans"] },
 	// Read by the author for 0.65.0, against the RFC and against the editor.
 	// Not verified, and deliberately: every rule on it is checked against
