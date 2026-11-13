@@ -224,6 +224,19 @@ fn cells(p: vec2f) -> vec2f {
 	return vec2f(sqrt(d2) - sqrt(d1), id);
 }
 fn edgeOf(v: f32) -> f32 { return min(fract(v), 1.0 - fract(v)); }
+// Neon as measured in Studio. Its face, on the sRGB scale, is 2.74 times its
+// colour less 0.545: a dark Neon is darker than its colour, and a bright one
+// runs past full, which is what glows. Transparency dims it a little.
+fn neonLevel(colour: vec3f, alpha: f32) -> vec3f {
+	let t = 1.0 - alpha;
+	return 2.74 * pow(colour, vec3f(1.0 / 2.2)) * (1.0 - 0.2 * pow(t, 1.5)) - 0.545;
+}
+// A see-through Neon part is more opaque than its Transparency says: at 0.5
+// it draws at an opacity of 0.81, at 0.8 at 0.47, blended as the frame is.
+fn neonAlpha(alpha: f32) -> f32 {
+	let t = 1.0 - alpha;
+	return pow(1.0 - t * t, 0.75);
+}
 // A material's pattern at a point on its face, in studs: x scales its colour,
 // y its highlight, z is light of its own.
 fn pattern(kind: u32, uv: vec2f, size: f32) -> vec3f {
@@ -361,7 +374,8 @@ fn surface(i: VOut) -> vec4f {
 	var alpha = i.alpha;
 	var c: vec3f;
 	if (b.y > 0.5 && b.y < 1.5) {
-		c = albedo * 3.0;
+		c = pow(clamp(neonLevel(albedo, i.alpha), vec3f(0.0), vec3f(1.0)), vec3f(2.2));
+		alpha = neonAlpha(i.alpha);
 	} else if (b.y > 2.5) {
 		let rim = pow(1.0 - abs(dot(n, v)), 2.0);
 		c = albedo * (0.6 + rim * 2.5);
@@ -385,10 +399,11 @@ fn surface(i: VOut) -> vec4f {
 	return vec4f(air(c, d, i.world.y), alpha);
 }
 // What gives light of its own, for the glow round it, in linear light. Neon
-// as measured in Studio: each channel of its colour, three times over, glows
-// by how far it runs past half full, easing off towards full, so red glows
-// red and olive a greener yellow than itself; and a dark colour, as dark
-// blue, not at all. CrackedLava's cracks glow a little.
+// as measured in Studio: each channel by how far its light runs past 0.3,
+// easing off, once its brightest channel nears full; so a dark Neon, as dark
+// blue or mid grey, does not glow, and olive glows greener than itself. A see-through part glows less the more see-through it
+// is, and not at all from a Transparency of 0.3. CrackedLava's cracks glow
+// a little.
 fn glowSource(i: VOut) -> vec3f {
 	let row = i.look & 255u;
 	let b = u.mats[row * 3u + 1u];
@@ -398,17 +413,24 @@ fn glowSource(i: VOut) -> vec3f {
 	// Sampled before any branch: WGSL samples only in uniform control flow.
 	let look = textureSample(looks, lookSampler, uv / tex.x, max(layer, 0));
 	if (b.y > 0.5 && b.y < 1.5) {
-		let e = i.colour * 3.0;
-		let seen = dot(min(e, vec3f(1.0)), vec3f(0.2126, 0.7152, 0.0722));
-		return (1.0 - exp(-2.0 * max(e - 0.5, vec3f(0.0)))) * smoothstep(0.05, 0.15, seen);
+		let e = pow(max(neonLevel(i.colour, i.alpha), vec3f(0.0)), vec3f(2.2));
+		let most = max(e.r, max(e.g, e.b));
+		let fade = pow(max(1.0 - (1.0 - i.alpha) / 0.3, 0.0), 2.5);
+		return (1.0 - exp(-max(e - 0.3, vec3f(0.0)))) * smoothstep(0.7, 1.0, most) * fade;
 	}
 	if (tex.z > 0.5 && layer >= 0) { return min(lavaLight(look.g), vec3f(1.0)) * 0.2; }
 	if (u32(b.z) == 14u) { return min(lavaLight(pattern(14u, uv, b.x).z), vec3f(1.0)) * 0.2; }
 	return vec3f(0.0);
 }
 @fragment fn fsGlow(i: VOut) -> @location(0) vec4f { return vec4f(glowSource(i), 1.0); }
-// A see-through part over what glows behind it, as it lies over it in the frame.
-@fragment fn fsGlowSeen(i: VOut) -> @location(0) vec4f { return vec4f(glowSource(i) * i.alpha, i.alpha); }
+// A see-through part over what glows behind it, as it lies over it in the
+// frame. A see-through Neon part's own glow already fades with it.
+@fragment fn fsGlowSeen(i: VOut) -> @location(0) vec4f {
+	let shade = u.mats[(i.look & 255u) * 3u + 1u].y;
+	let neon = shade > 0.5 && shade < 1.5;
+	let a = select(i.alpha, neonAlpha(i.alpha), neon);
+	return vec4f(glowSource(i) * select(i.alpha, 1.0, neon), a);
+}
 // Neon past the display curve, each channel capped: Studio's red Neon is pure
 // red, and its dark blue three times as bright as its colour.
 @fragment fn fs(i: VOut) -> @location(0) vec4f {

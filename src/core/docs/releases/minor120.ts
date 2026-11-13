@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.242.1",
+		date: "2026-11-13",
+		headline: "See-through and dark Neon look as they do in Studio.",
+		fixed: [
+			"**See-through Neon is drawn as in Studio.** Its glow fades as its Transparency rises and is gone from 0.3. Past that it is a bright see-through face, more opaque than its Transparency says, and overlapping parts add up without glowing.",
+			"**Dark Neon is as dark as in Studio**, and only Neon bright enough to run past full glows: mid grey and dark blue do not.",
+		],
+	},
+	{
 		version: "0.242.0",
 		date: "2026-11-13",
 		headline: "The place viewer draws a place's Sky from its six images.",

@@ -60,6 +60,15 @@ vec3 air(vec3 c, float d, float y) {
 `;
 // A material's pattern, as WebGpuView's \`pattern\` draws it.
 const PATTERNS = `
+// Neon as measured in Studio, as WebGpuView's neonLevel and neonAlpha.
+vec3 neonLevel(vec3 colour, float alpha) {
+	float t = 1.0 - alpha;
+	return 2.74 * pow(colour, vec3(1.0 / 2.2)) * (1.0 - 0.2 * pow(t, 1.5)) - 0.545;
+}
+float neonAlpha(float alpha) {
+	float t = 1.0 - alpha;
+	return pow(1.0 - t * t, 0.75);
+}
 // Roswaal's own hash, as WebGpuView's \`mixBits\`: see \`scripts/find-hash.mjs\`.
 uint mixBits(uint v) {
 	uint x = v;
@@ -226,7 +235,8 @@ vec4 surface(vec3 colour, vec3 n, vec3 world, float alpha, uint look, vec3 local
 	albedo *= pat.x;
 	vec3 c;
 	if (b.y > 0.5 && b.y < 1.5) {
-		c = albedo * 3.0;
+		c = pow(clamp(neonLevel(albedo, alpha), 0.0, 1.0), vec3(2.2));
+		alpha = neonAlpha(alpha);
 	} else if (b.y > 2.5) {
 		float rim = pow(1.0 - abs(dot(n, v)), 2.0);
 		c = albedo * (0.6 + rim * 2.5);
@@ -454,13 +464,17 @@ void main() {
 	vec3 e = vec3(0.0);
 	// In linear light, as WebGpuView's glowSource gives it.
 	if (b.y > 0.5 && b.y < 1.5) {
-		vec3 lit = vColour * 3.0;
-		e = (1.0 - exp(-2.0 * max(lit - 0.5, 0.0))) * smoothstep(0.05, 0.15, dot(min(lit, vec3(1.0)), vec3(0.2126, 0.7152, 0.0722)));
+		vec3 lit = pow(max(neonLevel(vColour, vAlpha), 0.0), vec3(2.2));
+		float most = max(lit.r, max(lit.g, lit.b));
+		float fade = pow(max(1.0 - (1.0 - vAlpha) / 0.3, 0.0), 2.5);
+		e = (1.0 - exp(-max(lit - 0.3, 0.0))) * smoothstep(0.7, 1.0, most) * fade;
 	}
 	else if (tex.z > 0.5 && layer >= 0) e = min(lavaLight(texture(looks, vec3(uv / tex.x, float(layer))).g), vec3(1.0)) * 0.2;
 	else if (int(b.z) == 14) e = min(lavaLight(pattern(14, uv, b.x).z), vec3(1.0)) * 0.2;
 	// A see-through part over what glows behind it, as WebGpuView's fsGlowSeen.
-	o = seen > 0.5 ? vec4(e * vAlpha, vAlpha) : vec4(e, 1.0);
+	bool neon = b.y > 0.5 && b.y < 1.5;
+	float a = neon ? neonAlpha(vAlpha) : vAlpha;
+	o = seen > 0.5 ? vec4(e * (neon ? 1.0 : vAlpha), a) : vec4(e, 1.0);
 }`;
 const FS_ID = `#version 300 es
 precision highp float; precision highp int; in vec3 vColour; flat in uint vId; out uint o;
