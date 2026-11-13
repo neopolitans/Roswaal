@@ -405,6 +405,17 @@ function CompilingSettings({
 						label={config.castsByHierarchy ? "Left out" : "Written"}
 					/>
 				</Row>
+
+				<Row
+					label="If local and while local"
+					help="A Studio beta. Off, Bind writes plain Luau that runs everywhere."
+				>
+					<Toggle
+						on={config.conditionalBindings === true}
+						onChange={(on) => onConfig({ conditionalBindings: on })}
+						label={config.conditionalBindings ? "Written (Studio beta)" : "Plain Luau"}
+					/>
+				</Row>
 			</Group>
 
 			<Group title="Indentation">

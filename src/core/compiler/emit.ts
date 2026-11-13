@@ -99,6 +99,8 @@ export interface EmitOptions {
 	comments?: boolean;
 	/** See `castsByHierarchy` in the project config. Default off. */
 	castsByHierarchy?: boolean;
+	/** See `conditionalBindings` in the project config. Default off. */
+	conditionalBindings?: boolean;
 }
 
 /** What a node's logic compiles to, before the placeholders are put back. */

@@ -133,6 +133,11 @@ export function settingsPage(): DocPage {
 						"An Implicit Cast inside an **Is A** branch is always left out when the branch proved exactly its classes. On, it is also left out when the branch proved a class derived from the one it casts to — **Is A** `Part` covering a cast to `BasePart`.",
 					],
 					[
+						"`conditionalBindings`",
+						"`false`",
+						"On, a Branch or While Loop with Bind on writes `if local`, `elseif local` and `while local`. They need Studio's If Local/Const Bindings beta. Off, Bind writes plain Luau that runs everywhere: the value in a local, then the test.",
+					],
+					[
 						"`indentStyle`",
 						`\`${defaults.indentStyle}\``,
 						"What one level of indentation is in the generated Luau: `tab`, or `space`. Handed to stylua as well when `format` is on, so this decides rather than whatever `stylua.toml` says.",

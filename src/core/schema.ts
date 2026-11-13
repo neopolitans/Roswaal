@@ -740,6 +740,17 @@ export interface RoswaalConfig {
 	 */
 	castsByHierarchy?: boolean;
 	/**
+	 * Let Bind write Luau's conditional bindings as they are written:
+	 * `if local admin = admins[id] then`, `elseif local`, `while local`. They
+	 * are a Studio beta (If Local/Const Bindings), which may not run outside
+	 * Studio. Off, Bind writes the same thing as plain Luau: the value in a
+	 * local, then the test.
+	 *
+	 * Off by default until Roblox ships the syntax. Either way, Roswaal reads
+	 * both.
+	 */
+	conditionalBindings?: boolean;
+	/**
 	 * No longer read, and no longer written by default; accepted so a
 	 * `roswaal.json` that carries it still loads.
 	 *

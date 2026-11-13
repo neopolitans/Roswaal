@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.234.0",
+		date: "2026-11-13",
+		headline: "Bind writes plain Luau unless the project asks for Studio's beta syntax.",
+		added: [
+			"**If local and while local, in Settings › Compiling.** On, Bind writes `if local`, `elseif local` and `while local`, which need Studio's If Local/Const Bindings beta. It is `conditionalBindings` in `roswaal.json`.",
+		],
+		changed: [
+			"**Bind writes plain Luau by default.** A bound Branch writes `local admin = admins[id]` and `if admin then`, and a bound While Loop a `while true` loop that stops when the value is nil or false. Roswaal still reads `if local` and `while local`.",
+		],
+	},
+	{
 		version: "0.233.1",
 		date: "2026-11-13",
 		headline: "A bound Branch or While Loop writes a call straight into if local and while local.",

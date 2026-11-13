@@ -1205,8 +1205,9 @@ function LoopNames({ node, def }: SectionProps) {
 
 /**
  * Bind: Luau's conditional bindings (RFC #238; Studio's If Local/Const Bindings
- * beta), `if local admin = admins[id] then` and `while local item = … do`. The
- * bound value is handed on as a pin, to the True side or the body.
+ * beta), `if local admin = admins[id] then` and `while local item = … do` when
+ * the project's `conditionalBindings` is on, plain Luau otherwise. The bound
+ * value is handed on as a pin, to the True side or the body.
  *
  * Off again, the pin goes, and so do the wires from it: a wire into nothing is
  * worse than none.
@@ -1227,8 +1228,8 @@ function BindValue({ node, def }: SectionProps) {
 				className="check-row"
 				title={
 					loop
-						? "Writes while local, and hands each pass's value to the body as a pin. A Studio beta: turn on If Local/Const Bindings in Studio's Beta Features."
-						: "Writes if local, and hands the value to the True side as a pin. A Studio beta: turn on If Local/Const Bindings in Studio's Beta Features."
+						? "Keeps each pass's value in a local and hands it to the body as a pin. Settings › Compiling writes it as while local, a Studio beta."
+						: "Keeps the value in a local and hands it to the True side as a pin. Settings › Compiling writes it as if local, a Studio beta."
 				}
 			>
 				<input

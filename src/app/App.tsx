@@ -765,6 +765,7 @@ export function App() {
 	const indent = project ? indentUnit(project.config) : undefined;
 	const withComments = project?.config.comments ?? true;
 	const castsByHierarchy = project?.config.castsByHierarchy === true;
+	const conditionalBindings = project?.config.conditionalBindings === true;
 	// Deferred, because every pointer move of a drag is an edit: the canvas
 	// renders each frame at once, and the compile catches up when React has a
 	// moment, skipping the scripts it no longer needs.
@@ -772,9 +773,14 @@ export function App() {
 	const compiled = useMemo(
 		() =>
 			compileSource
-				? compile(compileSource, registry, { indent, comments: withComments, castsByHierarchy })
+				? compile(compileSource, registry, {
+						indent,
+						comments: withComments,
+						castsByHierarchy,
+						conditionalBindings,
+					})
 				: null,
-		[compileSource, registry, indent, withComments, castsByHierarchy],
+		[compileSource, registry, indent, withComments, castsByHierarchy, conditionalBindings],
 	);
 	const diagnostics: Diagnostic[] = compiled?.diagnostics ?? [];
 

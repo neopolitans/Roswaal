@@ -1,7 +1,8 @@
 /**
  * Bind on a Branch and a While Loop: Luau's conditional bindings (RFC #238,
  * `if local x = … then`, `while local x = … do`), in Studio's If Local/Const
- * Bindings beta. Written as that syntax, read back as it, and the bound value
+ * Bindings beta. Written as that syntax when the project asks for it, and as
+ * plain Luau otherwise; read back either way. The bound value
  * is a pin on the True side, or in the body, and nowhere else.
  */
 
@@ -16,6 +17,9 @@ import { createRegistry, resolveNodePins } from "../src/core/nodes/index.js";
 import { Builder, body } from "./helpers.js";
 
 const registry = createRegistry();
+
+/** A project that writes the beta's syntax: `conditionalBindings` in roswaal.json. */
+const BETA = { conditionalBindings: true };
 
 const errors = (out: { diagnostics: { severity: string; message: string }[] }) =>
 	out.diagnostics.filter((d) => d.severity === "error").map((d) => d.message);
@@ -54,7 +58,7 @@ describe("a Branch with Bind on", () => {
 		b.link(branch, "true", printOf(b, branch, "value"), "in");
 		b.link(branch, "false", says(b, "none"), "in");
 
-		const out = compile(b.build(), registry);
+		const out = compile(b.build(), registry, BETA);
 		expect(errors(out)).toEqual([]);
 		expect(body(out.code)).toBe(
 			lines("if local admin = admins[id] then", "\tprint(admin)", "else", '\tprint("none")', "end"),
@@ -71,7 +75,7 @@ describe("a Branch with Bind on", () => {
 		b.link(lookup(b), "result", branch, "condition");
 		b.link(branch, "true", printOf(b, branch, "value"), "in");
 
-		const out = compile(b.build(), registry);
+		const out = compile(b.build(), registry, BETA);
 		expect(errors(out)).toEqual([]);
 		expect(body(out.code)).toBe(lines("if const admin = admins[id] then", "\tprint(admin)", "end"));
 	});
@@ -89,7 +93,7 @@ describe("a Branch with Bind on", () => {
 		b.link(second, "true", printOf(b, second, "value"), "in");
 		b.link(second, "false", says(b, "nobody"), "in");
 
-		const out = compile(b.build(), registry);
+		const out = compile(b.build(), registry, BETA);
 		expect(errors(out)).toEqual([]);
 		expect(body(out.code)).toBe(
 			lines(
@@ -112,7 +116,7 @@ describe("a Branch with Bind on", () => {
 		b.link(lookup(b), "result", branch, "condition");
 		b.link(branch, "false", printOf(b, branch, "value"), "in");
 
-		expect(errors(compile(b.build(), registry))).toEqual([
+		expect(errors(compile(b.build(), registry, BETA))).toEqual([
 			'"admin" only exists on the True side of its Branch, where it is not nil or false.',
 		]);
 	});
@@ -137,7 +141,7 @@ describe("a While Loop with Bind on", () => {
 		b.link(lookup(b, "queue", "head"), "result", loop, "condition");
 		b.link(loop, "body", printOf(b, loop, "value"), "in");
 
-		const out = compile(b.build(), registry);
+		const out = compile(b.build(), registry, BETA);
 		expect(errors(out)).toEqual([]);
 		expect(body(out.code)).toBe(lines("while local item = queue[head] do", "\tprint(item)", "end"));
 	});
@@ -153,7 +157,7 @@ describe("a call bound straight into its condition", () => {
 	) {
 		const b = new Builder();
 		const start = b.node("script.begin");
-		const call = b.node(kind, { config: { argCount: 1, ...config } });
+		const call = b.node(kind, { config: { args: 1, ...config } });
 		if (kind === "call.method") {
 			b.lit(call, "object", { t: "raw", v: "queue" });
 			b.lit(call, "method", { t: "string", v: "Pop" });
@@ -172,7 +176,7 @@ describe("a call bound straight into its condition", () => {
 	it("writes the call into if local", () => {
 		const { b, node } = callInto("call.function", "flow.branch");
 		b.link(node, "true", printOf(b, node, "value"), "in");
-		const out = compile(b.build(), registry);
+		const out = compile(b.build(), registry, BETA);
 		expect(errors(out)).toEqual([]);
 		expect(body(out.code)).toBe(
 			lines("if local admin = getAdmin(id) then", "\tprint(admin)", "end"),
@@ -182,7 +186,7 @@ describe("a call bound straight into its condition", () => {
 	it("writes a method call into while local, made on every pass, with no warning", () => {
 		const { b, node } = callInto("call.method", "flow.while");
 		b.link(node, "body", printOf(b, node, "value"), "in");
-		const out = compile(b.build(), registry);
+		const out = compile(b.build(), registry, BETA);
 		expect(out.diagnostics).toEqual([]);
 		expect(body(out.code)).toBe(
 			lines("while local admin = queue:Pop(1) do", "\tprint(admin)", "end"),
@@ -192,7 +196,7 @@ describe("a call bound straight into its condition", () => {
 	it("keeps the local when the result is named", () => {
 		const { b, node } = callInto("call.function", "flow.branch", { resultName: "found" });
 		b.link(node, "true", says(b, "yes"), "in");
-		const out = compile(b.build(), registry);
+		const out = compile(b.build(), registry, BETA);
 		expect(body(out.code)).toBe(
 			lines("local found = getAdmin(id)", "if local admin = found then", '\tprint("yes")', "end"),
 		);
@@ -201,7 +205,7 @@ describe("a call bound straight into its condition", () => {
 	it("keeps the local when something else reads the result too", () => {
 		const { b, call, node } = callInto("call.function", "flow.branch");
 		b.link(node, "true", printOf(b, call, "result"), "in");
-		const out = compile(b.build(), registry);
+		const out = compile(b.build(), registry, BETA);
 		expect(body(out.code)).toBe(
 			lines(
 				"local result = getAdmin(id)",
@@ -215,7 +219,7 @@ describe("a call bound straight into its condition", () => {
 	it("keeps the local when a statement comes between", () => {
 		const b = new Builder();
 		const start = b.node("script.begin");
-		const call = b.node("call.function", { config: { argCount: 1 } });
+		const call = b.node("call.function", { config: { args: 1 } });
 		b.lit(call, "fn", { t: "raw", v: "getAdmin" });
 		b.lit(call, "a0", { t: "raw", v: "id" });
 		const between = says(b, "looking");
@@ -225,7 +229,7 @@ describe("a call bound straight into its condition", () => {
 		b.link(between, "then", branch, "in");
 		b.link(call, "result", branch, "condition");
 		b.link(branch, "true", says(b, "yes"), "in");
-		const out = compile(b.build(), registry);
+		const out = compile(b.build(), registry, BETA);
 		expect(body(out.code)).toBe(
 			lines(
 				"local result = getAdmin(id)",
@@ -240,9 +244,106 @@ describe("a call bound straight into its condition", () => {
 	it("leaves an unbound Branch as it was", () => {
 		const { b, node } = callInto("call.function", "flow.branch", {}, false);
 		b.link(node, "true", says(b, "yes"), "in");
-		const out = compile(b.build(), registry);
+		const out = compile(b.build(), registry, BETA);
 		expect(body(out.code)).toBe(
 			lines("local result = getAdmin(id)", "if result then", '\tprint("yes")', "end"),
+		);
+	});
+});
+
+describe("as plain Luau, which is the default", () => {
+	it("keeps a Branch's value in a local, then tests it", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const branch = b.node("flow.branch", { config: { bind: true, bindName: "admin" } });
+		b.link(start, "then", branch, "in");
+		b.link(lookup(b), "result", branch, "condition");
+		b.link(branch, "true", printOf(b, branch, "value"), "in");
+		b.link(branch, "false", says(b, "none"), "in");
+
+		const out = compile(b.build(), registry);
+		expect(errors(out)).toEqual([]);
+		expect(body(out.code)).toBe(
+			lines(
+				"local admin = admins[id]",
+				"if admin then",
+				"\tprint(admin)",
+				"else",
+				'\tprint("none")',
+				"end",
+			),
+		);
+	});
+
+	it("nests a bound Branch on a False pin, as there is no elseif for the local", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const first = b.node("flow.branch", { config: { bind: true, bindName: "admin" } });
+		const second = b.node("flow.branch", { config: { bind: true, bindName: "guest" } });
+		b.link(start, "then", first, "in");
+		b.link(lookup(b), "result", first, "condition");
+		b.link(lookup(b, "guests"), "result", second, "condition");
+		b.link(first, "true", printOf(b, first, "value"), "in");
+		b.link(first, "false", second, "in");
+		b.link(second, "true", printOf(b, second, "value"), "in");
+
+		const out = compile(b.build(), registry);
+		expect(errors(out)).toEqual([]);
+		expect(body(out.code)).toBe(
+			lines(
+				"local admin = admins[id]",
+				"if admin then",
+				"\tprint(admin)",
+				"else",
+				"\tlocal guest = guests[id]",
+				"\tif guest then",
+				"\t\tprint(guest)",
+				"\tend",
+				"end",
+			),
+		);
+	});
+
+	it("writes a While Loop's binding inside the loop, with a call made on every pass", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const call = b.node("call.method", { config: { args: 0 } });
+		b.lit(call, "object", { t: "raw", v: "queue" });
+		b.lit(call, "method", { t: "string", v: "Pop" });
+		const loop = b.node("flow.while", { config: { bind: true, bindName: "item" } });
+		b.link(start, "then", call, "in");
+		b.link(call, "then", loop, "in");
+		b.link(call, "result", loop, "condition");
+		b.link(loop, "body", printOf(b, loop, "value"), "in");
+
+		const out = compile(b.build(), registry);
+		expect(out.diagnostics).toEqual([]);
+		expect(body(out.code)).toBe(
+			lines(
+				"while true do",
+				"\tlocal item = queue:Pop()",
+				"\tif not item then break end",
+				"\tprint(item)",
+				"end",
+			),
+		);
+	});
+
+	it("writes an imported if local back as plain Luau", () => {
+		const result = importLuau(
+			lines("if local admin = getAdmin(id) then", "\tprint(admin)", "end"),
+			{
+				name: "T",
+				scriptClass: "Script",
+				target: "roblox",
+				idPrefix: "t",
+			},
+		);
+		if (!result.ok) throw new Error(result.error);
+		const out = compile(result.script, registry);
+		expect(errors(out)).toEqual([]);
+		expect(body(out.code)).toBe(
+			lines("local admin = getAdmin(id)", "if admin then", "\tprint(admin)", "end"),
 		);
 	});
 });
@@ -305,7 +406,7 @@ describe("importing conditional bindings", () => {
 			idPrefix: "t",
 		});
 		if (!result.ok) throw new Error(result.error);
-		const out = compile(result.script, registry);
+		const out = compile(result.script, registry, BETA);
 		expect(errors(out)).toEqual([]);
 		return body(out.code);
 	}

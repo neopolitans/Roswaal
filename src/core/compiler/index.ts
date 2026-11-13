@@ -44,6 +44,8 @@ export interface CompileOptions {
 	comments?: boolean;
 	/** Drop a cast a branch proved by class hierarchy. See the project config. */
 	castsByHierarchy?: boolean;
+	/** Write `if local` and `while local`, a Studio beta. See the project config. */
+	conditionalBindings?: boolean;
 	/**
 	 * The project's `.luaurc` alias map, for checking a module's specifier.
 	 *
@@ -104,6 +106,7 @@ function compileScript(
 		indent: options.indent,
 		comments: options.comments,
 		castsByHierarchy: options.castsByHierarchy,
+		conditionalBindings: options.conditionalBindings,
 		specifiers: options.specifiers,
 	});
 

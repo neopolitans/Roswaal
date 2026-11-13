@@ -83,6 +83,9 @@ describe("roswaal.json", () => {
 		expect(() => parseConfig({ nodePaths: null })).toThrow(/"nodePaths"/);
 		expect(() => parseConfig({ indentWidth: "4" })).toThrow(/"indentWidth"/);
 		expect(() => parseConfig("roblox")).toThrow(UserError);
+		expect(() => parseConfig({ conditionalBindings: "yes" })).toThrow(/"conditionalBindings"/);
+		expect(parseConfig({ conditionalBindings: true }).conditionalBindings).toBe(true);
+		expect(parseConfig({ conditionalBindings: null }).conditionalBindings).toBeUndefined();
 		await scratch({ "roswaal.json": JSON.stringify({ nodePaths: null }) });
 		await expect(openProject(root)).rejects.toThrow(/"nodePaths" must be a list/);
 	});

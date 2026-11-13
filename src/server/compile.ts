@@ -230,6 +230,7 @@ export async function compileScript(
 		indent: indentUnit(project.config),
 		comments: project.config.comments,
 		castsByHierarchy: project.config.castsByHierarchy === true,
+		conditionalBindings: project.config.conditionalBindings === true,
 		specifiers: specifierContext(sources, relPath),
 	});
 
