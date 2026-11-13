@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.238.1",
+		date: "2026-11-13",
+		headline: "Creator Marketplace meshes download through Sign in with Roblox.",
+		fixed: [
+			"**Meshes Roblox serves from its content delivery server now download.** Some Creator Marketplace meshes come from contentdelivery.roblox.com rather than Roblox's CDN, and were refused. A refused download now names the server it was refused for.",
+		],
+	},
+	{
 		version: "0.238.0",
 		date: "2026-11-13",
 		headline: "Sign in with Roblox can download the assets a place uses, and keeps them only as long as needed.",

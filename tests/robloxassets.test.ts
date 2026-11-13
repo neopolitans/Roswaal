@@ -147,8 +147,11 @@ describe("downloading an asset", () => {
 		expect((await any.fetchAll(root, ["../../x"]))["../../x"]).toMatchObject({ state: "failed" });
 	});
 
-	it("matches Roblox's CDN host and nothing that only resembles it", () => {
+	it("matches Roblox's download servers and nothing that only resembles them", () => {
 		expect(isRobloxCdn("https://c0.rbxcdn.com/abc")).toBe(true);
+		expect(isRobloxCdn("https://contentdelivery.roblox.com/v1/x")).toBe(true);
+		expect(isRobloxCdn("https://www.roblox.com/abc")).toBe(false);
+		expect(isRobloxCdn("https://contentdelivery.roblox.com.evil.example/x")).toBe(false);
 		expect(isRobloxCdn("https://rbxcdn.com.evil.example/abc")).toBe(false);
 		expect(isRobloxCdn("https://evilrbxcdn.com/abc")).toBe(false);
 		expect(isRobloxCdn("http://c0.rbxcdn.com/abc")).toBe(false);

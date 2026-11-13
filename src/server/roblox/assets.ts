@@ -11,8 +11,9 @@
  *   first: Roblox's own assets (user 1) are recorded as skipped and never
  *   downloaded, as the Privacy Policy says. Then asset delivery
  *   (`legacy-asset:manage`) gives a download address, which must be HTTPS on
- *   Roblox's CDN, `rbxcdn.com`, before and after any redirect (CASA 5.1). The
- *   CDN is not sent the token. Each download is size-limited.
+ *   one of Roblox's download servers (`isRobloxCdn`), before and after any
+ *   redirect (CASA 5.1). They are not sent the token. Each download is
+ *   size-limited.
  * - **How long.** An asset unused for 30 days is deleted. Clear downloaded
  *   assets deletes a project's whole folder. Signing out, or losing access,
  *   deletes every project's, through the list `downloadRegistry` keeps of the
@@ -68,13 +69,31 @@ export type AssetOutcome =
 	| { state: "skipped"; reason: "roblox-made" }
 	| { state: "failed"; reason: string };
 
-/** Whether an address is Roblox's CDN, over HTTPS: the only place an asset is fetched from. */
+/** An address's scheme and host, and nothing of its path or query. */
+function hostOf(address: unknown): string {
+	try {
+		const url = new URL(String(address));
+		return `${url.protocol}//${url.hostname}`;
+	} catch {
+		return "no address";
+	}
+}
+
+/**
+ * Whether an address is one of Roblox's download servers, over HTTPS: the only
+ * places an asset is fetched from. Its CDN, `rbxcdn.com`, and
+ * `contentdelivery.roblox.com`, which asset delivery hands out for some
+ * Creator Marketplace meshes (seen 13 Nov 2026). Named exactly rather than
+ * all of `roblox.com`.
+ */
 export function isRobloxCdn(address: string): boolean {
 	try {
 		const url = new URL(address);
 		return (
 			url.protocol === "https:" &&
-			(url.hostname === "rbxcdn.com" || url.hostname.endsWith(".rbxcdn.com"))
+			(url.hostname === "rbxcdn.com" ||
+				url.hostname.endsWith(".rbxcdn.com") ||
+				url.hostname === "contentdelivery.roblox.com")
 		);
 	} catch {
 		return false;
@@ -241,7 +260,11 @@ export class AssetCache {
 			assetTypeId?: unknown;
 		};
 		if (typeof location !== "string" || !isRobloxCdn(location)) {
-			throw new HttpError(502, `Asset ${id}'s download address is not Roblox's.`);
+			// The host alone: the rest of the address is a signed link, and not repeated.
+			throw new HttpError(
+				502,
+				`Asset ${id}'s download address is not Roblox's (${hostOf(location)}).`,
+			);
 		}
 		// The CDN gets no token, and wherever it redirects must be Roblox's too.
 		const download = await this.fetch(location, { signal: AbortSignal.timeout(REQUEST_MS) });
