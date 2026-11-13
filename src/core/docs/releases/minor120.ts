@@ -9,6 +9,22 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.233.0",
+		date: "2026-11-13",
+		headline: "Roblox Studio 0.747, Lune 0.11.1 and Material Symbols 0.49.0.",
+		added: [
+			"**Lune 0.11.1.** The Lune catalogue adds `net.http.request`, `net.http.serve` and `net.ws.connect`.",
+			"**Studio 0.747.** The engine catalogue adds AudioStreamReader, AudioStreamWriter and ViewportCamera, with class icons for each.",
+		],
+		changed: [
+			"**Class icons come from Material Symbols 0.49.0.** Platform's icon is now crop_5_4, as 0.49.0 removed crop_landscape.",
+			"**Packages updated within their current majors**, including Biome 2.6.7, React 19.3.1, Vite 8.3.8 and Vitest 5.1.0. The unused `codemirror` package is removed.",
+		],
+		fixed: [
+			"**Lune functions show their own descriptions.** Some took the text of a type documented above them, such as `net.tcp.connect`.",
+		],
+	},
+	{
 		version: "0.232.0",
 		date: "2026-11-13",
 		headline: "Bind writes if local, elseif local and while local, and Roswaal reads them.",
@@ -41,7 +57,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.230.2",
 		date: "2026-11-12",
-		headline: "The docs show Add from Wally's version question, and Attributions is verified again.",
+		headline:
+			"The docs show Add from Wally's version question, and Attributions is verified again.",
 		changed: [
 			"**Wally packages shows the version question.** Add from Wally's steps include Which version?, and the project tree section says a package with no version of its own shows 1.0.0.",
 			"**The interface page says how Script analysis is sized**, by its top and right edges.",
@@ -94,7 +111,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.228.3",
 		date: "2026-11-10",
-		headline: "A save cut off part-way leaves nothing behind, and Dynamic mode says when it cannot compile.",
+		headline:
+			"A save cut off part-way leaves nothing behind, and Dynamic mode says when it cannot compile.",
 		fixed: [
 			"**A cut-off save leaves nothing behind.** A save that failed part-way could leave an empty `<name>.<random>.tmp` file beside the graph. It is removed now, and on the website a save writes straight to the file, which the browser keeps unchanged until the write is complete.",
 			"**Dynamic mode says when it cannot compile.** A graph it could not compile, such as one that no longer reads as a graph, was skipped without a word. The editor now names the file and the reason, once for each new problem.",
@@ -175,7 +193,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.225.1",
 		date: "2026-11-10",
-		headline: "Windows move smoothly, the pivot shows its axes only in Edit Pivot, and Pivot and Object sit by the steps.",
+		headline:
+			"Windows move smoothly, the pivot shows its axes only in Edit Pivot, and Pivot and Object sit by the steps.",
 		fixed: [
 			"**Windows keep up.** Moving or resizing a pinned Properties window, or resizing a panel's window, redrew the whole editor at every step and lagged behind the pointer.",
 		],
@@ -195,7 +214,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.224.1",
 		date: "2026-11-10",
-		headline: "Neon's glow falls off smoothly, and one click in DataModel shows what it picks while the place is open.",
+		headline:
+			"Neon's glow falls off smoothly, and one click in DataModel shows what it picks while the place is open.",
 		fixed: [
 			"**Neon's glow has no bands.** Its soft edge was drawn in visible steps. It is blurred at a finer depth now, where the browser allows, and laid over the view with a fine dither.",
 			"**One click shows an instance in Properties.** With the place open in 3D, Properties kept describing the place until an instance was double-clicked.",
@@ -204,7 +224,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.224.0",
 		date: "2026-11-10",
-		headline: "DataModel lists the services in use, Add Service to Explorer lists another, and Ctrl+click adds to what the 3D view picks.",
+		headline:
+			"DataModel lists the services in use, Add Service to Explorer lists another, and Ctrl+click adds to what the 3D view picks.",
 		added: [
 			"**Add Service to Explorer.** DataModel lists the services that hold something and those the project's Luau reaches. The rest wait behind **Add Service to Explorer**, at the foot of the list, and one picked there stays listed for the project.",
 			"**Ctrl+click in the 3D view.** `Ctrl` + click, `Cmd` on a Mac, adds what it reaches to what is picked, or takes it out; with `Alt` too, the part itself. `Ctrl` + drag adds a box's parts, as `Shift` + drag does.",
@@ -216,7 +237,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.223.1",
 		date: "2026-11-10",
-		headline: "The 3D view's editing tools wait on Modify DataModel Instances, and importing a place asks whether to edit it.",
+		headline:
+			"The 3D view's editing tools wait on Modify DataModel Instances, and importing a place asks whether to edit it.",
 		changed: [
 			"**Editing tools are greyed out while editing is off.** Move, Rotate, Scale, Pivot and Object in the 3D view's bar, and their keys, are offered with Modify DataModel Instances on. Each says where to turn it on.",
 			"**Importing asks about the DataModel.** Import a place file, and Import Rojo project when the project has a place, ask whether to view the place only or to view and edit it. The answer sets Modify DataModel Instances.",
@@ -225,7 +247,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.223.0",
 		date: "2026-11-10",
-		headline: "Ctrl+L turns the 3D view's handles between the object's axes and the world's, and a CFrame reads as its Position and Orientation.",
+		headline:
+			"Ctrl+L turns the 3D view's handles between the object's axes and the world's, and a CFrame reads as its Position and Orientation.",
 		added: [
 			"**Object and global space.** `Ctrl` + `L`, `Cmd` + `L` on a Mac, turns the handles between the axes of what is picked and the world's, as in Studio. **Object** in the 3D view's bar does the same and shows which is on.",
 		],
@@ -267,7 +290,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.222.0",
 		date: "2026-11-09",
-		headline: "The 3D view shows what is picked square to itself, with its pivot, and has Edit Pivot.",
+		headline:
+			"The 3D view shows what is picked square to itself, with its pivot, and has Edit Pivot.",
 		added: [
 			"**The pivot is shown.** One thing picked in the 3D view shows its pivot over every part in front of it: a white dot with its X, Y and Z.",
 			"**Edit Pivot.** **Pivot** in the 3D view's bar puts the move and rotate handles on the pivot of what is picked.",
@@ -334,7 +358,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.220.8",
 		date: "2026-11-08",
-		headline: "The Attributions page's place-file entry links to Roblox's documentation and to rbx-dom's.",
+		headline:
+			"The Attributions page's place-file entry links to Roblox's documentation and to rbx-dom's.",
 		affects: ["docs"],
 		changed: [
 			"**Two links for place files.** Roblox place and model files leads to Roblox's Studio documentation, and its note to rbx-dom's description of the binary format.",
@@ -343,7 +368,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.220.7",
 		date: "2026-11-08",
-		headline: "The viewport's patterns come from a hash of Roswaal's own, and the Attributions page credits the place-file formats.",
+		headline:
+			"The viewport's patterns come from a hash of Roswaal's own, and the Attributions page credits the place-file formats.",
 		affects: ["editor", "docs"],
 		changed: [
 			"**Patterns from Roswaal's own hash.** The viewport's material patterns, grain and CrackedLava's cracks take their random values from a hash whose constants `scripts/find-hash.mjs` found by search. Each pattern keeps its look; where each speck, stone and crack falls has moved.",
@@ -353,7 +379,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.220.6",
 		date: "2026-11-08",
-		headline: "A wire connected by touch no longer leaves the canvas zooming, and Dynamic mode compiles a moved node only when its Luau changes.",
+		headline:
+			"A wire connected by touch no longer leaves the canvas zooming, and Dynamic mode compiles a moved node only when its Luau changes.",
 		affects: ["editor"],
 		fixed: [
 			"**Touch after connecting a wire.** Once a wire was connected with a finger, every touch on the canvas zoomed it, until the page was reloaded. A finger now pans again as soon as the wire lands.",
@@ -384,7 +411,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.220.3",
 		date: "2026-11-07",
-		headline: "Programs on macOS and Linux are started by their full path, and the Privacy Policy is verified.",
+		headline:
+			"Programs on macOS and Linux are started by their full path, and the Privacy Policy is verified.",
 		affects: ["docs"],
 		verified: ["privacy"],
 		fixed: [
@@ -397,7 +425,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.220.2",
 		date: "2026-11-07",
-		headline: "The Privacy Policy says how Roswaal reaches your files on each system, and roswaal.app/attributions works.",
+		headline:
+			"The Privacy Policy says how Roswaal reaches your files on each system, and roswaal.app/attributions works.",
 		affects: ["docs"],
 		added: [
 			"**roswaal.app/attributions** opens the Attributions page, as /terms and /privacy open theirs.",
@@ -420,7 +449,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.220.0",
 		date: "2026-11-07",
-		headline: "The place's touch controls fade when left alone, and the camera's speed can be set by hand.",
+		headline:
+			"The place's touch controls fade when left alone, and the camera's speed can be set by hand.",
 		added: [
 			"**Touch controls fade.** Each stick, and the up and down buttons, fades to a faint outline three seconds after the last touch in its area, and comes back at the next touch, which works as it wakes it.",
 			"**A camera speed field.** Beside the stud and rotation snaps, behind Snap where the bar is narrow and at the bar's end on a wide screen. Shift+scroll still sets it, from 0.05× to 50×.",
@@ -452,7 +482,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.219.6",
 		date: "2026-11-07",
-		headline: "The Privacy Policy links each address and Roblox policy it names, and lists what the daemon does.",
+		headline:
+			"The Privacy Policy links each address and Roblox policy it names, and lists what the daemon does.",
 		affects: ["docs"],
 		changed: [
 			"**The three sites are links.** roswaal.app, its preview at canary.roswaal.app and its backup at neopolitans.github.io/Roswaal.",
@@ -463,7 +494,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.219.5",
 		date: "2026-11-07",
-		headline: "The Terms of Service say the 0BSD licence covers Roswaal's own work, and that Wally packages keep their licences.",
+		headline:
+			"The Terms of Service say the 0BSD licence covers Roswaal's own work, and that Wally packages keep their licences.",
 		affects: ["docs"],
 		changed: [
 			"**The 0BSD licence covers Roswaal's own code and assets.** The third-party parts it includes keep their own licences, listed on the Attributions page.",
@@ -482,7 +514,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.219.3",
 		date: "2026-11-07",
-		headline: "The docs' contents scroll on a phone or tablet, and the policies' dates stand apart.",
+		headline:
+			"The docs' contents scroll on a phone or tablet, and the policies' dates stand apart.",
 		affects: ["docs"],
 		fixed: [
 			"**The contents scroll on a phone or tablet.** The drawer ran past the bottom of the screen, so its last sections could not be reached.",
@@ -495,7 +528,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.219.2",
 		date: "2026-11-07",
-		headline: "The Terms of Service and Privacy Policy say when they took effect and were last edited, at short addresses of their own.",
+		headline:
+			"The Terms of Service and Privacy Policy say when they took effect and were last edited, at short addresses of their own.",
 		affects: ["docs"],
 		changed: [
 			"**Date Effective and Last Edited** head both pages.",
@@ -505,7 +539,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.219.1",
 		date: "2026-11-07",
-		headline: "Legal has its own heading in the docs, and both policies name every service Roswaal uses.",
+		headline:
+			"Legal has its own heading in the docs, and both policies name every service Roswaal uses.",
 		affects: ["docs"],
 		changed: [
 			"**A Legal heading.** Attributions, the Privacy Policy and the Terms of Service sit together under it, after the reference.",
@@ -552,7 +587,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.218.1",
 		date: "2026-11-07",
-		headline: "A Neon part is one even shade with its glow round it, and the place's row in DataModel opens and closes.",
+		headline:
+			"A Neon part is one even shade with its glow round it, and the place's row in DataModel opens and closes.",
 		fixed: [
 			"**Neon is one even shade.** Its glow is drawn round the part rather than over it, so its faces no longer dim towards their edges and corners.",
 			"**The place's row opens and closes.** Its arrow in DataModel shuts and opens the whole tree at once, whatever Workspace was left as.",
@@ -561,7 +597,8 @@ export const RELEASES_0_120: Release[] = [
 	{
 		version: "0.218.0",
 		date: "2026-11-07",
-		headline: "A left-drag in the place picks a box of parts, DataModel picks many rows, and Tab takes a suggestion.",
+		headline:
+			"A left-drag in the place picks a box of parts, DataModel picks many rows, and Tab takes a suggestion.",
 		added: [
 			"**Box select in the place.** A left-drag draws a box and picks every part whose centre is inside it, each with its own outline; Shift adds to what is picked, and an empty box clears it.",
 			"**Many rows in DataModel.** Ctrl-click (Cmd on a Mac) picks the run from the last row picked, Shift-click adds a row or takes it out, and the rows and the place's view always show the same pick.",

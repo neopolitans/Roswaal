@@ -823,6 +823,7 @@ export const CLASS_PROPERTIES: Readonly<Record<string, readonly ClassProperty[]>
 		{ name: "PrivateServerId", type: "string" },
 		{ name: "PrivateServerOwnerId", type: "number" },
 		{ name: "RunService", type: "RunService" },
+		{ name: "ServerRegion", type: "string" },
 		{ name: "Workspace", type: "Workspace" },
 	],
 	DataModelMesh: [

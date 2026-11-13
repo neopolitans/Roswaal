@@ -8,7 +8,7 @@
 		},
 		"lune": {
 			"from": "github:lune-org/lune",
-			"seen": "0.10.5",
+			"seen": "0.11.1",
 			"why": "The Lune catalogue is built from this tag: LUNE_VERSION in scripts/build-lune.mjs."
 		},
 		"stylua": {
@@ -28,7 +28,7 @@
 		},
 		"material-symbols": {
 			"from": "npm:@material-symbols/svg-400",
-			"seen": "0.48.0",
+			"seen": "0.49.0",
 			"why": "Class icons are built from this version: MATERIAL in scripts/build-class-icons.mjs."
 		}
 	}

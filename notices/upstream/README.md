@@ -10,7 +10,7 @@ is written by hand, edited, reformatted, or reconstructed from a template.
 | `nord.txt` | [`nordtheme/nord` · `license`](https://github.com/nordtheme/nord/blob/develop/license) | 2026-08-31 |
 | `luau-site.txt` | [`luau-lang/site` · `LICENSE.md`](https://github.com/luau-lang/site/blob/master/LICENSE.md) | 2026-10-05 |
 | `material-symbols.txt` | [`google/material-design-icons` · `LICENSE`](https://github.com/google/material-design-icons/blob/master/LICENSE) | 2026-10-08 |
-| `lune.txt` | [`lune-org/lune` · `LICENSE.txt` at `v0.10.5`](https://github.com/lune-org/lune/blob/v0.10.5/LICENSE.txt) | 2026-10-08 |
+| `lune.txt` | [`lune-org/lune` · `LICENSE.txt` at `v0.11.1`](https://github.com/lune-org/lune/blob/v0.11.1/LICENSE.txt) | 2026-11-13 |
 | `creator-docs.txt` | [`Roblox/creator-docs` · `LICENSE`](https://github.com/Roblox/creator-docs/blob/main/LICENSE) | 2026-10-08 |
 | `vt323.txt` | [`google/fonts` · `ofl/vt323/OFL.txt`](https://github.com/google/fonts/blob/main/ofl/vt323/OFL.txt) | 2026-10-20 |
 | `bakinglab.txt` | [`TheRealMJP/BakingLab` · `LICENSE`](https://github.com/TheRealMJP/BakingLab/blob/master/LICENSE) | 2026-11-05 |

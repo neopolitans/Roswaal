@@ -46,7 +46,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
  * Lune it is built for, and this constant is quoted in the generated file so the
  * answer travels with the data.
  */
-const LUNE_VERSION = "0.10.5";
+const LUNE_VERSION = "0.11.1";
 const TAG = `v${LUNE_VERSION}`;
 
 /** The standard library, by the alias each is required under. */
@@ -168,9 +168,12 @@ for (const module of MODULES) {
 
 	// A doc block, then the function it documents. The `<T...>` is not optional
 	// decoration: four of `task`'s five functions are generic, and a pattern
-	// that stopped at the name found one of them.
+	// that stopped at the name found one of them. The block holds no `]=]` of
+	// its own: a doc above a type or a table (`local http = {}`) ends there, and
+	// a lazy match ran on through it into the function's, so `tcp.connect` was
+	// summed up as "Extra options for `FetchParams`".
 	const pattern =
-		/--\[=\[\n([\s\S]*?)\]=\]\s*\nfunction\s+(\w+)[.:](\w+)\s*(?:<[^>]*>)?\s*\(([\s\S]*?)\)\s*(?::\s*([^\n]+?))?\s*(?:\n|end)/g;
+		/--\[=\[\n((?:(?!\]=\])[\s\S])*?)\]=\]\s*\nfunction\s+(\w+)[.:](\w+)\s*(?:<[^>]*>)?\s*\(([\s\S]*?)\)\s*(?::\s*([^\n]+?))?\s*(?:\n|end)/g;
 
 	let undocumented = 0;
 	const classes = new Map();

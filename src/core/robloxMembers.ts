@@ -134,7 +134,7 @@ export const SERVICE_METHODS: Readonly<Record<string, readonly ServiceMethod[]>>
 		{ name: "UnbindFromRenderStep", from: "RunService", summary: "Unbinds a function that was bound to the render loop using `RunService:BindToRenderStep()`.", params: [{ name: "name", type: "string", summary: "The name of the function being unbound." }], returns: "" },
 	],
 	UserInputService: [
-		{ name: "CreateVirtualInput", from: "UserInputService", summary: "Creates a `VirtualInput` object for simulating mouse, keyboard, and pointer input.", params: [{ name: "target", type: "Instance", summary: "Optional." }], returns: "Object" },
+		{ name: "CreateVirtualInput", from: "UserInputService", summary: "Creates a `VirtualInput` object for simulating mouse, keyboard, and pointer input.", params: [{ name: "target", type: "Instance", optional: true, summary: "Optional." }], returns: "Object" },
 		{ name: "GamepadSupports", from: "UserInputService", summary: "Returns whether the given `UserInputType` gamepad supports a button corresponding with the given `KeyCode`.", params: [{ name: "gamepadNum", type: "string", enum: "UserInputType", summary: "The `UserInputType` of the gamepad." }, { name: "gamepadKeyCode", type: "string", enum: "KeyCode", summary: "The `KeyCode` of the button in question." }], returns: "boolean" },
 		{ name: "GetConnectedGamepads", from: "UserInputService", summary: "Returns an array of `UserInputType` gamepads currently connected.", params: [], returns: "table", pure: true },
 		{ name: "GetDeviceAcceleration", from: "UserInputService", summary: "Returns an `InputObject` that describes the device's current acceleration.", params: [], returns: "InputObject", pure: true },

@@ -217,7 +217,7 @@ export const GLYPHS = {
 	Seat: "event_seat",
 	VehicleSeat: "directions_car",
 	SkateboardPlatform: "skateboarding",
-	Platform: "crop_landscape",
+	Platform: "crop_5_4",
 	Model: "category",
 	Actor: "account_tree",
 	WorldModel: "public",

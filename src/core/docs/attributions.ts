@@ -490,7 +490,7 @@ export const ATTRIBUTIONS: Attribution[] = [
 		where: "`src/core/luneApi.ts`. Licence: `notices/upstream/lune.txt`.",
 		note:
 			"Roswaal shows Lune's function signatures and parameter descriptions, unchanged, from " +
-			"v0.10.5. They stay under the MPL, not 0BSD.",
+			"v0.11.1. They stay under the MPL, not 0BSD.",
 		url: "https://github.com/lune-org/lune",
 	},
 	{

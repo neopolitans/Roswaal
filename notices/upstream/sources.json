@@ -64,10 +64,10 @@
 		"name": "Lune type definitions",
 		"holder": "Filip Tibell and contributors",
 		"spdx": "MPL-2.0",
-		"covers": "Lune's function signatures and parameter descriptions, unchanged, from v0.10.5.",
-		"source": "lune-org/lune · LICENSE.txt at v0.10.5",
-		"url": "https://github.com/lune-org/lune/blob/v0.10.5/LICENSE.txt",
-		"retrieved": "2026-10-08"
+		"covers": "Lune's function signatures and parameter descriptions, unchanged, from v0.11.1.",
+		"source": "lune-org/lune · LICENSE.txt at v0.11.1",
+		"url": "https://github.com/lune-org/lune/blob/v0.11.1/LICENSE.txt",
+		"retrieved": "2026-11-13"
 	},
 	{
 		"file": "vt323.txt",

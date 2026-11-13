@@ -39,7 +39,7 @@ import { fileURLToPath } from "node:url";
 import * as R from "./lib/classIconRules.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const MATERIAL = "0.48.0";
+const MATERIAL = "0.49.0";
 const CACHE = join(ROOT, "node_modules", ".cache", `material-symbols-${MATERIAL}`);
 const OUT = join(ROOT, "src", "core", "classIconData.ts");
 const PURPOSES_OUT = join(ROOT, "src", "core", "classIconPurposes.ts");
