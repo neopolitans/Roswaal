@@ -73,7 +73,7 @@ export function settingsPage(): DocPage {
 					[
 						"**Extended Features**",
 						"This browser, and `roswaal.json` for Studio betas",
-						"Parts of Roswaal you can turn on or off, each with a checkbox: the place viewer, and Studio betas the Luau can use",
+						"Parts of Roswaal you can turn on or off, each with a checkbox: the place viewer, and Studio betas the Luau can use. Through `roswaal serve`, Sign in with Roblox too",
 					],
 				],
 			},

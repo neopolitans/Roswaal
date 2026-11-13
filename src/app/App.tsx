@@ -103,6 +103,7 @@ import { setProjectAliases } from "./projectAliases.js";
 import { setProjectFunctions, setProjectTypes } from "./projectTypes.js";
 import { RefactorPanel } from "./RefactorPanel.jsx";
 import { forget, lastProject, remember } from "./recents.js";
+import { setRobloxStatus } from "./robloxAccount.js";
 import { previewSelection } from "./SelectionPreview.jsx";
 import { SourceView } from "./SourceView.jsx";
 import { StatusPanel } from "./StatusPanel.jsx";
@@ -1187,6 +1188,11 @@ export function App() {
 				else next[at] = step;
 				return next;
 			});
+		});
+
+		// Sign in with Roblox started, finished, or ended: who, never a token.
+		stream.addEventListener("roblox", (event) => {
+			setRobloxStatus(JSON.parse((event as MessageEvent).data));
 		});
 
 		stream.addEventListener("project", (event) => {

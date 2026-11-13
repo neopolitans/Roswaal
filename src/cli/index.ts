@@ -412,7 +412,11 @@ async function commandServe(args: Args): Promise<number> {
 	// A new key each start, kept where only this account can read it.
 	const token = newToken();
 	keepToken(tokenFileFor(port), token);
-	await createDaemon({ token }).start({ port, root });
+	const daemon = createDaemon({ token });
+	await daemon.start({ port, root });
+	// Whether Roblox still honours a sign-in from before: if not, it and its
+	// downloads are deleted now, as Roblox's Third Party App Policy asks.
+	void daemon.roblox?.checkAccess();
 
 	const url = `http://127.0.0.1:${port}`;
 	// The key after the #, which the browser never sends: the editor hands it over once.

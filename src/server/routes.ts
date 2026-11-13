@@ -138,6 +138,7 @@ import {
 } from "./project.js";
 import { fields, need, optionalQuery, query, type RouteRequest, realmOf, text } from "./request.js";
 import { instancePathOf, modulesRequiredBy, projectInstances } from "./requires.js";
+import type { RobloxAccount } from "./roblox/signin.js";
 import { addFromWally, installGithub, installZip, packageUses, removePackage } from "./wally.js";
 
 export { type ErrorBody, errorResponse, HttpError, UserError } from "./errors.js";
@@ -199,6 +200,12 @@ export interface HostCapabilities {
 	 * hosted editor cannot fetch one and does not offer to.
 	 */
 	githubDownload?(owner: string, repo: string, ref: string): Promise<Uint8Array>;
+	/**
+	 * Sign in with Roblox. The daemon's alone: the sign-in and its tokens stay
+	 * on this computer (`server/roblox/signin.ts`), and the website does not
+	 * offer it.
+	 */
+	roblox?: RobloxAccount;
 }
 
 export interface SessionHooks {
@@ -473,6 +480,21 @@ export class ApiSession {
 			 * failing on the click. Names, not a boolean each, so a host that
 			 * gains one does not need this shape changed.
 			 */
+			/** Whether anyone is signed in with Roblox, and who: never a token. */
+			"GET /roblox": async () => {
+				const account = this.hooks.capabilities?.roblox;
+				return account ? { available: true, ...(await account.status()) } : { available: false };
+			},
+
+			/** Starts a sign-in; the editor opens the address it is given. */
+			"POST /roblox/signin": async () => this.ability("roblox").signIn(),
+
+			/** Revokes the sign-in and deletes it and everything it downloaded. */
+			"POST /roblox/signout": async () => {
+				await this.ability("roblox").signOut();
+				return { ok: true };
+			},
+
 			"GET /health": async () => ({
 				ok: true,
 				project: this.current?.root ?? null,

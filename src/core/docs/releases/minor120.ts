@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.237.0",
+		date: "2026-11-13",
+		headline: "Sign in with Roblox, through roswaal serve, in Settings › Extended Features.",
+		added: [
+			"**Sign in with Roblox**, in Settings › Extended Features when the editor runs through `roswaal serve`. A screen first says what Roblox will ask for, where the sign-in is kept and how to remove it, and asks anyone under 18 to check with a parent or guardian. Roswaal's Roblox app is in private mode while this is tried, so only a few accounts can use it, and nothing is downloaded with it yet.",
+			"**Signing out** ends the sign-in on Roblox and deletes it. If Roblox stops accepting it, Roswaal deletes it the next time the daemon starts.",
+		],
+		changed: [
+			"**The Privacy Policy says where the sign-in is kept**: in `.roswaal` in your home folder, readable only by your account and encrypted on Windows, with the 15-minute access token in memory only.",
+		],
+	},
+	{
 		version: "0.236.5",
 		date: "2026-11-13",
 		headline: "The Privacy Policy defines its terms, and Attributions is verified again.",

@@ -12707,6 +12707,23 @@ a.docs-minor-row .aside {
 	cursor: pointer;
 }
 
+/* Sign in with Roblox: what is asked for, before Roblox's own page. */
+.setting.roblox-consent {
+	grid-template-columns: 1fr;
+}
+
+.roblox-consent .dialog-points {
+	margin: 8px 0 6px;
+	color: var(--fg-dim);
+}
+
+.roblox-consent-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 10px;
+}
+
 .setting-feature .setting-control > input[type="checkbox"] {
 	width: 18px;
 	height: 18px;

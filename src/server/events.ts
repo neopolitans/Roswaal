@@ -8,6 +8,7 @@
 
 import type { Request, Response } from "express";
 import type { CompileStep } from "./project.js";
+import type { RobloxStatus } from "./roblox/signin.js";
 import type { DynamicCompiler, WatchEvent } from "./watcher.js";
 
 /** Some proxies drop an idle stream; a periodic comment keeps it open. */
@@ -75,6 +76,11 @@ export function broadcastProject(root: string | null): void {
  */
 export function broadcastCompile(step: CompileStep): void {
 	broadcast("compile", step);
+}
+
+/** Tells every open editor that Sign in with Roblox changed: who, or nobody. Never a token. */
+export function broadcastRoblox(status: RobloxStatus): void {
+	broadcast("roblox", status);
 }
 
 export function streamEvents(dynamic: DynamicCompiler, req: Request, res: Response): void {

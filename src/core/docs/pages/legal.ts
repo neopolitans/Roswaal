@@ -162,7 +162,7 @@ export function privacyPage(): DocPage {
 				t: "ul",
 				items: [
 					"**Only your computer, and only your account, can use it.** The daemon listens on 127.0.0.1, so nothing else on your network can connect to it, and it answers only requests that carry its key.",
-					"**Only your project, and its key.** It reads and writes the project folder you choose, and any file you name to the command, such as a place you export. Each time it starts it writes a new key to `.roswaal` in your home folder, readable only by your account. The editor you open from it keeps that key in the tab's session storage, which the browser clears when the tab is closed. Nothing else of yours is touched.",
+					"**Only your project, and its key.** It reads and writes the project folder you choose, and any file you name to the command, such as a place you export. Each time it starts it writes a new key to `.roswaal` in your home folder, readable only by your account. The editor you open from it keeps that key in the tab's session storage, which the browser clears when the tab is closed. If you sign in with Roblox, the sign-in is kept beside the key, as below. Nothing else of yours is touched.",
 					"**Online only when you ask.** It installs a package from the [Wally](https://wally.run) registry, or fetches a repository from GitHub, when you tell it to, and makes no other requests.",
 					"**Those services' own policies** cover those requests; they are listed below.",
 				],
@@ -212,7 +212,7 @@ export function privacyPage(): DocPage {
 				items: [
 					"**Only when you choose.** Roblox asks for your consent on its own page, listing the permissions Roswaal asks for: to download assets (`legacy-asset:manage`), to read who made an asset (`asset:read`), and to identify your account (`openid`), which gives Roswaal your Roblox user ID and nothing else about you, not your name or avatar.",
 					'**Read only.** Roswaal reads and downloads assets, and never uploads, changes or deletes them, although Roblox names one of these permissions "manage".',
-					"**Kept on your computer.** The daemon stores the sign-in in your user profile, never in a project folder and never in a log.",
+					"**Kept on your computer, by the daemon.** Only the daemon signs in; the website does not offer it. It keeps your refresh token and your Roblox user ID in `roblox-signin`, in `.roswaal` in your home folder, readable only by your account and, on Windows, encrypted for your Windows account. The access token, which lasts 15 minutes, is held in memory only. None of it goes into a project folder, the editor's tab or a log.",
 					`**Used for one thing.** Roswaal downloads the assets your places refer to, through Roblox's official [Open Cloud API](${ROBLOX.openCloud}), and keeps copies in the project's own folder, kept out of Git by default. It never sends them, or your sign-in, anywhere else.`,
 					"**Roblox's own assets are not downloaded.** Roswaal draws a plain stand-in for anything Roblox made.",
 					`**Never sold, never rebroadcast online, and never used to train AI.** Nothing downloaded through Sign in with Roblox is put back online by Roswaal, and all of it remains subject to Roblox's applicable terms: its [Terms of Use](${ROBLOX.terms}) and its [Creator Third Party App Terms](${ROBLOX.appTerms}).`,

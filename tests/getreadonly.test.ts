@@ -62,6 +62,7 @@ const SAMPLES: [
 	(answers: Answers, dirs: { root: string; other: string }) => Record<string, string>,
 ][] = [
 	["GET /health", () => ({})],
+	["GET /roblox", () => ({})],
 	["GET /demos", () => ({})],
 	["GET /project", () => ({})],
 	["GET /project/inspect", (_, { other }) => ({ root: other })],

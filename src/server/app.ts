@@ -31,9 +31,11 @@ import type { Target } from "../core/schema.js";
 import { chooseDirectory, NoPickerError } from "./browse.js";
 import { githubZipball } from "./download.js";
 import { errorResponse, HttpError } from "./errors.js";
-import { broadcastCompile, broadcastProject, streamEvents } from "./events.js";
+import { broadcastCompile, broadcastProject, broadcastRoblox, streamEvents } from "./events.js";
 import { collectScripts, isInitialised, readConfig } from "./project.js";
 import { openInEditor, revealInFileManager } from "./reveal.js";
+import { RobloxSignIn } from "./roblox/signin.js";
+import { fileVault } from "./roblox/vault.js";
 import { ApiSession, type HostCapabilities, type RouteRequest } from "./routes.js";
 import { isToken, newToken, tokenOf } from "./token.js";
 import { DynamicCompiler } from "./watcher.js";
@@ -225,6 +227,8 @@ export interface Daemon {
 	readonly session: ApiSession;
 	/** The key a request to `/api` has to carry: see `token.ts`. */
 	readonly token: string;
+	/** Sign in with Roblox, when this daemon offers it. */
+	readonly roblox: RobloxSignIn | null;
 	/** Opens `root` if given, mounts the editor, and listens on loopback. */
 	start(options?: DaemonOptions): Promise<void>;
 	/** Closes the socket and the watcher, for a test that started one. */
@@ -235,9 +239,17 @@ export interface Daemon {
  * Builds a daemon: the session, the watcher and the Express app with every
  * route on it. Nothing listens until `start` is called.
  */
-export function createDaemon(options: { token?: string } = {}): Daemon {
+export function createDaemon(
+	options: { token?: string; roblox?: RobloxSignIn | null } = {},
+): Daemon {
 	// A key of its own when none is given, so no daemon ever answers without one.
 	const token = options.token ?? newToken();
+	// Sign in with Roblox, kept in this account's vault. A test passes its own,
+	// or null for none, so it never reads the real one.
+	const roblox =
+		options.roblox === undefined
+			? new RobloxSignIn({ vault: fileVault(), onChange: broadcastRoblox })
+			: options.roblox;
 	const app = express();
 	// Express matches a route in any case by default, which gives every API
 	// path a second spelling the connection guard has to know about. Set
@@ -245,7 +257,7 @@ export function createDaemon(options: { token?: string } = {}): Daemon {
 	app.set("case sensitive routing", true);
 	const dynamic = new DynamicCompiler();
 	const session: ApiSession = new ApiSession({
-		capabilities: hostCapabilities(),
+		capabilities: { ...hostCapabilities(), ...(roblox ? { roblox } : {}) },
 		projectChanged: (project, { switched }) => {
 			// Watches the open project, compiling on change in Dynamic mode only.
 			// The stored value is still `"hot"`. Manual mode is watched too, so an
@@ -280,6 +292,7 @@ export function createDaemon(options: { token?: string } = {}): Daemon {
 		app,
 		session,
 		token,
+		roblox,
 		async start(options = {}) {
 			trusted = trustedOrigins(options.port ?? DEFAULT_PORT, options.trustOrigins);
 			if (options.root) await session.openAt(options.root);
@@ -288,6 +301,7 @@ export function createDaemon(options: { token?: string } = {}): Daemon {
 		},
 		async stop() {
 			dynamic.stop();
+			roblox?.close();
 			const closing = server;
 			server = null;
 			if (!closing) return;
