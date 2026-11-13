@@ -29,6 +29,7 @@ import {
 import { CARRIED_LICENCES } from "../core/licenceData.js";
 import { INDENT_WIDTHS, type RoswaalConfig, type Target } from "../core/schema.js";
 import { CODE_ROLES, ROLES, type Theme } from "../core/theme.js";
+import { api } from "./api.js";
 import { cx } from "./cx.js";
 import { Icon } from "./icons.jsx";
 import { BundledNotices, LicenceDetail } from "./LicenceView.jsx";
@@ -1083,19 +1084,22 @@ function RobloxSignInGroup() {
 	return (
 		<Group title="Sign in with Roblox">
 			{status.signedIn ? (
-				<Row
-					label={`Signed in as Roblox user ${status.userId ?? ""}`}
-					help="Signing out ends the sign-in on Roblox and deletes what it downloaded."
-				>
-					<button
-						type="button"
-						className="tb"
-						disabled={busy}
-						onClick={() => void run(signOutOfRoblox)}
+				<>
+					<Row
+						label={`Signed in as Roblox user ${status.userId ?? ""}`}
+						help="Signing out ends the sign-in on Roblox and deletes what it downloaded."
 					>
-						Sign out
-					</button>
-				</Row>
+						<button
+							type="button"
+							className="tb"
+							disabled={busy}
+							onClick={() => void run(signOutOfRoblox)}
+						>
+							Sign out
+						</button>
+					</Row>
+					<DownloadedAssetsRow />
+				</>
 			) : explaining ? (
 				<div className="setting roblox-consent">
 					<div className="setting-label">
@@ -1164,6 +1168,52 @@ function RobloxSignInGroup() {
 			)}
 			{(error ?? status.failed) && <p className="settings-note">{error ?? status.failed}</p>}
 		</Group>
+	);
+}
+
+/**
+ * What the open project holds from Sign in with Roblox, and a way to delete it.
+ * Unused assets go by themselves after 30 days.
+ */
+function DownloadedAssetsRow() {
+	const [held, setHeld] = useState<{ count: number; bytes: number } | null>(null);
+	const [busy, setBusy] = useState(false);
+	const load = useCallback(() => {
+		api.robloxAssets().then(
+			(answer) => setHeld(answer.available ? answer : null),
+			() => setHeld(null),
+		);
+	}, []);
+	useEffect(load, [load]);
+	if (!held) return null;
+	const size =
+		held.bytes < 1024 * 1024
+			? `${Math.ceil(held.bytes / 1024)} KB`
+			: `${(held.bytes / 1024 / 1024).toFixed(1)} MB`;
+	return (
+		<Row
+			label="Downloaded assets"
+			help={
+				held.count === 0
+					? "None in this project. Any not used for 30 days are deleted by themselves."
+					: `${held.count} in this project, ${size}, out of Git. Any not used for 30 days are deleted by themselves.`
+			}
+		>
+			<button
+				type="button"
+				className="tb"
+				disabled={busy || held.count === 0}
+				onClick={() => {
+					setBusy(true);
+					api
+						.robloxClearAssets()
+						.then(load, load)
+						.finally(() => setBusy(false));
+				}}
+			>
+				Clear
+			</button>
+		</Row>
 	);
 }
 

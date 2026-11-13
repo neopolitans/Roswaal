@@ -138,6 +138,7 @@ import {
 } from "./project.js";
 import { fields, need, optionalQuery, query, type RouteRequest, realmOf, text } from "./request.js";
 import { instancePathOf, modulesRequiredBy, projectInstances } from "./requires.js";
+import type { AssetOutcome } from "./roblox/assets.js";
 import type { RobloxAccount } from "./roblox/signin.js";
 import { addFromWally, installGithub, installZip, packageUses, removePackage } from "./wally.js";
 
@@ -206,6 +207,15 @@ export interface HostCapabilities {
 	 * offer it.
 	 */
 	roblox?: RobloxAccount;
+	/** What Sign in with Roblox downloads, kept in the project: `server/roblox/assets.ts`. */
+	robloxAssets?: RobloxAssets;
+}
+
+/** The downloads' side of Sign in with Roblox, as the routes use it. */
+export interface RobloxAssets {
+	fetchAll(root: string, ids: readonly string[]): Promise<Record<string, AssetOutcome>>;
+	summary(root: string): Promise<{ count: number; bytes: number }>;
+	clear(root: string): Promise<void>;
 }
 
 export interface SessionHooks {
@@ -492,6 +502,35 @@ export class ApiSession {
 			/** Revokes the sign-in and deletes it and everything it downloaded. */
 			"POST /roblox/signout": async () => {
 				await this.ability("roblox").signOut();
+				return { ok: true };
+			},
+
+			/** How many assets the open project holds from Sign in with Roblox. Reads only. */
+			"GET /roblox/assets": async () => {
+				const assets = this.hooks.capabilities?.robloxAssets;
+				if (!assets || !this.current) return { available: Boolean(assets), count: 0, bytes: 0 };
+				return { available: true, ...(await assets.summary(this.current.root)) };
+			},
+
+			/**
+			 * Makes sure the open project has these assets, downloading what it
+			 * lacks through the sign-in. Roblox's own are skipped. Answered per id.
+			 */
+			"POST /roblox/assets": async (req) => {
+				const { ids } = fields<{ ids: unknown }>(req);
+				if (!Array.isArray(ids) || ids.some((id) => typeof id !== "string")) {
+					throw new UserError("Pass `ids`, a list of asset ids as strings.");
+				}
+				const status = await this.ability("roblox").status();
+				if (!status.signedIn) throw new HttpError(409, "Sign in with Roblox first.");
+				return {
+					assets: await this.ability("robloxAssets").fetchAll(this.project().root, ids as string[]),
+				};
+			},
+
+			/** Deletes the open project's downloaded assets. */
+			"POST /roblox/assets/clear": async () => {
+				await this.ability("robloxAssets").clear(this.project().root);
 				return { ok: true };
 			},
 

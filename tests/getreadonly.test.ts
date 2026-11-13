@@ -63,6 +63,7 @@ const SAMPLES: [
 ][] = [
 	["GET /health", () => ({})],
 	["GET /roblox", () => ({})],
+	["GET /roblox/assets", () => ({})],
 	["GET /demos", () => ({})],
 	["GET /project", () => ({})],
 	["GET /project/inspect", (_, { other }) => ({ root: other })],

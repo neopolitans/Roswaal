@@ -388,6 +388,21 @@ export const api = {
 	robloxSignIn: () => post<{ url: string }>("/api/roblox/signin", {}),
 	/** Revokes the sign-in and deletes it and what it downloaded. */
 	robloxSignOut: () => post<{ ok: boolean }>("/api/roblox/signout", {}),
+	/** How many assets the open project holds from Sign in with Roblox, and their size. */
+	robloxAssets: () =>
+		request<{ available: boolean; count: number; bytes: number }>("/api/roblox/assets"),
+	/** Makes sure the open project has these assets: downloaded, or skipped as Roblox's own. */
+	robloxFetchAssets: (ids: string[]) =>
+		post<{
+			assets: Record<
+				string,
+				| { state: "ready"; assetTypeId?: number }
+				| { state: "skipped"; reason: string }
+				| { state: "failed"; reason: string }
+			>;
+		}>("/api/roblox/assets", { ids }),
+	/** Deletes the open project's downloaded assets. */
+	robloxClearAssets: () => post<{ ok: boolean }>("/api/roblox/assets/clear", {}),
 	/** What each `local X = require(…)` in a Luau file holds, followed to the module. */
 	luauModules: (path: string, text?: string) =>
 		post<{ modules: RequiredModule[]; self: string[] | null }>("/api/luau/modules", {

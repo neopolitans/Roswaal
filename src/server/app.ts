@@ -34,6 +34,7 @@ import { errorResponse, HttpError } from "./errors.js";
 import { broadcastCompile, broadcastProject, broadcastRoblox, streamEvents } from "./events.js";
 import { collectScripts, isInitialised, readConfig } from "./project.js";
 import { openInEditor, revealInFileManager } from "./reveal.js";
+import { AssetCache, downloadRegistry } from "./roblox/assets.js";
 import { RobloxSignIn } from "./roblox/signin.js";
 import { fileVault } from "./roblox/vault.js";
 import { ApiSession, type HostCapabilities, type RouteRequest } from "./routes.js";
@@ -246,10 +247,22 @@ export function createDaemon(
 	const token = options.token ?? newToken();
 	// Sign in with Roblox, kept in this account's vault. A test passes its own,
 	// or null for none, so it never reads the real one.
+	// What it downloads is kept in each project; signing out, or losing access,
+	// deletes all of it.
+	let assets: AssetCache | null = null;
 	const roblox =
 		options.roblox === undefined
-			? new RobloxSignIn({ vault: fileVault(), onChange: broadcastRoblox })
+			? new RobloxSignIn({
+					vault: fileVault(),
+					onChange: broadcastRoblox,
+					onForget: async () => {
+						await assets?.clearEverywhere();
+					},
+				})
 			: options.roblox;
+	if (roblox) {
+		assets = new AssetCache({ token: () => roblox.accessToken(), registry: downloadRegistry() });
+	}
 	const app = express();
 	// Express matches a route in any case by default, which gives every API
 	// path a second spelling the connection guard has to know about. Set
@@ -257,7 +270,10 @@ export function createDaemon(
 	app.set("case sensitive routing", true);
 	const dynamic = new DynamicCompiler();
 	const session: ApiSession = new ApiSession({
-		capabilities: { ...hostCapabilities(), ...(roblox ? { roblox } : {}) },
+		capabilities: {
+			...hostCapabilities(),
+			...(roblox && assets ? { roblox, robloxAssets: assets } : {}),
+		},
 		projectChanged: (project, { switched }) => {
 			// Watches the open project, compiling on change in Dynamic mode only.
 			// The stored value is still `"hot"`. Manual mode is watched too, so an

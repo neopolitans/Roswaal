@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.238.0",
+		date: "2026-11-13",
+		headline: "Sign in with Roblox can download the assets a place uses, and keeps them only as long as needed.",
+		added: [
+			"**Downloads through Sign in with Roblox**, for the place viewer to draw. They are kept in the project's `.roswaal/assets` folder, which keeps itself out of Git, and are fetched only from Roblox's own download servers. Anything Roblox made is never downloaded.",
+			"**Downloaded assets, in Settings › Extended Features**, says how many the open project holds and clears them. Any not used for 30 days are deleted by themselves, and signing out deletes every project's.",
+		],
+		changed: [
+			"**The Privacy Policy names where downloads are kept**, that unused ones are deleted after 30 days, and the list of project folders that lets signing out delete them all.",
+		],
+	},
+	{
 		version: "0.237.0",
 		date: "2026-11-13",
 		headline: "Sign in with Roblox, through roswaal serve, in Settings › Extended Features.",
