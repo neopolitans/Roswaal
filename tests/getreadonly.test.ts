@@ -176,5 +176,8 @@ describe("every GET route", () => {
 		expect(failed).toEqual([]);
 		expect(acted).toEqual([]);
 		expect(await snapshot(base)).toEqual(before);
-	});
+		// Every route on a real project, three exports and two snapshots of every
+		// byte: a quarter of a second alone, and past the default five seconds
+		// when the machine is busy.
+	}, 30_000);
 });
