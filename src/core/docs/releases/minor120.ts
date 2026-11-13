@@ -9,6 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.232.0",
+		date: "2026-11-13",
+		headline: "Bind writes if local, elseif local and while local, and Roswaal reads them.",
+		added: [
+			"**Roswaal reads conditional bindings.** Luau with `if local`, `if const`, `elseif local` or `while local` imports as bound Branches and While Loops, and the Code panel and Script analysis accept it.",
+		],
+		changed: [
+			"**Bind writes Luau's conditional bindings.** A bound Branch writes `if local admin = admins[id] then`, a chain of them `elseif local`, and a bound While Loop `while local item = queue[1] do`. They are a Studio beta: turn on If Local/Const Bindings in Studio's Beta Features.",
+		],
+		watch: [
+			"**StyLua formats if local from 2.6.0.** No StyLua release formats `while local` yet, so a file with one is written unformatted.",
+		],
+	},
+	{
 		version: "0.231.0",
 		date: "2026-11-12",
 		headline: "A Branch or a While Loop can bind its condition, as Luau's proposed if local does.",

@@ -53,7 +53,15 @@ export type Stat =
 	/** A call standing as a statement; `call` is the call or method call itself. */
 	| ({ kind: "callStat"; call: Extract<Expr, { kind: "call" | "methodCall" }> } & Span)
 	| ({ kind: "do"; body: Block; endKeyword: Span } & Span)
-	| ({ kind: "while"; condition: Expr; doKeyword: Span; body: Block; endKeyword: Span } & Span)
+	| ({
+			kind: "while";
+			condition: Expr;
+			/** `while local item = queue[1] do`: see `ConditionBinding`. */
+			binding?: ConditionBinding;
+			doKeyword: Span;
+			body: Block;
+			endKeyword: Span;
+	  } & Span)
 	| ({ kind: "repeat"; body: Block; untilKeyword: Span; condition: Expr } & Span)
 	| ({
 			kind: "if";
@@ -102,8 +110,22 @@ export interface IfClause {
 	/** The `if` or `elseif`. */
 	keyword: Span;
 	condition: Expr;
+	/** `if local user = users[id] then`: see `ConditionBinding`. */
+	binding?: ConditionBinding;
 	thenKeyword: Span;
 	body: Block;
+}
+
+/**
+ * `local user =` or `const user =` in an `if`, `elseif` or `while` condition:
+ * Luau's conditional bindings (RFC #238, in Studio's If Local/Const Bindings
+ * beta). The condition is the value bound; the clause runs when it is not nil
+ * or false, and the name is in scope in that clause's block, or the loop's
+ * body, and nowhere else. One name and one value, as the beta allows.
+ */
+export interface ConditionBinding {
+	constant: boolean;
+	name: Binding;
 }
 
 /** `@native`, or the bracketed form `@[deprecated]`. */
@@ -131,7 +153,11 @@ export type Expr =
 	| ({ kind: "unary"; op: string; operand: Expr } & Span)
 	| ({ kind: "binary"; op: string; left: Expr; right: Expr } & Span)
 	| ({ kind: "cast"; value: Expr; type: TypeNode } & Span)
-	| ({ kind: "ifElse"; clauses: { condition: Expr; value: Expr }[]; orElse: Expr } & Span);
+	| ({
+			kind: "ifElse";
+			clauses: { condition: Expr; value: Expr; binding?: ConditionBinding }[];
+			orElse: Expr;
+	  } & Span);
 
 export type TableField =
 	| ({ kind: "positional"; value: Expr } & Span)

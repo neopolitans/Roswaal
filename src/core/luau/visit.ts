@@ -71,6 +71,7 @@ export function visitStat(stat: Stat, visitor: Visitor): void {
 			visitBlock(stat.body, visitor);
 			return;
 		case "while":
+			if (stat.binding?.name.type) visitType(stat.binding.name.type, visitor);
 			visitExpr(stat.condition, visitor);
 			visitBlock(stat.body, visitor);
 			return;
@@ -80,6 +81,7 @@ export function visitStat(stat: Stat, visitor: Visitor): void {
 			return;
 		case "if":
 			for (const clause of stat.clauses) {
+				if (clause.binding?.name.type) visitType(clause.binding.name.type, visitor);
 				visitExpr(clause.condition, visitor);
 				visitBlock(clause.body, visitor);
 			}
@@ -154,6 +156,7 @@ export function visitExpr(expr: Expr, visitor: Visitor): void {
 			return;
 		case "ifElse":
 			for (const clause of expr.clauses) {
+				if (clause.binding?.name.type) visitType(clause.binding.name.type, visitor);
 				visitExpr(clause.condition, visitor);
 				visitExpr(clause.value, visitor);
 			}

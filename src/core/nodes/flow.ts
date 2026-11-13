@@ -102,11 +102,10 @@ export function loopTypes(config: NodeConfig): LoopTypes {
 }
 
 /**
- * A Branch's or a While Loop's bound value, when Bind is on: the condition
- * kept in a local of its own and handed to the True side, or the loop's body,
- * as a pin. Luau's conditional bindings (`if local x = …`, RFC #238), written
- * the way the RFC says they mean: `local x = …` and then `if x`. Null when
- * Bind is off.
+ * A Branch's or a While Loop's bound value, when Bind is on: Luau's conditional
+ * bindings (RFC #238; Studio's If Local/Const Bindings beta), written as
+ * `if local x = … then` or `while local x = … do`, with `x` handed to the True
+ * side, or the loop's body, as a pin. Null when Bind is off.
  *
  * `type` is the wired value's, kept by `retypeBoundValues`; `constant` writes
  * `const` rather than `local`.
@@ -504,9 +503,10 @@ export const FLOW_NODES: NodeDef[] = [
 			"if / else. Any value can be the condition — only `nil` and `false` take the " +
 			"False branch, so an `Instance?` can be tested directly. A Branch on another " +
 			"Branch's False pin compiles to `elseif`, so a chain of conditions stays at one " +
-			"level of indentation and ends with one `end`. Bind, in the Inspector, keeps the " +
-			"condition in a local and hands it to the True side as a pin of its own, for a " +
-			"value that may be nil: `local admin = admins[id]`, then `if admin then`.",
+			"level of indentation and ends with one `end`. Bind, in the Inspector, writes " +
+			"`if local admin = admins[id] then` and hands `admin` to the True side as a pin of " +
+			"its own, for a value that may be nil. `if local` is a Studio beta: turn on If " +
+			"Local/Const Bindings in Studio's Beta Features.",
 		inputs: [exec("in", ""), data("condition", "Condition", "any", { t: "boolean", v: true })],
 		outputs: [exec("true", "True"), exec("false", "False")],
 		compilesTo: { kind: "builtin", handler: "flow.branch" },
@@ -632,9 +632,10 @@ export const FLOW_NODES: NodeDef[] = [
 		role: "flow",
 		summary:
 			"Repeats the body while the condition holds. Any value can be the condition; only " +
-			"`nil` and `false` stop it. Bind, in the Inspector, keeps each pass's condition in " +
-			"a local and hands it to the body as a pin: a loop that runs while something comes " +
-			"back, such as the next line from a reader.",
+			"`nil` and `false` stop it. Bind, in the Inspector, writes " +
+			"`while local item = queue[1] do` and hands each pass's `item` to the body as a pin: " +
+			"a loop that runs while something comes back. `while local` is a Studio beta: turn " +
+			"on If Local/Const Bindings in Studio's Beta Features.",
 		inputs: [exec("in", ""), data("condition", "Condition", "any", { t: "boolean", v: true })],
 		outputs: [exec("body", "Body"), exec("completed", "Completed")],
 		compilesTo: { kind: "builtin", handler: "flow.while" },

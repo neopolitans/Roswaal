@@ -23,7 +23,7 @@ import { isStackOverflow } from "../errorMessage.js";
 import { viewOf, viewsOf } from "../functionGraph.js";
 import { titleHeight } from "../layout/flow.js";
 import { fits } from "../luau/argumentTypes.js";
-import type { Binding, Block, Expr, FunctionBody, Stat } from "../luau/ast.js";
+import type { Binding, Block, ConditionBinding, Expr, FunctionBody, Stat } from "../luau/ast.js";
 import { classOfCall, eventsOf, methodsOf } from "../luau/infer.js";
 import { lineIndex, tokenize } from "../luau/lexer.js";
 import { parseChunk } from "../luau/parser.js";
@@ -1111,19 +1111,21 @@ class Importer {
 					const { start: lineStart, eol } = this.lineAt(clause.condition.start);
 					this.origin = { start: lineStart, end: eol === -1 ? clause.condition.end : eol };
 					const at = this.place(graph, row);
-					const id = this.node("flow.branch", graph, at);
+					// `if local user = users[id] then`: a Branch with Bind on, whose
+					// value pin is `user` in this clause's block and nowhere else.
+					const bound = clause.binding;
+					const id = this.node(
+						"flow.branch",
+						graph,
+						at,
+						bound ? { config: this.bindConfig(bound) } : undefined,
+					);
 					this.feed(this.expr(clause.condition, scope, graph, at), { node: id, pin: "condition" });
 					if (first) this.chain(entry, id);
 					else this.link(entry, { node: id, pin: "in" });
-					this.block(
-						clause.body,
-						{ node: id, pin: "true" },
-						new Scope(scope),
-						graph,
-						row + 1,
-						fn,
-						false,
-					);
+					const inner = new Scope(scope);
+					if (bound) inner.set(bound.name.name, { kind: "pin", node: id, pin: "value" });
+					this.block(clause.body, { node: id, pin: "true" }, inner, graph, row + 1, fn, false);
 					entry = { node: id, pin: "false" };
 					falseTail = entry;
 					first = false;
@@ -1325,13 +1327,30 @@ class Importer {
 			if (k) inner.set(k.name, { kind: "pin", node: id, pin: plan.key });
 			if (v) inner.set(v.name, { kind: "pin", node: id, pin: "value" });
 		} else {
-			id = this.node("flow.while", graph, at);
+			// `while local item = queue[1] do`: a While Loop with Bind on.
+			const bound = stat.binding;
+			id = this.node(
+				"flow.while",
+				graph,
+				at,
+				bound ? { config: this.bindConfig(bound) } : undefined,
+			);
 			this.feed(this.expr(stat.condition, scope, graph, at), { node: id, pin: "condition" });
+			if (bound) inner.set(bound.name.name, { kind: "pin", node: id, pin: "value" });
 		}
 		this.chain(tail, id);
 		this.block(stat.body, { node: id, pin: "body" }, inner, graph, row + 1, fn, false);
 		this.asNodes += 1;
 		return { node: id, pin: "completed" };
+	}
+
+	/** A Branch's or While Loop's Bind, from the binding an `if local` or `while local` wrote. */
+	private bindConfig(binding: ConditionBinding): Record<string, unknown> {
+		return {
+			bind: true,
+			bindName: binding.name.name,
+			...(binding.constant ? { bindConst: true } : {}),
+		};
 	}
 
 	/**

@@ -80,17 +80,17 @@ function emitBranch(
 		emitBranchArms(e, r, scope, keyword, condition);
 		return;
 	}
-	// Bind: Luau's `if local admin = admins[id] then` (RFC #238), written as
-	// the RFC says it means, since Luau cannot run that syntax yet: the
-	// condition in a local, then the test. Never an `elseif` -- there is
-	// nowhere to put the local -- which `emitBranchArms` sees to when it
-	// chains one. The name is the Branch's alone: the next one may use it too.
+	// Bind: Luau's conditional binding, `if local admin = admins[id] then`
+	// (RFC #238; Studio's If Local/Const Bindings beta). The name is in scope
+	// in the True arm alone, as Luau scopes it, and is the Branch's own: the
+	// next Branch may bind the same name. On another Branch's False pin it is
+	// `elseif local guest = guests[id] then`.
 	const id = r.node.id;
 	const cond = condition ?? e.resolveInput(r, e.pin(r, "condition", "in"), scope);
 	e.names.push();
 	const name = e.declareName(bound.name ?? "value", "value", id);
-	e.push(`${bound.constant ? "const" : "local"} ${name} = ${cond}`, id);
-	emitBranchArms(e, r, scope, "if", name, name);
+	const binding = `${bound.constant ? "const" : "local"} ${name} = ${cond}`;
+	emitBranchArms(e, r, scope, keyword, binding, name);
 	e.names.pop();
 }
 
@@ -131,8 +131,7 @@ function emitBranchArms(
 		e.indent--;
 
 		e.execStack.add(chained.node.id);
-		// A bound Branch declares its local first, so it cannot be an `elseif`.
-		if (captured.lines.length === 0 && !boundValueOf(chained.node.config)) {
+		if (captured.lines.length === 0) {
 			// Nothing was declared, so there is no block for it to belong to:
 			// the chain carries on at this level and one `end` closes it all.
 			e.names.pop();
@@ -815,14 +814,22 @@ function whileLoop(e: Emitter, r: ResolvedNode, scope: Scope): string | undefine
 	e.indent--;
 	const bound = boundValueOf(r.node.config);
 	if (bound) {
-		// Bind: `while local line = reader:nextLine() do` (RFC #238), as the RFC
-		// says it means: each pass keeps the condition in a local of its own,
+		// Bind: `while local item = queue[1] do` (RFC #238; Studio's If
+		// Local/Const Bindings beta): each pass binds the condition afresh,
 		// stops when it is nil or false, and hands it to the body.
-		e.push("while true do", id);
-		for (const line of captured.lines) e.out.push(line);
 		const name = e.declareName(bound.name ?? "value", "value", id);
-		e.push(`	${bound.constant ? "const" : "local"} ${name} = ${captured.value}`, id);
-		e.push(`	if not ${name} then break end`, id);
+		const keyword = bound.constant ? "const" : "local";
+		if (captured.lines.length === 0) {
+			e.push(`while ${keyword} ${name} = ${captured.value} do`, id);
+		} else {
+			// Statements the condition needs have to run on every pass, and
+			// `while local` has nowhere to put them: the loop the RFC says it
+			// means, written out.
+			e.push("while true do", id);
+			for (const line of captured.lines) e.out.push(line);
+			e.push(`	${keyword} ${name} = ${captured.value}`, id);
+			e.push(`	if not ${name} then break end`, id);
+		}
 		loop.bindings.set(`${id}/value`, name);
 	} else if (captured.lines.length === 0) {
 		e.push(`while ${captured.value} do`, id);

@@ -1,15 +1,17 @@
 /**
  * Bind on a Branch and a While Loop: Luau's conditional bindings (RFC #238,
- * `if local x = … then`, `while local x = … do`), written the way the RFC says
- * they mean, because Luau cannot run that syntax yet: the condition in a local
- * of its own, then the test. The bound value is a pin on the True side, or in
- * the body, and nowhere else.
+ * `if local x = … then`, `while local x = … do`), in Studio's If Local/Const
+ * Bindings beta. Written as that syntax, read back as it, and the bound value
+ * is a pin on the True side, or in the body, and nowhere else.
  */
 
 import { describe, expect, it } from "vitest";
 
 import { retypeBoundValues } from "../src/core/boundValues.js";
 import { compile } from "../src/core/compiler/index.js";
+import { importLuau } from "../src/core/import/fromLuau.js";
+import { checkLuau } from "../src/core/luau/check.js";
+import { localsAt } from "../src/core/luau/scope.js";
 import { createRegistry, resolveNodePins } from "../src/core/nodes/index.js";
 import { Builder, body } from "./helpers.js";
 
@@ -40,8 +42,10 @@ function says(b: Builder, text: string): string {
 	return node;
 }
 
+const lines = (...rows: string[]) => rows.join("\n");
+
 describe("a Branch with Bind on", () => {
-	it("keeps the condition in a local, tests it, and hands it to the True side", () => {
+	it("writes if local, and hands the value to the True side", () => {
 		const b = new Builder();
 		const start = b.node("script.begin");
 		const branch = b.node("flow.branch", { config: { bind: true, bindName: "admin" } });
@@ -53,18 +57,11 @@ describe("a Branch with Bind on", () => {
 		const out = compile(b.build(), registry);
 		expect(errors(out)).toEqual([]);
 		expect(body(out.code)).toBe(
-			[
-				"local admin = admins[id]",
-				"if admin then",
-				"\tprint(admin)",
-				"else",
-				'\tprint("none")',
-				"end",
-			].join("\n"),
+			lines("if local admin = admins[id] then", "\tprint(admin)", "else", '\tprint("none")', "end"),
 		);
 	});
 
-	it("writes const when asked", () => {
+	it("writes if const when asked", () => {
 		const b = new Builder();
 		const start = b.node("script.begin");
 		const branch = b.node("flow.branch", {
@@ -76,12 +73,10 @@ describe("a Branch with Bind on", () => {
 
 		const out = compile(b.build(), registry);
 		expect(errors(out)).toEqual([]);
-		expect(body(out.code)).toBe(
-			["const admin = admins[id]", "if admin then", "\tprint(admin)", "end"].join("\n"),
-		);
+		expect(body(out.code)).toBe(lines("if const admin = admins[id] then", "\tprint(admin)", "end"));
 	});
 
-	it("is never an elseif: on a False pin, it opens an else with its local first", () => {
+	it("on another Branch's False pin, is an elseif local", () => {
 		const b = new Builder();
 		const start = b.node("script.begin");
 		const first = b.node("flow.branch", { config: { bind: true, bindName: "admin" } });
@@ -92,21 +87,20 @@ describe("a Branch with Bind on", () => {
 		b.link(first, "false", second, "in");
 		b.link(lookup(b, "guests"), "result", second, "condition");
 		b.link(second, "true", printOf(b, second, "value"), "in");
+		b.link(second, "false", says(b, "nobody"), "in");
 
 		const out = compile(b.build(), registry);
 		expect(errors(out)).toEqual([]);
 		expect(body(out.code)).toBe(
-			[
-				"local admin = admins[id]",
-				"if admin then",
+			lines(
+				"if local admin = admins[id] then",
 				"\tprint(admin)",
+				"elseif local guest = guests[id] then",
+				"\tprint(guest)",
 				"else",
-				"\tlocal guest = guests[id]",
-				"\tif guest then",
-				"\t\tprint(guest)",
-				"\tend",
+				'\tprint("nobody")',
 				"end",
-			].join("\n"),
+			),
 		);
 	});
 
@@ -135,7 +129,7 @@ describe("a Branch with Bind on", () => {
 });
 
 describe("a While Loop with Bind on", () => {
-	it("keeps each pass's condition in a local, stops on nil, and hands it to the body", () => {
+	it("writes while local, and hands each pass's value to the body", () => {
 		const b = new Builder();
 		const start = b.node("script.begin");
 		const loop = b.node("flow.while", { config: { bind: true, bindName: "item" } });
@@ -145,15 +139,7 @@ describe("a While Loop with Bind on", () => {
 
 		const out = compile(b.build(), registry);
 		expect(errors(out)).toEqual([]);
-		expect(body(out.code)).toBe(
-			[
-				"while true do",
-				"\tlocal item = queue[head]",
-				"\tif not item then break end",
-				"\tprint(item)",
-				"end",
-			].join("\n"),
-		);
+		expect(body(out.code)).toBe(lines("while local item = queue[head] do", "\tprint(item)", "end"));
 	});
 });
 
@@ -175,5 +161,64 @@ describe("the bound value's type", () => {
 		expect(unwired.nodes.find((n) => n.id === branch)?.config?.boundType).toBeUndefined();
 		// Nothing to change is the same script back.
 		expect(retypeBoundValues(unwired, registry)).toBe(unwired);
+	});
+});
+
+describe("reading conditional bindings", () => {
+	it.each([
+		"if local admin = admins[id] then print(admin) end",
+		"if const admin = admins[id] then print(admin) end",
+		"if local a = x then elseif local b = y then else end",
+		"if local x: number? = f() then end",
+		'local name = if local p = getPlayer() then p.Name else "none"',
+		"while local item = queue[1] do table.remove(queue, 1) end",
+		"while const line = reader:nextLine() do print(line) end",
+		// `const` is still a name where it binds nothing.
+		"local const = 1 if const then print(const) end",
+	])("reads %j", (src) => {
+		expect(checkLuau(src, "block")).toEqual([]);
+	});
+
+	it("binds one name to one value, as the beta allows", () => {
+		expect(checkLuau("if local a, b = f() then end", "block").length).toBeGreaterThan(0);
+	});
+
+	it("puts the name in scope in its own clause, and nowhere else", () => {
+		const src = "if local user = users[id] then\n\tprint(user)\nelse\n\tprint(1)\nend\nprint(2)";
+		const names = (at: string) => localsAt(src, src.indexOf(at)).map((n) => n.name);
+		expect(names("print(user)")).toContain("user");
+		expect(names("print(1)")).not.toContain("user");
+		expect(names("print(2)")).not.toContain("user");
+	});
+});
+
+describe("importing conditional bindings", () => {
+	function roundTrip(src: string): string {
+		const result = importLuau(src, {
+			name: "T",
+			scriptClass: "Script",
+			target: "roblox",
+			idPrefix: "t",
+		});
+		if (!result.ok) throw new Error(result.error);
+		const out = compile(result.script, registry);
+		expect(errors(out)).toEqual([]);
+		return body(out.code);
+	}
+
+	it("reads if local as a bound Branch, and writes it back", () => {
+		const src = lines(
+			"if local admin = admins[id] then",
+			"\tprint(admin)",
+			"elseif local guest = guests[id] then",
+			"\tprint(guest)",
+			"end",
+		);
+		expect(roundTrip(src)).toBe(src);
+	});
+
+	it("reads while local as a bound While Loop, and writes it back", () => {
+		const src = lines("while local item = queue[1] do", "\tprint(item)", "end");
+		expect(roundTrip(src)).toBe(src);
 	});
 });

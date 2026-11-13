@@ -1204,10 +1204,9 @@ function LoopNames({ node, def }: SectionProps) {
 }
 
 /**
- * Bind: a Branch's or a While Loop's condition kept in a local and handed on as
- * a pin, to the True side or the body. Luau's conditional bindings, RFC #238:
- * `if local admin = admins[id] then`. Written as the RFC says it means, since
- * Luau cannot run that syntax yet.
+ * Bind: Luau's conditional bindings (RFC #238; Studio's If Local/Const Bindings
+ * beta), `if local admin = admins[id] then` and `while local item = … do`. The
+ * bound value is handed on as a pin, to the True side or the body.
  *
  * Off again, the pin goes, and so do the wires from it: a wire into nothing is
  * worse than none.
@@ -1228,8 +1227,8 @@ function BindValue({ node, def }: SectionProps) {
 				className="check-row"
 				title={
 					loop
-						? "Keep each pass's condition in a local, and hand it to the body as a pin."
-						: "Keep the condition in a local, and hand it to the True side as a pin."
+						? "Writes while local, and hands each pass's value to the body as a pin. A Studio beta: turn on If Local/Const Bindings in Studio's Beta Features."
+						: "Writes if local, and hands the value to the True side as a pin. A Studio beta: turn on If Local/Const Bindings in Studio's Beta Features."
 				}
 			>
 				<input

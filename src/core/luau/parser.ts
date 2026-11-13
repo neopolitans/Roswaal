@@ -18,6 +18,7 @@ import type {
 	Attribute,
 	Binding,
 	Block,
+	ConditionBinding,
 	Diagnostic,
 	Expr,
 	FunctionBody,
@@ -342,11 +343,20 @@ class Parser {
 					return this.ifStat(start);
 				case "while": {
 					this.next();
+					const binding = this.conditionBinding("while");
 					const condition = this.expr();
 					const doKeyword = spanOf(this.expect("do", "after the while condition"));
 					const body = this.loopBody();
 					const endKeyword = spanOf(this.expect("end", "to close the while"));
-					return { kind: "while", condition, doKeyword, body, endKeyword, ...this.span(start) };
+					return {
+						kind: "while",
+						condition,
+						...(binding ? { binding } : {}),
+						doKeyword,
+						body,
+						endKeyword,
+						...this.span(start),
+					};
 				}
 				case "do": {
 					this.next();
@@ -467,6 +477,30 @@ class Parser {
 		return { kind: "local", names, values, attributes, ...this.span(start) };
 	}
 
+	/**
+	 * `local user =` or `const user =` at the start of an `if`, `elseif` or
+	 * `while` condition. `const` is a name everywhere else, so `if const then`
+	 * still reads a variable called `const`: it binds only before another name.
+	 */
+	private conditionBinding(keyword: string): ConditionBinding | undefined {
+		const local = this.is("local");
+		const constant = !local && this.isName("const") && this.isName(undefined, 1);
+		if (!local && !constant) return undefined;
+		this.next();
+		const name = this.expectName("a name to bind");
+		const type = this.accept(":") ? this.type() : undefined;
+		const binding: Binding = {
+			name: name.name,
+			...(type ? { type } : {}),
+			...this.span(name.start),
+		};
+		this.expect(
+			"=",
+			`after the name: \`${keyword} ${local ? "local" : "const"}\` binds one name to one value`,
+		);
+		return { constant, name: binding };
+	}
+
 	private bindings(): Binding[] {
 		const out: Binding[] = [];
 		do {
@@ -497,9 +531,16 @@ class Parser {
 		const clauses: IfClause[] = [];
 		let keyword: Token | undefined = this.next();
 		while (keyword) {
+			const binding = this.conditionBinding(keyword.text);
 			const condition = this.expr();
 			const thenKeyword = spanOf(this.expect("then", `after the ${keyword.text} condition`));
-			clauses.push({ keyword: spanOf(keyword), condition, thenKeyword, body: this.block() });
+			clauses.push({
+				keyword: spanOf(keyword),
+				condition,
+				...(binding ? { binding } : {}),
+				thenKeyword,
+				body: this.block(),
+			});
 			keyword = this.accept("elseif");
 		}
 		const elseToken = this.accept("else");
@@ -838,14 +879,16 @@ class Parser {
 
 	private ifExpr(): Expr {
 		const start = this.next().start;
-		const clauses: { condition: Expr; value: Expr }[] = [];
+		const clauses: { condition: Expr; value: Expr; binding?: ConditionBinding }[] = [];
+		const binding = this.conditionBinding("if");
 		const condition = this.expr();
 		this.expect("then", "after the if-expression's condition");
-		clauses.push({ condition, value: this.expr() });
+		clauses.push({ condition, value: this.expr(), ...(binding ? { binding } : {}) });
 		while (this.accept("elseif")) {
+			const bound = this.conditionBinding("elseif");
 			const next = this.expr();
 			this.expect("then", "after the elseif condition");
-			clauses.push({ condition: next, value: this.expr() });
+			clauses.push({ condition: next, value: this.expr(), ...(bound ? { binding: bound } : {}) });
 		}
 		this.expect("else", "— an if-expression always has an else");
 		const orElse = this.expr();

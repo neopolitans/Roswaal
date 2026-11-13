@@ -12,7 +12,7 @@
  *   blocks, function parameters, loop variables — for completing as you type.
  */
 
-import type { Binding, Block, Expr, FunctionBody, Stat } from "./ast.js";
+import type { Binding, Block, ConditionBinding, Expr, FunctionBody, Stat } from "./ast.js";
 import { luauFile } from "./file.js";
 import { parseChunk } from "./parser.js";
 import { contains, type Visitor, visitBlock, visitExpr, visitStat } from "./visit.js";
@@ -159,6 +159,17 @@ class ScopeWalk {
 		}
 	}
 
+	/** A name an `if local`, `elseif local` or `while local` binds, for the block it opens. */
+	private bound(binding: ConditionBinding, value: Expr, declaredAt: number): void {
+		this.found.push({
+			name: binding.name.name,
+			kind: "local",
+			declaredAt,
+			value,
+			...typeTextOf(binding.name, this.src),
+		});
+	}
+
 	private enter(stat: Stat): void {
 		const at = this.at;
 		switch (stat.kind) {
@@ -184,6 +195,8 @@ class ScopeWalk {
 				return;
 			case "while":
 				if (at <= stat.condition.end) return this.functionsIn(stat.condition);
+				// `while local item = …`: the name is the body's alone.
+				if (stat.binding) this.bound(stat.binding, stat.condition, stat.start);
 				this.block(stat.body, stat.doKeyword.end, stat.endKeyword.start);
 				return;
 			case "repeat":
@@ -198,6 +211,9 @@ class ScopeWalk {
 				stat.clauses.forEach((clause, i) => {
 					if (contains(clause.condition, at)) this.functionsIn(clause.condition);
 					const next = stat.clauses[i + 1]?.keyword ?? stat.elseKeyword ?? stat.endKeyword;
+					// `if local user = …`: in scope in this clause's block, and no other.
+					if (clause.binding && at >= clause.thenKeyword.end && at <= next.start)
+						this.bound(clause.binding, clause.condition, clause.keyword.start);
 					this.block(clause.body, clause.thenKeyword.end, next.start);
 				});
 				if (stat.orElse && stat.elseKeyword)
