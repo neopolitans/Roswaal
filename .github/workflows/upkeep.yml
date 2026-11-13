@@ -183,7 +183,8 @@ jobs:
             echo "The week's package updates, each within its current major, tested."
             echo
             echo '```'
-            grep -E '→' "$RUNNER_TEMP/minor.log" || true
+            held_names="$(sed -n 's/^Held back: \([^ ]*\) .*/\1/p' "$RUNNER_TEMP/held.log" | tr '\n' ' ')"
+            grep -E '→' "$RUNNER_TEMP/minor.log" | awk -v held=" $held_names" 'index(held, " " $1 " ") == 0' || true
             echo '```'
             if grep -q '^Held back' "$RUNNER_TEMP/held.log"; then
               echo
