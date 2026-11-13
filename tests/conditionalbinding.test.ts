@@ -143,6 +143,110 @@ describe("a While Loop with Bind on", () => {
 	});
 });
 
+describe("a call bound straight into its condition", () => {
+	/** A Call Function or Call Method on the chain, its result wired to `to`'s condition. */
+	function callInto(
+		kind: "call.function" | "call.method",
+		to: "flow.branch" | "flow.while",
+		config: Record<string, unknown> = {},
+		bind = true,
+	) {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const call = b.node(kind, { config: { argCount: 1, ...config } });
+		if (kind === "call.method") {
+			b.lit(call, "object", { t: "raw", v: "queue" });
+			b.lit(call, "method", { t: "string", v: "Pop" });
+			b.lit(call, "a0", { t: "raw", v: "1" });
+		} else {
+			b.lit(call, "fn", { t: "raw", v: "getAdmin" });
+			b.lit(call, "a0", { t: "raw", v: "id" });
+		}
+		const node = b.node(to, { config: bind ? { bind: true, bindName: "admin" } : {} });
+		b.link(start, "then", call, "in");
+		b.link(call, "then", node, "in");
+		b.link(call, "result", node, "condition");
+		return { b, call, node };
+	}
+
+	it("writes the call into if local", () => {
+		const { b, node } = callInto("call.function", "flow.branch");
+		b.link(node, "true", printOf(b, node, "value"), "in");
+		const out = compile(b.build(), registry);
+		expect(errors(out)).toEqual([]);
+		expect(body(out.code)).toBe(
+			lines("if local admin = getAdmin(id) then", "\tprint(admin)", "end"),
+		);
+	});
+
+	it("writes a method call into while local, made on every pass, with no warning", () => {
+		const { b, node } = callInto("call.method", "flow.while");
+		b.link(node, "body", printOf(b, node, "value"), "in");
+		const out = compile(b.build(), registry);
+		expect(out.diagnostics).toEqual([]);
+		expect(body(out.code)).toBe(
+			lines("while local admin = queue:Pop(1) do", "\tprint(admin)", "end"),
+		);
+	});
+
+	it("keeps the local when the result is named", () => {
+		const { b, node } = callInto("call.function", "flow.branch", { resultName: "found" });
+		b.link(node, "true", says(b, "yes"), "in");
+		const out = compile(b.build(), registry);
+		expect(body(out.code)).toBe(
+			lines("local found = getAdmin(id)", "if local admin = found then", '\tprint("yes")', "end"),
+		);
+	});
+
+	it("keeps the local when something else reads the result too", () => {
+		const { b, call, node } = callInto("call.function", "flow.branch");
+		b.link(node, "true", printOf(b, call, "result"), "in");
+		const out = compile(b.build(), registry);
+		expect(body(out.code)).toBe(
+			lines(
+				"local result = getAdmin(id)",
+				"if local admin = result then",
+				"\tprint(result)",
+				"end",
+			),
+		);
+	});
+
+	it("keeps the local when a statement comes between", () => {
+		const b = new Builder();
+		const start = b.node("script.begin");
+		const call = b.node("call.function", { config: { argCount: 1 } });
+		b.lit(call, "fn", { t: "raw", v: "getAdmin" });
+		b.lit(call, "a0", { t: "raw", v: "id" });
+		const between = says(b, "looking");
+		const branch = b.node("flow.branch", { config: { bind: true, bindName: "admin" } });
+		b.link(start, "then", call, "in");
+		b.link(call, "then", between, "in");
+		b.link(between, "then", branch, "in");
+		b.link(call, "result", branch, "condition");
+		b.link(branch, "true", says(b, "yes"), "in");
+		const out = compile(b.build(), registry);
+		expect(body(out.code)).toBe(
+			lines(
+				"local result = getAdmin(id)",
+				'print("looking")',
+				"if local admin = result then",
+				'\tprint("yes")',
+				"end",
+			),
+		);
+	});
+
+	it("leaves an unbound Branch as it was", () => {
+		const { b, node } = callInto("call.function", "flow.branch", {}, false);
+		b.link(node, "true", says(b, "yes"), "in");
+		const out = compile(b.build(), registry);
+		expect(body(out.code)).toBe(
+			lines("local result = getAdmin(id)", "if result then", '\tprint("yes")', "end"),
+		);
+	});
+});
+
 describe("the bound value's type", () => {
 	it("is what the condition is wired to, and nothing when it is wired to nothing", () => {
 		const b = new Builder();

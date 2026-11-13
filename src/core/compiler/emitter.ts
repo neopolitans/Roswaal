@@ -44,7 +44,13 @@ import {
 	splitsOf,
 } from "../structs.js";
 import type { Diagnostic, EmitOptions, EmitResult, LogicEmit, LogicEnds } from "./emit.js";
-import { emitCall, resultHint, resultNameOf, STATEMENT_READERS } from "./emitCalls.js";
+import {
+	BOUND_READERS,
+	emitCall,
+	resultHint,
+	resultNameOf,
+	STATEMENT_READERS,
+} from "./emitCalls.js";
 import {
 	checkDeclaredServices,
 	declareModules,
@@ -606,6 +612,10 @@ export class Emitter {
 		if (!reader) return undefined;
 		const id = reader.def.id;
 		if (to.pin === "value" && STATEMENT_READERS.has(id)) return reader;
+		// A bound Branch or While Loop names its condition: `if local admin = …`.
+		if (to.pin === "condition" && BOUND_READERS.has(id) && boundValueOf(reader.node.config)) {
+			return reader;
+		}
 		if (id === "table.pair" && to.pin === "value") return reader;
 		if (id === "table.dictionary") return reader;
 		return undefined;

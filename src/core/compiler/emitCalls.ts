@@ -30,6 +30,28 @@ export const STATEMENT_READERS = new Set([
 ]);
 
 /**
+ * Nodes that name the value on their `condition` pin when Bind is on:
+ * `if local admin = getAdmin(id) then`, `while local item = queue:Pop() do`.
+ * See `foldsInto`.
+ */
+export const BOUND_READERS = new Set(["flow.branch", "flow.while"]);
+
+/**
+ * Whether a call's result goes straight into its reader, which is the very
+ * next statement and names the value itself: a Declare Local, a setter, or a
+ * Branch or While Loop that binds its condition. The call then runs exactly
+ * where it did. Never a named result: the name is a local that a Get Local,
+ * or Luau typed into Code Block, may read later, and folded it would not
+ * exist.
+ */
+export function foldsIntoNext(e: Emitter, r: ResolvedNode, resultPin: string): boolean {
+	if (resultNameOf(r.node.config) !== undefined) return false;
+	const reader = e.foldsInto(r.node.id, resultPin);
+	if (!reader || reader.node.id !== e.index.execTarget(r.node.id, "then")) return false;
+	return STATEMENT_READERS.has(reader.def.id) || BOUND_READERS.has(reader.def.id);
+}
+
+/**
  * A call into Lune's standard library, as an expression.
  *
  * Shared by both nodes for the reason `serviceCall` is: the value node
@@ -215,13 +237,11 @@ export function writeCall(
 	}
 	const next = e.index.execTarget(r.node.id, "then");
 	// A step whose one reader is the very next statement is written into it:
-	// `local copy = model:Clone()`, not a local and then a copy of it. Only
-	// the next statement, and only a Declare Local or a setter, so the call
-	// still runs exactly where it did — nothing else happens in between.
-	const reader = consumed ? e.foldsInto(r.node.id, resultPin) : undefined;
-	// Never a named one: the name is a local that a Get Local, or Luau typed
-	// into Code Block, may read later, and folded it would not exist.
-	if (!named && reader && reader.node.id === next && STATEMENT_READERS.has(reader.def.id)) {
+	// `local copy = model:Clone()`, not a local and then a copy of it, and
+	// `if local admin = getAdmin(id) then`, not `local result` and then a
+	// binding of it. Only the next statement, so the call still runs exactly
+	// where it did -- nothing else happens in between.
+	if (consumed && foldsIntoNext(e, r, resultPin)) {
 		scope.bindings.set(`${r.node.id}/${resultPin}`, rendered);
 		return next;
 	}

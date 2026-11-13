@@ -20,7 +20,14 @@ import { resultNamesOf, threadWhen } from "../nodes/library.js";
 import { isConstLocal, localTypeOf, variableRefOf } from "../nodes/variables.js";
 import type { PinDef } from "../schema.js";
 import { scriptCallOf } from "../scriptCalls.js";
-import { isRobloxTypeName, luneCall, resultNameOf, serviceCall, writeCall } from "./emitCalls.js";
+import {
+	foldsIntoNext,
+	isRobloxTypeName,
+	luneCall,
+	resultNameOf,
+	serviceCall,
+	writeCall,
+} from "./emitCalls.js";
 import {
 	bodyOf,
 	claimTypeName,
@@ -796,7 +803,9 @@ function whileLoop(e: Emitter, r: ResolvedNode, scope: Scope): string | undefine
 	const condPin = e.pin(r, "condition", "in");
 	const link = e.index.sourceOf(id, "condition");
 	const src = link ? e.index.get(link.from.node) : undefined;
-	if (src && !src.def.pure) {
+	// A call written into `while local item = queue:Pop() do` is made on
+	// every pass, which is what the warning asks for.
+	if (src && link && !src.def.pure && !foldsIntoNext(e, src, link.from.pin)) {
 		e.warn(
 			"The While condition is produced by a node with side effects, so it is evaluated once " +
 				"before the loop rather than on each iteration. Feed it a pure comparison instead.",

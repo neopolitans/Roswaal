@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.233.1",
+		date: "2026-11-13",
+		headline: "A bound Branch or While Loop writes a call straight into if local and while local.",
+		fixed: [
+			"**A call bound by a Branch or While Loop is written into the binding.** A Call Function or Call Method just before it writes `if local admin = getAdmin(id) then`, not a `local result` first. In a While Loop the call is now made on every pass.",
+		],
+	},
+	{
 		version: "0.233.0",
 		date: "2026-11-13",
 		headline: "Roblox Studio 0.747, Lune 0.11.1 and Material Symbols 0.49.0.",
