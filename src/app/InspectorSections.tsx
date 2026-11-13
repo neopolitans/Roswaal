@@ -1228,8 +1228,8 @@ function BindValue({ node, def }: SectionProps) {
 				className="check-row"
 				title={
 					loop
-						? "Keeps each pass's value in a local and hands it to the body as a pin. Settings › Compiling writes it as while local, a Studio beta."
-						: "Keeps the value in a local and hands it to the True side as a pin. Settings › Compiling writes it as if local, a Studio beta."
+						? "Keeps each pass's value in a local and hands it to the body as a pin. Settings › Extended Features writes it as while local, a Studio beta."
+						: "Keeps the value in a local and hands it to the True side as a pin. Settings › Extended Features writes it as if local, a Studio beta."
 				}
 			>
 				<input

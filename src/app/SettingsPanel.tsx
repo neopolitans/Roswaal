@@ -408,17 +408,6 @@ function CompilingSettings({
 						label={config.castsByHierarchy ? "Left out" : "Written"}
 					/>
 				</Row>
-
-				<Row
-					label="If local and while local"
-					help="A Studio beta. Off, Bind writes plain Luau that runs everywhere."
-				>
-					<Toggle
-						on={config.conditionalBindings === true}
-						onChange={(on) => onConfig({ conditionalBindings: on })}
-						label={config.conditionalBindings ? "Written (Studio beta)" : "Plain Luau"}
-					/>
-				</Row>
 			</Group>
 
 			<Group title="Indentation">
@@ -1014,9 +1003,39 @@ const FEATURES = [
 	},
 ] as const satisfies readonly { key: keyof Preferences; title: string; description: string }[];
 
-function FeatureSettings({ prefs, onPrefs }: SettingsPanelProps) {
+/**
+ * Roblox Studio betas the generated Luau can use, each off until asked for.
+ * The project's, not the browser's: everyone on it has to be writing the same
+ * Luau, so they are kept in `roswaal.json`.
+ */
+const STUDIO_BETAS = [
+	{
+		key: "conditionalBindings",
+		title: "If local and while local",
+		description:
+			"Bind writes if local, elseif local and while local, which need Studio's If Local/Const Bindings beta. Off, it writes plain Luau. Saved in roswaal.json.",
+	},
+] as const satisfies readonly { key: keyof RoswaalConfig; title: string; description: string }[];
+
+function FeatureSettings({ prefs, onPrefs, config, onConfig }: SettingsPanelProps) {
 	return (
-		<Page id="features" note="Parts of Roswaal you can turn off. Kept in this browser.">
+		<Page
+			id="features"
+			note="Parts of Roswaal you can turn on or off. Features are kept in this browser; Studio betas in the project."
+		>
+			{config && onConfig && (
+				<Group title="Studio betas">
+					{STUDIO_BETAS.map((beta) => (
+						<FeatureRow
+							key={beta.key}
+							title={beta.title}
+							description={beta.description}
+							on={config[beta.key] === true}
+							onChange={(on) => onConfig({ [beta.key]: on })}
+						/>
+					))}
+				</Group>
+			)}
 			<Group title="Features">
 				{FEATURES.map((feature) => (
 					<FeatureRow

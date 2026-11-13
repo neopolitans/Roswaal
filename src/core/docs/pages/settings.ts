@@ -72,8 +72,8 @@ export function settingsPage(): DocPage {
 					["**Docs**", "This browser", "The docs' font and the size of their pictures"],
 					[
 						"**Extended Features**",
-						"This browser",
-						"Parts of Roswaal you can turn off, each with a checkbox: the place viewer",
+						"This browser, and `roswaal.json` for Studio betas",
+						"Parts of Roswaal you can turn on or off, each with a checkbox: the place viewer, and Studio betas the Luau can use",
 					],
 				],
 			},
@@ -140,7 +140,7 @@ export function settingsPage(): DocPage {
 					[
 						"`conditionalBindings`",
 						"`false`",
-						"On, a Branch or While Loop with Bind on writes `if local`, `elseif local` and `while local`. They need Studio's If Local/Const Bindings beta. Off, Bind writes plain Luau that runs everywhere: the value in a local, then the test.",
+						"**Settings › Extended Features**, under Studio betas. On, a Branch or While Loop with Bind on writes `if local`, `elseif local` and `while local`. They need Studio's If Local/Const Bindings beta. Off, Bind writes plain Luau that runs everywhere: the value in a local, then the test.",
 					],
 					[
 						"`indentStyle`",

@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.236.1",
+		date: "2026-11-13",
+		headline: "If local and while local is a Studio beta in Settings › Extended Features.",
+		changed: [
+			"**If local and while local moved to Settings › Extended Features**, under Studio betas, from Compiling. It is still saved in the project's `roswaal.json`.",
+		],
+	},
+	{
 		version: "0.236.0",
 		date: "2026-11-13",
 		headline: "Settings › Extended Features turns the place viewer off.",
