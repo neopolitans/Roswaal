@@ -15,18 +15,30 @@
 import { FEEDBACK_REPOSITORY } from "../links.js";
 import type { DocPage } from "../site.js";
 
-/** When these pages took effect, and when they last changed: both said at the top of each. */
+/** When these pages took effect: said at the top of each. */
 const EFFECTIVE = "7 November 2026";
-const EDITED = "7 November 2026";
-const DATES = [
-	{
-		t: "facts" as const,
-		rows: [
-			["Date Effective", EFFECTIVE],
-			["Last Edited", EDITED],
-		] as [string, string][],
-	},
-];
+
+/**
+ * When each page last changed, said at the top of it. Moved with every change
+ * to the page's text, as its Changes section promises; the editor's notice
+ * (`LegalNotice.tsx`) is shown again when either moves.
+ */
+export const LEGAL_EDITED = {
+	terms: "13 November 2026",
+	privacy: "13 November 2026",
+} as const;
+
+function datesOf(edited: string) {
+	return [
+		{
+			t: "facts" as const,
+			rows: [
+				["Date Effective", EFFECTIVE],
+				["Last Edited", edited],
+			] as [string, string][],
+		},
+	];
+}
 
 /** Roblox's documents, linked wherever either page mentions one. */
 const ROBLOX = {
@@ -60,7 +72,7 @@ export function privacyPage(): DocPage {
 		title: "Privacy Policy",
 		summary: "What Roswaal keeps, where, and what it never collects.",
 		blocks: [
-			...DATES,
+			...datesOf(LEGAL_EDITED.privacy),
 			{
 				t: "p",
 				text:
@@ -145,15 +157,22 @@ export function privacyPage(): DocPage {
 					"sky can be drawn. It works as follows.",
 			},
 			{
+				t: "p",
+				text:
+					"You do not need it to make, compile or export projects. Without it, Roswaal cannot " +
+					"draw the meshes and images a place uses from the Roblox Creator Marketplace, so you " +
+					"view and edit the place with plain stand-ins in their place.",
+			},
+			{
 				t: "ul",
 				items: [
-					"**Only when you choose.** Roblox asks for your consent on its own page, listing the permissions Roswaal asks for: to download assets (`legacy-asset:manage`), to read who made an asset (`asset:read`), and to identify your account (`openid` and `profile`) so Roswaal can show who is signed in.",
+					"**Only when you choose.** Roblox asks for your consent on its own page, listing the permissions Roswaal asks for: to download assets (`legacy-asset:manage`), to read who made an asset (`asset:read`), and to identify your account (`openid`), which gives Roswaal your Roblox user ID and nothing else about you, not your name or avatar.",
 					'**Read only.** Roswaal reads and downloads assets, and never uploads, changes or deletes them, although Roblox names one of these permissions "manage".',
 					"**Kept on your computer.** The daemon stores the sign-in in your user profile, never in a project folder and never in a log.",
 					`**Used for one thing.** Roswaal downloads the assets your places refer to, through Roblox's official [Open Cloud API](${ROBLOX.openCloud}), and keeps copies in the project's own folder, kept out of Git by default. It never sends them, or your sign-in, anywhere else.`,
 					"**Roblox's own assets are not downloaded.** Roswaal draws a plain stand-in for anything Roblox made.",
 					`**Never sold, never rebroadcast online, and never used to train AI.** Nothing downloaded through Sign in with Roblox is put back online by Roswaal, and all of it remains subject to Roblox's applicable terms: its [Terms of Use](${ROBLOX.terms}) and its [Creator Third Party App Terms](${ROBLOX.appTerms}).`,
-					"**Deleted when access ends.** Signing out revokes the sign-in and deletes it and the downloaded copies. If Roswaal loses access to Roblox's APIs, the daemon deletes them the next time it runs.",
+					"**Deleted when access ends.** Signing out asks Roblox to revoke the sign-in, and deletes it and the downloaded copies; access Roblox has already granted runs out by itself within 15 minutes. If Roswaal loses access to Roblox's APIs, the daemon deletes them the next time it runs.",
 				],
 			},
 
@@ -193,7 +212,7 @@ export function termsPage(): DocPage {
 		title: "Terms of Service",
 		summary: "Using Roswaal, what is yours, and what belongs to others.",
 		blocks: [
-			...DATES,
+			...datesOf(LEGAL_EDITED.terms),
 
 			// The short version first, each line one the sections below back up.
 			{ t: "h", level: 2, text: "You May" },
@@ -203,7 +222,7 @@ export function termsPage(): DocPage {
 					"**Use Roswaal for anything**, personal or commercial, with no account.",
 					"**Copy, change and share Roswaal's own code and assets**, as they are or modified, under its 0BSD licence, without needing to credit anyone. The third-party parts it includes keep their own licences, which you must follow; the [Attributions](attributions) page lists each one.",
 					"**Keep, publish and sell what you make with it.** Your graphs, scripts and places are yours.",
-					"**Sign in with Roblox** to draw your places' meshes, images and sky, and sign out at any time, which deletes what was downloaded.",
+					"**Sign in with Roblox** to draw your places' meshes, images and sky, and sign out at any time, which deletes what was downloaded. It is optional: you can make projects without it.",
 				],
 			},
 
@@ -218,6 +237,16 @@ export function termsPage(): DocPage {
 					"**Use Roswaal to reach what you are not allowed to**, or to get around a service's limits or security.",
 					"**Present Roswaal as made or endorsed by Roblox Corporation.**",
 				],
+			},
+
+			{ t: "h", level: 2, text: "Who Roswaal is for" },
+			{
+				t: "p",
+				text:
+					"Roswaal is designed primarily for people aged 18 and over. If you are under 18, ask a " +
+					"parent or guardian before you use it, and read these terms, the [Privacy Policy](privacy) " +
+					"and the terms of the services Roswaal uses with them first, whether your project is " +
+					"personal or commercial.",
 			},
 
 			{ t: "h", level: 2, text: "The software" },

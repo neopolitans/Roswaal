@@ -9,6 +9,21 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.235.0",
+		date: "2026-11-13",
+		headline: "The editor points to the Terms and Privacy Policy, and the Terms say who Roswaal is for.",
+		added: [
+			"**A notice of the Terms of Service and Privacy Policy.** The editor and Node Design show it on your first visit, and again when either changes, with a link to each.",
+			"**The Terms of Service say who Roswaal is for.** It is designed primarily for people aged 18 and over; if you are younger, ask a parent or guardian, and read the terms together first.",
+		],
+		changed: [
+			"**Sign in with Roblox asks for less.** The Privacy Policy lists `openid`, which gives Roswaal your user ID and not your name or avatar, in place of `openid` and `profile`.",
+			"**Sign in with Roblox is optional.** Both pages say you can make projects without it; without it, a place's Creator Marketplace meshes and images are drawn as stand-ins.",
+			"**Signing out, said exactly.** The Privacy Policy says access Roblox has already granted runs out by itself within 15 minutes.",
+			"**Each page has its own Last Edited date.** Both had shown 7 November since they changed on 12 November.",
+		],
+	},
+	{
 		version: "0.234.0",
 		date: "2026-11-13",
 		headline: "Bind writes plain Luau unless the project asks for Studio's beta syntax.",

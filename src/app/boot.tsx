@@ -18,6 +18,7 @@ import { DocsPage } from "./DocsPage.jsx";
 import { ErrorBoundary } from "./ErrorBoundary.jsx";
 import { loadCapabilities } from "./host.js";
 import { installKeyboardSettle } from "./keyboardSettle.js";
+import { LegalNotice } from "./LegalNotice.jsx";
 import { installFavicon } from "./logo.jsx";
 import { PageHost } from "./pageHost.jsx";
 import { readPreferences } from "./preferences.js";
@@ -88,6 +89,8 @@ export function bootEditor(): void {
 							}
 						>
 							{page === "docs" ? <DocsPage /> : page === "designer" ? <DesignerPage /> : <App />}
+							{/* The Terms and Privacy Policy, once, over every page but the docs that hold them. */}
+							{page !== "docs" && <LegalNotice />}
 						</ErrorBoundary>
 					)}
 				/>
