@@ -56,6 +56,11 @@ export interface ViewRenderer {
 	 * the faces showing it are drawn from then on.
 	 */
 	setImage(asset: string, image: ImageBitmap): void;
+	/**
+	 * A Sky's six images, in `SKY_FACES` order and all one size, drawn in place
+	 * of the sky made here; or none, for that sky again.
+	 */
+	setSky(faces: readonly ImageBitmap[] | null): void;
 	/** Gives the GPU back: a browser keeps only so many contexts. */
 	destroy(): void;
 }
@@ -205,6 +210,29 @@ export function seeThroughSets(
 		glass[kind] = pick(true);
 	}
 	return { clear, glass };
+}
+
+/**
+ * How much brighter Studio shows a Sky's images than their own pixels, in
+ * linear light, before the display curve: measured from a dark one, which the
+ * curve's toe takes down to nearly black as Studio's does.
+ */
+export const SKY_GAIN = 1.6;
+
+/**
+ * Where a direction meets a Sky's images, as Studio lays them round the view:
+ * which face, by its place in `SKY_FACES`, and where on it, 0 to 1 across and
+ * down. Measured in Studio looking down each axis: the four sides upright,
+ * Up turned a quarter clockwise and Dn a quarter anticlockwise. Both
+ * renderers' shaders do the same.
+ */
+export function skyLookup(d: readonly number[]): { face: number; u: number; v: number } {
+	const [x, y, z] = d;
+	const [ax, ay, az] = d.map(Math.abs);
+	const at = (face: number, u: number, v: number) => ({ face, u: u * 0.5 + 0.5, v: v * 0.5 + 0.5 });
+	if (ax >= ay && ax >= az) return x > 0 ? at(3, z / ax, -y / ax) : at(4, -z / ax, -y / ax);
+	if (az >= ay) return z > 0 ? at(0, -x / az, -y / az) : at(2, x / az, -y / az);
+	return y > 0 ? at(5, -z / ay, -x / ay) : at(1, -z / ay, x / ay);
 }
 
 /** How wide the outline round what is picked is drawn, in CSS pixels. */

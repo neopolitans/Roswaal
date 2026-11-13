@@ -6,7 +6,7 @@
  */
 
 import type { PlaceOutline } from "../../core/rbx/browse.js";
-import type { LightingParams } from "../../core/rbx/lighting.js";
+import { type LightingParams, SKY_FACES } from "../../core/rbx/lighting.js";
 import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene.js";
 import { addTo, sameItems } from "../placeSelection.js";
 import { boxAround } from "./box.js";
@@ -292,6 +292,7 @@ export class ViewportController {
 			this.loadLooks(this.view, place);
 			this.loadImages(this.view, place);
 			this.view.setLighting(place.lighting);
+			this.loadSky(this.view, place.lighting);
 			this.view.setOverlay(this.frustumLines());
 			this.refreshSelection();
 		} else void this.start();
@@ -455,6 +456,52 @@ export class ViewportController {
 				this.redraw();
 			});
 		}
+	}
+
+	/** A Sky's six images, kept for the session by the ids they were asked for under. */
+	private sky: { key: string; faces: Promise<ImageBitmap[] | null> } | null = null;
+
+	/**
+	 * A Sky's six images into the view once Sign in with Roblox has them all,
+	 * at one size; until then, and without a Sky, the sky made here.
+	 */
+	private loadSky(view: ViewRenderer, lighting: LightingParams): void {
+		const box = lighting.skybox;
+		if (!box) {
+			this.sky = null;
+			view.setSky(null);
+			return;
+		}
+		const ids = SKY_FACES.map((face) => box[face]);
+		const key = ids.join(",");
+		if (this.sky?.key !== key) {
+			const got = new Map<string, ImageBitmap>();
+			const faces = loadImages(ids, (asset, image) => got.set(asset, image))
+				.then(async () => {
+					const each = ids.map((id) => got.get(id));
+					if (each.some((face) => !face)) return null;
+					const first = each[0] as ImageBitmap;
+					const size = Math.min(2048, Math.max(first.width, first.height));
+					return Promise.all(
+						(each as ImageBitmap[]).map((face) =>
+							face.width === size && face.height === size
+								? face
+								: createImageBitmap(face, { resizeWidth: size, resizeHeight: size }),
+						),
+					);
+				})
+				.catch(() => null);
+			this.sky = { key, faces };
+			// What did not arrive is asked for again next time.
+			void faces.then((held) => {
+				if (!held && this.sky?.key === key) this.sky = null;
+			});
+		}
+		void this.sky.faces.then((faces) => {
+			if (!faces || this.view !== view) return;
+			view.setSky(faces);
+			this.redraw();
+		});
 	}
 
 	/** One pick at a time: WebGPU reads a pick back through one buffer. */
@@ -852,6 +899,7 @@ export class ViewportController {
 		if (this.place !== place) view.setScene(this.place ?? place);
 		this.loadLooks(view, this.place ?? place);
 		this.loadImages(view, this.place ?? place);
+		this.loadSky(view, (this.place ?? place).lighting);
 		this.attach(this.canvas as HTMLCanvasElement);
 		this.refreshSelection();
 		this.fit();

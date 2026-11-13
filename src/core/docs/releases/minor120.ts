@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.242.0",
+		date: "2026-11-13",
+		headline: "The place viewer draws a place's Sky from its six images.",
+		added: [
+			"**A place's Sky in the place viewer.** Signed in with Roblox through `roswaal serve`, the Sky's six images are downloaded once and drawn round the view as Studio lays them, as bright as Studio shows them. Studio's own sun is drawn over them; a sun or moon image of the place's own is not drawn yet. Until then, and on the website, the sky is the one Roswaal makes from Lighting.",
+		],
+	},
+	{
 		version: "0.241.1",
 		date: "2026-11-13",
 		headline:

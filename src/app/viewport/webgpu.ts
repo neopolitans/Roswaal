@@ -24,6 +24,7 @@ import {
 	imageQuads,
 	SELECT,
 	SELECT_WIDTH,
+	SKY_GAIN,
 	seeThroughSets,
 	type ViewRenderer,
 } from "./view.js";
@@ -107,6 +108,10 @@ struct U {
 // The material textures, a layer each, tinted by the part's Color.
 @group(0) @binding(1) var looks: texture_2d_array<f32>;
 @group(0) @binding(2) var lookSampler: sampler;
+// A Sky's six images, a layer each in SKY_FACES order, when \`screen.w\` is 1 or
+// more; at 2, Studio's own sun is drawn over them.
+@group(0) @binding(3) var skyImages: texture_2d_array<f32>;
+@group(0) @binding(4) var skySampler: sampler;
 struct VIn {
 	@location(0) pos: vec3f, @location(1) nrm: vec3f,
 	@location(2) c0: vec3f, @location(3) c1: vec3f, @location(4) c2: vec3f, @location(5) p: vec3f,
@@ -145,10 +150,14 @@ fn sky(dir: vec3f) -> vec3f {
 	} else {
 		c = mix(u.horizon.rgb, u.ground.rgb, min(1.0, -dir.y * 5.0));
 	}
+	return c + sunLight(dir);
+}
+// The sun's disc and the glow round it, in a direction.
+fn sunLight(dir: vec3f) -> vec3f {
 	let a = dot(dir, u.sun.xyz);
 	let disc = smoothstep(u.sunColour.w - 0.00002, u.sunColour.w + 0.00008, a);
 	let glow = pow(max(a, 0.0), 48.0) * (0.18 + u.ground.w * 0.6) + pow(max(a, 0.0), 6.0) * 0.06;
-	return c + u.sunColour.rgb * (disc * 4.0 + glow);
+	return u.sunColour.rgb * (disc * 4.0 + glow);
 }
 // Stephen Hill's fit of the ACES curve, as BakingLab (MIT) has it.
 fn aces(colour: vec3f) -> vec3f {
@@ -417,9 +426,32 @@ struct SOut { @builtin(position) clip: vec4f, @location(0) ndc: vec2f };
 	o.ndc = xy;
 	return o;
 }
+// Where a direction meets a Sky's images: u and v from -1 to 1, and the
+// face's layer. As view.ts's skyLookup, which says how it was measured.
+fn skyFace(d: vec3f) -> vec3f {
+	let a = abs(d);
+	if (a.x >= a.y && a.x >= a.z) {
+		if (d.x > 0.0) { return vec3f(d.z / a.x, -d.y / a.x, 3.0); }
+		return vec3f(-d.z / a.x, -d.y / a.x, 4.0);
+	}
+	if (a.z >= a.y) {
+		if (d.z > 0.0) { return vec3f(-d.x / a.z, -d.y / a.z, 0.0); }
+		return vec3f(d.x / a.z, -d.y / a.z, 2.0);
+	}
+	if (d.y > 0.0) { return vec3f(-d.z / a.y, -d.x / a.y, 5.0); }
+	return vec3f(-d.z / a.y, d.x / a.y, 1.0);
+}
 @fragment fn fsSky(i: SOut) -> @location(0) vec4f {
 	let far = u.invViewProj * vec4f(i.ndc, 1.0, 1.0);
 	let dir = normalize(far.xyz / far.w - u.camPos.xyz);
+	if (u.screen.w > 0.5) {
+		// Through the display curve, as Studio's is, without the lift a lit
+		// surface's shadows have: a dark sky stays nearly black.
+		let f = skyFace(dir);
+		let c = textureSampleLevel(skyImages, skySampler, f.xy * 0.5 + 0.5, i32(f.z), 0.0).rgb;
+		let sun = select(vec3f(0.0), sunLight(dir), u.screen.w > 1.5);
+		return vec4f(pow(aces((pow(c, vec3f(2.2)) * ${SKY_GAIN} + sun) * u.zenith.w), vec3f(1.0 / 2.2)), 1.0);
+	}
 	return vec4f(display(sky(dir)), 1.0);
 }
 // A handle: in the tool's colour, shaded but not lit by the place, with its
@@ -649,8 +681,11 @@ export class WebGpuView implements ViewRenderer {
 				{ binding: 0, visibility: STAGE.VERTEX | STAGE.FRAGMENT, buffer: {} },
 				{ binding: 1, visibility: STAGE.FRAGMENT, texture: { viewDimension: "2d-array" } },
 				{ binding: 2, visibility: STAGE.FRAGMENT, sampler: {} },
+				{ binding: 3, visibility: STAGE.FRAGMENT, texture: { viewDimension: "2d-array" } },
+				{ binding: 4, visibility: STAGE.FRAGMENT, sampler: {} },
 			],
 		});
+		this.layout = layout;
 		const pipelineLayout = d.createPipelineLayout({ bindGroupLayouts: [layout] });
 		const depth = {
 			format: "depth32float" as const,
@@ -957,24 +992,17 @@ export class WebGpuView implements ViewRenderer {
 			format: "rgba8unorm",
 			usage: TEXTURE.TEXTURE_BINDING | TEXTURE.COPY_DST | TEXTURE.RENDER_ATTACHMENT,
 		});
-		this.bind = d.createBindGroup({
-			layout,
-			entries: [
-				{ binding: 0, resource: { buffer: this.uniform } },
-				{ binding: 1, resource: this.looks.createView({ dimension: "2d-array" }) },
-				{
-					binding: 2,
-					resource: d.createSampler({
-						addressModeU: "repeat",
-						addressModeV: "repeat",
-						magFilter: "linear",
-						minFilter: "linear",
-						mipmapFilter: "linear",
-						maxAnisotropy: 4,
-					}),
-				},
-			],
+		this.lookSampler = d.createSampler({
+			addressModeU: "repeat",
+			addressModeV: "repeat",
+			magFilter: "linear",
+			minFilter: "linear",
+			mipmapFilter: "linear",
+			maxAnisotropy: 4,
 		});
+		// Clamped, so a face's edge does not wrap round to its other side.
+		this.skySampler = d.createSampler({ magFilter: "linear", minFilter: "linear" });
+		this.setSky(null);
 
 		this.setScene(scene);
 		const e = boxEdges();
@@ -1258,7 +1286,8 @@ export class WebGpuView implements ViewRenderer {
 		u.set(vp, 0);
 		u.set(invert(vp), 16);
 		u.set(lightingBlock(this.lighting, camera.eye, SELECT, HANDLE_ALPHA), 32);
-		u.set([this.width, this.height, this.band(), 0], 76);
+		const sky = this.skyOn ? (this.lighting.skyboxSun ? 2 : 1) : 0;
+		u.set([this.width, this.height, this.band(), sky], 76);
 		this.device.queue.writeBuffer(this.uniform, 0, u);
 	}
 
@@ -1442,6 +1471,40 @@ export class WebGpuView implements ViewRenderer {
 
 	private looks!: GPUTexture;
 	private loaded = new Set<number>();
+	private layout!: GPUBindGroupLayout;
+	private lookSampler!: GPUSampler;
+	private skySampler!: GPUSampler;
+	private skyImages?: GPUTexture;
+	private skyOn = false;
+
+	setSky(faces: readonly ImageBitmap[] | null): void {
+		const d = this.device;
+		this.skyImages?.destroy();
+		const [w, h] = faces ? [faces[0].width, faces[0].height] : [1, 1];
+		this.skyImages = d.createTexture({
+			size: [w, h, 6],
+			format: "rgba8unorm",
+			usage: TEXTURE.TEXTURE_BINDING | TEXTURE.COPY_DST | TEXTURE.RENDER_ATTACHMENT,
+		});
+		faces?.forEach((source, layer) => {
+			d.queue.copyExternalImageToTexture(
+				{ source },
+				{ texture: this.skyImages!, origin: [0, 0, layer] },
+				[w, h],
+			);
+		});
+		this.skyOn = faces !== null;
+		this.bind = d.createBindGroup({
+			layout: this.layout,
+			entries: [
+				{ binding: 0, resource: { buffer: this.uniform } },
+				{ binding: 1, resource: this.looks.createView({ dimension: "2d-array" }) },
+				{ binding: 2, resource: this.lookSampler },
+				{ binding: 3, resource: this.skyImages.createView({ dimension: "2d-array" }) },
+				{ binding: 4, resource: this.skySampler },
+			],
+		});
+	}
 
 	setLook(layer: number, levels: HTMLCanvasElement[]): void {
 		levels.forEach((source, mipLevel) => {

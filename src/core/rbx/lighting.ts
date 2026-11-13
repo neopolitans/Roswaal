@@ -7,7 +7,12 @@
  * Read by the host, beside the scene, since the editor never holds the place.
  */
 
+import { assetIdOf } from "./browse.js";
 import type { RbxDocument, RbxInstance } from "./dom.js";
+
+/** A Sky's six images, by the name each has after `Skybox`. */
+export const SKY_FACES = ["Bk", "Dn", "Ft", "Lf", "Rt", "Up"] as const;
+export type SkyFace = (typeof SKY_FACES)[number];
 
 export interface LightingParams {
 	/** Towards the sun, or the moon when the sun is down. */
@@ -31,6 +36,16 @@ export interface LightingParams {
 	/** Lighting's own fog, used when there is no Atmosphere. */
 	fog: { start: number; end: number; colour: number[]; on: boolean };
 	glare: number;
+	/**
+	 * A Sky's six images, as asset ids, when it names all six: drawn in place
+	 * of the sky made here once Sign in with Roblox has them.
+	 */
+	skybox?: Record<SkyFace, string>;
+	/**
+	 * Whether the sun made here is drawn over a Sky's images: where the Sky
+	 * shows Studio's own sun. A sun image of the place's own is not drawn yet.
+	 */
+	skyboxSun: boolean;
 	/** What lights the place, for the Properties summary: a name and what it is. */
 	notes: [string, string][];
 }
@@ -127,7 +142,8 @@ export function readLighting(doc: RbxDocument): LightingParams {
 		atmosphere ? `Atmosphere, density ${+density.toFixed(3)}` : "Lighting's fog, no Atmosphere",
 	]);
 	notes.push([moon ? "Moonlight" : "Sunlight", `Latitude ${+latitude.toFixed(1)}°`]);
-	if (sky) notes.push(["Sky", "Its images are not drawn yet"]);
+	const skybox = skyboxOf(sky);
+	if (sky) notes.push(["Sky", skybox ? "Its images, once downloaded" : "Not all six images named"]);
 
 	return {
 		sun,
@@ -151,8 +167,32 @@ export function readLighting(doc: RbxDocument): LightingParams {
 			on: !atmosphere,
 		},
 		glare: atmosphere ? prop(atmosphere, "Glare", 0) : 0,
+		...(skybox ? { skybox } : {}),
+		skyboxSun: ownSun(sky),
 		notes,
 	};
+}
+
+/** Whether a Sky shows Studio's own sun: its celestial bodies on, and no sun image of its own. */
+export function ownSun(sky: RbxInstance | undefined): boolean {
+	if (prop<boolean>(sky, "CelestialBodiesShown", true) === false) return false;
+	const value = sky?.props.get("SunTextureId")?.value;
+	const text = value instanceof Uint8Array ? new TextDecoder().decode(value) : value;
+	return typeof text !== "string" || text.trim() === "" || /^rbxasset:\/\//i.test(text.trim());
+}
+
+/** A Sky's six image ids, or nothing if any face names no image. */
+export function skyboxOf(sky: RbxInstance | undefined): Record<SkyFace, string> | undefined {
+	if (!sky) return undefined;
+	const faces = {} as Record<SkyFace, string>;
+	for (const face of SKY_FACES) {
+		const value = sky.props.get(`Skybox${face}`)?.value;
+		const text = value instanceof Uint8Array ? new TextDecoder().decode(value) : value;
+		const id = typeof text === "string" ? assetIdOf(text) : undefined;
+		if (!id) return undefined;
+		faces[face] = id;
+	}
+	return faces;
 }
 
 /**
