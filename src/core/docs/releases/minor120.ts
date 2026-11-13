@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.240.1",
+		date: "2026-11-13",
+		headline: "Decals and Textures on Neon and see-through parts, and on top faces, are drawn as Studio draws them.",
+		fixed: [
+			"**The nearest Decal or Texture is in front.** Images are drawn farthest first, so one behind no longer shows through one nearer.",
+			"**Images on see-through parts are drawn over them**, and images on Neon parts over their glow.",
+			"**A Decal or Texture on a part's Top face is the right way round**, as measured in Studio: its image runs towards the part's Back. Its tiles and offsets now land where Studio puts them.",
+		],
+	},
+	{
 		version: "0.240.0",
 		date: "2026-11-13",
 		headline: "The place viewer draws Decals and Textures, from images Sign in with Roblox downloads.",

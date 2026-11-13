@@ -16,6 +16,9 @@ import {
 	FOV,
 	HANDLE_ALPHA,
 	IMAGE_VERTEX,
+	type ImageLayer,
+	type ImageQuad,
+	imageOrder,
 	imageQuads,
 	SELECT,
 	SELECT_WIDTH,
@@ -1211,7 +1214,7 @@ export class WebGpuView implements ViewRenderer {
 		pass.draw(3);
 		pass.setPipeline(this.solid);
 		this.solids(pass);
-		this.drawImages(pass);
+		this.drawImages(pass, "solid", camera.eye);
 		if (this.glass.length > 0) {
 			pass.setPipeline(this.glassDepth);
 			this.solids(pass, this.glass);
@@ -1223,6 +1226,8 @@ export class WebGpuView implements ViewRenderer {
 			pass.setPipeline(this.blended);
 			this.solids(pass, this.clear);
 		}
+		// Over the see-through parts they are on.
+		this.drawImages(pass, "seeThrough", camera.eye);
 		// The glow is part of the place: what marks the place is drawn over it.
 		if (this.glowing && this.glow) {
 			pass.setPipeline(this.add);
@@ -1230,6 +1235,8 @@ export class WebGpuView implements ViewRenderer {
 			pass.draw(3);
 			pass.setBindGroup(0, this.bind);
 		}
+		// Over the glow of the Neon parts they are on.
+		this.drawImages(pass, "glow", camera.eye);
 		if (this.selection) {
 			pass.setPipeline(this.hideBehind ? this.linesBehind : this.lines);
 			pass.setVertexBuffer(0, this.edges.vertices);
@@ -1260,15 +1267,15 @@ export class WebGpuView implements ViewRenderer {
 	private imageSampler!: GPUSampler;
 	private imagePipeline!: GPURenderPipeline;
 	private imageVertices: GPUBuffer | null = null;
-	private imageRuns: { asset: string; first: number; count: number }[] = [];
+	private imageList: ImageQuad[] = [];
 	private imageGroups = new Map<string, { texture: GPUTexture; group: GPUBindGroup }>();
 
 	/** The scene's Decals and Textures, as triangles grouped by image. */
 	private setImages(scene: PlaceScene): void {
 		this.imageVertices?.destroy();
 		this.imageVertices = null;
-		const { vertices, runs } = imageQuads(scene.images ?? []);
-		this.imageRuns = runs;
+		const { vertices, quads } = imageQuads(scene.images ?? []);
+		this.imageList = quads;
 		if (vertices.length === 0) return;
 		this.imageVertices = this.device.createBuffer({
 			size: vertices.byteLength,
@@ -1298,16 +1305,21 @@ export class WebGpuView implements ViewRenderer {
 		this.imageGroups.set(asset, { texture, group });
 	}
 
-	/** Each image whose texture has arrived, onto its faces. */
-	private drawImages(pass: GPURenderPassEncoder): void {
-		if (!this.imageVertices || this.imageRuns.length === 0) return;
+	/** One layer's images whose texture has arrived, onto their faces, farthest first. */
+	private drawImages(pass: GPURenderPassEncoder, layer: ImageLayer, eye: number[]): void {
+		if (!this.imageVertices || this.imageList.length === 0) return;
+		const order = imageOrder(this.imageList, layer, eye, (asset) => this.imageGroups.has(asset));
+		if (order.length === 0) return;
 		pass.setPipeline(this.imagePipeline);
 		pass.setVertexBuffer(0, this.imageVertices);
-		for (const run of this.imageRuns) {
-			const ready = this.imageGroups.get(run.asset);
-			if (!ready) continue;
-			pass.setBindGroup(1, ready.group);
-			pass.draw(run.count, 1, run.first);
+		let bound = "";
+		for (const q of order) {
+			const asset = this.imageList[q].asset;
+			if (asset !== bound) {
+				pass.setBindGroup(1, this.imageGroups.get(asset)!.group);
+				bound = asset;
+			}
+			pass.draw(6, 1, q * 6);
 		}
 	}
 

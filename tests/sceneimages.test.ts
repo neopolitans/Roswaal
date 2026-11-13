@@ -135,9 +135,9 @@ describe("M103", () => {
 });
 
 describe("the images' triangles", () => {
-	it("are grouped by image, two triangles a quad, each vertex position, normal, uv and tint", async () => {
+	it("are six vertices a quad in the scene's order, each position, normal, uv and tint", async () => {
 		const { imageQuads, IMAGE_VERTEX } = await import("../src/app/viewport/view.js");
-		const quad = (asset: string, z: number) => ({
+		const quad = (asset: string, z: number, layer?: "solid" | "seeThrough" | "glow") => ({
 			asset,
 			part: 1,
 			corners: [0, 1, z, 1, 1, z, 1, 0, z, 0, 0, z],
@@ -145,19 +145,32 @@ describe("the images' triangles", () => {
 			normal: [0, 0, 1],
 			tint: [1, 0.5, 0.25],
 			alpha: 0.5,
+			layer,
 		});
-		const { vertices, runs } = imageQuads([quad("a", 1), quad("b", 2), quad("a", 3)]);
-		expect(runs).toEqual([
-			{ asset: "a", first: 0, count: 12 },
-			{ asset: "b", first: 12, count: 6 },
+		const { vertices, quads } = imageQuads([quad("a", 1), quad("b", 2, "glow"), quad("a", 3)]);
+		expect(quads.map((q) => [q.asset, q.layer, q.centre])).toEqual([
+			["a", "solid", [0.5, 0.5, 1]],
+			["b", "glow", [0.5, 0.5, 2]],
+			["a", "solid", [0.5, 0.5, 3]],
 		]);
 		expect(vertices.length).toBe(18 * IMAGE_VERTEX);
 		// The first vertex: top left, its normal, uv 0,0, and the tint with alpha.
 		expect([...vertices.slice(0, IMAGE_VERTEX)]).toEqual([
 			0, 1, 1, 0, 0, 1, 0, 0, 1, 0.5, 0.25, 0.5,
 		]);
-		// The second quad of "a" is the one at z = 3.
-		expect(vertices[6 * IMAGE_VERTEX + 2]).toBe(3);
+	});
+
+	it("are drawn farthest first within their layer, only once their image is here", async () => {
+		const { imageOrder } = await import("../src/app/viewport/view.js");
+		const at = (asset: string, z: number, layer: "solid" | "seeThrough" | "glow" = "solid") => ({
+			asset,
+			layer,
+			centre: [0, 0, z],
+		});
+		const quads = [at("a", 1), at("b", 5), at("a", 3), at("c", 9), at("a", 7, "glow")];
+		expect(imageOrder(quads, "solid", [0, 0, 0], () => true)).toEqual([3, 1, 2, 0]);
+		expect(imageOrder(quads, "solid", [0, 0, 0], (a) => a !== "c")).toEqual([1, 2, 0]);
+		expect(imageOrder(quads, "glow", [0, 0, 0], () => true)).toEqual([4]);
 	});
 });
 
@@ -199,4 +212,35 @@ describe("a Decal asset", () => {
 		expect(decalImageOf(new TextEncoder().encode("…rbxassetid://42…"))).toBe("42");
 		expect(decalImageOf(new TextEncoder().encode("no image here"))).toBeUndefined();
 	});
+});
+
+describe("each face's image, as Studio draws it", () => {
+	// Measured in Studio on 13 Nov 2026: a cube with a Decal on each face, seen
+	// from known angles. Image up and image right, as world directions.
+	const MEASURED: Record<number, { up: number[]; right: number[] }> = {
+		5: { up: [0, 1, 0], right: [-1, 0, 0] }, // Front
+		0: { up: [0, 1, 0], right: [0, 0, -1] }, // Right
+		1: { up: [0, 0, 1], right: [-1, 0, 0] }, // Top
+		4: { up: [0, 0, 1], right: [1, 0, 0] }, // Bottom
+	};
+	for (const [face, want] of Object.entries(MEASURED)) {
+		it(`face ${face} is the way up and round Studio has it`, () => {
+			const [image] = imagesOf(
+				block(
+					inst("Decal", {
+						Texture: ["String", bytes("rbxassetid://1")],
+						Face: ["Enum", Number(face)],
+					}),
+				),
+			);
+			const c = image.corners;
+			const unit = (v: number[]) => {
+				const l = Math.hypot(...v);
+				return v.map((x) => Math.round((x / l) * 1000) / 1000 + 0);
+			};
+			// Top left minus bottom left is up; top right minus top left is right.
+			expect(unit([0, 1, 2].map((k) => c[k] - c[9 + k]))).toEqual(want.up);
+			expect(unit([0, 1, 2].map((k) => c[3 + k] - c[k]))).toEqual(want.right);
+		});
+	}
 });

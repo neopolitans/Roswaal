@@ -21,6 +21,9 @@ import {
 	FOV,
 	HANDLE_ALPHA,
 	IMAGE_VERTEX,
+	type ImageLayer,
+	type ImageQuad,
+	imageOrder,
 	imageQuads,
 	SELECT,
 	SELECT_WIDTH,
@@ -953,7 +956,7 @@ export class WebGl2View implements ViewRenderer {
 		gl.enable(gl.DEPTH_TEST);
 		this.use(this.main, camera, false);
 		this.solids();
-		if (this.drawImages(camera)) this.use(this.main, camera, false);
+		if (this.drawImages(camera, "solid")) this.use(this.main, camera, false);
 		// See-through Glass: the nearest's depth, then its colour blended at that depth.
 		if (this.glass.length > 0) {
 			gl.colorMask(false, false, false, false);
@@ -978,8 +981,12 @@ export class WebGl2View implements ViewRenderer {
 			gl.depthMask(true);
 			gl.disable(gl.BLEND);
 		}
+		// Over the see-through parts they are on.
+		this.drawImages(camera, "seeThrough");
 		// The glow is part of the place: what marks the place is drawn over it.
 		if (this.glowing) this.addGlow();
+		// Over the glow of the Neon parts they are on.
+		this.drawImages(camera, "glow");
 		if (this.selection) {
 			this.use(this.main, camera, true);
 			// Through everything, as Studio's selection box is, or hidden by what is in front.
@@ -1035,7 +1042,7 @@ export class WebGl2View implements ViewRenderer {
 	private imageProgram!: Program;
 	private imageVao: WebGLVertexArrayObject | null = null;
 	private imageBuffer: WebGLBuffer | null = null;
-	private imageRuns: { asset: string; first: number; count: number }[] = [];
+	private imageList: ImageQuad[] = [];
 	private imageTextures = new Map<string, WebGLTexture>();
 
 	/** The scene's Decals and Textures, as triangles grouped by image. */
@@ -1045,8 +1052,8 @@ export class WebGl2View implements ViewRenderer {
 		if (this.imageBuffer) gl.deleteBuffer(this.imageBuffer);
 		this.imageVao = null;
 		this.imageBuffer = null;
-		const { vertices, runs } = imageQuads(scene.images ?? []);
-		this.imageRuns = runs;
+		const { vertices, quads } = imageQuads(scene.images ?? []);
+		this.imageList = quads;
 		if (vertices.length === 0) return;
 		this.imageVao = gl.createVertexArray();
 		this.imageBuffer = gl.createBuffer();
@@ -1083,21 +1090,28 @@ export class WebGl2View implements ViewRenderer {
 		this.imageTextures.set(asset, texture);
 	}
 
-	/** Each image whose texture has arrived, onto its faces; whether any was drawn. */
-	private drawImages(camera: Camera): boolean {
+	/** One layer's images whose texture has arrived, onto their faces, farthest first; whether any was drawn. */
+	private drawImages(camera: Camera, layer: ImageLayer): boolean {
 		const gl = this.gl;
 		if (!this.imageVao) return false;
-		const ready = this.imageRuns.filter((run) => this.imageTextures.has(run.asset));
-		if (ready.length === 0) return false;
+		const order = imageOrder(this.imageList, layer, camera.eye, (asset) =>
+			this.imageTextures.has(asset),
+		);
+		if (order.length === 0) return false;
 		this.use(this.imageProgram, camera, false);
 		gl.enable(gl.BLEND);
 		gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 		gl.depthMask(false);
 		gl.bindVertexArray(this.imageVao);
 		gl.activeTexture(gl.TEXTURE2);
-		for (const run of ready) {
-			gl.bindTexture(gl.TEXTURE_2D, this.imageTextures.get(run.asset) ?? null);
-			gl.drawArrays(gl.TRIANGLES, run.first, run.count);
+		let bound = "";
+		for (const q of order) {
+			const asset = this.imageList[q].asset;
+			if (asset !== bound) {
+				gl.bindTexture(gl.TEXTURE_2D, this.imageTextures.get(asset) ?? null);
+				bound = asset;
+			}
+			gl.drawArrays(gl.TRIANGLES, q * 6, 6);
 		}
 		gl.activeTexture(gl.TEXTURE0);
 		gl.bindVertexArray(null);

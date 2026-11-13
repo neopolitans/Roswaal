@@ -98,6 +98,11 @@ export interface SceneImage {
 	tint: number[];
 	/** 1 - Transparency. */
 	alpha: number;
+	/**
+	 * When it is drawn: with the solid parts; after the see-through parts, as
+	 * its part is one; or after Neon's glow, which would otherwise cover it.
+	 */
+	layer?: "solid" | "seeThrough" | "glow";
 }
 
 const PARTS = new Set([
@@ -292,16 +297,23 @@ export function buildPlaceScene(
 		const see = typeof transparency === "number" ? Math.max(0, Math.min(1, transparency)) : 0;
 		const alpha = Math.round((1 - see) * 255);
 		const colour = (rgb[0] & 255) | ((rgb[1] & 255) << 8) | ((rgb[2] & 255) << 16) | (alpha << 24);
-		// Decals and Textures: on a block or a mesh, which are drawn as their box.
-		if ((kind === "block" || kind === "mesh") && !modifier) {
-			images.push(...faceImages(inst, id, r, cf.position, size));
-		}
 		const material = materialIndex(inst.props.get("Material")?.value);
 		const reflectance = inst.props.get("Reflectance")?.value;
 		const shine = Math.round(
 			Math.max(0, Math.min(1, typeof reflectance === "number" ? reflectance : 0)) * 255,
 		);
 		const through = alpha < 255 || MATERIALS[material].shade === MATERIAL_SHADE.forceField;
+		// Decals and Textures: on a block or a mesh, which are drawn as their box.
+		if ((kind === "block" || kind === "mesh") && !modifier) {
+			const layer: SceneImage["layer"] =
+				MATERIALS[material].shade === MATERIAL_SHADE.neon
+					? "glow"
+					: through
+						? "seeThrough"
+						: "solid";
+			for (const image of faceImages(inst, id, r, cf.position, size))
+				images.push({ ...image, layer });
+		}
 		(through ? seeThrough : lists)[kind].push(
 			x[0] * sx,
 			x[1] * sx,
@@ -382,14 +394,15 @@ export function buildPlaceScene(
  * Each face as Roblox names it (Enum.NormalId), as the part's axes: which way
  * it looks, and which ways are up and right on the image to someone facing it.
  * An axis is its index and sign. Right is up × normal. The side faces' up is
- * the part's Y; Top's is towards Front, and Bottom's towards Back.
+ * the part's Y, and both Top's and Bottom's is the part's +Z, towards Back.
+ * Measured in Studio, 13 Nov 2026, on a cube with a Decal on each face.
  */
 const FACES: Record<
 	number,
 	{ n: [number, number]; up: [number, number]; right: [number, number] }
 > = {
 	0: { n: [0, 1], up: [1, 1], right: [2, -1] }, // Right
-	1: { n: [1, 1], up: [2, -1], right: [0, 1] }, // Top
+	1: { n: [1, 1], up: [2, 1], right: [0, -1] }, // Top
 	2: { n: [2, 1], up: [1, 1], right: [0, 1] }, // Back
 	3: { n: [0, -1], up: [1, 1], right: [2, 1] }, // Left
 	4: { n: [1, -1], up: [2, 1], right: [0, 1] }, // Bottom
