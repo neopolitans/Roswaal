@@ -128,7 +128,8 @@ jobs:
       - name: Propose
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bash scripts/upkeep/propose.sh upkeep/engine "Upkeep: engine catalogue from creator-docs" "$RUNNER_TEMP/change" src/core/
+        run: |
+          bash scripts/upkeep/propose.sh upkeep/engine "Upkeep: engine catalogue from creator-docs" "$RUNNER_TEMP/change" src/core/
 
   packages:
     if: >-
@@ -215,7 +216,8 @@ jobs:
       - name: Propose
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bash scripts/upkeep/propose.sh upkeep/packages "Upkeep: package updates" "$RUNNER_TEMP/change" package.json package-lock.json
+        run: |
+          bash scripts/upkeep/propose.sh upkeep/packages "Upkeep: package updates" "$RUNNER_TEMP/change" package.json package-lock.json
 
   releases:
     if: >-
