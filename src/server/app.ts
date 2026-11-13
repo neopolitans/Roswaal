@@ -344,19 +344,15 @@ const KEY_REFUSED =
 /**
  * The key, on everything under `/api` (F2): see `token.ts`.
  *
- * In the header, except on `GET /api/events`, which an `EventSource` opens
- * and cannot give headers to: there it may be `?key=`. That stream only
- * reads, and the daemon writes no log for its address to end up in. Without
+ * In the header and nowhere else, the event stream included: the editor
+ * reads it with `fetch` so that it can send one (`keyedEvents.ts`). A key in
+ * an address shows wherever addresses do, which CASA 2.1 rules out. Without
  * the key, `GET /api/health` says only that a daemon is there -- not which
  * project it has open or what version it is -- and everything else is refused.
  */
 function guardToken(app: express.Express, token: string): void {
 	app.use("/api", (req, res, next) => {
-		const fromQuery =
-			req.method === "GET" && req.path === "/events" && typeof req.query.key === "string"
-				? req.query.key
-				: undefined;
-		if (isToken(tokenOf(req.headers) ?? fromQuery, token)) return next();
+		if (isToken(tokenOf(req.headers), token)) return next();
 		if (req.method === "GET" && req.path === "/health") {
 			// `locked`: so the editor can say what is missing. That a key is asked
 			// for is no secret; it is what every daemon does.

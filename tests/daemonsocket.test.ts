@@ -400,12 +400,18 @@ describe("a request without the daemon's key", () => {
 		).toBe(401);
 	});
 
-	// An EventSource cannot send headers, so the stream alone takes the key in its address.
-	it("may give the key as ?key= on the event stream, and nowhere else", async () => {
-		const streamStatus = (url: string) =>
+	// The editor reads the stream with fetch and sends the key in its header,
+	// so no address ever carries it (CASA 2.1).
+	it("takes the key on the event stream in its header, and never in its address", async () => {
+		const streamStatus = (url: string, key?: string) =>
 			new Promise<number>((resolve, reject) => {
 				const req = http.get(
-					{ host: "127.0.0.1", port, path: url, headers: { host: `127.0.0.1:${port}` } },
+					{
+						host: "127.0.0.1",
+						port,
+						path: url,
+						headers: { host: `127.0.0.1:${port}`, ...(key ? { "x-roswaal-token": key } : {}) },
+					},
 					(res) => {
 						resolve(res.statusCode ?? 0);
 						res.destroy();
@@ -413,8 +419,9 @@ describe("a request without the daemon's key", () => {
 				);
 				req.on("error", reject);
 			});
-		expect(await streamStatus(`/api/events?key=${KEY}`)).toBe(200);
-		expect(await streamStatus("/api/events?key=nope")).toBe(401);
+		expect(await streamStatus("/api/events", KEY)).toBe(200);
+		expect(await streamStatus(`/api/events?key=${KEY}`)).toBe(401);
+		expect(await streamStatus("/api/events", "nope")).toBe(401);
 		expect(await streamStatus("/api/events")).toBe(401);
 		expect((await ask("GET", `/api/tree?key=${KEY}`, NONE)).status).toBe(401);
 	});

@@ -156,6 +156,10 @@ jobs:
           npx --yes npm-check-updates@17.1.18 --upgrade --target minor 2>&1 | tee "$RUNNER_TEMP/minor.log"
           node scripts/upkeep/hold-to-latest.mjs "$RUNNER_TEMP/package.before.json" | tee "$RUNNER_TEMP/held.log"
           npm install --no-audit --no-fund
+          # Known vulnerabilities in what is installed, nested packages too,
+          # fixed where a release in range has the fix (CASA 6.1).
+          npm audit fix --no-fund 2>&1 | tail -n 3 | tee "$RUNNER_TEMP/audit-fix.log" || true
+          npm audit --omit=dev 2>&1 | tail -n 20 > "$RUNNER_TEMP/audit.log" || true
 
       - name: Anything new?
         id: diff
@@ -192,6 +196,14 @@ jobs:
               echo
               echo '```'
               grep '^Held back' "$RUNNER_TEMP/held.log"
+              echo '```'
+            fi
+            if ! grep -q "found 0 vulnerabilities" "$RUNNER_TEMP/audit.log"; then
+              echo
+              echo "Still flagged by npm audit, in what ships:"
+              echo
+              echo '```'
+              cat "$RUNNER_TEMP/audit.log"
               echo '```'
             fi
             if [ -n "$majors" ]; then

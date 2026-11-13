@@ -53,6 +53,11 @@ describe("the legal notice", () => {
 		).toBe("changed");
 	});
 
+	it("is shown again when the wording changes on the same day", () => {
+		const dates = { terms: "13 November 2026", privacy: "13 November 2026" };
+		expect(legalNoticeState(legalStamp(dates, "aaaa"), legalStamp(dates, "bbbb"))).toBe("changed");
+	});
+
 	it("is shown every visit where storage refuses, rather than never", () => {
 		const storage = memory(true);
 		rememberLegalSeen(storage);

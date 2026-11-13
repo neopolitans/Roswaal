@@ -9,6 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.236.2",
+		date: "2026-11-13",
+		headline: "The Terms of Service define their terms, and the daemon's key never travels in an address.",
+		changed: [
+			"**The Terms of Service open with Definitions**, among them the Luau Team: an internal team of Roblox Corporation dedicated to the research, development and maintenance of the Luau language.",
+			"**The Terms say Roswaal is not made by, endorsed by, affiliated with or approved by the Luau Team.**",
+		],
+		fixed: [
+			"**The daemon's key is sent only in a header.** The editor reads the event stream with `fetch`, and the daemon no longer accepts the key in the stream's address.",
+			"**The notice of the Terms and Privacy Policy comes back after any change to their wording**, even on the day it was last shown.",
+			"**body-parser and qs updated** to releases without known vulnerabilities.",
+		],
+	},
+	{
 		version: "0.236.1",
 		date: "2026-11-13",
 		headline: "If local and while local is a Studio beta in Settings › Extended Features.",

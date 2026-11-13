@@ -39,6 +39,7 @@ import type { InstanceLocation, MapDiagnostic, NodeMap } from "../core/nodemap.j
 import type { NodeDef, NodeScript, RoswaalConfig, ScriptClass, Target } from "../core/schema.js";
 import type { ExportedFunction } from "../core/scriptCalls.js";
 import type { TypeField } from "../core/typeFields.js";
+import { keyedEventStream } from "./keyedEvents.js";
 
 export interface TreeEntry {
 	path: string;
@@ -267,9 +268,10 @@ export function useTransport(next: { request: Transport; events: () => EventStre
 }
 
 /**
- * Sends the daemon's key with every call: in its header, and as `?key=` on the
- * event stream, which `EventSource` cannot give headers to. Called once by
- * `main.tsx`, the daemon build's entry point. See `server/token.ts`.
+ * Sends the daemon's key with every call, in its header, the event stream
+ * included: that is read with `fetch` rather than `EventSource`, which cannot
+ * send headers (see `keyedEvents.ts`). Called once by `main.tsx`, the daemon
+ * build's entry point. See `server/token.ts`.
  */
 export function sendDaemonKey(key: string): void {
 	transport = (url, init) =>
@@ -277,7 +279,7 @@ export function sendDaemonKey(key: string): void {
 			...init,
 			headers: { ...(init.headers as Record<string, string>), "X-Roswaal-Token": key },
 		});
-	openStream = () => new EventSource(`/api/events?key=${encodeURIComponent(key)}`);
+	openStream = () => keyedEventStream("/api/events", { "X-Roswaal-Token": key });
 }
 
 /** The daemon's event stream, or whatever is standing in for it. */
