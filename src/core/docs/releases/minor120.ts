@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.238.2",
+		date: "2026-11-13",
+		headline: "The notice of a change to the Terms reads as an update.",
+		changed: [
+			"**The notice after a change is titled Updates to the Terms of Service and Privacy Policy**, in place of The terms have changed.",
+		],
+	},
+	{
 		version: "0.238.1",
 		date: "2026-11-13",
 		headline: "Creator Marketplace meshes download through Sign in with Roblox.",

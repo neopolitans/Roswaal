@@ -44,7 +44,11 @@ export function LegalNotice() {
 					<span className="dialog-badge">
 						<Icon name="document" size={17} />
 					</span>
-					<h3>{state === "first" ? "Before you start" : "The terms have changed"}</h3>
+					<h3>
+						{state === "first"
+							? "Before you start"
+							: "Updates to the Terms of Service and Privacy Policy"}
+					</h3>
 				</header>
 				<div className="dialog-body">
 					{state === "changed" && (
