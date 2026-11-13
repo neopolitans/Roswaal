@@ -20,6 +20,7 @@ describe("the pages Settings offers", () => {
 			"Scene view",
 			"Themes",
 			"Docs",
+			"Extended Features",
 			"How Roswaal is made",
 			"Licences",
 		]);

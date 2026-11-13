@@ -70,6 +70,11 @@ export function settingsPage(): DocPage {
 					],
 					["**Themes**", "This browser", "The colour scheme"],
 					["**Docs**", "This browser", "The docs' font and the size of their pictures"],
+					[
+						"**Extended Features**",
+						"This browser",
+						"Parts of Roswaal you can turn off, each with a checkbox: the place viewer",
+					],
 				],
 			},
 			{

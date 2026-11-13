@@ -89,12 +89,14 @@ import { Overlays } from "./Overlays.jsx";
 import type { PinMenuTarget } from "./PinMenu.jsx";
 import { DockedPin, type PinnedFrame, PinnedWindow } from "./PinnedWindow.jsx";
 import { PlaceBrowser, PlaceProperties, type PlaceTarget, targetAtPath } from "./PlaceBrowser.jsx";
+import { PlaceViewerOff } from "./PlaceViewerOff.jsx";
 import { ProjectPicker } from "./ProjectPicker.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
 import { setEditorOpener, setPageReady, switchMode, useOnShown, useShowing } from "./pageHost.jsx";
 import { IS_STATIC_HOST, openHome, openPage } from "./pages.js";
 import { cardOf, DEFAULT_LAYOUT, foldCard, type PanelId, reopenPanel, showTab } from "./panels.js";
 import { readOutline, rememberOutline } from "./placeOutline.js";
+import type * as PlaceViewer from "./placeViewerModule.js";
 import { OUTLINE_WIDTHS, readPreferences, wheelAction } from "./preferences.js";
 import { SiteBanner } from "./previewBuild.jsx";
 import { setProjectAliases } from "./projectAliases.js";
@@ -115,8 +117,6 @@ import { useGraphCommands } from "./useGraphCommands.js";
 import { useLayoutPrefs } from "./useLayoutPrefs.js";
 import { dataModelField, useProjectActions } from "./useProjectActions.js";
 import { SpecifierHints, VariablesPanel } from "./VariablesPanel.jsx";
-import { PlaceSummary, Viewport, ViewportBar } from "./Viewport.jsx";
-import { ViewportController } from "./viewport/controller.js";
 import { WindowMark } from "./WindowMark.jsx";
 import { Workspace } from "./Workspace.jsx";
 
@@ -356,27 +356,45 @@ export function App() {
 	 * picks many, and the browser picks each. The view follows the browser's
 	 * picked rows. Another project's place is a new view.
 	 */
+	//
+	// An Extended Feature: loaded the first time a place's tab opens with it
+	// on, and never while it is off, so a browser that does not want it pays
+	// for none of it.
+	const [viewer, setViewer] = useState<typeof PlaceViewer | null>(null);
+	const wantsViewer = prefs.placeViewer && placeDoc !== null;
+	useEffect(() => {
+		if (!wantsViewer || viewer) return;
+		let live = true;
+		void import("./placeViewerModule.js").then((loaded) => {
+			if (live) setViewer(loaded);
+		});
+		return () => {
+			live = false;
+		};
+	}, [wantsViewer, viewer]);
 	// biome-ignore lint/correctness/useExhaustiveDependencies: a new project is a new view.
 	const viewport = useMemo(
 		() =>
-			new ViewportController((indices) =>
-				setPlaceReveal((prev) => ({
-					index: indices.at(-1) ?? -1,
-					seq: (prev?.seq ?? 0) + 1,
-					open: false,
-					selection: indices,
-				})),
-			),
-		[project?.root],
+			viewer && prefs.placeViewer
+				? new viewer.ViewportController((indices) =>
+						setPlaceReveal((prev) => ({
+							index: indices.at(-1) ?? -1,
+							seq: (prev?.seq ?? 0) + 1,
+							open: false,
+							selection: indices,
+						})),
+					)
+				: null,
+		[viewer, prefs.placeViewer, project?.root],
 	);
 	const onPlaceSelect = useCallback(
-		(indices: readonly number[]) => viewport.select(indices),
+		(indices: readonly number[]) => viewport?.select(indices),
 		[viewport],
 	);
 	// Settings' say in how the place is drawn.
 	useEffect(
 		() =>
-			viewport.setOptions({
+			viewport?.setOptions({
 				renderer: prefs.viewportRenderer,
 				outlineWidth: OUTLINE_WIDTHS[prefs.outlineWidth],
 				hideBehind: !prefs.outlineThrough,
@@ -1946,7 +1964,9 @@ export function App() {
 				}
 				strip={
 					placeDoc ? (
-						<ViewportBar controller={viewport} />
+						viewer && viewport ? (
+							<viewer.ViewportBar controller={viewport} />
+						) : null
 					) : graphOpen && editor.script ? (
 						<CanvasStrip
 							script={editor.script}
@@ -2195,8 +2215,8 @@ export function App() {
 								ask={ask}
 								onPin={pinProperties}
 							/>
-						) : project.place && placeDoc ? (
-							<PlaceSummary
+						) : project.place && placeDoc && viewer && viewport ? (
+							<viewer.PlaceSummary
 								controller={viewport}
 								file={project.place}
 								renderer={prefs.viewportRenderer}
@@ -2317,7 +2337,18 @@ export function App() {
 					<>
 						<div className="centre-body">
 							{placeDoc ? (
-								<Viewport controller={viewport} refreshKey={project.tree} written={placeWritten} />
+								viewer && viewport ? (
+									<viewer.Viewport
+										controller={viewport}
+										refreshKey={project.tree}
+										written={placeWritten}
+									/>
+								) : (
+									<PlaceViewerOff
+										loading={prefs.placeViewer}
+										onTurnOn={() => updatePrefs({ placeViewer: true })}
+									/>
+								)
 							) : aliasDoc ? (
 								<AliasDocument
 									key={aliasDoc.dir}

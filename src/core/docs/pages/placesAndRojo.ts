@@ -241,7 +241,9 @@ export function placesAndRojoPage(): DocPage {
 					"parts behind it, as Studio's does. It draws with WebGPU, or WebGL2 where the browser " +
 					"has no WebGPU; **Settings › Scene view** chooses, and can let parts show through " +
 					"Glass. For now a MeshPart is drawn as its box, nothing casts " +
-					"a shadow, and the handles do not drag yet.",
+					"a shadow, and the handles do not drag yet. To save memory, turn the place viewer " +
+					"off in **Settings › Extended Features**; the place's tab then says so, and the " +
+					"DataModel tree and Properties still work.",
 			},
 
 			{ t: "h", level: 2, text: "Changing properties" },

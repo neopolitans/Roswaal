@@ -70,6 +70,7 @@ const PAGES = [
 	{ id: "scene", title: "Scene view", keeper: "browser" },
 	{ id: "themes", title: "Themes", keeper: "browser" },
 	{ id: "docs", title: "Docs", keeper: "browser" },
+	{ id: "features", title: "Extended Features", keeper: "browser" },
 	{ id: "made", title: "How Roswaal is made", keeper: "about" },
 	{ id: "licences", title: "Licences", keeper: "about" },
 ] as const satisfies readonly { id: string; title: string; keeper: Keeper }[];
@@ -176,6 +177,8 @@ export function SettingsPanel(props: SettingsPanelProps) {
 				return <ThemeSettings {...props} />;
 			case "docs":
 				return <DocsSettings {...props} />;
+			case "features":
+				return <FeatureSettings {...props} />;
 			case "made":
 				return <Made />;
 			case "licences":
@@ -996,6 +999,65 @@ function SceneSettings({ prefs, onPrefs }: SettingsPanelProps) {
 // ---------------------------------------------------------------------------
 // Docs
 // ---------------------------------------------------------------------------
+
+/**
+ * Parts of Roswaal that can be turned off, listed as Studio lists its Beta
+ * Features: what each is called, a line or two on what it does, and a
+ * checkbox. One that is off is not loaded at all.
+ */
+const FEATURES = [
+	{
+		key: "placeViewer",
+		title: "Place viewer",
+		description:
+			"Draws your place in 3D, in a tab of its own. Off, it is not loaded, which saves memory in the browser.",
+	},
+] as const satisfies readonly { key: keyof Preferences; title: string; description: string }[];
+
+function FeatureSettings({ prefs, onPrefs }: SettingsPanelProps) {
+	return (
+		<Page id="features" note="Parts of Roswaal you can turn off. Kept in this browser.">
+			<Group title="Features">
+				{FEATURES.map((feature) => (
+					<FeatureRow
+						key={feature.key}
+						title={feature.title}
+						description={feature.description}
+						on={prefs[feature.key] === true}
+						onChange={(on) => onPrefs({ [feature.key]: on })}
+					/>
+				))}
+			</Group>
+		</Page>
+	);
+}
+
+/** One Extended Feature: its name and what it does, with its checkbox at the right. */
+function FeatureRow({
+	title,
+	description,
+	on,
+	onChange,
+}: {
+	title: string;
+	description: string;
+	on: boolean;
+	onChange: (on: boolean) => void;
+}) {
+	const { query, page } = useContext(Search);
+	if (query && !page && !matches(query, title, description)) return null;
+	return (
+		<label className="setting setting-feature">
+			<span className="setting-label">
+				<strong>{title}</strong>
+				<span>{description}</span>
+			</span>
+			<span className="setting-control">
+				<input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} />
+			</span>
+		</label>
+	);
+}
 
 function DocsSettings({ prefs, onPrefs }: SettingsPanelProps) {
 	const percent = Math.round(prefs.docsPreviewScale * 100);

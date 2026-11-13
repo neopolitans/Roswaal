@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.236.0",
+		date: "2026-11-13",
+		headline: "Settings › Extended Features turns the place viewer off.",
+		added: [
+			"**Settings › Extended Features.** Parts of Roswaal you can turn off, each with a short description and a checkbox, as Studio lists its Beta Features. The first is the place viewer.",
+			"**The place viewer can be turned off.** Off, its 3D view is never loaded, which saves memory in the browser, and a place's tab says so with a button to turn it back on. The DataModel tree and Properties still work.",
+		],
+		changed: [
+			"**The place viewer loads when a place's tab first opens**, not with the editor.",
+		],
+	},
+	{
 		version: "0.235.0",
 		date: "2026-11-13",
 		headline: "The editor points to the Terms and Privacy Policy, and the Terms say who Roswaal is for.",

@@ -291,6 +291,11 @@ export interface Preferences {
 	outlineThrough: boolean;
 	/** See-through Glass hides the see-through parts behind it, as Studio's does. */
 	glassHides: boolean;
+	/**
+	 * The place viewer, an Extended Feature: the place in 3D, its tab and its
+	 * summary. Off, its code is never downloaded and no scene is built.
+	 */
+	placeViewer: boolean;
 	/** The hidden schemes found on the Themes page, by name: listed from then on. */
 	foundThemes: string[];
 	/**
@@ -504,6 +509,7 @@ export const DEFAULTS: Preferences = {
 	outlineWidth: "medium",
 	outlineThrough: true,
 	glassHides: true,
+	placeViewer: true,
 	foundThemes: [],
 	// Everything the target allows, which is what the menu did before there was
 	// a filter at all.
@@ -644,6 +650,8 @@ export function readPreferences(): Preferences {
 		outlineThrough:
 			typeof stored.outlineThrough === "boolean" ? stored.outlineThrough : DEFAULTS.outlineThrough,
 		glassHides: typeof stored.glassHides === "boolean" ? stored.glassHides : DEFAULTS.glassHides,
+		placeViewer:
+			typeof stored.placeViewer === "boolean" ? stored.placeViewer : DEFAULTS.placeViewer,
 		foundThemes: Array.isArray(stored.foundThemes)
 			? stored.foundThemes.filter((name): name is string => typeof name === "string")
 			: DEFAULTS.foundThemes,

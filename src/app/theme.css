@@ -12699,6 +12699,22 @@ a.docs-minor-row .aside {
 	width: 100%;
 }
 
+/* Extended Features: a title and what it does, and a checkbox at the right,
+   as Studio lists its Beta Features. */
+.setting.setting-feature {
+	grid-template-columns: 1fr auto;
+	align-items: center;
+	cursor: pointer;
+}
+
+.setting-feature .setting-control > input[type="checkbox"] {
+	width: 18px;
+	height: 18px;
+	margin: 0;
+	accent-color: var(--accent);
+	cursor: pointer;
+}
+
 /* A segmented control is `inline-flex` everywhere else, because on the toolbar
    it should be exactly as wide as its labels. Here it sits in a fixed column
    beside a select and a checkbox, so it takes the column — and its buttons have
