@@ -210,15 +210,22 @@ writeFileSync(
 );
 assets["THIRD-PARTY-NOTICES.txt"] = notices;
 
+/**
+ * Every path in the config is relative to `dist-binary`, where Node is run to
+ * read it. Node writes the main script's path into the binary as it is given
+ * here: given in full, a binary told anyone who opened it the folder, and the
+ * account name, of whoever built it.
+ */
 const config = join(out, "sea-config.json");
+const local = (path) => relative(out, path).split(sep).join("/");
 writeFileSync(
 	config,
 	`${JSON.stringify(
 		{
-			main: bundle,
-			output: join(out, "roswaal.blob"),
+			main: local(bundle),
+			output: "roswaal.blob",
 			disableExperimentalSEAWarning: true,
-			assets,
+			assets: Object.fromEntries(Object.entries(assets).map(([name, path]) => [name, local(path)])),
 		},
 		null,
 		2,
@@ -226,7 +233,8 @@ writeFileSync(
 	"utf8",
 );
 
-const blob = spawnSync(process.execPath, ["--experimental-sea-config", config], {
+const blob = spawnSync(process.execPath, ["--experimental-sea-config", "sea-config.json"], {
+	cwd: out,
 	stdio: "inherit",
 });
 if (blob.status !== 0) process.exit(blob.status ?? 1);
@@ -290,6 +298,22 @@ const inject = spawnSync(
 if (inject.status !== 0) process.exit(inject.status ?? 1);
 
 if (macos) codesign("--sign", "-");
+
+// Nothing of the machine it was built on: not the folder it was built in, in
+// either spelling. A binary that names one is not released.
+const built = readFileSync(binary).toString("latin1");
+const traces = [
+	root,
+	root.split(sep).join("/"),
+	"dist-binary/roswaal.cjs",
+	"dist-binary\\roswaal.cjs",
+];
+const trace = traces.find((path) => built.includes(path));
+if (trace) {
+	console.error(`roswaal: the binary records the folder it was built in (${trace}).`);
+	console.error("  Every path in sea-config.json has to be relative to dist-binary.");
+	process.exit(1);
+}
 
 const megabytes = (statSync(binary).size / 1024 / 1024).toFixed(0);
 console.log(

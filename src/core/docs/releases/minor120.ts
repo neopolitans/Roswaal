@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.242.2",
+		date: "2026-11-15",
+		headline: "Release binaries no longer record the folder they were built in.",
+		fixed: [
+			"**Release binaries no longer record the folder they were built in**, and a build that would is refused. The Windows downloads of 0.73.1 to 0.132.4 are rebuilt the same way.",
+		],
+	},
+	{
 		version: "0.242.1",
 		date: "2026-11-13",
 		headline: "See-through and dark Neon look as they do in Studio.",

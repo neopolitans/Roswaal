@@ -1,0 +1,132 @@
+# Builds an old release's Windows binary again, on GitHub's runner, and puts
+# it in place of the one attached to that release.
+#
+# Releases before v0.146.0 were built on the author's computer, and Node wrote
+# the folder each was built in into the binary. Built here, the release's own
+# commit records the runner's work folder instead, which is nobody's. It is
+# built as it was then: Windows only, the binary alone in its zip, with the
+# postject it was injected with installed beside it, as that commit did not
+# list it.
+#
+# Deliberate, as release.yml is: run it with the tag of the release to redo.
+# It attaches only to this repository's own releases; anywhere else it builds,
+# checks and keeps the zip as an artifact, which is how it is tried out first.
+name: Rebuild an old release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "The release's tag, e.g. v0.73.1."
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# The same group as release.yml: never two runs replacing one release's files.
+concurrency:
+  group: release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+env:
+  ROSWAAL_CHANNEL: stable
+  TAG: ${{ inputs.tag }}
+
+jobs:
+  build:
+    name: Windows (x86-64)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+
+      - name: The tag names this version
+        shell: bash
+        run: |
+          version="$(node -p 'require("./version.json").version')"
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::The tag is $TAG, and its version.json says $version."
+            exit 1
+          fi
+
+      - run: npm ci
+
+      # The one release.yml pins, for a commit that did not list it.
+      - name: postject
+        shell: bash
+        run: |
+          [ -d node_modules/postject ] || npm install --no-save postject@1.0.0-alpha.6
+
+      - name: Build the editor and the binary
+        shell: bash
+        run: |
+          npm run build:themes
+          npm run build:web
+          npm run build:binary
+
+      - name: Smoke-test the binary
+        shell: bash
+        run: |
+          out="$(./dist-binary/roswaal.exe version)"
+          echo "$out"
+          [ "$out" = "${TAG#v}" ] || { echo "::error::The binary says $out, not ${TAG#v}."; exit 1; }
+
+      # The point of the rebuild: whatever folder the binary records is this
+      # runner's, or none.
+      - name: No folder but the runner's
+        shell: bash
+        run: |
+          node - <<'EOF'
+          const built = require("node:fs").readFileSync("dist-binary/roswaal.exe").toString("latin1");
+          const work = process.env.GITHUB_WORKSPACE;
+          const recorded = [...built.matchAll(/[A-Za-z]:\\[^\0"]{0,200}?\\dist-binary\\roswaal\.cjs/g)].map((m) => m[0]);
+          const elsewhere = recorded.filter((path) => !path.toLowerCase().startsWith(work.toLowerCase()));
+          console.log(`recorded: ${recorded.length ? [...new Set(recorded)].join(", ") : "nothing"}`);
+          if (elsewhere.length) {
+            console.log("::error::The binary records a folder outside the runner's workspace.");
+            process.exit(1);
+          }
+          EOF
+
+      - name: Zip it
+        shell: pwsh
+        run: |
+          $asset = "roswaal-$($env:TAG.Substring(1))-windows-x86_64.zip"
+          Compress-Archive -Path dist-binary/roswaal.exe -DestinationPath $asset
+          "ASSET=$asset" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: windows-x86_64
+          path: ${{ env.ASSET }}
+          if-no-files-found: error
+          retention-days: 7
+
+  attach:
+    name: Replace the release's zip
+    needs: build
+    if: ${{ github.repository == 'neopolitans/Roswaal' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: assets
+          merge-multiple: true
+
+      - name: Put it in place of the old one
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          zip="assets/roswaal-${TAG#v}-windows-x86_64.zip"
+          [ -s "$zip" ] || { echo "::error::No zip was built."; exit 1; }
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null
+          gh release upload "$TAG" "$zip" --repo "$GITHUB_REPOSITORY" --clobber
