@@ -40,7 +40,7 @@ import { MenuButton } from "./Menu.jsx";
 import { ModeStrip } from "./ModeStrip.jsx";
 import type { MenuEntry } from "./menuModel.js";
 import { useNarrowBar, usePhone } from "./Popout.jsx";
-import { PANEL_EMPTY, PANEL_ICONS, PANEL_IDS, PANEL_TITLES } from "./panels.js";
+import { PANEL_EMPTY, PANEL_ICONS, PANEL_TITLES, type PanelId } from "./panels.js";
 import { WindowMark } from "./WindowMark.jsx";
 import { useWorkspaceControls } from "./Workspace.jsx";
 
@@ -55,6 +55,8 @@ export interface ProjectBarProps {
 	 * graph's, and give way, and the right card is Properties.
 	 */
 	place?: boolean;
+	/** The panels the Panels menu offers: `panelsFor` what is open. */
+	panels: PanelId[];
 	/** The open document's primary action, at the end of the compile group. */
 	action?: ReactNode;
 	/** The document's tools as entries of the More menu, on a phone: `graphMenuEntries`. */
@@ -83,7 +85,7 @@ export function ProjectBar(props: ProjectBarProps) {
 	// Narrower than the whole row: the rarely used half folds into More.
 	const narrow = useNarrowBar();
 	const cards = useWorkspaceControls();
-	const panelEntries: MenuEntry[] = PANEL_IDS.map((id) => ({
+	const panelEntries: MenuEntry[] = props.panels.map((id) => ({
 		label: PANEL_TITLES[id],
 		icon: PANEL_ICONS[id],
 		checked: cards.available(id) && cards.cardShown(id),
@@ -139,10 +141,11 @@ export function ProjectBar(props: ProjectBarProps) {
 					>
 						<Icon name="panelLeft" size={16} />
 					</button>
-					{/* Every panel, to bring back one that was closed or hide one.
-					    Always here, however narrow the bar: it is the way back to a
-					    panel. New graph and New node map are on each folder in the
-					    Project panel, where they say where they make it. */}
+					{/* The panels for what is open, to bring back one that was
+					    closed or hide one. Always here, however narrow the bar: it is
+					    the way back to a panel. New graph and New node map are on
+					    each folder in the Project panel, where they say where they
+					    make it. */}
 					<MenuButton
 						label={<Icon name="layout" size={16} />}
 						title="Panels — show or hide each one"

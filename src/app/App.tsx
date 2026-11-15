@@ -94,7 +94,15 @@ import { ProjectPicker } from "./ProjectPicker.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
 import { setEditorOpener, setPageReady, switchMode, useOnShown, useShowing } from "./pageHost.jsx";
 import { IS_STATIC_HOST, openHome, openPage } from "./pages.js";
-import { cardOf, DEFAULT_LAYOUT, foldCard, type PanelId, reopenPanel, showTab } from "./panels.js";
+import {
+	cardOf,
+	DEFAULT_LAYOUT,
+	foldCard,
+	type PanelId,
+	panelsFor,
+	reopenPanel,
+	showTab,
+} from "./panels.js";
 import { readOutline, rememberOutline } from "./placeOutline.js";
 import type * as PlaceViewer from "./placeViewerModule.js";
 import { OUTLINE_WIDTHS, readPreferences, wheelAction } from "./preferences.js";
@@ -1764,6 +1772,11 @@ export function App() {
 	// A graph is what the centre shows: not a node map, a source file or aliases.
 	const graphOpen = !source && !mapDoc && !aliasDoc && editor.script !== null;
 	const showInspector = graphOpen && editor.selection.size === 1;
+	// What the Panels menu offers: the panels for what is in front.
+	const panelChoices = panelsFor(
+		placeDoc ? "place" : graphOpen ? "graph" : source || mapDoc || aliasDoc ? "document" : "none",
+		Boolean(project.place),
+	);
 	// Add node, from the graph's tools: the palette, at the middle of the view.
 	const addNodeAtCentre = () => {
 		const view = store.getView();
@@ -1899,6 +1912,7 @@ export function App() {
 						config={project.config}
 						busy={busy}
 						place={placeDoc !== null}
+						panels={panelChoices}
 						document={
 							<>
 								{/* The open documents: the active one's name, the others

@@ -239,10 +239,44 @@ export const PANEL_EMPTY: Record<PanelId, string> = {
 	variables: "Open a graph first.",
 	inspector: "Open a graph first.",
 	properties: "Pick an instance in the DataModel first.",
-	refactor: "Open a graph first.",
+	refactor: "Open it with the Refactor button first.",
 	analysis: "Open a project first.",
 	code: "Open a Code Block, a Luau Expression or a type's code first.",
 };
+
+/**
+ * What the editor's centre is showing, as far as the panels care: a graph,
+ * the place in the 3D viewer, another document -- a node map, a Luau file or a
+ * `.luaurc` -- or nothing at all.
+ *
+ * Node Design is not one of them. It is a window of its own, with its own
+ * layout and no Panels menu.
+ */
+export type PanelContext = "graph" | "place" | "document" | "none";
+
+/**
+ * The panels that apply to what is open, in the Panels menu's order. The menu
+ * offers these and no others.
+ *
+ * A panel left open that does not apply stays open in the layout and is not
+ * drawn -- `Workspace` leaves out a panel with no contents -- so it is back
+ * where it was once its context is.
+ *
+ * - **Project** always: it is how anything is opened.
+ * - **Properties** wherever the project has a place. It is the DataModel's,
+ *   and an instance picked there shows in it whatever is in front.
+ * - **Script analysis** everywhere but the place, which has the foot to itself.
+ * - **Variables**, **Inspector**, **Refactor** and **Code** with a graph only:
+ *   they act on its nodes.
+ */
+export function panelsFor(context: PanelContext, hasPlace: boolean): PanelId[] {
+	return PANEL_IDS.filter((id) => {
+		if (id === "tree") return true;
+		if (id === "properties") return hasPlace;
+		if (id === "analysis") return context !== "place";
+		return context === "graph";
+	});
+}
 
 /**
  * When the side docks are drawers over the graph rather than columns beside

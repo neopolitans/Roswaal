@@ -36,6 +36,8 @@ import {
 	MIN_FLOAT,
 	maxDockSize,
 	movePanel,
+	PANEL_IDS,
+	panelsFor,
 	panelsIn,
 	readLayout,
 	reopenPanel,
@@ -518,5 +520,41 @@ describe("cards", () => {
 		expect(read.panels.tree.tabOf === undefined || read.panels.variables.tabOf === undefined).toBe(
 			true,
 		);
+	});
+});
+
+describe("the Panels menu", () => {
+	it("offers a graph's panels with a graph open", () => {
+		expect(panelsFor("graph", false)).toEqual([
+			"tree",
+			"variables",
+			"inspector",
+			"refactor",
+			"analysis",
+			"code",
+		]);
+	});
+
+	it("offers Project and Properties with the place open, and nothing of a graph's", () => {
+		expect(panelsFor("place", true)).toEqual(["tree", "properties"]);
+	});
+
+	it("offers Project and Script analysis with another document or nothing open", () => {
+		expect(panelsFor("document", false)).toEqual(["tree", "analysis"]);
+		expect(panelsFor("none", false)).toEqual(["tree", "analysis"]);
+	});
+
+	it("offers Properties wherever the project has a place, and nowhere else", () => {
+		for (const context of ["graph", "document", "none"] as const) {
+			expect(panelsFor(context, true)).toContain("properties");
+			expect(panelsFor(context, false)).not.toContain("properties");
+		}
+	});
+
+	it("keeps the registry's order, whatever it leaves out", () => {
+		for (const context of ["graph", "place", "document", "none"] as const) {
+			const offered = panelsFor(context, true);
+			expect(offered).toEqual(PANEL_IDS.filter((id) => offered.includes(id)));
+		}
 	});
 });

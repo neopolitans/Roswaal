@@ -295,6 +295,7 @@ export function controlsPage(): DocPage {
 						"The Project and Inspector buttons on the top row",
 						"Show or hide the cards on that side",
 					],
+					["The Panels button on the top row", "Show or hide the panels for what is open"],
 					[
 						"Drag a card by its header",
 						"Onto another card's header to make them tabs; onto the top or bottom half of a card to go above or below it; to an edge for that side",
