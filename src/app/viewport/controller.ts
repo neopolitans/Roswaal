@@ -26,7 +26,7 @@ export interface ViewportOptions {
 	outlineWidth: number;
 	/** What is in front of an outline hides it, rather than the outline showing through. */
 	hideBehind: boolean;
-	/** See-through Glass hides the see-through parts behind it, as Studio's does. */
+	/** See-through Glass hides the see-through parts behind it, as it does in Studio. */
 	glassHides: boolean;
 	/** Modify DataModel Instances: the editing tools are offered only with it on. */
 	editable: boolean;

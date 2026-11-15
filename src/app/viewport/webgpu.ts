@@ -1,6 +1,12 @@
 /**
  * The viewport's renderer where WebGPU is: sized to its canvas, drawn only
  * when asked, with the selection outlined over everything.
+ *
+ * Nothing here is Roblox's. The shaders are written for Roswaal; where a
+ * number makes a place look as it does in Studio, it was fitted to Studio's
+ * screen captures of test parts, taken from the same camera as Roswaal's view
+ * and compared pixel for pixel. Roblox's engine, shaders and files were never
+ * read.
  */
 
 import { type LightingParams, lightingBlock } from "../../core/rbx/lighting.js";
@@ -82,7 +88,7 @@ struct Out { @builtin(position) clip: vec4f, @location(0) uv: vec2f };
 	return vec4f(c / total, 1.0);
 }
 // The frame with the glow added in linear light: it brightens a lit face by
-// what it adds, as Studio's does, and turns Neon's heart white where its
+// what it adds, as Studio's captures show, and turns Neon's heart white where its
 // channels run past full. A dither under one step of the frame's 8 bits keeps
 // its long soft fall from coming out in bands.
 @fragment fn fsComposite(i: Out) -> @location(0) vec4f {
@@ -109,7 +115,8 @@ struct U {
 @group(0) @binding(1) var looks: texture_2d_array<f32>;
 @group(0) @binding(2) var lookSampler: sampler;
 // A Sky's six images, a layer each in SKY_FACES order, when \`screen.w\` is 1 or
-// more; at 2, Studio's own sun is drawn over them.
+// more; at 2, the sun made here is drawn over them, for a Sky that shows
+// Roblox's built-in sun.
 @group(0) @binding(3) var skyImages: texture_2d_array<f32>;
 @group(0) @binding(4) var skySampler: sampler;
 struct VIn {
@@ -168,7 +175,7 @@ fn aces(colour: vec3f) -> vec3f {
 	let b = v * (0.983729 * v + 0.4329510) + 0.238081;
 	return clamp(o * (a / b), vec3f(0.0), vec3f(1.0));
 }
-// The deepest shadows lifted a touch, as Studio's are.
+// The deepest shadows lifted a touch, as they measure in Studio's captures.
 fn display(c: vec3f) -> vec3f {
 	let t = aces(c * u.zenith.w);
 	return pow(t + 0.007 * (1.0 - t), vec3f(1.0 / 2.2));
@@ -224,7 +231,8 @@ fn cells(p: vec2f) -> vec2f {
 	return vec2f(sqrt(d2) - sqrt(d1), id);
 }
 fn edgeOf(v: f32) -> f32 { return min(fract(v), 1.0 - fract(v)); }
-// Neon as measured in Studio. Its face, on the sRGB scale, is 2.74 times its
+// Neon as measured from Studio's captures of test parts. Its face, on the
+// sRGB scale, is 2.74 times its
 // colour less 0.545: a dark Neon is darker than its colour, and a bright one
 // runs past full, which is what glows. Transparency dims it a little.
 fn neonLevel(colour: vec3f, alpha: f32) -> vec3f {
@@ -345,8 +353,8 @@ fn noise3(p: vec3f) -> f32 {
 }
 // A surface in its material: the sun's light and highlight, the sky's fill, a
 // metal's tinted highlight, the material's grain, what it reflects, and the
-// air in front of it. Neon is its colour three times over, as Studio's is;
-// ForceField glows at its rim.
+// air in front of it. Neon is lit by neonLevel, below; ForceField glows at
+// its rim.
 fn surface(i: VOut) -> vec4f {
 	let row = i.look & 255u;
 	let shine = f32((i.look >> 8u) & 255u) / 255.0;
@@ -399,9 +407,10 @@ fn surface(i: VOut) -> vec4f {
 	return vec4f(air(c, d, i.world.y), alpha);
 }
 // What gives light of its own, for the glow round it, in linear light. Neon
-// as measured in Studio: each channel by how far its light runs past 0.3,
-// easing off, once its brightest channel nears full; so a dark Neon, as dark
-// blue or mid grey, does not glow, and olive glows greener than itself. A see-through part glows less the more see-through it
+// as measured from Studio's captures: each channel by how far its light runs
+// past 0.3, easing off, once its brightest channel nears full; so a dark
+// Neon, as dark blue or mid grey, does not glow, and olive glows greener than
+// itself. A see-through part glows less the more see-through it
 // is, and not at all from a Transparency of 0.3. CrackedLava's cracks glow
 // a little.
 fn glowSource(i: VOut) -> vec3f {
@@ -431,8 +440,8 @@ fn glowSource(i: VOut) -> vec3f {
 	let a = select(i.alpha, neonAlpha(i.alpha), neon);
 	return vec4f(glowSource(i) * select(i.alpha, 1.0, neon), a);
 }
-// Neon past the display curve, each channel capped: Studio's red Neon is pure
-// red, and its dark blue three times as bright as its colour.
+// Neon past the display curve, each channel capped: in Studio's captures, red
+// Neon stays pure red, and dark blue comes out three times its colour.
 @fragment fn fs(i: VOut) -> @location(0) vec4f {
 	let s = surface(i);
 	let shade = u.mats[(i.look & 255u) * 3u + 1u].y;
@@ -467,8 +476,8 @@ fn skyFace(d: vec3f) -> vec3f {
 	let far = u.invViewProj * vec4f(i.ndc, 1.0, 1.0);
 	let dir = normalize(far.xyz / far.w - u.camPos.xyz);
 	if (u.screen.w > 0.5) {
-		// Through the display curve, as Studio's is, without the lift a lit
-		// surface's shadows have: a dark sky stays nearly black.
+		// Through the display curve, without the lift a lit surface's shadows
+		// have: a dark sky stays nearly black, as Studio's captures of one do.
 		let f = skyFace(dir);
 		let c = textureSampleLevel(skyImages, skySampler, f.xy * 0.5 + 0.5, i32(f.z), 0.0).rgb;
 		let sun = select(vec3f(0.0), sunLight(dir), u.screen.w > 1.5);

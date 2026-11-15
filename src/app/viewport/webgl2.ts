@@ -1,6 +1,12 @@
 /**
  * The viewport's renderer where WebGPU is not: WebGL2, with the same shading,
  * outline and picking as WebGpuView.
+ *
+ * Nothing here is Roblox's. The shaders are written for Roswaal; where a
+ * number makes a place look as it does in Studio, it was fitted to Studio's
+ * screen captures of test parts, taken from the same camera as Roswaal's view
+ * and compared pixel for pixel. Roblox's engine, shaders and files were never
+ * read.
  */
 
 import { type LightingParams, lightingBlock } from "../../core/rbx/lighting.js";
@@ -60,7 +66,7 @@ vec3 air(vec3 c, float d, float y) {
 `;
 // A material's pattern, as WebGpuView's \`pattern\` draws it.
 const PATTERNS = `
-// Neon as measured in Studio, as WebGpuView's neonLevel and neonAlpha.
+// Neon as measured from Studio's captures, as WebGpuView's neonLevel and neonAlpha.
 vec3 neonLevel(vec3 colour, float alpha) {
 	float t = 1.0 - alpha;
 	return 2.74 * pow(colour, vec3(1.0 / 2.2)) * (1.0 - 0.2 * pow(t, 1.5)) - 0.545;

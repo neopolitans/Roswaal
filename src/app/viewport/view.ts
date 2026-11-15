@@ -20,7 +20,7 @@ export interface Camera {
 	at: number[];
 	/** The nearest the view sees: a little, in proportion to how far out the camera is. */
 	near: number;
-	/** How far the view reaches: well past anything in a place, as Studio's does. */
+	/** How far the view reaches: well past anything in a place, as Studio's view does. */
 	far: number;
 }
 
@@ -36,7 +36,7 @@ export interface ViewRenderer {
 	setSelection(boxes: Float32Array): void;
 	/** How wide the outline is, in CSS pixels, and whether what is in front of it hides it. */
 	setOutline(width: number, hideBehind: boolean): void;
-	/** Whether see-through Glass hides the see-through parts behind it, as Studio's does. */
+	/** Whether see-through Glass hides the see-through parts behind it, as it does in Studio. */
 	setGlassHides(on: boolean): void;
 	/** Coloured lines over everything -- a tool's handles: x, y, z, r, g, b for each end. */
 	setOverlay(lines: Float32Array): void;
@@ -214,15 +214,16 @@ export function seeThroughSets(
 
 /**
  * How much brighter Studio shows a Sky's images than their own pixels, in
- * linear light, before the display curve: measured from a dark one, which the
- * curve's toe takes down to nearly black as Studio's does.
+ * linear light, before the display curve: fitted to Studio's captures of a
+ * dark one, which the curve's toe takes down to nearly black as they show.
  */
 export const SKY_GAIN = 1.6;
 
 /**
  * Where a direction meets a Sky's images, as Studio lays them round the view:
  * which face, by its place in `SKY_FACES`, and where on it, 0 to 1 across and
- * down. Measured in Studio looking down each axis: the four sides upright,
+ * down. Measured from Studio's captures looking down each axis, matched to
+ * the six images: the four sides upright,
  * Up turned a quarter clockwise and Dn a quarter anticlockwise. Both
  * renderers' shaders do the same.
  */

@@ -43,7 +43,7 @@ export interface LightingParams {
 	skybox?: Record<SkyFace, string>;
 	/**
 	 * Whether the sun made here is drawn over a Sky's images: where the Sky
-	 * shows Studio's own sun. A sun image of the place's own is not drawn yet.
+	 * shows Roblox's built-in sun. A sun image of the place's own is not drawn yet.
 	 */
 	skyboxSun: boolean;
 	/** What lights the place, for the Properties summary: a name and what it is. */
@@ -87,7 +87,7 @@ export function sunDirection(time: number, latitude: number): number[] {
 
 /** The sky's light on everything, measured from Studio: bluer than the sky looks, and nearly even from every side. */
 const FILL = [1.05, 1.4, 1.85];
-/** Studio's sky, measured and run back through the display transform, for an Atmosphere of Density 0.3. */
+/** Studio's sky as its captures show it, run back through our display transform, for an Atmosphere of Density 0.3. */
 const ZENITH = [0.2472, 0.8251, 1.3945];
 const HORIZON = [0.5865, 1.0226, 1.312];
 
@@ -173,7 +173,7 @@ export function readLighting(doc: RbxDocument): LightingParams {
 	};
 }
 
-/** Whether a Sky shows Studio's own sun: its celestial bodies on, and no sun image of its own. */
+/** Whether a Sky shows Roblox's built-in sun: its celestial bodies on, and no sun image of its own. */
 export function ownSun(sky: RbxInstance | undefined): boolean {
 	if (prop<boolean>(sky, "CelestialBodiesShown", true) === false) return false;
 	const value = sky?.props.get("SunTextureId")?.value;
