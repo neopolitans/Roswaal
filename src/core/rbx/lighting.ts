@@ -37,6 +37,11 @@ export interface LightingParams {
 	fog: { start: number; end: number; colour: number[]; on: boolean };
 	glare: number;
 	/**
+	 * A Sky's own sun image, as an asset id, and how wide it is drawn across
+	 * the sky in degrees: SunAngularSize. Studio's built-in sun is not one.
+	 */
+	sunImage?: { asset: string; size: number };
+	/**
 	 * A Sky's six images, as asset ids, when it names all six: drawn in place
 	 * of the sky made here once Sign in with Roblox has them.
 	 */
@@ -68,21 +73,20 @@ function hours(inst: RbxInstance | undefined): number {
 	return (h || 0) + (m || 0) / 60 + (sec || 0) / 3600;
 }
 
-const DECLINATION = (23.5 * Math.PI) / 180;
-
 /**
- * Where the sun is: an hour angle from the time, at a declination of 23.5°
- * -- the tilt of the Earth, fixed -- seen from the latitude. East is +X and
- * north is -Z, as Lighting:GetSunDirection() has it.
+ * Where the sun is, as Lighting:GetSunDirection() answers in Studio, sampled
+ * at eight times of day and six latitudes: the hour turns it round a circle
+ * tilted towards +Z by the latitude less 23.5°. East is +X.
  */
 export function sunDirection(time: number, latitude: number): number[] {
 	const h = ((time - 12) / 24) * Math.PI * 2;
-	const lat = (latitude * Math.PI) / 180;
-	const d = DECLINATION;
-	const east = -Math.cos(d) * Math.sin(h);
-	const north = Math.sin(d) * Math.cos(lat) - Math.cos(d) * Math.cos(h) * Math.sin(lat);
-	const up = Math.sin(d) * Math.sin(lat) + Math.cos(d) * Math.cos(h) * Math.cos(lat);
-	return [east, up, -north];
+	const tilt = ((latitude - 23.5) * Math.PI) / 180;
+	return [-Math.cos(tilt) * Math.sin(h), Math.cos(tilt) * Math.cos(h), Math.sin(tilt)];
+}
+
+/** Where the moon is, as Lighting:GetMoonDirection() answers: the sun's turned half a day, on the same tilt. */
+export function moonDirection(sun: readonly number[]): number[] {
+	return [-sun[0], -sun[1], sun[2]];
 }
 
 /** The sky's light on everything, measured from Studio: bluer than the sky looks, and nearly even from every side. */
@@ -102,7 +106,7 @@ export function readLighting(doc: RbxDocument): LightingParams {
 	const day = Math.max(0, Math.min(1, sun[1] * 4 + 0.25));
 	// Below the horizon, the moon: opposite, and faint.
 	const moon = sun[1] < 0;
-	if (moon) sun = sun.map((v) => -v);
+	if (moon) sun = moonDirection(sun);
 	const brightness = prop(lighting, "Brightness", 2);
 	// Low sun is warmer: the light has come through more air.
 	const warm = mix([1, 0.62, 0.38], [1, 0.96, 0.9], Math.min(1, Math.max(0, sun[1] * 3)));
@@ -143,6 +147,9 @@ export function readLighting(doc: RbxDocument): LightingParams {
 	]);
 	notes.push([moon ? "Moonlight" : "Sunlight", `Latitude ${+latitude.toFixed(1)}°`]);
 	const skybox = skyboxOf(sky);
+	const sunImage = prop<boolean>(sky, "CelestialBodiesShown", true)
+		? imageOf(sky, "SunTextureId")
+		: undefined;
 	if (sky) notes.push(["Sky", skybox ? "Its images, once downloaded" : "Not all six images named"]);
 
 	return {
@@ -168,6 +175,7 @@ export function readLighting(doc: RbxDocument): LightingParams {
 		},
 		glare: atmosphere ? prop(atmosphere, "Glare", 0) : 0,
 		...(skybox ? { skybox } : {}),
+		...(sunImage && !moon ? { sunImage: { asset: sunImage, size } } : {}),
 		skyboxSun: ownSun(sky),
 		notes,
 	};
@@ -179,6 +187,13 @@ export function ownSun(sky: RbxInstance | undefined): boolean {
 	const value = sky?.props.get("SunTextureId")?.value;
 	const text = value instanceof Uint8Array ? new TextDecoder().decode(value) : value;
 	return typeof text !== "string" || text.trim() === "" || /^rbxasset:\/\//i.test(text.trim());
+}
+
+/** The asset id a Sky's property names, or nothing for none or a built-in image (rbxasset://). */
+function imageOf(sky: RbxInstance | undefined, name: string): string | undefined {
+	const value = sky?.props.get(name)?.value;
+	const text = value instanceof Uint8Array ? new TextDecoder().decode(value) : value;
+	return typeof text === "string" ? assetIdOf(text) : undefined;
 }
 
 /** A Sky's six image ids, or nothing if any face names no image. */
@@ -222,7 +237,8 @@ export function lightingBlock(
 		...l.ground,
 		l.glare,
 		...camera,
-		0,
+		// The sun image's half width, as a tangent; 0 for none.
+		l.sunImage ? Math.tan(((l.sunImage.size / 2) * Math.PI) / 180) : 0,
 		...select,
 		1,
 		l.fog.start,

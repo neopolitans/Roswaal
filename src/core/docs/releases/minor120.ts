@@ -9,6 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.243.0",
+		date: "2026-11-15",
+		headline: "The place viewer draws a Sky's own sun image, and puts the sun where Studio does.",
+		added: [
+			"**A Sky's own sun image in the place viewer.** Signed in with Roblox through `roswaal serve`, it is drawn where the sun is, SunAngularSize across and as bright as Studio shows it, in place of the sun Roswaal draws.",
+		],
+		changed: [
+			"**The sun and moon are where Studio puts them** at every latitude. Away from the equator, a place's light now falls from the same direction as in Studio.",
+		],
+		fixed: [
+			"**Faint edges of Decals, Textures and Sky images show under WebGL2** as they do under WebGPU, where they had been nearly black.",
+		],
+	},
+	{
 		version: "0.242.2",
 		date: "2026-11-15",
 		headline: "Release binaries no longer record the folder they were built in.",

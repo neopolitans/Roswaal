@@ -31,6 +31,7 @@ import {
 	SELECT,
 	SELECT_WIDTH,
 	SKY_GAIN,
+	SUN_GAIN,
 	seeThroughSets,
 	type ViewRenderer,
 } from "./view.js";
@@ -119,6 +120,8 @@ struct U {
 // Roblox's built-in sun.
 @group(0) @binding(3) var skyImages: texture_2d_array<f32>;
 @group(0) @binding(4) var skySampler: sampler;
+// A Sky's own sun image, when \`camPos.w\`, its half width as a tangent, is more than 0.
+@group(0) @binding(5) var sunImage: texture_2d<f32>;
 struct VIn {
 	@location(0) pos: vec3f, @location(1) nrm: vec3f,
 	@location(2) c0: vec3f, @location(3) c1: vec3f, @location(4) c2: vec3f, @location(5) p: vec3f,
@@ -157,7 +160,26 @@ fn sky(dir: vec3f) -> vec3f {
 	} else {
 		c = mix(u.horizon.rgb, u.ground.rgb, min(1.0, -dir.y * 5.0));
 	}
-	return c + sunLight(dir);
+	// The sun made here, unless the Sky has a sun image of its own.
+	return c + select(sunLight(dir), vec3f(0.0), u.camPos.w > 0.0);
+}
+// A Sky's own sun image in a direction, in linear light: centred on the sun,
+// SunAngularSize across, and upright to the sky, as Studio's captures show it.
+// Its light is added after the display curve, so its colours stay its own.
+fn sunImageLight(dir: vec3f) -> vec3f {
+	let half = u.camPos.w;
+	let s = u.sun.xyz;
+	let k = dot(dir, s);
+	var across = cross(s, vec3f(0.0, 1.0, 0.0));
+	if (length(across) < 1e-4) { across = vec3f(1.0, 0.0, 0.0); }
+	let right = normalize(across);
+	let up = cross(right, s);
+	let p = dir / max(k, 1e-4) - s;
+	// Its left on the sky's right, as Studio's captures show it.
+	let uv = vec2f(-dot(p, right), dot(p, up)) / max(half, 1e-4);
+	let t = textureSampleLevel(sunImage, skySampler, vec2f(uv.x * 0.5 + 0.5, 0.5 - uv.y * 0.5), 0.0);
+	let inside = half > 0.0 && k > 0.0 && max(abs(uv.x), abs(uv.y)) < 1.0;
+	return select(vec3f(0.0), pow(t.rgb, vec3f(2.2)) * t.a * ${SUN_GAIN.toFixed(3)} * u.zenith.w, inside);
 }
 // The sun's disc and the glow round it, in a direction.
 fn sunLight(dir: vec3f) -> vec3f {
@@ -481,9 +503,11 @@ fn skyFace(d: vec3f) -> vec3f {
 		let f = skyFace(dir);
 		let c = textureSampleLevel(skyImages, skySampler, f.xy * 0.5 + 0.5, i32(f.z), 0.0).rgb;
 		let sun = select(vec3f(0.0), sunLight(dir), u.screen.w > 1.5);
-		return vec4f(pow(aces((pow(c, vec3f(2.2)) * ${SKY_GAIN} + sun) * u.zenith.w), vec3f(1.0 / 2.2)), 1.0);
+		let seen = aces((pow(c, vec3f(2.2)) * ${SKY_GAIN} + sun) * u.zenith.w);
+		return vec4f(pow(min(seen + sunImageLight(dir), vec3f(1.0)), vec3f(1.0 / 2.2)), 1.0);
 	}
-	return vec4f(display(sky(dir)), 1.0);
+	let seen = pow(display(sky(dir)), vec3f(2.2));
+	return vec4f(pow(min(seen + sunImageLight(dir), vec3f(1.0)), vec3f(1.0 / 2.2)), 1.0);
 }
 // A handle: in the tool's colour, shaded but not lit by the place, with its
 // depth squeezed into the front hundredth of the range -- by 1, as depth here
@@ -714,6 +738,7 @@ export class WebGpuView implements ViewRenderer {
 				{ binding: 2, visibility: STAGE.FRAGMENT, sampler: {} },
 				{ binding: 3, visibility: STAGE.FRAGMENT, texture: { viewDimension: "2d-array" } },
 				{ binding: 4, visibility: STAGE.FRAGMENT, sampler: {} },
+				{ binding: 5, visibility: STAGE.FRAGMENT, texture: {} },
 			],
 		});
 		this.layout = layout;
@@ -1033,6 +1058,7 @@ export class WebGpuView implements ViewRenderer {
 		});
 		// Clamped, so a face's edge does not wrap round to its other side.
 		this.skySampler = d.createSampler({ magFilter: "linear", minFilter: "linear" });
+		this.setSunImage(null);
 		this.setSky(null);
 
 		this.setScene(scene);
@@ -1455,10 +1481,11 @@ export class WebGpuView implements ViewRenderer {
 			format: "rgba8unorm",
 			usage: TEXTURE.TEXTURE_BINDING | TEXTURE.COPY_DST | TEXTURE.RENDER_ATTACHMENT,
 		});
-		this.device.queue.copyExternalImageToTexture({ source: image }, { texture }, [
-			image.width,
-			image.height,
-		]);
+		this.device.queue.copyExternalImageToTexture(
+			{ source: image },
+			{ texture, premultipliedAlpha: false },
+			[image.width, image.height],
+		);
 		const group = this.device.createBindGroup({
 			layout: this.imageLayout,
 			entries: [
@@ -1520,19 +1547,45 @@ export class WebGpuView implements ViewRenderer {
 		faces?.forEach((source, layer) => {
 			d.queue.copyExternalImageToTexture(
 				{ source },
-				{ texture: this.skyImages!, origin: [0, 0, layer] },
+				{ texture: this.skyImages!, origin: [0, 0, layer], premultipliedAlpha: false },
 				[w, h],
 			);
 		});
 		this.skyOn = faces !== null;
-		this.bind = d.createBindGroup({
+		this.rebind();
+	}
+
+	private sunTexture?: GPUTexture;
+
+	setSunImage(image: ImageBitmap | null): void {
+		const d = this.device;
+		this.sunTexture?.destroy();
+		const [w, h] = image ? [image.width, image.height] : [1, 1];
+		this.sunTexture = d.createTexture({
+			size: [w, h],
+			format: "rgba8unorm",
+			usage: TEXTURE.TEXTURE_BINDING | TEXTURE.COPY_DST | TEXTURE.RENDER_ATTACHMENT,
+		});
+		if (image)
+			d.queue.copyExternalImageToTexture(
+				{ source: image },
+				{ texture: this.sunTexture, premultipliedAlpha: false },
+				[w, h],
+			);
+		if (this.skyImages) this.rebind();
+	}
+
+	/** The shaders' textures and samplers, made again when one is replaced. */
+	private rebind(): void {
+		this.bind = this.device.createBindGroup({
 			layout: this.layout,
 			entries: [
 				{ binding: 0, resource: { buffer: this.uniform } },
 				{ binding: 1, resource: this.looks.createView({ dimension: "2d-array" }) },
 				{ binding: 2, resource: this.lookSampler },
-				{ binding: 3, resource: this.skyImages.createView({ dimension: "2d-array" }) },
+				{ binding: 3, resource: this.skyImages!.createView({ dimension: "2d-array" }) },
 				{ binding: 4, resource: this.skySampler },
+				{ binding: 5, resource: this.sunTexture!.createView() },
 			],
 		});
 	}

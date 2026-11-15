@@ -193,6 +193,18 @@ export interface CornerElements {
 	rate: HTMLElement;
 }
 
+/**
+ * An image as a renderer takes it. Decoded images come with their colours
+ * already multiplied by their alpha, which WebGPU's copy undoes; WebGL takes a
+ * bitmap as it is, and drew faint edges multiplied twice, nearly black. So
+ * WebGL2 is handed a copy with its colours as they are.
+ */
+function forView(view: ViewRenderer, image: ImageBitmap): Promise<ImageBitmap> {
+	return view.backend === "WebGL2"
+		? createImageBitmap(image, { premultiplyAlpha: "none" })
+		: Promise.resolve(image);
+}
+
 export class ViewportController {
 	private state: ViewportState = {
 		tool: "select",
@@ -293,6 +305,7 @@ export class ViewportController {
 			this.loadImages(this.view, place);
 			this.view.setLighting(place.lighting);
 			this.loadSky(this.view, place.lighting);
+			this.loadSunImage(this.view, place.lighting);
 			this.view.setOverlay(this.frustumLines());
 			this.refreshSelection();
 		} else void this.start();
@@ -450,11 +463,14 @@ export class ViewportController {
 				});
 		}
 		for (const asset of wanted) {
-			void this.images.get(asset)?.then((image) => {
-				if (!image || this.view !== view) return;
-				view.setImage(asset, image);
-				this.redraw();
-			});
+			void this.images
+				.get(asset)
+				?.then((image) => image && forView(view, image))
+				.then((image) => {
+					if (!image || this.view !== view) return;
+					view.setImage(asset, image);
+					this.redraw();
+				});
 		}
 	}
 
@@ -497,11 +513,46 @@ export class ViewportController {
 				if (!held && this.sky?.key === key) this.sky = null;
 			});
 		}
-		void this.sky.faces.then((faces) => {
-			if (!faces || this.view !== view) return;
-			view.setSky(faces);
-			this.redraw();
-		});
+		void this.sky.faces
+			.then((faces) => faces && Promise.all(faces.map((face) => forView(view, face))))
+			.then((faces) => {
+				if (!faces || this.view !== view) return;
+				view.setSky(faces);
+				this.redraw();
+			});
+	}
+
+	/** A Sky's own sun image, kept for the session by its asset id. */
+	private sunImage: { asset: string; image: Promise<ImageBitmap | null> } | null = null;
+
+	/** A Sky's own sun image into the view once Sign in with Roblox has it; until then, none. */
+	private loadSunImage(view: ViewRenderer, lighting: LightingParams): void {
+		const asset = lighting.sunImage?.asset;
+		if (!asset) {
+			this.sunImage = null;
+			view.setSunImage(null);
+			return;
+		}
+		if (this.sunImage?.asset !== asset) {
+			let got: ImageBitmap | null = null;
+			const image = loadImages([asset], (_, bitmap) => {
+				got = bitmap;
+			})
+				.then(() => got)
+				.catch(() => null);
+			this.sunImage = { asset, image };
+			// What did not arrive is asked for again next time.
+			void image.then((held) => {
+				if (!held && this.sunImage?.asset === asset) this.sunImage = null;
+			});
+		}
+		void this.sunImage.image
+			.then((image) => image && forView(view, image))
+			.then((image) => {
+				if (!image || this.view !== view) return;
+				view.setSunImage(image);
+				this.redraw();
+			});
 	}
 
 	/** One pick at a time: WebGPU reads a pick back through one buffer. */
@@ -900,6 +951,7 @@ export class ViewportController {
 		this.loadLooks(view, this.place ?? place);
 		this.loadImages(view, this.place ?? place);
 		this.loadSky(view, (this.place ?? place).lighting);
+		this.loadSunImage(view, (this.place ?? place).lighting);
 		this.attach(this.canvas as HTMLCanvasElement);
 		this.refreshSelection();
 		this.fit();

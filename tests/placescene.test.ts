@@ -14,7 +14,7 @@ import { fromBase64 } from "../src/core/base64.js";
 import { outlinePlace } from "../src/core/rbx/browse.js";
 import type { Prop, PropType, RbxInstance } from "../src/core/rbx/dom.js";
 import { readRbx } from "../src/core/rbx/index.js";
-import { sunDirection } from "../src/core/rbx/lighting.js";
+import { moonDirection, sunDirection } from "../src/core/rbx/lighting.js";
 import { MATERIALS } from "../src/core/rbx/materials.js";
 import { buildPlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../src/core/rbx/scene.js";
 import { ApiSession } from "../src/server/routes.js";
@@ -193,6 +193,22 @@ describe("A place's light", () => {
 		const sun = sunDirection(14.5, 0);
 		for (const [ours, studio] of sun.map((v, i) => [v, [-0.558, 0.728, -0.399][i]]))
 			expect(ours).toBeCloseTo(studio, 2);
+	});
+
+	it("tilts the sun's path by the latitude, as Studio answers", () => {
+		const answers: [number, number, number[]][] = [
+			[14, 22, [-0.49983, 0.86573, -0.02616]],
+			[9, 41.733, [0.6716, 0.6716, 0.31289]],
+			[14, -30, [-0.29742, 0.51515, -0.80384]],
+			[3, 60, [0.56841, -0.56841, 0.59482]],
+		];
+		for (const [time, latitude, studio] of answers)
+			sunDirection(time, latitude).forEach((v, i) => expect(v).toBeCloseTo(studio[i], 3));
+	});
+
+	it("puts the moon opposite the sun across the day, on the same tilt", () => {
+		const moon = moonDirection(sunDirection(14, 22));
+		[0.49983, -0.86573, -0.02616].forEach((v, i) => expect(moon[i]).toBeCloseTo(v, 3));
 	});
 });
 

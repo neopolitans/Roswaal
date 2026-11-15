@@ -31,6 +31,7 @@ import {
 	SELECT,
 	SELECT_WIDTH,
 	SKY_GAIN,
+	SUN_GAIN,
 	seeThroughSets,
 	type ViewRenderer,
 } from "./view.js";
@@ -46,7 +47,8 @@ vec3 sunLight(vec3 dir) {
 }
 vec3 sky(vec3 dir) {
 	vec3 c = dir.y >= 0.0 ? mix(L[3].rgb, L[4].rgb, clamp(1.0 - dir.y / 0.14, 0.0, 1.0)) : mix(L[4].rgb, L[5].rgb, min(1.0, -dir.y * 5.0));
-	return c + sunLight(dir);
+	// The sun made here, unless the Sky has a sun image of its own.
+	return c + (L[6].w > 0.0 ? vec3(0.0) : sunLight(dir));
 }
 // Stephen Hill's fit of the ACES curve, as BakingLab (MIT) has it.
 vec3 aces(vec3 colour) {
@@ -384,7 +386,7 @@ void main() {
 const FS_SKY = `#version 300 es
 precision highp float;
 in vec2 ndc; uniform mat4 invViewProj;
-uniform mediump sampler2DArray skyImages; uniform float hasSky;
+uniform mediump sampler2DArray skyImages; uniform float hasSky; uniform sampler2D sunImage;
 ${COMMON}
 out vec4 o;
 // As WebGpuView's skyFace.
@@ -394,15 +396,32 @@ vec3 skyFace(vec3 d) {
 	if (a.z >= a.y) return d.z > 0.0 ? vec3(-d.x / a.z, -d.y / a.z, 0.0) : vec3(d.x / a.z, -d.y / a.z, 2.0);
 	return d.y > 0.0 ? vec3(-d.z / a.y, -d.x / a.y, 5.0) : vec3(-d.z / a.y, d.x / a.y, 1.0);
 }
+// A Sky's own sun image in a direction, as WebGpuView's sunImageLight.
+vec3 sunImageLight(vec3 dir) {
+	float half_ = L[6].w;
+	vec3 s = L[0].xyz;
+	float k = dot(dir, s);
+	if (half_ <= 0.0 || k <= 0.0) return vec3(0.0);
+	vec3 across = cross(s, vec3(0.0, 1.0, 0.0));
+	vec3 right = length(across) < 1e-4 ? vec3(1.0, 0.0, 0.0) : normalize(across);
+	vec3 up = cross(right, s);
+	vec3 p = dir / k - s;
+	vec2 uv = vec2(-dot(p, right), dot(p, up)) / half_;
+	if (max(abs(uv.x), abs(uv.y)) >= 1.0) return vec3(0.0);
+	vec4 t = textureLod(sunImage, vec2(uv.x * 0.5 + 0.5, 0.5 - uv.y * 0.5), 0.0);
+	return pow(t.rgb, vec3(2.2)) * t.a * ${SUN_GAIN.toFixed(3)} * L[3].w;
+}
 void main() {
 	vec4 far = invViewProj * vec4(ndc, 1.0, 1.0);
 	vec3 dir = normalize(far.xyz / far.w - L[6].xyz);
+	vec3 seen;
 	if (hasSky > 0.5) {
 		vec3 f = skyFace(dir);
 		vec3 c = textureLod(skyImages, vec3(f.xy * 0.5 + 0.5, f.z), 0.0).rgb;
 		vec3 sun = hasSky > 1.5 ? sunLight(dir) : vec3(0.0);
-		o = vec4(pow(aces((pow(c, vec3(2.2)) * ${SKY_GAIN} + sun) * L[3].w), vec3(1.0 / 2.2)), 1.0);
-	} else o = vec4(display(sky(dir)), 1.0);
+		seen = aces((pow(c, vec3(2.2)) * ${SKY_GAIN} + sun) * L[3].w);
+	} else seen = pow(display(sky(dir)), vec3(2.2));
+	o = vec4(pow(min(seen + sunImageLight(dir), vec3(1.0)), vec3(1.0 / 2.2)), 1.0);
 }`;
 const VS_OVER = `#version 300 es
 layout(location=0) in vec3 pos; layout(location=1) in vec3 colour;
@@ -613,6 +632,9 @@ export class WebGl2View implements ViewRenderer {
 		this.skyProgram = this.link(VS_SKY, FS_SKY);
 		gl.useProgram(this.skyProgram.program);
 		gl.uniform1i(gl.getUniformLocation(this.skyProgram.program, "skyImages"), 4);
+		gl.uniform1i(gl.getUniformLocation(this.skyProgram.program, "sunImage"), 5);
+		this.sunTexture = gl.createTexture()!;
+		this.setSunImage(null);
 		this.skyImages = gl.createTexture()!;
 		this.setSky(null);
 		this.imageProgram = this.link(VS_IMAGE, FS_IMAGE);
@@ -1091,6 +1113,8 @@ export class WebGl2View implements ViewRenderer {
 		gl.uniform1f(gl.getUniformLocation(this.skyProgram.program, "hasSky"), sky);
 		gl.activeTexture(gl.TEXTURE4);
 		gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.skyImages);
+		gl.activeTexture(gl.TEXTURE5);
+		gl.bindTexture(gl.TEXTURE_2D, this.sunTexture);
 		gl.activeTexture(gl.TEXTURE0);
 		gl.disable(gl.DEPTH_TEST);
 		gl.depthMask(false);
@@ -1218,6 +1242,31 @@ export class WebGl2View implements ViewRenderer {
 
 	private skyImages!: WebGLTexture;
 	private skyOn = false;
+	private sunTexture!: WebGLTexture;
+
+	setSunImage(image: ImageBitmap | null): void {
+		const gl = this.gl;
+		gl.activeTexture(gl.TEXTURE5);
+		gl.bindTexture(gl.TEXTURE_2D, this.sunTexture);
+		if (image) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+		else
+			gl.texImage2D(
+				gl.TEXTURE_2D,
+				0,
+				gl.RGBA,
+				1,
+				1,
+				0,
+				gl.RGBA,
+				gl.UNSIGNED_BYTE,
+				new Uint8Array(4),
+			);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+		gl.activeTexture(gl.TEXTURE0);
+	}
 
 	setSky(faces: readonly ImageBitmap[] | null): void {
 		const gl = this.gl;

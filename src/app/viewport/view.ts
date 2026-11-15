@@ -61,6 +61,8 @@ export interface ViewRenderer {
 	 * of the sky made here; or none, for that sky again.
 	 */
 	setSky(faces: readonly ImageBitmap[] | null): void;
+	/** A Sky's own sun image, drawn where the sun is; or none. */
+	setSunImage(image: ImageBitmap | null): void;
 	/** Gives the GPU back: a browser keeps only so many contexts. */
 	destroy(): void;
 }
@@ -218,6 +220,13 @@ export function seeThroughSets(
  * dark one, which the curve's toe takes down to nearly black as they show.
  */
 export const SKY_GAIN = 1.6;
+
+/**
+ * How much light a Sky's own sun image adds, over its own pixels, after the
+ * display curve: fitted to Studio's captures of one, whose reds stay red where
+ * a curve would have turned them white.
+ */
+export const SUN_GAIN = 12;
 
 /**
  * Where a direction meets a Sky's images, as Studio lays them round the view:
