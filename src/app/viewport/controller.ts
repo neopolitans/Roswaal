@@ -20,6 +20,7 @@ import {
 	partsInRect,
 	rectBetween,
 	screenPoint,
+	stepDown,
 	type ViewShot,
 } from "./marquee.js";
 import { loadMeshes } from "./meshes.js";
@@ -51,7 +52,15 @@ export interface ViewportOptions {
 	editable: boolean;
 	/** The most frames a second while it moves; `vsync` the display's, `unlimited` as fast as it goes. */
 	frameRate: number | "vsync" | "unlimited";
+	/** Alt and a click, or a long press, picks one Model further in each time, rather than the part. */
+	altClickSteps: boolean;
 }
+
+/**
+ * What a click on a part reaches: the highest Model in Workspace that holds
+ * it, one step further in than what is picked, or the part itself.
+ */
+type Reach = "top" | "down" | "part";
 
 /** How far a press moves, in CSS pixels, before it is a drag rather than a click. */
 const DRAG = 6;
@@ -116,7 +125,7 @@ export type ViewportPlace = PlaceScene & { lighting: LightingParams; outline: Pl
 
 /** Studs a second at 1×: a walk across M103's tank in about half a second. */
 const BASE_SPEED = 24;
-/** How long a touch holds still before it picks the part itself, as Alt and a click do. */
+/** How long a touch holds still before it picks as Alt and a click do. */
 const LONG_PRESS = 500;
 /** How fast the look stick turns the camera at its rim, in the right-drag's pixels a second. */
 const LOOK_RATE = 320;
@@ -399,6 +408,7 @@ export class ViewportController {
 		postEffects: true,
 		editable: false,
 		frameRate: "vsync",
+		altClickSteps: false,
 	};
 
 	/** Settings' say in how the view is drawn: a new renderer starts the view again. */
@@ -694,10 +704,19 @@ export class ViewportController {
 		};
 	}
 
-	/** What a click on a part picks: the highest Model in Workspace that holds it, or with Alt or Shift the part. */
-	private clickTarget(part: number, partItself: boolean): number {
-		if (partItself || !this.place) return part;
-		return outermostModel(this.place.outline, this.workspace, part);
+	/** What a click on a part picks, by how far it reaches: see Reach. */
+	private clickTarget(part: number, reach: Reach): number {
+		if (reach === "part" || !this.place) return part;
+		const { outline } = this.place;
+		return reach === "down"
+			? stepDown(outline, this.workspace, part, this.selection)
+			: outermostModel(outline, this.workspace, part);
+	}
+
+	/** How far a click reaches with these keys: Alt steps in when Settings says so, Shift the part. */
+	private reachFor(alt: boolean, shift: boolean): Reach {
+		if (alt) return this.options.altClickSteps ? "down" : "part";
+		return shift ? "part" : "top";
 	}
 
 	// -- the camera ----------------------------------------------------------------
@@ -1392,10 +1411,11 @@ export class ViewportController {
 	 * and middle-drag, or Shift and a right-drag, pans. Scroll zooms.
 	 *
 	 * Touch and pen: one finger orbits, or pans with Shift held, two fingers
-	 * pinch and pan, a tap picks and a long press picks the part itself.
+	 * pinch and pan, a tap picks and a long press picks as Alt and a click do.
 	 *
 	 * A press that moves no more than DRAG is a click: the GPU's pick, of the
-	 * highest Model in Workspace there, or with Alt or Shift the part.
+	 * highest Model in Workspace there, or with Alt or Shift the part. With
+	 * Settings' `altClickSteps`, Alt picks one Model further in instead.
 	 */
 	private attach(el: HTMLCanvasElement): void {
 		const pointers = new Map<number, { x: number; y: number }>();
@@ -1443,7 +1463,7 @@ export class ViewportController {
 			if (from.adding && inside.length === 0) return;
 			this.pickHere(from.adding ? addTo(this.selection, inside) : inside);
 		};
-		// A touch held still picks the part itself, where a touch screen has no Alt.
+		// A touch held still picks as Alt and a click do, where a touch screen has no Alt.
 		let press: ReturnType<typeof setTimeout> | undefined;
 		let pressed = false;
 		const unpress = () => {
@@ -1455,45 +1475,49 @@ export class ViewportController {
 			const dpr = el.width / box.width;
 			return this.pickId(Math.floor((x - box.left) * dpr), Math.floor((y - box.top) * dpr));
 		};
-		// `toggle` is Ctrl, Cmd on a Mac: what the click reaches joins what is
-		// picked, or leaves it, rather than replacing it -- the part itself with Alt.
-		const pickAt = async (x: number, y: number, partItself: boolean, toggle = false) => {
-			if (!this.view) return;
-			const id = await idAt(x, y);
-			if (!toggle) {
-				this.pickHere(id >= 0 ? [this.clickTarget(id, partItself)] : []);
-				return;
-			}
-			if (id < 0) return;
-			const target = this.clickTarget(id, partItself);
-			this.pickHere(
-				this.selection.includes(target)
-					? this.selection.filter((i) => i !== target)
-					: [...this.selection, target],
-			);
-		};
 		// The mouse over the view outlines, faintly, what a click there would pick:
 		// a ray against the parts' own shapes, once a frame while it moves.
-		let aim: { x: number; y: number; itself: boolean } | null = null;
+		let aim: { x: number; y: number; alt: boolean; shift: boolean } | null = null;
 		let aiming = 0;
+		// The part the ray last met, -1 for none: a step down moves on after each click.
+		let aimed = -1;
+		const hoverAimed = () => {
+			this.setHover(
+				aim && aimed >= 0 ? this.clickTarget(aimed, this.reachFor(aim.alt, aim.shift)) : null,
+			);
+		};
+		// `toggle` is Ctrl, Cmd on a Mac: what the click reaches joins what is
+		// picked, or leaves it, rather than replacing it.
+		const pickAt = async (x: number, y: number, reach: Reach, toggle = false) => {
+			if (!this.view) return;
+			const id = await idAt(x, y);
+			if (!toggle) this.pickHere(id >= 0 ? [this.clickTarget(id, reach)] : []);
+			else if (id >= 0) {
+				const target = this.clickTarget(id, reach);
+				this.pickHere(
+					this.selection.includes(target)
+						? this.selection.filter((i) => i !== target)
+						: [...this.selection, target],
+				);
+			}
+			// What the next click would pick, which a step down has just moved.
+			if (aim) hoverAimed();
+		};
 		el.addEventListener("pointermove", (e) => {
 			if (e.pointerType !== "mouse" || pointers.size > 0) return;
-			aim = { x: e.clientX, y: e.clientY, itself: e.altKey || e.shiftKey };
+			aim = { x: e.clientX, y: e.clientY, alt: e.altKey, shift: e.shiftKey };
 			if (aiming) return;
 			aiming = requestAnimationFrame(() => {
 				aiming = 0;
 				if (!aim || !this.place || pointers.size > 0) return;
 				const box = el.getBoundingClientRect();
-				const id = rayPick(
-					this.place,
-					this.eye(),
-					this.rayAt(aim.x - box.left, aim.y - box.top, box),
-				);
-				this.setHover(id >= 0 ? this.clickTarget(id, aim.itself) : null);
+				aimed = rayPick(this.place, this.eye(), this.rayAt(aim.x - box.left, aim.y - box.top, box));
+				hoverAimed();
 			});
 		});
 		el.addEventListener("pointerleave", () => {
 			aim = null;
+			aimed = -1;
 			this.setHover(null);
 		});
 		el.addEventListener("contextmenu", (e) => e.preventDefault());
@@ -1522,7 +1546,7 @@ export class ViewportController {
 					press = undefined;
 					if (moved > DRAG || pointers.size !== 1) return;
 					pressed = true;
-					void pickAt(x, y, true);
+					void pickAt(x, y, this.reachFor(true, false));
 				}, LONG_PRESS);
 			}
 			if (pointers.size === 2) {
@@ -1567,7 +1591,12 @@ export class ViewportController {
 			}
 			// A long press has picked already.
 			if (pressed || pointers.size > 0 || moved > DRAG || e.button !== 0) return;
-			void pickAt(e.clientX, e.clientY, e.altKey || e.shiftKey, e.ctrlKey || e.metaKey);
+			void pickAt(
+				e.clientX,
+				e.clientY,
+				this.reachFor(e.altKey, e.shiftKey),
+				e.ctrlKey || e.metaKey,
+			);
 		});
 		el.addEventListener("pointercancel", (e) => {
 			unpress();

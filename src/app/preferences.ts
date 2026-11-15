@@ -289,6 +289,11 @@ export interface Preferences {
 	outlineWidth: OutlineWidth;
 	/** The outline shows through what is in front of it, as Studio's does, rather than being hidden by it. */
 	outlineThrough: boolean;
+	/**
+	 * Alt and a click in the place, or a long press, picks one Model further in
+	 * each time, down to the part, rather than the part at once as Studio's does.
+	 */
+	altClickSteps: boolean;
 	/** See-through Glass hides the see-through parts behind it, as Studio's does. */
 	glassHides: boolean;
 	/** The place's post effects, ColorCorrection, Blur and the rest, are drawn in the place viewer. */
@@ -510,6 +515,7 @@ export const DEFAULTS: Preferences = {
 	viewportFrameRate: "vsync",
 	outlineWidth: "medium",
 	outlineThrough: true,
+	altClickSteps: false,
 	glassHides: true,
 	postEffects: true,
 	placeViewer: true,
@@ -652,6 +658,8 @@ export function readPreferences(): Preferences {
 				: DEFAULTS.outlineWidth,
 		outlineThrough:
 			typeof stored.outlineThrough === "boolean" ? stored.outlineThrough : DEFAULTS.outlineThrough,
+		altClickSteps:
+			typeof stored.altClickSteps === "boolean" ? stored.altClickSteps : DEFAULTS.altClickSteps,
 		glassHides: typeof stored.glassHides === "boolean" ? stored.glassHides : DEFAULTS.glassHides,
 		postEffects:
 			typeof stored.postEffects === "boolean" ? stored.postEffects : DEFAULTS.postEffects,

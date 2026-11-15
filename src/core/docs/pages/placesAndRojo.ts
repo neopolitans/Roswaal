@@ -190,8 +190,12 @@ export function placesAndRojoPage(): DocPage {
 					["Pick a model", "Click a part: the highest Model in Workspace that holds it"],
 					["Pick the part itself", "`Alt` or `Shift` + click, or a long press"],
 					[
+						"Pick one Model further in each time",
+						"`Alt` + click, or a long press, with **Settings › Scene view › Alt-click** on",
+					],
+					[
 						"Add to what is picked, or take out",
-						"`Ctrl` + click, `Cmd` on a Mac; with `Alt` too, the part itself",
+						"`Ctrl` + click, `Cmd` on a Mac, with `Alt` or `Shift` as above",
 					],
 					["Pick every part in a box", "Drag a box: a part is in when its centre is"],
 					["Add a box's parts to what is picked", "`Shift` or `Ctrl` + drag a box"],

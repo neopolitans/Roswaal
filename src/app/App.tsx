@@ -414,6 +414,7 @@ export function App() {
 					prefs.viewportFrameRate === "vsync" || prefs.viewportFrameRate === "unlimited"
 						? prefs.viewportFrameRate
 						: Number(prefs.viewportFrameRate),
+				altClickSteps: prefs.altClickSteps,
 			}),
 		[
 			viewport,
@@ -424,6 +425,7 @@ export function App() {
 			prefs.postEffects,
 			prefs.modifyDataModel,
 			prefs.viewportFrameRate,
+			prefs.altClickSteps,
 		],
 	);
 	// The folder from a previous session, when one is waiting on a click.

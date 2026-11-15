@@ -970,6 +970,16 @@ function SceneSettings({ prefs, onPrefs }: SettingsPanelProps) {
 						label={prefs.outlineThrough ? "Shown through parts" : "Hidden by parts in front"}
 					/>
 				</Row>
+				<Row
+					label="Alt-click"
+					help="What Alt and a click on a part picks, and a long press: the part, as in Studio, or one Model further in each time. Shift and a click always picks the part."
+				>
+					<Toggle
+						on={prefs.altClickSteps}
+						onChange={(on) => onPrefs({ altClickSteps: on })}
+						label={prefs.altClickSteps ? "Steps in a Model at a time" : "Picks the part"}
+					/>
+				</Row>
 			</Group>
 
 			<Group title="Transparency">

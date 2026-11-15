@@ -1,21 +1,56 @@
 /**
  * The box a left-drag draws over the view, and the parts it takes: each part
  * whose centre falls inside it on screen, as Studio's does. A part across the
- * box's edge is taken only when its centre is in.
+ * box's edge is taken only when its centre is in. And what a click on a part
+ * picks: the Model that holds it, the part, or one Model further in.
  */
 
 import type { PlaceOutline } from "../../core/rbx/browse.js";
 
+/** The place's tree, as far as a click needs it: each node's class and parent. */
+type Tree = Pick<PlaceOutline, "classes" | "nodes">;
+
 /**
- * What a pick of `part` selects: its outermost Model below `workspace`, as a
- * click in Studio does, or the part itself where no Model holds it.
+ * The steps from Workspace down to a part: each Model that holds it, outermost
+ * first, then the part. Only Models count, as in Studio, where a click never
+ * picks a Folder.
  */
-export function outermostModel(outline: PlaceOutline, workspace: number, part: number): number {
-	const { nodes, classes } = outline;
-	let top = part;
+export function modelSteps(tree: Tree, workspace: number, part: number): number[] {
+	const { nodes, classes } = tree;
+	const steps = [part];
 	for (let p = nodes[part]?.[2] ?? -1; p >= 0 && p !== workspace; p = nodes[p][2])
-		if (classes[nodes[p][0]] === "Model") top = p;
-	return top;
+		if (classes[nodes[p][0]] === "Model") steps.unshift(p);
+	return steps;
+}
+
+/** What a click on a part picks: the highest Model in Workspace that holds it, else the part. */
+export function outermostModel(tree: Tree, workspace: number, part: number): number {
+	return modelSteps(tree, workspace, part)[0];
+}
+
+/**
+ * What a click that steps down picks: the step just below the deepest thing
+ * picked that holds the part, of any class, or the part when it is picked.
+ * When nothing picked holds it, the step below its outermost Model, as though
+ * a plain click had picked that first.
+ */
+export function stepDown(
+	tree: Tree,
+	workspace: number,
+	part: number,
+	selection: readonly number[],
+): number {
+	const steps = modelSteps(tree, workspace, part);
+	const picked = new Set(selection);
+	const isStep = new Set(steps);
+	// Up from the part: the first thing picked is the deepest, and `below` the
+	// step met just before it.
+	let below = part;
+	for (let p = part; p >= 0; p = tree.nodes[p]?.[2] ?? -1) {
+		if (picked.has(p)) return below;
+		if (isStep.has(p)) below = p;
+	}
+	return steps[1] ?? steps[0];
 }
 
 /**
