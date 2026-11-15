@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.244.0",
+		date: "2026-11-15",
+		headline: "The place viewer draws MeshParts as their meshes.",
+		added: [
+			"**MeshParts drawn as their meshes.** Signed in with Roblox through `roswaal serve`, each MeshPart's mesh, and each FileMesh's, is downloaded once and drawn in its part's place, in its material and colour. Properties says how many are still boxes. Meshes kept in Roblox's newest compressed format stay boxes for now.",
+			"**Attributions names Roblox's mesh files**, and the community description they were read from.",
+		],
+	},
+	{
 		version: "0.243.0",
 		date: "2026-11-15",
 		headline: "The place viewer draws a Sky's own sun image, and puts the sun where Studio does.",

@@ -6,12 +6,14 @@
 
 import type { LightingParams } from "../../core/rbx/lighting.js";
 import { MATERIAL_SHADE, MATERIALS } from "../../core/rbx/materials.js";
+import { type FileMesh, meshBounds } from "../../core/rbx/mesh.js";
 import {
 	type PlaceScene,
 	SCENE_KINDS,
 	SCENE_STRIDE,
 	type SceneImage,
 	type SceneKind,
+	type SceneMesh,
 } from "../../core/rbx/scene.js";
 import type { Handles } from "./handles.js";
 
@@ -63,6 +65,11 @@ export interface ViewRenderer {
 	setSky(faces: readonly ImageBitmap[] | null): void;
 	/** A Sky's own sun image, drawn where the sun is; or none. */
 	setSunImage(image: ImageBitmap | null): void;
+	/**
+	 * Meshes, by their place in the scene's `meshes`, as `meshGeometry` makes
+	 * them: rows naming one are drawn as it from then on, the rest as boxes.
+	 */
+	setMeshes(meshes: ReadonlyMap<number, MeshGeometry>): void;
 	/** Gives the GPU back: a browser keeps only so many contexts. */
 	destroy(): void;
 }
@@ -243,6 +250,78 @@ export function skyLookup(d: readonly number[]): { face: number; u: number; v: n
 	if (ax >= ay && ax >= az) return x > 0 ? at(3, z / ax, -y / ax) : at(4, -z / ax, -y / ax);
 	if (az >= ay) return z > 0 ? at(0, -x / az, -y / az) : at(2, x / az, -y / az);
 	return y > 0 ? at(5, -z / ay, -x / ay) : at(1, -z / ay, x / ay);
+}
+
+/** A mesh's triangles as rows draw them: position and normal a vertex, as the boxes are. */
+export interface MeshGeometry {
+	vertices: Float32Array;
+	indices: Uint32Array;
+}
+
+/**
+ * A mesh as `use` draws it, in the space a row is scaled from. A MeshPart's
+ * fills the unit box, -0.5 to 0.5 on each axis, which the row stretches to
+ * its part's size. A SpecialMesh's keeps its own studs and centre, times the
+ * part's Scale over its size, which the row's size then undoes. Normals are
+ * turned with it, so they stay square to the surface.
+ */
+export function meshGeometry(mesh: FileMesh, use: SceneMesh): MeshGeometry {
+	const { min, max } = meshBounds(mesh);
+	const size = max.map((v, a) => Math.max(v - min[a], 1e-4));
+	const centre = max.map((v, a) => (v + min[a]) / 2);
+	const fit = !use.scale;
+	const scale = use.scale ?? [1, 1, 1];
+	const count = mesh.positions.length / 3;
+	const vertices = new Float32Array(count * 6);
+	for (let v = 0; v < count; v++) {
+		const n = [0, 1, 2].map((a) => {
+			const value = mesh.normals[v * 3 + a];
+			return fit ? value * size[a] : value / (scale[a] || 1);
+		});
+		const length = Math.hypot(n[0], n[1], n[2]);
+		for (let a = 0; a < 3; a++) {
+			const p = mesh.positions[v * 3 + a];
+			vertices[v * 6 + a] = fit ? (p - centre[a]) / size[a] : p * scale[a];
+			vertices[v * 6 + 3 + a] = length > 1e-6 ? n[a] / length : a === 1 ? 1 : 0;
+		}
+	}
+	return { vertices, indices: mesh.indices };
+}
+
+/**
+ * A set of rows split by the mesh each draws: the rows whose mesh `ready`
+ * has, by its place in the scene's `meshes`, and the rest, which stay boxes.
+ */
+export function splitByMesh(
+	from: { data: Float32Array; count: number },
+	ready: (slot: number) => boolean,
+): {
+	rest: { data: Float32Array; count: number };
+	meshes: Map<number, { data: Float32Array; count: number }>;
+} {
+	const stride = SCENE_STRIDE;
+	const words = new Uint32Array(from.data.buffer, from.data.byteOffset, from.count * stride);
+	const rows = new Map<number, number[]>();
+	const rest: number[] = [];
+	for (let i = 0; i < from.count; i++) {
+		const slot = (words[i * stride + 14] >>> 16) - 1;
+		if (slot >= 0 && ready(slot)) {
+			const list = rows.get(slot) ?? [];
+			list.push(i);
+			rows.set(slot, list);
+		} else rest.push(i);
+	}
+	const gather = (list: number[]) => {
+		if (list.length === from.count) return from;
+		const data = new Float32Array(list.length * stride);
+		list.forEach((row, to) => {
+			data.set(from.data.subarray(row * stride, (row + 1) * stride), to * stride);
+		});
+		return { data, count: list.length };
+	};
+	const meshes = new Map<number, { data: Float32Array; count: number }>();
+	for (const [slot, list] of rows) meshes.set(slot, gather(list));
+	return { rest: gather(rest), meshes };
 }
 
 /** How wide the outline round what is picked is drawn, in CSS pixels. */

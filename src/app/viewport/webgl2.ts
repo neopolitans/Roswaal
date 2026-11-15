@@ -28,11 +28,13 @@ import {
 	type ImageQuad,
 	imageOrder,
 	imageQuads,
+	type MeshGeometry,
 	SELECT,
 	SELECT_WIDTH,
 	SKY_GAIN,
 	SUN_GAIN,
 	seeThroughSets,
+	splitByMesh,
 	type ViewRenderer,
 } from "./view.js";
 
@@ -542,10 +544,17 @@ export class WebGl2View implements ViewRenderer {
 		indexCount: number;
 		count: number;
 	}[] = [];
-	private draws: { vao: WebGLVertexArrayObject; indexCount: number; count: number }[] = [];
+	/** `type` is 16 bits an index for the shapes made here, 32 for a mesh. */
+	private draws: {
+		vao: WebGLVertexArrayObject;
+		indexCount: number;
+		type: number;
+		count: number;
+	}[] = [];
 	private clear: {
 		vao: WebGLVertexArrayObject;
 		indexCount: number;
+		type: number;
 		count: number;
 		instances: WebGLBuffer;
 		source: Float32Array;
@@ -553,7 +562,12 @@ export class WebGl2View implements ViewRenderer {
 	}[] = [];
 	private clearEye: number[] | null = null;
 	/** See-through Glass: its depth first, then its colour, so nothing see-through shows behind it. */
-	private glass: { vao: WebGLVertexArrayObject; indexCount: number; count: number }[] = [];
+	private glass: {
+		vao: WebGLVertexArrayObject;
+		indexCount: number;
+		type: number;
+		count: number;
+	}[] = [];
 	private glassHides = true;
 	private scene?: PlaceScene;
 	// The glow: what gives light drawn small, blurred, and added over the
@@ -698,19 +712,50 @@ export class WebGl2View implements ViewRenderer {
 		this.glowing = sceneGlows(scene);
 		this.sceneBuffers = [];
 		const sets = seeThroughSets(scene, this.glassHides);
+		type Rows = { data: Float32Array; count: number };
+		const none: Rows = { data: new Float32Array(0), count: 0 };
+		const groups: {
+			mesh: { vertices: Float32Array; indices: Uint16Array | Uint32Array };
+			rows: Record<"solid" | "clear" | "glass", Rows>;
+		}[] = [];
 		for (const kind of SCENE_KINDS) {
-			const mesh = meshFor(kind);
+			if (kind !== "mesh") {
+				groups.push({
+					mesh: meshFor(kind),
+					rows: { solid: scene.kinds[kind], clear: sets.clear[kind], glass: sets.glass[kind] },
+				});
+				continue;
+			}
+			// A MeshPart or FileMesh whose mesh is here draws it; the rest, their box.
+			const ready = (slot: number) => this.meshes.has(slot);
+			const solid = splitByMesh(scene.kinds.mesh, ready);
+			const clear = splitByMesh(sets.clear.mesh, ready);
+			const glass = splitByMesh(sets.glass.mesh, ready);
+			groups.push({
+				mesh: meshFor("mesh"),
+				rows: { solid: solid.rest, clear: clear.rest, glass: glass.rest },
+			});
+			for (const [slot, mesh] of this.meshes)
+				groups.push({
+					mesh,
+					rows: {
+						solid: solid.meshes.get(slot) ?? none,
+						clear: clear.meshes.get(slot) ?? none,
+						glass: glass.meshes.get(slot) ?? none,
+					},
+				});
+		}
+		for (const { mesh, rows } of groups) {
+			const type = mesh.indices instanceof Uint32Array ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT;
 			for (const set of ["solid", "clear", "glass"] as const) {
-				const { data, count } = (
-					set === "solid" ? scene.kinds : set === "clear" ? sets.clear : sets.glass
-				)[kind];
+				const { data, count } = rows[set];
 				const seeThrough = set === "clear";
 				if (count === 0) continue;
 				const vb = this.buffer(gl.ARRAY_BUFFER, mesh.vertices);
 				const eb = this.buffer(gl.ELEMENT_ARRAY_BUFFER, mesh.indices);
 				const ib = this.buffer(gl.ARRAY_BUFFER, data);
 				this.sceneBuffers.push(vb, eb, ib);
-				const draw = { vao: this.vao(vb, ib, eb), indexCount: mesh.indices.length, count };
+				const draw = { vao: this.vao(vb, ib, eb), indexCount: mesh.indices.length, type, count };
 				if (seeThrough)
 					this.clear.push({
 						...draw,
@@ -1088,12 +1133,13 @@ export class WebGl2View implements ViewRenderer {
 	}
 
 	private solids(
-		draws: { vao: WebGLVertexArrayObject; indexCount: number; count: number }[] = this.draws,
+		draws: { vao: WebGLVertexArrayObject; indexCount: number; type: number; count: number }[] = this
+			.draws,
 	): void {
 		const gl = this.gl;
 		for (const d of draws) {
 			gl.bindVertexArray(d.vao);
-			gl.drawElementsInstanced(gl.TRIANGLES, d.indexCount, gl.UNSIGNED_SHORT, 0, d.count);
+			gl.drawElementsInstanced(gl.TRIANGLES, d.indexCount, d.type, 0, d.count);
 		}
 		gl.bindVertexArray(null);
 	}
@@ -1243,6 +1289,14 @@ export class WebGl2View implements ViewRenderer {
 	private skyImages!: WebGLTexture;
 	private skyOn = false;
 	private sunTexture!: WebGLTexture;
+
+	/** The meshes rows name, by their place in the scene's list. */
+	private meshes: ReadonlyMap<number, MeshGeometry> = new Map();
+
+	setMeshes(meshes: ReadonlyMap<number, MeshGeometry>): void {
+		this.meshes = meshes;
+		if (this.scene) this.setScene(this.scene);
+	}
 
 	setSunImage(image: ImageBitmap | null): void {
 		const gl = this.gl;

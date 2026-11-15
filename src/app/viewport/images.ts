@@ -32,7 +32,7 @@ export function decalImageOf(bytes: Uint8Array): string | undefined {
 }
 
 /** Downloads `ids` through the daemon, in batches; answers with those that are here. */
-async function ensure(ids: string[]): Promise<Set<string>> {
+export async function ensure(ids: string[]): Promise<Set<string>> {
 	const ready = new Set<string>();
 	for (let at = 0; at < ids.length; at += BATCH) {
 		const { assets } = await api.robloxFetchAssets(ids.slice(at, at + BATCH));
@@ -43,7 +43,9 @@ async function ensure(ids: string[]): Promise<Set<string>> {
 }
 
 /** One downloaded asset's bytes and type, or null. */
-async function bytesOf(id: string): Promise<{ assetTypeId?: number; bytes: Uint8Array } | null> {
+export async function bytesOf(
+	id: string,
+): Promise<{ assetTypeId?: number; bytes: Uint8Array } | null> {
 	const answer = await api.robloxAsset(id);
 	if (!answer.found || !answer.data) return null;
 	return { assetTypeId: answer.assetTypeId, bytes: fromBase64(answer.data) };

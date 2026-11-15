@@ -12,14 +12,16 @@
  * - colour: RGBA8, packed into one word, the alpha 1 - Transparency;
  * - id: the instance's place in the DataModel browser's order, so a click in
  *   the view and a row in the tree name the same instance;
- * - look: its row in `MATERIALS` in the low byte, Reflectance × 255 in the next.
+ * - look: its row in `MATERIALS` in the low byte, Reflectance × 255 in the next,
+ *   and in the top sixteen bits its mesh's place in `meshes` plus one, or 0.
  *
  * Parts that are seen through -- Transparency above 0, or ForceField -- are
  * kept apart, in `translucent`, to be drawn after the rest and blended.
  *
- * For now a MeshPart, or a part with a FileMesh, is its bounding box, fully
- * transparent parts are left out, and a mesh modifier's Scale and Offset are
- * applied to the shape it stands for.
+ * A MeshPart, or a part with a FileMesh, is its box until its mesh has been
+ * downloaded and read, and then its mesh. Fully transparent parts are left
+ * out, and a mesh modifier's Scale and Offset are applied to the shape it
+ * stands for.
  */
 
 import { assetIdOf } from "./browse.js";
@@ -75,6 +77,20 @@ export interface PlaceScene {
 	 * has been downloaded through Sign in with Roblox. See `faceImages`.
 	 */
 	images?: SceneImage[];
+	/** The meshes MeshParts and FileMeshes draw, which a row's look names. */
+	meshes?: SceneMesh[];
+}
+
+/**
+ * A mesh as rows draw it. A MeshPart's fills its part's box, whatever size
+ * the mesh was made at. A SpecialMesh's is the size it was made at times its
+ * Scale, whatever the part's size: `scale` is that Scale over the part's size,
+ * as the row is already the part's size.
+ */
+export interface SceneMesh {
+	/** The mesh's asset id. */
+	asset: string;
+	scale?: number[];
 }
 
 /**
@@ -230,6 +246,8 @@ export function buildPlaceScene(
 	const positions: number[] = [];
 	const pivots: Record<number, number[]> = {};
 	const images: SceneImage[] = [];
+	const meshes: SceneMesh[] = [];
+	const meshSlots = new Map<string, number>();
 	let transparent = 0;
 
 	const visit = (inst: RbxInstance) => {
@@ -304,6 +322,22 @@ export function buildPlaceScene(
 			Math.max(0, Math.min(1, typeof reflectance === "number" ? reflectance : 0)) * 255,
 		);
 		const through = alpha < 255 || MATERIALS[material].shade === MATERIAL_SHADE.forceField;
+		// The mesh this row draws, once it is here: its place in `meshes`, plus one.
+		let mesh = 0;
+		if (kind === "mesh") {
+			const asset = assetIdOf((stringProp(modifier ?? inst, "MeshId") ?? "").trim());
+			const scale = modifier && (vec3(modifier, "Scale") ?? [1, 1, 1]).map((v, a) => v / size[a]);
+			if (asset && (!scale || scale.every(Number.isFinite))) {
+				const key = scale ? `${asset}|${scale.map((v) => v.toFixed(6)).join(",")}` : asset;
+				let slot = meshSlots.get(key);
+				if (slot === undefined) {
+					slot = meshes.length;
+					meshSlots.set(key, slot);
+					meshes.push(scale ? { asset, scale } : { asset });
+				}
+				mesh = slot + 1;
+			}
+		}
 		// Decals and Textures: on a block or a mesh, which are drawn as their box.
 		if ((kind === "block" || kind === "mesh") && !modifier) {
 			const layer: SceneImage["layer"] = through ? "seeThrough" : "solid";
@@ -325,7 +359,7 @@ export function buildPlaceScene(
 			p[2],
 			colour,
 			id,
-			material | (shine << 8),
+			(material | (shine << 8)) + mesh * 65536,
 		);
 		positions.push(p[0], p[1], p[2]);
 		// The pivot, where it is not the drawn box's centre and axes.
@@ -368,6 +402,7 @@ export function buildPlaceScene(
 		transparent,
 		pivots,
 		...(images.length > 0 ? { images } : {}),
+		...(meshes.length > 0 ? { meshes } : {}),
 	};
 	const studio = workspace?.children.find((c) => c.className === "Camera");
 	const cf = studio?.props.get("CFrame")?.value as

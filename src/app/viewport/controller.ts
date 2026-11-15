@@ -7,6 +7,7 @@
 
 import type { PlaceOutline } from "../../core/rbx/browse.js";
 import { type LightingParams, SKY_FACES } from "../../core/rbx/lighting.js";
+import type { FileMesh } from "../../core/rbx/mesh.js";
 import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene.js";
 import { addTo, sameItems } from "../placeSelection.js";
 import { boxAround } from "./box.js";
@@ -14,9 +15,18 @@ import { rayPick } from "./geometry.js";
 import { HandleBuilder } from "./handles.js";
 import { loadImages } from "./images.js";
 import { partsInRect, rectBetween, screenPoint, type ViewShot } from "./marquee.js";
+import { loadMeshes } from "./meshes.js";
 import { clampSpeed, SPEED_NOTCH } from "./speed.js";
 import { layersUsed, loadLayer } from "./textures.js";
-import { type Camera, FOV, tintedOutline, type ViewRenderer } from "./view.js";
+import {
+	type Camera,
+	FOV,
+	type MeshGeometry,
+	meshGeometry,
+	splitByMesh,
+	tintedOutline,
+	type ViewRenderer,
+} from "./view.js";
 
 /** How the view is drawn, from Settings: which renderer, and the outline's width and depth. */
 export interface ViewportOptions {
@@ -65,6 +75,8 @@ export interface ViewportState {
 	summary: {
 		parts: number;
 		meshes: number;
+		/** Of `meshes`, those drawn as their mesh rather than their box. */
+		meshesDrawn: number;
 		/** Seen through: Transparency above 0, or ForceField. */
 		translucent: number;
 		transparent: number;
@@ -294,6 +306,7 @@ export class ViewportController {
 			summary: {
 				parts: this.words.size,
 				meshes: place.kinds.mesh.count + place.translucent.mesh.count,
+				meshesDrawn: 0,
 				translucent: SCENE_KINDS.reduce((n, k) => n + place.translucent[k].count, 0),
 				transparent: place.transparent,
 				notes: place.lighting.notes,
@@ -306,6 +319,7 @@ export class ViewportController {
 			this.view.setLighting(place.lighting);
 			this.loadSky(this.view, place.lighting);
 			this.loadSunImage(this.view, place.lighting);
+			this.loadMeshes(this.view, place);
 			this.view.setOverlay(this.frustumLines());
 			this.refreshSelection();
 		} else void this.start();
@@ -520,6 +534,62 @@ export class ViewportController {
 				view.setSky(faces);
 				this.redraw();
 			});
+	}
+
+	/** Meshes read, kept for the session by asset id; null for one that did not arrive or read. */
+	private meshCache = new Map<string, Promise<FileMesh | null>>();
+
+	/**
+	 * The meshes a place's MeshParts and FileMeshes name, into the view once
+	 * Sign in with Roblox has them, each made for the rows that draw it. The
+	 * view is given them all at once: each time rebuilds its buffers.
+	 */
+	private loadMeshes(view: ViewRenderer, place: PlaceScene): void {
+		const uses = place.meshes ?? [];
+		if (uses.length === 0) {
+			view.setMeshes(new Map());
+			return;
+		}
+		const fresh = [...new Set(uses.map((use) => use.asset))].filter((a) => !this.meshCache.has(a));
+		const settled = new Map<string, (mesh: FileMesh | null) => void>();
+		for (const asset of fresh)
+			this.meshCache.set(asset, new Promise((resolve) => settled.set(asset, resolve)));
+		if (fresh.length > 0) {
+			void loadMeshes(fresh, (asset, mesh) => settled.get(asset)?.(mesh))
+				.catch(() => {})
+				.finally(() => {
+					// What did not arrive is asked for again next time.
+					for (const [asset, resolve] of settled) {
+						resolve(null);
+						void this.meshCache.get(asset)?.then((mesh) => {
+							if (!mesh) this.meshCache.delete(asset);
+						});
+					}
+				});
+		}
+		void Promise.all(uses.map((use) => this.meshCache.get(use.asset))).then((meshes) => {
+			if (this.view !== view || this.place !== place) return;
+			const made = new Map<number, MeshGeometry>();
+			meshes.forEach((mesh, slot) => {
+				if (mesh) made.set(slot, meshGeometry(mesh, uses[slot]));
+			});
+			if (made.size === 0) return;
+			view.setMeshes(made);
+			const drawn = (rows: { data: Float32Array; count: number }) =>
+				[...splitByMesh(rows, (slot) => made.has(slot)).meshes.values()].reduce(
+					(n, r) => n + r.count,
+					0,
+				);
+			const summary = this.state.summary;
+			if (summary)
+				this.set({
+					summary: {
+						...summary,
+						meshesDrawn: drawn(place.kinds.mesh) + drawn(place.translucent.mesh),
+					},
+				});
+			this.redraw();
+		});
 	}
 
 	/** A Sky's own sun image, kept for the session by its asset id. */
@@ -952,6 +1022,7 @@ export class ViewportController {
 		this.loadImages(view, this.place ?? place);
 		this.loadSky(view, (this.place ?? place).lighting);
 		this.loadSunImage(view, (this.place ?? place).lighting);
+		this.loadMeshes(view, this.place ?? place);
 		this.attach(this.canvas as HTMLCanvasElement);
 		this.refreshSelection();
 		this.fit();

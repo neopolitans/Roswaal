@@ -418,6 +418,22 @@ export const ATTRIBUTIONS: Attribution[] = [
 			"again; [rbx-dom describes the binary format](https://dom.rojo.space/binary) publicly.",
 		url: "https://create.roblox.com/docs/studio",
 	},
+	// Written from the community's public description of the format, then
+	// checked against every mesh a test place names: all fifty read.
+	{
+		name: "Roblox mesh files",
+		short: "Mesh files",
+		usage: "works",
+		holder: "Roblox Corporation",
+		licence: null,
+		ships: false,
+		where: NOTHING_SHIPS,
+		note:
+			"Roswaal reads the meshes a place's MeshParts name, downloaded through Sign in with " +
+			"Roblox, with code of its own, written from [the community's description of the " +
+			"format](https://devforum.roblox.com/t/roblox-mesh-format/326114) on the Roblox Developer Forum.",
+		url: "https://create.roblox.com/docs/parts/meshes",
+	},
 	{
 		name: "Zstandard",
 		usage: "works",

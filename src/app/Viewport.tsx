@@ -605,7 +605,14 @@ export function PlaceSummary({
 							<Rows
 								rows={[
 									["Parts", summary.parts.toLocaleString()],
-									["MeshParts", `${summary.meshes.toLocaleString()}, as their boxes`],
+									[
+										"MeshParts",
+										summary.meshesDrawn >= summary.meshes
+											? summary.meshes.toLocaleString()
+											: summary.meshesDrawn > 0
+												? `${summary.meshes.toLocaleString()}, ${(summary.meshes - summary.meshesDrawn).toLocaleString()} as their boxes`
+												: `${summary.meshes.toLocaleString()}, as their boxes`,
+									],
 									["Seen through", `${summary.translucent.toLocaleString()}, blended`],
 									["Left out", `${summary.transparent.toLocaleString()} fully transparent`],
 								]}

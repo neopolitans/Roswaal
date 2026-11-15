@@ -28,11 +28,13 @@ import {
 	type ImageQuad,
 	imageOrder,
 	imageQuads,
+	type MeshGeometry,
 	SELECT,
 	SELECT_WIDTH,
 	SKY_GAIN,
 	SUN_GAIN,
 	seeThroughSets,
+	splitByMesh,
 	type ViewRenderer,
 } from "./view.js";
 
@@ -603,6 +605,8 @@ interface Draw {
 	vertices: GPUBuffer;
 	indices: GPUBuffer;
 	indexCount: number;
+	/** 16 bits an index for the shapes made here, 32 for a mesh. */
+	format: GPUIndexFormat;
 	instances: GPUBuffer;
 	count: number;
 }
@@ -1106,38 +1110,68 @@ export class WebGpuView implements ViewRenderer {
 		this.clearEye = null;
 		this.glowing = sceneGlows(scene);
 		const sets = seeThroughSets(scene, this.glassHides);
-		for (const kind of SCENE_KINDS) {
-			const mesh = meshFor(kind);
-			const solid = scene.kinds[kind];
-			const seen = sets.clear[kind];
-			const glass = sets.glass[kind];
+		type Rows = { data: Float32Array; count: number };
+		const add = (
+			mesh: { vertices: Float32Array; indices: Uint16Array | Uint32Array },
+			solid: Rows,
+			seen: Rows,
+			glass: Rows,
+		) => {
+			const shape = () => ({
+				vertices: this.make(mesh.vertices, BUFFER.VERTEX),
+				indices: this.make(mesh.indices, BUFFER.INDEX),
+				indexCount: mesh.indices.length,
+				format: (mesh.indices instanceof Uint32Array ? "uint32" : "uint16") as GPUIndexFormat,
+			});
 			if (glass.count > 0)
 				this.glass.push({
-					vertices: this.make(mesh.vertices, BUFFER.VERTEX),
-					indices: this.make(mesh.indices, BUFFER.INDEX),
-					indexCount: mesh.indices.length,
+					...shape(),
 					instances: this.make(glass.data, BUFFER.VERTEX),
 					count: glass.count,
 				});
 			if (solid.count > 0)
 				this.draws.push({
-					vertices: this.make(mesh.vertices, BUFFER.VERTEX),
-					indices: this.make(mesh.indices, BUFFER.INDEX),
-					indexCount: mesh.indices.length,
+					...shape(),
 					instances: this.make(solid.data, BUFFER.VERTEX),
 					count: solid.count,
 				});
 			if (seen.count > 0)
 				this.clear.push({
-					vertices: this.make(mesh.vertices, BUFFER.VERTEX),
-					indices: this.make(mesh.indices, BUFFER.INDEX),
-					indexCount: mesh.indices.length,
+					...shape(),
 					instances: this.make(seen.data, BUFFER.VERTEX),
 					count: seen.count,
 					source: seen.data,
 					sorted: new Float32Array(seen.data.length),
 				});
+		};
+		for (const kind of SCENE_KINDS) {
+			if (kind !== "mesh") {
+				add(meshFor(kind), scene.kinds[kind], sets.clear[kind], sets.glass[kind]);
+				continue;
+			}
+			// A MeshPart or FileMesh whose mesh is here draws it; the rest, their box.
+			const ready = (slot: number) => this.meshes.has(slot);
+			const solid = splitByMesh(scene.kinds.mesh, ready);
+			const seen = splitByMesh(sets.clear.mesh, ready);
+			const glass = splitByMesh(sets.glass.mesh, ready);
+			add(meshFor("mesh"), solid.rest, seen.rest, glass.rest);
+			const none = { data: new Float32Array(0), count: 0 };
+			for (const [slot, mesh] of this.meshes)
+				add(
+					mesh,
+					solid.meshes.get(slot) ?? none,
+					seen.meshes.get(slot) ?? none,
+					glass.meshes.get(slot) ?? none,
+				);
 		}
+	}
+
+	/** The meshes rows name, by their place in the scene's list. */
+	private meshes: ReadonlyMap<number, MeshGeometry> = new Map();
+
+	setMeshes(meshes: ReadonlyMap<number, MeshGeometry>): void {
+		this.meshes = meshes;
+		if (this.scene) this.setScene(this.scene);
 	}
 
 	/** The see-through parts sorted again when the camera has moved. */
@@ -1352,7 +1386,7 @@ export class WebGpuView implements ViewRenderer {
 		for (const draw of draws) {
 			pass.setVertexBuffer(0, draw.vertices);
 			pass.setVertexBuffer(1, draw.instances);
-			pass.setIndexBuffer(draw.indices, "uint16");
+			pass.setIndexBuffer(draw.indices, draw.format);
 			pass.drawIndexed(draw.indexCount, draw.count);
 		}
 	}
