@@ -114,7 +114,7 @@ export interface PostEffects {
 }
 
 /** Effects drawn so far; the rest are listed as not drawn yet. */
-const DRAWN_EFFECTS = new Set(["ColorCorrectionEffect", "BlurEffect"]);
+const DRAWN_EFFECTS = new Set(["ColorCorrectionEffect", "BlurEffect", "BloomEffect"]);
 
 export function readPostEffects(holders: (RbxInstance | undefined)[]): PostEffects {
 	const post: PostEffects = { notDrawn: [] };
@@ -169,9 +169,11 @@ export function readPostEffects(holders: (RbxInstance | undefined)[]): PostEffec
 
 /** Effect names as Properties lists them: "ColorCorrection", not "ColorCorrectionEffect". */
 function effectNames(post: PostEffects): string {
-	const on = [post.colour && "ColorCorrection", post.blur !== undefined && "Blur"].filter(
-		Boolean,
-	) as string[];
+	const on = [
+		post.colour && "ColorCorrection",
+		post.blur !== undefined && "Blur",
+		post.bloom && "Bloom",
+	].filter(Boolean) as string[];
 	const later = post.notDrawn.map((c) => `${c.replace(/Effect$/, "")} (not drawn yet)`);
 	return [...on, ...later].join(", ");
 }

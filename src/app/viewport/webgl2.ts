@@ -21,7 +21,8 @@ import {
 	blurSigma,
 	type Camera,
 	FOV,
-	GLOW_GAIN,
+	type GlowShape,
+	glowShape,
 	glowSpread,
 	gradeBlock,
 	HANDLE_ALPHA,
@@ -362,13 +363,15 @@ void main() {
 const FS_IMAGE = `#version 300 es
 precision highp float;
 in vec3 vWorld; in vec3 vNormal; in vec2 vUv; in vec4 vTint;
-uniform sampler2D image; uniform float veil;
+uniform sampler2D image; uniform float veil; uniform float cut;
 ${COMMON}
 ${LOG_DEPTH}
 out vec4 o;
 void main() {
 	gl_FragDepth = logDepth();
 	vec4 t = texture(image, vUv);
+	// Into the depth where mostly opaque, as WebGpuView's fsImageDepth.
+	if (t.a * vTint.a < cut) discard;
 	// In the glow's pass, covering what glows beneath it, as WebGpuView's fsImageVeil.
 	if (veil > 0.5) {
 		o = vec4(0.0, 0.0, 0.0, t.a * vTint.a);
@@ -493,6 +496,8 @@ in vec3 vColour; in vec3 vWorld; in vec3 vNormal; flat in uint vId; in float vAl
 uniform vec4 M[${MATERIALS.length * 3}];
 uniform mediump sampler2DArray looks;
 uniform float seen;
+// Neon's glow: see glowShape's gate.
+uniform vec4 bloom;
 ${PATTERNS}
 ${LOG_DEPTH}
 out vec4 o;
@@ -508,8 +513,8 @@ void main() {
 	if (b.y > 0.5 && b.y < 1.5) {
 		vec3 lit = pow(max(neonLevel(vColour, vAlpha), 0.0), vec3(2.2));
 		float most = max(lit.r, max(lit.g, lit.b));
-		float fade = pow(max(1.0 - (1.0 - vAlpha) / 0.3, 0.0), 2.5);
-		e = (1.0 - exp(-max(lit - 0.3, 0.0))) * smoothstep(0.7, 1.0, most) * fade;
+		float fade = pow(max(1.0 - (1.0 - vAlpha) / bloom.z, 0.0), 2.5);
+		e = (1.0 - exp(-max(lit - bloom.y, 0.0))) * smoothstep(bloom.x, bloom.x + 0.3, most) * fade;
 	}
 	else if (tex.z > 0.5 && layer >= 0) e = min(lavaLight(texture(looks, vec3(uv / tex.x, float(layer))).g), vec3(1.0)) * 0.2;
 	else if (int(b.z) == 14) e = min(lavaLight(pattern(14, uv, b.x).z), vec3(1.0)) * 0.2;
@@ -603,6 +608,8 @@ export class WebGl2View implements ViewRenderer {
 	private acrossTex!: WebGLTexture;
 	private postOn = true;
 
+	/** The glow the place's BloomEffect asks for: see `glowShape`. */
+	private shape: GlowShape = glowShape(undefined, false);
 	setPostEffects(on: boolean): void {
 		this.postOn = on;
 	}
@@ -1052,6 +1059,7 @@ export class WebGl2View implements ViewRenderer {
 		gl.clearColor(0, 0, 0, 0);
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 		this.use(this.glowProgram, camera, false);
+		gl.uniform4fv(gl.getUniformLocation(this.glowProgram.program, "bloom"), this.shape.gate);
 		const seen = gl.getUniformLocation(this.glowProgram.program, "seen");
 		gl.uniform1f(seen, 0);
 		this.solids();
@@ -1086,7 +1094,7 @@ export class WebGl2View implements ViewRenderer {
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
 		gl.useProgram(this.blurProgram.program);
 		const p = gl.getUniformLocation(this.blurProgram.program, "p");
-		const spread = glowSpread(h);
+		const spread = glowSpread(h, this.shape);
 		for (const [from, into, step] of [
 			[0, 1, [1 / w, 0]],
 			[1, 0, [0, 1 / h]],
@@ -1135,7 +1143,7 @@ export class WebGl2View implements ViewRenderer {
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 		gl.useProgram(this.compositeProgram.program);
 		const at = (name: string) => gl.getUniformLocation(this.compositeProgram.program, name);
-		gl.uniform4f(at("p"), 0, 0, this.glowing ? GLOW_GAIN : 0, 0);
+		gl.uniform4f(at("p"), 0, 0, this.glowing ? this.shape.gain : 0, 0);
 		const grade = gradeBlock(this.lighting?.post, this.postOn);
 		gl.uniform4fv(at("grade0"), grade.subarray(0, 4));
 		gl.uniform4fv(at("grade1"), grade.subarray(4, 8));
@@ -1214,6 +1222,7 @@ export class WebGl2View implements ViewRenderer {
 
 	draw(camera: Camera): void {
 		const gl = this.gl;
+		this.shape = glowShape(this.lighting?.post, this.postOn);
 		if (this.glowing) {
 			if (this.clear.length > 0) this.sortClear(camera.eye);
 			this.drawGlow(camera);
@@ -1456,14 +1465,27 @@ export class WebGl2View implements ViewRenderer {
 		gl.depthMask(false);
 		gl.bindVertexArray(this.imageVao);
 		gl.activeTexture(gl.TEXTURE2);
-		let bound = "";
-		for (const q of order) {
-			const asset = this.imageList[q].asset;
-			if (asset !== bound) {
-				gl.bindTexture(gl.TEXTURE_2D, this.imageTextures.get(asset) ?? null);
-				bound = asset;
+		const draw = () => {
+			let bound = "";
+			for (const q of order) {
+				const asset = this.imageList[q].asset;
+				if (asset !== bound) {
+					gl.bindTexture(gl.TEXTURE_2D, this.imageTextures.get(asset) ?? null);
+					bound = asset;
+				}
+				gl.drawArrays(gl.TRIANGLES, q * 6, 6);
 			}
-			gl.drawArrays(gl.TRIANGLES, q * 6, 6);
+		};
+		draw();
+		// The solid parts' images then go into the depth, as WebGpuView's imageDepth.
+		if (layer === "solid") {
+			const cut = gl.getUniformLocation(this.imageProgram.program, "cut");
+			gl.colorMask(false, false, false, false);
+			gl.depthMask(true);
+			gl.uniform1f(cut, 0.5);
+			draw();
+			gl.uniform1f(cut, 0);
+			gl.colorMask(true, true, true, true);
 		}
 		gl.activeTexture(gl.TEXTURE0);
 		gl.bindVertexArray(null);

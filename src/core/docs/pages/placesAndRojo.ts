@@ -243,8 +243,8 @@ export function placesAndRojoPage(): DocPage {
 					"Glass. Signed in with Roblox through `roswaal serve`, Decals and Textures, MeshParts' " +
 					"meshes and the Sky's images are downloaded once and drawn; until then, and on the " +
 					"website, a face is its part's colour, a MeshPart its box and the sky Roswaal's own. " +
-					"The place's ColorCorrection and Blur are drawn too, and **Settings › Scene view** can " +
-					"turn them off. For now nothing casts " +
+					"The place's ColorCorrection and Blur are drawn too, and its Bloom sets how Neon " +
+					"glows; **Settings › Scene view** can turn them off. For now nothing casts " +
 					"a shadow, and the handles do not drag yet. To save memory, turn the place viewer " +
 					"off in **Settings › Extended Features**; the place's tab then says so, and the " +
 					"DataModel tree and Properties still work.",

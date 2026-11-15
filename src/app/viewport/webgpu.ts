@@ -21,7 +21,8 @@ import {
 	blurSigma,
 	type Camera,
 	FOV,
-	GLOW_GAIN,
+	type GlowShape,
+	glowShape,
 	glowSpread,
 	gradeBlock,
 	HANDLE_ALPHA,
@@ -124,12 +125,16 @@ struct Out { @builtin(position) clip: vec4f, @location(0) uv: vec2f };
 `;
 
 const SAMPLES = 4;
+/** Where the material table starts in the frame's uniforms, in bytes: after `U`'s two matrices and thirteen vec4s. */
+const UNIFORM_MATERIALS = 336;
 const SHADER = /* wgsl */ `
 struct U {
 	viewProj: mat4x4f, invViewProj: mat4x4f,
 	sun: vec4f, sunColour: vec4f, ambient: vec4f, zenith: vec4f, horizon: vec4f, ground: vec4f,
 	camPos: vec4f, select: vec4f, fog: vec4f, fogColour: vec4f, hazeColour: vec4f,
 	screen: vec4f,
+	// Neon's glow: see \`glowShape\`'s gate.
+	bloom: vec4f,
 	// The material table: two rows a material, as \`materialBlock\` writes it.
 	mats: array<vec4f, ${MATERIALS.length * 3}>,
 };
@@ -468,8 +473,8 @@ fn glowSource(i: VOut) -> vec3f {
 	if (b.y > 0.5 && b.y < 1.5) {
 		let e = pow(max(neonLevel(i.colour, i.alpha), vec3f(0.0)), vec3f(2.2));
 		let most = max(e.r, max(e.g, e.b));
-		let fade = pow(max(1.0 - (1.0 - i.alpha) / 0.3, 0.0), 2.5);
-		return (1.0 - exp(-max(e - 0.3, vec3f(0.0)))) * smoothstep(0.7, 1.0, most) * fade;
+		let fade = pow(max(1.0 - (1.0 - i.alpha) / u.bloom.z, 0.0), 2.5);
+		return (1.0 - exp(-max(e - u.bloom.y, vec3f(0.0)))) * smoothstep(u.bloom.x, u.bloom.x + 0.3, most) * fade;
 	}
 	if (tex.z > 0.5 && layer >= 0) { return min(lavaLight(look.g), vec3f(1.0)) * 0.2; }
 	if (u32(b.z) == 14u) { return min(lavaLight(pattern(14u, uv, b.x).z), vec3f(1.0)) * 0.2; }
@@ -616,6 +621,12 @@ struct IOut {
 	let d = length(u.camPos.xyz - i.world);
 	return vec4f(display(air(c, d, i.world.y)), t.a * i.tint.a);
 }
+// A solid part's Decal or Texture, where it is mostly opaque, into the depth:
+// a see-through part behind it is then hidden by it, one in front blends over it.
+@fragment fn fsImageDepth(i: IOut) -> @location(0) vec4f {
+	if (textureSample(image, imageSampler, i.uv).a * i.tint.a < 0.5) { discard; }
+	return vec4f(0.0);
+}
 // A Decal or Texture in the glow's pass: it covers what glows beneath it.
 @fragment fn fsImageVeil(i: IOut) -> @location(0) vec4f {
 	return vec4f(0.0, 0.0, 0.0, textureSample(image, imageSampler, i.uv).a * i.tint.a);
@@ -691,6 +702,10 @@ export class WebGpuView implements ViewRenderer {
 	setPostEffects(on: boolean): void {
 		this.postOn = on;
 	}
+	/** The glow the place's BloomEffect asks for: see `glowShape`. */
+	private shape: GlowShape = glowShape(undefined, false);
+	/** The glow's width the blur's parameters were last written for. */
+	private shapeSpread = -1;
 	/** The glow's source at the view's size, resolved, before it is averaged down. */
 	private glowFull?: GPUTexture;
 	private glow?: {
@@ -859,6 +874,32 @@ export class WebGpuView implements ViewRenderer {
 			},
 			primitive: { topology: "triangle-list", cullMode: "back" },
 			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "greater" },
+			multisample: { count: SAMPLES },
+		});
+		this.imageDepth = d.createRenderPipeline({
+			layout: d.createPipelineLayout({ bindGroupLayouts: [layout, this.imageLayout] }),
+			vertex: {
+				module,
+				entryPoint: "vsImage",
+				buffers: [
+					{
+						arrayStride: IMAGE_VERTEX * 4,
+						attributes: [
+							{ shaderLocation: 0, offset: 0, format: "float32x3" },
+							{ shaderLocation: 1, offset: 12, format: "float32x3" },
+							{ shaderLocation: 2, offset: 24, format: "float32x2" },
+							{ shaderLocation: 3, offset: 32, format: "float32x4" },
+						],
+					},
+				],
+			},
+			fragment: {
+				module,
+				entryPoint: "fsImageDepth",
+				targets: [{ format: this.format, writeMask: 0 }],
+			},
+			primitive: { topology: "triangle-list", cullMode: "back" },
+			depthStencil: { format: "depth32float", depthWriteEnabled: true, depthCompare: "greater" },
 			multisample: { count: SAMPLES },
 		});
 		// See-through Glass: the nearest's depth, then its colour blended at that depth.
@@ -1096,10 +1137,10 @@ export class WebGpuView implements ViewRenderer {
 			primitive: { topology: "triangle-list" },
 		});
 		this.uniform = d.createBuffer({
-			size: 320 + MATERIALS.length * 48,
+			size: UNIFORM_MATERIALS + MATERIALS.length * 48,
 			usage: BUFFER.UNIFORM | BUFFER.COPY_DST,
 		});
-		d.queue.writeBuffer(this.uniform, 320, materialBlock());
+		d.queue.writeBuffer(this.uniform, UNIFORM_MATERIALS, materialBlock());
 		this.looks = d.createTexture({
 			size: [TEXTURE_SIZE, TEXTURE_SIZE, MATERIAL_TEXTURES.length],
 			mipLevelCount: TEXTURE_LEVELS,
@@ -1353,10 +1394,7 @@ export class WebGpuView implements ViewRenderer {
 			});
 		const a = target();
 		const b = target();
-		const spread = glowSpread(h);
-		d.queue.writeBuffer(this.postParams[0], 0, new Float32Array([1 / w, 0, 0, spread]));
-		d.queue.writeBuffer(this.postParams[1], 0, new Float32Array([0, 1 / h, 0, spread]));
-		d.queue.writeBuffer(this.postParams[2], 0, new Float32Array([0, 0, GLOW_GAIN, 0]));
+		this.shapeSpread = -1;
 		const group = (tex: GPUTexture, params: GPUBuffer) =>
 			d.createBindGroup({
 				layout: this.postLayout,
@@ -1476,12 +1514,13 @@ export class WebGpuView implements ViewRenderer {
 			perspective(FOV, this.width / this.height, camera.near, camera.far, true, true),
 			lookAt(camera.eye, camera.at),
 		);
-		const u = new Float32Array(80);
+		const u = new Float32Array(UNIFORM_MATERIALS / 4);
 		u.set(vp, 0);
 		u.set(invert(vp), 16);
 		u.set(lightingBlock(this.lighting, camera.eye, SELECT, HANDLE_ALPHA), 32);
 		const sky = this.skyOn ? (this.lighting.skyboxSun ? 2 : 1) : 0;
 		u.set([this.width, this.height, this.band(), sky], 76);
+		u.set(this.shape.gate, 80);
 		this.device.queue.writeBuffer(this.uniform, 0, u);
 	}
 
@@ -1495,6 +1534,7 @@ export class WebGpuView implements ViewRenderer {
 	}
 
 	draw(camera: Camera): void {
+		this.shape = glowShape(this.lighting?.post, this.postOn);
 		this.setCamera(camera);
 		const encoder = this.device.createCommandEncoder();
 		const screen = this.context.getCurrentTexture().createView();
@@ -1504,7 +1544,18 @@ export class WebGpuView implements ViewRenderer {
 		// to it after: Neon's glow, or a post effect.
 		const glow = glowing || post ? this.compositeGroup : undefined;
 		const q = this.device.queue;
-		q.writeBuffer(this.postParams[2], 0, new Float32Array([0, 0, glowing ? GLOW_GAIN : 0, 0]));
+		q.writeBuffer(
+			this.postParams[2],
+			0,
+			new Float32Array([0, 0, glowing ? this.shape.gain : 0, 0]),
+		);
+		if (this.glow && this.shapeSpread !== this.shape.spread) {
+			const { w, h } = this.glow;
+			const spread = glowSpread(h, this.shape);
+			q.writeBuffer(this.postParams[0], 0, new Float32Array([1 / w, 0, 0, spread]));
+			q.writeBuffer(this.postParams[1], 0, new Float32Array([0, 1 / h, 0, spread]));
+			this.shapeSpread = this.shape.spread;
+		}
 		q.writeBuffer(this.gradeBuffer, 0, gradeBlock(this.lighting?.post, this.postOn));
 		if (glowing) {
 			if (this.clear.length > 0) this.sortClear(camera.eye);
@@ -1601,6 +1652,7 @@ export class WebGpuView implements ViewRenderer {
 	private imageLayout!: GPUBindGroupLayout;
 	private imageSampler!: GPUSampler;
 	private imagePipeline!: GPURenderPipeline;
+	private imageDepth!: GPURenderPipeline;
 	private imageVertices: GPUBuffer | null = null;
 	private imageList: ImageQuad[] = [];
 	private imageGroups = new Map<string, { texture: GPUTexture; group: GPUBindGroup }>();
@@ -1646,16 +1698,21 @@ export class WebGpuView implements ViewRenderer {
 		if (!this.imageVertices || this.imageList.length === 0) return;
 		const order = imageOrder(this.imageList, layer, eye, (asset) => this.imageGroups.has(asset));
 		if (order.length === 0) return;
-		pass.setPipeline(this.imagePipeline);
 		pass.setVertexBuffer(0, this.imageVertices);
-		let bound = "";
-		for (const q of order) {
-			const asset = this.imageList[q].asset;
-			if (asset !== bound) {
-				pass.setBindGroup(1, this.imageGroups.get(asset)!.group);
-				bound = asset;
+		// The solid parts' images then go into the depth, for the see-through parts drawn after.
+		for (const pipeline of layer === "solid"
+			? [this.imagePipeline, this.imageDepth]
+			: [this.imagePipeline]) {
+			pass.setPipeline(pipeline);
+			let bound = "";
+			for (const q of order) {
+				const asset = this.imageList[q].asset;
+				if (asset !== bound) {
+					pass.setBindGroup(1, this.imageGroups.get(asset)!.group);
+					bound = asset;
+				}
+				pass.draw(6, 1, q * 6);
 			}
-			pass.draw(6, 1, q * 6);
 		}
 	}
 
@@ -1744,7 +1801,7 @@ export class WebGpuView implements ViewRenderer {
 			);
 		});
 		this.loaded.add(layer);
-		this.device.queue.writeBuffer(this.uniform, 320, materialBlock(this.loaded));
+		this.device.queue.writeBuffer(this.uniform, UNIFORM_MATERIALS, materialBlock(this.loaded));
 	}
 
 	destroy(): void {

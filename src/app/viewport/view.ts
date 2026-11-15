@@ -89,9 +89,86 @@ export type ImageLayer = "solid" | "seeThrough";
  */
 export const GLOW_SPREAD = 0.0134;
 export const GLOW_GAIN = 2.6;
+
+/**
+ * Studio's Neon glow is its bloom: a place with no BloomEffect, or one that is
+ * off, glows as a BloomEffect of these settings does, and one that is on
+ * replaces them. The glow above was measured at these.
+ */
+export const BLOOM_DEFAULT = { intensity: 1, size: 24, threshold: 2 };
+
+/** How the glow is drawn: see `glowShape`. */
+export interface GlowShape {
+	/** The blur's sigma, as a share of the view's height. */
+	spread: number;
+	/** How strongly it is added over the frame, in linear light. */
+	gain: number;
+	/**
+	 * For Neon: the brightest channel's light at which it starts to glow, the
+	 * light taken off before it does, and the Transparency at which its glow is
+	 * gone.
+	 */
+	gate: [number, number, number, number];
+}
+
+/**
+ * Per Size: the halo's width and strength, as shares of Size 24's, fitted to
+ * Studio's captures of Size 8, 24 and 56 (sigma 3.9, 13.9 and 27.1 pixels in
+ * a view 1049 tall). The width does not grow in step with Size, and a wide
+ * halo is stronger, not the same light spread thinner.
+ */
+const BLOOM_SIZES: [number, number, number][] = [
+	[0, 0, 1.08],
+	[8, 0.28, 1.08],
+	[24, 1, 1],
+	[56, 1.95, 1.92],
+];
+
+/**
+ * Per Threshold: where Neon starts to glow, the Transparency its glow is gone
+ * at, and how much stronger it is than at Threshold 2. Fitted to Studio's
+ * captures of greys and olive at several Transparencies, at Threshold 0, 0.5,
+ * 1 and 2. Lower Thresholds let dimmer and more see-through Neon glow.
+ */
+const BLOOM_THRESHOLDS: [number, number, number, number][] = [
+	[0, 0.45, 1.6, 1.5],
+	[0.5, 0.55, 1.25, 1.35],
+	[1, 0.65, 0.9, 1.25],
+	[2, 0.7, 0.3, 1],
+];
+
+/** `table`'s rows, by their first column, read at `x`: straight lines between them, the last one carried on past them. */
+function between(table: number[][], x: number): number[] {
+	const at = table.findIndex((row) => row[0] >= x);
+	const i = Math.max(1, at < 0 ? table.length - 1 : at);
+	const [a, b] = [table[i - 1], table[i]];
+	const k = (x - a[0]) / (b[0] - a[0]);
+	return a.map((v, c) => v * (1 - k) + b[c] * k);
+}
+
+/**
+ * The glow a place's BloomEffect asks for, or Studio's own when it has none
+ * on, or post effects are off in Settings. Its strength grows more slowly than
+ * Intensity does, as Intensity to the 0.6 in Studio's captures of 0.5, 1 and 2.
+ * Above Threshold 2 only one capture was taken (10, where nothing glows), so
+ * there the start rises by 0.7 a unit, a guess.
+ */
+export function glowShape(post: PostEffects | undefined, on: boolean): GlowShape {
+	const { intensity, size, threshold } = (on && post?.bloom) || BLOOM_DEFAULT;
+	const t = Math.max(0, threshold);
+	const [, start, gone, strength] =
+		t <= 2 ? between(BLOOM_THRESHOLDS, t) : [t, 0.7 + 0.7 * (t - 2), 0.3, 1];
+	const [, wide, strong] = between(BLOOM_SIZES, Math.max(0, size));
+	return {
+		spread: GLOW_SPREAD * Math.max(0, wide),
+		gain: GLOW_GAIN * strength * strong * Math.max(0, intensity) ** 0.6,
+		gate: [start, 0.15 * t, gone, 0],
+	};
+}
+
 /** How wide the glow's blur is, in its own texels, for a glow `high` texels high. */
-export function glowSpread(high: number): number {
-	return GLOW_SPREAD * high;
+export function glowSpread(high: number, shape?: GlowShape): number {
+	return (shape?.spread ?? GLOW_SPREAD) * high;
 }
 
 /** One Decal or Texture quad, for ordering: its image, its layer and its middle. */

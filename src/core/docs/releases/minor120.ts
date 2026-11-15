@@ -9,9 +9,21 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.246.0",
+		date: "2026-11-15",
+		headline: "The place viewer draws a place's Bloom.",
+		added: [
+			"**Bloom in the place viewer.** A place's BloomEffect sets how Neon glows: Threshold decides which Neon glows, Intensity how strongly, and Size how far, as in Studio. With no BloomEffect, or one turned off, Neon glows as before.",
+		],
+		fixed: [
+			"**See-through parts** in front of a Decal or Texture on an invisible part are drawn over it, not under it.",
+		],
+	},
+	{
 		version: "0.245.1",
 		date: "2026-11-15",
-		headline: "A box drag in the place viewer picks models, and images show on parts that are not drawn.",
+		headline:
+			"A box drag in the place viewer picks models, and images show on parts that are not drawn.",
 		fixed: [
 			"**A box drag in the place viewer** picks each part's outermost model, once, as a click does, rather than the parts inside it. Parts no model holds are picked themselves.",
 			"**Decals and Textures on fully transparent parts** are drawn, as Studio draws them. Places often hang an image in front of a light this way.",

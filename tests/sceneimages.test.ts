@@ -250,7 +250,7 @@ describe("each face's image, as Studio draws it", () => {
 });
 
 describe("an image on a part that is not drawn", () => {
-	it("still shows, after the see-through parts, as Studio shows it", () => {
+	it("still shows, with the solid parts' images, as Studio shows it", () => {
 		const invisible = block(
 			inst("Texture", { Texture: ["String", bytes("rbxassetid://321")], Face: ["Enum", 1] }),
 		);
@@ -258,6 +258,6 @@ describe("an image on a part that is not drawn", () => {
 		const scene = buildPlaceScene(inst("Workspace", {}, [invisible]), () => 7);
 		expect(scene.transparent).toBe(1);
 		expect(scene.kinds.block.count + scene.translucent.block.count).toBe(0);
-		expect(scene.images?.map((i) => [i.asset, i.layer])).toEqual([["321", "seeThrough"]]);
+		expect(scene.images?.map((i) => [i.asset, i.layer])).toEqual([["321", "solid"]]);
 	});
 });

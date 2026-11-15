@@ -262,7 +262,8 @@ export function buildPlaceScene(
 		if (typeof transparency === "number" && transparency >= 0.999) {
 			transparent++;
 			// The part is not drawn, but its Decals and Textures still are, as
-			// in Studio: places hang an image in front of a light on one.
+			// in Studio: places hang an image in front of a light on one. With
+			// the solid parts' images, so see-through parts in front blend over them.
 			const id = idOf(inst);
 			const cf = inst.props.get("CFrame")?.value as
 				| { position: number[]; rotation: number[] }
@@ -277,7 +278,7 @@ export function buildPlaceScene(
 			const kind = kindOf(inst, undefined);
 			if (id !== undefined && cf && size && !modified && (kind === "block" || kind === "mesh"))
 				for (const image of faceImages(inst, id, cf.rotation, cf.position, size))
-					images.push({ ...image, layer: "seeThrough" });
+					images.push({ ...image, layer: "solid" });
 			return;
 		}
 		const id = idOf(inst);
