@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.247.0",
+		date: "2026-11-15",
+		headline: "Alt-click can step into a Model one level at a time, and the Panels menu lists only the panels for what is open.",
+		added: [
+			"**Settings › Scene view › Selection › Alt-click** can step one Model further in with each Alt-click in the place viewer, down to the part. Shift-click still picks the part itself.",
+		],
+		changed: [
+			"**The Panels menu** lists only the panels for what is open: a graph's panels with a graph, Properties with a place.",
+		],
+	},
+	{
 		version: "0.246.0",
 		date: "2026-11-15",
 		headline: "The place viewer draws a place's Bloom.",
