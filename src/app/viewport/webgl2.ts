@@ -35,9 +35,14 @@ import {
 	postActive,
 	SELECT,
 	SELECT_WIDTH,
+	SKY_BLOCK,
 	SKY_GAIN,
+	SKY_MAP,
+	SKY_VIEWS,
 	SUN_GAIN,
+	sceneBox,
 	seeThroughSets,
+	skyBlock,
 	splitByMesh,
 	type ViewRenderer,
 } from "./view.js";
@@ -214,6 +219,39 @@ const vec3 LAVA_HOT = vec3(1.0, 0.45, 0.1);
 vec3 lavaLight(float m) { return mix(LAVA, LAVA_HOT, m * m) * m; }
 `;
 // A surface in its material, as WebGpuView's \`surface\` draws it.
+// The place's depth from each sky direction, and the sun's last, as WebGpuView's skySees.
+const SKY_VIS = `
+uniform highp sampler2DArrayShadow skyMaps;
+uniform mat4 skyViews[9];
+uniform vec4 skyInfo;
+float skySees(int k, vec3 p) {
+	vec4 c = skyViews[k] * vec4(p, 1.0);
+	vec3 q = c.xyz * 0.5 + 0.5;
+	if (any(lessThan(q.xy, vec2(0.0))) || any(greaterThan(q, vec3(1.0)))) return 1.0;
+	return texture(skyMaps, vec4(q.xy, float(k), q.z - skyInfo.y * 0.25));
+}
+float skyVisibility(vec3 p, vec3 n) {
+	if (skyInfo.w < 0.5) return 1.0;
+	vec3 q = p + n * skyInfo.x * 1.5;
+	float seen = 0.0;
+	for (int k = 0; k < 8; k++) seen += skySees(k, q);
+	return seen / 8.0;
+}
+float sunSees(vec3 p, vec3 n) {
+	if (skyInfo.w < 0.5) return 1.0;
+	vec3 q = p + n * skyInfo.x * 1.5;
+	float s = skyInfo.x * 0.5;
+	return 0.25 * (skySees(8, q + vec3(s, 0.0, s)) + skySees(8, q + vec3(-s, 0.0, s)) + skySees(8, q + vec3(s, 0.0, -s)) + skySees(8, q + vec3(-s, 0.0, -s)));
+}
+`;
+const VS_DEPTH = `#version 300 es
+layout(location=0) in vec3 pos;
+layout(location=2) in vec3 c0; layout(location=3) in vec3 c1; layout(location=4) in vec3 c2; layout(location=5) in vec3 p;
+uniform mat4 viewProj;
+void main() { gl_Position = viewProj * vec4(mat3(c0, c1, c2) * pos + p, 1.0); }`;
+const FS_DEPTH = `#version 300 es
+precision highp float;
+void main() {}`;
 const SURFACE = `
 uniform vec4 M[${MATERIALS.length * 3}];
 uniform mediump sampler2DArray looks;
@@ -260,9 +298,13 @@ vec4 surface(vec3 colour, vec3 n, vec3 world, float alpha, uint look, vec3 local
 		float ndl = max(dot(n, l), 0.0);
 		vec3 h = normalize(l + v);
 		float spec = pow(max(dot(n, h), 0.0), a.y) * a.x * pat.y;
-		vec3 fill = L[2].rgb * (0.9 + 0.1 * n.y);
-		c = albedo * (1.0 - a.z * 0.6) * (fill + L[1].rgb * ndl) + L[1].rgb * mix(vec3(1.0), albedo, a.z) * spec * ndl;
-		vec3 seen = sky(reflect(-v, n));
+		// Ambient everywhere, OutdoorAmbient and the sky as far as the sky
+		// reaches, and the sun where it does, as WebGpuView's surface.
+		float vis = skyVisibility(world, n);
+		vec3 lit = L[1].rgb * ndl * sunSees(world, n);
+		vec3 fill = (vec3(L[8].w, L[9].w, L[10].w) + L[2].rgb * vis) * (0.9 + 0.1 * n.y);
+		c = albedo * (1.0 - a.z * 0.6) * (fill + lit) + mix(vec3(1.0), albedo, a.z) * spec * lit;
+		vec3 seen = sky(reflect(-v, n)) * max(vis, 0.05);
 		c += seen * albedo * a.z * a.x * 0.25;
 		float mirror = shine;
 		if (b.y > 1.5) mirror = max(mirror, 0.2 + 0.5 * pow(1.0 - abs(dot(n, v)), 3.0));
@@ -332,6 +374,7 @@ precision highp int;
 in vec3 vColour; in vec3 vWorld; in vec3 vNormal; flat in uint vId; in float vAlpha; flat in uint vLook; in vec3 vLocal; in vec3 vLNormal;
 uniform float outline; uniform vec3 select; uniform float handle; uniform float alpha;
 ${COMMON}
+${SKY_VIS}
 ${SURFACE}
 ${LOG_DEPTH}
 out vec4 o;
@@ -365,6 +408,7 @@ precision highp float;
 in vec3 vWorld; in vec3 vNormal; in vec2 vUv; in vec4 vTint;
 uniform sampler2D image; uniform float veil; uniform float cut;
 ${COMMON}
+${SKY_VIS}
 ${LOG_DEPTH}
 out vec4 o;
 void main() {
@@ -380,8 +424,9 @@ void main() {
 	vec3 albedo = pow(t.rgb, vec3(2.2)) * pow(vTint.rgb, vec3(2.2));
 	vec3 n = normalize(vNormal);
 	float ndl = max(dot(n, L[0].xyz), 0.0);
-	vec3 fill = L[2].rgb * (0.9 + 0.1 * n.y);
-	vec3 c = albedo * (fill + L[1].rgb * ndl);
+	float vis = skyVisibility(vWorld, n);
+	vec3 fill = (vec3(L[8].w, L[9].w, L[10].w) + L[2].rgb * vis) * (0.9 + 0.1 * n.y);
+	vec3 c = albedo * (fill + L[1].rgb * ndl * sunSees(vWorld, n));
 	o = vec4(display(air(c, length(L[6].xyz - vWorld), vWorld.y)), t.a * vTint.a);
 }`;
 const VS_SKY = `#version 300 es
@@ -686,6 +731,7 @@ export class WebGl2View implements ViewRenderer {
 		gl.useProgram(this.imageProgram.program);
 		gl.uniform1i(gl.getUniformLocation(this.imageProgram.program, "image"), 2);
 		this.glowProgram = this.link(VS, FS_GLOW);
+		this.makeSkyMaps();
 		gl.useProgram(this.glowProgram.program);
 		gl.uniform4fv(gl.getUniformLocation(this.glowProgram.program, "M[0]"), materialBlock());
 		gl.uniform1i(gl.getUniformLocation(this.glowProgram.program, "looks"), 1);
@@ -730,6 +776,7 @@ export class WebGl2View implements ViewRenderer {
 
 	setLighting(lighting: LightingParams): void {
 		this.lighting = lighting;
+		this.skyDirty = true;
 	}
 
 	setScene(scene: PlaceScene): void {
@@ -737,6 +784,7 @@ export class WebGl2View implements ViewRenderer {
 		for (const d of [...this.draws, ...this.clear, ...this.glass]) gl.deleteVertexArray(d.vao);
 		for (const b of this.sceneBuffers) gl.deleteBuffer(b);
 		this.scene = scene;
+		this.skyDirty = true;
 		this.setImages(scene);
 		this.draws = [];
 		this.clear = [];
@@ -1183,6 +1231,89 @@ export class WebGl2View implements ViewRenderer {
 		};
 	}
 
+	// -- sky visibility: see skyBlock ------------------------------------------------
+
+	private skyMaps: WebGLTexture | null = null;
+	private skyFbo: WebGLFramebuffer | null = null;
+	private depthProgram!: Program;
+	/** What the shaders read, as skyBlock gives it; all 0, the maps are off. */
+	private skyData: Float32Array = new Float32Array(SKY_BLOCK);
+	/** The maps are drawn again before the next frame: the place or the sun moved. */
+	private skyDirty = true;
+	private skyLocations = new Map<
+		WebGLProgram,
+		{
+			views: WebGLUniformLocation | null;
+			info: WebGLUniformLocation | null;
+			maps: WebGLUniformLocation | null;
+		}
+	>();
+
+	private skyAt(program: WebGLProgram) {
+		let at = this.skyLocations.get(program);
+		if (!at) {
+			const gl = this.gl;
+			at = {
+				views: gl.getUniformLocation(program, "skyViews"),
+				info: gl.getUniformLocation(program, "skyInfo"),
+				maps: gl.getUniformLocation(program, "skyMaps"),
+			};
+			this.skyLocations.set(program, at);
+		}
+		return at;
+	}
+
+	private makeSkyMaps(): void {
+		const gl = this.gl;
+		this.depthProgram = this.link(VS_DEPTH, FS_DEPTH);
+		this.skyMaps = gl.createTexture();
+		gl.activeTexture(gl.TEXTURE6);
+		gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.skyMaps);
+		gl.texStorage3D(gl.TEXTURE_2D_ARRAY, 1, gl.DEPTH_COMPONENT32F, SKY_MAP, SKY_MAP, SKY_VIEWS + 1);
+		gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_COMPARE_MODE, gl.COMPARE_REF_TO_TEXTURE);
+		gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_COMPARE_FUNC, gl.LEQUAL);
+		gl.activeTexture(gl.TEXTURE0);
+		this.skyFbo = gl.createFramebuffer();
+	}
+
+	/** The place's depth from each sky direction and the sun, into the maps. */
+	private drawSkyMaps(): void {
+		const gl = this.gl;
+		this.skyDirty = false;
+		const box = this.scene ? sceneBox(this.scene) : null;
+		this.skyData = skyBlock(box, this.lighting?.sun ?? [0, 1, 0], false);
+		if (!box || !this.skyMaps) return;
+		gl.bindFramebuffer(gl.FRAMEBUFFER, this.skyFbo);
+		gl.drawBuffers([gl.NONE]);
+		gl.readBuffer(gl.NONE);
+		gl.viewport(0, 0, SKY_MAP, SKY_MAP);
+		gl.useProgram(this.depthProgram.program);
+		gl.disable(gl.CULL_FACE);
+		gl.enable(gl.DEPTH_TEST);
+		gl.depthMask(true);
+		gl.clearDepth(1);
+		for (let k = 0; k <= SKY_VIEWS; k++) {
+			gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, this.skyMaps, 0, k);
+			gl.clear(gl.DEPTH_BUFFER_BIT);
+			gl.uniformMatrix4fv(
+				this.depthProgram.viewProj,
+				false,
+				this.skyData.subarray(k * 16, k * 16 + 16),
+			);
+			this.solids();
+		}
+		gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, null, 0, 0);
+		gl.enable(gl.CULL_FACE);
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+		gl.activeTexture(gl.TEXTURE6);
+		gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.skyMaps);
+		gl.activeTexture(gl.TEXTURE0);
+	}
+
 	private use(prog: Program, camera: Camera, outline: boolean): void {
 		const gl = this.gl;
 		gl.useProgram(prog.program);
@@ -1195,6 +1326,12 @@ export class WebGl2View implements ViewRenderer {
 		if (prog.invViewProj) gl.uniformMatrix4fv(prog.invViewProj, false, invert(vp));
 		if (prog.block)
 			gl.uniform4fv(prog.block, lightingBlock(this.lighting, camera.eye, SELECT, HANDLE_ALPHA));
+		const sky = this.skyAt(prog.program);
+		if (sky.views) {
+			gl.uniformMatrix4fv(sky.views, false, this.skyData.subarray(0, 16 * (SKY_VIEWS + 1)));
+			gl.uniform4fv(sky.info, this.skyData.subarray(16 * (SKY_VIEWS + 1)));
+			gl.uniform1i(sky.maps, 6);
+		}
 		gl.uniform1f(prog.outline, outline ? 1 : 0);
 		const band = this.outlineWidth * (this.width / (this.canvas?.clientWidth || this.width));
 		gl.uniform3f(prog.screen, this.width, this.height, band);
@@ -1222,6 +1359,7 @@ export class WebGl2View implements ViewRenderer {
 
 	draw(camera: Camera): void {
 		const gl = this.gl;
+		if (this.skyDirty) this.drawSkyMaps();
 		this.shape = glowShape(this.lighting?.post, this.postOn);
 		if (this.glowing) {
 			if (this.clear.length > 0) this.sortClear(camera.eye);

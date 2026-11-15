@@ -35,9 +35,14 @@ import {
 	postActive,
 	SELECT,
 	SELECT_WIDTH,
+	SKY_BLOCK,
 	SKY_GAIN,
+	SKY_MAP,
+	SKY_VIEWS,
 	SUN_GAIN,
+	sceneBox,
 	seeThroughSets,
+	skyBlock,
 	splitByMesh,
 	type ViewRenderer,
 } from "./view.js";
@@ -149,6 +154,33 @@ struct U {
 @group(0) @binding(4) var skySampler: sampler;
 // A Sky's own sun image, when \`camPos.w\`, its half width as a tangent, is more than 0.
 @group(0) @binding(5) var sunImage: texture_2d<f32>;
+// The place's depth from each sky direction, and the sun's last: see skyBlock.
+struct SkyU { views: array<mat4x4f, 9>, info: vec4f };
+@group(0) @binding(6) var skyMaps: texture_depth_2d_array;
+@group(0) @binding(7) var skyCompare: sampler_comparison;
+@group(0) @binding(8) var<uniform> skyU: SkyU;
+// 1 where map k sees p, with nothing between it and the sky; 1 off the map.
+fn skySees(k: i32, p: vec3f) -> f32 {
+	let c = skyU.views[k] * vec4f(p, 1.0);
+	let uv = vec2f(c.x * 0.5 + 0.5, 0.5 - c.y * 0.5);
+	if (any(uv < vec2f(0.0)) || any(uv > vec2f(1.0)) || c.z > 1.0) { return 1.0; }
+	return textureSampleCompareLevel(skyMaps, skyCompare, uv, k, c.z - skyU.info.y * 0.5);
+}
+// How much of the sky reaches p, on a face turned to n: the share of the maps that see it.
+fn skyVisibility(p: vec3f, n: vec3f) -> f32 {
+	if (skyU.info.w < 0.5) { return 1.0; }
+	let q = p + n * skyU.info.x * 1.5;
+	var seen = 0.0;
+	for (var k = 0; k < 8; k++) { seen = seen + skySees(k, q); }
+	return seen / 8.0;
+}
+// Whether the sun reaches p: its own map, four taps a texel apart.
+fn sunSees(p: vec3f, n: vec3f) -> f32 {
+	if (skyU.info.w < 0.5) { return 1.0; }
+	let q = p + n * skyU.info.x * 1.5;
+	let s = skyU.info.x * 0.5;
+	return 0.25 * (skySees(8, q + vec3f(s, 0.0, s)) + skySees(8, q + vec3f(-s, 0.0, s)) + skySees(8, q + vec3f(s, 0.0, -s)) + skySees(8, q + vec3f(-s, 0.0, -s)));
+}
 struct VIn {
 	@location(0) pos: vec3f, @location(1) nrm: vec3f,
 	@location(2) c0: vec3f, @location(3) c1: vec3f, @location(4) c2: vec3f, @location(5) p: vec3f,
@@ -442,9 +474,13 @@ fn surface(i: VOut) -> vec4f {
 		let ndl = max(dot(n, l), 0.0);
 		let h = normalize(l + v);
 		let spec = pow(max(dot(n, h), 0.0), a.y) * a.x * pat.y;
-		let fill = u.ambient.rgb * (0.9 + 0.1 * n.y);
-		c = albedo * (1.0 - a.z * 0.6) * (fill + u.sunColour.rgb * ndl) + u.sunColour.rgb * mix(vec3f(1.0), albedo, a.z) * spec * ndl;
-		let seen = sky(reflect(-v, n));
+		// Ambient everywhere, OutdoorAmbient and the sky as far as the sky
+		// reaches, and the sun where it does.
+		let vis = skyVisibility(i.world, n);
+		let lit = u.sunColour.rgb * ndl * sunSees(i.world, n);
+		let fill = (vec3f(u.fog.w, u.fogColour.w, u.hazeColour.w) + u.ambient.rgb * vis) * (0.9 + 0.1 * n.y);
+		c = albedo * (1.0 - a.z * 0.6) * (fill + lit) + mix(vec3f(1.0), albedo, a.z) * spec * lit;
+		let seen = sky(reflect(-v, n)) * max(vis, 0.05);
 		// A metal shows a little of the sky in its own colour.
 		c = c + seen * albedo * a.z * a.x * 0.25;
 		// Reflectance, and glass's own, stronger at a glancing angle.
@@ -616,8 +652,9 @@ struct IOut {
 	let albedo = pow(t.rgb, vec3f(2.2)) * pow(i.tint.rgb, vec3f(2.2));
 	let n = normalize(i.normal);
 	let ndl = max(dot(n, u.sun.xyz), 0.0);
-	let fill = u.ambient.rgb * (0.9 + 0.1 * n.y);
-	let c = albedo * (fill + u.sunColour.rgb * ndl);
+	let vis = skyVisibility(i.world, n);
+	let fill = (vec3f(u.fog.w, u.fogColour.w, u.hazeColour.w) + u.ambient.rgb * vis) * (0.9 + 0.1 * n.y);
+	let c = albedo * (fill + u.sunColour.rgb * ndl * sunSees(i.world, n));
 	let d = length(u.camPos.xyz - i.world);
 	return vec4f(display(air(c, d, i.world.y)), t.a * i.tint.a);
 }
@@ -789,9 +826,17 @@ export class WebGpuView implements ViewRenderer {
 				{ binding: 3, visibility: STAGE.FRAGMENT, texture: { viewDimension: "2d-array" } },
 				{ binding: 4, visibility: STAGE.FRAGMENT, sampler: {} },
 				{ binding: 5, visibility: STAGE.FRAGMENT, texture: {} },
+				{
+					binding: 6,
+					visibility: STAGE.FRAGMENT,
+					texture: { sampleType: "depth", viewDimension: "2d-array" },
+				},
+				{ binding: 7, visibility: STAGE.FRAGMENT, sampler: { type: "comparison" } },
+				{ binding: 8, visibility: STAGE.FRAGMENT, buffer: {} },
 			],
 		});
 		this.layout = layout;
+		this.makeSkyMaps(buffers);
 		const pipelineLayout = d.createPipelineLayout({ bindGroupLayouts: [layout] });
 		const depth = {
 			format: "depth32float" as const,
@@ -1182,6 +1227,7 @@ export class WebGpuView implements ViewRenderer {
 
 	setLighting(lighting: LightingParams): void {
 		this.lighting = lighting;
+		this.skyDirty = true;
 	}
 
 	setHandles(handles: Handles): void {
@@ -1198,6 +1244,7 @@ export class WebGpuView implements ViewRenderer {
 		for (const d of [...this.draws, ...this.clear, ...this.glass])
 			for (const b of [d.vertices, d.indices, d.instances]) b.destroy();
 		this.scene = scene;
+		this.skyDirty = true;
 		this.setImages(scene);
 		this.draws = [];
 		this.clear = [];
@@ -1537,6 +1584,7 @@ export class WebGpuView implements ViewRenderer {
 		this.shape = glowShape(this.lighting?.post, this.postOn);
 		this.setCamera(camera);
 		const encoder = this.device.createCommandEncoder();
+		if (this.skyDirty) this.drawSkyMaps(encoder);
 		const screen = this.context.getCurrentTexture().createView();
 		const glowing = this.glowing && !!this.glow;
 		const post = postActive(this.lighting?.post, this.postOn);
@@ -1788,7 +1836,88 @@ export class WebGpuView implements ViewRenderer {
 				{ binding: 3, resource: this.skyImages!.createView({ dimension: "2d-array" }) },
 				{ binding: 4, resource: this.skySampler },
 				{ binding: 5, resource: this.sunTexture!.createView() },
+				{ binding: 6, resource: this.skyMaps.createView({ dimension: "2d-array" }) },
+				{ binding: 7, resource: this.skyCompare },
+				{ binding: 8, resource: { buffer: this.skyUniform } },
 			],
+		});
+	}
+
+	// -- sky visibility: see skyBlock ------------------------------------------------
+
+	private skyMaps!: GPUTexture;
+	private skyCompare!: GPUSampler;
+	private skyUniform!: GPUBuffer;
+	private skyDepth!: GPURenderPipeline;
+	private skyViewGroups: { buffer: GPUBuffer; group: GPUBindGroup }[] = [];
+	/** The maps are drawn again before the next frame: the place or the sun moved. */
+	private skyDirty = true;
+
+	private makeSkyMaps(buffers: GPUVertexBufferLayout[]): void {
+		const d = this.device;
+		this.skyMaps = d.createTexture({
+			size: [SKY_MAP, SKY_MAP, SKY_VIEWS + 1],
+			format: "depth32float",
+			usage: TEXTURE.RENDER_ATTACHMENT | TEXTURE.TEXTURE_BINDING,
+		});
+		this.skyCompare = d.createSampler({
+			compare: "less-equal",
+			magFilter: "linear",
+			minFilter: "linear",
+		});
+		this.skyUniform = d.createBuffer({
+			size: SKY_BLOCK * 4,
+			usage: BUFFER.UNIFORM | BUFFER.COPY_DST,
+		});
+		const layout = d.createBindGroupLayout({
+			entries: [{ binding: 0, visibility: STAGE.VERTEX, buffer: {} }],
+		});
+		const module = d.createShaderModule({
+			code: `struct D { viewProj: mat4x4f };
+@group(0) @binding(0) var<uniform> d: D;
+struct VIn { @location(0) pos: vec3f, @location(2) c0: vec3f, @location(3) c1: vec3f, @location(4) c2: vec3f, @location(5) p: vec3f };
+@vertex fn vsDepth(v: VIn) -> @builtin(position) vec4f {
+	return d.viewProj * vec4f(mat3x3f(v.c0, v.c1, v.c2) * v.pos + v.p, 1.0);
+}`,
+		});
+		this.skyDepth = d.createRenderPipeline({
+			layout: d.createPipelineLayout({ bindGroupLayouts: [layout] }),
+			vertex: { module, entryPoint: "vsDepth", buffers },
+			primitive: { topology: "triangle-list", cullMode: "none" },
+			depthStencil: { format: "depth32float", depthWriteEnabled: true, depthCompare: "less" },
+		});
+		this.skyViewGroups = Array.from({ length: SKY_VIEWS + 1 }, () => {
+			const buffer = d.createBuffer({ size: 64, usage: BUFFER.UNIFORM | BUFFER.COPY_DST });
+			return {
+				buffer,
+				group: d.createBindGroup({ layout, entries: [{ binding: 0, resource: { buffer } }] }),
+			};
+		});
+	}
+
+	/** The place's depth from each sky direction and the sun, into the maps. */
+	private drawSkyMaps(encoder: GPUCommandEncoder): void {
+		this.skyDirty = false;
+		const q = this.device.queue;
+		const box = this.scene ? sceneBox(this.scene) : null;
+		const block = skyBlock(box, this.lighting?.sun ?? [0, 1, 0], true);
+		q.writeBuffer(this.skyUniform, 0, block);
+		if (!box) return;
+		this.skyViewGroups.forEach(({ buffer, group }, k) => {
+			q.writeBuffer(buffer, 0, block.subarray(k * 16, k * 16 + 16));
+			const pass = encoder.beginRenderPass({
+				colorAttachments: [],
+				depthStencilAttachment: {
+					view: this.skyMaps.createView({ dimension: "2d", baseArrayLayer: k, arrayLayerCount: 1 }),
+					depthClearValue: 1,
+					depthLoadOp: "clear",
+					depthStoreOp: "store",
+				},
+			});
+			pass.setPipeline(this.skyDepth);
+			pass.setBindGroup(0, group);
+			this.solids(pass);
+			pass.end();
 		});
 	}
 

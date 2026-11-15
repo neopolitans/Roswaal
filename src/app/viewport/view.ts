@@ -16,6 +16,7 @@ import {
 	type SceneMesh,
 } from "../../core/rbx/scene.js";
 import type { Handles } from "./handles.js";
+import { lookAt, type Mat4, multiply } from "./math.js";
 
 export interface Camera {
 	eye: number[];
@@ -164,6 +165,96 @@ export function glowShape(post: PostEffects | undefined, on: boolean): GlowShape
 		gain: GLOW_GAIN * strength * strong * Math.max(0, intensity) ** 0.6,
 		gate: [start, 0.15 * t, gone, 0],
 	};
+}
+
+/**
+ * Sky visibility: the place is seen from this many directions over the sky, as
+ * depth maps, and a point lit by OutdoorAmbient and the sky's fill by the share
+ * of them that see it, as Studio lights only what the sky can reach. The sun's
+ * own map comes after them.
+ */
+export const SKY_VIEWS = 8;
+/** Each map's side, in texels: about 4 studs a texel over a place 4,000 studs across. */
+export const SKY_MAP = 1024;
+/** Floats in the block the shaders read: a matrix a map, then one vec4. */
+export const SKY_BLOCK = 16 * (SKY_VIEWS + 1) + 4;
+
+/** Towards the sky: straight up, then the rest round the horizon, 45 degrees above it. */
+export function skyDirections(): number[][] {
+	const out = [[0, 1, 0]];
+	const up = Math.PI / 4;
+	for (let k = 0; k < SKY_VIEWS - 1; k++) {
+		const a = (k / (SKY_VIEWS - 1)) * 2 * Math.PI;
+		out.push([Math.cos(up) * Math.cos(a), Math.sin(up), Math.cos(up) * Math.sin(a)]);
+	}
+	return out;
+}
+
+/** The box round every solid part, or null for a place with none. */
+export function sceneBox(scene: PlaceScene): { min: number[]; max: number[] } | null {
+	const min = [Infinity, Infinity, Infinity];
+	const max = [-Infinity, -Infinity, -Infinity];
+	for (const kind of SCENE_KINDS) {
+		const { data, count } = scene.kinds[kind];
+		for (let r = 0; r < count; r++) {
+			const o = r * SCENE_STRIDE;
+			for (let a = 0; a < 3; a++) {
+				const half =
+					0.5 * (Math.abs(data[o + a]) + Math.abs(data[o + 3 + a]) + Math.abs(data[o + 6 + a]));
+				const at = data[o + 9 + a];
+				if (!Number.isFinite(at)) continue;
+				min[a] = Math.min(min[a], at - half);
+				max[a] = Math.max(max[a], at + half);
+			}
+		}
+	}
+	return min[0] <= max[0] ? { min, max } : null;
+}
+
+/**
+ * The place seen from `dir`, towards the sky, square on to it and far enough
+ * off to hold all of `box`: an orthographic view, depth 0 at the sky's side.
+ * `zeroToOne` for WebGPU's depth, else WebGL's -1 to 1.
+ */
+export function skyView(
+	box: { min: number[]; max: number[] },
+	dir: number[],
+	zeroToOne: boolean,
+): { matrix: Mat4; reach: number } {
+	const centre = box.min.map((v, a) => (v + box.max[a]) / 2);
+	const reach = Math.hypot(...box.max.map((v, a) => v - box.min[a])) / 2 + 1;
+	const eye = centre.map((v, a) => v + dir[a] * reach);
+	const view = lookAt(eye, centre, Math.abs(dir[1]) > 0.99 ? [0, 0, 1] : [0, 1, 0]);
+	const far = 2 * reach;
+	const proj = new Float32Array(16);
+	proj[0] = 1 / reach;
+	proj[5] = 1 / reach;
+	proj[10] = zeroToOne ? -1 / far : -2 / far;
+	proj[14] = zeroToOne ? 0 : -1;
+	proj[15] = 1;
+	return { matrix: multiply(proj, view), reach };
+}
+
+/**
+ * The block the shaders read for sky visibility: each map's view, the sun's
+ * last, then a texel's width in studs, depth a stud, and whether the maps are
+ * drawn. Off, every point sees all of the sky, as before they existed.
+ */
+export function skyBlock(
+	box: { min: number[]; max: number[] } | null,
+	sun: number[],
+	zeroToOne: boolean,
+): Float32Array {
+	const block = new Float32Array(SKY_BLOCK);
+	if (!box) return block;
+	let reach = 1;
+	[...skyDirections(), sun].forEach((dir, k) => {
+		const view = skyView(box, dir, zeroToOne);
+		block.set(view.matrix, k * 16);
+		reach = view.reach;
+	});
+	block.set([(2 * reach) / SKY_MAP, (zeroToOne ? 1 : 2) / (2 * reach), 0, 1], 16 * (SKY_VIEWS + 1));
+	return block;
 }
 
 /** How wide the glow's blur is, in its own texels, for a glow `high` texels high. */

@@ -21,8 +21,10 @@ export interface LightingParams {
 	sunColour: number[];
 	/** Cosine of the sun disc's half-angle, from SunAngularSize. */
 	sunDisc: number;
-	/** OutdoorAmbient and the sky's fill, linear. */
+	/** OutdoorAmbient and the sky's fill, linear: as far as the sky reaches a point. */
 	ambient: number[];
+	/** Ambient, linear: everywhere, the only fill where the sky cannot reach. */
+	indoor?: number[];
 	/** EnvironmentDiffuseScale: how much the sky lights what faces it. */
 	skyFill: number;
 	zenith: number[];
@@ -249,6 +251,7 @@ export function readLighting(doc: RbxDocument): LightingParams {
 		// is a quarter of it across, and the glow round it does the rest.
 		sunDisc: Math.cos(((size / 2) * 0.25 * Math.PI) / 180),
 		ambient,
+		indoor: linRgb(prop(lighting, "Ambient", [0.275, 0.275, 0.275])),
 		skyFill,
 		zenith,
 		horizon,
@@ -305,8 +308,8 @@ export function skyboxOf(sky: RbxInstance | undefined): Record<SkyFace, string> 
  * The block the shaders read after their two matrices: eleven vec4s.
  * sun (xyz, handle alpha) · sunColour (rgb, disc) · ambient (rgb, sky fill) ·
  * zenith (rgb, exposure) · horizon (rgb, haze density) · ground (rgb, glare) ·
- * camera (xyz, 0) · select (rgb, 1) · fog (start, end, on, 0) · fog colour ·
- * haze colour.
+ * camera (xyz, sun image) · select (rgb, 1) · fog (start, end, on, Ambient's
+ * red) · fog colour (rgb, Ambient's green) · haze colour (rgb, Ambient's blue).
  */
 export function lightingBlock(
 	l: LightingParams,
@@ -335,10 +338,10 @@ export function lightingBlock(
 		l.fog.start,
 		l.fog.end,
 		l.fog.on ? 1 : 0,
-		0,
+		l.indoor?.[0] ?? 0,
 		...l.fog.colour,
-		0,
+		l.indoor?.[1] ?? 0,
 		...l.hazeColour,
-		0,
+		l.indoor?.[2] ?? 0,
 	]);
 }
