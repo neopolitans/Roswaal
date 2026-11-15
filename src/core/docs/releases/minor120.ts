@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.245.1",
+		date: "2026-11-15",
+		headline: "A box drag in the place viewer picks models, and images show on parts that are not drawn.",
+		fixed: [
+			"**A box drag in the place viewer** picks each part's outermost model, once, as a click does, rather than the parts inside it. Parts no model holds are picked themselves.",
+			"**Decals and Textures on fully transparent parts** are drawn, as Studio draws them. Places often hang an image in front of a light this way.",
+			"**Neon's glow** no longer spreads over a Decal or Texture beside it or in front of it.",
+		],
+	},
+	{
 		version: "0.245.0",
 		date: "2026-11-15",
 		headline: "The place viewer draws a place's ColorCorrection and Blur.",

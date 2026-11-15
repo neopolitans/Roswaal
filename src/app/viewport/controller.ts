@@ -14,7 +14,14 @@ import { boxAround } from "./box.js";
 import { rayPick } from "./geometry.js";
 import { HandleBuilder } from "./handles.js";
 import { loadImages } from "./images.js";
-import { partsInRect, rectBetween, screenPoint, type ViewShot } from "./marquee.js";
+import {
+	boxTargets,
+	outermostModel,
+	partsInRect,
+	rectBetween,
+	screenPoint,
+	type ViewShot,
+} from "./marquee.js";
 import { loadMeshes } from "./meshes.js";
 import { clampSpeed, SPEED_NOTCH } from "./speed.js";
 import { layersUsed, loadLayer } from "./textures.js";
@@ -690,11 +697,7 @@ export class ViewportController {
 	/** What a click on a part picks: the highest Model in Workspace that holds it, or with Alt or Shift the part. */
 	private clickTarget(part: number, partItself: boolean): number {
 		if (partItself || !this.place) return part;
-		const { nodes, classes } = this.place.outline;
-		let top = part;
-		for (let p = nodes[part]?.[2] ?? -1; p >= 0 && p !== this.workspace; p = nodes[p][2])
-			if (classes[nodes[p][0]] === "Model") top = p;
-		return top;
+		return outermostModel(this.place.outline, this.workspace, part);
 	}
 
 	// -- the camera ----------------------------------------------------------------
@@ -1434,7 +1437,9 @@ export class ViewportController {
 		};
 		const takeBox = (from: { x: number; y: number; adding: boolean }, e: PointerEvent) => {
 			const { r, rect } = boxTo(from, e);
-			const inside = partsInRect(this.words, this.shot(r), rect);
+			// Each part's outermost Model, as a click takes it, and the parts no Model holds.
+			const parts = partsInRect(this.words, this.shot(r), rect);
+			const inside = this.place ? boxTargets(this.place.outline, this.workspace, parts) : parts;
 			if (from.adding && inside.length === 0) return;
 			this.pickHere(from.adding ? addTo(this.selection, inside) : inside);
 		};

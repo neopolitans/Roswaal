@@ -457,13 +457,14 @@ void main() {
 		c += (textureLod(tex, uv + d, 0.0).rgb + textureLod(tex, uv - d, 0.0).rgb) * (a + b);
 		total += 2.0 * (a + b);
 	}
-	o = vec4(c / total, 1.0);
+	// The alpha, what images cover, is carried through unblurred, as in WebGpuView.
+	o = vec4(c / total, textureLod(tex, uv, 0.0).a);
 }`;
 // The glow's source averaged down to half, as WebGpuView's fsDown.
 const FS_DOWN = `#version 300 es
 precision highp float;
 in vec2 uv; uniform sampler2D tex; out vec4 o;
-void main() { o = vec4(textureLod(tex, uv, 0.0).rgb, 1.0); }`;
+void main() { o = textureLod(tex, uv, 0.0); }`;
 // The frame with the glow added in linear light, as WebGpuView's fsComposite.
 const FS_COMPOSITE = `#version 300 es
 precision highp float;
@@ -471,7 +472,9 @@ in vec2 uv; uniform sampler2D tex; uniform sampler2D frame; uniform vec4 p;
 uniform vec4 grade0; uniform vec4 grade1; out vec4 o;
 void main() {
 	vec3 f = texelFetch(frame, ivec2(gl_FragCoord.xy), 0).rgb;
-	vec3 g = texture(tex, uv).rgb * p.z;
+	// No glow over a Decal or Texture, as WebGpuView's fsComposite.
+	vec4 held = texture(tex, uv);
+	vec3 g = held.rgb * p.z * (1.0 - held.a);
 	vec3 c = pow(min(pow(f, vec3(2.2)) + g, vec3(1.0)), vec3(1.0 / 2.2));
 	// ColorCorrection, as WebGpuView's fsComposite applies it.
 	if (grade0.w > 0.5) {
@@ -513,7 +516,8 @@ void main() {
 	// A see-through part over what glows behind it, as WebGpuView's fsGlowSeen.
 	bool neon = b.y > 0.5 && b.y < 1.5;
 	float a = neon ? neonAlpha(vAlpha) : vAlpha;
-	o = seen > 0.5 ? vec4(e * (neon ? 1.0 : vAlpha), a) : vec4(e, 1.0);
+	// A solid part's alpha, 0, clears what images cover, as WebGpuView's fsGlow.
+	o = seen > 0.5 ? vec4(e * (neon ? 1.0 : vAlpha), a) : vec4(e, 0.0);
 }`;
 const FS_ID = `#version 300 es
 precision highp float; precision highp int; in vec3 vColour; flat in uint vId; out uint o;
@@ -1045,7 +1049,7 @@ export class WebGl2View implements ViewRenderer {
 		// through a seam glows by as much of a pixel as it covers.
 		gl.bindFramebuffer(gl.FRAMEBUFFER, this.sceneFbo);
 		gl.viewport(0, 0, this.width, this.height);
-		gl.clearColor(0, 0, 0, 1);
+		gl.clearColor(0, 0, 0, 0);
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 		this.use(this.glowProgram, camera, false);
 		const seen = gl.getUniformLocation(this.glowProgram.program, "seen");
@@ -1057,12 +1061,14 @@ export class WebGl2View implements ViewRenderer {
 			gl.colorMask(true, true, true, true);
 		}
 		gl.enable(gl.BLEND);
-		gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+		// A see-through part leaves what images cover as it is; an image adds to it.
+		gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
 		gl.depthMask(false);
 		if (this.clear.length > 0) {
 			gl.uniform1f(seen, 1);
 			this.solids(this.clear);
 		}
+		gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 		this.veilImages(camera);
 		gl.depthMask(true);
 		gl.disable(gl.BLEND);

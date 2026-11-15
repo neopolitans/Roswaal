@@ -74,3 +74,37 @@ describe("A box drawn over the view", () => {
 		expect(partsInRect(parts, shot, rectBetween(0, 0, 20, 20))).toEqual([]);
 	});
 });
+
+describe("what a box takes", () => {
+	// Workspace 0 holds a Model 1 (holding a Model 2 holding parts 3 and 4, and
+	// part 5), a Folder 6 holding a Model 7 holding part 8, and a loose part 9.
+	const outline = {
+		classes: ["Workspace", "Model", "Part", "Folder"],
+		nodes: [
+			[0, "Workspace", -1, 0],
+			[1, "Ship", 0, 0],
+			[1, "Cannon", 1, 0],
+			[2, "Barrel", 2, 0],
+			[2, "Base", 2, 0],
+			[2, "Hull", 1, 0],
+			[3, "Props", 0, 0],
+			[1, "Lamp", 6, 0],
+			[2, "Bulb", 7, 0],
+			[2, "Loose", 0, 0],
+		] as [number, string, number, number][],
+	};
+
+	it("takes each part's outermost Model, once, and the parts no Model holds", async () => {
+		const { boxTargets } = await import("../src/app/viewport/marquee.js");
+		expect(boxTargets(outline, 0, [3, 4, 5, 8, 9])).toEqual([1, 7, 9]);
+		expect(boxTargets(outline, 0, [9])).toEqual([9]);
+		expect(boxTargets(outline, 0, [])).toEqual([]);
+	});
+
+	it("picks as a click does: the outermost Model, never the Workspace", async () => {
+		const { outermostModel } = await import("../src/app/viewport/marquee.js");
+		expect(outermostModel(outline, 0, 3)).toBe(1);
+		expect(outermostModel(outline, 0, 8)).toBe(7);
+		expect(outermostModel(outline, 0, 9)).toBe(9);
+	});
+});

@@ -261,6 +261,23 @@ export function buildPlaceScene(
 		const transparency = inst.props.get("Transparency")?.value;
 		if (typeof transparency === "number" && transparency >= 0.999) {
 			transparent++;
+			// The part is not drawn, but its Decals and Textures still are, as
+			// in Studio: places hang an image in front of a light on one.
+			const id = idOf(inst);
+			const cf = inst.props.get("CFrame")?.value as
+				| { position: number[]; rotation: number[] }
+				| undefined;
+			const size = vec3(inst, "size") ?? vec3(inst, "Size");
+			const modified = inst.children.some(
+				(c) =>
+					c.className === "SpecialMesh" ||
+					c.className === "BlockMesh" ||
+					c.className === "CylinderMesh",
+			);
+			const kind = kindOf(inst, undefined);
+			if (id !== undefined && cf && size && !modified && (kind === "block" || kind === "mesh"))
+				for (const image of faceImages(inst, id, cf.rotation, cf.position, size))
+					images.push({ ...image, layer: "seeThrough" });
 			return;
 		}
 		const id = idOf(inst);

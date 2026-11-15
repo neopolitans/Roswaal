@@ -75,9 +75,10 @@ struct Out { @builtin(position) clip: vec4f, @location(0) uv: vec2f };
 	return o;
 }
 // The glow's source, drawn at the view's size, averaged down to half: one
-// sample between four texels weighs them evenly.
+// sample between four texels weighs them evenly. Its alpha is how much of
+// each pixel a Decal or Texture covers, carried along for the composite.
 @fragment fn fsDown(i: Out) -> @location(0) vec4f {
-	return vec4f(textureSampleLevel(tex, samp, i.uv, 0.0).rgb, 1.0);
+	return textureSampleLevel(tex, samp, i.uv, 0.0);
 }
 // A Gaussian \`p.w\` texels wide along \`p.xy\`, one texel, out to three times
 // that, at every texel: a fetch between two texels weighs both, so each pair
@@ -93,7 +94,8 @@ struct Out { @builtin(position) clip: vec4f, @location(0) uv: vec2f };
 		c = c + (textureSampleLevel(tex, samp, i.uv + o, 0.0).rgb + textureSampleLevel(tex, samp, i.uv - o, 0.0).rgb) * (a + b);
 		total = total + 2.0 * (a + b);
 	}
-	return vec4f(c / total, 1.0);
+	// The alpha, what images cover, is carried through unblurred.
+	return vec4f(c / total, textureSampleLevel(tex, samp, i.uv, 0.0).a);
 }
 // The frame with the glow added in linear light: it brightens a lit face by
 // what it adds, as Studio's captures show, and turns Neon's heart white where its
@@ -101,7 +103,10 @@ struct Out { @builtin(position) clip: vec4f, @location(0) uv: vec2f };
 // its long soft fall from coming out in bands.
 @fragment fn fsComposite(i: Out) -> @location(0) vec4f {
 	let f = textureLoad(frame, vec2i(i.clip.xy), 0).rgb;
-	let g = textureSample(tex, samp, i.uv).rgb * p.z;
+	// No glow over a Decal or Texture: Studio's captures show an image in front
+	// of Neon, or beside it, covering the glow as well as the Neon.
+	let held = textureSample(tex, samp, i.uv);
+	let g = held.rgb * p.z * (1.0 - held.a);
 	var c = pow(min(pow(f, vec3f(2.2)) + g, vec3f(1.0)), vec3f(1.0 / 2.2));
 	// ColorCorrection on the display values, as fitted to Studio's captures:
 	// brightness adds, contrast scales round mid-grey, saturation away from
@@ -470,7 +475,8 @@ fn glowSource(i: VOut) -> vec3f {
 	if (u32(b.z) == 14u) { return min(lavaLight(pattern(14u, uv, b.x).z), vec3f(1.0)) * 0.2; }
 	return vec3f(0.0);
 }
-@fragment fn fsGlow(i: VOut) -> @location(0) vec4f { return vec4f(glowSource(i), 1.0); }
+// Its alpha, 0, clears what images cover: a part in front of an image hides it.
+@fragment fn fsGlow(i: VOut) -> @location(0) vec4f { return vec4f(glowSource(i), 0.0); }
 // A see-through part over what glows behind it, as it lies over it in the
 // frame. A see-through Neon part's own glow already fades with it.
 @fragment fn fsGlowSeen(i: VOut) -> @location(0) vec4f {
@@ -991,7 +997,17 @@ export class WebGpuView implements ViewRenderer {
 		this.glowSeen = d.createRenderPipeline({
 			layout: pipelineLayout,
 			vertex: { module, entryPoint: "vs", buffers },
-			fragment: { module, entryPoint: "fsGlowSeen", targets: [{ ...glowTarget, blend: over }] },
+			fragment: {
+				module,
+				entryPoint: "fsGlowSeen",
+				// What images cover is left as it is: a see-through part is not an image.
+				targets: [
+					{
+						...glowTarget,
+						blend: { color: over.color, alpha: { srcFactor: "zero", dstFactor: "one" } },
+					},
+				],
+			},
 			primitive: { topology: "triangle-list", cullMode: "back" },
 			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "greater" },
 			multisample: glowSamples,
@@ -1373,7 +1389,7 @@ export class WebGpuView implements ViewRenderer {
 				{
 					view: this.msaa!.createView(),
 					resolveTarget: this.glowFull.createView(),
-					clearValue: { r: 0, g: 0, b: 0, a: 1 },
+					clearValue: { r: 0, g: 0, b: 0, a: 0 },
 					loadOp: "clear",
 					storeOp: "discard",
 				},

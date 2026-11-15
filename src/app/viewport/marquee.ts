@@ -4,6 +4,32 @@
  * box's edge is taken only when its centre is in.
  */
 
+import type { PlaceOutline } from "../../core/rbx/browse.js";
+
+/**
+ * What a pick of `part` selects: its outermost Model below `workspace`, as a
+ * click in Studio does, or the part itself where no Model holds it.
+ */
+export function outermostModel(outline: PlaceOutline, workspace: number, part: number): number {
+	const { nodes, classes } = outline;
+	let top = part;
+	for (let p = nodes[part]?.[2] ?? -1; p >= 0 && p !== workspace; p = nodes[p][2])
+		if (classes[nodes[p][0]] === "Model") top = p;
+	return top;
+}
+
+/**
+ * What a box takes from the parts inside it: each part's outermost Model,
+ * once, and the parts no Model holds, in the order first reached.
+ */
+export function boxTargets(
+	outline: PlaceOutline,
+	workspace: number,
+	parts: readonly number[],
+): number[] {
+	return [...new Set(parts.map((part) => outermostModel(outline, workspace, part)))];
+}
+
 /** A box on the view, in CSS pixels from its top-left corner. */
 export interface ScreenRect {
 	left: number;
