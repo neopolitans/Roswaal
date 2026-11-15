@@ -240,9 +240,11 @@ export function placesAndRojoPage(): DocPage {
 					"Transparency and Reflectance, and Neon glows. See-through Glass hides the see-through " +
 					"parts behind it, as Studio's does. It draws with WebGPU, or WebGL2 where the browser " +
 					"has no WebGPU; **Settings › Scene view** chooses, and can let parts show through " +
-					"Glass. Signed in with Roblox through `roswaal serve`, a Decal or a Texture on a part's face " +
-					"shows its image, downloaded once; until then, and on the website, the face is its part's " +
-					"colour. For now a MeshPart is drawn as its box, nothing casts " +
+					"Glass. Signed in with Roblox through `roswaal serve`, Decals and Textures, MeshParts' " +
+					"meshes and the Sky's images are downloaded once and drawn; until then, and on the " +
+					"website, a face is its part's colour, a MeshPart its box and the sky Roswaal's own. " +
+					"The place's ColorCorrection and Blur are drawn too, and **Settings › Scene view** can " +
+					"turn them off. For now nothing casts " +
 					"a shadow, and the handles do not drag yet. To save memory, turn the place viewer " +
 					"off in **Settings › Extended Features**; the place's tab then says so, and the " +
 					"DataModel tree and Properties still work.",

@@ -984,6 +984,19 @@ function SceneSettings({ prefs, onPrefs }: SettingsPanelProps) {
 					/>
 				</Row>
 			</Group>
+
+			<Group title="Post effects">
+				<Row
+					label="Post effects"
+					help="The place's own ColorCorrection and Blur, under Lighting or its Camera. Off shows the place as it is underneath."
+				>
+					<Toggle
+						on={prefs.postEffects}
+						onChange={(on) => onPrefs({ postEffects: on })}
+						label={prefs.postEffects ? "Drawn" : "Not drawn"}
+					/>
+				</Row>
+			</Group>
 		</Page>
 	);
 }

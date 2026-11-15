@@ -291,6 +291,8 @@ export interface Preferences {
 	outlineThrough: boolean;
 	/** See-through Glass hides the see-through parts behind it, as Studio's does. */
 	glassHides: boolean;
+	/** The place's post effects, ColorCorrection, Blur and the rest, are drawn in the place viewer. */
+	postEffects: boolean;
 	/**
 	 * The place viewer, an Extended Feature: the place in 3D, its tab and its
 	 * summary. Off, its code is never downloaded and no scene is built.
@@ -509,6 +511,7 @@ export const DEFAULTS: Preferences = {
 	outlineWidth: "medium",
 	outlineThrough: true,
 	glassHides: true,
+	postEffects: true,
 	placeViewer: true,
 	foundThemes: [],
 	// Everything the target allows, which is what the menu did before there was
@@ -650,6 +653,8 @@ export function readPreferences(): Preferences {
 		outlineThrough:
 			typeof stored.outlineThrough === "boolean" ? stored.outlineThrough : DEFAULTS.outlineThrough,
 		glassHides: typeof stored.glassHides === "boolean" ? stored.glassHides : DEFAULTS.glassHides,
+		postEffects:
+			typeof stored.postEffects === "boolean" ? stored.postEffects : DEFAULTS.postEffects,
 		placeViewer:
 			typeof stored.placeViewer === "boolean" ? stored.placeViewer : DEFAULTS.placeViewer,
 		foundThemes: Array.isArray(stored.foundThemes)

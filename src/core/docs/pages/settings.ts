@@ -66,7 +66,7 @@ export function settingsPage(): DocPage {
 					[
 						"**Scene view**",
 						"This browser",
-						"How a place is drawn in 3D: the renderer, the selection outline, and Glass",
+						"How a place is drawn in 3D: the renderer, the selection outline, Glass and post effects",
 					],
 					["**Themes**", "This browser", "The colour scheme"],
 					["**Docs**", "This browser", "The docs' font and the size of their pictures"],

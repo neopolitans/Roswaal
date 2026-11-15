@@ -4,7 +4,7 @@
  * canvas when it changes size.
  */
 
-import type { LightingParams } from "../../core/rbx/lighting.js";
+import type { LightingParams, PostEffects } from "../../core/rbx/lighting.js";
 import { MATERIAL_SHADE, MATERIALS } from "../../core/rbx/materials.js";
 import { type FileMesh, meshBounds } from "../../core/rbx/mesh.js";
 import {
@@ -70,6 +70,8 @@ export interface ViewRenderer {
 	 * them: rows naming one are drawn as it from then on, the rest as boxes.
 	 */
 	setMeshes(meshes: ReadonlyMap<number, MeshGeometry>): void;
+	/** Whether the place's post effects are drawn: Settings › Scene view. */
+	setPostEffects(on: boolean): void;
 	/** Gives the GPU back: a browser keeps only so many contexts. */
 	destroy(): void;
 }
@@ -322,6 +324,34 @@ export function splitByMesh(
 	const meshes = new Map<number, { data: Float32Array; count: number }>();
 	for (const [slot, list] of rows) meshes.set(slot, gather(list));
 	return { rest: gather(rest), meshes };
+}
+
+/**
+ * How wide a BlurEffect of `size` blurs, as a Gaussian's sigma in pixels of a
+ * view `high` pixels tall. Fitted to Studio's captures of Size 8 and 24 in a
+ * view 1049 pixels tall (sigma 2 and 9): it grows faster than Size does.
+ */
+export function blurSigma(size: number, high: number): number {
+	return 0.115 * Math.max(0, size) ** 1.37 * (high / 1049);
+}
+
+/**
+ * A ColorCorrectionEffect as the composite reads it, two vec4s: brightness,
+ * contrast, saturation and whether it is on; then the tint. Fitted to Studio's
+ * captures, it works on the display values: Brightness adds, Contrast scales
+ * round mid-grey by 1 + Contrast, Saturation scales away from grey by
+ * 1 + Saturation, and the tint multiplies.
+ */
+export function gradeBlock(post: PostEffects | undefined, on: boolean): Float32Array {
+	const c = on ? post?.colour : undefined;
+	return new Float32Array(
+		c ? [c.brightness, c.contrast, c.saturation, 1, ...c.tint, 0] : [0, 0, 0, 0, 1, 1, 1, 0],
+	);
+}
+
+/** Whether anything in the composite's post chain is on. */
+export function postActive(post: PostEffects | undefined, on: boolean): boolean {
+	return on && !!post && (!!post.colour || (post.blur ?? 0) > 0);
 }
 
 /** How wide the outline round what is picked is drawn, in CSS pixels. */

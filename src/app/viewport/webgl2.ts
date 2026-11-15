@@ -18,10 +18,12 @@ import { invert, lookAt, multiply, perspective } from "./math.js";
 import { TEXTURE_LEVELS, TEXTURE_SIZE } from "./textures.js";
 import {
 	backToFront,
+	blurSigma,
 	type Camera,
 	FOV,
 	GLOW_GAIN,
 	glowSpread,
+	gradeBlock,
 	HANDLE_ALPHA,
 	IMAGE_VERTEX,
 	type ImageLayer,
@@ -29,6 +31,7 @@ import {
 	imageOrder,
 	imageQuads,
 	type MeshGeometry,
+	postActive,
 	SELECT,
 	SELECT_WIDTH,
 	SKY_GAIN,
@@ -464,11 +467,20 @@ void main() { o = vec4(textureLod(tex, uv, 0.0).rgb, 1.0); }`;
 // The frame with the glow added in linear light, as WebGpuView's fsComposite.
 const FS_COMPOSITE = `#version 300 es
 precision highp float;
-in vec2 uv; uniform sampler2D tex; uniform sampler2D frame; uniform vec4 p; out vec4 o;
+in vec2 uv; uniform sampler2D tex; uniform sampler2D frame; uniform vec4 p;
+uniform vec4 grade0; uniform vec4 grade1; out vec4 o;
 void main() {
 	vec3 f = texelFetch(frame, ivec2(gl_FragCoord.xy), 0).rgb;
 	vec3 g = texture(tex, uv).rgb * p.z;
 	vec3 c = pow(min(pow(f, vec3(2.2)) + g, vec3(1.0)), vec3(1.0 / 2.2));
+	// ColorCorrection, as WebGpuView's fsComposite applies it.
+	if (grade0.w > 0.5) {
+		c = clamp(c + grade0.x, 0.0, 1.0);
+		c = clamp((c - 0.5) * (1.0 + grade0.y) + 0.5, 0.0, 1.0);
+		float grey = dot(c, vec3(0.2126, 0.7152, 0.0722));
+		c = clamp(grey + (c - grey) * (1.0 + grade0.z), 0.0, 1.0);
+		c *= grade1.rgb;
+	}
 	float n = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) - 0.5;
 	o = vec4(clamp(c + n / 255.0 * step(1.0 / 512.0, max(g.r, max(g.g, g.b))), 0.0, 1.0), 1.0);
 }`;
@@ -582,6 +594,14 @@ export class WebGl2View implements ViewRenderer {
 	private sceneDepth!: WebGLRenderbuffer;
 	private frameFbo!: WebGLFramebuffer;
 	private frameTex!: WebGLTexture;
+	/** The frame blurred across, on its way to being blurred down: a BlurEffect. */
+	private acrossFbo!: WebGLFramebuffer;
+	private acrossTex!: WebGLTexture;
+	private postOn = true;
+
+	setPostEffects(on: boolean): void {
+		this.postOn = on;
+	}
 	private glowTex: WebGLTexture[] = [];
 	private glowFbo: WebGLFramebuffer[] = [];
 	private glowSize: [number, number] = [0, 0];
@@ -669,6 +689,8 @@ export class WebGl2View implements ViewRenderer {
 		this.sceneDepth = gl.createRenderbuffer()!;
 		this.frameFbo = gl.createFramebuffer()!;
 		this.frameTex = gl.createTexture()!;
+		this.acrossFbo = gl.createFramebuffer()!;
+		this.acrossTex = gl.createTexture()!;
 		this.glowTex = [gl.createTexture()!, gl.createTexture()!];
 		this.glowFbo = [gl.createFramebuffer()!, gl.createFramebuffer()!];
 		this.setScene(scene);
@@ -964,6 +986,24 @@ export class WebGl2View implements ViewRenderer {
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, this.frameFbo);
 		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.frameTex, 0);
+		gl.bindTexture(gl.TEXTURE_2D, this.acrossTex);
+		gl.texImage2D(
+			gl.TEXTURE_2D,
+			0,
+			gl.RGBA8,
+			this.width,
+			this.height,
+			0,
+			gl.RGBA,
+			gl.UNSIGNED_BYTE,
+			null,
+		);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+		gl.bindFramebuffer(gl.FRAMEBUFFER, this.acrossFbo);
+		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.acrossTex, 0);
 		gl.bindTexture(gl.TEXTURE_2D, null);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 		this.sizeGlow();
@@ -1060,17 +1100,39 @@ export class WebGl2View implements ViewRenderer {
 	 * added; then its depth again, without colour, for the selection to be
 	 * hidden behind it.
 	 */
-	private addGlow(camera: Camera): void {
+	private addGlow(camera: Camera, post: boolean): void {
 		const gl = this.gl;
 		const { width: w, height: h } = this;
 		gl.bindFramebuffer(gl.READ_FRAMEBUFFER, this.sceneFbo);
 		gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, this.frameFbo);
 		gl.blitFramebuffer(0, 0, w, h, 0, 0, w, h, gl.COLOR_BUFFER_BIT, gl.NEAREST);
-		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 		gl.viewport(0, 0, w, h);
 		gl.disable(gl.DEPTH_TEST);
+		// A BlurEffect: the frame blurred across into its spare, and back down into itself.
+		const blur = post ? (this.lighting?.post.blur ?? 0) : 0;
+		if (blur > 0) {
+			const sigma = blurSigma(blur, h);
+			gl.useProgram(this.blurProgram.program);
+			const p = gl.getUniformLocation(this.blurProgram.program, "p");
+			gl.activeTexture(gl.TEXTURE0);
+			for (const [from, into, step] of [
+				[this.frameTex, this.acrossFbo, [1 / w, 0]],
+				[this.acrossTex, this.frameFbo, [0, 1 / h]],
+			] as const) {
+				gl.bindFramebuffer(gl.FRAMEBUFFER, into);
+				gl.bindTexture(gl.TEXTURE_2D, from);
+				gl.uniform4f(p, step[0], step[1], 0, sigma);
+				gl.drawArrays(gl.TRIANGLES, 0, 3);
+			}
+			gl.bindTexture(gl.TEXTURE_2D, null);
+		}
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 		gl.useProgram(this.compositeProgram.program);
-		gl.uniform4f(gl.getUniformLocation(this.compositeProgram.program, "p"), 0, 0, GLOW_GAIN, 0);
+		const at = (name: string) => gl.getUniformLocation(this.compositeProgram.program, name);
+		gl.uniform4f(at("p"), 0, 0, this.glowing ? GLOW_GAIN : 0, 0);
+		const grade = gradeBlock(this.lighting?.post, this.postOn);
+		gl.uniform4fv(at("grade0"), grade.subarray(0, 4));
+		gl.uniform4fv(at("grade1"), grade.subarray(4, 8));
 		gl.activeTexture(gl.TEXTURE3);
 		gl.bindTexture(gl.TEXTURE_2D, this.frameTex);
 		gl.activeTexture(gl.TEXTURE0);
@@ -1150,7 +1212,11 @@ export class WebGl2View implements ViewRenderer {
 			if (this.clear.length > 0) this.sortClear(camera.eye);
 			this.drawGlow(camera);
 		}
-		gl.bindFramebuffer(gl.FRAMEBUFFER, this.glowing ? this.sceneFbo : null);
+		// The place is drawn off screen first when anything is added to it
+		// after: Neon's glow, or a post effect.
+		const post = postActive(this.lighting?.post, this.postOn);
+		const composite = this.glowing || post;
+		gl.bindFramebuffer(gl.FRAMEBUFFER, composite ? this.sceneFbo : null);
 		gl.viewport(0, 0, this.width, this.height);
 		gl.clearColor(0.56, 0.71, 0.86, 1);
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -1198,7 +1264,7 @@ export class WebGl2View implements ViewRenderer {
 		this.drawImages(camera, "seeThrough");
 		// The glow is part of the place, added once the place is drawn: what
 		// marks the place is drawn over it.
-		if (this.glowing) this.addGlow(camera);
+		if (composite) this.addGlow(camera, post);
 		if (this.selection) {
 			this.use(this.main, camera, true);
 			// Through everything, as Studio's selection box is, or hidden by what is in front.

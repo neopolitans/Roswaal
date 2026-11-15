@@ -38,6 +38,8 @@ export interface ViewportOptions {
 	hideBehind: boolean;
 	/** See-through Glass hides the see-through parts behind it, as it does in Studio. */
 	glassHides: boolean;
+	/** The place's post effects (ColorCorrection, Blur and the rest) are drawn. */
+	postEffects: boolean;
 	/** Modify DataModel Instances: the editing tools are offered only with it on. */
 	editable: boolean;
 	/** The most frames a second while it moves; `vsync` the display's, `unlimited` as fast as it goes. */
@@ -387,6 +389,7 @@ export class ViewportController {
 		outlineWidth: 3.5,
 		hideBehind: false,
 		glassHides: true,
+		postEffects: true,
 		editable: false,
 		frameRate: "vsync",
 	};
@@ -419,6 +422,7 @@ export class ViewportController {
 		}
 		this.view.setOutline(options.outlineWidth, options.hideBehind);
 		this.view.setGlassHides(options.glassHides);
+		this.view.setPostEffects(options.postEffects);
 		this.redraw();
 	}
 
@@ -1015,6 +1019,7 @@ export class ViewportController {
 		view.setOverlay(this.frustumLines());
 		view.setOutline(this.options.outlineWidth, this.options.hideBehind);
 		view.setGlassHides(this.options.glassHides);
+		view.setPostEffects(this.options.postEffects);
 		this.view = view;
 		this.set({ backend: view.backend, fellBack, error: null });
 		if (this.place !== place) view.setScene(this.place ?? place);

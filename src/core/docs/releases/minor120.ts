@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.245.0",
+		date: "2026-11-15",
+		headline: "The place viewer draws a place's ColorCorrection and Blur.",
+		added: [
+			"**ColorCorrection and Blur in the place viewer.** A place's ColorCorrectionEffects and BlurEffects, under Lighting or its Camera, are drawn as Studio draws them. Properties lists the place's post effects, and which are not drawn yet.",
+			"**Settings › Scene view › Post effects** turns them off.",
+		],
+	},
+	{
 		version: "0.244.0",
 		date: "2026-11-15",
 		headline: "The place viewer draws MeshParts as their meshes.",

@@ -18,10 +18,12 @@ import { invert, lookAt, multiply, perspective } from "./math.js";
 import { TEXTURE_LEVELS, TEXTURE_SIZE } from "./textures.js";
 import {
 	backToFront,
+	blurSigma,
 	type Camera,
 	FOV,
 	GLOW_GAIN,
 	glowSpread,
+	gradeBlock,
 	HANDLE_ALPHA,
 	IMAGE_VERTEX,
 	type ImageLayer,
@@ -29,6 +31,7 @@ import {
 	imageOrder,
 	imageQuads,
 	type MeshGeometry,
+	postActive,
 	SELECT,
 	SELECT_WIDTH,
 	SKY_GAIN,
@@ -61,6 +64,8 @@ const POST = /* wgsl */ `
 @group(0) @binding(2) var<uniform> p: vec4f;
 // The finished frame, for the glow to be added to.
 @group(0) @binding(3) var frame: texture_2d<f32>;
+// A ColorCorrectionEffect: brightness, contrast, saturation, on; then the tint.
+@group(0) @binding(4) var<uniform> grade: array<vec4f, 2>;
 struct Out { @builtin(position) clip: vec4f, @location(0) uv: vec2f };
 @vertex fn vsFull(@builtin(vertex_index) i: u32) -> Out {
 	let xy = vec2f(f32((i << 1u) & 2u), f32(i & 2u)) * 2.0 - 1.0;
@@ -97,7 +102,17 @@ struct Out { @builtin(position) clip: vec4f, @location(0) uv: vec2f };
 @fragment fn fsComposite(i: Out) -> @location(0) vec4f {
 	let f = textureLoad(frame, vec2i(i.clip.xy), 0).rgb;
 	let g = textureSample(tex, samp, i.uv).rgb * p.z;
-	let c = pow(min(pow(f, vec3f(2.2)) + g, vec3f(1.0)), vec3f(1.0 / 2.2));
+	var c = pow(min(pow(f, vec3f(2.2)) + g, vec3f(1.0)), vec3f(1.0 / 2.2));
+	// ColorCorrection on the display values, as fitted to Studio's captures:
+	// brightness adds, contrast scales round mid-grey, saturation away from
+	// grey, and the tint multiplies.
+	if (grade[0].w > 0.5) {
+		c = clamp(c + grade[0].x, vec3f(0.0), vec3f(1.0));
+		c = clamp((c - 0.5) * (1.0 + grade[0].y) + 0.5, vec3f(0.0), vec3f(1.0));
+		let grey = dot(c, vec3f(0.2126, 0.7152, 0.0722));
+		c = clamp(grey + (c - grey) * (1.0 + grade[0].z), vec3f(0.0), vec3f(1.0));
+		c = c * grade[1].rgb;
+	}
 	let n = fract(52.9829189 * fract(dot(i.clip.xy, vec2f(0.06711056, 0.00583715)))) - 0.5;
 	return vec4f(clamp(c + n / 255.0 * step(1.0 / 512.0, max(g.r, max(g.g, g.b))), vec3f(0.0), vec3f(1.0)), 1.0);
 }
@@ -660,6 +675,16 @@ export class WebGpuView implements ViewRenderer {
 	private sampler!: GPUSampler;
 	private postParams: GPUBuffer[] = [];
 	private frame?: GPUTexture;
+	/** The frame blurred across, on its way to being blurred down: a BlurEffect. */
+	private frameAcross?: GPUTexture;
+	private frameBlurGroups: GPUBindGroup[] = [];
+	private blurFrame!: GPURenderPipeline;
+	private gradeBuffer!: GPUBuffer;
+	private postOn = true;
+
+	setPostEffects(on: boolean): void {
+		this.postOn = on;
+	}
 	/** The glow's source at the view's size, resolved, before it is averaged down. */
 	private glowFull?: GPUTexture;
 	private glow?: {
@@ -1010,7 +1035,11 @@ export class WebGpuView implements ViewRenderer {
 		];
 		this.postLayout = d.createBindGroupLayout({ entries: postEntries });
 		this.compositeLayout = d.createBindGroupLayout({
-			entries: [...postEntries, { binding: 3, visibility: STAGE.FRAGMENT, texture: {} }],
+			entries: [
+				...postEntries,
+				{ binding: 3, visibility: STAGE.FRAGMENT, texture: {} },
+				{ binding: 4, visibility: STAGE.FRAGMENT, buffer: {} },
+			],
 		});
 		const postPipeline = d.createPipelineLayout({ bindGroupLayouts: [this.postLayout] });
 		// Half floats, so the blur's long soft fall does not round into steps.
@@ -1038,9 +1067,18 @@ export class WebGpuView implements ViewRenderer {
 		});
 		this.sampler = d.createSampler({ magFilter: "linear", minFilter: "linear" });
 		// Across, down, and the strength the glow is added at.
-		this.postParams = [0, 1, 2].map(() =>
+		// The glow's blur across and down, the strength it is added at, and a
+		// BlurEffect's blur of the frame across and down.
+		this.postParams = [0, 1, 2, 3, 4].map(() =>
 			d.createBuffer({ size: 16, usage: BUFFER.UNIFORM | BUFFER.COPY_DST }),
 		);
+		this.gradeBuffer = d.createBuffer({ size: 32, usage: BUFFER.UNIFORM | BUFFER.COPY_DST });
+		this.blurFrame = d.createRenderPipeline({
+			layout: postPipeline,
+			vertex: { module: post, entryPoint: "vsFull" },
+			fragment: { module: post, entryPoint: "fsBlur", targets: [{ format: this.format }] },
+			primitive: { topology: "triangle-list" },
+		});
 		this.uniform = d.createBuffer({
 			size: 320 + MATERIALS.length * 48,
 			usage: BUFFER.UNIFORM | BUFFER.COPY_DST,
@@ -1210,6 +1248,7 @@ export class WebGpuView implements ViewRenderer {
 			this.pickTarget,
 			this.pickDepth,
 			this.frame,
+			this.frameAcross,
 			this.glowFull,
 		])
 			t?.destroy();
@@ -1239,6 +1278,24 @@ export class WebGpuView implements ViewRenderer {
 			format: this.format,
 			usage: TEXTURE.RENDER_ATTACHMENT | TEXTURE.TEXTURE_BINDING,
 		});
+		this.frameAcross = d.createTexture({
+			size,
+			format: this.format,
+			usage: TEXTURE.RENDER_ATTACHMENT | TEXTURE.TEXTURE_BINDING,
+		});
+		const blurGroup = (tex: GPUTexture, params: GPUBuffer) =>
+			d.createBindGroup({
+				layout: this.postLayout,
+				entries: [
+					{ binding: 0, resource: tex.createView() },
+					{ binding: 1, resource: this.sampler },
+					{ binding: 2, resource: { buffer: params } },
+				],
+			});
+		this.frameBlurGroups = [
+			blurGroup(this.frame, this.postParams[3]),
+			blurGroup(this.frameAcross, this.postParams[4]),
+		];
 		// Its bind groups name the source just made: made again with it.
 		for (const t of [this.glow?.a, this.glow?.b]) t?.destroy();
 		this.glow = undefined;
@@ -1260,6 +1317,7 @@ export class WebGpuView implements ViewRenderer {
 				{ binding: 1, resource: this.sampler },
 				{ binding: 2, resource: { buffer: this.postParams[2] } },
 				{ binding: 3, resource: this.frame.createView() },
+				{ binding: 4, resource: { buffer: this.gradeBuffer } },
 			],
 		});
 	}
@@ -1362,6 +1420,35 @@ export class WebGpuView implements ViewRenderer {
 		}
 	}
 
+	/** A BlurEffect: the frame blurred across into its spare, and back down into itself. */
+	private blurTheFrame(encoder: GPUCommandEncoder): void {
+		const size = this.lighting?.post.blur ?? 0;
+		if (size <= 0 || !this.frame || !this.frameAcross) return;
+		const sigma = blurSigma(size, this.height);
+		const q = this.device.queue;
+		q.writeBuffer(this.postParams[3], 0, new Float32Array([1 / this.width, 0, 0, sigma]));
+		q.writeBuffer(this.postParams[4], 0, new Float32Array([0, 1 / this.height, 0, sigma]));
+		for (const [from, into] of [
+			[0, this.frameAcross],
+			[1, this.frame],
+		] as const) {
+			const step = encoder.beginRenderPass({
+				colorAttachments: [
+					{
+						view: into.createView(),
+						loadOp: "clear",
+						storeOp: "store",
+						clearValue: { r: 0, g: 0, b: 0, a: 1 },
+					},
+				],
+			});
+			step.setPipeline(this.blurFrame);
+			step.setBindGroup(0, this.frameBlurGroups[from]);
+			step.draw(3);
+			step.end();
+		}
+	}
+
 	setSelection(boxes: Float32Array): void {
 		this.selection?.buffer.destroy();
 		const count = boxes.length / SCENE_STRIDE;
@@ -1395,8 +1482,15 @@ export class WebGpuView implements ViewRenderer {
 		this.setCamera(camera);
 		const encoder = this.device.createCommandEncoder();
 		const screen = this.context.getCurrentTexture().createView();
-		const glow = this.glowing && this.glow ? this.compositeGroup : undefined;
-		if (glow) {
+		const glowing = this.glowing && !!this.glow;
+		const post = postActive(this.lighting?.post, this.postOn);
+		// The place is drawn into its own texture first when anything is added
+		// to it after: Neon's glow, or a post effect.
+		const glow = glowing || post ? this.compositeGroup : undefined;
+		const q = this.device.queue;
+		q.writeBuffer(this.postParams[2], 0, new Float32Array([0, 0, glowing ? GLOW_GAIN : 0, 0]));
+		q.writeBuffer(this.gradeBuffer, 0, gradeBlock(this.lighting?.post, this.postOn));
+		if (glowing) {
 			if (this.clear.length > 0) this.sortClear(camera.eye);
 			this.drawGlow(encoder);
 		}
@@ -1440,6 +1534,7 @@ export class WebGpuView implements ViewRenderer {
 		// marks the place goes over it, against the place's own depth.
 		if (glow) {
 			pass.end();
+			if (post) this.blurTheFrame(encoder);
 			pass = encoder.beginRenderPass({
 				colorAttachments: [
 					{

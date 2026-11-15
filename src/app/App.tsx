@@ -400,6 +400,7 @@ export function App() {
 				outlineWidth: OUTLINE_WIDTHS[prefs.outlineWidth],
 				hideBehind: !prefs.outlineThrough,
 				glassHides: prefs.glassHides,
+				postEffects: prefs.postEffects,
 				editable: prefs.modifyDataModel,
 				frameRate:
 					prefs.viewportFrameRate === "vsync" || prefs.viewportFrameRate === "unlimited"
@@ -412,6 +413,7 @@ export function App() {
 			prefs.outlineWidth,
 			prefs.outlineThrough,
 			prefs.glassHides,
+			prefs.postEffects,
 			prefs.modifyDataModel,
 			prefs.viewportFrameRate,
 		],

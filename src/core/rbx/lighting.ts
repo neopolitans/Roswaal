@@ -51,6 +51,8 @@ export interface LightingParams {
 	 * shows Roblox's built-in sun. A sun image of the place's own is not drawn yet.
 	 */
 	skyboxSun: boolean;
+	/** The place's post effects that are on, from Lighting and from the Camera. */
+	post: PostEffects;
 	/** What lights the place, for the Properties summary: a name and what it is. */
 	notes: [string, string][];
 }
@@ -94,6 +96,85 @@ const FILL = [1.05, 1.4, 1.85];
 /** Studio's sky as its captures show it, run back through our display transform, for an Atmosphere of Density 0.3. */
 const ZENITH = [0.2472, 0.8251, 1.3945];
 const HORIZON = [0.5865, 1.0226, 1.312];
+
+/**
+ * A place's post effects, those that are on, under Lighting or Workspace's
+ * Camera. Several of one kind add up: ColorCorrections' amounts sum and their
+ * tints multiply, and the strongest Blur is the one drawn.
+ */
+export interface PostEffects {
+	colour?: { brightness: number; contrast: number; saturation: number; tint: number[] };
+	/** BlurEffect's Size. */
+	blur?: number;
+	bloom?: { intensity: number; size: number; threshold: number };
+	depthOfField?: { far: number; near: number; focus: number; radius: number };
+	sunRays?: { intensity: number; spread: number };
+	/** Class names of effects that are on but not drawn yet, for Properties. */
+	notDrawn: string[];
+}
+
+/** Effects drawn so far; the rest are listed as not drawn yet. */
+const DRAWN_EFFECTS = new Set(["ColorCorrectionEffect", "BlurEffect"]);
+
+export function readPostEffects(holders: (RbxInstance | undefined)[]): PostEffects {
+	const post: PostEffects = { notDrawn: [] };
+	const num = (inst: RbxInstance, name: string, fallback: number) => {
+		const v = inst.props.get(name)?.value;
+		return typeof v === "number" ? v : fallback;
+	};
+	for (const holder of holders) {
+		for (const e of holder?.children ?? []) {
+			if (!e.className.endsWith("Effect") || e.className === "Atmosphere") continue;
+			if (e.props.get("Enabled")?.value === false) continue;
+			if (!DRAWN_EFFECTS.has(e.className) && !post.notDrawn.includes(e.className))
+				post.notDrawn.push(e.className);
+			switch (e.className) {
+				case "ColorCorrectionEffect": {
+					const was = post.colour ?? { brightness: 0, contrast: 0, saturation: 0, tint: [1, 1, 1] };
+					const tint = prop<number[]>(e, "TintColor", [1, 1, 1]);
+					post.colour = {
+						brightness: was.brightness + num(e, "Brightness", 0),
+						contrast: was.contrast + num(e, "Contrast", 0),
+						saturation: was.saturation + num(e, "Saturation", 0),
+						tint: was.tint.map((v, i) => v * (tint[i] ?? 1)),
+					};
+					break;
+				}
+				case "BlurEffect":
+					post.blur = Math.max(post.blur ?? 0, num(e, "Size", 24));
+					break;
+				case "BloomEffect":
+					post.bloom ??= {
+						intensity: num(e, "Intensity", 0.4),
+						size: num(e, "Size", 24),
+						threshold: num(e, "Threshold", 0.95),
+					};
+					break;
+				case "DepthOfFieldEffect":
+					post.depthOfField ??= {
+						far: num(e, "FarIntensity", 0.1),
+						near: num(e, "NearIntensity", 0.75),
+						focus: num(e, "FocusDistance", 0.05),
+						radius: num(e, "InFocusRadius", 30),
+					};
+					break;
+				case "SunRaysEffect":
+					post.sunRays ??= { intensity: num(e, "Intensity", 0.25), spread: num(e, "Spread", 1) };
+					break;
+			}
+		}
+	}
+	return post;
+}
+
+/** Effect names as Properties lists them: "ColorCorrection", not "ColorCorrectionEffect". */
+function effectNames(post: PostEffects): string {
+	const on = [post.colour && "ColorCorrection", post.blur !== undefined && "Blur"].filter(
+		Boolean,
+	) as string[];
+	const later = post.notDrawn.map((c) => `${c.replace(/Effect$/, "")} (not drawn yet)`);
+	return [...on, ...later].join(", ");
+}
 
 export function readLighting(doc: RbxDocument): LightingParams {
 	const lighting = doc.roots.find((r) => r.className === "Lighting");
@@ -147,10 +228,17 @@ export function readLighting(doc: RbxDocument): LightingParams {
 	]);
 	notes.push([moon ? "Moonlight" : "Sunlight", `Latitude ${+latitude.toFixed(1)}°`]);
 	const skybox = skyboxOf(sky);
+	const workspace = doc.roots.find((r) => r.className === "Workspace");
+	const post = readPostEffects([
+		lighting,
+		workspace?.children.find((c) => c.className === "Camera"),
+	]);
 	const sunImage = prop<boolean>(sky, "CelestialBodiesShown", true)
 		? imageOf(sky, "SunTextureId")
 		: undefined;
 	if (sky) notes.push(["Sky", skybox ? "Its images, once downloaded" : "Not all six images named"]);
+	const effects = effectNames(post);
+	if (effects) notes.push(["Post effects", effects]);
 
 	return {
 		sun,
@@ -177,6 +265,7 @@ export function readLighting(doc: RbxDocument): LightingParams {
 		...(skybox ? { skybox } : {}),
 		...(sunImage && !moon ? { sunImage: { asset: sunImage, size } } : {}),
 		skyboxSun: ownSun(sky),
+		post,
 		notes,
 	};
 }

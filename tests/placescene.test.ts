@@ -243,7 +243,12 @@ describe("The scene route", () => {
 			.lighting;
 		expect(lighting?.sun).toHaveLength(3);
 		// What lights it, as Properties' rows: a name and what it is.
-		expect(lighting?.notes.map(([name]) => name)).toEqual(["Haze", "Sunlight", "Sky"]);
+		expect(lighting?.notes.map(([name]) => name)).toEqual([
+			"Haze",
+			"Sunlight",
+			"Sky",
+			"Post effects",
+		]);
 		await expect(
 			session.handle("GET", "/place/scene", { query: { stamp: "old" } }),
 		).rejects.toThrow(/changed/);
