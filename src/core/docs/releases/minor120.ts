@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.255.0",
+		date: "2026-11-16",
+		headline: "Select can be put down in the place viewer, and the heatmaps blend smoothly.",
+		added: [
+			"**The camera alone.** Press 1 with Select chosen, or click Select, and clicks in the place viewer pick nothing; the camera works as before. Press 1 again to pick it up.",
+			"**Linear heat or Cubespots** for the Rendering panel's heatmaps. Linear heat, now the default, blends them smoothly; Cubespots shows the 16-stud cells the lights are sorted into.",
+		],
+	},
+	{
 		version: "0.254.0",
 		date: "2026-11-16",
 		headline: "A Rendering panel for the place viewer, and WebGL2 draws three times faster.",
