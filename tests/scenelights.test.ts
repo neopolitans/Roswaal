@@ -69,7 +69,10 @@ describe("a place's lights", () => {
 		expect(lights.length).toBe(2 * LIGHT_STRIDE);
 		const [point, surface] = [lights.slice(0, LIGHT_STRIDE), lights.slice(LIGHT_STRIDE)];
 		expect(point.slice(0, 4)).toEqual([10, 20, 30, 12]);
-		expect(point.slice(4, 8)).toEqual([2, 2, 2, LIGHT_POINT]);
+		expect(round(point.slice(4, 8))).toEqual([
+			...round([2 ** 1.25, 2 ** 1.25, 2 ** 1.25]),
+			LIGHT_POINT,
+		]);
 		// The Bottom face's middle, facing down, its half-sides along X and Z.
 		expect(round(surface.slice(0, 4))).toEqual([0, 4.5, 0, 20]);
 		expect(round(surface.slice(4, 8))).toEqual([1, round([0.5 ** 2.2])[0], 0, LIGHT_SURFACE]);

@@ -189,10 +189,16 @@ fn lightCell(p: vec3f) -> u32 {
 // its strength out to 0.7 of its Range and is gone at it, a SpotLight's or
 // SurfaceLight's cone eases from its middle to nothing at half its Angle, a
 // SurfaceLight shines from the nearest point of its face, and Brightness 1
-// adds 1.39.
-fn partLights(p: vec3f, n: vec3f) -> vec3f {
+// adds 1.25, Brightness b, b to the 1.25 (sceneLights). Measured over a light
+// and a dark floor at once, through this display curve, to 4.3 levels rms.
+// Each light's highlight too, as a gloss of the material's: on SmoothPlastic
+// Studio's is 0.55 of the light where it mirrors to the eye, four times the
+// sun's, and sharper (gloss twice the material's), from the same captures.
+struct Lamps { diffuse: vec3f, spec: vec3f };
+fn partLights(p: vec3f, n: vec3f, v: vec3f, gloss: f32) -> Lamps {
 	let b = lightTable[lightCell(p)];
 	var sum = vec3f(0.0);
+	var shine = vec3f(0.0);
 	for (var j = 0u; j < min(b.y, 64u); j++) {
 		let k = lightIndex[b.x + j] * 5u;
 		let a = lightData[k];
@@ -216,8 +222,9 @@ fn partLights(p: vec3f, n: vec3f) -> vec3f {
 			k2 = k2 * (1.0 - smoothstep(0.0, 1.0, acos(min(c, 1.0)) / max(d.w, 1e-3)));
 		}
 		sum = sum + col.rgb * k2;
+		shine = shine + col.rgb * k2 * pow(max(dot(n, normalize(l + v)), 0.0), gloss);
 	}
-	return sum * 1.39;
+	return Lamps(sum * 1.25, shine * 1.25);
 }
 // How much of the sky reaches p, on a face turned to n: the share of the maps that see it.
 fn skyVisibility(p: vec3f, n: vec3f) -> f32 {
@@ -309,10 +316,10 @@ fn aces(colour: vec3f) -> vec3f {
 	let b = v * (0.983729 * v + 0.4329510) + 0.238081;
 	return clamp(o * (a / b), vec3f(0.0), vec3f(1.0));
 }
-// The deepest shadows lifted a touch, as they measure in Studio's captures.
+// No lift: in Studio's captures of a dark room its blacks reach 0.
 fn display(c: vec3f) -> vec3f {
 	let t = aces(c * u.zenith.w);
-	return pow(t + 0.007 * (1.0 - t), vec3f(1.0 / 2.2));
+	return pow(t, vec3f(1.0 / 2.2));
 }
 // The air between a surface and the camera: Lighting's fog, or the
 // Atmosphere's haze, thinner with height as air is.
@@ -532,7 +539,8 @@ fn surface(i: VOut) -> vec4f {
 		let vis = skyVisibility(i.world, n);
 		let lit = u.sunColour.rgb * ndl * sunSees(i.world, n);
 		let fill = (vec3f(u.fog.w, u.fogColour.w, u.hazeColour.w) + u.ambient.rgb * vis) * (0.9 + 0.1 * n.y);
-		c = albedo * (1.0 - a.z * 0.6) * (fill + lit + partLights(i.world, n)) + mix(vec3f(1.0), albedo, a.z) * spec * lit;
+		let lamps = partLights(i.world, n, v, a.y * 2.0);
+		c = albedo * (1.0 - a.z * 0.6) * (fill + lit + lamps.diffuse) + mix(vec3f(1.0), albedo, a.z) * (spec * lit + lamps.spec * a.x * pat.y * 4.6);
 		let seen = sky(reflect(-v, n)) * max(vis, 0.05);
 		// A metal shows a little of the sky in its own colour.
 		c = c + seen * albedo * a.z * a.x * 0.25;
@@ -707,7 +715,7 @@ struct IOut {
 	let ndl = max(dot(n, u.sun.xyz), 0.0);
 	let vis = skyVisibility(i.world, n);
 	let fill = (vec3f(u.fog.w, u.fogColour.w, u.hazeColour.w) + u.ambient.rgb * vis) * (0.9 + 0.1 * n.y);
-	let c = albedo * (fill + u.sunColour.rgb * ndl * sunSees(i.world, n) + partLights(i.world, n));
+	let c = albedo * (fill + u.sunColour.rgb * ndl * sunSees(i.world, n) + partLights(i.world, n, n, 1.0).diffuse);
 	let d = length(u.camPos.xyz - i.world);
 	return vec4f(display(air(c, d, i.world.y)), t.a * i.tint.a);
 }

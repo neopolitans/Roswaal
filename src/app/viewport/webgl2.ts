@@ -71,7 +71,7 @@ vec3 aces(vec3 colour) {
 	vec3 b = v * (0.983729 * v + 0.4329510) + 0.238081;
 	return clamp(o * (a / b), 0.0, 1.0);
 }
-vec3 display(vec3 c) { vec3 t = aces(c * L[3].w); return pow(t + 0.007 * (1.0 - t), vec3(1.0 / 2.2)); }
+vec3 display(vec3 c) { vec3 t = aces(c * L[3].w); return pow(t, vec3(1.0 / 2.2)); }
 vec3 air(vec3 c, float d, float y) {
 	if (L[8].z > 0.5) return mix(c, L[9].rgb, clamp((d - L[8].x) / max(L[8].y - L[8].x, 1.0), 0.0, 1.0));
 	float thin = exp(-max(y, 0.0) * 0.004);
@@ -241,10 +241,12 @@ uint lightCell(vec3 p) {
 	uint h = (uint(c.x) * 73856093u) ^ (uint(c.y) * 19349663u) ^ (uint(c.z) * 83492791u);
 	return h & 65535u;
 }
-vec3 partLights(vec3 p, vec3 n) {
+// Each light's highlight too, into shine, as WebGpuView's partLights.
+vec3 partLights(vec3 p, vec3 n, vec3 v, float gloss, out vec3 shine) {
 	uint h = lightCell(p);
 	uvec2 b = texelFetch(lightTable, ivec2(int(h & 255u), int(h >> 8u)), 0).xy;
 	vec3 sum = vec3(0.0);
+	shine = vec3(0.0);
 	uint count = min(b.y, 64u);
 	for (uint j = 0u; j < count; j++) {
 		uint idx = b.x + j;
@@ -270,8 +272,10 @@ vec3 partLights(vec3 p, vec3 n) {
 			k *= 1.0 - smoothstep(0.0, 1.0, acos(min(c, 1.0)) / max(d.w, 1e-3));
 		}
 		sum += col.rgb * k;
+		shine += col.rgb * k * pow(max(dot(n, normalize(l + v)), 0.0), gloss);
 	}
-	return sum * 1.39;
+	shine *= 1.25;
+	return sum * 1.25;
 }
 float skyVisibility(vec3 p, vec3 n) {
 	if (skyInfo.w < 0.5) return 1.0;
@@ -346,7 +350,9 @@ vec4 surface(vec3 colour, vec3 n, vec3 world, float alpha, uint look, vec3 local
 		float vis = skyVisibility(world, n);
 		vec3 lit = L[1].rgb * ndl * sunSees(world, n);
 		vec3 fill = (vec3(L[8].w, L[9].w, L[10].w) + L[2].rgb * vis) * (0.9 + 0.1 * n.y);
-		c = albedo * (1.0 - a.z * 0.6) * (fill + lit + partLights(world, n)) + mix(vec3(1.0), albedo, a.z) * spec * lit;
+		vec3 lampShine;
+		vec3 lamps = partLights(world, n, v, a.y * 2.0, lampShine);
+		c = albedo * (1.0 - a.z * 0.6) * (fill + lit + lamps) + mix(vec3(1.0), albedo, a.z) * (spec * lit + lampShine * a.x * pat.y * 4.6);
 		vec3 seen = sky(reflect(-v, n)) * max(vis, 0.05);
 		c += seen * albedo * a.z * a.x * 0.25;
 		float mirror = shine;
@@ -469,7 +475,8 @@ void main() {
 	float ndl = max(dot(n, L[0].xyz), 0.0);
 	float vis = skyVisibility(vWorld, n);
 	vec3 fill = (vec3(L[8].w, L[9].w, L[10].w) + L[2].rgb * vis) * (0.9 + 0.1 * n.y);
-	vec3 c = albedo * (fill + L[1].rgb * ndl * sunSees(vWorld, n) + partLights(vWorld, n));
+	vec3 lampShine;
+	vec3 c = albedo * (fill + L[1].rgb * ndl * sunSees(vWorld, n) + partLights(vWorld, n, n, 1.0, lampShine));
 	o = vec4(display(air(c, length(L[6].xyz - vWorld), vWorld.y)), t.a * vTint.a);
 }`;
 const VS_SKY = `#version 300 es

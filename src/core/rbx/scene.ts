@@ -134,7 +134,8 @@ export function sceneLights(workspace: RbxInstance | undefined): number[] {
 			(i) =>
 				cf.position[i] + r[i * 3] * offset[0] + r[i * 3 + 1] * offset[1] + r[i * 3 + 2] * offset[2],
 		);
-		const colour = (vec3(inst, "Color") ?? [1, 1, 1]).map((c) => c ** 2.2 * brightness);
+		// Brightness to the 1.25, as Studio's captures of 0.25, 1 and 2 show.
+		const colour = (vec3(inst, "Color") ?? [1, 1, 1]).map((c) => c ** 2.2 * brightness ** 1.25);
 		const half = (Math.min(Math.max(numberProp(inst, "Angle", 90), 0), 180) * Math.PI) / 360;
 		let at = centre;
 		let dir = [0, -1, 0];
