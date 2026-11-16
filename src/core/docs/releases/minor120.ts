@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.248.0",
+		date: "2026-11-16",
+		headline: "The place viewer draws a place's lights, and keeps the sky and sun out of its interiors.",
+		added: [
+			"**Lights in the place viewer.** PointLights, SpotLights and SurfaceLights light the place as they do in Studio, with their highlights on shiny materials. They cast no shadows yet.",
+			"**Indoors and outdoors.** Lighting's Ambient lights where the sky cannot reach, and OutdoorAmbient, the sky and the sun only where they can. The sun casts broad shadows.",
+		],
+		changed: [
+			"**The darkest shadows** are black, as Studio draws them, instead of lifted.",
+		],
+	},
+	{
 		version: "0.247.1",
 		date: "2026-11-16",
 		headline: "Script analysis drags down to the height of what it shows.",
