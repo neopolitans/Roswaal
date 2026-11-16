@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.257.1",
+		date: "2026-11-16",
+		headline: "Beams lie and scroll as in Studio.",
+		fixed: [
+			"**Beams** lie along their Attachments' Y axes, and their textures run down the image along the beam, so they scroll as in Studio.",
+		],
+	},
+	{
 		version: "0.257.0",
 		date: "2026-11-16",
 		headline: "The place viewer draws Beams and particles, and cuts unions.",
