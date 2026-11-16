@@ -99,7 +99,12 @@ export async function loadImages(
 		const bytes = held.get(image);
 		if (!bytes) continue;
 		try {
-			const bitmap = await createImageBitmap(new Blob([bytes as BlobPart]));
+			// Its colours as they are, not multiplied by its alpha: both renderers
+			// take them so, and undoing the multiply later is lossy at faint edges
+			// and, in WebGL2, a copy on the page's own thread.
+			const bitmap = await createImageBitmap(new Blob([bytes as BlobPart]), {
+				premultiplyAlpha: "none",
+			});
 			show(asked, bitmap);
 		} catch {
 			// Not an image a browser can read: that face keeps its box colour.

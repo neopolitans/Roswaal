@@ -225,15 +225,13 @@ export interface CornerElements {
 }
 
 /**
- * An image as a renderer takes it. Decoded images come with their colours
- * already multiplied by their alpha, which WebGPU's copy undoes; WebGL takes a
- * bitmap as it is, and drew faint edges multiplied twice, nearly black. So
- * WebGL2 is handed a copy with its colours as they are.
+ * An image as a renderer takes it: loadImages already decodes its colours as
+ * they are, not multiplied by their alpha, which both renderers want, so it is
+ * handed over as it is. (WebGL2 once needed a copy made here, a long task on
+ * the page's thread for a large sky face.)
  */
-function forView(view: ViewRenderer, image: ImageBitmap): Promise<ImageBitmap> {
-	return view.backend === "WebGL2"
-		? createImageBitmap(image, { premultiplyAlpha: "none" })
-		: Promise.resolve(image);
+function forView(_view: ViewRenderer, image: ImageBitmap): Promise<ImageBitmap> {
+	return Promise.resolve(image);
 }
 
 export class ViewportController {
@@ -574,7 +572,11 @@ export class ViewportController {
 						(each as ImageBitmap[]).map((face) =>
 							face.width === size && face.height === size
 								? face
-								: createImageBitmap(face, { resizeWidth: size, resizeHeight: size }),
+								: createImageBitmap(face, {
+										resizeWidth: size,
+										resizeHeight: size,
+										premultiplyAlpha: "none",
+									}),
 						),
 					);
 				})
