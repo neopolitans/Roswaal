@@ -119,7 +119,7 @@ describe("a beam's curve", () => {
 		];
 		close(bezier(arched[0], arched[1], arched[2], arched[3], 0.5), [5, 3, 0]);
 	});
-	it("is laid out a quad a segment, its width across the attachments' Z, Width0 to Width1", () => {
+	it("is laid out a quad a segment, its width along the attachments' Y, Width0 to Width1", () => {
 		const sim = new EffectsSim({ beams: [beam(0, 0)], emitters: [] });
 		const frame = sim.frame(
 			{ eye: [5, 5, 20], at: [5, 0, 0], aspect: 1, fov: 1.2 },
@@ -140,10 +140,11 @@ describe("a beam's curve", () => {
 					(q * QUAD_VERTICES + c) * EFFECT_VERTEX + 3,
 				),
 			);
-		close(at(0, 0), [0, 0, 1]);
-		close(at(0, 3), [0, 0, -1]);
-		close(at(3, 1), [10, 0, 2]);
-		close(at(3, 2), [10, 0, -2]);
+		// Studio draws a beam between unturned attachments upright: its width up the Y axis.
+		close(at(0, 0), [0, 1, 0]);
+		close(at(0, 3), [0, -1, 0]);
+		close(at(3, 1), [10, 2, 0]);
+		close(at(3, 2), [10, -2, 0]);
 	});
 	it("scrolls a texture that has arrived, and stands in a soft band for one that has not", () => {
 		const textured = { ...beam(0, 0), texture: "5", textureSpeed: 0.5 };
@@ -153,10 +154,12 @@ describe("a beam's curve", () => {
 		expect(sim.frame(view, 0, show, () => false).batches[0].texture).toBe(FALLBACK_BAND);
 		const first = sim.frame(view, 0, show, () => true);
 		expect(first.moving).toBe(true);
-		const u0 = first.vertices[3];
+		// Down the image along the beam, as Studio draws it; across it, across.
+		const v0 = first.vertices[4];
+		expect([first.vertices[3], first.vertices[3 + EFFECT_VERTEX * 2]]).toEqual([0, 1]);
 		const later = sim.frame(view, 0.1, show, () => true);
 		// Stretch, once along the beam; half a texture a second, towards Attachment1.
-		expect(later.vertices[3]).toBeCloseTo(u0 - 0.05, 5);
+		expect(later.vertices[4]).toBeCloseTo(v0 - 0.05, 5);
 	});
 	it("is left out with Beams off, and out of view", () => {
 		const sim = new EffectsSim({ beams: [beam(0, 0)], emitters: [] });

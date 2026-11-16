@@ -691,9 +691,10 @@ export class EffectsSim {
 				along.push(along[i - 1] + Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]));
 			}
 		}
-		// The texture's run along the beam: TextureLength times for Stretch, once
-		// every TextureLength studs for Wrap and Static; moved on by TextureSpeed
-		// a second, from Attachment0 towards Attachment1.
+		// The texture's run along the beam, down the image as Studio draws it (its
+		// across the image is across the beam): TextureLength times for Stretch,
+		// once every TextureLength studs for Wrap and Static; moved on by
+		// TextureSpeed a second, from Attachment0 towards Attachment1.
 		const scroll = textured ? this.elapsed * beam.textureSpeed : 0;
 		const uAt = (i: number) => {
 			const tile =
@@ -702,9 +703,10 @@ export class EffectsSim {
 					: along[i] / Math.max(beam.textureLength, 1e-3);
 			return tile - scroll;
 		};
-		// Not facing the camera, the beam lies flat along the attachments' Z axes.
-		const z0 = [beam.from.rotation[2], beam.from.rotation[5], beam.from.rotation[8]];
-		const z1 = [beam.to.rotation[2], beam.to.rotation[5], beam.to.rotation[8]];
+		// Not facing the camera, the beam's width runs along the attachments' Y
+		// axes, squared to the beam, as Studio draws it: turned with them.
+		const z0 = [beam.from.rotation[1], beam.from.rotation[4], beam.from.rotation[7]];
+		const z1 = [beam.to.rotation[1], beam.to.rotation[4], beam.to.rotation[7]];
 		const edges: number[][][] = [];
 		const colour = this.colour;
 		const words: number[] = [];
@@ -738,10 +740,10 @@ export class EffectsSim {
 		for (let i = 0; i < n; i++) {
 			const base = (at + i) * QUAD_VERTICES * EFFECT_VERTEX;
 			const corners: [number[], number, number, number][] = [
-				[edges[i][0], uAt(i), 0, words[i]],
-				[edges[i + 1][0], uAt(i + 1), 0, words[i + 1]],
-				[edges[i + 1][1], uAt(i + 1), 1, words[i + 1]],
-				[edges[i][1], uAt(i), 1, words[i]],
+				[edges[i][0], 0, uAt(i), words[i]],
+				[edges[i + 1][0], 0, uAt(i + 1), words[i + 1]],
+				[edges[i + 1][1], 1, uAt(i + 1), words[i + 1]],
+				[edges[i][1], 1, uAt(i), words[i]],
 			];
 			for (let q = 0; q < 4; q++) {
 				const [pos, cu, cv, word] = corners[q];
