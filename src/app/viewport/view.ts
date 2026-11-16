@@ -270,6 +270,30 @@ export const LIGHT_TABLE = 65536;
 /** At most this many lights are added at a pixel. */
 export const LIGHT_MOST = 64;
 
+/**
+ * A fingerprint of numbers, FNV-1a over their float bits: to tell a place
+ * sent again after an edit from one whose parts or lights moved, so an edit to
+ * Lighting does not redraw the sky's maps or rebuild the lights' grid.
+ */
+export function fingerprint(...lists: (ArrayLike<number> | undefined)[]): number {
+	let h = 0x811c9dc5;
+	for (const list of lists) {
+		if (!list) continue;
+		const words =
+			list instanceof Float32Array
+				? new Uint32Array(list.buffer, list.byteOffset, list.length)
+				: new Uint32Array(Float32Array.from(list).buffer);
+		for (let i = 0; i < words.length; i++) h = Math.imul(h ^ words[i], 0x01000193);
+		h = Math.imul(h ^ words.length, 0x01000193);
+	}
+	return h >>> 0;
+}
+
+/** A fingerprint of what a place's solid parts are and where: see fingerprint. */
+export function sceneFingerprint(scene: PlaceScene): number {
+	return fingerprint(...SCENE_KINDS.map((k) => scene.kinds[k].data));
+}
+
 /** A cell's hash, as the shaders work it out: see LIGHT_CELL. */
 export function lightHash(cx: number, cy: number, cz: number): number {
 	return (

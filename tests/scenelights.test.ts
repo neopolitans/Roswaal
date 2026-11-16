@@ -123,3 +123,13 @@ describe("the grid that finds the lights", () => {
 		expect(index.length).toBe(1);
 	});
 });
+
+describe("a place sent again after an edit", () => {
+	it("keeps its fingerprint while its parts and lights are unchanged", async () => {
+		const { fingerprint } = await import("../src/app/viewport/view.js");
+		const parts = new Float32Array([1, 2, 3, 4]);
+		expect(fingerprint(parts, [5, 6])).toBe(fingerprint(new Float32Array([1, 2, 3, 4]), [5, 6]));
+		expect(fingerprint(parts, [5, 6])).not.toBe(fingerprint(parts, [5, 7]));
+		expect(fingerprint(parts)).not.toBe(fingerprint(new Float32Array([1, 2, 3, 4, 0])));
+	});
+});

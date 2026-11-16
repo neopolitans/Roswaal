@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.248.1",
+		date: "2026-11-16",
+		headline: "Editing a place's Lighting no longer stalls the place viewer.",
+		fixed: [
+			"**Editing Lighting** in a place with many parts and lights takes a frame again instead of over a second: only the sun's shadow is redrawn, and the lights are not sorted again.",
+		],
+	},
+	{
 		version: "0.248.0",
 		date: "2026-11-16",
 		headline: "The place viewer draws a place's lights, and keeps the sky and sun out of its interiors.",

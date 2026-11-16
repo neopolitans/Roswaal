@@ -21,6 +21,7 @@ import {
 	blurSigma,
 	type Camera,
 	FOV,
+	fingerprint,
 	type GlowShape,
 	glowShape,
 	glowSpread,
@@ -42,6 +43,7 @@ import {
 	SKY_VIEWS,
 	SUN_GAIN,
 	sceneBox,
+	sceneFingerprint,
 	seeThroughSets,
 	skyBlock,
 	splitByMesh,
@@ -1292,7 +1294,11 @@ export class WebGpuView implements ViewRenderer {
 
 	setLighting(lighting: LightingParams): void {
 		this.lighting = lighting;
-		this.skyDirty = true;
+		const sun = lighting.sun.join(",");
+		if (sun !== this.sunKey) {
+			this.sunKey = sun;
+			this.sunDirty = true;
+		}
 	}
 
 	setHandles(handles: Handles): void {
@@ -1309,7 +1315,12 @@ export class WebGpuView implements ViewRenderer {
 		for (const d of [...this.draws, ...this.clear, ...this.glass])
 			for (const b of [d.vertices, d.indices, d.instances]) b.destroy();
 		this.scene = scene;
-		this.skyDirty = true;
+		// The sky's maps again only when the parts moved, not for an edit to Lighting.
+		const key = sceneFingerprint(scene);
+		if (key !== this.skyKey) {
+			this.skyKey = key;
+			this.skyDirty = true;
+		}
 		this.setLights(scene.lights);
 		if (this.skyImages && this.sunTexture) this.rebind();
 		this.setImages(scene);
@@ -1380,6 +1391,7 @@ export class WebGpuView implements ViewRenderer {
 
 	setMeshes(meshes: ReadonlyMap<number, MeshGeometry>): void {
 		this.meshes = meshes;
+		this.skyDirty = true;
 		if (this.scene) this.setScene(this.scene);
 	}
 
@@ -1651,7 +1663,7 @@ export class WebGpuView implements ViewRenderer {
 		this.shape = glowShape(this.lighting?.post, this.postOn);
 		this.setCamera(camera);
 		const encoder = this.device.createCommandEncoder();
-		if (this.skyDirty) this.drawSkyMaps(encoder);
+		if (this.skyDirty || this.sunDirty) this.drawSkyMaps(encoder, !this.skyDirty);
 		const screen = this.context.getCurrentTexture().createView();
 		const glowing = this.glowing && !!this.glow;
 		const post = postActive(this.lighting?.post, this.postOn);
@@ -1920,13 +1932,22 @@ export class WebGpuView implements ViewRenderer {
 	private skyUniform!: GPUBuffer;
 	private skyDepth!: GPURenderPipeline;
 	private skyViewGroups: { buffer: GPUBuffer; group: GPUBindGroup }[] = [];
-	/** The maps are drawn again before the next frame: the place or the sun moved. */
+	/** All the maps are drawn again before the next frame: the parts moved. */
 	private skyDirty = true;
+	/** The sun's map alone is drawn again: the sun moved. */
+	private sunDirty = true;
+	private skyKey = -1;
+	private sunKey = "";
+	private lightKey = -1;
 	/** The place's lights and the grid that finds them: see lightGrid. */
 	private lightBuffers!: { data: GPUBuffer; table: GPUBuffer; index: GPUBuffer };
 
 	private setLights(lights: readonly number[] | undefined): void {
 		const d = this.device;
+		// The same lights again, after an edit elsewhere: the grid already holds them.
+		const key = fingerprint(lights);
+		if (key === this.lightKey && this.lightKey !== -1) return;
+		this.lightKey = key;
 		const old = this.lightBuffers;
 		const grid = lightGrid(lights);
 		const store = (data: Float32Array | Uint32Array) => {
@@ -1987,15 +2008,17 @@ struct VIn { @location(0) pos: vec3f, @location(2) c0: vec3f, @location(3) c1: v
 		});
 	}
 
-	/** The place's depth from each sky direction and the sun, into the maps. */
-	private drawSkyMaps(encoder: GPUCommandEncoder): void {
+	/** The place's depth from each sky direction and the sun, into the maps; or the sun's alone. */
+	private drawSkyMaps(encoder: GPUCommandEncoder, sunOnly = false): void {
 		this.skyDirty = false;
+		this.sunDirty = false;
 		const q = this.device.queue;
 		const box = this.scene ? sceneBox(this.scene) : null;
 		const block = skyBlock(box, this.lighting?.sun ?? [0, 1, 0], true);
 		q.writeBuffer(this.skyUniform, 0, block);
 		if (!box) return;
 		this.skyViewGroups.forEach(({ buffer, group }, k) => {
+			if (sunOnly && k < SKY_VIEWS) return;
 			q.writeBuffer(buffer, 0, block.subarray(k * 16, k * 16 + 16));
 			const pass = encoder.beginRenderPass({
 				colorAttachments: [],

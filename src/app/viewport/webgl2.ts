@@ -21,6 +21,7 @@ import {
 	blurSigma,
 	type Camera,
 	FOV,
+	fingerprint,
 	type GlowShape,
 	glowShape,
 	glowSpread,
@@ -42,6 +43,7 @@ import {
 	SKY_VIEWS,
 	SUN_GAIN,
 	sceneBox,
+	sceneFingerprint,
 	seeThroughSets,
 	skyBlock,
 	splitByMesh,
@@ -827,7 +829,11 @@ export class WebGl2View implements ViewRenderer {
 
 	setLighting(lighting: LightingParams): void {
 		this.lighting = lighting;
-		this.skyDirty = true;
+		const sun = lighting.sun.join(",");
+		if (sun !== this.sunKey) {
+			this.sunKey = sun;
+			this.sunDirty = true;
+		}
 	}
 
 	setScene(scene: PlaceScene): void {
@@ -835,7 +841,12 @@ export class WebGl2View implements ViewRenderer {
 		for (const d of [...this.draws, ...this.clear, ...this.glass]) gl.deleteVertexArray(d.vao);
 		for (const b of this.sceneBuffers) gl.deleteBuffer(b);
 		this.scene = scene;
-		this.skyDirty = true;
+		// The sky's maps again only when the parts moved, not for an edit to Lighting.
+		const key = sceneFingerprint(scene);
+		if (key !== this.skyKey) {
+			this.skyKey = key;
+			this.skyDirty = true;
+		}
 		this.setLights(scene.lights);
 		this.setImages(scene);
 		this.draws = [];
@@ -1290,13 +1301,22 @@ export class WebGl2View implements ViewRenderer {
 	private depthProgram!: Program;
 	/** What the shaders read, as skyBlock gives it; all 0, the maps are off. */
 	private skyData: Float32Array = new Float32Array(SKY_BLOCK);
-	/** The maps are drawn again before the next frame: the place or the sun moved. */
+	/** All the maps are drawn again before the next frame: the parts moved. */
 	private skyDirty = true;
+	/** The sun's map alone is drawn again: the sun moved. */
+	private sunDirty = true;
+	private skyKey = -1;
+	private sunKey = "";
+	private lightKey = -1;
 	/** The place's lights and the grid that finds them, on units 7 to 9: see lightGrid. */
 	private lightTextures: WebGLTexture[] = [];
 
 	private setLights(lights: readonly number[] | undefined): void {
 		const gl = this.gl;
+		// The same lights again, after an edit elsewhere: the grid already holds them.
+		const key = fingerprint(lights);
+		if (key === this.lightKey && this.lightKey !== -1) return;
+		this.lightKey = key;
 		for (const t of this.lightTextures) gl.deleteTexture(t);
 		const grid = lightGrid(lights);
 		const count = Math.max(1, (lights?.length ?? 0) / LIGHT_STRIDE);
@@ -1371,10 +1391,11 @@ export class WebGl2View implements ViewRenderer {
 		this.skyFbo = gl.createFramebuffer();
 	}
 
-	/** The place's depth from each sky direction and the sun, into the maps. */
-	private drawSkyMaps(): void {
+	/** The place's depth from each sky direction and the sun, into the maps; or the sun's alone. */
+	private drawSkyMaps(sunOnly = false): void {
 		const gl = this.gl;
 		this.skyDirty = false;
+		this.sunDirty = false;
 		const box = this.scene ? sceneBox(this.scene) : null;
 		this.skyData = skyBlock(box, this.lighting?.sun ?? [0, 1, 0], false);
 		if (!box || !this.skyMaps) return;
@@ -1387,7 +1408,7 @@ export class WebGl2View implements ViewRenderer {
 		gl.enable(gl.DEPTH_TEST);
 		gl.depthMask(true);
 		gl.clearDepth(1);
-		for (let k = 0; k <= SKY_VIEWS; k++) {
+		for (let k = sunOnly ? SKY_VIEWS : 0; k <= SKY_VIEWS; k++) {
 			gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, this.skyMaps, 0, k);
 			gl.clear(gl.DEPTH_BUFFER_BIT);
 			gl.uniformMatrix4fv(
@@ -1453,7 +1474,7 @@ export class WebGl2View implements ViewRenderer {
 
 	draw(camera: Camera): void {
 		const gl = this.gl;
-		if (this.skyDirty) this.drawSkyMaps();
+		if (this.skyDirty || this.sunDirty) this.drawSkyMaps(!this.skyDirty);
 		this.shape = glowShape(this.lighting?.post, this.postOn);
 		if (this.glowing) {
 			if (this.clear.length > 0) this.sortClear(camera.eye);
@@ -1608,6 +1629,7 @@ export class WebGl2View implements ViewRenderer {
 
 	setMeshes(meshes: ReadonlyMap<number, MeshGeometry>): void {
 		this.meshes = meshes;
+		this.skyDirty = true;
 		if (this.scene) this.setScene(this.scene);
 	}
 
