@@ -20,7 +20,10 @@ import { lightGridFor } from "./prepare.js";
 import { OVERDRAW_WGSL, VIEWS_WGSL } from "./renderViews.js";
 import { TEXTURE_LEVELS, TEXTURE_SIZE } from "./textures.js";
 import {
+	BLOOM_STEEP,
+	BLOOM_STRENGTH,
 	backToFront,
+	bloomStart,
 	blurSigma,
 	CASCADE_BLOCK,
 	CASCADE_MAP,
@@ -123,6 +126,21 @@ struct Out { @builtin(position) clip: vec4f, @location(0) uv: vec2f };
 // each pixel a Decal or Texture covers, carried along for the composite.
 @fragment fn fsDown(i: Out) -> @location(0) vec4f {
 	return textureSampleLevel(tex, samp, i.uv, 0.0);
+}
+// A BloomEffect's bloom of the whole picture: where the finished frame's
+// brightest channel nears full, past p.x, and Neon is not glowing there
+// already (its own glow, tex, is fitted on its own), added to the glow's
+// source at half size. Fitted to Studio's screen captures: a Neon logo at
+// Transparency 0.3 (its face 238 of 255) does not bloom; with an additive
+// Beam behind it, so the face is full, it blooms as Neon does.
+@fragment fn fsBright(i: Out) -> @location(0) vec4f {
+	let f = textureSampleLevel(frame, samp, i.uv, 0.0).rgb;
+	let src = textureSampleLevel(tex, samp, i.uv, 0.0).rgb;
+	let t = pow(f, vec3f(2.2));
+	let m = max(t.r, max(t.g, t.b));
+	let over = max(m - p.x, 0.0) / max(1.0 - p.x, 1e-3);
+	let lit = pow(over, p.z) * p.w * (1.0 - smoothstep(0.02, 0.1, max(src.r, max(src.g, src.b))));
+	return vec4f(t / max(m, 1e-4) * lit, 0.0);
 }
 // A Gaussian \`p.w\` texels wide along \`p.xy\`, one texel, out to three times
 // that, at every texel: a fetch between two texels weighs both, so each pair
@@ -1018,6 +1036,7 @@ export class WebGpuView implements ViewRenderer {
 	private imageVeil!: GPURenderPipeline;
 	private down!: GPURenderPipeline;
 	private blur!: GPURenderPipeline;
+	private bright!: GPURenderPipeline;
 	private composite!: GPURenderPipeline;
 	private postLayout!: GPUBindGroupLayout;
 	private compositeLayout!: GPUBindGroupLayout;
@@ -1145,6 +1164,8 @@ export class WebGpuView implements ViewRenderer {
 		b: GPUTexture;
 		c: GPUTexture;
 		groups: GPUBindGroup[];
+		/** The bloom's bright-pass: the frame and Neon's glow source. */
+		bright: GPUBindGroup;
 		w: number;
 		h: number;
 	};
@@ -1674,6 +1695,24 @@ export class WebGpuView implements ViewRenderer {
 			fragment: { module: post, entryPoint: "fsBlur", targets: [halfTarget] },
 			primitive: { topology: "triangle-list" },
 		});
+		this.pipeline((p) => (this.bright = p), {
+			layout: d.createPipelineLayout({ bindGroupLayouts: [this.compositeLayout] }),
+			vertex: { module: post, entryPoint: "vsFull" },
+			fragment: {
+				module: post,
+				entryPoint: "fsBright",
+				targets: [
+					{
+						...halfTarget,
+						blend: {
+							color: { srcFactor: "one", dstFactor: "one" },
+							alpha: { srcFactor: "one", dstFactor: "one" },
+						},
+					},
+				],
+			},
+			primitive: { topology: "triangle-list" },
+		});
 		this.pipeline((p) => (this.composite = p), {
 			layout: d.createPipelineLayout({ bindGroupLayouts: [this.compositeLayout] }),
 			vertex: { module: post, entryPoint: "vsFull" },
@@ -1687,7 +1726,8 @@ export class WebGpuView implements ViewRenderer {
 		// Across, down, and the strength the glow is added at.
 		// The glow's blur across and down, the strength it is added at, and a
 		// BlurEffect's blur of the frame across and down.
-		this.postParams = [0, 1, 2, 3, 4, 5, 6].map(() =>
+		// And the bloom's bright-pass: Threshold, exposure, steepness and strength.
+		this.postParams = [0, 1, 2, 3, 4, 5, 6, 7].map(() =>
 			d.createBuffer({ size: 16, usage: BUFFER.UNIFORM | BUFFER.COPY_DST }),
 		);
 		this.gradeBuffer = d.createBuffer({ size: 32, usage: BUFFER.UNIFORM | BUFFER.COPY_DST });
@@ -1998,7 +2038,19 @@ export class WebGpuView implements ViewRenderer {
 			group(a, this.postParams[5]),
 			group(b, this.postParams[6]),
 		];
-		this.glow = { a, b, c, groups, w, h };
+		// The bloom's bright-pass: Neon's glow source and the finished frame.
+		const bright = d.createBindGroup({
+			layout: this.compositeLayout,
+			entries: [
+				{ binding: 0, resource: this.glowFull!.createView() },
+				{ binding: 1, resource: this.sampler },
+				{ binding: 2, resource: { buffer: this.postParams[7] } },
+				{ binding: 3, resource: this.frame!.createView() },
+				{ binding: 4, resource: { buffer: this.gradeBuffer } },
+				{ binding: 5, resource: c.createView() },
+			],
+		});
+		this.glow = { a, b, c, groups, bright, w, h };
 	}
 
 	/**
@@ -2040,26 +2092,44 @@ export class WebGpuView implements ViewRenderer {
 		}
 		this.veilImages(pass);
 		pass.end();
-		for (const [pipeline, from, into] of [
-			[this.down, 0, glow.a],
-			[this.blur, 1, glow.b],
-			[this.blur, 2, glow.a],
-			[this.blur, 3, glow.b],
-			[this.blur, 4, glow.c],
-		] as const) {
+		this.glowSteps(encoder, [[this.down, 0, glow.a, false]]);
+	}
+
+	/**
+	 * The glow blurred, once the place is drawn: narrow across and down, then on
+	 * to the wide; with `bloom`, the finished frame's bright-pass added to its
+	 * source first.
+	 */
+	private blurGlow(encoder: GPUCommandEncoder, bloom: boolean): void {
+		const glow = this.glow;
+		if (!glow) return;
+		const steps: [GPURenderPipeline, number, GPUTexture, boolean][] = [];
+		if (bloom) steps.push([this.bright, -1, glow.a, true]);
+		steps.push([this.blur, 1, glow.b, false], [this.blur, 2, glow.a, false]);
+		steps.push([this.blur, 3, glow.b, false], [this.blur, 4, glow.c, false]);
+		this.glowSteps(encoder, steps);
+	}
+
+	private glowSteps(
+		encoder: GPUCommandEncoder,
+		steps: readonly (readonly [GPURenderPipeline, number, GPUTexture, boolean])[],
+	): void {
+		const glow = this.glow;
+		if (!glow) return;
+		for (const [pipeline, from, into, add] of steps) {
 			const step = encoder.beginRenderPass({
 				timestampWrites: this.stamp("post"),
 				colorAttachments: [
 					{
 						view: into.createView(),
-						loadOp: "clear",
+						loadOp: add ? "load" : "clear",
 						storeOp: "store",
 						clearValue: { r: 0, g: 0, b: 0, a: 1 },
 					},
 				],
 			});
 			step.setPipeline(pipeline);
-			step.setBindGroup(0, glow.groups[from]);
+			step.setBindGroup(0, from < 0 ? glow.bright : glow.groups[from]);
 			step.draw(3);
 			step.end();
 		}
@@ -2155,7 +2225,10 @@ export class WebGpuView implements ViewRenderer {
 			);
 		this.drawCascades(encoder, camera, partsMoved);
 		const screen = this.context.getCurrentTexture().createView();
-		const glowing = this.glowing && !!this.glow && show.glow && !heat && !wire && !tinted;
+		// A BloomEffect blooms the whole picture, Neon or not: see fsBright.
+		const bloom = postOn && !!this.lighting?.post.bloom && show.glow && !heat && !wire && !tinted;
+		const glowing =
+			(this.glowing || bloom) && !!this.glow && show.glow && !heat && !wire && !tinted;
 		const post = postActive(this.lighting?.post, postOn);
 		// The place is drawn into its own texture first when anything is added
 		// to it after: Neon's glow, or a post effect; or a heatmap's colours.
@@ -2265,6 +2338,15 @@ export class WebGpuView implements ViewRenderer {
 		// marks the place goes over it, against the place's own depth.
 		if (glow) {
 			pass.end();
+			if (glowing) {
+				const b = this.lighting?.post.bloom;
+				q.writeBuffer(
+					this.postParams[7],
+					0,
+					new Float32Array([bloomStart(b?.threshold ?? 2), 0, BLOOM_STEEP, BLOOM_STRENGTH]),
+				);
+				this.blurGlow(encoder, bloom);
+			}
 			if (post) this.blurTheFrame(encoder);
 			pass = encoder.beginRenderPass({
 				timestampWrites: this.stamp("post"),

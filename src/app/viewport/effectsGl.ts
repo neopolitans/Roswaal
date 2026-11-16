@@ -174,7 +174,16 @@ export class GlEffects {
 		}
 		gl.bindTexture(gl.TEXTURE_2D, null);
 		gl.activeTexture(gl.TEXTURE0);
+		// As WebGpuView's image sampler: linear, repeating both ways, and no
+		// smaller copies, so a beam's fine lines do not average into a solid band.
+		this.sampler = gl.createSampler()!;
+		gl.samplerParameteri(this.sampler, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+		gl.samplerParameteri(this.sampler, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+		gl.samplerParameteri(this.sampler, gl.TEXTURE_WRAP_S, gl.REPEAT);
+		gl.samplerParameteri(this.sampler, gl.TEXTURE_WRAP_T, gl.REPEAT);
 	}
+
+	private sampler!: WebGLSampler;
 
 	setEffects(effects: SceneEffects | undefined): void {
 		this.sim = new EffectsSim(effects);
@@ -246,6 +255,7 @@ export class GlEffects {
 		gl.depthMask(false);
 		gl.disable(gl.CULL_FACE);
 		gl.activeTexture(gl.TEXTURE2);
+		gl.bindSampler(2, this.sampler);
 		for (const batch of frame.batches) {
 			const texture = this.fallbacks.get(batch.texture) ?? this.host.imageTexture(batch.texture);
 			if (!texture) continue;
@@ -253,6 +263,7 @@ export class GlEffects {
 			gl.drawElements(gl.TRIANGLES, batch.count * 6, gl.UNSIGNED_INT, batch.first * 6 * 4);
 			this.last.draws++;
 		}
+		gl.bindSampler(2, null);
 		gl.activeTexture(gl.TEXTURE0);
 		gl.bindVertexArray(null);
 		gl.enable(gl.CULL_FACE);

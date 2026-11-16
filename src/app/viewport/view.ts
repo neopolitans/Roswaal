@@ -116,6 +116,25 @@ export const GLOW_GAIN = 2.6;
  */
 export const BLOOM_DEFAULT = { intensity: 1, size: 24, threshold: 2 };
 
+/**
+ * A BloomEffect's bloom of the whole picture: how fast the light past its
+ * Threshold comes to full, and how strong that is against Neon's glow. See
+ * WebGpuView's fsBright.
+ */
+export const BLOOM_STEEP = 1;
+export const BLOOM_STRENGTH = 1;
+
+/**
+ * Where a BloomEffect's bloom of the finished picture starts, as the light of
+ * a pixel's brightest channel (its display value to the 2.2): 0.88 at
+ * Threshold 2, from Studio's screen captures (a face of 238 of 255 does not
+ * bloom, one of 247 does), nearer full for a higher Threshold. Other
+ * Thresholds than 2 are a guess.
+ */
+export function bloomStart(threshold: number): number {
+	return Math.min(0.98, Math.max(0.5, 1 - 0.24 / Math.max(threshold, 0.1)));
+}
+
 /** How the glow is drawn: see `glowShape`. */
 export interface GlowShape {
 	/** The blur's sigma, as a share of the view's height. */

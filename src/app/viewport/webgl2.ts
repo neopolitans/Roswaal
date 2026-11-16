@@ -20,7 +20,10 @@ import { lightGridFor } from "./prepare.js";
 import { DENSITY_FS_GLSL, DENSITY_GLSL, OVERDRAW_GLSL, VIEWS_GLSL } from "./renderViews.js";
 import { TEXTURE_LEVELS, TEXTURE_SIZE } from "./textures.js";
 import {
+	BLOOM_STEEP,
+	BLOOM_STRENGTH,
 	backToFront,
+	bloomStart,
 	blurSigma,
 	CASCADE_BLOCK,
 	CASCADE_MAP,
@@ -798,6 +801,21 @@ void main() {
 	}
 	o = vec4(m, 0.0, 0.0, 1.0);
 	gl_FragDepth = toDepth > 0.5 ? m : gl_FragCoord.z;
+}`;
+// A BloomEffect's bloom of the whole picture, as WebGpuView's fsBright: the
+// frame's light past p.x where Neon is not glowing, added to Neon's source.
+const FS_BRIGHT = `#version 300 es
+precision highp float;
+in vec2 uv;
+uniform sampler2D frame; uniform sampler2D src; uniform vec4 p;
+out vec4 o;
+void main() {
+	vec3 t = pow(texture(frame, uv).rgb, vec3(2.2));
+	vec4 s = texture(src, uv);
+	float m = max(t.r, max(t.g, t.b));
+	float over = max(m - p.x, 0.0) / max(1.0 - p.x, 1e-3);
+	float lit = pow(over, p.z) * p.w * (1.0 - smoothstep(0.02, 0.1, max(s.r, max(s.g, s.b))));
+	o = vec4(s.rgb + t / max(m, 1e-4) * lit, s.a);
 }`;
 // The glow round what gives light, as WebGpuView's POST blurs and adds it.
 const FS_BLUR = `#version 300 es
@@ -1768,14 +1786,59 @@ export class WebGl2View implements ViewRenderer {
 		gl.bindFramebuffer(gl.FRAMEBUFFER, this.glowFbo[0]);
 		gl.bindTexture(gl.TEXTURE_2D, this.frameTex);
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
+		gl.bindTexture(gl.TEXTURE_2D, null);
+		gl.enable(gl.DEPTH_TEST);
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+	}
+
+	private brightProgram?: Program;
+	/** This frame blooms the whole picture: see draw. */
+	private bloomAll = false;
+
+	/**
+	 * The glow blurred, once the place is drawn and in frameTex: with `bloom`,
+	 * the frame's bright-pass added to Neon's source (0) into 2 first, as
+	 * WebGpuView's blurGlow; then narrow across and down into 0, and on across
+	 * and down into 2, the wide blur.
+	 */
+	private blurGlow(bloom: boolean): void {
+		const gl = this.gl;
+		const [w, h] = this.glowSize;
+		gl.viewport(0, 0, w, h);
+		gl.disable(gl.DEPTH_TEST);
+		let first: 0 | 2 = 0;
+		if (bloom) {
+			this.brightProgram ??= this.link(VS_FULL, FS_BRIGHT);
+			const prog = this.brightProgram.program;
+			gl.useProgram(prog);
+			gl.bindFramebuffer(gl.FRAMEBUFFER, this.glowFbo[2]);
+			gl.activeTexture(gl.TEXTURE1);
+			gl.bindTexture(gl.TEXTURE_2D, this.glowTex[0]);
+			gl.activeTexture(gl.TEXTURE0);
+			gl.bindTexture(gl.TEXTURE_2D, this.frameTex);
+			gl.uniform1i(gl.getUniformLocation(prog, "frame"), 0);
+			gl.uniform1i(gl.getUniformLocation(prog, "src"), 1);
+			const b = this.lighting?.post.bloom;
+			gl.uniform4f(
+				gl.getUniformLocation(prog, "p"),
+				bloomStart(b?.threshold ?? 2),
+				0,
+				BLOOM_STEEP,
+				BLOOM_STRENGTH,
+			);
+			gl.drawArrays(gl.TRIANGLES, 0, 3);
+			gl.activeTexture(gl.TEXTURE1);
+			gl.bindTexture(gl.TEXTURE_2D, null);
+			gl.activeTexture(gl.TEXTURE0);
+			first = 2;
+		}
 		gl.useProgram(this.blurProgram.program);
 		const p = gl.getUniformLocation(this.blurProgram.program, "p");
 		const spread = glowSpread(h, this.shape);
-		// Narrow across and down into 0; then on across and down into 2, the wide blur.
 		const narrow = spread * GLOW_NARROW.width;
 		const more = spread * Math.sqrt(GLOW_WIDE.width ** 2 - GLOW_NARROW.width ** 2);
 		for (const [from, into, step, sigma] of [
-			[0, 1, [1 / w, 0], narrow],
+			[first, 1, [1 / w, 0], narrow],
 			[1, 0, [0, 1 / h], narrow],
 			[0, 1, [1 / w, 0], more],
 			[1, 2, [0, 1 / h], more],
@@ -1786,8 +1849,8 @@ export class WebGl2View implements ViewRenderer {
 			gl.drawArrays(gl.TRIANGLES, 0, 3);
 		}
 		gl.bindTexture(gl.TEXTURE_2D, null);
-		gl.enable(gl.DEPTH_TEST);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+		gl.viewport(0, 0, this.width, this.height);
 	}
 
 	/**
@@ -1807,6 +1870,7 @@ export class WebGl2View implements ViewRenderer {
 		gl.bindFramebuffer(gl.READ_FRAMEBUFFER, this.sceneFbo);
 		gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, this.frameFbo);
 		gl.blitFramebuffer(0, 0, w, h, 0, 0, w, h, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+		if (glowing) this.blurGlow(this.bloomAll);
 		gl.viewport(0, 0, w, h);
 		gl.disable(gl.DEPTH_TEST);
 		// A BlurEffect: the frame blurred across into its spare, and back down into itself.
@@ -2280,7 +2344,10 @@ export class WebGl2View implements ViewRenderer {
 		// maps' tints are left as they are drawn.
 		const tinted = mode === "sunMaps";
 		const postOn = this.postOn && show.post && !heat && !wire && !tinted;
-		const glowing = this.glowing && show.glow && !heat && !wire && !tinted;
+		// A BloomEffect blooms the whole picture, Neon or not: see FS_BRIGHT.
+		const bloom = postOn && !!this.lighting?.post.bloom && show.glow && !heat && !wire && !tinted;
+		this.bloomAll = bloom;
+		const glowing = (this.glowing || bloom) && show.glow && !heat && !wire && !tinted;
 		const partsMoved = this.skyDirty;
 		this.usualDepth(true);
 		const centre = nearSkyCentre(camera.eye);
