@@ -412,26 +412,29 @@ export function ViewportBar({ controller }: { controller: ViewportController }) 
 		// readout standing on its right-hand end: none of them moves when a card
 		// opens or shuts.
 		<div className="vp-dock">
-			<div className="vp-cluster">
-				<div className="vp-gizmo" ref={gizmo}>
-					<svg
-						width={GIZMO}
-						height={GIZMO}
-						viewBox={`${-GIZMO / 2} ${-GIZMO / 2} ${GIZMO} ${GIZMO}`}
-						aria-label="View axes: click an end to look along it, drag to orbit"
-					/>
-				</div>
-				<div className="vp-corner">
-					<span
-						className="vp-rot"
-						ref={rotation}
-						title="The camera's rotation, as Roblox's Orientation reads it: X, Y, Z, in degrees"
-					/>
-					<span
-						className="vp-fps"
-						ref={rate}
-						title="Frames a second while the view moves, and what draws it. Nothing is drawn while nothing changes."
-					/>
+			<div className="vp-above">
+				<RenderBadge render={state.render} />
+				<div className="vp-cluster">
+					<div className="vp-gizmo" ref={gizmo}>
+						<svg
+							width={GIZMO}
+							height={GIZMO}
+							viewBox={`${-GIZMO / 2} ${-GIZMO / 2} ${GIZMO} ${GIZMO}`}
+							aria-label="View axes: click an end to look along it, drag to orbit"
+						/>
+					</div>
+					<div className="vp-corner">
+						<span
+							className="vp-rot"
+							ref={rotation}
+							title="The camera's rotation, as Roblox's Orientation reads it: X, Y, Z, in degrees"
+						/>
+						<span
+							className="vp-fps"
+							ref={rate}
+							title="Frames a second while the view moves, and what draws it. Nothing is drawn while nothing changes."
+						/>
+					</div>
 				</div>
 			</div>
 			<div className="side-strip tool-group vp-bar" role="toolbar" aria-label="Viewport">
@@ -680,6 +683,24 @@ export function PlaceSummary({
 					)}
 				</div>
 			</div>
+		</div>
+	);
+}
+
+/**
+ * How the view is drawn, over the bar's left end: the Rendering panel's mode,
+ * a heatmap's style, and what its switches leave out.
+ */
+function RenderBadge({ render }: { render: RenderSettings }) {
+	const mode = RENDER_MODES.find(([m]) => m === render.mode)?.[1] ?? "";
+	const heat = HEAT_LEGEND[render.mode]
+		? RENDER_HEAT.find(([h]) => h === render.heat)?.[1]
+		: undefined;
+	const off = RENDER_SHOW.filter(([key]) => !render.show[key]).map(([, label]) => label);
+	return (
+		<div className="vp-render-badge" title="How the view is drawn: the Rendering panel">
+			<span>{heat ? `${mode} · ${heat}` : mode}</span>
+			{off.length > 0 && <span className="vp-render-badge-off">Off: {off.join(", ")}</span>}
 		</div>
 	);
 }

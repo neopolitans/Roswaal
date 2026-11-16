@@ -295,7 +295,8 @@ export function placesAndRojoPage(): DocPage {
 				text:
 					"Its switches leave Neon's glow, post effects, haze, the sky, Decals and Textures or " +
 					"see-through parts out of the view. **Last frame** counts draw calls, instances and " +
-					"triangles, and times the frame on the page and, where the browser allows, on the GPU.",
+					"triangles, and times the frame on the page and, where the browser allows, on the GPU. " +
+					"The view's mode, and any switch that is off, show over the bar's left end.",
 			},
 
 			{ t: "h", level: 2, text: "Changing properties" },
