@@ -26,6 +26,7 @@
 
 import { assetIdOf } from "./browse.js";
 import { type RbxInstance, stringProp } from "./dom.js";
+import { type SceneEffects, sceneEffects } from "./effects.js";
 import { MATERIAL_SHADE, MATERIALS, materialIndex } from "./materials.js";
 import type { SceneUnion } from "./unions.js";
 
@@ -88,6 +89,8 @@ export interface PlaceScene {
 	unionsDrawn?: number[];
 	/** The unions drawn without a cut that could not be made (from a mesh, or an IntersectOperation's), by row. */
 	unionCuts?: number[];
+	/** The place's Beams and ParticleEmitters, animated by the viewer: see `effects.ts`. */
+	effects?: SceneEffects;
 }
 
 /**
@@ -521,6 +524,8 @@ export function buildPlaceScene(
 	};
 	const lights = sceneLights(workspace);
 	if (lights.length > 0) scene.lights = lights;
+	const effects = sceneEffects(workspace, idOf);
+	if (effects.beams.length > 0 || effects.emitters.length > 0) scene.effects = effects;
 	const studio = workspace?.children.find((c) => c.className === "Camera");
 	const cf = studio?.props.get("CFrame")?.value as
 		| { position: number[]; rotation: number[] }
