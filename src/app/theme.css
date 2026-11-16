@@ -459,7 +459,6 @@ select optgroup {
 	border-radius: var(--radius-md);
 	box-shadow: var(--shadow-raised);
 	backdrop-filter: blur(14px) saturate(1.2);
-	-webkit-backdrop-filter: blur(14px) saturate(1.2);
 }
 
 /* The tree scrolls inside its own card, and Variables keeps the height of
@@ -553,7 +552,6 @@ select optgroup {
 	border-radius: var(--radius-md);
 	box-shadow: var(--shadow-raised);
 	backdrop-filter: blur(14px) saturate(1.2);
-	-webkit-backdrop-filter: blur(14px) saturate(1.2);
 }
 
 .tool-group button.tb,
@@ -8565,7 +8563,6 @@ button.tb.icon-only.on {
 	border-radius: var(--radius-md);
 	box-shadow: var(--shadow-raised);
 	backdrop-filter: blur(14px) saturate(1.2);
-	-webkit-backdrop-filter: blur(14px) saturate(1.2);
 	position: relative;
 	z-index: 5;
 }
@@ -11903,7 +11900,6 @@ a.docs-minor-row .aside {
 	border: 1px solid var(--border);
 	box-shadow: var(--shadow-popover);
 	backdrop-filter: blur(14px) saturate(1.2);
-	-webkit-backdrop-filter: blur(14px) saturate(1.2);
 	opacity: 0;
 	transform: translateY(-10px) scale(0.96);
 	transition:
@@ -15506,7 +15502,6 @@ p.licence-meta,
 	border-radius: 0;
 	box-shadow: none;
 	backdrop-filter: none;
-	-webkit-backdrop-filter: none;
 }
 
 .dock.drawer .panel.panel-away {
@@ -15556,7 +15551,6 @@ p.licence-meta,
 	border-radius: var(--radius-md);
 	box-shadow: var(--shadow-raised);
 	backdrop-filter: blur(14px) saturate(1.2);
-	-webkit-backdrop-filter: blur(14px) saturate(1.2);
 	overflow-x: auto;
 	scrollbar-width: none;
 }
@@ -17337,7 +17331,6 @@ select:not(.literal):not([multiple]) {
 	background: var(--glass);
 	box-shadow: var(--shadow-raised);
 	backdrop-filter: blur(14px) saturate(1.2);
-	-webkit-backdrop-filter: blur(14px) saturate(1.2);
 }
 
 .pack-view.compact .pack-nodes.drawer {
@@ -17761,7 +17754,6 @@ select:not(.literal):not([multiple]) {
 	border: 0;
 	box-shadow: none;
 	backdrop-filter: none;
-	-webkit-backdrop-filter: none;
 }
 
 .docs-clusters .spacer {
@@ -18016,7 +18008,6 @@ select:not(.literal):not([multiple]) {
 	.docs-window .docs-toc-card {
 		background: var(--glass);
 		backdrop-filter: blur(14px) saturate(1.2);
-		-webkit-backdrop-filter: blur(14px) saturate(1.2);
 	}
 
 	/* The title bar stays over the list as it scrolls, so it is solid: the
@@ -20817,7 +20808,6 @@ textarea.tb:where(:disabled) {
 	box-shadow: none !important;
 	text-shadow: none !important;
 	backdrop-filter: none !important;
-	-webkit-backdrop-filter: none !important;
 }
 
 /* Knots and dots stay round: their shape is what they say. Pins are drawn as
