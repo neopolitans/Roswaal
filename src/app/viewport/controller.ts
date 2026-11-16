@@ -15,6 +15,7 @@ import { addUnions, unionOutline, unionsWaiting } from "../../core/rbx/unions.js
 import { addTo, sameItems } from "../placeSelection.js";
 import { boxAround } from "./box.js";
 import { rayPick } from "./geometry.js";
+import { gizmoCell, lightGizmoLines } from "./gizmos.js";
 import { HandleBuilder } from "./handles.js";
 import { loadImages } from "./images.js";
 import {
@@ -365,7 +366,7 @@ export class ViewportController {
 			this.loadSunImage(this.view, place.lighting);
 			this.loadMeshes(this.view, place);
 			this.loadUnions(this.view, place);
-			this.view.setOverlay(this.frustumLines());
+			this.view.setOverlay(this.overlayLines());
 			this.refreshSelection();
 		} else void this.start();
 		if (!this.framed) {
@@ -444,8 +445,10 @@ export class ViewportController {
 	}
 
 	setRender(render: RenderSettings): void {
+		const was = this.state.render;
 		this.set({ render });
 		this.view?.setRender(render);
+		if (render.lightRanges !== was.lightRanges) this.view?.setOverlay(this.overlayLines());
 		this.redraw();
 	}
 
@@ -1203,7 +1206,7 @@ export class ViewportController {
 			return;
 		}
 		view.setLighting(place.lighting);
-		view.setOverlay(this.frustumLines());
+		view.setOverlay(this.overlayLines());
 		view.setOutline(this.options.outlineWidth, this.options.hideBehind);
 		view.setGlassHides(this.options.glassHides);
 		view.setPostEffects(this.options.postEffects);
@@ -1279,6 +1282,7 @@ export class ViewportController {
 			const camera = this.camera();
 			if ((showsHandles(this.state.tool) || this.state.pivotEdit) && this.selection.length > 0)
 				this.drawHandles(camera.eye);
+			this.followGizmos(camera.eye);
 			this.view.draw(camera);
 			if (rate === "unlimited") this.inFlight = [this.inFlight[1], this.view.settled()];
 			this.drawPivot();
@@ -1539,6 +1543,31 @@ export class ViewportController {
 		line(tip, at(w * 0.35, h * 1.06));
 		line(at(w * 0.35, h * 1.06), at(-w * 0.35, h * 1.06));
 		return new Float32Array(out);
+	}
+
+	/** Where the light ranges were last found from, or null with them off. */
+	private gizmoAt: string | null = null;
+
+	/** The overlay: Studio's camera, and with Light ranges on, the lights near `eye`. */
+	private overlayLines(eye: number[] = this.eye()): Float32Array {
+		const frustum = this.frustumLines();
+		if (!this.state.render.lightRanges) {
+			this.gizmoAt = null;
+			return frustum;
+		}
+		this.gizmoAt = gizmoCell(eye);
+		const gizmos = lightGizmoLines(this.place?.lights, eye);
+		if (gizmos.length === 0) return frustum;
+		const out = new Float32Array(frustum.length + gizmos.length);
+		out.set(frustum);
+		out.set(gizmos, frustum.length);
+		return out;
+	}
+
+	/** The light ranges found again once the camera has moved a step: see `GIZMO_STEP`. */
+	private followGizmos(eye: number[]): void {
+		if (!this.view || !this.state.render.lightRanges || this.gizmoAt === gizmoCell(eye)) return;
+		this.view.setOverlay(this.overlayLines(eye));
 	}
 
 	// -- input -------------------------------------------------------------------

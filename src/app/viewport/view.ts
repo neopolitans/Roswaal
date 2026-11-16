@@ -952,6 +952,8 @@ export interface RenderSettings {
 	mode: RenderMode;
 	heat: RenderHeat;
 	show: RenderShow;
+	/** The lights near the camera drawn as wire shapes of their reach: see `gizmos.ts`. */
+	lightRanges: boolean;
 }
 
 export const DEFAULT_RENDER: RenderSettings = {
@@ -967,6 +969,7 @@ export const DEFAULT_RENDER: RenderSettings = {
 		beams: true,
 		particles: true,
 	},
+	lightRanges: false,
 };
 
 /**

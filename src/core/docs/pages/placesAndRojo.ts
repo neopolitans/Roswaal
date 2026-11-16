@@ -300,6 +300,12 @@ export function placesAndRojoPage(): DocPage {
 					"the browser allows, on the GPU. The view's mode, and any switch that is off, show over the " +
 					"bar's left end.",
 			},
+			{
+				t: "p",
+				text:
+					"To find what makes a place slow to draw, turn on **Light ranges**: the lights " +
+					"near the camera show as wire shapes of their reach, in their colour.",
+			},
 
 			{ t: "h", level: 2, text: "Changing properties" },
 			{

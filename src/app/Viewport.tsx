@@ -713,6 +713,24 @@ const HEAT_LEGEND: Partial<Record<RenderMode, [string, string]>> = {
 
 const ms = (n: number) => `${n.toFixed(2)} ms`;
 
+/** A Rendering panel switch for a tool, off to begin with: not something the view leaves out. */
+function RenderToolSwitch({
+	label,
+	on,
+	onChange,
+}: {
+	label: string;
+	on: boolean;
+	onChange: (on: boolean) => void;
+}) {
+	return (
+		<label className="render-switch">
+			<span>{label}</span>
+			<input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} />
+		</label>
+	);
+}
+
 /**
  * Rendering: how the viewer draws the place, as engines' editors offer: the
  * place lit in full or with less, its triangles, heatmaps of what each pixel
@@ -791,6 +809,11 @@ export function RenderPanel({ controller }: { controller: ViewportController }) 
 								/>
 							</label>
 						))}
+						<RenderToolSwitch
+							label="Light ranges"
+							on={render.lightRanges}
+							onChange={(lightRanges) => apply({ ...render, lightRanges })}
+						/>
 					</div>
 					<div className="place-group">
 						<SectionHead title="Last frame" />
