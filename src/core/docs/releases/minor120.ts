@@ -9,6 +9,21 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.252.0",
+		date: "2026-11-16",
+		headline: "The place viewer shows its shaders' progress while it starts, and draws faster with WebGPU.",
+		added: [
+			"**Shader progress.** While the place viewer starts, its corner reads, for example, Starting (WebGPU – Shaders 70%). The page no longer pauses while they compile.",
+		],
+		changed: [
+			"**WebGPU draws a busy view in about half the time**, as each pixel is now lit once.",
+			"**Light from the sky** fades softly where a floor meets a wall, rather than in steps.",
+		],
+		fixed: [
+			"**Parts with CastShadow off** no longer cast shadows or block light from the sky.",
+		],
+	},
+	{
 		version: "0.251.0",
 		date: "2026-11-16",
 		headline: "The place viewer draws unions.",
