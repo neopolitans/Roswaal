@@ -445,6 +445,15 @@ export function cascadeBlock(
 	return block;
 }
 
+/**
+ * The glow is two blurs added: a narrow one and one twice as wide, as fitted
+ * to Studio's captures of Neon dashes, squares and blocks at once (16 Nov
+ * 2026): a small source's halo stays tight, a large one's spreads. The
+ * widths are shares of glowSpread's; the weights shares of the glow's gain.
+ */
+export const GLOW_NARROW = { width: 0.57, weight: 0.55 };
+export const GLOW_WIDE = { width: 1.14, weight: 0.38 };
+
 /** How wide the glow's blur is, in its own texels, for a glow `high` texels high. */
 export function glowSpread(high: number, shape?: GlowShape): number {
 	return (shape?.spread ?? GLOW_SPREAD) * high;

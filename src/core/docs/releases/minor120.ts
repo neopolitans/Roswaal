@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.249.2",
+		date: "2026-11-16",
+		headline: "Small Neon parts glow with tighter halos, as in Studio.",
+		fixed: [
+			"**Neon's glow** round small parts stays close to them, as in Studio, while large ones still spread wide.",
+		],
+	},
+	{
 		version: "0.249.1",
 		date: "2026-11-16",
 		headline: "Neon's glow spreads over Decals and Textures, and Ambient is as strong as in Studio.",

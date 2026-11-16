@@ -25,6 +25,8 @@ import {
 	cascadeBlock,
 	FOV,
 	fingerprint,
+	GLOW_NARROW,
+	GLOW_WIDE,
 	type GlowShape,
 	glowShape,
 	glowSpread,
@@ -595,12 +597,13 @@ void main() { o = textureLod(tex, uv, 0.0); }`;
 // The frame with the glow added in linear light, as WebGpuView's fsComposite.
 const FS_COMPOSITE = `#version 300 es
 precision highp float;
-in vec2 uv; uniform sampler2D tex; uniform sampler2D frame; uniform vec4 p;
+in vec2 uv; uniform sampler2D tex; uniform sampler2D frame; uniform sampler2D wide; uniform vec4 p;
 uniform vec4 grade0; uniform vec4 grade1; out vec4 o;
 void main() {
 	vec3 f = texelFetch(frame, ivec2(gl_FragCoord.xy), 0).rgb;
 	// The glow spreads over Decals and Textures too, as WebGpuView's fsComposite.
-	vec3 g = texture(tex, uv).rgb * p.z;
+	// Narrow and wide blurs added, as WebGpuView's fsComposite.
+	vec3 g = (texture(tex, uv).rgb * ${GLOW_NARROW.weight} + texture(wide, uv).rgb * ${GLOW_WIDE.weight}) * p.z;
 	vec3 c = pow(min(pow(f, vec3(2.2)) + g, vec3(1.0)), vec3(1.0 / 2.2));
 	// ColorCorrection, as WebGpuView's fsComposite applies it.
 	if (grade0.w > 0.5) {
@@ -821,6 +824,7 @@ export class WebGl2View implements ViewRenderer {
 		gl.useProgram(this.compositeProgram.program);
 		gl.uniform1i(gl.getUniformLocation(this.compositeProgram.program, "tex"), 0);
 		gl.uniform1i(gl.getUniformLocation(this.compositeProgram.program, "frame"), 3);
+		gl.uniform1i(gl.getUniformLocation(this.compositeProgram.program, "wide"), 11);
 		this.sceneFbo = gl.createFramebuffer()!;
 		this.sceneColour = gl.createRenderbuffer()!;
 		this.sceneDepth = gl.createRenderbuffer()!;
@@ -828,8 +832,8 @@ export class WebGl2View implements ViewRenderer {
 		this.frameTex = gl.createTexture()!;
 		this.acrossFbo = gl.createFramebuffer()!;
 		this.acrossTex = gl.createTexture()!;
-		this.glowTex = [gl.createTexture()!, gl.createTexture()!];
-		this.glowFbo = [gl.createFramebuffer()!, gl.createFramebuffer()!];
+		this.glowTex = [gl.createTexture()!, gl.createTexture()!, gl.createTexture()!];
+		this.glowFbo = [gl.createFramebuffer()!, gl.createFramebuffer()!, gl.createFramebuffer()!];
 		this.setScene(scene);
 		for (const kind of HANDLE_KINDS) {
 			const m = handleMesh(kind);
@@ -1234,13 +1238,18 @@ export class WebGl2View implements ViewRenderer {
 		gl.useProgram(this.blurProgram.program);
 		const p = gl.getUniformLocation(this.blurProgram.program, "p");
 		const spread = glowSpread(h, this.shape);
-		for (const [from, into, step] of [
-			[0, 1, [1 / w, 0]],
-			[1, 0, [0, 1 / h]],
+		// Narrow across and down into 0; then on across and down into 2, the wide blur.
+		const narrow = spread * GLOW_NARROW.width;
+		const more = spread * Math.sqrt(GLOW_WIDE.width ** 2 - GLOW_NARROW.width ** 2);
+		for (const [from, into, step, sigma] of [
+			[0, 1, [1 / w, 0], narrow],
+			[1, 0, [0, 1 / h], narrow],
+			[0, 1, [1 / w, 0], more],
+			[1, 2, [0, 1 / h], more],
 		] as const) {
 			gl.bindFramebuffer(gl.FRAMEBUFFER, this.glowFbo[into]);
 			gl.bindTexture(gl.TEXTURE_2D, this.glowTex[from]);
-			gl.uniform4f(p, step[0], step[1], 0, spread);
+			gl.uniform4f(p, step[0], step[1], 0, sigma);
 			gl.drawArrays(gl.TRIANGLES, 0, 3);
 		}
 		gl.bindTexture(gl.TEXTURE_2D, null);
@@ -1288,9 +1297,13 @@ export class WebGl2View implements ViewRenderer {
 		gl.uniform4fv(at("grade1"), grade.subarray(4, 8));
 		gl.activeTexture(gl.TEXTURE3);
 		gl.bindTexture(gl.TEXTURE_2D, this.frameTex);
+		gl.activeTexture(gl.TEXTURE11);
+		gl.bindTexture(gl.TEXTURE_2D, this.glowTex[2]);
 		gl.activeTexture(gl.TEXTURE0);
 		gl.bindTexture(gl.TEXTURE_2D, this.glowTex[0]);
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
+		gl.bindTexture(gl.TEXTURE_2D, null);
+		gl.activeTexture(gl.TEXTURE11);
 		gl.bindTexture(gl.TEXTURE_2D, null);
 		gl.activeTexture(gl.TEXTURE3);
 		gl.bindTexture(gl.TEXTURE_2D, null);

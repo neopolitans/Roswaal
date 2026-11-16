@@ -25,6 +25,8 @@ import {
 	cascadeBlock,
 	FOV,
 	fingerprint,
+	GLOW_NARROW,
+	GLOW_WIDE,
 	type GlowShape,
 	glowShape,
 	glowSpread,
@@ -86,6 +88,8 @@ const POST = /* wgsl */ `
 @group(0) @binding(3) var frame: texture_2d<f32>;
 // A ColorCorrectionEffect: brightness, contrast, saturation, on; then the tint.
 @group(0) @binding(4) var<uniform> grade: array<vec4f, 2>;
+// The glow's wide blur; tex holds its narrow one: see GLOW_NARROW and GLOW_WIDE.
+@group(0) @binding(5) var wide: texture_2d<f32>;
 struct Out { @builtin(position) clip: vec4f, @location(0) uv: vec2f };
 @vertex fn vsFull(@builtin(vertex_index) i: u32) -> Out {
 	let xy = vec2f(f32((i << 1u) & 2u), f32(i & 2u)) * 2.0 - 1.0;
@@ -126,7 +130,7 @@ struct Out { @builtin(position) clip: vec4f, @location(0) uv: vec2f };
 	// The glow spreads over Decals and Textures too: one over Neon has already
 	// kept the Neon beneath it from glowing, in the glow's pass, and the author's
 	// captures show the glow of the Neon left showing laid over the image round it.
-	let g = textureSample(tex, samp, i.uv).rgb * p.z;
+	let g = (textureSample(tex, samp, i.uv).rgb * ${GLOW_NARROW.weight} + textureSample(wide, samp, i.uv).rgb * ${GLOW_WIDE.weight}) * p.z;
 	var c = pow(min(pow(f, vec3f(2.2)) + g, vec3f(1.0)), vec3f(1.0 / 2.2));
 	// ColorCorrection on the display values, as fitted to Studio's captures:
 	// brightness adds, contrast scales round mid-grey, saturation away from
@@ -840,6 +844,7 @@ export class WebGpuView implements ViewRenderer {
 	private glow?: {
 		a: GPUTexture;
 		b: GPUTexture;
+		c: GPUTexture;
 		groups: GPUBindGroup[];
 		w: number;
 		h: number;
@@ -1243,6 +1248,7 @@ export class WebGpuView implements ViewRenderer {
 				...postEntries,
 				{ binding: 3, visibility: STAGE.FRAGMENT, texture: {} },
 				{ binding: 4, visibility: STAGE.FRAGMENT, buffer: {} },
+				{ binding: 5, visibility: STAGE.FRAGMENT, texture: {} },
 			],
 		});
 		const postPipeline = d.createPipelineLayout({ bindGroupLayouts: [this.postLayout] });
@@ -1273,7 +1279,7 @@ export class WebGpuView implements ViewRenderer {
 		// Across, down, and the strength the glow is added at.
 		// The glow's blur across and down, the strength it is added at, and a
 		// BlurEffect's blur of the frame across and down.
-		this.postParams = [0, 1, 2, 3, 4].map(() =>
+		this.postParams = [0, 1, 2, 3, 4, 5, 6].map(() =>
 			d.createBuffer({ size: 16, usage: BUFFER.UNIFORM | BUFFER.COPY_DST }),
 		);
 		this.gradeBuffer = d.createBuffer({ size: 32, usage: BUFFER.UNIFORM | BUFFER.COPY_DST });
@@ -1516,7 +1522,7 @@ export class WebGpuView implements ViewRenderer {
 			blurGroup(this.frameAcross, this.postParams[4]),
 		];
 		// Its bind groups name the source just made: made again with it.
-		for (const t of [this.glow?.a, this.glow?.b]) t?.destroy();
+		for (const t of [this.glow?.a, this.glow?.b, this.glow?.c]) t?.destroy();
 		this.glow = undefined;
 		this.pickTarget = d.createTexture({
 			size,
@@ -1537,6 +1543,7 @@ export class WebGpuView implements ViewRenderer {
 				{ binding: 2, resource: { buffer: this.postParams[2] } },
 				{ binding: 3, resource: this.frame.createView() },
 				{ binding: 4, resource: { buffer: this.gradeBuffer } },
+				{ binding: 5, resource: this.glow!.c.createView() },
 			],
 		});
 	}
@@ -1547,7 +1554,7 @@ export class WebGpuView implements ViewRenderer {
 		const h = Math.max(1, Math.round(this.height / 2));
 		if (this.glow && this.glow.w === w && this.glow.h === h) return;
 		const d = this.device;
-		for (const t of [this.glow?.a, this.glow?.b]) t?.destroy();
+		for (const t of [this.glow?.a, this.glow?.b, this.glow?.c]) t?.destroy();
 		const target = () =>
 			d.createTexture({
 				size: [w, h],
@@ -1556,6 +1563,7 @@ export class WebGpuView implements ViewRenderer {
 			});
 		const a = target();
 		const b = target();
+		const c = target();
 		this.shapeSpread = -1;
 		const group = (tex: GPUTexture, params: GPUBuffer) =>
 			d.createBindGroup({
@@ -1568,12 +1576,16 @@ export class WebGpuView implements ViewRenderer {
 			});
 		// The source averaged down into A, A across into B, and B down into A,
 		// which is added over the frame.
+		// The source down to a; blurred narrow across into b and down into a;
+		// then a blurred on across into b and down into c, the wide blur.
 		const groups = [
 			group(this.glowFull!, this.postParams[0]),
 			group(a, this.postParams[0]),
 			group(b, this.postParams[1]),
+			group(a, this.postParams[5]),
+			group(b, this.postParams[6]),
 		];
-		this.glow = { a, b, groups, w, h };
+		this.glow = { a, b, c, groups, w, h };
 	}
 
 	/**
@@ -1618,6 +1630,8 @@ export class WebGpuView implements ViewRenderer {
 			[this.down, 0, glow.a],
 			[this.blur, 1, glow.b],
 			[this.blur, 2, glow.a],
+			[this.blur, 3, glow.b],
+			[this.blur, 4, glow.c],
 		] as const) {
 			const step = encoder.beginRenderPass({
 				colorAttachments: [
@@ -1717,8 +1731,13 @@ export class WebGpuView implements ViewRenderer {
 		if (this.glow && this.shapeSpread !== this.shape.spread) {
 			const { w, h } = this.glow;
 			const spread = glowSpread(h, this.shape);
-			q.writeBuffer(this.postParams[0], 0, new Float32Array([1 / w, 0, 0, spread]));
-			q.writeBuffer(this.postParams[1], 0, new Float32Array([0, 1 / h, 0, spread]));
+			// The narrow blur, then what takes it on to the wide one.
+			const narrow = spread * GLOW_NARROW.width;
+			const more = spread * Math.sqrt(GLOW_WIDE.width ** 2 - GLOW_NARROW.width ** 2);
+			q.writeBuffer(this.postParams[0], 0, new Float32Array([1 / w, 0, 0, narrow]));
+			q.writeBuffer(this.postParams[1], 0, new Float32Array([0, 1 / h, 0, narrow]));
+			q.writeBuffer(this.postParams[5], 0, new Float32Array([1 / w, 0, 0, more]));
+			q.writeBuffer(this.postParams[6], 0, new Float32Array([0, 1 / h, 0, more]));
 			this.shapeSpread = this.shape.spread;
 		}
 		q.writeBuffer(this.gradeBuffer, 0, gradeBlock(this.lighting?.post, this.postOn));
