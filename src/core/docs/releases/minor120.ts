@@ -9,6 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.253.0",
+		date: "2026-11-16",
+		headline: "Is NaN, Is Infinite and Is Finite nodes; sun shadows reach as far as Studio's.",
+		added: [
+			"**Is NaN, Is Infinite and Is Finite**, pure Math nodes for math.isnan, math.isinf and math.isfinite. Luau that calls them imports as these nodes.",
+		],
+		changed: [
+			"**Sun shadows** in the place viewer are sharper, with straight edges, and a shadow cast from close by is no longer cut short.",
+		],
+		fixed: [
+			"**The Unlimited frame rate** no longer lags behind the pointer with WebGPU.",
+		],
+	},
+	{
 		version: "0.252.0",
 		date: "2026-11-16",
 		headline: "The place viewer shows its shaders' progress while it starts, and draws faster with WebGPU.",
