@@ -103,6 +103,7 @@ import {
 	reopenPanel,
 	showTab,
 } from "./panels.js";
+import { setPlaceInFront, watchPlaceFocus } from "./placeHistory.js";
 import { readOutline, rememberOutline } from "./placeOutline.js";
 import type * as PlaceViewer from "./placeViewerModule.js";
 import { OUTLINE_WIDTHS, readPreferences, wheelAction } from "./preferences.js";
@@ -262,6 +263,9 @@ export function App() {
 	const source = editor.side?.kind === "luau" ? editor.side.doc : null;
 	const mapDoc = editor.side?.kind === "map" ? editor.side.doc : null;
 	const placeDoc = editor.side?.kind === "place" ? editor.side.doc : null;
+	// Ctrl+Z undoes the place while its tab is in front, or Explorer or Properties was last clicked.
+	useEffect(() => setPlaceInFront(placeDoc !== null), [placeDoc]);
+	useEffect(() => watchPlaceFocus(), []);
 	const layout = prefs.layout;
 
 	/**

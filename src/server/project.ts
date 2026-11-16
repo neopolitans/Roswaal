@@ -90,6 +90,7 @@ export {
 	placeEntries,
 	placeReport,
 	readPlaceBytes,
+	relink,
 	renameInLinks,
 	unlinkUnder,
 	writePlaceFile,

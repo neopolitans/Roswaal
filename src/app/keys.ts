@@ -16,6 +16,29 @@ export function isEditableTarget(target: EventTarget | null): boolean {
 	return target.closest('[role="dialog"]') !== null;
 }
 
+/** Inputs that take no typing: Ctrl+Z on one is an undo of the place, not of the field. */
+const UNTYPED = new Set([
+	"checkbox",
+	"radio",
+	"button",
+	"submit",
+	"reset",
+	"color",
+	"range",
+	"file",
+]);
+
+/**
+ * Where text is typed, which keeps its own Ctrl+Z, or a dialog. Narrower than
+ * `isEditableTarget`: a picked list or a ticked box has no undo of its own.
+ */
+export function isTextEntry(target: EventTarget | null): boolean {
+	if (!(target instanceof HTMLElement)) return false;
+	if (target.isContentEditable || target.tagName === "TEXTAREA") return true;
+	if (target instanceof HTMLInputElement && !UNTYPED.has(target.type)) return true;
+	return target.closest('[role="dialog"]') !== null;
+}
+
 /** The keys a key event needs, so a test can make one without a DOM. */
 export interface KeyPress {
 	key: string;

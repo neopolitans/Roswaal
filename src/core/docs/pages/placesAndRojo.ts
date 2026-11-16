@@ -324,6 +324,13 @@ export function placesAndRojoPage(): DocPage {
 					"Services stay where they are, and a class Studio only puts in one kind of parent, such " +
 					"as a **WrapLayer** in a MeshPart, is only offered there.",
 			},
+			{
+				t: "p",
+				text:
+					"`Ctrl` + `Z` undoes the last change to the place, a deletion included, and `Ctrl` + " +
+					"`Y` redoes it, from the place's tab, DataModel or Properties. On a graph they undo " +
+					"the graph.",
+			},
 
 			{ t: "h", level: 2, text: "Dragging onto a graph" },
 			{

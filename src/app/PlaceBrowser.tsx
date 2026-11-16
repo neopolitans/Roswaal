@@ -28,14 +28,28 @@ import type { CFrameEdit, PropertyEdit } from "../core/rbx/edit.js";
 import { addableClasses, parentProblem, targetProblem } from "../core/rbx/instanceRules.js";
 import { classGroup, isSubclassOf } from "../core/roblox.js";
 import { readOnlyToScripts } from "../core/robloxEngine.js";
-import { api, type PlaceInstanceChange, type PlaceTree } from "./api.js";
+import { api, type PlaceInstanceChange, type PlaceTree, type PlaceWritten } from "./api.js";
 import { PanelHead } from "./Cards.jsx";
 import { ClassIcon as EngineIcon } from "./ClassIcon.jsx";
 import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
+import { isTextEntry } from "./keys.js";
 import { Menu } from "./Menu.jsx";
 import type { MenuAnchor } from "./menuPlace.js";
 import { AddButton, depthStyle, Ident, SectionHead } from "./PanelParts.jsx";
+import { useShowing } from "./pageHost.jsx";
+import {
+	applied,
+	type Direction,
+	historyOf,
+	type PlaceStep,
+	placeHasKeys,
+	recorded,
+	seen,
+	setHistory,
+	taken,
+	undoKey,
+} from "./placeHistory.js";
 import { currentOutline, rememberOutline } from "./placeOutline.js";
 import {
 	clickMode,
@@ -44,6 +58,7 @@ import {
 	primaryOf,
 	type RowSelection,
 } from "./placeSelection.js";
+import { showToast } from "./Toast.jsx";
 import type { Dialogs } from "./useDialogs.js";
 import { classDetail, ValuePicker } from "./ValuePicker.jsx";
 
@@ -97,6 +112,14 @@ const renamedAt = new Map<string, { from: string[]; to: string[] }>();
 
 /** Versions a change to the tree here wrote: Properties follows what it shows, or lets it go. */
 const treeChanges = new Set<string>();
+
+/** The project whose place's history a change goes on. */
+const historyKey = () => api.projectRoot() ?? "";
+
+/** A change written here, at `stamp`, with what undoes it or nothing to. */
+function remember(step: PlaceStep | null, stamp: string): void {
+	setHistory(historyKey(), recorded(historyOf(historyKey()), step, stamp));
+}
 
 /** What a drag out of the tree carries when it can move the instance: its index. */
 const PLACE_MOVE = "application/x-roswaal-place-move";
@@ -277,6 +300,8 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 					onInspect(now === undefined ? null : targetIn(answer, now), false);
 				}
 			}
+			// A version written elsewhere leaves nothing here to undo.
+			setHistory(historyKey(), seen(historyOf(historyKey()), answer.stamp));
 			stampRef.current = answer.stamp;
 			placeRef.current = answer;
 			setPlace(answer);
@@ -533,6 +558,25 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 		if (last !== null && showing) onInspect(targetOf(last), false);
 	};
 
+	/** A change to the tree written: the tree follows it, and shows what it made or moved. */
+	const followChange = useCallback(
+		(answer: Loaded & { index?: number }, moved?: { from: string[]; to: string[] }) => {
+			writtenStamps.add(answer.stamp);
+			treeChanges.add(answer.stamp);
+			if (moved) renamedAt.set(answer.stamp, moved);
+			show(answer);
+			const made = answer.index;
+			if (made !== undefined) {
+				const above: number[] = [];
+				for (let p = answer.outline.nodes[made][2]; p !== -1; p = answer.outline.nodes[p][2])
+					above.push(p);
+				setOpen((prev) => new Set([...prev, ...above]));
+				setSelection({ items: [made], anchor: made });
+			}
+		},
+		[show],
+	);
+
 	/** One change to the tree written, the tree following it and showing what it made or moved. */
 	const change = useCallback(
 		async (body: PlaceInstanceChange, moved?: { from: string[]; to: string[] }) => {
@@ -542,18 +586,12 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 			setRefusal(null);
 			try {
 				const answer = await api.placeChange(now.stamp, body);
-				writtenStamps.add(answer.stamp);
-				treeChanges.add(answer.stamp);
-				if (moved) renamedAt.set(answer.stamp, moved);
-				show(answer);
-				const made = answer.index;
-				if (made !== undefined) {
-					const above: number[] = [];
-					for (let p = answer.outline.nodes[made][2]; p !== -1; p = answer.outline.nodes[p][2])
-						above.push(p);
-					setOpen((prev) => new Set([...prev, ...above]));
-					setSelection({ items: [made], anchor: made });
-				}
+				const label = changeLabel(body, now.outline.nodes);
+				remember(
+					answer.undo ? { kind: "instance", change: answer.undo, label } : null,
+					answer.stamp,
+				);
+				followChange(answer, moved);
 				onChanged?.(answer.stamp, answer.backup);
 			} catch (err) {
 				setRefusal(errorMessage(err));
@@ -561,8 +599,85 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 				setBusy(false);
 			}
 		},
-		[busy, show, onChanged],
+		[busy, followChange, onChanged],
 	);
+
+	/**
+	 * Undoes or redoes the last change to the place, from wherever it was
+	 * made: what undoes it is sent as any change is, and what undoes that goes
+	 * on the other stack.
+	 */
+	const step = useCallback(
+		async (which: Direction) => {
+			const now = placeRef.current;
+			const key = historyKey();
+			const history = historyOf(key);
+			const next = taken(history, which);
+			if (!now || busy || !next) return;
+			if (!editable) {
+				showToast({ title: `Could not ${which}`, detail: TURN_ON, tone: "warn" });
+				return;
+			}
+			const stamp = history.stamp ?? now.stamp;
+			// Paths the tree follows its own state by, read before the change.
+			const nodes = stamp === now.stamp ? now.outline.nodes : null;
+			const { step: s } = next;
+			setBusy(true);
+			setRefusal(null);
+			try {
+				if (s.kind === "property") {
+					const answer = await api.placeRestoreProperty(stamp, s.index, s.property, s.raw);
+					const inverse = answer.undo
+						? { ...s, index: answer.instance.index, ...answer.undo }
+						: null;
+					setHistory(key, applied(next.rest, which, inverse, answer.stamp));
+					writtenStamps.add(answer.stamp);
+					treeChanges.add(answer.stamp);
+					if (s.property === "Name" && nodes)
+						renamedAt.set(answer.stamp, { from: pathTo(nodes, s.index), to: answer.instance.path });
+					onChanged?.(answer.stamp, answer.backup);
+				} else {
+					const c = s.change;
+					const was = nodes && c.kind === "move" ? pathTo(nodes, c.index) : null;
+					const answer = await api.placeChange(stamp, c);
+					const inverse: PlaceStep | null = answer.undo ? { ...s, change: answer.undo } : null;
+					setHistory(key, applied(next.rest, which, inverse, answer.stamp));
+					followChange(
+						answer,
+						was && nodes && c.kind === "move"
+							? { from: was, to: [...pathTo(nodes, c.parent), was[was.length - 1]] }
+							: undefined,
+					);
+					if (c.kind === "delete") setSelection(NO_SELECTION);
+					onChanged?.(answer.stamp, answer.backup);
+				}
+				showToast({ title: which === "undo" ? "Undo" : "Redo", detail: s.label, icon: which });
+			} catch (err) {
+				// Kept to try again. Read again: a place changed elsewhere empties it.
+				setHistory(key, history);
+				setRefusal(errorMessage(err));
+				showToast({ title: `Could not ${which}`, detail: errorMessage(err), tone: "warn" });
+				void load();
+			} finally {
+				setBusy(false);
+			}
+		},
+		[busy, editable, followChange, onChanged, load],
+	);
+
+	// Ctrl+Z and Ctrl+Y, or Cmd, while the place has the keys: see `placeHasKeys`.
+	const showingPage = useShowing();
+	useEffect(() => {
+		const onKey = (e: KeyboardEvent) => {
+			const which = undoKey(e);
+			if (!which || !showingPage() || isTextEntry(e.target) || !placeHasKeys(e.target)) return;
+			if (document.querySelector('[role="dialog"]')) return;
+			e.preventDefault();
+			void step(which);
+		};
+		addEventListener("keydown", onKey);
+		return () => removeEventListener("keydown", onKey);
+	}, [step, showingPage]);
 
 	/** Whether a change may begin: the first one asks, as a property's does. */
 	const begin = useCallback(
@@ -949,16 +1064,23 @@ export const PlaceProperties = memo(function PlaceProperties(props: PlacePropert
 	);
 	/** One change written, under `label` for its busy mark and its refusal. */
 	const run = useCallback(
-		async (
-			label: string,
-			write: (
-				stamp: string,
-			) => Promise<{ stamp: string; instance: PlaceInstanceInfo; backup?: string }>,
-		) => {
+		async (label: string, write: (stamp: string) => Promise<PlaceWritten>) => {
 			setBusy(label);
 			setRefused(null);
 			try {
 				const answer = await write(stamp.current);
+				const what =
+					label === ATTRIBUTES
+						? `${target.name} attributes`
+						: label === TAGS
+							? `${target.name} tags`
+							: `${target.name}.${label}`;
+				remember(
+					answer.undo
+						? { kind: "property", index: answer.instance.index, ...answer.undo, label: what }
+						: null,
+					answer.stamp,
+				);
 				writtenStamps.add(answer.stamp);
 				if (label === "Name" && info)
 					renamedAt.set(answer.stamp, { from: info.path, to: answer.instance.path });
@@ -972,7 +1094,7 @@ export const PlaceProperties = memo(function PlaceProperties(props: PlacePropert
 				setBusy(null);
 			}
 		},
-		[onWritten, info],
+		[onWritten, info, target.name],
 	);
 	const commit = useCallback(
 		async (property: PlaceProperty, value: unknown) => {
@@ -1213,6 +1335,26 @@ function pathTo(nodes: readonly [number, string, number, number][], index: numbe
 	const names: string[] = [];
 	for (let i = index; i !== -1; i = nodes[i][2]) names.unshift(nodes[i][1]);
 	return names;
+}
+
+/** What a change to the tree is called in the undo notice: Delete Hull, Add Part. */
+function changeLabel(
+	body: PlaceInstanceChange,
+	nodes: readonly [number, string, number, number][],
+): string {
+	const name = nodes[body.index]?.[1] ?? "";
+	switch (body.kind) {
+		case "add":
+			return `Add ${body.className}`;
+		case "delete":
+			return `Delete ${name}`;
+		case "move":
+			return `Move ${name}`;
+		case "duplicate":
+			return `Duplicate ${name}`;
+		case "restore":
+			return "Put back";
+	}
 }
 
 /**

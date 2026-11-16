@@ -48,6 +48,7 @@ import { buildPresets, type MenuAnchor } from "./NodeMenu.jsx";
 import { configEntries, configText } from "./nodeConfig.js";
 import type { PinMenuTarget } from "./PinMenu.jsx";
 import { useShowing } from "./pageHost.jsx";
+import { placeHasKeys } from "./placeHistory.js";
 import type { Preferences } from "./preferences.js";
 import { requiredModules, useProjectFunctions, useProjectTypes } from "./projectTypes.js";
 import type { SourceDoc } from "./SourceView.jsx";
@@ -573,6 +574,9 @@ export function useGraphCommands(context: GraphCommandsContext) {
 				e.key.toLowerCase() === "p";
 			if (locked && !reading) return;
 
+			// The place's own history has them while it is in front or was last clicked.
+			const undoing = mod && (e.key.toLowerCase() === "z" || e.key.toLowerCase() === "y");
+			if (undoing && placeHasKeys(e.target)) return;
 			if (mod && e.key.toLowerCase() === "z") {
 				e.preventDefault();
 				if (e.shiftKey) store.redo();

@@ -51,12 +51,36 @@ export {
 	targetProblem,
 } from "./instanceRules.js";
 
-/** One change to a place's tree, naming instances by `T`: a referent, or the instance itself. */
+/**
+ * One change to a place's tree, naming instances by `T`: a referent, or the
+ * instance itself. A move or a restore with `before` puts the instance in
+ * front of that child of `parent`, where an undo puts it back; without, last.
+ */
 export type InstanceChange<T = InstanceRef> =
 	| { kind: "add"; parent: T; className: string; name: string }
 	| { kind: "delete"; target: T }
-	| { kind: "move"; target: T; parent: T }
-	| { kind: "duplicate"; target: T };
+	| { kind: "move"; target: T; parent: T; before?: T }
+	| { kind: "duplicate"; target: T }
+	| {
+			kind: "restore";
+			parent: T;
+			before?: T;
+			/** A deleted instance, everything in it, and every value it had. See `Outside`. */
+			tree: RbxInstance;
+			/** References elsewhere the deletion cleared: each holder's property, at what in `tree`. */
+			repoint?: { holder: T; prop: string; target: RbxInstance }[];
+	  };
+
+/**
+ * An instance outside a restored tree that a value in it points at, by its
+ * referent, standing in a `Ref` (or a `Content`'s object) until it is found.
+ */
+export interface Outside {
+	outside: InstanceRef;
+}
+
+const isOutside = (v: unknown): v is Outside =>
+	typeof v === "object" && v !== null && "outside" in v && !("children" in v);
 
 // ---------------------------------------------------------------------------
 // Studio's rules
@@ -70,6 +94,20 @@ export function changeProblem(change: InstanceChange<RbxInstance>): string | und
 			parentProblem(change.className, change.parent.className) ??
 			nameProblem(change.name)
 		);
+	if (
+		(change.kind === "move" || change.kind === "restore") &&
+		change.before &&
+		change.before.parent !== change.parent
+	)
+		return `${change.before.name} is not in ${change.parent.name}`;
+	if (change.kind === "restore") {
+		// Put back where it was: what a deletion may take, under what may hold it.
+		for (const inst of walk([change.tree])) {
+			const problem = targetProblem(inst.className, false);
+			if (problem) return problem;
+		}
+		return parentProblem(change.tree.className, change.parent.className);
+	}
 	const { target } = change;
 	const problem = targetProblem(target.className, !target.parent || target.service);
 	if (problem || change.kind !== "move") return problem;
@@ -185,17 +223,38 @@ interface Applied {
 	added: RbxInstance[];
 	/** Instances it took out, with everything under them. */
 	removed: Set<RbxInstance>;
-	/** Instances whose references to a removed one now point at nothing. */
+	/**
+	 * Instances whose references changed: to a removed one, now pointing at
+	 * nothing, or for a restore, at what is back.
+	 */
 	cleared: Set<RbxInstance>;
+	/** Each reference a deletion cleared, for the restore that undoes it. */
+	clearedRefs: { holder: RbxInstance; prop: string; target: RbxInstance }[];
 	/** For a duplicate, each instance copied and its copy, parents first. */
 	copies: Map<RbxInstance, RbxInstance>;
 	/** The instance made or moved. */
 	focus: RbxInstance | undefined;
+	/** Instances put in front of a sibling, rather than after the rest, and that sibling. */
+	placed?: { moving: RbxInstance[]; before: RbxInstance };
+	/** Where a deleted or moved instance was: its parent, and the child after it. */
+	was?: { parent: RbxInstance; next: RbxInstance | undefined };
 }
 
-function detach(inst: RbxInstance) {
-	const siblings = inst.parent!.children;
-	siblings.splice(siblings.indexOf(inst), 1);
+/** Takes `inst` out of its parent's children, and says where it was. */
+function detach(inst: RbxInstance): { parent: RbxInstance; next: RbxInstance | undefined } {
+	const parent = inst.parent!;
+	const siblings = parent.children;
+	const at = siblings.indexOf(inst);
+	siblings.splice(at, 1);
+	return { parent, next: siblings[at] };
+}
+
+/** `inst` among `parent`'s children: in front of `before`, or last. */
+function attach(inst: RbxInstance, parent: RbxInstance, before: RbxInstance | undefined) {
+	inst.parent = parent;
+	const at = before ? parent.children.indexOf(before) : -1;
+	if (at === -1) parent.children.push(inst);
+	else parent.children.splice(at, 0, inst);
 }
 
 function apply(doc: RbxDocument, change: InstanceChange<RbxInstance>, ids: Ids): Applied {
@@ -203,6 +262,7 @@ function apply(doc: RbxDocument, change: InstanceChange<RbxInstance>, ids: Ids):
 		added: [],
 		removed: new Set(),
 		cleared: new Set(),
+		clearedRefs: [],
 		copies: new Map(),
 		focus: undefined,
 	};
@@ -225,7 +285,7 @@ function apply(doc: RbxDocument, change: InstanceChange<RbxInstance>, ids: Ids):
 		}
 		case "delete": {
 			for (const inst of walk([change.target])) applied.removed.add(inst);
-			detach(change.target);
+			applied.was = detach(change.target);
 			doc.instances = doc.instances.filter((inst) => !applied.removed.has(inst));
 			// As Studio does: what pointed at a deleted instance points at nothing.
 			for (const inst of doc.instances)
@@ -233,15 +293,49 @@ function apply(doc: RbxDocument, change: InstanceChange<RbxInstance>, ids: Ids):
 					if (prop.type === "Ref" && applied.removed.has(prop.value as RbxInstance)) {
 						inst.props.set(name, { type: "Ref", value: null });
 						applied.cleared.add(inst);
+						applied.clearedRefs.push({
+							holder: inst,
+							prop: name,
+							target: prop.value as RbxInstance,
+						});
 					}
 			break;
 		}
 		case "move": {
-			const { target, parent } = change;
-			detach(target);
-			target.parent = parent;
-			parent.children.push(target);
+			const { target, parent, before } = change;
+			applied.was = detach(target);
+			attach(target, parent, before);
+			if (before) applied.placed = { moving: [target], before };
 			applied.focus = target;
+			break;
+		}
+		case "restore": {
+			const { tree, parent, before } = change;
+			attach(tree, parent, before);
+			// Peers in a binary place share one column for each property: the
+			// instance back takes the columns its class has now, as a new one does.
+			const peers = new Map<string, RbxInstance>();
+			for (const inst of doc.instances)
+				if (!peers.has(inst.className)) peers.set(inst.className, inst);
+			for (const inst of walk([tree])) {
+				inst.service = false;
+				inst.ref = ids.ref();
+				const peer = doc.format === "binary" ? peers.get(inst.className) : undefined;
+				if (peer) {
+					for (const [key, prop] of peer.props)
+						if (!inst.props.has(key))
+							inst.props.set(key, { type: prop.type, value: blank(prop.type) });
+					for (const key of [...inst.props.keys()])
+						if (!peer.props.has(key)) inst.props.delete(key);
+				}
+				applied.added.push(inst);
+			}
+			for (const { holder, prop, target } of change.repoint ?? []) {
+				holder.props.set(prop, { type: "Ref", value: target });
+				applied.cleared.add(holder);
+			}
+			if (before) applied.placed = { moving: [...applied.added], before };
+			applied.focus = tree;
 			break;
 		}
 		case "duplicate": {
@@ -286,14 +380,15 @@ function apply(doc: RbxDocument, change: InstanceChange<RbxInstance>, ids: Ids):
 // ---------------------------------------------------------------------------
 
 /**
- * The place with `change` made, and the referent of the instance it made or
- * moved. Throws `RbxError`, leaving nothing changed, for a change Studio would
+ * The place with `change` made, the referent of the instance it made or
+ * moved, and the change that undoes it, naming instances as the new file
+ * does. Throws `RbxError`, leaving nothing changed, for a change Studio would
  * not make or a place this cannot write it into.
  */
 export function changeInstances(
 	bytes: Uint8Array,
 	change: InstanceChange,
-): { bytes: Uint8Array; ref: InstanceRef | undefined } {
+): { bytes: Uint8Array; ref: InstanceRef | undefined; undo: InstanceChange<RbxInstance> } {
 	const doc = readRbx(bytes);
 	const byRef = new Map(doc.instances.map((inst) => [inst.ref, inst]));
 	const find = (ref: InstanceRef) => {
@@ -301,12 +396,43 @@ export function changeInstances(
 		if (!inst) throw new RbxError("That instance is no longer in the place");
 		return inst;
 	};
-	const resolved: InstanceChange<RbxInstance> =
-		change.kind === "add"
-			? { ...change, parent: find(change.parent) }
-			: change.kind === "move"
-				? { ...change, target: find(change.target), parent: find(change.parent) }
-				: { ...change, target: find(change.target) };
+	const maybe = (ref: InstanceRef | undefined) => (ref === undefined ? undefined : find(ref));
+	let resolved: InstanceChange<RbxInstance>;
+	switch (change.kind) {
+		case "add":
+			resolved = { ...change, parent: find(change.parent) };
+			break;
+		case "move":
+			resolved = {
+				...change,
+				target: find(change.target),
+				parent: find(change.parent),
+				before: maybe(change.before),
+			};
+			break;
+		case "restore":
+			// What the tree points at outside itself, found in this reading of the file.
+			for (const inst of walk([change.tree]))
+				for (const [name, prop] of inst.props) {
+					if (prop.type === "Ref" && isOutside(prop.value))
+						inst.props.set(name, { type: "Ref", value: find(prop.value.outside) });
+					const content = prop.value as { object?: unknown } | null;
+					if (prop.type === "Content" && content && isOutside(content.object))
+						inst.props.set(name, {
+							type: "Content",
+							value: { ...content, object: find(content.object.outside) },
+						});
+				}
+			resolved = {
+				...change,
+				parent: find(change.parent),
+				before: maybe(change.before),
+				repoint: (change.repoint ?? []).map((r) => ({ ...r, holder: find(r.holder) })),
+			};
+			break;
+		default:
+			resolved = { ...change, target: find(change.target) };
+	}
 	const problem = changeProblem(resolved);
 	if (problem) throw new RbxError(problem);
 
@@ -317,7 +443,22 @@ export function changeInstances(
 			? writeBinary(bytes, before, doc, applied)
 			: utf8.encode(writeXml(text.decode(bytes), resolved, applied));
 	readsBack(out, doc);
-	return { bytes: out, ref: applied.focus?.ref };
+	// Read after writing: a binary place's referents may have moved to close a gap.
+	let undo: InstanceChange<RbxInstance>;
+	if (resolved.kind === "delete") {
+		const { parent, next } = applied.was!;
+		undo = {
+			kind: "restore",
+			parent,
+			...(next ? { before: next } : {}),
+			tree: resolved.target,
+			...(applied.clearedRefs.length ? { repoint: applied.clearedRefs } : {}),
+		};
+	} else if (resolved.kind === "move") {
+		const { parent, next } = applied.was!;
+		undo = { kind: "move", target: resolved.target, parent, ...(next ? { before: next } : {}) };
+	} else undo = { kind: "delete", target: applied.focus! };
+	return { bytes: out, ref: applied.focus?.ref, undo };
 }
 
 function joined(parts: readonly Uint8Array[]): Uint8Array {
@@ -492,16 +633,27 @@ function writeBinary(
 	return joined(parts);
 }
 
-/** The parent table again: each pair the file had, with its parent as it now is, then the new ones. */
+/**
+ * The parent table again: each pair the file had, with its parent as it now
+ * is, then the new ones. Children are listed in the order of their pairs, so
+ * what is placed before a sibling has its pairs moved in front of that one's.
+ */
 function parents(data: Uint8Array, live: Map<number, RbxInstance>, applied: Applied): Uint8Array {
 	const count = u32(data, 1);
 	const children = readReferents(data, 5, count);
-	const pairs: RbxInstance[] = [];
+	const added = new Set(applied.added);
+	let pairs: RbxInstance[] = [];
 	for (const child of children) {
 		const inst = live.get(child);
-		if (inst && !applied.added.includes(inst)) pairs.push(inst);
+		if (inst && !added.has(inst)) pairs.push(inst);
 	}
 	pairs.push(...applied.added);
+	if (applied.placed) {
+		const moving = new Set(applied.placed.moving);
+		pairs = pairs.filter((inst) => !moving.has(inst));
+		const at = pairs.indexOf(applied.placed.before);
+		pairs.splice(at === -1 ? pairs.length : at, 0, ...applied.placed.moving);
+	}
 	const w = new Bytes();
 	w.u8(data[0]);
 	w.u32(pairs.length);
@@ -554,6 +706,33 @@ function insertChild(
 	const laidOut = source.slice(at - indent.length - 1, at) === `\n${indent}`;
 	if (!laidOut) return source.slice(0, at) + item("", "") + source.slice(at);
 	return `${source.slice(0, at)}\t${item(`${indent}\t`, newline)}${newline}${indent}${source.slice(at)}`;
+}
+
+/** The source with `item(indent)` just in front of the Item `sibling` names, on a line of its own where that is. */
+function insertBefore(
+	source: string,
+	sibling: string,
+	item: (indent: string, newline: string) => string,
+): string {
+	const el = itemsByRef(parseXml(source)).get(sibling);
+	if (!el) throw new RbxError("That instance is no longer in the place");
+	const { from, indent } = itemSpan(source, el);
+	const newline = source.includes("\r\n") ? "\r\n" : "\n";
+	const laidOut = source.slice(from - indent.length - 1, from) === `\n${indent}`;
+	if (!laidOut) return source.slice(0, from) + item("", "") + source.slice(from);
+	return `${source.slice(0, from)}${item(indent, newline)}${newline}${indent}${source.slice(from)}`;
+}
+
+/** The source with `item` as a child of `parent`: in front of `before`, or last. */
+function placeChild(
+	source: string,
+	parent: RbxInstance,
+	before: RbxInstance | undefined,
+	item: (indent: string, newline: string) => string,
+): string {
+	return before
+		? insertBefore(source, String(before.ref), item)
+		: insertChild(source, String(parent.ref), item);
 }
 
 /** Splices, made from the last back so each one's place stays right. */
@@ -611,9 +790,46 @@ function writeXml(source: string, change: InstanceChange<RbxInstance>, applied: 
 			const item = source.slice(span.from, span.to);
 			const [from, to] = wholeLine(source, span.from, span.to, span.indent);
 			const without = source.slice(0, from) + source.slice(to);
-			return insertChild(without, String(change.parent.ref), (indent) =>
+			return placeChild(without, change.parent, change.before, (indent) =>
 				span.indent ? item.split(`\n${span.indent}`).join(`\n${indent}`) : item,
 			);
+		}
+		case "restore": {
+			const shared = new SharedStrings();
+			const referent = (i: RbxInstance) => (typeof i.ref === "string" ? i.ref : undefined);
+			const itemOf = (inst: RbxInstance, indent: string, nl: string): string => {
+				const tab = nl ? "\t" : "";
+				const props = [...inst.props]
+					.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+					.map(([name, prop]) => xmlProperty(inst.className, name, prop, referent, shared));
+				return [
+					`<Item class="${inst.className}" referent="${inst.ref}">`,
+					`${indent}${tab}<Properties>`,
+					...props.map((p) => `${indent}${tab}${tab}${p}`),
+					`${indent}${tab}</Properties>`,
+					...inst.children.map((child) => `${indent}${tab}${itemOf(child, indent + tab, nl)}`),
+					`${indent}</Item>`,
+				].join(nl);
+			};
+			let out = placeChild(source, change.parent, change.before, (indent, nl) =>
+				itemOf(change.tree, indent, nl),
+			);
+			// What pointed into the tree before it was deleted points at it again.
+			if (change.repoint?.length) {
+				const items = itemsByRef(parseXml(out));
+				const edits: { from: number; to: number; text: string }[] = [];
+				for (const { holder, prop, target } of change.repoint) {
+					const props = items
+						.get(String(holder.ref))
+						?.children.find((c) => c.name === "Properties");
+					const el = props?.children.find((c) => c.name === "Ref" && c.attrs.name === prop);
+					if (!el) throw new RbxError(`${holder.name} has no ${prop} in the file`);
+					edits.push({ from: el.start, to: el.end, text: String(target.ref) });
+				}
+				out = spliced(out, edits);
+			}
+			for (const v of shared.values) out = withSharedXml(out, v.key, v.bytes);
+			return out;
 		}
 		case "duplicate": {
 			const span = itemSpan(source, elementOf(change.target));

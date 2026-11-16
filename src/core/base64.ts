@@ -1,7 +1,7 @@
 /**
- * Bytes as base64 and back, for the one place binary data crosses JSON: a
- * place or model in a project export. `btoa` and `atob` exist in Node, the
- * browser and a worker alike.
+ * Bytes as base64 and back, for where binary data crosses JSON: a place or
+ * model in a project export, and a value an undo puts back. `btoa` and `atob`
+ * exist in Node, the browser and a worker alike.
  */
 
 export function toBase64(bytes: Uint8Array): string {

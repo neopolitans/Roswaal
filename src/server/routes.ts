@@ -66,6 +66,14 @@ import {
 } from "../core/rbx/instances.js";
 import { readLighting } from "../core/rbx/lighting.js";
 import { type PlaceReport, planPlaceUpdate } from "../core/rbx/placeExport.js";
+import {
+	decodeRaw,
+	decodeTree,
+	encodeRaw,
+	encodeTree,
+	type Raw,
+	type RawProp,
+} from "../core/rbx/rawValue.js";
 import { buildPlaceScene, type PlaceScene, SCENE_KINDS } from "../core/rbx/scene.js";
 import { convertPlace, leftOutOf, placeFormatOf } from "../core/rbx/serialize.js";
 import { legacyBinaryUniqueId } from "../core/rbx/uniqueId.js";
@@ -120,6 +128,7 @@ import {
 	readPlaceBytes,
 	readScript,
 	readText,
+	relink,
 	removeOutputs,
 	renameEntry,
 	renameInLinks,
@@ -341,6 +350,9 @@ export class ApiSession {
 	 * the version `stamp` names, the stored property and value `change` gives
 	 * for it, a backup first unless this session wrote the file last, and the
 	 * instance as it now is. A 409 when the place has changed since `stamp`.
+	 *
+	 * Answers with `undo` too: the property and the value it held, which
+	 * `POST /place/property` given as `raw` puts back exactly.
 	 */
 	private async changePlace(
 		body: { stamp?: string; index?: number },
@@ -358,6 +370,7 @@ export class ApiSession {
 		if (!inst) throw new HttpError(404, `No instance ${body.index} in the place.`);
 
 		let after: Uint8Array;
+		let undo: { property: string; raw: RawProp } | undefined;
 		try {
 			const { stored, value } = change(inst, loaded);
 			// A place that keeps no attributes or tags for the class gets the
@@ -366,6 +379,18 @@ export class ApiSession {
 			let doc = loaded.doc;
 			let target = inst;
 			const missing = ADDED_IF_MISSING.get(stored);
+			// What it held, for the undo: a property it lacked held the empty one.
+			const was =
+				inst.props.get(stored) ??
+				(missing ? { type: missing, value: new Uint8Array(0) } : undefined);
+			if (was)
+				undo = {
+					property: stored,
+					raw: {
+						type: was.type,
+						value: encodeRaw(was.value, (other) => loaded.index.get(other) ?? null),
+					},
+				};
 			if (!inst.props.has(stored) && missing) {
 				bytes = withEmptyString(before, loaded.doc, inst.className, stored, missing);
 				doc = readRbx(bytes);
@@ -384,6 +409,7 @@ export class ApiSession {
 			stamp: now.stamp,
 			instance: describeInstance(now.order[index], index, (other) => now.index.get(other)),
 			...(backup ? { backup } : {}),
+			...(undo ? { undo } : {}),
 		};
 	}
 
@@ -744,27 +770,32 @@ export class ApiSession {
 			 * unless it still holds what the last change here wrote. Answers
 			 * with the new stamp and the instance as it now is: the outline is
 			 * the same, since no name changes.
+			 *
+			 * An undo sends `raw` instead of `value`: a value as the file holds
+			 * it, from a change's `undo`, put back exactly. It may name the
+			 * AttributesSerialize and Tags an attribute or tag change wrote.
 			 */
 			"POST /place/property": async (req) => {
-				const body = fields<{ stamp: string; index: number; property: string; value: unknown }>(
-					req,
-				);
+				const body = fields<{
+					stamp: string;
+					index: number;
+					property: string;
+					value: unknown;
+					raw: RawProp;
+				}>(req);
 				const property = need(text(body.property), "property");
 				// A rename moves the paths the project's links go by.
 				let renamed: { from: string[]; to: string[] } | undefined;
 				const answer = await this.changePlace(body, (inst, loaded) => {
-					const edit = propertyEdit(inst, property);
-					if (!edit) throw new HttpError(422, `${property} cannot be changed here.`);
-					const value = storedValue(
-						edit,
-						inst.props.get(property)!,
-						body.value,
-						(index) => loaded.order[index],
-					);
+					const value =
+						body.raw === undefined
+							? edited(inst, loaded, property, body.value)
+							: restored(inst, loaded, property, body.raw);
 					if (property === "Name") {
 						const from: string[] = [];
 						for (let cur: RbxInstance | null = inst; cur; cur = cur.parent) from.unshift(cur.name);
-						renamed = { from, to: [...from.slice(0, -1), body.value as string] };
+						const name = value instanceof Uint8Array ? new TextDecoder().decode(value) : "";
+						renamed = { from, to: [...from.slice(0, -1), name] };
 					}
 					return { stored: property, value };
 				});
@@ -851,6 +882,13 @@ export class ApiSession {
 			 * links go, and the files stay. A move takes the links with it.
 			 * Answers with the place as `GET /place` does, and `index`, where
 			 * the instance made or moved now is.
+			 *
+			 * And with `undo`, the change to send back to undo it, naming
+			 * instances as the place now does: a delete for what was made, a
+			 * move back in front of the sibling it left, and for a deletion a
+			 * `restore` of what was taken -- every value, and the references
+			 * and links the deletion cleared. A move given `before` goes in
+			 * front of that child rather than last.
 			 */
 			"POST /place/instance": async (req) => {
 				const body = fields<{
@@ -858,9 +896,13 @@ export class ApiSession {
 					kind: string;
 					index: number;
 					parent?: number;
+					before?: number;
 					className?: string;
 					name?: string;
 					unlink?: boolean;
+					tree?: unknown;
+					repoint?: unknown;
+					links?: unknown;
 				}>(req);
 				const project = this.project();
 				const file = await findPlaceFile(project.root, project.config);
@@ -877,7 +919,9 @@ export class ApiSession {
 					return inst;
 				};
 				const inst = at(body.index);
+				const sibling = body.before === undefined ? {} : { before: at(body.before).ref! };
 				let change: InstanceChange;
+				let links: LostLinks = [];
 				switch (body.kind) {
 					case "add":
 						change = {
@@ -888,14 +932,41 @@ export class ApiSession {
 						};
 						break;
 					case "move":
-						change = { kind: "move", target: inst.ref!, parent: at(body.parent).ref! };
+						change = { kind: "move", target: inst.ref!, parent: at(body.parent).ref!, ...sibling };
 						break;
 					case "delete":
 					case "duplicate":
 						change = { kind: body.kind, target: inst.ref! };
 						break;
+					case "restore": {
+						let tree: RbxInstance;
+						let repoint: { holder: InstanceRef; prop: string; target: RbxInstance }[];
+						try {
+							tree = decodeTree(body.tree, (index) => ({ outside: at(index).ref! }));
+							const members = [...walk([tree])];
+							repoint = (Array.isArray(body.repoint) ? body.repoint : []).map((r) => {
+								const { holder, prop, target } = r as {
+									holder: unknown;
+									prop: unknown;
+									target: unknown;
+								};
+								if (typeof prop !== "string" || typeof target !== "number" || !members[target])
+									throw new Error("a reference to put back");
+								return { holder: at(holder).ref!, prop, target: members[target] };
+							});
+							links = restoredLinks(body.links);
+						} catch (err) {
+							if (err instanceof HttpError) throw err;
+							throw new HttpError(
+								400,
+								`That is not an instance to put back: ${errorMessage(err)}.`,
+							);
+						}
+						change = { kind: "restore", parent: inst.ref!, tree, repoint, ...sibling };
+						break;
+					}
 					default:
-						throw new HttpError(400, "`kind` is add, delete, move or duplicate.");
+						throw new HttpError(400, "`kind` is add, delete, move, duplicate or restore.");
 				}
 
 				// The scripts a deletion takes that the project's files write.
@@ -926,23 +997,36 @@ export class ApiSession {
 
 				let after: Uint8Array;
 				let focus: InstanceRef | undefined;
+				let undone: InstanceChange<RbxInstance>;
 				try {
-					({ bytes: after, ref: focus } = changeInstances(before, change));
+					({ bytes: after, ref: focus, undo: undone } = changeInstances(before, change));
 				} catch (err) {
 					if (err instanceof RbxError) throw new HttpError(422, errorMessage(err));
+					// A tree put back holds what its writer cannot take: refused, not a crash.
+					if (change.kind === "restore")
+						throw new HttpError(422, `That could not be put back: ${errorMessage(err)}.`);
 					throw err;
 				}
 				const from = pathOf(inst);
 				const { now, backup } = await this.savePlace(project, file, before, after, loaded);
-				if (change.kind === "delete" && owners.size) await unlinkUnder(project, from, ids);
+				if (change.kind === "delete" && owners.size) links = await unlinkUnder(project, from, ids);
+				if (change.kind === "restore" && links.length) await relink(project, links);
 				if (change.kind === "move")
 					await renameInLinks(project, from, [...pathOf(at(body.parent)), inst.name]);
-				const index =
-					focus === undefined ? -1 : now.order.findIndex((other) => other.ref === focus);
+				const indexOf = new Map(now.order.map((other, i) => [other.ref, i]));
+				const index = focus === undefined ? -1 : (indexOf.get(focus) ?? -1);
+				// Undoing a restore deletes what the developer deleted once already, links and all.
+				const undo = undoBody(
+					undone,
+					(other) => indexOf.get(other.ref),
+					links,
+					change.kind === "restore",
+				);
 				return {
 					...(await this.placeAnswer(project, file, now)),
 					...(index === -1 ? {} : { index }),
 					...(backup ? { backup } : {}),
+					...(undo ? { undo } : {}),
 				};
 			},
 
@@ -1663,6 +1747,121 @@ interface LoadedPlace {
 	index: Map<RbxInstance, number>;
 	/** The viewport's buffers, built the first time they are asked for. */
 	scene?: PlaceScene;
+}
+
+/** The links a deletion took, per file, which its undo puts back. */
+type LostLinks = Awaited<ReturnType<typeof unlinkUnder>>;
+
+/** `links` from a restore's body, or a throw for anything not a list of them. */
+function restoredLinks(links: unknown): LostLinks {
+	if (links === undefined) return [];
+	if (!Array.isArray(links)) throw new Error("links");
+	return links.map((link) => {
+		const { file, instances } = (link ?? {}) as { file?: unknown; instances?: unknown };
+		if (typeof file !== "string" || !Array.isArray(instances)) throw new Error("a link");
+		return {
+			file,
+			instances: instances.map((t) => {
+				const { path: at, id } = (t ?? {}) as { path?: unknown; id?: unknown };
+				if (!Array.isArray(at) || !at.every((n) => typeof n === "string"))
+					throw new Error("a link's path");
+				if (id !== undefined && typeof id !== "string") throw new Error("a link's id");
+				return id === undefined ? { path: at as string[] } : { path: at as string[], id };
+			}),
+		};
+	});
+}
+
+/**
+ * What undoes a change, as `POST /place/instance` takes it, naming instances
+ * by `indexOf`; nothing when one it names is not in the place as now read.
+ */
+function undoBody(
+	undo: InstanceChange<RbxInstance>,
+	indexOf: (inst: RbxInstance) => number | undefined,
+	links: LostLinks,
+	unlink: boolean,
+): Record<string, unknown> | undefined {
+	const before = (inst: RbxInstance | undefined) => {
+		if (!inst) return {};
+		const index = indexOf(inst);
+		return index === undefined ? undefined : { before: index };
+	};
+	switch (undo.kind) {
+		case "delete": {
+			const index = indexOf(undo.target);
+			if (index === undefined) return undefined;
+			return { kind: "delete", index, ...(unlink ? { unlink: true } : {}) };
+		}
+		case "move": {
+			const [index, parent, next] = [
+				indexOf(undo.target),
+				indexOf(undo.parent),
+				before(undo.before),
+			];
+			if (index === undefined || parent === undefined || !next) return undefined;
+			return { kind: "move", index, parent, ...next };
+		}
+		case "restore": {
+			const [index, next] = [indexOf(undo.parent), before(undo.before)];
+			if (index === undefined || !next) return undefined;
+			const members = [...walk([undo.tree])];
+			const repoint = [];
+			for (const { holder, prop, target } of undo.repoint ?? []) {
+				const at = indexOf(holder);
+				if (at !== undefined) repoint.push({ holder: at, prop, target: members.indexOf(target) });
+			}
+			return {
+				kind: "restore",
+				index,
+				...next,
+				tree: encodeTree(undo.tree, indexOf),
+				...(repoint.length ? { repoint } : {}),
+				...(links.length ? { links } : {}),
+			};
+		}
+		default:
+			return undefined;
+	}
+}
+
+/** A new value from Properties, in the form the file stores it. */
+function edited(inst: RbxInstance, loaded: LoadedPlace, property: string, value: unknown): unknown {
+	const edit = propertyEdit(inst, property);
+	if (!edit) throw new HttpError(422, `${property} cannot be changed here.`);
+	return storedValue(edit, inst.props.get(property)!, value, (index) => loaded.order[index]);
+}
+
+/** What an attribute or tag change writes whole, and an undo puts back whole: each checked as it is read. */
+const WHOLE = new Map<string, (bytes: Uint8Array) => boolean>([
+	["AttributesSerialize", (bytes) => attributeEntries(bytes) !== null],
+	["Tags", (bytes) => tagsOf(bytes).length >= 0],
+]);
+
+/**
+ * A value an undo puts back, as a change's `undo` gave it: only for what
+ * Properties may change, and only while the property is of the same type.
+ */
+function restored(inst: RbxInstance, loaded: LoadedPlace, property: string, raw: RawProp): unknown {
+	const whole = WHOLE.get(property);
+	if (!whole && !propertyEdit(inst, property))
+		throw new HttpError(422, `${property} cannot be changed here.`);
+	const type = inst.props.get(property)?.type ?? ADDED_IF_MISSING.get(property);
+	if (typeof raw !== "object" || raw === null || raw.type !== type)
+		throw new HttpError(409, `${inst.name}.${property} is not as it was. Reload the place.`);
+	let value: unknown;
+	try {
+		value = decodeRaw(raw.value, (pointer: Raw) => {
+			if (pointer === null) return null;
+			const target = typeof pointer === "number" ? loaded.order[pointer] : undefined;
+			if (!target) throw new Error("no such instance");
+			return target;
+		});
+		if (whole && !(value instanceof Uint8Array && whole(value))) throw new Error("not readable");
+	} catch {
+		throw new HttpError(400, `That is not a value ${property} can hold.`);
+	}
+	return value;
 }
 
 /** Kept out of the handlers so the id source is one line to find and to change. */

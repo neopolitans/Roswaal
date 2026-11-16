@@ -16,7 +16,12 @@ import {
 	type PlaceUpdate,
 	planPlaceUpdate,
 } from "../core/rbx/placeExport.js";
-import { LINKS_FILE, type PlaceImport, type PlaceLinks } from "../core/rbx/placeImport.js";
+import {
+	LINKS_FILE,
+	type PlaceImport,
+	type PlaceLink,
+	type PlaceLinks,
+} from "../core/rbx/placeImport.js";
 import { writeSources } from "../core/rbx/writer.js";
 import { defaultConfig, type RoswaalConfig } from "../core/schema.js";
 import { compileMap, type MapOutcome } from "./compile.js";
@@ -219,28 +224,59 @@ export async function renameInLinks(
  * `.roswaal/place.json` after the instance at `under` was deleted: every link
  * at it or inside it, found by path or by one of `ids`, taken off. A file left
  * linked to nothing keeps its entry, so an export neither puts the script back
- * nor takes the file for a new one. Answers with the files unlinked.
+ * nor takes the file for a new one. Answers with each file unlinked and the
+ * links it lost, which `relink` puts back.
  */
 export async function unlinkUnder(
 	project: OpenProject,
 	under: readonly string[],
 	ids: ReadonlySet<string>,
-): Promise<string[]> {
+): Promise<Pick<PlaceLink, "file" | "instances">[]> {
 	const file = safeJoin(project.root, LINKS_FILE);
 	const raw = await fs.readFile(file, "utf8").catch(() => null);
 	if (raw === null) return [];
 	const links = JSON.parse(raw) as PlaceLinks;
 	const inside = (p: readonly string[]) =>
 		p.length >= under.length && under.every((n, i) => p[i] === n);
-	const unlinked: string[] = [];
+	const unlinked: Pick<PlaceLink, "file" | "instances">[] = [];
 	for (const link of links.scripts) {
-		const kept = link.instances.filter((t) => !inside(t.path) && !(t.id && ids.has(t.id)));
-		if (kept.length === link.instances.length) continue;
-		link.instances = kept;
-		unlinked.push(link.file);
+		const gone = (t: PlaceLink["instances"][number]) =>
+			inside(t.path) || Boolean(t.id && ids.has(t.id));
+		const lost = link.instances.filter(gone);
+		if (lost.length === 0) continue;
+		link.instances = link.instances.filter((t) => !gone(t));
+		unlinked.push({ file: link.file, instances: lost });
 	}
 	if (unlinked.length) await writeFileAtomically(file, `${JSON.stringify(links, null, "\t")}\n`);
 	return unlinked;
+}
+
+/**
+ * `.roswaal/place.json` with the links `unlinkUnder` took put back, once an
+ * undo has put back what they link: each on the file that had it, where that
+ * file is still listed and does not have it already.
+ */
+export async function relink(
+	project: OpenProject,
+	given: readonly Pick<PlaceLink, "file" | "instances">[],
+): Promise<void> {
+	const file = safeJoin(project.root, LINKS_FILE);
+	const raw = await fs.readFile(file, "utf8").catch(() => null);
+	if (raw === null) return;
+	const links = JSON.parse(raw) as PlaceLinks;
+	const key = (t: PlaceLink["instances"][number]) => JSON.stringify([t.path, t.id ?? null]);
+	let changed = false;
+	for (const { file: owner, instances } of given) {
+		const link = links.scripts.find((l) => l.file === owner);
+		if (!link) continue;
+		const has = new Set(link.instances.map(key));
+		for (const t of instances) {
+			if (has.has(key(t))) continue;
+			link.instances.push(t.id ? { path: [...t.path], id: t.id } : { path: [...t.path] });
+			changed = true;
+		}
+	}
+	if (changed) await writeFileAtomically(file, `${JSON.stringify(links, null, "\t")}\n`);
 }
 
 /** The files `.roswaal/place.json` links to the place. */

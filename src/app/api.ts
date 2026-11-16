@@ -7,6 +7,7 @@ import type { InstanceOutline } from "../core/luau/instances.js";
 import type { PlaceInstanceInfo, PlaceOutline } from "../core/rbx/browse.js";
 import type { LightingParams } from "../core/rbx/lighting.js";
 import type { PlaceReport } from "../core/rbx/placeExport.js";
+import type { RawItem, RawProp } from "../core/rbx/rawValue.js";
 import { type PlaceScene, SCENE_KINDS } from "../core/rbx/scene.js";
 
 /** What adding a package did. See `src/server/wally.ts`. */
@@ -230,12 +231,31 @@ export class ProjectChangedError extends Error {
 	}
 }
 
-/** A change to the place's tree: see `POST /place/instance`. */
+/**
+ * A change to the place's tree: see `POST /place/instance`. A restore puts
+ * back what a delete took, as the delete's `undo` gives it.
+ */
 export type PlaceInstanceChange =
 	| { kind: "add"; index: number; className: string; name: string }
 	| { kind: "delete"; index: number; unlink?: boolean }
-	| { kind: "move"; index: number; parent: number }
-	| { kind: "duplicate"; index: number };
+	| { kind: "move"; index: number; parent: number; before?: number }
+	| { kind: "duplicate"; index: number }
+	| {
+			kind: "restore";
+			index: number;
+			before?: number;
+			tree: RawItem[];
+			repoint?: { holder: number; prop: string; target: number }[];
+			links?: { file: string; instances: { path: string[]; id?: string }[] }[];
+	  };
+
+/** What a property, attribute or tag change answers: the instance now, and what puts it back. */
+export interface PlaceWritten {
+	stamp: string;
+	instance: PlaceInstanceInfo;
+	backup?: string;
+	undo?: { property: string; raw: RawProp };
+}
 
 /**
  * How a request reaches whatever is serving the API.
@@ -501,36 +521,42 @@ export const api = {
 	 * now is, and the backup kept first, when one was.
 	 */
 	placeChange: (stamp: string, change: PlaceInstanceChange) =>
-		post<Extract<PlaceTree, { stamp: string }> & { index?: number; backup?: string }>(
-			"/api/place/instance",
-			{ stamp, ...change },
-		),
+		post<
+			Extract<PlaceTree, { stamp: string }> & {
+				index?: number;
+				backup?: string;
+				undo?: PlaceInstanceChange;
+			}
+		>("/api/place/instance", { stamp, ...change }),
 	/**
 	 * Changes one property of one instance in the place file itself. Answers
 	 * with the place's new stamp, the instance as it now is, and the backup
 	 * kept first, when one was.
 	 */
 	placeProperty: (stamp: string, index: number, property: string, value: unknown) =>
-		post<{ stamp: string; instance: PlaceInstanceInfo; backup?: string }>("/api/place/property", {
+		post<PlaceWritten>("/api/place/property", {
 			stamp,
 			index,
 			property,
 			value,
 		}),
+	/** Puts back a value a change's `undo` gave, exactly as the file held it. */
+	placeRestoreProperty: (stamp: string, index: number, property: string, raw: RawProp) =>
+		post<PlaceWritten>("/api/place/property", { stamp, index, property, raw }),
 	/** Changes, adds or removes one attribute in the place file: `value`, `add` with a type, or `remove`. */
 	placeAttribute: (
 		stamp: string,
 		index: number,
 		change: { name: string; value?: unknown; add?: string; remove?: boolean },
 	) =>
-		post<{ stamp: string; instance: PlaceInstanceInfo; backup?: string }>("/api/place/attribute", {
+		post<PlaceWritten>("/api/place/attribute", {
 			stamp,
 			index,
 			...change,
 		}),
 	/** Adds or removes one tag in the place file. */
 	placeTag: (stamp: string, index: number, tag: string, remove = false) =>
-		post<{ stamp: string; instance: PlaceInstanceInfo; backup?: string }>("/api/place/tag", {
+		post<PlaceWritten>("/api/place/tag", {
 			stamp,
 			index,
 			tag,
