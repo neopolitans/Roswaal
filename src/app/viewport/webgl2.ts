@@ -306,9 +306,13 @@ const vec2 POISSON[8] = vec2[8](
 	vec2(0.962, -0.195), vec2(0.473, -0.480), vec2(0.519, 0.767), vec2(0.185, -0.893));
 float cascadeSees(int k, vec3 p, vec3 n) {
 	float texel = cascTexel[k];
-	vec4 c = cascViews[k] * vec4(p + n * texel * 2.0, 1.0);
+	// As WebGpuView's cascadeSees: out along the normal by less where the sun
+	// is square on, and blurred over a texel and a half at least.
+	vec3 l = normalize(L[0].xyz);
+	float slope = sqrt(max(1.0 - dot(n, l) * dot(n, l), 0.0));
+	vec4 c = cascViews[k] * vec4(p + n * texel * (0.5 + slope), 1.0);
 	vec3 q = c.xyz * 0.5 + 0.5;
-	float r = cascFar.w / (texel * 1024.0);
+	float r = max(cascFar.w / texel, 1.5) / ${CASCADE_MAP}.0;
 	float seen = 0.0;
 	for (int j = 0; j < 8; j++) seen += texture(sunMaps, vec4(q.xy + POISSON[j] * r, float(k), q.z - 0.00005));
 	return seen / 8.0;

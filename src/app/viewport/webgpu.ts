@@ -260,9 +260,15 @@ var<private> POISSON: array<vec2f, 8> = array<vec2f, 8>(
 // Cascade k's share of the sun reaching p: eight taps over ShadowSoftness's width.
 fn cascadeSees(k: i32, p: vec3f, n: vec3f) -> f32 {
 	let texel = cascU.texel[k];
-	let c = cascU.views[k] * vec4f(p + n * texel * 2.0, 1.0);
+	// Pushed out along the normal by a texel or so, less where the sun is
+	// square on, so a shadow cast from a few studs away is not lost.
+	let l = normalize(u.sun.xyz);
+	let slope = sqrt(max(1.0 - dot(n, l) * dot(n, l), 0.0));
+	let c = cascU.views[k] * vec4f(p + n * texel * (0.5 + slope), 1.0);
 	let uv = vec2f(c.x * 0.5 + 0.5, 0.5 - c.y * 0.5);
-	let r = cascU.far.w / (texel * 1024.0);
+	// ShadowSoftness's width, and never under a texel and a half, so the
+	// map's texels blur into a straight edge rather than steps.
+	let r = max(cascU.far.w / texel, 1.5) / ${CASCADE_MAP}.0;
 	var seen = 0.0;
 	for (var j = 0; j < 8; j++) {
 		seen = seen + textureSampleCompareLevel(sunMaps, skyCompare, uv + POISSON[j] * r, k, c.z - 0.00005);

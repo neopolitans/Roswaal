@@ -405,7 +405,7 @@ export function lightGrid(lights: readonly number[] | undefined): {
  */
 export const SUN_CASCADES = [64, 256, 1024];
 /** Each cascade's side, in texels. */
-export const CASCADE_MAP = 1024;
+export const CASCADE_MAP = 2048;
 /** Floats in the block the shaders read: a matrix a cascade, how far each reaches, and a texel's width in each. */
 export const CASCADE_BLOCK = 16 * SUN_CASCADES.length + 8;
 
