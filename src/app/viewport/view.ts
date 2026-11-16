@@ -57,6 +57,8 @@ export interface ViewRenderer {
 	/** The place drawn again, after an instance is added. */
 	setScene(scene: PlaceScene): void;
 	draw(camera: Camera): void;
+	/** Resolves once the GPU has finished the frames drawn so far. */
+	settled(): Promise<void>;
 	/** The instance id under a pixel, or -1 for the sky. */
 	pick(camera: Camera, x: number, y: number): Promise<number>;
 	/** A material texture, as its mip levels, into its layer; drawn from then on. */

@@ -1888,6 +1888,10 @@ export class WebGpuView implements ViewRenderer {
 		this.device.queue.submit([encoder.finish()]);
 	}
 
+	settled(): Promise<void> {
+		return this.device.queue.onSubmittedWorkDone();
+	}
+
 	private imageLayout!: GPUBindGroupLayout;
 	private imageSampler!: GPUSampler;
 	private imagePipeline!: GPURenderPipeline;

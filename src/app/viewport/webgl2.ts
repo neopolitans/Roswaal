@@ -1678,6 +1678,11 @@ export class WebGl2View implements ViewRenderer {
 		gl.bindVertexArray(null);
 	}
 
+	/** WebGL2's own swap already waits for the GPU, so there is nothing to wait on. */
+	settled(): Promise<void> {
+		return Promise.resolve();
+	}
+
 	draw(camera: Camera): void {
 		const gl = this.gl;
 		const partsMoved = this.skyDirty;

@@ -1173,14 +1173,25 @@ export class ViewportController {
 	/** When the last frame was drawn, for a frame rate's cap. */
 	private lastDraw = 0;
 
-	/** The next frame: the display's, or straight away when the rate is Unlimited. */
+	/**
+	 * The next frame: the display's, or when the rate is Unlimited, as soon as
+	 * the GPU has finished the frame before last, so two are in flight at most.
+	 * Not waiting let frames queue up faster than the GPU drew them, and the
+	 * view lagged a third of a second behind the pointer.
+	 */
 	private nextFrame(run: (now: number) => void): void {
 		if (this.options.frameRate !== "unlimited") {
 			requestAnimationFrame(run);
 			return;
 		}
-		asap(run);
+		this.inFlight[0].then(
+			() => asap(run),
+			() => asap(run),
+		);
 	}
+
+	/** The GPU's work for the frame before last and the last, under Unlimited. */
+	private inFlight: [Promise<void>, Promise<void>] = [Promise.resolve(), Promise.resolve()];
 
 	private redraw(): void {
 		if (this.pending || !this.view) return;
@@ -1202,6 +1213,7 @@ export class ViewportController {
 			if ((this.state.tool !== "select" || this.state.pivotEdit) && this.selection.length > 0)
 				this.drawHandles(camera.eye);
 			this.view.draw(camera);
+			if (rate === "unlimited") this.inFlight = [this.inFlight[1], this.view.settled()];
 			this.drawPivot();
 			this.frames.push(now);
 			this.showRotation();
