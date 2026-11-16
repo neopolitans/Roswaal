@@ -42,6 +42,8 @@ import {
 	imageQuads,
 	LIGHTS_FULL,
 	type MeshGeometry,
+	nearSkyCentre,
+	nearSkyInto,
 	postActive,
 	RENDER_MODE_CODE,
 	type RenderSettings,
@@ -50,7 +52,10 @@ import {
 	SELECT_WIDTH,
 	SKY_BLOCK,
 	SKY_GAIN,
+	SKY_LAYERS,
 	SKY_MAP,
+	SKY_NEAR_LAYER,
+	SKY_SEEN_LEAST,
 	SKY_VIEWS,
 	SUN_CASCADES,
 	SUN_GAIN,
@@ -239,16 +244,21 @@ vec3 lavaLight(float m) { return mix(LAVA, LAVA_HOT, m * m) * m; }
 // The place's depth from each sky direction, and the sun's last, as WebGpuView's skySees.
 const SKY_VIS = `
 uniform highp sampler2DArrayShadow skyMaps;
-uniform mat4 skyViews[9];
+uniform mat4 skyViews[${SKY_LAYERS}];
 uniform vec4 skyInfo;
-float skySees(int k, vec3 p) {
+// The near maps' texel and depth, and their box, as WebGpuView's SkyU.
+uniform vec4 skyNear;
+uniform vec4 skyNearAt;
+float skySeesIn(int k, vec3 p, vec4 info);
+float skySees(int k, vec3 p) { return skySeesIn(k, p, skyInfo); }
+float skySeesIn(int k, vec3 p, vec4 info) {
 	vec4 c = skyViews[k] * vec4(p, 1.0);
 	vec3 q = c.xyz * 0.5 + 0.5;
 	if (any(lessThan(q.xy, vec2(0.0))) || any(greaterThan(q, vec3(1.0)))) return 1.0;
 	// Two taps a texel either side, as WebGpuView's skySees.
 	float a = float(k) * 0.785;
-	vec2 o = vec2(cos(a), sin(a)) * skyInfo.z;
-	float depth = q.z - skyInfo.y * 0.25;
+	vec2 o = vec2(cos(a), sin(a)) * info.z;
+	float depth = q.z - info.y * 0.25;
 	return 0.5 * (texture(skyMaps, vec4(q.xy + o, float(k), depth)) + texture(skyMaps, vec4(q.xy - o, float(k), depth)));
 }
 // The place's lights, as WebGpuView's partLights: five texels a light, a row
@@ -348,10 +358,25 @@ float testedSmooth(vec3 p) {
 }
 float skyVisibility(vec3 p, vec3 n) {
 	if (skyInfo.w < 0.5) return 1.0;
+	// The near maps near the camera, as WebGpuView's skyVisibility.
+	float edge = 2.0;
+	if (skyNear.w > 0.5) {
+		vec3 off = abs(p - skyNearAt.xyz);
+		edge = max(off.x, max(off.y, off.z)) / skyNearAt.w;
+	}
+	float near = 0.0;
+	if (edge < 1.0) {
+		vec3 qn = p + n * skyNear.x * 1.5;
+		for (int k = 0; k < 8; k++) near += skySeesIn(${SKY_NEAR_LAYER} + k, qn, skyNear);
+		near /= 8.0;
+		if (edge < 0.75) return near;
+	}
 	vec3 q = p + n * skyInfo.x * 1.5;
 	float seen = 0.0;
 	for (int k = 0; k < 8; k++) seen += skySees(k, q);
-	return seen / 8.0;
+	seen /= 8.0;
+	if (edge >= 1.0) return seen;
+	return mix(near, seen, smoothstep(0.75, 1.0, edge));
 }
 // The sun's shadow near the camera, as WebGpuView's cascadeSees.
 uniform highp sampler2DArrayShadow sunMaps;
@@ -459,7 +484,7 @@ vec4 surface(vec3 colour, vec3 n, vec3 world, float alpha, uint look, vec3 local
 			sunK = sunSees(world, n);
 		}
 		vec3 lit = L[1].rgb * ndl * sunK;
-		vec3 fill = (vec3(L[8].w, L[9].w, L[10].w) + L[2].rgb * vis) * (0.9 + 0.1 * n.y);
+		vec3 fill = (vec3(L[8].w, L[9].w, L[10].w) + L[2].rgb * max(vis, ${SKY_SEEN_LEAST})) * (0.9 + 0.1 * n.y);
 		vec3 lampShine = vec3(0.0);
 		vec3 lamps = vec3(0.0);
 		if (R.x < 0.5) lamps = partLights(world, n, v, a.y * 2.0, lampShine);
@@ -635,7 +660,7 @@ void main() {
 		vis = skyVisibility(vWorld, n);
 		sunK = sunSees(vWorld, n);
 	}
-	vec3 fill = (vec3(L[8].w, L[9].w, L[10].w) + L[2].rgb * vis) * (0.9 + 0.1 * n.y);
+	vec3 fill = (vec3(L[8].w, L[9].w, L[10].w) + L[2].rgb * max(vis, ${SKY_SEEN_LEAST})) * (0.9 + 0.1 * n.y);
 	vec3 lampShine;
 	vec3 lamps = vec3(0.0);
 	if (R.x < 0.5) lamps = partLights(vWorld, n, n, 1.0, lampShine);
@@ -1734,6 +1759,8 @@ export class WebGl2View implements ViewRenderer {
 	private skyDirty = true;
 	/** The sun's map alone is drawn again: the sun moved. */
 	private sunDirty = true;
+	/** Where the near maps were last drawn round: see nearSkyCentre. */
+	private nearCentre: number[] | null = null;
 	private skyKey = -1;
 	private sunKey = "";
 	private lightKey = -1;
@@ -1783,6 +1810,8 @@ export class WebGl2View implements ViewRenderer {
 		Record<
 			| "views"
 			| "info"
+			| "near"
+			| "nearAt"
 			| "maps"
 			| "lightData"
 			| "lightTable"
@@ -1802,6 +1831,8 @@ export class WebGl2View implements ViewRenderer {
 			at = {
 				views: gl.getUniformLocation(program, "skyViews"),
 				info: gl.getUniformLocation(program, "skyInfo"),
+				near: gl.getUniformLocation(program, "skyNear"),
+				nearAt: gl.getUniformLocation(program, "skyNearAt"),
 				maps: gl.getUniformLocation(program, "skyMaps"),
 				lightData: gl.getUniformLocation(program, "lightData"),
 				lightTable: gl.getUniformLocation(program, "lightTable"),
@@ -1822,7 +1853,7 @@ export class WebGl2View implements ViewRenderer {
 		this.skyMaps = gl.createTexture();
 		gl.activeTexture(gl.TEXTURE6);
 		gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.skyMaps);
-		gl.texStorage3D(gl.TEXTURE_2D_ARRAY, 1, gl.DEPTH_COMPONENT32F, SKY_MAP, SKY_MAP, SKY_VIEWS + 1);
+		gl.texStorage3D(gl.TEXTURE_2D_ARRAY, 1, gl.DEPTH_COMPONENT32F, SKY_MAP, SKY_MAP, SKY_LAYERS);
 		gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
 		gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 		gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -1899,13 +1930,18 @@ export class WebGl2View implements ViewRenderer {
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 	}
 
-	/** The place's depth from each sky direction and the sun, into the maps; or the sun's alone. */
-	private drawSkyMaps(sunOnly = false): void {
+	/** The maps, as WebGpuView's drawSkyMaps: the whole place's, the sun's, the near ones. */
+	private drawSkyMaps(
+		which: { far: boolean; sun: boolean; near: boolean },
+		centre: number[],
+	): void {
 		const gl = this.gl;
 		this.skyDirty = false;
 		this.sunDirty = false;
+		this.nearCentre = centre;
 		const box = this.scene ? sceneBox(this.scene) : null;
 		this.skyData = skyBlock(box, this.lighting?.sun ?? [0, 1, 0], false);
+		if (box) nearSkyInto(this.skyData, box, centre, false);
 		if (!box || !this.skyMaps) return;
 		gl.bindFramebuffer(gl.FRAMEBUFFER, this.skyFbo);
 		gl.drawBuffers([gl.NONE]);
@@ -1916,7 +1952,9 @@ export class WebGl2View implements ViewRenderer {
 		gl.enable(gl.DEPTH_TEST);
 		gl.depthMask(true);
 		gl.clearDepth(1);
-		for (let k = sunOnly ? SKY_VIEWS : 0; k <= SKY_VIEWS; k++) {
+		for (let k = 0; k < SKY_LAYERS; k++) {
+			const drawn = k < SKY_VIEWS ? which.far : k === SKY_VIEWS ? which.sun : which.near;
+			if (!drawn) continue;
 			gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, this.skyMaps, 0, k);
 			gl.clear(gl.DEPTH_BUFFER_BIT);
 			gl.uniformMatrix4fv(
@@ -1960,8 +1998,10 @@ export class WebGl2View implements ViewRenderer {
 			gl.uniform4fv(prog.block, lightingBlock(this.lighting, camera.eye, SELECT, HANDLE_ALPHA));
 		const sky = this.skyAt(prog.program);
 		if (sky.views) {
-			gl.uniformMatrix4fv(sky.views, false, this.skyData.subarray(0, 16 * (SKY_VIEWS + 1)));
-			gl.uniform4fv(sky.info, this.skyData.subarray(16 * (SKY_VIEWS + 1)));
+			gl.uniformMatrix4fv(sky.views, false, this.skyData.subarray(0, 16 * SKY_LAYERS));
+			gl.uniform4fv(sky.info, this.skyData.subarray(16 * SKY_LAYERS, 16 * SKY_LAYERS + 4));
+			gl.uniform4fv(sky.near, this.skyData.subarray(16 * SKY_LAYERS + 4, 16 * SKY_LAYERS + 8));
+			gl.uniform4fv(sky.nearAt, this.skyData.subarray(16 * SKY_LAYERS + 8, 16 * SKY_LAYERS + 12));
 			gl.uniform1i(sky.maps, 6);
 			gl.uniform1i(sky.lightData, 7);
 			gl.uniform1i(sky.lightTable, 8);
@@ -2015,7 +2055,17 @@ export class WebGl2View implements ViewRenderer {
 		const glowing = this.glowing && show.glow && !heat && !wire;
 		const partsMoved = this.skyDirty;
 		this.usualDepth(true);
-		if (this.skyDirty || this.sunDirty) this.drawSkyMaps(!this.skyDirty);
+		const centre = nearSkyCentre(camera.eye);
+		const nearMoved = !this.nearCentre || centre.some((v, a) => v !== this.nearCentre![a]);
+		if (this.skyDirty || this.sunDirty || nearMoved)
+			this.drawSkyMaps(
+				{
+					far: this.skyDirty,
+					sun: this.skyDirty || this.sunDirty,
+					near: this.skyDirty || nearMoved,
+				},
+				centre,
+			);
 		this.drawCascades(camera, partsMoved);
 		this.usualDepth(false);
 		gl.clearDepth(this.farDepth);

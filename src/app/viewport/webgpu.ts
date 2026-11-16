@@ -42,6 +42,8 @@ import {
 	imageQuads,
 	LIGHTS_FULL,
 	type MeshGeometry,
+	nearSkyCentre,
+	nearSkyInto,
 	postActive,
 	RENDER_MODE_CODE,
 	type RenderSettings,
@@ -50,7 +52,10 @@ import {
 	SELECT_WIDTH,
 	SKY_BLOCK,
 	SKY_GAIN,
+	SKY_LAYERS,
 	SKY_MAP,
+	SKY_NEAR_LAYER,
+	SKY_SEEN_LEAST,
 	SKY_VIEWS,
 	SUN_CASCADES,
 	SUN_GAIN,
@@ -197,20 +202,23 @@ struct U {
 // A Sky's own sun image, when \`camPos.w\`, its half width as a tangent, is more than 0.
 @group(0) @binding(5) var sunImage: texture_2d<f32>;
 // The place's depth from each sky direction, and the sun's last: see skyBlock.
-struct SkyU { views: array<mat4x4f, 9>, info: vec4f };
+// Then the near maps' views, their vec4 and their box: see nearSkyInto.
+struct SkyU { views: array<mat4x4f, 17>, info: vec4f, near: vec4f, nearAt: vec4f };
 @group(0) @binding(6) var skyMaps: texture_depth_2d_array;
 @group(0) @binding(7) var skyCompare: sampler_comparison;
 @group(0) @binding(8) var<uniform> skyU: SkyU;
 // 1 where map k sees p, with nothing between it and the sky; 1 off the map.
-fn skySees(k: i32, p: vec3f) -> f32 {
+fn skySees(k: i32, p: vec3f) -> f32 { return skySeesIn(k, p, skyU.info); }
+// As skySees, for a map whose texel and depth \`info\` gives.
+fn skySeesIn(k: i32, p: vec3f, info: vec4f) -> f32 {
 	let c = skyU.views[k] * vec4f(p, 1.0);
 	let uv = vec2f(c.x * 0.5 + 0.5, 0.5 - c.y * 0.5);
 	if (any(uv < vec2f(0.0)) || any(uv > vec2f(1.0)) || c.z > 1.0) { return 1.0; }
 	// Two taps a texel either side, turned with k, so the maps' coarse texels
 	// blur into a soft fall rather than steps where a floor meets a wall.
 	let a = f32(k) * 0.785;
-	let o = vec2f(cos(a), sin(a)) * skyU.info.z;
-	let depth = c.z - skyU.info.y * 0.5;
+	let o = vec2f(cos(a), sin(a)) * info.z;
+	let depth = c.z - info.y * 0.5;
 	return 0.5 * (textureSampleCompareLevel(skyMaps, skyCompare, uv + o, k, depth) + textureSampleCompareLevel(skyMaps, skyCompare, uv - o, k, depth));
 }
 // The place's lights: five vec4s each, see sceneLights; and which reach a
@@ -341,10 +349,26 @@ fn heat(i: VOut) -> f32 {
 // How much of the sky reaches p, on a face turned to n: the share of the maps that see it.
 fn skyVisibility(p: vec3f, n: vec3f) -> f32 {
 	if (skyU.info.w < 0.5) { return 1.0; }
+	// Near the camera the near maps, a texel well under a wall's width; the
+	// whole place's further off, blended over the box's last quarter.
+	var edge = 2.0;
+	if (skyU.near.w > 0.5) {
+		let off = abs(p - skyU.nearAt.xyz);
+		edge = max(off.x, max(off.y, off.z)) / skyU.nearAt.w;
+	}
+	var near = 0.0;
+	if (edge < 1.0) {
+		let qn = p + n * skyU.near.x * 1.5;
+		for (var k = 0; k < 8; k++) { near = near + skySeesIn(${SKY_NEAR_LAYER} + k, qn, skyU.near); }
+		near = near / 8.0;
+		if (edge < 0.75) { return near; }
+	}
 	let q = p + n * skyU.info.x * 1.5;
 	var seen = 0.0;
 	for (var k = 0; k < 8; k++) { seen = seen + skySees(k, q); }
-	return seen / 8.0;
+	seen = seen / 8.0;
+	if (edge >= 1.0) { return seen; }
+	return mix(near, seen, smoothstep(0.75, 1.0, edge));
 }
 // Whether the sun reaches p: its own map, four taps a texel apart.
 // The sun's shadow near the camera, sharp close by: see cascadeBlock.
@@ -692,7 +716,7 @@ fn surface(i: VOut) -> vec4f {
 			sunK = sunSees(i.world, n);
 		}
 		let lit = u.sunColour.rgb * ndl * sunK;
-		let fill = (vec3f(u.fog.w, u.fogColour.w, u.hazeColour.w) + u.ambient.rgb * vis) * (0.9 + 0.1 * n.y);
+		let fill = (vec3f(u.fog.w, u.fogColour.w, u.hazeColour.w) + u.ambient.rgb * max(vis, ${SKY_SEEN_LEAST})) * (0.9 + 0.1 * n.y);
 		var lamps = Lamps(vec3f(0.0), vec3f(0.0));
 		if (u.debug.x < 0.5) { lamps = partLights(i.world, n, v, a.y * 2.0); }
 		c = albedo * (1.0 - a.z * 0.6) * (fill + lit + lamps.diffuse) + mix(vec3f(1.0), albedo, a.z) * (spec * lit + lamps.spec * a.x * pat.y * 4.6);
@@ -887,7 +911,7 @@ struct IOut {
 	}
 	var lamps = vec3f(0.0);
 	if (u.debug.x < 0.5) { lamps = partLights(i.world, n, n, 1.0).diffuse; }
-	let fill = (vec3f(u.fog.w, u.fogColour.w, u.hazeColour.w) + u.ambient.rgb * vis) * (0.9 + 0.1 * n.y);
+	let fill = (vec3f(u.fog.w, u.fogColour.w, u.hazeColour.w) + u.ambient.rgb * max(vis, ${SKY_SEEN_LEAST})) * (0.9 + 0.1 * n.y);
 	var c = albedo * (fill + u.sunColour.rgb * ndl * sunK + lamps);
 	if (u.debug.x > 2.5) { c = albedo; }
 	let d = length(u.camPos.xyz - i.world);
@@ -2074,7 +2098,18 @@ export class WebGpuView implements ViewRenderer {
 		this.setCamera(camera);
 		const encoder = this.device.createCommandEncoder();
 		const partsMoved = this.skyDirty;
-		if (this.skyDirty || this.sunDirty) this.drawSkyMaps(encoder, !this.skyDirty);
+		const centre = nearSkyCentre(camera.eye);
+		const nearMoved = !this.nearCentre || centre.some((v, a) => v !== this.nearCentre![a]);
+		if (this.skyDirty || this.sunDirty || nearMoved)
+			this.drawSkyMaps(
+				encoder,
+				{
+					far: this.skyDirty,
+					sun: this.skyDirty || this.sunDirty,
+					near: this.skyDirty || nearMoved,
+				},
+				centre,
+			);
 		this.drawCascades(encoder, camera, partsMoved);
 		const screen = this.context.getCurrentTexture().createView();
 		const glowing = this.glowing && !!this.glow && show.glow && !heat && !wire;
@@ -2401,6 +2436,8 @@ export class WebGpuView implements ViewRenderer {
 	private skyDirty = true;
 	/** The sun's map alone is drawn again: the sun moved. */
 	private sunDirty = true;
+	/** Where the near maps were last drawn round: see nearSkyCentre. */
+	private nearCentre: number[] | null = null;
 	private skyKey = -1;
 	private sunKey = "";
 	private lightKey = -1;
@@ -2434,7 +2471,7 @@ export class WebGpuView implements ViewRenderer {
 	private makeSkyMaps(buffers: GPUVertexBufferLayout[]): void {
 		const d = this.device;
 		this.skyMaps = d.createTexture({
-			size: [SKY_MAP, SKY_MAP, SKY_VIEWS + 1],
+			size: [SKY_MAP, SKY_MAP, SKY_LAYERS],
 			format: "depth32float",
 			usage: TEXTURE.RENDER_ATTACHMENT | TEXTURE.TEXTURE_BINDING,
 		});
@@ -2482,7 +2519,7 @@ struct VIn { @location(0) pos: vec3f, @location(2) c0: vec3f, @location(3) c1: v
 				group: d.createBindGroup({ layout, entries: [{ binding: 0, resource: { buffer } }] }),
 			};
 		});
-		this.skyViewGroups = Array.from({ length: SKY_VIEWS + 1 }, () => {
+		this.skyViewGroups = Array.from({ length: SKY_LAYERS }, () => {
 			const buffer = d.createBuffer({ size: 64, usage: BUFFER.UNIFORM | BUFFER.COPY_DST });
 			return {
 				buffer,
@@ -2537,17 +2574,28 @@ struct VIn { @location(0) pos: vec3f, @location(2) c0: vec3f, @location(3) c1: v
 		});
 	}
 
-	/** The place's depth from each sky direction and the sun, into the maps; or the sun's alone. */
-	private drawSkyMaps(encoder: GPUCommandEncoder, sunOnly = false): void {
+	/**
+	 * The place's depth from each sky direction and the sun, into the maps:
+	 * the whole place's when parts moved, the sun's when it moved, and the
+	 * near maps round `centre` when either did or the camera moved a step.
+	 */
+	private drawSkyMaps(
+		encoder: GPUCommandEncoder,
+		which: { far: boolean; sun: boolean; near: boolean },
+		centre: number[],
+	): void {
 		this.skyDirty = false;
 		this.sunDirty = false;
+		this.nearCentre = centre;
 		const q = this.device.queue;
 		const box = this.scene ? sceneBox(this.scene) : null;
 		const block = skyBlock(box, this.lighting?.sun ?? [0, 1, 0], true);
+		if (box) nearSkyInto(block, box, centre, true);
 		q.writeBuffer(this.skyUniform, 0, block);
 		if (!box) return;
 		this.skyViewGroups.forEach(({ buffer, group }, k) => {
-			if (sunOnly && k < SKY_VIEWS) return;
+			const drawn = k < SKY_VIEWS ? which.far : k === SKY_VIEWS ? which.sun : which.near;
+			if (!drawn) return;
 			q.writeBuffer(buffer, 0, block.subarray(k * 16, k * 16 + 16));
 			const pass = encoder.beginRenderPass({
 				timestampWrites: this.stamp("shadows"),

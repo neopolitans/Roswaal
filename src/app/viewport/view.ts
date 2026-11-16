@@ -189,8 +189,33 @@ export function glowShape(post: PostEffects | undefined, on: boolean): GlowShape
 export const SKY_VIEWS = 8;
 /** Each map's side, in texels: about 4 studs a texel over a place 4,000 studs across. */
 export const SKY_MAP = 1024;
-/** Floats in the block the shaders read: a matrix a map, then one vec4. */
-export const SKY_BLOCK = 16 * (SKY_VIEWS + 1) + 4;
+/**
+ * The maps' layers: the whole place's eight, the sun's, then the same eight
+ * directions again over a box round the camera (see nearSkyInto).
+ */
+export const SKY_LAYERS = 2 * SKY_VIEWS + 1;
+/** The first near map's layer. */
+export const SKY_NEAR_LAYER = SKY_VIEWS + 1;
+/**
+ * Floats in the block the shaders read: a matrix a layer, then the whole
+ * place's maps' vec4, the near maps' vec4, and the near box's centre and half
+ * width.
+ */
+export const SKY_BLOCK = 16 * SKY_LAYERS + 12;
+/**
+ * The near maps' box round the camera, half its width in studs, and the step
+ * its centre keeps to, so they are drawn again only once the camera has moved
+ * that far. The whole place's maps, over a place 11,000 studs across, are
+ * 11 studs a texel, wider than a wall, and the sky reached into closed rooms.
+ */
+export const SKY_NEAR = 192;
+/**
+ * The least of the sky's light a point gets, however closed in: Studio's
+ * screen captures of a room with 8-stud walls and Ambient black still read
+ * about a fortieth of what reaches outside, once Ambient is taken off.
+ */
+export const SKY_SEEN_LEAST = 0.025;
+export const SKY_NEAR_STEP = 48;
 
 /** Towards the sky: straight up, then the rest round the horizon, 45 degrees above it. */
 export function skyDirections(): number[][] {
@@ -268,9 +293,63 @@ export function skyBlock(
 	});
 	block.set(
 		[(2 * reach) / SKY_MAP, (zeroToOne ? 1 : 2) / (2 * reach), 1 / SKY_MAP, 1],
-		16 * (SKY_VIEWS + 1),
+		16 * SKY_LAYERS,
 	);
 	return block;
+}
+
+/** Where the near maps are centred for a camera at `eye`: see SKY_NEAR_STEP. */
+export function nearSkyCentre(eye: readonly number[]): number[] {
+	return eye.map((v) => Math.round(v / SKY_NEAR_STEP) * SKY_NEAR_STEP);
+}
+
+/**
+ * The near maps' views into `block`, after skyBlock's: the sky directions
+ * again, each over SKY_NEAR round `centre` (wide enough to hold the box's
+ * cube from any of them), and deep enough along it to hold all of `box`
+ * towards the sky, so a roof far above still shades. Then their vec4, as the
+ * whole place's, and the box.
+ */
+export function nearSkyInto(
+	block: Float32Array,
+	box: { min: number[]; max: number[] } | null,
+	centre: readonly number[],
+	zeroToOne: boolean,
+): void {
+	const half = SKY_NEAR * 1.75;
+	const corners = box
+		? [0, 1, 2, 3, 4, 5, 6, 7].map((k) => [
+				k & 1 ? box.max[0] : box.min[0],
+				k & 2 ? box.max[1] : box.min[1],
+				k & 4 ? box.max[2] : box.min[2],
+			])
+		: [];
+	const views = skyDirections().map((dir) => {
+		const along = corners.map(
+			(c) =>
+				dir[0] * (c[0] - centre[0]) + dir[1] * (c[1] - centre[1]) + dir[2] * (c[2] - centre[2]),
+		);
+		return {
+			dir,
+			ahead: Math.max(half, ...along) + 1,
+			behind: Math.max(half, ...along.map((a) => -a)) + 1,
+		};
+	});
+	const far = Math.max(...views.map((v) => v.ahead + v.behind));
+	views.forEach(({ dir, ahead }, k) => {
+		const eye = centre.map((v, a) => v + dir[a] * ahead);
+		const view = lookAt(eye, [...centre], Math.abs(dir[1]) > 0.99 ? [0, 0, 1] : [0, 1, 0]);
+		const proj = new Float32Array(16);
+		proj[0] = 1 / half;
+		proj[5] = 1 / half;
+		proj[10] = zeroToOne ? -1 / far : -2 / far;
+		proj[14] = zeroToOne ? 0 : -1;
+		proj[15] = 1;
+		block.set(multiply(proj, view), (SKY_NEAR_LAYER + k) * 16);
+	});
+	const at = 16 * SKY_LAYERS;
+	block.set([(2 * half) / SKY_MAP, (zeroToOne ? 1 : 2) / far, 1 / SKY_MAP, 1], at + 4);
+	block.set([centre[0], centre[1], centre[2], SKY_NEAR], at + 8);
 }
 
 /**
