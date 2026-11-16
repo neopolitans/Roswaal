@@ -38,7 +38,13 @@ import type { CompileOutcome } from "./api.js";
 import { useCardMenu } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import { Icon } from "./icons.jsx";
-import { ANALYSIS_MIN, type AnalysisSize } from "./preferences.js";
+import {
+	ANALYSIS_MIN,
+	type AnalysisParts,
+	type AnalysisSize,
+	analysisHeight,
+	analysisLeast,
+} from "./preferences.js";
 
 export interface StatusPanelProps {
 	open: boolean;
@@ -79,6 +85,25 @@ export interface StatusPanelProps {
 /** The edges that resize it under the graph: it sits in the bottom-left corner, so the top and the right. */
 const SIZE_EDGES = ["n", "e", "ne"] as const;
 
+/** What the card shows, measured: see `analysisLeast`. */
+function partsOf(card: HTMLElement): AnalysisParts {
+	const height = (selector: string) =>
+		card.querySelector<HTMLElement>(`:scope > ${selector}`)?.offsetHeight ?? 0;
+	const list = card.querySelector<HTMLElement>(":scope > .list");
+	const first = list?.querySelector<HTMLElement>(".entry, .group-head, .clean-line");
+	let row = 0;
+	if (list && first) {
+		const style = getComputedStyle(list);
+		row =
+			list.offsetHeight -
+			list.clientHeight +
+			(Number.parseFloat(style.paddingTop) || 0) +
+			(Number.parseFloat(style.paddingBottom) || 0) +
+			first.offsetHeight;
+	}
+	return { bar: height(".bar"), summary: height(".summary"), row };
+}
+
 /** Where and when an edge was last pressed, to tell a second press from a drag. */
 const lastPress = { at: 0, x: 0, y: 0 };
 
@@ -111,6 +136,8 @@ function dragSize(
 	lastPress.x = e.clientX;
 	lastPress.y = e.clientY;
 	const from = card.getBoundingClientRect();
+	// As short as what it shows, and no shorter: below that it was a box of nothing.
+	const least = analysisLeast(partsOf(card));
 	// Room to the right of where it starts, and above it up to the top row, in
 	// the area its dock is placed in.
 	const dock = card.closest<HTMLElement>(".dock");
@@ -135,7 +162,7 @@ function dragSize(
 		const height = edge === "e" ? from.height : from.height - (ev.clientY - startY);
 		last = {
 			width: Math.round(Math.min(most.width, Math.max(ANALYSIS_MIN.width, width))),
-			height: Math.round(Math.min(most.height, Math.max(ANALYSIS_MIN.height, height))),
+			height: analysisHeight(height, least, most.height),
 		};
 		onSize(last, false);
 	};

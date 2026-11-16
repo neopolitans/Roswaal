@@ -4469,11 +4469,21 @@ button.tb.doc-error-remove:focus-visible {
 	display: block;
 }
 
+/* Inside the right edge: two pixels of handle past it gave the card a
+   scrollbar along its foot. */
+.status > .status-size.e,
+.status > .status-size.ne {
+	right: 0;
+}
+
 /* Held under the top row and inside the window, so a size dragged in a bigger
-   window does not climb over the toolbar in a smaller one. */
+   window does not climb over the toolbar in a smaller one. The height is a
+   least rather than a height, and the list takes no room of its own, so the
+   card is never shorter than its bar and summary: a summary that wraps after
+   the drag pushes it taller rather than out through its foot. */
 .dock.bottom .status.sized {
 	width: min(var(--analysis-w), calc(100vw - var(--edge) * 2));
-	height: min(var(--analysis-h), calc(100dvh - var(--chrome-top) - var(--edge) * 3));
+	min-height: min(var(--analysis-h), calc(100dvh - var(--chrome-top) - var(--edge) * 3));
 	max-height: none;
 }
 
@@ -4486,6 +4496,15 @@ button.tb.doc-error-remove:focus-visible {
 .floating .status > .list {
 	flex: 1 1 auto;
 	min-height: 0;
+}
+
+.dock.bottom .status.sized > .list {
+	flex-basis: 0px;
+}
+
+/* Nothing listed, no list: its rule and padding were a strip of nothing. */
+.status > .list:empty {
+	display: none;
 }
 
 .floating .status {

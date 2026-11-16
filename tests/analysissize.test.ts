@@ -6,7 +6,37 @@
 
 import { describe, expect, it } from "vitest";
 
-import { ANALYSIS_MIN, analysisSizeOf, DEFAULTS } from "../src/app/preferences.js";
+import {
+	ANALYSIS_MIN,
+	analysisHeight,
+	analysisLeast,
+	analysisSizeOf,
+	DEFAULTS,
+} from "../src/app/preferences.js";
+
+describe("How short Script analysis can be dragged", () => {
+	it("is its bar and summary with nothing listed", () => {
+		expect(analysisLeast({ bar: 30, summary: 24, row: 0 })).toBe(54);
+	});
+
+	it("keeps the first row of a list in sight", () => {
+		expect(analysisLeast({ bar: 30, summary: 24, row: 35.5 })).toBe(90);
+	});
+
+	it("is never less than the bar a stored size is held to", () => {
+		expect(analysisLeast({ bar: 0, summary: 0, row: 0 })).toBe(ANALYSIS_MIN.height);
+	});
+
+	it("holds a drag between what it shows and the room there is", () => {
+		expect(analysisHeight(20, 54, 600)).toBe(54);
+		expect(analysisHeight(200.4, 54, 600)).toBe(200);
+		expect(analysisHeight(900, 54, 600)).toBe(600);
+	});
+
+	it("gives way to the room when there is less of it than it shows", () => {
+		expect(analysisHeight(20, 54, 40)).toBe(40);
+	});
+});
 
 describe("Script analysis's stored size", () => {
 	it("is none by default: the card fits what it lists", () => {

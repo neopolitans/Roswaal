@@ -533,8 +533,35 @@ export interface AnalysisSize {
 	height: number;
 }
 
-/** The smallest Script analysis can be dragged to: its bar and a few problems. */
-export const ANALYSIS_MIN = { width: 280, height: 140 } as const;
+/**
+ * The smallest a stored size is held to: a summary line's width, and the
+ * bar's height. How short the card can be dragged is what it shows, measured
+ * as it is dragged (`analysisLeast`).
+ */
+export const ANALYSIS_MIN = { width: 280, height: 30 } as const;
+
+/** What Script analysis shows, in CSS pixels, measured when an edge is pressed. */
+export interface AnalysisParts {
+	/** The bar: the scopes, the status, the fold and the menu. */
+	bar: number;
+	/** The summary line under it, with Check. */
+	summary: number;
+	/** The list's first row and the list's own edge round it; 0 with nothing listed. */
+	row: number;
+}
+
+/**
+ * How short Script analysis can be dragged: the bar, the summary, and the
+ * first row of a list that has one, the rest of the list scrolling.
+ */
+export function analysisLeast({ bar, summary, row }: AnalysisParts): number {
+	return Math.max(ANALYSIS_MIN.height, Math.ceil(bar + summary + row));
+}
+
+/** A dragged height held between what the card shows and the room above it, in whole pixels. */
+export function analysisHeight(dragged: number, least: number, most: number): number {
+	return Math.round(Math.min(most, Math.max(least, dragged)));
+}
 
 /** A stored size held to the minimum, or null for anything that is not one. */
 export function analysisSizeOf(value: unknown): AnalysisSize | null {
