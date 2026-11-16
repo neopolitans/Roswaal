@@ -33,6 +33,13 @@ import {
 	type ViewportController,
 } from "./viewport/controller.js";
 import { fader } from "./viewport/fade.js";
+import {
+	FRAME_GUIDES,
+	type FrameHistory,
+	gpuTotal,
+	graphTop,
+	graphY,
+} from "./viewport/frameGraph.js";
 import { type HeavyMesh, shortCount } from "./viewport/heaviest.js";
 import { prepareScene } from "./viewport/prepare.js";
 import { readSpeed, SPEED_MAX, SPEED_MIN, SPEED_STEP, speedText } from "./viewport/speed.js";
@@ -714,6 +721,140 @@ const HEAT_LEGEND: Partial<Record<RenderMode, [string, string]>> = {
 
 const ms = (n: number) => `${n.toFixed(2)} ms`;
 
+/** The graph's colours, from its CSS: see `.render-graph`. */
+function graphColours(el: Element) {
+	const css = getComputedStyle(el);
+	const get = (name: string) => css.getPropertyValue(`--render-graph-${name}`).trim() || "#888";
+	return {
+		frame: get("frame"),
+		guide: get("guide"),
+		text: get("text"),
+		shadows: get("shadows"),
+		scene: get("scene"),
+		post: get("post"),
+		page: get("page"),
+	};
+}
+
+/**
+ * The last frames, newest on the right: each frame's interval as a line, and
+ * under it the GPU's passes stacked where the browser times them, else the
+ * page's time; across it, 60 and 30 frames a second.
+ */
+function paintFrameGraph(canvas: HTMLCanvasElement, history: FrameHistory): void {
+	const dpr = Math.min(2, devicePixelRatio || 1);
+	const w = Math.max(1, Math.round(canvas.clientWidth * dpr));
+	const h = Math.max(1, Math.round(canvas.clientHeight * dpr));
+	if (canvas.width !== w || canvas.height !== h) {
+		canvas.width = w;
+		canvas.height = h;
+	}
+	const g = canvas.getContext("2d");
+	if (!g) return;
+	const c = graphColours(canvas);
+	const samples = history.samples();
+	const top = graphTop(samples);
+	const step = w / history.size;
+	const x0 = w - samples.length * step;
+	g.clearRect(0, 0, w, h);
+	samples.forEach((s, i) => {
+		const x = x0 + i * step;
+		let below = 0;
+		const bar = (ms: number, colour: string) => {
+			if (!Number.isFinite(ms) || ms <= 0) return;
+			const from = graphY(below, top, h);
+			below += ms;
+			const to = graphY(below, top, h);
+			g.fillStyle = colour;
+			g.fillRect(x, to, Math.max(1, step - dpr * 0.5), from - to);
+		};
+		if (Number.isFinite(gpuTotal(s))) {
+			bar(s.shadows, c.shadows);
+			bar(s.scene, c.scene);
+			bar(s.post, c.post);
+		} else bar(s.page, c.page);
+	});
+	g.font = `${10 * dpr}px system-ui, sans-serif`;
+	g.textBaseline = "bottom";
+	g.lineWidth = dpr;
+	g.setLineDash([3 * dpr, 3 * dpr]);
+	g.strokeStyle = c.guide;
+	g.fillStyle = c.text;
+	let labelled = Number.POSITIVE_INFINITY;
+	for (const ms of FRAME_GUIDES) {
+		const y = Math.round(graphY(ms, top, h)) + 0.5;
+		g.beginPath();
+		g.moveTo(0, y);
+		g.lineTo(w, y);
+		g.stroke();
+		// A guide too close to the one below goes unlabelled: the scale's top says how far up it is.
+		if (labelled - y < 11 * dpr) continue;
+		g.fillText(`${ms.toFixed(1)} ms`, 3 * dpr, y - 1);
+		labelled = y;
+	}
+	g.setLineDash([]);
+	g.textBaseline = "top";
+	g.textAlign = "right";
+	g.fillText(`${top} ms`, w - 3 * dpr, 2 * dpr);
+	g.textAlign = "left";
+	g.strokeStyle = c.frame;
+	g.lineWidth = 1.5 * dpr;
+	g.lineJoin = "round";
+	g.beginPath();
+	samples.forEach((s, i) => {
+		const x = x0 + (i + 0.5) * step;
+		const y = graphY(s.interval, top, h);
+		if (i === 0) g.moveTo(x, y);
+		else g.lineTo(x, y);
+	});
+	g.stroke();
+}
+
+/** The frame-time graph, drawn four times a second at most, and only when frames were drawn. */
+function FrameGraph({ controller, timed }: { controller: ViewportController; timed: boolean }) {
+	const ref = useRef<HTMLCanvasElement>(null);
+	useEffect(() => {
+		let drawn = -1;
+		let wide = 0;
+		const paint = () => {
+			const canvas = ref.current;
+			const history = controller.frameHistory();
+			if (!canvas || (history.version === drawn && canvas.clientWidth === wide)) return;
+			drawn = history.version;
+			wide = canvas.clientWidth;
+			paintFrameGraph(canvas, history);
+		};
+		paint();
+		const tick = setInterval(paint, 250);
+		return () => clearInterval(tick);
+	}, [controller]);
+	const keys: [string, string][] = timed
+		? [
+				["shadows", "GPU shadows"],
+				["scene", "GPU place"],
+				["post", "GPU effects"],
+			]
+		: [["page", "Page"]];
+	return (
+		<div className="render-graph">
+			<canvas
+				ref={ref}
+				className="render-graph-canvas"
+				role="img"
+				aria-label="Frame times, the last 240 frames"
+			/>
+			<div className="render-graph-legend">
+				<span className="render-graph-key render-graph-key-frame">Frame</span>
+				{keys.map(([key, label]) => (
+					<span className={`render-graph-key render-graph-key-${key}`} key={key}>
+						{label}
+					</span>
+				))}
+			</div>
+		</div>
+	);
+}
+
 /**
  * The meshes costing the most triangles, and drawn most often: folded to
  * begin with. A click picks every copy and frames them.
@@ -864,6 +1005,7 @@ export function RenderPanel({ controller }: { controller: ViewportController }) 
 					</div>
 					<div className="place-group">
 						<SectionHead title="Last frame" />
+						<FrameGraph controller={controller} timed={!!gpu} />
 						{stats ? (
 							<Rows
 								rows={[

@@ -21749,6 +21749,85 @@ textarea.tb:where(:disabled) {
 	color: var(--fg-muted);
 }
 
+/* The frame-time graph: the frame's interval a line, the GPU's passes (or the
+   page's time) stacked under it. Each mode's hues are told apart with colour
+   blindness, against the panel's own surface. */
+.render-graph {
+	--render-graph-frame: var(--fg);
+	--render-graph-guide: var(--fg-faint);
+	--render-graph-text: var(--fg-muted);
+	--render-graph-shadows: #eb6834;
+	--render-graph-scene: #2a78d6;
+	--render-graph-post: #1baf7a;
+	--render-graph-page: #6250d6;
+	display: grid;
+	gap: 4px;
+	padding: 4px 6px 6px;
+}
+
+@media (prefers-color-scheme: dark) {
+	.render-graph {
+		--render-graph-shadows: #d95926;
+		--render-graph-scene: #3987e5;
+		--render-graph-post: #199e70;
+		--render-graph-page: #9085e9;
+	}
+}
+
+.render-graph-canvas {
+	width: 100%;
+	height: 72px;
+	border-radius: var(--radius-xs);
+	background: var(--bg-hover);
+}
+
+.render-graph-legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 2px 10px;
+	font-size: var(--text-sm);
+	color: var(--fg-muted);
+}
+
+.render-graph-key {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.render-graph-key::before {
+	content: "";
+	width: 8px;
+	height: 8px;
+	border-radius: 2px;
+	background: var(--render-graph-key);
+}
+
+.render-graph-key-frame::before {
+	height: 2px;
+	border-radius: 1px;
+}
+
+.render-graph-key-frame {
+	--render-graph-key: var(--render-graph-frame);
+}
+
+.render-graph-key-shadows {
+	--render-graph-key: var(--render-graph-shadows);
+}
+
+.render-graph-key-scene {
+	--render-graph-key: var(--render-graph-scene);
+}
+
+.render-graph-key-post {
+	--render-graph-key: var(--render-graph-post);
+}
+
+.render-graph-key-page {
+	--render-graph-key: var(--render-graph-page);
+}
+
 /* Heaviest: the costliest meshes, each a row that picks its copies. */
 .render-heavy-list {
 	display: grid;

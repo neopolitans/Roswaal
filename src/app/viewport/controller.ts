@@ -14,6 +14,7 @@ import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene
 import { addUnions, unionOutline, unionsWaiting } from "../../core/rbx/unions.js";
 import { addTo, sameItems } from "../placeSelection.js";
 import { boxAround } from "./box.js";
+import { FrameHistory, frameInterval } from "./frameGraph.js";
 import { rayPick } from "./geometry.js";
 import { gizmoCell, lightGizmoLines } from "./gizmos.js";
 import { HandleBuilder } from "./handles.js";
@@ -1302,6 +1303,7 @@ export class ViewportController {
 	private redraw(): void {
 		if (this.pending || !this.view) return;
 		this.pending = true;
+		this.wantedAt = performance.now();
 		const draw = (now: number) => {
 			if (!this.view) {
 				this.pending = false;
@@ -1323,6 +1325,7 @@ export class ViewportController {
 			if (rate === "unlimited") this.inFlight = [this.inFlight[1], this.view.settled()];
 			this.drawPivot();
 			this.frames.push(now);
+			this.recordFrame(now);
 			this.showRotation();
 			// Beams and particles that move keep the view drawing, at the frame
 			// rate's pace, until nothing moves, the Rendering panel turns them
@@ -1330,6 +1333,32 @@ export class ViewportController {
 			if (this.view.animates() && !document.hidden) this.redraw();
 		};
 		this.nextFrame(draw);
+	}
+
+	/** The Rendering panel's frame-time graph: see `frameGraph.ts`. */
+	private history = new FrameHistory();
+	/** When the frame being waited for was asked for, and when the last was drawn. */
+	private wantedAt = 0;
+	private drawnAt = Number.NEGATIVE_INFINITY;
+
+	/** A frame drawn, into the graph: a few numbers into a ring, nothing drawn. */
+	private recordFrame(now: number): void {
+		const stats = this.view?.stats();
+		const gpu = stats?.gpu;
+		const interval = frameInterval(now, this.drawnAt, this.wantedAt);
+		this.drawnAt = now;
+		this.history.push({
+			interval,
+			page: stats?.cpu ?? Number.NaN,
+			shadows: gpu?.shadows ?? Number.NaN,
+			scene: gpu?.scene ?? Number.NaN,
+			post: gpu?.post ?? Number.NaN,
+		});
+	}
+
+	/** The last frames drawn, for the Rendering panel's graph. */
+	frameHistory(): FrameHistory {
+		return this.history;
 	}
 
 	/** While any pointer or key is held, the view draws every frame. */
