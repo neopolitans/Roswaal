@@ -213,6 +213,10 @@ export function placesAndRojoPage(): DocPage {
 					["Frame what is picked, or everything", "`F`, or `Home`"],
 					["Look along an axis", "Click its end on the axes, bottom right"],
 					["Show a tool's handles", "`1` to `4`: Select, Move, Rotate, Scale"],
+					[
+						"Use the camera alone",
+						"`1` with Select chosen, or click **Select**: clicks pick nothing; `1` again picks it up",
+					],
 					["Put the handles on the pivot", "**Pivot** in the bar: Edit Pivot"],
 					[
 						"Turn the handles to the world's axes, or back to the object's",

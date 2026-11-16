@@ -443,7 +443,7 @@ export function ViewportBar({ controller }: { controller: ViewportController }) 
 							label={label}
 							title={
 								id === "select"
-									? `${label} (${key})`
+									? `${label} (${key}); again for the camera alone`
 									: state.editable
 										? `${label} (${key}): the handles show; dragging them ${LATER}`
 										: `${label}. ${EDITING_OFF}`
@@ -452,7 +452,7 @@ export function ViewportBar({ controller }: { controller: ViewportController }) 
 							aria-checked={state.tool === id}
 							on={state.tool === id}
 							disabled={id !== "select" && !state.editable}
-							onClick={() => controller.setTool(id)}
+							onClick={() => controller.chooseTool(id)}
 						/>
 					))}
 				</span>

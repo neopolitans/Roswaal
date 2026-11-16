@@ -29,6 +29,15 @@ import { loadMeshes } from "./meshes.js";
 import { startingText } from "./readout.js";
 import { clampSpeed, SPEED_NOTCH } from "./speed.js";
 import { layersUsed, loadLayer } from "./textures.js";
+import {
+	type DragMode,
+	dragMode,
+	picks,
+	showsHandles,
+	type Tool,
+	toolAfter,
+	toolForKey,
+} from "./tools.js";
 import { trickle } from "./trickle.js";
 import { loadUnionModels } from "./unions.js";
 import {
@@ -86,17 +95,12 @@ const HOVER_ALPHA = 105;
 import { WebGl2View } from "./webgl2.js";
 import { WebGpuView } from "./webgpu.js";
 
-export const TOOLS = [
-	["select", "Select", "1"],
-	["move", "Move", "2"],
-	["rotate", "Rotate", "3"],
-	["scale", "Scale", "4"],
-] as const;
-export type Tool = (typeof TOOLS)[number][0];
+export { TOOLS, type Tool } from "./tools.js";
 
 /** What the bar and Properties show, for React. */
 export interface ViewportState {
-	tool: Tool;
+	/** Null with Select put down: the camera alone. */
+	tool: Tool | null;
 	speed: number;
 	backend: "WebGPU" | "WebGL2" | null;
 	/** WebGPU was asked for and was not there. */
@@ -448,11 +452,16 @@ export class ViewportController {
 		this.options = options;
 		if (options.editable !== this.state.editable) {
 			// Editing off takes the editing tools away: back to Select, the handles
-			// off the pivot, as they would be in a place opened read-only.
+			// off the pivot, as they would be in a place opened read-only. No tool
+			// stays no tool.
 			this.set(
 				options.editable
 					? { editable: true }
-					: { editable: false, tool: "select", pivotEdit: false },
+					: {
+							editable: false,
+							tool: this.state.tool === null ? null : "select",
+							pivotEdit: false,
+						},
 			);
 			this.drawHandles();
 			this.redraw();
@@ -927,10 +936,19 @@ export class ViewportController {
 		this.redraw();
 	}
 
-	setTool(tool: Tool): void {
-		// The editing tools wait on Modify DataModel Instances.
-		if (tool !== "select" && !this.state.editable) return;
-		this.set({ tool });
+	/**
+	 * A tool's key or its button: that tool, or with Select chosen again, no
+	 * tool at all. The editing tools wait on Modify DataModel Instances.
+	 */
+	chooseTool(chosen: Tool): void {
+		this.setTool(toolAfter(this.state.tool, chosen, this.state.editable));
+	}
+
+	/** Null puts the tool down: the camera alone, and Edit Pivot off with it. */
+	setTool(tool: Tool | null): void {
+		if (tool !== null && tool !== "select" && !this.state.editable) return;
+		this.set(tool === null ? { tool, pivotEdit: false } : { tool });
+		if (!picks(tool)) this.setHover(null);
 		this.drawHandles();
 		this.redraw();
 	}
@@ -1247,7 +1265,7 @@ export class ViewportController {
 			this.lastDraw = now;
 			this.pending = false;
 			const camera = this.camera();
-			if ((this.state.tool !== "select" || this.state.pivotEdit) && this.selection.length > 0)
+			if ((showsHandles(this.state.tool) || this.state.pivotEdit) && this.selection.length > 0)
 				this.drawHandles(camera.eye);
 			this.view.draw(camera);
 			if (rate === "unlimited") this.inFlight = [this.inFlight[1], this.view.settled()];
@@ -1355,7 +1373,7 @@ export class ViewportController {
 		const built = new HandleBuilder();
 		const pivot = pivotEdit && this.selection.length === 1 ? this.pivotOf(this.selection[0]) : null;
 		const b =
-			!pivot && this.selection.length > 0 && tool !== "select"
+			!pivot && this.selection.length > 0 && showsHandles(tool)
 				? world
 					? this.worldBox(this.selection)
 					: this.boxRound(this.selection)
@@ -1468,7 +1486,10 @@ export class ViewportController {
 	/** Edit Pivot, on or off: the bar's toggle. */
 	setPivotEdit(on: boolean): void {
 		if (on && !this.state.editable) return;
-		this.set({ pivotEdit: on });
+		// Its handles want a tool: Select, picked up again.
+		this.set(
+			on && this.state.tool === null ? { pivotEdit: on, tool: "select" } : { pivotEdit: on },
+		);
 		this.drawHandles();
 		this.redraw();
 	}
@@ -1538,8 +1559,8 @@ export class ViewportController {
 				else if (e.key === "Escape") this.clear();
 				else {
 					// The bar's order. Studio's Ctrl+1 to Ctrl+4 are the browser's, for its own tabs.
-					const pick = TOOLS.find(([, , key]) => key === e.key);
-					if (pick && !e.altKey) this.setTool(pick[0]);
+					const pick = toolForKey(e.key);
+					if (pick && !e.altKey) this.chooseTool(pick);
 				}
 			},
 			up: (e: KeyboardEvent) => this.held.delete(e.code),
@@ -1567,22 +1588,19 @@ export class ViewportController {
 	 * A press that moves no more than DRAG is a click: the GPU's pick, of the
 	 * highest Model in Workspace there, or with Alt or Shift the part. With
 	 * Settings' `altClickSteps`, Alt picks one Model further in instead.
+	 *
+	 * With no tool, nothing picks: no click, box, long press or hover outline,
+	 * and a left-drag does nothing. The camera's drags all stay.
 	 */
 	private attach(el: HTMLCanvasElement): void {
 		const pointers = new Map<number, { x: number; y: number }>();
 		// The pointers that hold the view drawing every frame: see pointerdown.
 		const holding = new Set<number>();
 		let moved = 0;
-		let mode: "orbit" | "look" | "pan" | "box" = "orbit";
+		let mode: DragMode = "orbit";
 		// Where a left-drag's box started, and whether it adds to what is picked.
 		let start: { x: number; y: number; adding: boolean } | null = null;
 		let pinch = 0;
-		const modeFor = (e: PointerEvent): typeof mode => {
-			if (e.button === 1) return "pan";
-			if (e.button === 2) return e.shiftKey ? "pan" : "look";
-			if (e.pointerType !== "mouse") return e.shiftKey ? "pan" : "orbit";
-			return e.altKey ? "orbit" : "box";
-		};
 		/** The box from where the drag started to the pointer, in CSS pixels from the canvas's corner. */
 		const boxTo = (from: { x: number; y: number }, e: PointerEvent) => {
 			const r = el.getBoundingClientRect();
@@ -1640,7 +1658,7 @@ export class ViewportController {
 		// `toggle` is Ctrl, Cmd on a Mac: what the click reaches joins what is
 		// picked, or leaves it, rather than replacing it.
 		const pickAt = async (x: number, y: number, reach: Reach, toggle = false) => {
-			if (!this.view) return;
+			if (!this.view || !picks(this.state.tool)) return;
 			const id = await idAt(x, y);
 			if (!toggle) this.pickHere(id >= 0 ? [this.clickTarget(id, reach)] : []);
 			else if (id >= 0) {
@@ -1656,11 +1674,17 @@ export class ViewportController {
 		};
 		el.addEventListener("pointermove", (e) => {
 			if (e.pointerType !== "mouse" || pointers.size > 0) return;
+			// With no tool nothing is picked, so nothing is outlined as if it would be.
+			if (!picks(this.state.tool)) {
+				aim = null;
+				aimed = -1;
+				return;
+			}
 			aim = { x: e.clientX, y: e.clientY, alt: e.altKey, shift: e.shiftKey };
 			if (aiming) return;
 			aiming = requestAnimationFrame(() => {
 				aiming = 0;
-				if (!aim || !this.place || pointers.size > 0) return;
+				if (!aim || !this.place || pointers.size > 0 || !picks(this.state.tool)) return;
 				const box = el.getBoundingClientRect();
 				aimed = rayPick(this.place, this.eye(), this.rayAt(aim.x - box.left, aim.y - box.top, box));
 				hoverAimed();
@@ -1677,11 +1701,11 @@ export class ViewportController {
 			pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 			moved = 0;
 			pressed = false;
-			mode = modeFor(e);
+			mode = dragMode(e, this.state.tool);
 			// Drawn every frame only while the camera can move. A box is drawn over
 			// the view and changes nothing in it: held, a box redrew the whole place
 			// each frame for nothing, and a large place stalled as the drag began.
-			if (mode !== "box" || pointers.size > 1) {
+			if ((mode !== "box" && mode !== "none") || pointers.size > 1) {
 				holding.add(e.pointerId);
 				this.hold(true);
 			}
@@ -1691,7 +1715,7 @@ export class ViewportController {
 					: null;
 			this.hideMarquee();
 			unpress();
-			if (pointers.size === 1 && e.pointerType !== "mouse") {
+			if (pointers.size === 1 && e.pointerType !== "mouse" && picks(this.state.tool)) {
 				const { clientX: x, clientY: y } = e;
 				press = setTimeout(() => {
 					press = undefined;
@@ -1717,6 +1741,8 @@ export class ViewportController {
 				if (start && moved > DRAG) drawBox(start, e);
 				return;
 			}
+			// A left-drag with no tool moves nothing, as in Studio.
+			if (mode === "none") return;
 			if (pointers.size === 2) {
 				const [a, b] = [...pointers.values()];
 				const d = Math.hypot(a.x - b.x, a.y - b.y);
