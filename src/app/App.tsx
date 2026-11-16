@@ -2306,6 +2306,14 @@ export function App() {
 						placeDoc && viewer && viewport ? (
 							<viewer.RenderPanel controller={viewport} />
 						) : undefined,
+					performance:
+						placeDoc && viewer && viewport ? (
+							<viewer.PerformancePanel controller={viewport} />
+						) : undefined,
+					meshes:
+						placeDoc && viewer && viewport ? (
+							<viewer.MeshesPanel controller={viewport} />
+						) : undefined,
 					// Script analysis is a graph's: the place in front has the bottom to itself.
 					analysis: placeDoc ? undefined : (
 						<StatusPanel

@@ -37,6 +37,7 @@ import {
 	maxDockSize,
 	movePanel,
 	PANEL_IDS,
+	type PanelFrame,
 	panelsFor,
 	panelsIn,
 	readLayout,
@@ -255,6 +256,15 @@ describe("reading a stored layout", () => {
 		expect(read.panels.inspector, "a panel the stored layout never mentioned").toEqual(
 			DEFAULT_LAYOUT.panels.inspector,
 		);
+	});
+
+	it("gives a layout stored before Performance and Mesh Debug their defaults", () => {
+		const stored = base() as unknown as { panels: Record<string, unknown> };
+		delete stored.panels.performance;
+		delete stored.panels.meshes;
+		const read = readLayout(stored);
+		expect(read.panels.performance).toEqual(DEFAULT_LAYOUT.panels.performance);
+		expect(read.panels.meshes).toEqual(DEFAULT_LAYOUT.panels.meshes);
 	});
 
 	it("survives a panel that no longer exists", () => {
@@ -535,13 +545,38 @@ describe("the Panels menu", () => {
 		]);
 	});
 
-	it("offers Project, Properties and Rendering with the place open, and nothing of a graph's", () => {
-		expect(panelsFor("place", true)).toEqual(["tree", "properties", "render"]);
+	it("offers Project, Properties and the place's panels with the place open, and nothing of a graph's", () => {
+		expect(panelsFor("place", true)).toEqual([
+			"tree",
+			"properties",
+			"render",
+			"performance",
+			"meshes",
+		]);
 	});
 
-	it("offers Rendering with the place in front only", () => {
-		for (const context of ["graph", "document", "none"] as const)
-			expect(panelsFor(context, true)).not.toContain("render");
+	it("offers Rendering, Performance and Mesh Debug with the place in front only", () => {
+		for (const id of ["render", "performance", "meshes"] as const) {
+			for (const context of ["graph", "document", "none"] as const) {
+				expect(panelsFor(context, true)).not.toContain(id);
+				expect(panelsFor(context, false)).not.toContain(id);
+			}
+		}
+	});
+
+	it("opens the place's new panels as closed windows clear of Rendering", () => {
+		const render = DEFAULT_LAYOUT.panels.render.frame;
+		const overlaps = (a: PanelFrame, b: PanelFrame) =>
+			a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+		for (const id of ["performance", "meshes"] as const) {
+			const state = DEFAULT_LAYOUT.panels[id];
+			expect(state.open, id).toBe(false);
+			expect(state.floating, id).toBe(true);
+			expect(overlaps(state.frame, render), id).toBe(false);
+		}
+		expect(
+			overlaps(DEFAULT_LAYOUT.panels.performance.frame, DEFAULT_LAYOUT.panels.meshes.frame),
+		).toBe(false);
 	});
 
 	it("offers Project and Script analysis with another document or nothing open", () => {

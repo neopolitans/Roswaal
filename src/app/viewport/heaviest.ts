@@ -1,5 +1,5 @@
 /**
- * The Rendering panel's Heaviest: the meshes that cost the most triangles,
+ * The Mesh Debug panel: the meshes that cost the most triangles,
  * each mesh's own times the copies drawing it, and the meshes drawn most
  * often, so what makes a place slow to draw can be found and picked.
  */

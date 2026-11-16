@@ -457,7 +457,7 @@ export class ViewportController {
 		this.redraw();
 	}
 
-	/** What the last frame cost, for the Rendering panel; null with no view. */
+	/** What the last frame cost, for the Performance panel; null with no view. */
 	renderStats(): RenderStats | null {
 		return this.view?.stats() ?? null;
 	}
@@ -731,7 +731,7 @@ export class ViewportController {
 		});
 	}
 
-	/** The Rendering panel's Heaviest, from the meshes the view has been given: see `heaviest.ts`. */
+	/** The Mesh Debug panel's lists, from the meshes the view has been given: see `heaviest.ts`. */
 	private rankMeshes(place: PlaceScene, meshes: ReadonlyMap<number, MeshGeometry>): void {
 		const uses = place.meshes ?? [];
 		const costs = meshCosts(
@@ -745,7 +745,7 @@ export class ViewportController {
 		this.set({ heaviest: costs.length > 0 ? heaviest(costs) : null });
 	}
 
-	/** Rows from the Rendering panel's Heaviest: picked, as a click in the view picks, and framed. */
+	/** Rows from the Mesh Debug panel: picked, as a click in the view picks, and framed. */
 	pickRows(rows: readonly number[]): void {
 		this.pickHere(rows);
 		this.frameSelection();
@@ -1335,7 +1335,7 @@ export class ViewportController {
 		this.nextFrame(draw);
 	}
 
-	/** The Rendering panel's frame-time graph: see `frameGraph.ts`. */
+	/** The Performance panel's frame-time graph: see `frameGraph.ts`. */
 	private history = new FrameHistory();
 	/** When the frame being waited for was asked for, and when the last was drawn. */
 	private wantedAt = 0;
@@ -1356,7 +1356,7 @@ export class ViewportController {
 		});
 	}
 
-	/** The last frames drawn, for the Rendering panel's graph. */
+	/** The last frames drawn, for the Performance panel's graph. */
 	frameHistory(): FrameHistory {
 		return this.history;
 	}

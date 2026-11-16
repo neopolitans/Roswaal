@@ -46,7 +46,9 @@ export type PanelId =
 	| "refactor"
 	| "analysis"
 	| "code"
-	| "render";
+	| "render"
+	| "performance"
+	| "meshes";
 
 export const PANEL_IDS: PanelId[] = [
 	"tree",
@@ -57,6 +59,8 @@ export const PANEL_IDS: PanelId[] = [
 	"analysis",
 	"code",
 	"render",
+	"performance",
+	"meshes",
 ];
 
 export interface PanelState {
@@ -198,14 +202,32 @@ export const DEFAULT_LAYOUT: Layout = {
 			// An even share of a side column, if it is moved to one.
 			weight: 3,
 		},
-		// The place viewer's view modes, switches and frame stats: a window
-		// over the place, opened from the Panels menu.
+		// The place viewer's view modes and switches: a window over the place,
+		// opened from the Panels menu.
 		render: {
 			dock: "right",
 			open: false,
 			order: 3,
 			floating: true,
 			frame: { x: 28, y: 64, w: 300, h: 560 },
+			weight: 2,
+		},
+		// What the last frame cost, and the frame-time graph: beside Rendering.
+		performance: {
+			dock: "right",
+			open: false,
+			order: 4,
+			floating: true,
+			frame: { x: 340, y: 64, w: 300, h: 390 },
+			weight: 2,
+		},
+		// The meshes costing the most: under Performance.
+		meshes: {
+			dock: "right",
+			open: false,
+			order: 5,
+			floating: true,
+			frame: { x: 340, y: 466, w: 300, h: 320 },
 			weight: 2,
 		},
 	},
@@ -233,6 +255,8 @@ export const PANEL_TITLES: Record<PanelId, string> = {
 	analysis: "Script analysis",
 	code: "Code",
 	render: "Rendering",
+	performance: "Performance",
+	meshes: "Mesh Debug",
 };
 
 /** Each panel's icon, in the toolbar's Panels menu. */
@@ -245,6 +269,8 @@ export const PANEL_ICONS: Record<PanelId, IconName> = {
 	analysis: "warning",
 	code: "codeFile",
 	render: "vpRender",
+	performance: "vpPerformance",
+	meshes: "vpMeshes",
 };
 
 /** Why a panel cannot be shown yet, in the Panels menu: it has nothing to show. */
@@ -257,6 +283,8 @@ export const PANEL_EMPTY: Record<PanelId, string> = {
 	analysis: "Open a project first.",
 	code: "Open a Code Block, a Luau Expression or a type's code first.",
 	render: "Open the place first.",
+	performance: "Open the place first.",
+	meshes: "Open the place first.",
 };
 
 /**
@@ -268,6 +296,13 @@ export const PANEL_EMPTY: Record<PanelId, string> = {
  * layout and no Panels menu.
  */
 export type PanelContext = "graph" | "place" | "document" | "none";
+
+/** The place viewer's own panels: offered only with the place in front. */
+export const PLACE_PANELS: ReadonlySet<PanelId> = new Set<PanelId>([
+	"render",
+	"performance",
+	"meshes",
+]);
 
 /**
  * The panels that apply to what is open, in the Panels menu's order. The menu
@@ -283,14 +318,15 @@ export type PanelContext = "graph" | "place" | "document" | "none";
  * - **Script analysis** everywhere but the place, which has the foot to itself.
  * - **Variables**, **Inspector**, **Refactor** and **Code** with a graph only:
  *   they act on its nodes.
- * - **Rendering** with the place in front: it changes how the viewer draws it.
+ * - **Rendering**, **Performance** and **Mesh Debug** with the place in front:
+ *   they change how the viewer draws it, and say what drawing it costs.
  */
 export function panelsFor(context: PanelContext, hasPlace: boolean): PanelId[] {
 	return PANEL_IDS.filter((id) => {
 		if (id === "tree") return true;
 		if (id === "properties") return hasPlace;
 		if (id === "analysis") return context !== "place";
-		if (id === "render") return context === "place";
+		if (PLACE_PANELS.has(id)) return context === "place";
 		return context === "graph";
 	});
 }

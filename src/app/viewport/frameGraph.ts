@@ -1,5 +1,5 @@
 /**
- * The Rendering panel's frame-time graph: the last frames drawn, each its
+ * The Performance panel's frame-time graph: the last frames drawn, each its
  * interval since it was wanted and, where the browser times them, the GPU's
  * passes, kept in a ring the controller fills a frame at a time and the panel
  * draws a few times a second.

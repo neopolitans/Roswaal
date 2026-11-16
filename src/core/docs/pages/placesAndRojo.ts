@@ -312,21 +312,39 @@ export function placesAndRojoPage(): DocPage {
 				t: "p",
 				text:
 					"Its switches leave Neon's glow, post effects, haze, the sky, Decals and Textures, " +
-					"see-through parts, beams or particles out of the view. **Last frame** counts draw calls, " +
-					"instances, triangles, beams and particles, and times the frame on the page and, where " +
-					"the browser allows, on the GPU. The view's mode, and any switch that is off, show over the " +
-					"bar's left end.",
+					"see-through parts, beams or particles out of the view. The view's mode, and any switch " +
+					"that is off, show over the bar's left end.",
+			},
+			{ t: "h", level: 3, text: "Finding what is slow" },
+			{
+				t: "p",
+				text:
+					"Two more panels in the **Panels** menu, beside **Rendering**, show what drawing the " +
+					"place costs.",
+			},
+			{
+				t: "table",
+				head: ["Panel", "Shows"],
+				rows: [
+					[
+						"**Performance**",
+						"The last 240 frames' times, with the GPU's passes where the browser times them, " +
+							"and the last frame's draw calls, instances, triangles, beams, particles and times",
+					],
+					[
+						"**Mesh Debug**",
+						"The meshes costing the most triangles, all copies counted, and those drawn most " +
+							"often. Click one to pick its copies",
+					],
+				],
 			},
 			{
 				t: "p",
 				text:
-					"To find what makes a place slow to draw, turn on **Light ranges**: the lights " +
-					"near the camera show as wire shapes of their reach, in their colour. **Heaviest** " +
-					"lists the meshes costing the most triangles, all copies counted, and those drawn " +
-					"most often; click one to pick its copies. **Last frame**'s graph shows the last " +
-					"240 frames' times, with the GPU's passes where the browser times them: fly " +
-					"around and watch for spikes over the 33 ms line. **Freeze shadows** stops redrawing " +
-					"the sun's and sky's shadow maps, which stay as they were, so their cost can be compared.",
+					"Fly around and watch **Performance** for spikes over the 33 ms line. In **Rendering**, " +
+					"**Light ranges** draws the reach of the lights near the camera as wire shapes, in " +
+					"their colour, and **Freeze shadows** stops redrawing the sun's and sky's shadow maps, " +
+					"so their cost can be compared.",
 			},
 
 			{ t: "h", level: 2, text: "Changing properties" },

@@ -18,7 +18,7 @@ import { api } from "./api.js";
 import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
-import { Ident, SectionHead, useFold } from "./PanelParts.jsx";
+import { Ident, SectionHead } from "./PanelParts.jsx";
 import {
 	VIEWPORT_FRAME_RATES,
 	VIEWPORT_RENDERERS,
@@ -889,12 +889,11 @@ function FrameGraph({ controller, timed }: { controller: ViewportController; tim
 }
 
 /**
- * The meshes costing the most triangles, and drawn most often: folded to
- * begin with. A click picks every copy and frames them.
+ * Mesh Debug: the meshes costing the most triangles, and drawn most often.
+ * A click picks every copy and frames them.
  */
-function HeaviestGroup({ controller }: { controller: ViewportController }) {
+export function MeshesPanel({ controller }: { controller: ViewportController }) {
 	const { heaviest } = useViewport(controller);
-	const [open, toggle] = useFold(false);
 	const list = (title: string, meshes: HeavyMesh[], value: (m: HeavyMesh) => string) =>
 		meshes.length > 0 && (
 			<div className="render-heavy-list">
@@ -917,19 +916,24 @@ function HeaviestGroup({ controller }: { controller: ViewportController }) {
 			</div>
 		);
 	return (
-		<div className="place-group">
-			<SectionHead title="Heaviest" open={open} onToggle={toggle} />
-			{open &&
-				(heaviest ? (
-					<>
-						{list("By triangles", heaviest.byTriangles, (m) =>
-							m.copies > 1 ? `${shortCount(m.total)} · ×${m.copies}` : shortCount(m.total),
+		<div className="place-properties render-panel">
+			<PanelHead sub="Heaviest meshes" />
+			<div className="place-props">
+				<div className="place-groups">
+					<div className="place-group">
+						{heaviest ? (
+							<>
+								{list("By triangles", heaviest.byTriangles, (m) =>
+									m.copies > 1 ? `${shortCount(m.total)} · ×${m.copies}` : shortCount(m.total),
+								)}
+								{list("By copies", heaviest.byCopies, (m) => `×${m.copies.toLocaleString()}`)}
+							</>
+						) : (
+							<p className="place-summary">No meshes drawn yet.</p>
 						)}
-						{list("By copies", heaviest.byCopies, (m) => `×${m.copies.toLocaleString()}`)}
-					</>
-				) : (
-					<p className="place-summary">No meshes drawn yet.</p>
-				))}
+					</div>
+				</div>
+			</div>
 		</div>
 	);
 }
@@ -953,22 +957,66 @@ function RenderToolSwitch({
 }
 
 /**
- * Rendering: how the viewer draws the place, as engines' editors offer: the
- * place lit in full or with less, its triangles, heatmaps of what each pixel
- * costs and of the lights reaching it, switches for what is drawn, and what
- * the last frame took. The view's alone, for the session; the place is untouched.
+ * Performance: what the last frame took, and the last 240 frames' times.
+ * Polled only while the panel is mounted.
  */
-export function RenderPanel({ controller }: { controller: ViewportController }) {
-	const { backend, render } = useViewport(controller);
+export function PerformancePanel({ controller }: { controller: ViewportController }) {
+	const { backend } = useViewport(controller);
 	const [stats, setStats] = useState<RenderStats | null>(null);
 	useEffect(() => {
+		setStats(controller.renderStats());
 		const tick = setInterval(() => setStats(controller.renderStats()), 500);
 		return () => clearInterval(tick);
 	}, [controller]);
+	const gpu = stats?.gpu;
+	return (
+		<div className="place-properties render-panel">
+			<PanelHead sub="Last frame" />
+			<div className="place-props">
+				<div className="place-groups">
+					<div className="place-group">
+						<FrameGraph controller={controller} timed={!!gpu} />
+						{stats ? (
+							<Rows
+								rows={[
+									["Draw calls", stats.draws.toLocaleString()],
+									["Instances", stats.instances.toLocaleString()],
+									["Triangles", Math.round(stats.triangles).toLocaleString()],
+									["Beams", stats.beams.toLocaleString()],
+									["Particles", stats.particles.toLocaleString()],
+									["Page", ms(stats.cpu)],
+									...((gpu
+										? [
+												["GPU, shadows", ms(gpu.shadows)],
+												["GPU, place", ms(gpu.scene)],
+												["GPU, effects", ms(gpu.post)],
+											]
+										: [
+												["GPU", backend === "WebGL2" ? "Not timed in WebGL2" : "Not timed here"],
+											]) as [string, string][]),
+								]}
+							/>
+						) : (
+							<p className="place-summary">Nothing drawn yet.</p>
+						)}
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+/**
+ * Rendering: how the viewer draws the place, as engines' editors offer: the
+ * place lit in full or with less, its triangles, heatmaps of what each pixel
+ * costs and of the lights reaching it, and switches for what is drawn. The
+ * view's alone, for the session; the place is untouched.
+ */
+export function RenderPanel({ controller }: { controller: ViewportController }) {
+	const { render } = useViewport(controller);
 	const apply = (next: RenderSettings) => controller.setRender(next);
 	const legend = HEAT_LEGEND[render.mode];
 	const viewLegend = renderLegend(render.mode);
-	const gpu = stats?.gpu;
 	return (
 		<div className="place-properties render-panel">
 			<PanelHead sub="The view only" />
@@ -1043,34 +1091,6 @@ export function RenderPanel({ controller }: { controller: ViewportController }) 
 							onChange={(freezeShadows) => apply({ ...render, freezeShadows })}
 						/>
 					</div>
-					<div className="place-group">
-						<SectionHead title="Last frame" />
-						<FrameGraph controller={controller} timed={!!gpu} />
-						{stats ? (
-							<Rows
-								rows={[
-									["Draw calls", stats.draws.toLocaleString()],
-									["Instances", stats.instances.toLocaleString()],
-									["Triangles", Math.round(stats.triangles).toLocaleString()],
-									["Beams", stats.beams.toLocaleString()],
-									["Particles", stats.particles.toLocaleString()],
-									["Page", ms(stats.cpu)],
-									...((gpu
-										? [
-												["GPU, shadows", ms(gpu.shadows)],
-												["GPU, place", ms(gpu.scene)],
-												["GPU, effects", ms(gpu.post)],
-											]
-										: [
-												["GPU", backend === "WebGL2" ? "Not timed in WebGL2" : "Not timed here"],
-											]) as [string, string][]),
-								]}
-							/>
-						) : (
-							<p className="place-summary">Nothing drawn yet.</p>
-						)}
-					</div>
-					<HeaviestGroup controller={controller} />
 				</div>
 			</div>
 		</div>
