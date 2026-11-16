@@ -77,7 +77,7 @@ function solidModel(...parts: RbxInstance[]): Uint8Array {
 	);
 }
 
-/** The parts of the union below: a red block to one side, a wedge, and a cut. */
+/** The parts of the union below: a red block to one side, a wedge apart from it, and a cut. */
 const childParts = () => [
 	inst("Part", {
 		CFrame: at([1, 0, 0]),
@@ -85,7 +85,7 @@ const childParts = () => [
 		Color3uint8: ["Color3uint8", [10, 20, 30]],
 		shape: ["Enum", 1],
 	}),
-	inst("WedgePart", { CFrame: at([-1, 0, 0]), size: ["Vector3", [2, 1, 1]] }),
+	inst("WedgePart", { CFrame: at([-1.5, 0, 0]), size: ["Vector3", [2, 1, 1]] }),
 	inst("NegateOperation", { CFrame: at([0, 0, 0]), size: ["Vector3", [1, 1, 1]] }),
 ];
 
@@ -181,7 +181,7 @@ describe("a union in the scene", () => {
 		const [block, wedge] = rows;
 		// One stud along the union's X, stretched to two, turned to world -Z.
 		expect(block.p).toEqual([10, 0, -2]);
-		expect(wedge.p).toEqual([10, 0, 2]);
+		expect(wedge.p).toEqual([10, 0, 3]);
 		// The block's two studs of X, stretched to four.
 		expect(block.axes).toEqual([0, 0, -4, 0, 1, 0, 1, 0, 0]);
 		expect(scene.unionsDrawn).toEqual([3]);
@@ -235,7 +235,7 @@ describe("a union in the scene", () => {
 		expect(unionsWaiting(scene)).toEqual([]);
 		expect(rowsOf(scene).map((r) => r.p)).toEqual([
 			[10, 0, -2],
-			[10, 0, 2],
+			[10, 0, 3],
 		]);
 	});
 
@@ -282,5 +282,162 @@ describe("a union in the scene", () => {
 		const intersect = union();
 		intersect.className = "IntersectOperation";
 		expect(sceneOf(intersect).unions).toBeUndefined();
+	});
+});
+
+describe("a union's parts where they meet", () => {
+	/** A block of `size` at `position`, in `rgb`. */
+	const block = (position: number[], size: number[], rgb = [10, 20, 30]) =>
+		inst("Part", {
+			CFrame: at(position),
+			size: ["Vector3", size],
+			Color3uint8: ["Color3uint8", rgb],
+			shape: ["Enum", 1],
+		});
+	/** A union at `position`, square to the world, `size` now and `made` when it was made. */
+	const square = (
+		position: number[],
+		size: number[],
+		made = size,
+		props: Record<string, [PropType, unknown]> = {},
+	) =>
+		union({
+			CFrame: at(position),
+			size: ["Vector3", size],
+			InitialSize: ["Vector3", made],
+			...props,
+		});
+
+	/** A made mesh row's triangles in the world: area, and whether each faces the way its normal says. */
+	function surface(scene: PlaceScene, set: "kinds" | "translucent" = "kinds") {
+		const { data, count } = scene[set].mesh;
+		const words = new Uint32Array(data.buffer, data.byteOffset, count * SCENE_STRIDE);
+		return Array.from({ length: count }, (_, r) => {
+			const o = r * SCENE_STRIDE;
+			const made = scene.meshes?.[(words[o + 14] >>> 16) - 1]?.made;
+			if (!made) return undefined;
+			const world = (v: number) =>
+				[0, 1, 2].map(
+					(k) =>
+						data[o + 9 + k] +
+						data[o + k] * made.vertices[v * 6] +
+						data[o + 3 + k] * made.vertices[v * 6 + 1] +
+						data[o + 6 + k] * made.vertices[v * 6 + 2],
+				);
+			let area = 0;
+			let outward = true;
+			for (let t = 0; t < made.indices.length; t += 3) {
+				const [a, b, c] = [0, 1, 2].map((k) => world(made.indices[t + k]));
+				const u = b.map((x, k) => x - a[k]);
+				const w = c.map((x, k) => x - a[k]);
+				const n = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
+				area += Math.hypot(n[0], n[1], n[2]) / 2;
+				// The stored normal, turned as the shaders turn it: the row's axes over their lengths squared.
+				const v = made.indices[t];
+				const s = [0, 1, 2].map((k) =>
+					Math.hypot(data[o + k * 3], data[o + k * 3 + 1], data[o + k * 3 + 2]),
+				);
+				const said = [0, 1, 2].map((k) =>
+					[0, 1, 2].reduce(
+						(sum, j) => sum + data[o + j * 3 + k] * (made.vertices[v * 6 + 3 + j] / s[j] ** 2),
+						0,
+					),
+				);
+				if (n[0] * said[0] + n[1] * said[1] + n[2] * said[2] <= 0) outward = false;
+			}
+			return { area: round(area), triangles: made.indices.length / 3, outward };
+		});
+	}
+
+	it("has no faces between two parts placed edge to edge: one shape, on its own box", () => {
+		const parts = solidModel(block([-0.5, 0, 0], [1, 1, 1]), block([0.5, 0, 0], [1, 1, 1]));
+		const scene = addUnions(sceneOf(square([0, 5, 0], [2, 1, 1])), models("55", parts));
+		const rows = rowsOf(scene);
+		expect(rows.map((r) => [r.kind, r.id])).toEqual([["mesh", 3]]);
+		expect(rows[0].axes).toEqual([2, 0, 0, 0, 1, 0, 0, 0, 1]);
+		expect(rows[0].p).toEqual([0, 5, 0]);
+		// The two blocks' outsides: ten faces of 1, as twenty triangles, each facing out.
+		expect(surface(scene)).toEqual([{ area: 10, triangles: 20, outward: true }]);
+		expect(scene.meshes?.[0].asset).toBe("");
+	});
+
+	it("keeps one of two outer faces that overlap, and nothing of a part inside another", () => {
+		// Two blocks overlapping by one: the outside of a box three long.
+		const parts = solidModel(
+			block([-0.5, 0, 0], [2, 1, 1]),
+			block([0.5, 0, 0], [2, 1, 1]),
+			block([0, 0, 0], [0.5, 0.5, 0.5]),
+		);
+		const scene = addUnions(sceneOf(square([0, 0, 0], [3, 1, 1])), models("55", parts));
+		expect(surface(scene)).toEqual([expect.objectContaining({ area: 14, outward: true })]);
+	});
+
+	it("keeps the part of a face that is only partly covered", () => {
+		// A 1x2 end face with a 1x1 block against its lower half: the upper half shows.
+		const parts = solidModel(block([0, 0, 0], [1, 2, 1]), block([1, -0.5, 0], [1, 1, 1]));
+		const scene = addUnions(sceneOf(square([0, 0, 0], [2, 2, 1])), models("55", parts));
+		// 2*(1*2 + 1*1 + 2*1) - 1 for the tall block, 6 - 1 for the small one.
+		expect(surface(scene)).toEqual([expect.objectContaining({ area: 14, outward: true })]);
+	});
+
+	it("takes the seam from a wedge against a block, as from blocks", () => {
+		// A wedge's back (its +Z face, 1x1) against the block's -Z face.
+		const parts = solidModel(
+			block([0, 0, 0], [1, 1, 1]),
+			inst("WedgePart", { CFrame: at([0, 0, -1]), size: ["Vector3", [1, 1, 1]] }),
+		);
+		const scene = addUnions(sceneOf(square([0, 0, 0.5], [1, 1, 2])), models("55", parts));
+		// The block's five other faces; the wedge's bottom, slope and two sides.
+		const wedge = 1 + Math.SQRT2 + 0.5 + 0.5;
+		expect(surface(scene)).toEqual([
+			expect.objectContaining({ area: round(5 + wedge), outward: true }),
+		]);
+	});
+
+	it("is one shape a colour where its parts keep their own", () => {
+		const parts = solidModel(
+			block([-0.5, 0, 0], [1, 1, 1], [255, 0, 0]),
+			block([0.5, 0, 0], [1, 1, 1], [0, 0, 255]),
+		);
+		const own = square([0, 0, 0], [2, 1, 1], [2, 1, 1], { UsePartColor: ["Bool", false] });
+		const scene = addUnions(sceneOf(own), models("55", parts));
+		expect(rowsOf(scene).map((r) => [r.kind, r.rgb])).toEqual([
+			["mesh", [255, 0, 0]],
+			["mesh", [0, 0, 255]],
+		]);
+		expect(surface(scene).map((s) => s?.area)).toEqual([5, 5]);
+	});
+
+	it("is one see-through surface when it is see-through", () => {
+		const parts = solidModel(block([-0.5, 0, 0], [1, 1, 1]), block([0.5, 0, 0], [1, 1, 1]));
+		const glass = square([0, 0, 0], [2, 1, 1], [2, 1, 1], { Transparency: ["Float32", 0.5] });
+		const scene = addUnions(sceneOf(glass), models("55", parts));
+		expect(rowsOf(scene)).toEqual([]);
+		expect(rowsOf(scene, "translucent").map((r) => [r.kind, r.alpha])).toEqual([["mesh", 128]]);
+		expect(surface(scene, "translucent")).toEqual([{ area: 10, triangles: 20, outward: true }]);
+	});
+
+	it("shares its shape with a copy stretched and turned", () => {
+		const parts = solidModel(block([-0.5, 0, 0], [1, 1, 1]), block([0.5, 0, 0], [1, 1, 1]));
+		const copy = union({
+			CFrame: at([20, 0, 0], QUARTER_Y),
+			size: ["Vector3", [6, 1, 1]],
+			InitialSize: ["Vector3", [2, 1, 1]],
+		});
+		const scene = addUnions(sceneOf(square([0, 0, 0], [2, 1, 1]), copy), models("55", parts));
+		expect(scene.meshes).toHaveLength(1);
+		expect(surface(scene).map((s) => s?.area)).toEqual([10, 2 * (6 + 6 + 1)]);
+		expect(surface(scene).every((s) => s?.outward)).toBe(true);
+	});
+
+	it("leaves parts that do not meet, and round ones, as they were", () => {
+		const parts = solidModel(
+			block([-1, 0, 0], [1, 1, 1]),
+			block([1, 0, 0], [1, 1, 1]),
+			inst("Part", { CFrame: at([0, 0, 0]), size: ["Vector3", [1, 1, 1]], shape: ["Enum", 0] }),
+		);
+		const scene = addUnions(sceneOf(square([0, 0, 0], [3, 1, 1])), models("55", parts));
+		expect(rowsOf(scene).map((r) => r.kind)).toEqual(["block", "block", "ball"]);
+		expect(scene.meshes).toBeUndefined();
 	});
 });

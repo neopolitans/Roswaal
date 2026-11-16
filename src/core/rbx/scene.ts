@@ -177,9 +177,15 @@ export function sceneLights(workspace: RbxInstance | undefined): number[] {
  * as the row is already the part's size.
  */
 export interface SceneMesh {
-	/** The mesh's asset id. */
+	/** The mesh's asset id; empty for one made here (`made`). */
 	asset: string;
 	scale?: number[];
+	/**
+	 * A mesh made here rather than downloaded, as a union's parts drawn as one
+	 * surface are (see `seams.ts`): position and normal a vertex, in the unit
+	 * space a row is scaled from, then its triangles.
+	 */
+	made?: { vertices: number[]; indices: number[] };
 }
 
 /**

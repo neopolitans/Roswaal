@@ -708,6 +708,11 @@ export function meshGeometry(mesh: FileMesh, use: SceneMesh): MeshGeometry {
 	return { vertices, indices: mesh.indices };
 }
 
+/** A mesh made here (`SceneMesh.made`), already in the space a row is scaled from. */
+export function madeGeometry(made: NonNullable<SceneMesh["made"]>): MeshGeometry {
+	return { vertices: new Float32Array(made.vertices), indices: new Uint32Array(made.indices) };
+}
+
 /**
  * A set of rows split by the mesh each draws: the rows whose mesh `ready`
  * has, by its place in the scene's `meshes`, and the rest, which stay boxes.

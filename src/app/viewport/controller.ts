@@ -36,6 +36,7 @@ import {
 	DEFAULT_RENDER,
 	FOV,
 	type MeshGeometry,
+	madeGeometry,
 	meshGeometry,
 	type RenderSettings,
 	type RenderStats,
@@ -43,6 +44,11 @@ import {
 	tintedOutline,
 	type ViewRenderer,
 } from "./view.js";
+
+/** Of `rows`, those that draw a MeshPart's or FileMesh's mesh, or its box: not a mesh made here. */
+function meshPartRows(rows: { data: Float32Array; count: number }, place: PlaceScene): number {
+	return splitByMesh(rows, (slot) => !!place.meshes?.[slot]?.made).rest.count;
+}
 
 /** How the view is drawn, from Settings: which renderer, and the outline's width and depth. */
 export interface ViewportOptions {
@@ -332,7 +338,7 @@ export class ViewportController {
 			picked: this.selection.length > 0,
 			summary: {
 				parts: this.words.size,
-				meshes: place.kinds.mesh.count + place.translucent.mesh.count,
+				meshes: meshPartRows(place.kinds.mesh, place) + meshPartRows(place.translucent.mesh, place),
 				meshesDrawn: 0,
 				translucent: SCENE_KINDS.reduce((n, k) => n + place.translucent[k].count, 0),
 				transparent: place.transparent,
@@ -642,7 +648,9 @@ export class ViewportController {
 			view.setMeshes(new Map());
 			return;
 		}
-		const fresh = [...new Set(uses.map((use) => use.asset))].filter((a) => !this.meshCache.has(a));
+		const fresh = [...new Set(uses.filter((use) => !use.made).map((use) => use.asset))].filter(
+			(a) => !this.meshCache.has(a),
+		);
 		const settled = new Map<string, (mesh: FileMesh | null) => void>();
 		for (const asset of fresh)
 			this.meshCache.set(asset, new Promise((resolve) => settled.set(asset, resolve)));
@@ -659,19 +667,26 @@ export class ViewportController {
 					}
 				});
 		}
-		void Promise.all(uses.map((use) => this.meshCache.get(use.asset))).then((meshes) => {
+		// A mesh made here (a union's parts as one surface) is here already: into
+		// the view now, so it is not drawn as its box while the rest download.
+		const here = new Map<number, MeshGeometry>();
+		uses.forEach((use, slot) => {
+			if (use.made) here.set(slot, madeGeometry(use.made));
+		});
+		if (here.size > 0) view.setMeshes(here);
+		const reading = uses.map((use) => !use.made && this.meshCache.get(use.asset));
+		void Promise.all(reading).then((meshes) => {
 			if (this.view !== view || this.place !== place) return;
-			const made = new Map<number, MeshGeometry>();
+			const made = new Map(here);
 			meshes.forEach((mesh, slot) => {
 				if (mesh) made.set(slot, meshGeometry(mesh, uses[slot]));
 			});
-			if (made.size === 0) return;
+			// Nothing downloaded: the view has all there is.
+			if (made.size === here.size) return;
 			view.setMeshes(made);
+			const read = (slot: number) => made.has(slot) && !uses[slot].made;
 			const drawn = (rows: { data: Float32Array; count: number }) =>
-				[...splitByMesh(rows, (slot) => made.has(slot)).meshes.values()].reduce(
-					(n, r) => n + r.count,
-					0,
-				);
+				[...splitByMesh(rows, read).meshes.values()].reduce((n, r) => n + r.count, 0);
 			const summary = this.state.summary;
 			if (summary)
 				this.set({

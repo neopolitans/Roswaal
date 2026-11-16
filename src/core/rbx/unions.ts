@@ -37,6 +37,7 @@ import {
 	type SceneKind,
 	type SceneMesh,
 } from "./scene.js";
+import { sealedFaces } from "./seams.js";
 
 /** Roblox's asset type for the asset a union's AssetId names. */
 export const SOLID_MODEL_TYPE = 39;
@@ -310,14 +311,10 @@ function drawChildData(
 		for (const kind of SCENE_KINDS) {
 			const { data, count } = from[kind];
 			if (count === 0) continue;
-			const out = data.slice(0, count * SCENE_STRIDE);
+			const out = mapRows(data.slice(0, count * SCENE_STRIDE), at);
 			const words = new Uint32Array(out.buffer);
 			for (let i = 0; i < count; i++) {
 				const o = i * SCENE_STRIDE;
-				const axes = [0, 1, 2].flatMap((j) => turn(at.m, out, o + j * 3));
-				const p = apply(at, out, o + 9);
-				out.set(axes, o);
-				out.set(p, o + 9);
 				const look = words[o + 14];
 				// The slot's 15 bits; the top bit is NO_SHADOW, kept as it was.
 				const mesh = (look >>> 16) & 0x7fff;
@@ -326,6 +323,121 @@ function drawChildData(
 			to[kind].push(out);
 		}
 	return cut;
+}
+
+/** Rows moved by `at`, in place: their axes turned and their middles mapped. */
+function mapRows(rows: Float32Array, at: Affine): Float32Array {
+	for (let o = 0; o < rows.length; o += SCENE_STRIDE) {
+		const axes = [0, 1, 2].flatMap((j) => turn(at.m, rows, o + j * 3));
+		const p = apply(at, rows, o + 9);
+		rows.set(axes, o);
+		rows.set(p, o + 9);
+	}
+	return rows;
+}
+
+const IDENTITY: Affine = { m: [1, 0, 0, 0, 1, 0, 0, 0, 1], p: [0, 0, 0] };
+
+/** A 3x3's inverse, row-major, or none. */
+function inverse(m: number[]): number[] | undefined {
+	const [a, b, c, d, e, f, g, h, i] = m;
+	const A = e * i - f * h;
+	const B = f * g - d * i;
+	const C = d * h - e * g;
+	const det = a * A + b * B + c * C;
+	if (!Number.isFinite(det) || Math.abs(det) < 1e-12) return undefined;
+	return [
+		A / det,
+		(c * h - b * i) / det,
+		(b * f - c * e) / det,
+		B / det,
+		(a * i - c * g) / det,
+		(c * d - a * f) / det,
+		C / det,
+		(b * g - a * h) / det,
+		(a * e - b * d) / det,
+	];
+}
+
+const fine = (v: number) => Math.round(v * 1e7) / 1e7 + 0;
+
+/**
+ * One union's rows, in its own space as ChildData has them, into `added` in
+ * the world. Where its flat-faced parts meet (see `seams.ts`), they are drawn
+ * as one shape a colour, a mesh of the faces they keep, whose row is the
+ * union's own box; the rest are its parts' rows, moved by its frame.
+ */
+function sealInto(local: Added, use: SceneUnion, added: Added): void {
+	const at: Affine = { m: use.frame.slice(0, 9), p: use.frame.slice(9, 12) };
+	const rows: { set: "solid" | "seeThrough"; kind: SceneKind; row: Float32Array }[] = [];
+	for (const set of ["solid", "seeThrough"] as const)
+		for (const kind of SCENE_KINDS)
+			for (const chunk of local[set][kind])
+				for (let o = 0; o < chunk.length; o += SCENE_STRIDE)
+					rows.push({ set, kind, row: chunk.subarray(o, o + SCENE_STRIDE) });
+	// The box's axes are its columns; as a row-major 3x3.
+	const unbox = inverse(
+		Array.from({ length: 9 }, (_, n) => use.box[(n % 3) * 3 + Math.floor(n / 3)]),
+	);
+	// From the union's own space to its box's unit space, where the mesh is made.
+	const toUnit = unbox && {
+		m: then({ m: unbox, p: [0, 0, 0] }, { m: at.m, p: [0, 0, 0] }).m,
+		p: turn(
+			unbox,
+			[0, 1, 2].map((k) => at.p[k] - use.box[9 + k]),
+		),
+	};
+	const normals = toUnit && inverse(toUnit.m);
+	// A row's look holds a mesh's slot in 15 bits.
+	const room = added.meshes.length + rows.length < 0x7fff;
+	const faces = toUnit && normals && room ? sealedFaces(rows) : undefined;
+	if (!toUnit || !normals || !faces) {
+		for (const { set, kind, row } of rows) added[set][kind].push(mapRows(row.slice(), at));
+		return;
+	}
+	// Each colour and look's faces, as one mesh.
+	const groups = new Map<
+		string,
+		{ set: "solid" | "seeThrough"; colour: number; look: number; v: number[]; i: number[] }
+	>();
+	rows.forEach(({ set, kind, row }, r) => {
+		const kept = faces[r];
+		if (!kept) {
+			added[set][kind].push(mapRows(row.slice(), at));
+			return;
+		}
+		const words = new Uint32Array(row.buffer, row.byteOffset, SCENE_STRIDE);
+		const key = `${set} ${words[12]} ${words[14]}`;
+		let group = groups.get(key);
+		if (!group) {
+			group = { set, colour: words[12], look: words[14], v: [], i: [] };
+			groups.set(key, group);
+		}
+		for (const face of kept) {
+			// Normals turn by the inverse's transpose.
+			const n = [0, 1, 2].map(
+				(k) => normals[k] * face.n[0] + normals[3 + k] * face.n[1] + normals[6 + k] * face.n[2],
+			);
+			const length = Math.hypot(n[0], n[1], n[2]) || 1;
+			const base = group.v.length / 6;
+			for (const p of face.points)
+				group.v.push(...apply(toUnit, p).map(fine), ...n.map((x) => fine(x / length)));
+			for (let k = 1; k < face.points.length - 1; k++) group.i.push(base, base + k, base + k + 1);
+		}
+	});
+	for (const group of groups.values()) {
+		if (group.i.length === 0) continue;
+		const mesh: SceneMesh = { asset: "", made: { vertices: group.v, indices: group.i } };
+		const key = JSON.stringify(mesh);
+		let slot = added.meshSlots.get(key);
+		if (slot === undefined) {
+			slot = added.meshes.length;
+			added.meshSlots.set(key, slot);
+			added.meshes.push(mesh);
+		}
+		const look = ((group.look & 0x8000ffff) | ((slot + 1) << 16)) >>> 0;
+		added[group.set].mesh.push(instanceData([...use.box, group.colour, use.id, look]));
+	}
 }
 
 /**
@@ -382,11 +494,16 @@ export function addUnions<T extends PlaceScene>(
 		meshSlots: new Map(meshes.map((mesh, slot) => [JSON.stringify(mesh), slot])),
 	};
 	const cuts = [...(scene.unionCuts ?? [])];
+	const empty = () =>
+		Object.fromEntries(SCENE_KINDS.map((k) => [k, []])) as unknown as Added["solid"];
 	for (const use of ready) {
-		const at = { m: use.frame.slice(0, 9), p: use.frame.slice(9, 12) };
 		const roots = models.get(use.asset) ?? [];
-		if (drawChildData(roots, at, use.paint, !use.paint.usePartColor, use.id, models, added, 0))
+		// Its parts in its own space first, to be made one surface there.
+		const local: Added = { ...added, solid: empty(), seeThrough: empty() };
+		const paint = use.paint;
+		if (drawChildData(roots, IDENTITY, paint, !paint.usePartColor, use.id, models, local, 0))
 			cuts.push(use.id);
+		sealInto(local, use, added);
 	}
 	const join = (
 		from: PlaceScene["kinds"],
