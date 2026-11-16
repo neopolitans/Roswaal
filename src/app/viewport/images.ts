@@ -25,7 +25,7 @@ const BATCH = 64;
 export function decalImageOf(bytes: Uint8Array): string | undefined {
 	const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
 	// An XML model's <url>, or a binary model's string; either way one of the two link forms.
-	const found = /(rbxassetid:\/\/\d+|https?:\/\/(?:www\.)?roblox\.com\/asset\/?\?id=\d+)/i.exec(
+	const found = /(rbxassetid:\/\/\d+|https?:\/\/(?:www\.)?roblox\.com\/\/?asset\/?\?id=\d+)/i.exec(
 		text,
 	);
 	return found ? assetIdOf(found[1]) : undefined;

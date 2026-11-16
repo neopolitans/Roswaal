@@ -301,13 +301,14 @@ const MESH_PROPERTIES = new Set([
 
 /**
  * The asset a value names, for a link to it: `rbxassetid://123`, or the
- * older `http://www.roblox.com/asset/?id=123`. Not an `rbxasset://` path,
- * which is a file in Studio's own install.
+ * older `http://www.roblox.com/asset/?id=123`, which a union's AssetId spells
+ * with a doubled slash (`roblox.com//asset/?id=123`). Not an `rbxasset://`
+ * path, which is a file in Studio's own install.
  */
 export function assetIdOf(value: string): string | undefined {
 	const id =
 		/^rbxassetid:\/\/(\d+)\s*$/i.exec(value) ??
-		/^https?:\/\/(?:www\.)?roblox\.com\/asset\/?\?id=(\d+)\s*$/i.exec(value);
+		/^https?:\/\/(?:www\.)?roblox\.com\/\/?asset\/?\?id=(\d+)\s*$/i.exec(value);
 	return id?.[1];
 }
 

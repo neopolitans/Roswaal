@@ -76,6 +76,7 @@ import {
 } from "../core/rbx/rawValue.js";
 import { buildPlaceScene, type PlaceScene, SCENE_KINDS } from "../core/rbx/scene.js";
 import { convertPlace, leftOutOf, placeFormatOf } from "../core/rbx/serialize.js";
+import { withUnions } from "../core/rbx/unions.js";
 import { legacyBinaryUniqueId } from "../core/rbx/uniqueId.js";
 import { emptyScript, type NodeDef, type NodeScript, type Target } from "../core/schema.js";
 import { servicesUsed } from "../core/servicesUsed.js";
@@ -1062,7 +1063,8 @@ export class ApiSession {
 				if (query(req, "stamp") !== loaded.stamp)
 					throw new HttpError(409, "The place file has changed. Reload it.");
 				const workspace = loaded.doc.roots.find((r) => r.className === "Workspace");
-				loaded.scene ??= buildPlaceScene(workspace, (inst) => loaded.index.get(inst));
+				const idOf = (inst: RbxInstance) => loaded.index.get(inst);
+				loaded.scene ??= withUnions(buildPlaceScene(workspace, idOf), workspace, idOf);
 				const scene = loaded.scene;
 				const encode = (from: PlaceScene["kinds"]) => {
 					const out: Record<string, { data: string; count: number }> = {};

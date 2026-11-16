@@ -27,6 +27,7 @@
 import { assetIdOf } from "./browse.js";
 import { type RbxInstance, stringProp } from "./dom.js";
 import { MATERIAL_SHADE, MATERIALS, materialIndex } from "./materials.js";
+import type { SceneUnion } from "./unions.js";
 
 export const SCENE_KINDS = ["block", "wedge", "cornerWedge", "cylinder", "ball", "mesh"] as const;
 export type SceneKind = (typeof SCENE_KINDS)[number];
@@ -81,6 +82,12 @@ export interface PlaceScene {
 	meshes?: SceneMesh[];
 	/** The place's PointLights, SpotLights and SurfaceLights that are on: see `sceneLights`. */
 	lights?: number[];
+	/** The place's unions, drawn as the parts they were made from: see `unions.ts`. */
+	unions?: SceneUnion[];
+	/** The unions in `unions` drawn so far, by row; the rest wait for their SolidModel asset. */
+	unionsDrawn?: number[];
+	/** The unions drawn without what they take away, which needs our own CSG, by row. */
+	unionCuts?: number[];
 }
 
 /** Floats a light: see `sceneLights`. */

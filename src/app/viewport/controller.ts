@@ -6,9 +6,11 @@
  */
 
 import type { PlaceOutline } from "../../core/rbx/browse.js";
+import type { RbxInstance } from "../../core/rbx/dom.js";
 import { type LightingParams, SKY_FACES } from "../../core/rbx/lighting.js";
 import type { FileMesh } from "../../core/rbx/mesh.js";
 import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene.js";
+import { addUnions, unionOutline, unionsWaiting } from "../../core/rbx/unions.js";
 import { addTo, sameItems } from "../placeSelection.js";
 import { boxAround } from "./box.js";
 import { rayPick } from "./geometry.js";
@@ -27,6 +29,7 @@ import { loadMeshes } from "./meshes.js";
 import { clampSpeed, SPEED_NOTCH } from "./speed.js";
 import { layersUsed, loadLayer } from "./textures.js";
 import { trickle } from "./trickle.js";
+import { loadUnionModels } from "./unions.js";
 import {
 	type Camera,
 	FOV,
@@ -337,6 +340,7 @@ export class ViewportController {
 			this.loadSky(this.view, place.lighting);
 			this.loadSunImage(this.view, place.lighting);
 			this.loadMeshes(this.view, place);
+			this.loadUnions(this.view, place);
 			this.view.setOverlay(this.frustumLines());
 			this.refreshSelection();
 		} else void this.start();
@@ -654,6 +658,38 @@ export class ViewportController {
 						meshesDrawn: drawn(place.kinds.mesh) + drawn(place.translucent.mesh),
 					},
 				});
+			this.redraw();
+		});
+	}
+
+	/** Unions' ChildData, kept for the session by the SolidModel asset that held it. */
+	private unionModels = new Map<string, readonly RbxInstance[]>();
+
+	/**
+	 * The place's unions: each outlined by its own box, and drawn as the parts
+	 * it was made from once Sign in with Roblox has its SolidModel asset. The
+	 * scene with them added stands in for the host's, so picking and the
+	 * meshes their parts draw follow it.
+	 */
+	private loadUnions(view: ViewRenderer, place: ViewportPlace): void {
+		const uses = place.unions ?? [];
+		if (uses.length === 0) return;
+		for (const use of uses) this.words.set(use.id, unionOutline(use));
+		const fresh = unionsWaiting(place).filter((asset) => !this.unionModels.has(asset));
+		const arrived =
+			fresh.length > 0
+				? loadUnionModels(fresh, (asset, roots) => this.unionModels.set(asset, roots)).catch(
+						() => {},
+					)
+				: Promise.resolve();
+		void arrived.then(() => {
+			if (this.view !== view || this.place !== place) return;
+			const drawn = addUnions(place, this.unionModels);
+			if (drawn === place) return;
+			this.place = drawn;
+			view.setScene(drawn);
+			this.loadLooks(view, drawn);
+			this.loadMeshes(view, drawn);
 			this.redraw();
 		});
 	}
@@ -1095,6 +1131,7 @@ export class ViewportController {
 		this.loadSky(view, (this.place ?? place).lighting);
 		this.loadSunImage(view, (this.place ?? place).lighting);
 		this.loadMeshes(view, this.place ?? place);
+		this.loadUnions(view, this.place ?? place);
 		this.attach(this.canvas as HTMLCanvasElement);
 		this.refreshSelection();
 		this.fit();
