@@ -9,6 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.258.0",
+		date: "2026-11-16",
+		headline: "The Rendering panel shows lights' reach, the heaviest meshes and a frame-time graph.",
+		added: [
+			"**Light ranges**, a Rendering switch: the lights near the camera drawn as wire shapes, each to its Range and cone, in its own colour.",
+			"**Heaviest**, in the Rendering panel: the meshes costing the most triangles, and those drawn most often. Click one to select every copy.",
+			"**A frame-time graph** in Last frame: the last 240 frames, with the GPU's time by pass where the browser times it.",
+			"**Freeze shadows**, a Rendering switch: the shadow and sky maps stop being redrawn, to compare their cost.",
+		],
+		fixed: [
+			"**Neon** a little see-through glows as in Studio, easing out to a Transparency of 0.3.",
+		],
+	},
+	{
 		version: "0.257.1",
 		date: "2026-11-16",
 		headline: "Beams lie and scroll as in Studio.",
