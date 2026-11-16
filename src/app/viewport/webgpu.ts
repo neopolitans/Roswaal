@@ -886,7 +886,35 @@ export class WebGpuView implements ViewRenderer {
 		return this.outlineWidth * (this.width / (this.canvas?.clientWidth || this.width));
 	}
 
-	async init(canvas: HTMLCanvasElement, scene: PlaceScene): Promise<void> {
+	/** The pipelines init asked for, compiling side by side: see pipeline. */
+	private compiling: Promise<void>[] = [];
+
+	/**
+	 * A pipeline compiled away from the page, put where `set` puts it once it
+	 * is: for init's pipelines only, as init waits for them. One the device
+	 * turns down is made as before, so it fails as it did.
+	 */
+	private pipeline(set: (p: GPURenderPipeline) => void, desc: GPURenderPipelineDescriptor): void {
+		const d = this.device;
+		this.compiling.push(
+			d.createRenderPipelineAsync(desc).then(set, () => set(d.createRenderPipeline(desc))),
+		);
+	}
+
+	/** Waits for the pipelines asked for, telling `progress` the share compiled as each is. */
+	private async compiled(progress?: (shaders: number) => void): Promise<void> {
+		const all = this.compiling;
+		this.compiling = [];
+		let done = 0;
+		progress?.(0);
+		await Promise.all(all.map((p) => p.then(() => progress?.(++done / all.length))));
+	}
+
+	async init(
+		canvas: HTMLCanvasElement,
+		scene: PlaceScene,
+		progress?: (shaders: number) => void,
+	): Promise<void> {
 		this.canvas = canvas;
 		const adapter = await navigator.gpu?.requestAdapter({ powerPreference: "high-performance" });
 		if (!adapter) throw new Error("no WebGPU adapter");
@@ -955,7 +983,7 @@ export class WebGpuView implements ViewRenderer {
 			depthWriteEnabled: true,
 			depthCompare: "greater" as const,
 		};
-		this.solid = d.createRenderPipeline({
+		this.pipeline((p) => (this.solid = p), {
 			layout: pipelineLayout,
 			vertex: { module, entryPoint: "vs", buffers },
 			fragment: { module, entryPoint: "fs", targets: [{ format: this.format }] },
@@ -965,7 +993,7 @@ export class WebGpuView implements ViewRenderer {
 		});
 		// The see-through parts: blended over what is behind them, hidden by
 		// what is in front, and hiding nothing themselves.
-		this.blended = d.createRenderPipeline({
+		this.pipeline((p) => (this.blended = p), {
 			layout: pipelineLayout,
 			vertex: { module, entryPoint: "vs", buffers },
 			fragment: {
@@ -999,7 +1027,7 @@ export class WebGpuView implements ViewRenderer {
 			addressModeU: "repeat",
 			addressModeV: "repeat",
 		});
-		this.imagePipeline = d.createRenderPipeline({
+		this.pipeline((p) => (this.imagePipeline = p), {
 			layout: d.createPipelineLayout({ bindGroupLayouts: [layout, this.imageLayout] }),
 			vertex: {
 				module,
@@ -1033,7 +1061,7 @@ export class WebGpuView implements ViewRenderer {
 			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "greater" },
 			multisample: { count: SAMPLES },
 		});
-		this.imageDepth = d.createRenderPipeline({
+		this.pipeline((p) => (this.imageDepth = p), {
 			layout: d.createPipelineLayout({ bindGroupLayouts: [layout, this.imageLayout] }),
 			vertex: {
 				module,
@@ -1060,7 +1088,7 @@ export class WebGpuView implements ViewRenderer {
 			multisample: { count: SAMPLES },
 		});
 		// See-through Glass: the nearest's depth, then its colour blended at that depth.
-		this.glassDepth = d.createRenderPipeline({
+		this.pipeline((p) => (this.glassDepth = p), {
 			layout: pipelineLayout,
 			vertex: { module, entryPoint: "vs", buffers },
 			fragment: { module, entryPoint: "fs", targets: [{ format: this.format, writeMask: 0 }] },
@@ -1068,7 +1096,7 @@ export class WebGpuView implements ViewRenderer {
 			depthStencil: depth,
 			multisample: { count: SAMPLES },
 		});
-		this.glassBlended = d.createRenderPipeline({
+		this.pipeline((p) => (this.glassBlended = p), {
 			layout: pipelineLayout,
 			vertex: { module, entryPoint: "vs", buffers },
 			fragment: {
@@ -1094,8 +1122,8 @@ export class WebGpuView implements ViewRenderer {
 		});
 		// Over everything, as Studio's selection box is.
 		// Through everything, as Studio's selection box is, or hidden by what is in front.
-		const line = (depthCompare: GPUCompareFunction) =>
-			d.createRenderPipeline({
+		const line = (set: (p: GPURenderPipeline) => void, depthCompare: GPUCompareFunction) =>
+			this.pipeline(set, {
 				layout: pipelineLayout,
 				vertex: { module, entryPoint: "vsLine", buffers },
 				fragment: {
@@ -1115,16 +1143,16 @@ export class WebGpuView implements ViewRenderer {
 				depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare },
 				multisample: { count: SAMPLES },
 			});
-		this.lines = line("always");
-		this.linesBehind = line("greater-equal");
-		this.ids = d.createRenderPipeline({
+		line((p) => (this.lines = p), "always");
+		line((p) => (this.linesBehind = p), "greater-equal");
+		this.pipeline((p) => (this.ids = p), {
 			layout: pipelineLayout,
 			vertex: { module, entryPoint: "vs", buffers },
 			fragment: { module, entryPoint: "fsId", targets: [{ format: "r32uint" }] },
 			primitive: { topology: "triangle-list", cullMode: "back" },
 			depthStencil: depth,
 		});
-		this.over = d.createRenderPipeline({
+		this.pipeline((p) => (this.over = p), {
 			layout: pipelineLayout,
 			vertex: {
 				module,
@@ -1144,7 +1172,7 @@ export class WebGpuView implements ViewRenderer {
 			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "always" },
 			multisample: { count: SAMPLES },
 		});
-		this.handle = d.createRenderPipeline({
+		this.pipeline((p) => (this.handle = p), {
 			layout: pipelineLayout,
 			vertex: { module, entryPoint: "vsHandle", buffers },
 			fragment: {
@@ -1164,7 +1192,7 @@ export class WebGpuView implements ViewRenderer {
 			depthStencil: depth,
 			multisample: { count: SAMPLES },
 		});
-		this.skyPipeline = d.createRenderPipeline({
+		this.pipeline((p) => (this.skyPipeline = p), {
 			layout: pipelineLayout,
 			vertex: { module, entryPoint: "vsSky", buffers: [] },
 			fragment: { module, entryPoint: "fsSky", targets: [{ format: this.format }] },
@@ -1178,7 +1206,7 @@ export class WebGpuView implements ViewRenderer {
 		// Neon through a seam glows by as much of a pixel as it covers.
 		const glowTarget = { format: this.format };
 		const glowSamples = { count: SAMPLES };
-		this.glowSolid = d.createRenderPipeline({
+		this.pipeline((p) => (this.glowSolid = p), {
 			layout: pipelineLayout,
 			vertex: { module, entryPoint: "vs", buffers },
 			fragment: { module, entryPoint: "fsGlow", targets: [glowTarget] },
@@ -1192,7 +1220,7 @@ export class WebGpuView implements ViewRenderer {
 			color: { srcFactor: "one" as const, dstFactor: "one-minus-src-alpha" as const },
 			alpha: { srcFactor: "one" as const, dstFactor: "one-minus-src-alpha" as const },
 		};
-		this.glowSeen = d.createRenderPipeline({
+		this.pipeline((p) => (this.glowSeen = p), {
 			layout: pipelineLayout,
 			vertex: { module, entryPoint: "vs", buffers },
 			fragment: {
@@ -1210,7 +1238,7 @@ export class WebGpuView implements ViewRenderer {
 			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "greater" },
 			multisample: glowSamples,
 		});
-		this.glowGlassDepth = d.createRenderPipeline({
+		this.pipeline((p) => (this.glowGlassDepth = p), {
 			layout: pipelineLayout,
 			vertex: { module, entryPoint: "vs", buffers },
 			fragment: { module, entryPoint: "fsGlow", targets: [{ ...glowTarget, writeMask: 0 }] },
@@ -1219,7 +1247,7 @@ export class WebGpuView implements ViewRenderer {
 			multisample: glowSamples,
 		});
 		// Decals and Textures in the glow's pass: what they cover glows no more.
-		this.imageVeil = d.createRenderPipeline({
+		this.pipeline((p) => (this.imageVeil = p), {
 			layout: d.createPipelineLayout({ bindGroupLayouts: [layout, this.imageLayout] }),
 			vertex: {
 				module,
@@ -1259,19 +1287,19 @@ export class WebGpuView implements ViewRenderer {
 		const postPipeline = d.createPipelineLayout({ bindGroupLayouts: [this.postLayout] });
 		// Half floats, so the blur's long soft fall does not round into steps.
 		const halfTarget = { format: "rgba16float" as const };
-		this.down = d.createRenderPipeline({
+		this.pipeline((p) => (this.down = p), {
 			layout: postPipeline,
 			vertex: { module: post, entryPoint: "vsFull" },
 			fragment: { module: post, entryPoint: "fsDown", targets: [halfTarget] },
 			primitive: { topology: "triangle-list" },
 		});
-		this.blur = d.createRenderPipeline({
+		this.pipeline((p) => (this.blur = p), {
 			layout: postPipeline,
 			vertex: { module: post, entryPoint: "vsFull" },
 			fragment: { module: post, entryPoint: "fsBlur", targets: [halfTarget] },
 			primitive: { topology: "triangle-list" },
 		});
-		this.composite = d.createRenderPipeline({
+		this.pipeline((p) => (this.composite = p), {
 			layout: d.createPipelineLayout({ bindGroupLayouts: [this.compositeLayout] }),
 			vertex: { module: post, entryPoint: "vsFull" },
 			fragment: { module: post, entryPoint: "fsComposite", targets: [{ format: this.format }] },
@@ -1288,7 +1316,7 @@ export class WebGpuView implements ViewRenderer {
 			d.createBuffer({ size: 16, usage: BUFFER.UNIFORM | BUFFER.COPY_DST }),
 		);
 		this.gradeBuffer = d.createBuffer({ size: 32, usage: BUFFER.UNIFORM | BUFFER.COPY_DST });
-		this.blurFrame = d.createRenderPipeline({
+		this.pipeline((p) => (this.blurFrame = p), {
 			layout: postPipeline,
 			vertex: { module: post, entryPoint: "vsFull" },
 			fragment: { module: post, entryPoint: "fsBlur", targets: [{ format: this.format }] },
@@ -1336,6 +1364,7 @@ export class WebGpuView implements ViewRenderer {
 			});
 		}
 		this.resize(canvas.width, canvas.height);
+		await this.compiled(progress);
 	}
 
 	setLighting(lighting: LightingParams): void {
@@ -2059,7 +2088,7 @@ struct VIn { @location(0) pos: vec3f, @location(2) c0: vec3f, @location(3) c1: v
 	return d.viewProj * vec4f(mat3x3f(v.c0, v.c1, v.c2) * v.pos + v.p, 1.0);
 }`,
 		});
-		this.skyDepth = d.createRenderPipeline({
+		this.pipeline((p) => (this.skyDepth = p), {
 			layout: d.createPipelineLayout({ bindGroupLayouts: [layout] }),
 			vertex: { module, entryPoint: "vsDepth", buffers },
 			primitive: { topology: "triangle-list", cullMode: "none" },

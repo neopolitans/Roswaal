@@ -31,7 +31,12 @@ export interface Camera {
 
 export interface ViewRenderer {
 	readonly backend: "WebGPU" | "WebGL2";
-	init(canvas: HTMLCanvasElement, scene: PlaceScene): Promise<void>;
+	/** `progress` hears the share of the shaders compiled, 0 to 1, as they are. */
+	init(
+		canvas: HTMLCanvasElement,
+		scene: PlaceScene,
+		progress?: (shaders: number) => void,
+	): Promise<void>;
 	resize(width: number, height: number): void;
 	/**
 	 * The boxes to outline, in the scene's own instance layout, each in the

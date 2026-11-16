@@ -775,7 +775,11 @@ export class WebGl2View implements ViewRenderer {
 		if (this.scene) this.setScene(this.scene);
 	}
 
-	async init(canvas: HTMLCanvasElement, scene: PlaceScene): Promise<void> {
+	async init(
+		canvas: HTMLCanvasElement,
+		scene: PlaceScene,
+		progress?: (shaders: number) => void,
+	): Promise<void> {
 		this.canvas = canvas;
 		const gl = canvas.getContext("webgl2", {
 			antialias: true,
@@ -783,7 +787,7 @@ export class WebGl2View implements ViewRenderer {
 		});
 		if (!gl) throw new Error("no WebGL2");
 		this.gl = gl;
-		await this.linkAhead();
+		await this.linkAhead(progress);
 		this.main = this.link(VS, FS);
 		// The material table: the same for every frame, so set once.
 		gl.useProgram(this.main.program);
@@ -866,6 +870,8 @@ export class WebGl2View implements ViewRenderer {
 		gl.enable(gl.DEPTH_TEST);
 		gl.enable(gl.CULL_FACE);
 		this.resize(canvas.width, canvas.height);
+		// Every program linked, ahead or here.
+		progress?.(1);
 	}
 
 	setLighting(lighting: LightingParams): void {
@@ -1074,10 +1080,14 @@ export class WebGl2View implements ViewRenderer {
 	];
 	private linked = new Map<string, { program: WebGLProgram; shaders: WebGLShader[] }>();
 
-	private async linkAhead(): Promise<void> {
+	/** `progress` hears the share linked as it polls, or 0 where they link one by one in init. */
+	private async linkAhead(progress?: (shaders: number) => void): Promise<void> {
 		const gl = this.gl;
 		const parallel = gl.getExtension("KHR_parallel_shader_compile");
-		if (!parallel) return;
+		if (!parallel) {
+			progress?.(0);
+			return;
+		}
 		for (const [vs, fs] of WebGl2View.PROGRAMS) {
 			const program = gl.createProgram()!;
 			const shaders = (
@@ -1096,10 +1106,14 @@ export class WebGl2View implements ViewRenderer {
 			this.linked.set(`${vs}\0${fs}`, { program, shaders });
 		}
 		const done = () =>
-			[...this.linked.values()].every(({ program }) =>
+			[...this.linked.values()].filter(({ program }) =>
 				gl.getProgramParameter(program, parallel.COMPLETION_STATUS_KHR),
-			);
-		while (!done()) await new Promise((resolve) => setTimeout(resolve, 8));
+			).length;
+		for (let n = done(); ; n = done()) {
+			progress?.(n / this.linked.size);
+			if (n === this.linked.size) break;
+			await new Promise((resolve) => setTimeout(resolve, 8));
+		}
 	}
 
 	private link(vs: string, fs: string): Program {

@@ -26,6 +26,7 @@ import {
 	type ViewShot,
 } from "./marquee.js";
 import { loadMeshes } from "./meshes.js";
+import { startingText } from "./readout.js";
 import { clampSpeed, SPEED_NOTCH } from "./speed.js";
 import { layersUsed, loadLayer } from "./textures.js";
 import { trickle } from "./trickle.js";
@@ -1075,6 +1076,23 @@ export class ViewportController {
 	}
 
 	private starting = false;
+	/** The renderer starting, and the share of its shaders compiled, for the readout. */
+	private startup: { backend: ViewRenderer["backend"]; shaders: number | null } | null = null;
+
+	/** Starts `view`, the readout following its shaders as they compile. */
+	private async initView(view: ViewRenderer, canvas: HTMLCanvasElement, place: PlaceScene) {
+		const startup = { backend: view.backend, shaders: null as number | null };
+		this.startup = startup;
+		try {
+			await view.init(canvas, place, (shaders) => {
+				if (shaders === startup.shaders) return;
+				startup.shaders = shaders;
+				this.showRate();
+			});
+		} finally {
+			if (this.startup === startup) this.startup = null;
+		}
+	}
 
 	private async start(): Promise<void> {
 		const els = this.els;
@@ -1100,12 +1118,12 @@ export class ViewportController {
 		let fellBack = false;
 		try {
 			try {
-				await view.init(make(), place);
+				await this.initView(view, make(), place);
 			} catch (err) {
 				if (gl2) throw err;
 				fellBack = true;
 				view = new WebGl2View();
-				await view.init(make(), place);
+				await this.initView(view, make(), place);
 			}
 		} catch (err) {
 			this.starting = false;
@@ -1214,7 +1232,9 @@ export class ViewportController {
 		const last = this.frames.at(-1);
 		const idle = last === undefined || now - last > 400;
 		if (this.corner)
-			this.corner.rate.textContent = `${idle ? "Idle" : `${this.frames.length}Hz`} (${this.state.backend ?? "…"})`;
+			this.corner.rate.textContent = this.startup
+				? startingText(this.startup.backend, this.startup.shaders)
+				: `${idle ? "Idle" : `${this.frames.length}Hz`} (${this.state.backend ?? "…"})`;
 	}
 
 	/**
