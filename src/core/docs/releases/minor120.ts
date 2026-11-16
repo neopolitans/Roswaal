@@ -9,6 +9,14 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.250.0",
+		date: "2026-11-16",
+		headline: "Ctrl+Z and Ctrl+Y undo and redo changes to the place.",
+		added: [
+			"**Undo and redo for the place.** Ctrl+Z undoes the last change to the place, a deletion included, and Ctrl+Y or Ctrl+Shift+Z redoes it: properties, attributes, tags, and adding, duplicating, moving and deleting in Explorer. They act on the place from its tab, DataModel or Properties, and on the graph otherwise.",
+		],
+	},
+	{
 		version: "0.249.3",
 		date: "2026-11-16",
 		headline: "Opening a place, and editing its lights, no longer freezes the editor.",
