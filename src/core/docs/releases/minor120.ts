@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.260.0",
+		date: "2026-11-16",
+		headline: "A BloomEffect blooms the whole picture, and glass panels blur what is behind them again.",
+		added: [
+			"**Bloom of the whole picture.** With a BloomEffect on, the place viewer blooms whatever is drawn at full brightness, as Studio does, not only Neon: a bright Beam over a Neon sign glows.",
+		],
+		fixed: [
+			"**Glass panels**, such as docked panels and toolbars, blur what is behind them again in Chrome and Edge.",
+		],
+	},
+	{
 		version: "0.259.0",
 		date: "2026-11-16",
 		headline: "Performance and Mesh Debug panels, three new views, and see-through windows.",
