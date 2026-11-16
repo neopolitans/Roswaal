@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.256.0",
+		date: "2026-11-16",
+		headline: "The place viewer shows how it is drawing, and closed rooms stay dark.",
+		added: [
+			"**The view's mode** shows over the left end of the place viewer's bar, with a heatmap's style and any Rendering switch that is off.",
+		],
+		fixed: [
+			"**Closed rooms** in a large place are no longer lit by the sky through their walls.",
+			"**Ambient** lights rooms as strongly as in Studio.",
+		],
+	},
+	{
 		version: "0.255.0",
 		date: "2026-11-16",
 		headline: "Select can be put down in the place viewer, and the heatmaps blend smoothly.",
