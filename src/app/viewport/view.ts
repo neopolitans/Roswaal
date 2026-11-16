@@ -954,6 +954,8 @@ export interface RenderSettings {
 	show: RenderShow;
 	/** The lights near the camera drawn as wire shapes of their reach: see `gizmos.ts`. */
 	lightRanges: boolean;
+	/** The sun's cascades and the sky maps left as last drawn, to compare what they cost. */
+	freezeShadows: boolean;
 }
 
 export const DEFAULT_RENDER: RenderSettings = {
@@ -970,6 +972,7 @@ export const DEFAULT_RENDER: RenderSettings = {
 		particles: true,
 	},
 	lightRanges: false,
+	freezeShadows: false,
 };
 
 /**

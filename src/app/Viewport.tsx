@@ -709,6 +709,7 @@ function RenderBadge({ render }: { render: RenderSettings }) {
 		<div className="vp-render-badge" title="How the view is drawn: the Rendering panel">
 			<span>{heat ? `${mode} · ${heat}` : mode}</span>
 			{off.length > 0 && <span className="vp-render-badge-off">Off: {off.join(", ")}</span>}
+			{render.freezeShadows && <span className="vp-render-badge-frozen">Shadows frozen</span>}
 		</div>
 	);
 }
@@ -1001,6 +1002,11 @@ export function RenderPanel({ controller }: { controller: ViewportController }) 
 							label="Light ranges"
 							on={render.lightRanges}
 							onChange={(lightRanges) => apply({ ...render, lightRanges })}
+						/>
+						<RenderToolSwitch
+							label="Freeze shadows"
+							on={render.freezeShadows}
+							onChange={(freezeShadows) => apply({ ...render, freezeShadows })}
 						/>
 					</div>
 					<div className="place-group">

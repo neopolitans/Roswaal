@@ -1940,6 +1940,8 @@ export class WebGl2View implements ViewRenderer {
 
 	/** The sun's cascades for this view, drawn again when they or the parts moved. */
 	private drawCascades(camera: Camera, partsMoved: boolean): void {
+		// Shadows frozen from the Rendering panel: the maps drawn last are sampled as they are.
+		if (this.render.freezeShadows) return;
 		const gl = this.gl;
 		const l = this.lighting;
 		const block = cascadeBlock(
@@ -1979,6 +1981,8 @@ export class WebGl2View implements ViewRenderer {
 		which: { far: boolean; sun: boolean; near: boolean },
 		centre: number[],
 	): void {
+		// Shadows frozen from the Rendering panel: the maps drawn last are sampled as they are.
+		if (this.render.freezeShadows) return;
 		const gl = this.gl;
 		this.skyDirty = false;
 		this.sunDirty = false;

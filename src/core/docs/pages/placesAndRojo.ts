@@ -308,7 +308,8 @@ export function placesAndRojoPage(): DocPage {
 					"lists the meshes costing the most triangles, all copies counted, and those drawn " +
 					"most often; click one to pick its copies. **Last frame**'s graph shows the last " +
 					"240 frames' times, with the GPU's passes where the browser times them: fly " +
-					"around and watch for spikes over the 33 ms line.",
+					"around and watch for spikes over the 33 ms line. **Freeze shadows** stops redrawing " +
+					"the sun's and sky's shadow maps, which stay as they were, so their cost can be compared.",
 			},
 
 			{ t: "h", level: 2, text: "Changing properties" },

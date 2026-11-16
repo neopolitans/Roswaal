@@ -2596,6 +2596,8 @@ struct VIn { @location(0) pos: vec3f, @location(2) c0: vec3f, @location(3) c1: v
 
 	/** The sun's cascades for this view, drawn again when they or the parts moved. */
 	private drawCascades(encoder: GPUCommandEncoder, camera: Camera, partsMoved: boolean): void {
+		// Shadows frozen from the Rendering panel: the maps drawn last are sampled as they are.
+		if (this.render.freezeShadows) return;
 		const l = this.lighting;
 		const block = cascadeBlock(
 			camera,
@@ -2640,6 +2642,8 @@ struct VIn { @location(0) pos: vec3f, @location(2) c0: vec3f, @location(3) c1: v
 		which: { far: boolean; sun: boolean; near: boolean },
 		centre: number[],
 	): void {
+		// Shadows frozen from the Rendering panel: the maps drawn last are sampled as they are.
+		if (this.render.freezeShadows) return;
 		this.skyDirty = false;
 		this.sunDirty = false;
 		this.nearCentre = centre;

@@ -21259,6 +21259,11 @@ textarea.tb:where(:disabled) {
 	opacity: 0.85;
 }
 
+.vp-render-badge .vp-render-badge-frozen {
+	font-size: 11px;
+	opacity: 0.85;
+}
+
 .vp-cluster {
 	display: flex;
 	flex-direction: column;
