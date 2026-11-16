@@ -304,7 +304,9 @@ export function placesAndRojoPage(): DocPage {
 				t: "p",
 				text:
 					"To find what makes a place slow to draw, turn on **Light ranges**: the lights " +
-					"near the camera show as wire shapes of their reach, in their colour.",
+					"near the camera show as wire shapes of their reach, in their colour. **Heaviest** " +
+					"lists the meshes costing the most triangles, all copies counted, and those drawn " +
+					"most often; click one to pick its copies.",
 			},
 
 			{ t: "h", level: 2, text: "Changing properties" },

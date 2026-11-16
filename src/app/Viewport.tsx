@@ -18,7 +18,7 @@ import { api } from "./api.js";
 import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
-import { Ident, SectionHead } from "./PanelParts.jsx";
+import { Ident, SectionHead, useFold } from "./PanelParts.jsx";
 import {
 	VIEWPORT_FRAME_RATES,
 	VIEWPORT_RENDERERS,
@@ -33,6 +33,7 @@ import {
 	type ViewportController,
 } from "./viewport/controller.js";
 import { fader } from "./viewport/fade.js";
+import { type HeavyMesh, shortCount } from "./viewport/heaviest.js";
 import { prepareScene } from "./viewport/prepare.js";
 import { readSpeed, SPEED_MAX, SPEED_MIN, SPEED_STEP, speedText } from "./viewport/speed.js";
 import {
@@ -713,6 +714,52 @@ const HEAT_LEGEND: Partial<Record<RenderMode, [string, string]>> = {
 
 const ms = (n: number) => `${n.toFixed(2)} ms`;
 
+/**
+ * The meshes costing the most triangles, and drawn most often: folded to
+ * begin with. A click picks every copy and frames them.
+ */
+function HeaviestGroup({ controller }: { controller: ViewportController }) {
+	const { heaviest } = useViewport(controller);
+	const [open, toggle] = useFold(false);
+	const list = (title: string, meshes: HeavyMesh[], value: (m: HeavyMesh) => string) =>
+		meshes.length > 0 && (
+			<div className="render-heavy-list">
+				<div className="render-heavy-head">{title}</div>
+				{meshes.map((m) => {
+					const { name, className } = controller.rowName(m.rows[0]);
+					return (
+						<button
+							type="button"
+							className="render-heavy-row"
+							key={m.key}
+							title={`${className}: ${m.copies.toLocaleString()} × ${m.triangles.toLocaleString()} triangles`}
+							onClick={() => controller.pickRows(m.rows)}
+						>
+							<span className="render-heavy-name">{name || className}</span>
+							<span className="render-heavy-value">{value(m)}</span>
+						</button>
+					);
+				})}
+			</div>
+		);
+	return (
+		<div className="place-group">
+			<SectionHead title="Heaviest" open={open} onToggle={toggle} />
+			{open &&
+				(heaviest ? (
+					<>
+						{list("By triangles", heaviest.byTriangles, (m) =>
+							m.copies > 1 ? `${shortCount(m.total)} · ×${m.copies}` : shortCount(m.total),
+						)}
+						{list("By copies", heaviest.byCopies, (m) => `×${m.copies.toLocaleString()}`)}
+					</>
+				) : (
+					<p className="place-summary">No meshes drawn yet.</p>
+				))}
+		</div>
+	);
+}
+
 /** A Rendering panel switch for a tool, off to begin with: not something the view leaves out. */
 function RenderToolSwitch({
 	label,
@@ -841,6 +888,7 @@ export function RenderPanel({ controller }: { controller: ViewportController }) 
 							<p className="place-summary">Nothing drawn yet.</p>
 						)}
 					</div>
+					<HeaviestGroup controller={controller} />
 				</div>
 			</div>
 		</div>

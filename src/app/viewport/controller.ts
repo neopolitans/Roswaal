@@ -17,6 +17,7 @@ import { boxAround } from "./box.js";
 import { rayPick } from "./geometry.js";
 import { gizmoCell, lightGizmoLines } from "./gizmos.js";
 import { HandleBuilder } from "./handles.js";
+import { type Heaviest, heaviest, meshCosts } from "./heaviest.js";
 import { loadImages } from "./images.js";
 import {
 	boxTargets,
@@ -132,6 +133,8 @@ export interface ViewportState {
 	editable: boolean;
 	/** The Rendering panel's mode and switches: the view's alone, for this session. */
 	render: RenderSettings;
+	/** The meshes costing the most triangles, and drawn most often: null until meshes are drawn. */
+	heaviest: Heaviest | null;
 }
 
 export interface Snap {
@@ -269,6 +272,7 @@ export class ViewportController {
 		space: "object",
 		editable: false,
 		render: DEFAULT_RENDER,
+		heaviest: null,
 	};
 	private listeners = new Set<() => void>();
 	private place: ViewportPlace | null = null;
@@ -670,6 +674,7 @@ export class ViewportController {
 		const uses = place.meshes ?? [];
 		if (uses.length === 0) {
 			view.setMeshes(new Map());
+			this.rankMeshes(place, new Map());
 			return;
 		}
 		const fresh = [...new Set(uses.filter((use) => !use.made).map((use) => use.asset))].filter(
@@ -698,6 +703,7 @@ export class ViewportController {
 			if (use.made) here.set(slot, madeGeometry(use.made));
 		});
 		if (here.size > 0) view.setMeshes(here);
+		this.rankMeshes(place, here);
 		const reading = uses.map((use) => !use.made && this.meshCache.get(use.asset));
 		void Promise.all(reading).then((meshes) => {
 			if (this.view !== view || this.place !== place) return;
@@ -708,6 +714,7 @@ export class ViewportController {
 			// Nothing downloaded: the view has all there is.
 			if (made.size === here.size) return;
 			view.setMeshes(made);
+			this.rankMeshes(place, made);
 			const read = (slot: number) => made.has(slot) && !uses[slot].made;
 			const drawn = (rows: { data: Float32Array; count: number }) =>
 				[...splitByMesh(rows, read).meshes.values()].reduce((n, r) => n + r.count, 0);
@@ -721,6 +728,35 @@ export class ViewportController {
 				});
 			this.redraw();
 		});
+	}
+
+	/** The Rendering panel's Heaviest, from the meshes the view has been given: see `heaviest.ts`. */
+	private rankMeshes(place: PlaceScene, meshes: ReadonlyMap<number, MeshGeometry>): void {
+		const uses = place.meshes ?? [];
+		const costs = meshCosts(
+			[place.kinds.mesh, place.translucent.mesh],
+			(slot) => {
+				const mesh = meshes.get(slot);
+				return mesh && mesh.indices.length / 3;
+			},
+			(slot) => (uses[slot]?.made ? `made:${slot}` : (uses[slot]?.asset ?? `slot:${slot}`)),
+		);
+		this.set({ heaviest: costs.length > 0 ? heaviest(costs) : null });
+	}
+
+	/** Rows from the Rendering panel's Heaviest: picked, as a click in the view picks, and framed. */
+	pickRows(rows: readonly number[]): void {
+		this.pickHere(rows);
+		this.frameSelection();
+	}
+
+	/** A DataModel row's name and class, as the tree shows them; empty for none. */
+	rowName(row: number): { name: string; className: string } {
+		const outline = this.place?.outline;
+		const node = outline?.nodes[row];
+		return node
+			? { name: node[1], className: outline.classes[node[0]] ?? "" }
+			: { name: "", className: "" };
 	}
 
 	/** Unions' ChildData, kept for the session by the SolidModel asset that held it. */
