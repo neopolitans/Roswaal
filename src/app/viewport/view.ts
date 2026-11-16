@@ -221,6 +221,13 @@ export const SKY_NEAR = 192;
  */
 export const SKY_SEEN_LEAST = 0.025;
 export const SKY_NEAR_STEP = 48;
+/**
+ * What hides the sky in the near maps must be this many studs across, seen
+ * from it: thinner, as a window's struts or a rail, it is opened out of the
+ * maps. Studio's screen captures show the sun's shadow of such struts and no
+ * darkening of the sky's light under them.
+ */
+export const SKY_OPEN = 4;
 
 /** Towards the sky: straight up, then the rest round the horizon, 45 degrees above it. */
 export function skyDirections(): number[][] {

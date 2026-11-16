@@ -55,7 +55,9 @@ import {
 	SKY_GAIN,
 	SKY_LAYERS,
 	SKY_MAP,
+	SKY_NEAR,
 	SKY_NEAR_LAYER,
+	SKY_OPEN,
 	SKY_SEEN_LEAST,
 	SKY_VIEWS,
 	SUN_CASCADES,
@@ -733,6 +735,45 @@ void main() {
 	vec2 xy = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2)) * 2.0 - 1.0;
 	uv = xy * 0.5 + 0.5;
 	gl_Position = vec4(xy, 0.0, 1.0);
+}`;
+// The near sky maps opened, as WebGpuView's makeSkyOpen: the farthest depth
+// across and down, then the nearest, a pass each. Reading a near map's depth...
+const FS_OPEN_DEPTH = `#version 300 es
+precision highp float;
+precision highp int;
+uniform highp sampler2DArray srcDepth;
+uniform int layer;
+uniform vec4 f;
+out vec4 o;
+void main() {
+	ivec2 c = ivec2(gl_FragCoord.xy);
+	ivec2 st = ivec2(f.xy);
+	int r = int(f.z);
+	float m = 0.0;
+	for (int j = -r; j <= r; j++)
+		m = max(m, texelFetch(srcDepth, ivec3(clamp(c + st * j, ivec2(0), ivec2(${SKY_MAP - 1})), layer), 0).r);
+	o = vec4(m, 0.0, 0.0, 1.0);
+}`;
+// ...and the scratch maps, the last pass into the near map's depth.
+const FS_OPEN_FLOAT = `#version 300 es
+precision highp float;
+precision highp int;
+uniform highp sampler2D srcFloat;
+uniform vec4 f;
+uniform float toDepth;
+out vec4 o;
+void main() {
+	ivec2 c = ivec2(gl_FragCoord.xy);
+	ivec2 st = ivec2(f.xy);
+	int r = int(f.z);
+	bool least = f.w > 0.5;
+	float m = least ? 2.0 : 0.0;
+	for (int j = -r; j <= r; j++) {
+		float v = texelFetch(srcFloat, clamp(c + st * j, ivec2(0), ivec2(${SKY_MAP - 1})), 0).r;
+		m = least ? min(m, v) : max(m, v);
+	}
+	o = vec4(m, 0.0, 0.0, 1.0);
+	gl_FragDepth = toDepth > 0.5 ? m : gl_FragCoord.z;
 }`;
 // The glow round what gives light, as WebGpuView's POST blurs and adds it.
 const FS_BLUR = `#version 300 es
@@ -2013,11 +2054,119 @@ export class WebGl2View implements ViewRenderer {
 			this.solids();
 		}
 		gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, null, 0, 0);
+		if (which.near) this.openNearMaps();
 		gl.enable(gl.CULL_FACE);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 		gl.activeTexture(gl.TEXTURE6);
 		gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.skyMaps);
 		gl.activeTexture(gl.TEXTURE0);
+	}
+
+	/** The near maps' opening, made once: see WebGpuView's makeSkyOpen. Null where floats can't be drawn into. */
+	private skyOpen?: {
+		fromDepth: WebGLProgram;
+		float: WebGLProgram;
+		scratch: [WebGLTexture, WebGLTexture];
+		fbos: [WebGLFramebuffer, WebGLFramebuffer];
+		raw: WebGLSampler;
+	} | null;
+
+	private makeSkyOpen(): typeof this.skyOpen {
+		const gl = this.gl;
+		if (!gl.getExtension("EXT_color_buffer_float")) return null;
+		const scratch = [0, 1].map(() => {
+			const t = gl.createTexture()!;
+			gl.bindTexture(gl.TEXTURE_2D, t);
+			gl.texStorage2D(gl.TEXTURE_2D, 1, gl.R32F, SKY_MAP, SKY_MAP);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+			return t;
+		}) as [WebGLTexture, WebGLTexture];
+		gl.bindTexture(gl.TEXTURE_2D, null);
+		const fbos = scratch.map((t) => {
+			const fbo = gl.createFramebuffer()!;
+			gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+			gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+			return fbo;
+		}) as [WebGLFramebuffer, WebGLFramebuffer];
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+		// The near maps read as depths, not compared: a sampler of their own.
+		const raw = gl.createSampler()!;
+		gl.samplerParameteri(raw, gl.TEXTURE_COMPARE_MODE, gl.NONE);
+		gl.samplerParameteri(raw, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+		gl.samplerParameteri(raw, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+		return {
+			fromDepth: this.link(VS_FULL, FS_OPEN_DEPTH).program,
+			float: this.link(VS_FULL, FS_OPEN_FLOAT).program,
+			scratch,
+			fbos,
+			raw,
+		};
+	}
+
+	/** Opens the near maps just drawn, as WebGpuView's openNearMaps. */
+	private openNearMaps(): void {
+		const gl = this.gl;
+		if (this.skyOpen === undefined) this.skyOpen = this.makeSkyOpen();
+		const o = this.skyOpen;
+		if (!o || !this.skyMaps) return;
+		const texel = (2 * SKY_NEAR * 1.75) / SKY_MAP;
+		const r = Math.max(1, Math.round(SKY_OPEN / 2 / texel));
+		const at = (prog: WebGLProgram, name: string) => gl.getUniformLocation(prog, name);
+		const func = gl.getParameter(gl.DEPTH_FUNC) as number;
+		gl.disable(gl.CULL_FACE);
+		gl.viewport(0, 0, SKY_MAP, SKY_MAP);
+		for (let k = 0; k < SKY_VIEWS; k++) {
+			// The farthest across, from the map's depth, into scratch 0.
+			gl.bindFramebuffer(gl.FRAMEBUFFER, o.fbos[0]);
+			gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
+			gl.disable(gl.DEPTH_TEST);
+			gl.useProgram(o.fromDepth);
+			gl.activeTexture(gl.TEXTURE12);
+			gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.skyMaps);
+			gl.bindSampler(12, o.raw);
+			gl.uniform1i(at(o.fromDepth, "srcDepth"), 12);
+			gl.uniform1i(at(o.fromDepth, "layer"), SKY_NEAR_LAYER + k);
+			gl.uniform4f(at(o.fromDepth, "f"), 1, 0, r, 0);
+			gl.drawArrays(gl.TRIANGLES, 0, 3);
+			gl.bindSampler(12, null);
+			gl.bindTexture(gl.TEXTURE_2D_ARRAY, null);
+			// The farthest down, then the nearest across, between the scratch maps.
+			gl.useProgram(o.float);
+			gl.uniform1i(at(o.float, "srcFloat"), 12);
+			for (const [into, from, step] of [
+				[1, 0, [0, 1, r, 0]],
+				[0, 1, [1, 0, r, 1]],
+			] as const) {
+				gl.bindFramebuffer(gl.FRAMEBUFFER, o.fbos[into]);
+				gl.bindTexture(gl.TEXTURE_2D, o.scratch[from]);
+				gl.uniform4f(at(o.float, "f"), step[0], step[1], step[2], step[3]);
+				gl.uniform1f(at(o.float, "toDepth"), 0);
+				gl.drawArrays(gl.TRIANGLES, 0, 3);
+			}
+			// The nearest down, back into the map's depth.
+			gl.bindFramebuffer(gl.FRAMEBUFFER, this.skyFbo);
+			gl.drawBuffers([gl.NONE]);
+			gl.framebufferTextureLayer(
+				gl.FRAMEBUFFER,
+				gl.DEPTH_ATTACHMENT,
+				this.skyMaps,
+				0,
+				SKY_NEAR_LAYER + k,
+			);
+			gl.enable(gl.DEPTH_TEST);
+			gl.depthFunc(gl.ALWAYS);
+			gl.depthMask(true);
+			gl.bindTexture(gl.TEXTURE_2D, o.scratch[0]);
+			gl.uniform4f(at(o.float, "f"), 0, 1, r, 1);
+			gl.uniform1f(at(o.float, "toDepth"), 1);
+			gl.drawArrays(gl.TRIANGLES, 0, 3);
+			gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, null, 0, 0);
+			gl.bindTexture(gl.TEXTURE_2D, null);
+		}
+		gl.activeTexture(gl.TEXTURE0);
+		gl.depthFunc(func);
+		gl.bindFramebuffer(gl.FRAMEBUFFER, this.skyFbo);
 	}
 
 	private use(prog: Program, camera: Camera, outline: boolean): void {

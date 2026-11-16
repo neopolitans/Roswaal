@@ -55,7 +55,9 @@ import {
 	SKY_GAIN,
 	SKY_LAYERS,
 	SKY_MAP,
+	SKY_NEAR,
 	SKY_NEAR_LAYER,
+	SKY_OPEN,
 	SKY_SEEN_LEAST,
 	SKY_VIEWS,
 	SUN_CASCADES,
@@ -2582,6 +2584,183 @@ struct VIn { @location(0) pos: vec3f, @location(2) c0: vec3f, @location(3) c1: v
 				group: d.createBindGroup({ layout, entries: [{ binding: 0, resource: { buffer } }] }),
 			};
 		});
+		this.makeSkyOpen();
+	}
+
+	// -- the near sky maps opened: thin occluders taken out ---------------------------
+
+	/** Two float scratch maps, and each pass's pipeline and bind groups. */
+	private skyOpen?: {
+		fromDepth: GPURenderPipeline;
+		float: GPURenderPipeline;
+		toDepth: GPURenderPipeline;
+		scratch: [GPUTexture, GPUTexture];
+		/** Pass 1 a near layer: its own depth into scratch 0. */
+		first: GPUBindGroup[];
+		/** Passes 2, 3 and 4: scratch 0 into 1, 1 into 0, 0 into the layer. */
+		rest: [GPUBindGroup, GPUBindGroup, GPUBindGroup];
+	};
+
+	/**
+	 * Opening each near sky map (the farthest depth over a few texels, then the
+	 * nearest): what is thinner than SKY_OPEN studs across, seen from the sky,
+	 * no longer hides it, as Studio's coarse lighting lets the sky past window
+	 * struts and rails; walls, floors and roofs still do.
+	 */
+	private makeSkyOpen(): void {
+		const d = this.device;
+		const module = d.createShaderModule({
+			code: /* wgsl */ `
+@group(0) @binding(0) var srcDepth: texture_depth_2d_array;
+@group(0) @binding(1) var srcFloat: texture_2d<f32>;
+// The step across the map, how many texels either side, and 1 for the nearest.
+@group(0) @binding(2) var<uniform> f: vec4f;
+@vertex fn vsFull(@builtin(vertex_index) i: u32) -> @builtin(position) vec4f {
+	let xy = vec2f(f32((i << 1u) & 2u), f32(i & 2u)) * 2.0 - 1.0;
+	return vec4f(xy, 0.0, 1.0);
+}
+fn texelAt(c: vec2i) -> vec2i { return clamp(c, vec2i(0), vec2i(${SKY_MAP - 1})); }
+@fragment fn fsFromDepth(@builtin(position) pos: vec4f) -> @location(0) vec4f {
+	let c = vec2i(pos.xy);
+	let st = vec2i(f.xy);
+	let r = i32(f.z);
+	var m = 0.0;
+	for (var j = -r; j <= r; j++) { m = max(m, textureLoad(srcDepth, texelAt(c + st * j), 0, 0)); }
+	return vec4f(m, 0.0, 0.0, 1.0);
+}
+fn along(pos: vec4f) -> f32 {
+	let c = vec2i(pos.xy);
+	let st = vec2i(f.xy);
+	let r = i32(f.z);
+	let least = f.w > 0.5;
+	var m = select(0.0, 2.0, least);
+	for (var j = -r; j <= r; j++) {
+		let v = textureLoad(srcFloat, texelAt(c + st * j), 0).r;
+		m = select(max(m, v), min(m, v), least);
+	}
+	return m;
+}
+@fragment fn fsFloat(@builtin(position) pos: vec4f) -> @location(0) vec4f { return vec4f(along(pos), 0.0, 0.0, 1.0); }
+@fragment fn fsToDepth(@builtin(position) pos: vec4f) -> @builtin(frag_depth) f32 { return along(pos); }
+`,
+		});
+		const layout = d.createBindGroupLayout({
+			entries: [
+				{
+					binding: 0,
+					visibility: STAGE.FRAGMENT,
+					texture: { sampleType: "depth", viewDimension: "2d-array" },
+				},
+				{ binding: 1, visibility: STAGE.FRAGMENT, texture: { sampleType: "unfilterable-float" } },
+				{ binding: 2, visibility: STAGE.FRAGMENT, buffer: {} },
+			],
+		});
+		const pipelineLayout = d.createPipelineLayout({ bindGroupLayouts: [layout] });
+		const toFloat = (entryPoint: string) =>
+			d.createRenderPipeline({
+				layout: pipelineLayout,
+				vertex: { module, entryPoint: "vsFull" },
+				fragment: { module, entryPoint, targets: [{ format: "r32float" }] },
+				primitive: { topology: "triangle-list" },
+			});
+		const toDepth = d.createRenderPipeline({
+			layout: pipelineLayout,
+			vertex: { module, entryPoint: "vsFull" },
+			fragment: { module, entryPoint: "fsToDepth", targets: [] },
+			primitive: { topology: "triangle-list" },
+			depthStencil: { format: "depth32float", depthWriteEnabled: true, depthCompare: "always" },
+		});
+		const scratch = [0, 1].map(() =>
+			d.createTexture({
+				size: [SKY_MAP, SKY_MAP],
+				format: "r32float",
+				usage: TEXTURE.RENDER_ATTACHMENT | TEXTURE.TEXTURE_BINDING,
+			}),
+		) as [GPUTexture, GPUTexture];
+		// SKY_OPEN studs across, as near maps' texels: see nearSkyInto.
+		const texel = (2 * SKY_NEAR * 1.75) / SKY_MAP;
+		const r = Math.max(1, Math.round(SKY_OPEN / 2 / texel));
+		const uniform = (v: number[]) => this.make(new Float32Array(v), BUFFER.UNIFORM);
+		const across = uniform([1, 0, r, 0]);
+		const passes = [uniform([0, 1, r, 0]), uniform([1, 0, r, 1]), uniform([0, 1, r, 1])];
+		// A layer not drawn into here, where a pass needs a depth view bound but reads none.
+		const idle = this.skyMaps.createView({
+			dimension: "2d-array",
+			baseArrayLayer: 0,
+			arrayLayerCount: 1,
+		});
+		const group = (depth: GPUTextureView, from: GPUTexture, buffer: GPUBuffer) =>
+			d.createBindGroup({
+				layout,
+				entries: [
+					{ binding: 0, resource: depth },
+					{ binding: 1, resource: from.createView() },
+					{ binding: 2, resource: { buffer } },
+				],
+			});
+		this.skyOpen = {
+			fromDepth: toFloat("fsFromDepth"),
+			float: toFloat("fsFloat"),
+			toDepth,
+			scratch,
+			first: Array.from({ length: SKY_VIEWS }, (_, k) =>
+				group(
+					this.skyMaps.createView({
+						dimension: "2d-array",
+						baseArrayLayer: SKY_NEAR_LAYER + k,
+						arrayLayerCount: 1,
+					}),
+					scratch[1],
+					across,
+				),
+			),
+			rest: [
+				group(idle, scratch[0], passes[0]),
+				group(idle, scratch[1], passes[1]),
+				group(idle, scratch[0], passes[2]),
+			],
+		};
+	}
+
+	/** Opens the near maps just drawn: see makeSkyOpen. */
+	private openNearMaps(encoder: GPUCommandEncoder): void {
+		const o = this.skyOpen;
+		if (!o) return;
+		const toScratch = (k: 0 | 1) => ({
+			colorAttachments: [
+				{ view: o.scratch[k].createView(), loadOp: "clear" as const, storeOp: "store" as const },
+			],
+		});
+		for (let k = 0; k < SKY_VIEWS; k++) {
+			const steps: [GPURenderPassDescriptor, GPURenderPipeline, GPUBindGroup][] = [
+				[toScratch(0), o.fromDepth, o.first[k]],
+				[toScratch(1), o.float, o.rest[0]],
+				[toScratch(0), o.float, o.rest[1]],
+				[
+					{
+						colorAttachments: [],
+						depthStencilAttachment: {
+							view: this.skyMaps.createView({
+								dimension: "2d",
+								baseArrayLayer: SKY_NEAR_LAYER + k,
+								arrayLayerCount: 1,
+							}),
+							depthLoadOp: "load",
+							depthStoreOp: "store",
+						},
+					},
+					o.toDepth,
+					o.rest[2],
+				],
+			];
+			for (const [desc, pipeline, bound] of steps) {
+				const pass = encoder.beginRenderPass(desc);
+				pass.setPipeline(pipeline);
+				pass.setBindGroup(0, bound);
+				pass.draw(3);
+				pass.end();
+			}
+		}
 	}
 
 	// -- the sun's cascades: see cascadeBlock ----------------------------------------
@@ -2672,6 +2851,7 @@ struct VIn { @location(0) pos: vec3f, @location(2) c0: vec3f, @location(3) c1: v
 			this.solids(pass);
 			pass.end();
 		});
+		if (which.near) this.openNearMaps(encoder);
 	}
 
 	setLook(layer: number, levels: readonly (HTMLCanvasElement | ImageBitmap)[]): void {
