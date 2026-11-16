@@ -9,6 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.254.0",
+		date: "2026-11-16",
+		headline: "A Rendering panel for the place viewer, and WebGL2 draws three times faster.",
+		added: [
+			"**The Rendering panel**, in the Panels menu while the place is in front. It draws the place lit in full, with global lighting with or without shadows, with no lighting or as a wireframe, or as a heatmap of what each pixel costs to draw or of the lights reaching it. Switches leave Neon glow, post effects, haze, the sky, Decals and Textures or see-through parts out of the view, and Last frame counts draw calls, instances and triangles and times the frame.",
+		],
+		changed: [
+			"**WebGL2 draws a busy view in about a third of the time**, as each pixel is now lit once, where the browser allows it.",
+		],
+		fixed: [
+			"**Unions** no longer show lines where the parts they were made from meet.",
+		],
+	},
+	{
 		version: "0.253.0",
 		date: "2026-11-16",
 		headline: "Is NaN, Is Infinite and Is Finite nodes; sun shadows reach as far as Studio's.",
