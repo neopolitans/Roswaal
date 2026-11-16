@@ -18,14 +18,16 @@
  *
  * The parts a union adds are drawn as ordinary parts, all in the union's
  * Material, Transparency and Reflectance; in the union's Color when
- * UsePartColor is on, else each in its own. What a union takes away (its
- * NegateOperations) and an IntersectOperation's overlap would need our own
- * CSG: until then a NegateOperation is left out, so the union is drawn
- * without the cut, and listed in `unionCuts`. An IntersectOperation is not
- * drawn, as the parts it was made from would draw more than it is.
+ * UsePartColor is on, else each in its own. What it takes away, its
+ * NegateOperations, is cut from them (see `csg.ts`), the faces of the cut in
+ * the colour the negated part would have been. A cut that cannot be made, as
+ * from a mesh, is left out, so the union is drawn without it, and listed in
+ * `unionCuts`. An IntersectOperation is not drawn, as the parts it was made
+ * from would draw more than it is.
  */
 
 import { assetIdOf } from "./browse.js";
+import { addedRows, type CsgNode, type CutFace, cutFaces, takes } from "./csg.js";
 import { type RbxInstance, stringProp } from "./dom.js";
 import { readRbx } from "./index.js";
 import {
@@ -37,7 +39,7 @@ import {
 	type SceneKind,
 	type SceneMesh,
 } from "./scene.js";
-import { sealedFaces } from "./seams.js";
+import { type SealedFace, sealedFaces } from "./seams.js";
 
 /** Roblox's asset type for the asset a union's AssetId names. */
 export const SOLID_MODEL_TYPE = 39;
@@ -132,16 +134,23 @@ export function childDataOf(asset: Uint8Array): RbxInstance[] | undefined {
 	}
 }
 
-/** The SolidModel assets the unions inside a ChildData name, which drawing it needs too. */
+/**
+ * The SolidModel assets the unions and NegateOperations inside a ChildData
+ * name, which drawing it needs too, as do those inside one held inline.
+ */
 export function nestedUnionAssets(roots: readonly RbxInstance[]): string[] {
 	const out: string[] = [];
 	const visit = (inst: RbxInstance) => {
-		if (inst.className === "UnionOperation" && !inlineChildData(inst)) {
-			const asset = unionAssetOf(inst);
-			if (asset) out.push(asset);
+		if (inst.className === "IntersectOperation") return;
+		if (inst.className === "UnionOperation" || inst.className === "NegateOperation") {
+			const own = inlineChildData(inst);
+			if (own) for (const root of own) visit(root);
+			else {
+				const asset = unionAssetOf(inst);
+				if (asset) out.push(asset);
+			}
 			return;
 		}
-		if (inst.className === "NegateOperation" || inst.className === "IntersectOperation") return;
 		for (const child of inst.children) visit(child);
 	};
 	for (const root of roots) visit(root);
@@ -228,61 +237,87 @@ interface Added {
 	seeThrough: Record<SceneKind, Float32Array[]>;
 	meshes: SceneMesh[];
 	meshSlots: Map<string, number>;
+	/** The faces each union's rows keep, by the rows' shapes and their tree: copies of one union are worked out once. */
+	kept: Map<string, { faces?: (SealedFace[] | CutFace[] | null)[]; missed: boolean }>;
+}
+
+/** A ChildData drawn: what it adds less what it takes, its rows named by their numbers from `leaves`. */
+interface Drawn {
+	add: CsgNode[];
+	take: CsgNode[];
+	/** Something in it could not be drawn: an IntersectOperation, or a NegateOperation whose shape is not here. */
+	missing: boolean;
 }
 
 /**
- * One union's ChildData drawn into `added`: its parts as rows with the
- * union's `id`, each mapped by `at`. Answers whether anything was left out
- * for want of our own CSG.
+ * One union's ChildData drawn into `added`: its parts as rows, each mapped by
+ * `at`, each named in its id by a number of its own from `leaves`, and the
+ * tree of what is added and taken that those numbers make.
  */
 function drawChildData(
 	roots: readonly RbxInstance[],
 	at: Affine,
 	paint: UnionPaint,
 	ownColours: boolean,
-	id: number,
+	leaves: { next: number },
 	models: ReadonlyMap<string, readonly RbxInstance[]>,
 	added: Added,
 	depth: number,
-): boolean {
-	let cut = false;
+): Drawn {
+	const drawn: Drawn = { add: [], take: [], missing: false };
 	const level: RbxInstance[] = [];
+	const leafOf = new Map<RbxInstance, number>();
 	const visit = (inst: RbxInstance) => {
-		if (inst.className === "NegateOperation" || inst.className === "IntersectOperation") {
-			cut = true;
+		if (inst.className === "IntersectOperation") {
+			drawn.missing = true;
 			return;
 		}
-		if (inst.className === "UnionOperation") {
-			// A union inside: its own ChildData, in its own frame inside this one.
+		if (inst.className === "UnionOperation" || inst.className === "NegateOperation") {
+			// A union inside, or what is taken away: its own ChildData, in its own
+			// frame inside this one.
+			const negate = inst.className === "NegateOperation";
 			const inner = inlineChildData(inst) ?? models.get(unionAssetOf(inst) ?? "");
 			const cf = inst.props.get("CFrame")?.value as
 				| { position: number[]; rotation: number[] }
 				| undefined;
-			if (!inner || !cf || depth > 8) return;
+			if (!inner || !cf || depth > 8) {
+				if (negate) drawn.missing = true;
+				return;
+			}
 			// Where this level keeps its own colours, the inner union is one part
 			// among them: in its own Color, or each of its parts in theirs.
 			const own = ownColours && inst.props.get("UsePartColor")?.value !== true;
 			const innerPaint = ownColours
 				? { ...paint, rgb: vec3(inst, "Color3uint8") ?? paint.rgb }
 				: paint;
-			cut =
-				drawChildData(
-					inner,
-					then(at, affineOf(cf, stretchOf(inst))),
-					innerPaint,
-					own,
-					id,
-					models,
-					added,
-					depth + 1,
-				) || cut;
+			const got = drawChildData(
+				inner,
+				then(at, affineOf(cf, stretchOf(inst))),
+				innerPaint,
+				own,
+				leaves,
+				models,
+				added,
+				depth + 1,
+			);
+			if (got.missing) drawn.missing = true;
+			const node: CsgNode = { add: got.add, take: got.take };
+			if (!negate) drawn.add.push(...(got.take.length === 0 ? got.add : [node]));
+			// A NegateOperation of NegateOperations adds back what they take.
+			else if (got.add.length === 0) drawn.add.push(...got.take);
+			else drawn.take.push(node);
 			return;
 		}
-		if (DRAWN.has(inst.className)) level.push(painted(inst, paint, ownColours));
-		else for (const child of inst.children) visit(child);
+		if (DRAWN.has(inst.className)) {
+			const part = painted(inst, paint, ownColours);
+			const leaf = leaves.next++;
+			leafOf.set(part, leaf);
+			drawn.add.push(leaf);
+			level.push(part);
+		} else for (const child of inst.children) visit(child);
 	};
 	for (const root of roots) visit(root);
-	if (level.length === 0) return cut;
+	if (level.length === 0) return drawn;
 
 	const workspace: RbxInstance = {
 		className: "Workspace",
@@ -292,7 +327,7 @@ function drawChildData(
 		props: new Map(),
 		service: true,
 	};
-	const scene = buildPlaceScene(workspace, () => id);
+	const scene = buildPlaceScene(workspace, (inst) => leafOf.get(inst));
 	// Each of this level's meshes, by its slot in the scene being added to.
 	const slots = (scene.meshes ?? []).map((mesh) => {
 		const key = JSON.stringify(mesh);
@@ -322,7 +357,7 @@ function drawChildData(
 			}
 			to[kind].push(out);
 		}
-	return cut;
+	return drawn;
 }
 
 /** Rows moved by `at`, in place: their axes turned and their middles mapped. */
@@ -361,13 +396,23 @@ function inverse(m: number[]): number[] | undefined {
 
 const fine = (v: number) => Math.round(v * 1e7) / 1e7 + 0;
 
+/** `node` with each of its rows' numbers from `leaves` as its place in `rows`; rows not drawn are left out. */
+function byRow(node: CsgNode, place: ReadonlyMap<number, number>): CsgNode | undefined {
+	if (typeof node === "number") return place.get(node);
+	const add = node.add.flatMap((n) => byRow(n, place) ?? []);
+	const take = node.take.flatMap((n) => byRow(n, place) ?? []);
+	return { add, take };
+}
+
 /**
  * One union's rows, in its own space as ChildData has them, into `added` in
- * the world. Where its flat-faced parts meet (see `seams.ts`), they are drawn
- * as one shape a colour, a mesh of the faces they keep, whose row is the
- * union's own box; the rest are its parts' rows, moved by its frame.
+ * the world, made of what `tree` adds less what it takes. Where its parts meet
+ * or are cut (see `seams.ts` and `csg.ts`), they are drawn as one shape a
+ * colour, a mesh of the faces they keep, whose row is the union's own box;
+ * the rest are its parts' rows, moved by its frame. Answers whether a cut
+ * could not be made.
  */
-function sealInto(local: Added, use: SceneUnion, added: Added): void {
+function sealInto(local: Added, use: SceneUnion, added: Added, tree: CsgNode): boolean {
 	const at: Affine = { m: use.frame.slice(0, 9), p: use.frame.slice(9, 12) };
 	const rows: { set: "solid" | "seeThrough"; kind: SceneKind; row: Float32Array }[] = [];
 	for (const set of ["solid", "seeThrough"] as const)
@@ -375,6 +420,20 @@ function sealInto(local: Added, use: SceneUnion, added: Added): void {
 			for (const chunk of local[set][kind])
 				for (let o = 0; o < chunk.length; o += SCENE_STRIDE)
 					rows.push({ set, kind, row: chunk.subarray(o, o + SCENE_STRIDE) });
+	// Each row's number from `leaves`, in its id, and the union's id there instead.
+	const place = new Map<number, number>();
+	rows.forEach(({ row }, r) => {
+		const words = new Uint32Array(row.buffer, row.byteOffset, SCENE_STRIDE);
+		place.set(words[13], r);
+		words[13] = use.id;
+	});
+	const ours = byRow(tree, place) ?? { add: [], take: [] };
+	// Drawn as they are when nothing can be cut: what is added, and nothing taken.
+	const shown = addedRows(ours);
+	const plain = (r: number) => {
+		const { set, kind, row } = rows[r];
+		if (shown.has(r)) added[set][kind].push(mapRows(row.slice(), at));
+	};
 	// The box's axes are its columns; as a row-major 3x3.
 	const unbox = inverse(
 		Array.from({ length: 9 }, (_, n) => use.box[(n % 3) * 3 + Math.floor(n / 3)]),
@@ -390,20 +449,39 @@ function sealInto(local: Added, use: SceneUnion, added: Added): void {
 	const normals = toUnit && inverse(toUnit.m);
 	// A row's look holds a mesh's slot in 15 bits.
 	const room = added.meshes.length + rows.length < 0x7fff;
-	const faces = toUnit && normals && room ? sealedFaces(rows) : undefined;
+	const cuts = takes(ours);
+	let faces: (SealedFace[] | CutFace[] | null)[] | undefined;
+	let missed = cuts;
+	if (toUnit && normals && room) {
+		// The faces are the rows' shapes', whatever their colours.
+		const key = `${JSON.stringify(ours)} ${rows.map(({ kind, row }) => `${kind} ${new Uint32Array(row.buffer, row.byteOffset, 12).join()}`).join(" ")}`;
+		let got = added.kept.get(key);
+		if (!got) {
+			if (!cuts) got = { faces: sealedFaces(rows), missed: false };
+			else {
+				const cut = cutFaces(rows, ours);
+				// A row taken away that is no solid is a cut not made.
+				const missing = cut.faces.some((f, r) => f === null && !shown.has(r));
+				got = { faces: cut.changed ? cut.faces : undefined, missed: missing };
+			}
+			added.kept.set(key, got);
+		}
+		faces = got.faces;
+		missed = got.missed;
+	}
 	if (!toUnit || !normals || !faces) {
-		for (const { set, kind, row } of rows) added[set][kind].push(mapRows(row.slice(), at));
-		return;
+		for (let r = 0; r < rows.length; r++) plain(r);
+		return missed;
 	}
 	// Each colour and look's faces, as one mesh.
 	const groups = new Map<
 		string,
 		{ set: "solid" | "seeThrough"; colour: number; look: number; v: number[]; i: number[] }
 	>();
-	rows.forEach(({ set, kind, row }, r) => {
+	rows.forEach(({ set, row }, r) => {
 		const kept = faces[r];
 		if (!kept) {
-			added[set][kind].push(mapRows(row.slice(), at));
+			plain(r);
 			return;
 		}
 		const words = new Uint32Array(row.buffer, row.byteOffset, SCENE_STRIDE);
@@ -413,15 +491,21 @@ function sealInto(local: Added, use: SceneUnion, added: Added): void {
 			group = { set, colour: words[12], look: words[14], v: [], i: [] };
 			groups.set(key, group);
 		}
-		for (const face of kept) {
-			// Normals turn by the inverse's transpose.
+		// Normals turn by the inverse's transpose.
+		const unit = (v: ArrayLike<number>) => {
 			const n = [0, 1, 2].map(
-				(k) => normals[k] * face.n[0] + normals[3 + k] * face.n[1] + normals[6 + k] * face.n[2],
+				(k) => normals[k] * v[0] + normals[3 + k] * v[1] + normals[6 + k] * v[2],
 			);
 			const length = Math.hypot(n[0], n[1], n[2]) || 1;
+			return n.map((x) => fine(x / length));
+		};
+		for (const face of kept as CutFace[]) {
+			const flat = unit(face.n);
 			const base = group.v.length / 6;
-			for (const p of face.points)
-				group.v.push(...apply(toUnit, p).map(fine), ...n.map((x) => fine(x / length)));
+			face.points.forEach((p, k) => {
+				const round = face.normals?.[k];
+				group.v.push(...apply(toUnit, p).map(fine), ...(round ? unit(round) : flat));
+			});
 			for (let k = 1; k < face.points.length - 1; k++) group.i.push(base, base + k, base + k + 1);
 		}
 	});
@@ -438,6 +522,7 @@ function sealInto(local: Added, use: SceneUnion, added: Added): void {
 		const look = ((group.look & 0x8000ffff) | ((slot + 1) << 16)) >>> 0;
 		added[group.set].mesh.push(instanceData([...use.box, group.colour, use.id, look]));
 	}
+	return missed;
 }
 
 /**
@@ -492,6 +577,7 @@ export function addUnions<T extends PlaceScene>(
 		seeThrough: Object.fromEntries(SCENE_KINDS.map((k) => [k, []])) as unknown as Added["solid"],
 		meshes,
 		meshSlots: new Map(meshes.map((mesh, slot) => [JSON.stringify(mesh), slot])),
+		kept: new Map(),
 	};
 	const cuts = [...(scene.unionCuts ?? [])];
 	const empty = () =>
@@ -501,9 +587,19 @@ export function addUnions<T extends PlaceScene>(
 		// Its parts in its own space first, to be made one surface there.
 		const local: Added = { ...added, solid: empty(), seeThrough: empty() };
 		const paint = use.paint;
-		if (drawChildData(roots, IDENTITY, paint, !paint.usePartColor, use.id, models, local, 0))
-			cuts.push(use.id);
-		sealInto(local, use, added);
+		const leaves = { next: 0 };
+		const drawn = drawChildData(
+			roots,
+			IDENTITY,
+			paint,
+			!paint.usePartColor,
+			leaves,
+			models,
+			local,
+			0,
+		);
+		const tree: CsgNode = { add: drawn.add, take: drawn.take };
+		if (sealInto(local, use, added, tree) || drawn.missing) cuts.push(use.id);
 	}
 	const join = (
 		from: PlaceScene["kinds"],

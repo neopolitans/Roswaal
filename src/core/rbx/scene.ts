@@ -86,7 +86,7 @@ export interface PlaceScene {
 	unions?: SceneUnion[];
 	/** The unions in `unions` drawn so far, by row; the rest wait for their SolidModel asset. */
 	unionsDrawn?: number[];
-	/** The unions drawn without what they take away, which needs our own CSG, by row. */
+	/** The unions drawn without a cut that could not be made (from a mesh, or an IntersectOperation's), by row. */
 	unionCuts?: number[];
 }
 

@@ -1,8 +1,8 @@
 /**
  * Unions in the viewport's scene, drawn as the parts they were made from:
  * ChildData's parts placed by the union's CFrame and how far it has been
- * stretched since it was made, painted as the union says, its subtractions
- * left out and counted.
+ * stretched since it was made, painted as the union says, and what it
+ * takes away cut from them.
  */
 
 import { describe, expect, it } from "vitest";
@@ -285,70 +285,70 @@ describe("a union in the scene", () => {
 	});
 });
 
+/** A block of `size` at `position`, in `rgb`. */
+const block = (position: number[], size: number[], rgb = [10, 20, 30]) =>
+	inst("Part", {
+		CFrame: at(position),
+		size: ["Vector3", size],
+		Color3uint8: ["Color3uint8", rgb],
+		shape: ["Enum", 1],
+	});
+/** A union at `position`, square to the world, `size` now and `made` when it was made. */
+const square = (
+	position: number[],
+	size: number[],
+	made = size,
+	props: Record<string, [PropType, unknown]> = {},
+) =>
+	union({
+		CFrame: at(position),
+		size: ["Vector3", size],
+		InitialSize: ["Vector3", made],
+		...props,
+	});
+
+/** A made mesh row's triangles in the world: area, and whether each faces the way its normal says. */
+function surface(scene: PlaceScene, set: "kinds" | "translucent" = "kinds") {
+	const { data, count } = scene[set].mesh;
+	const words = new Uint32Array(data.buffer, data.byteOffset, count * SCENE_STRIDE);
+	return Array.from({ length: count }, (_, r) => {
+		const o = r * SCENE_STRIDE;
+		const made = scene.meshes?.[(words[o + 14] >>> 16) - 1]?.made;
+		if (!made) return undefined;
+		const world = (v: number) =>
+			[0, 1, 2].map(
+				(k) =>
+					data[o + 9 + k] +
+					data[o + k] * made.vertices[v * 6] +
+					data[o + 3 + k] * made.vertices[v * 6 + 1] +
+					data[o + 6 + k] * made.vertices[v * 6 + 2],
+			);
+		let area = 0;
+		let outward = true;
+		for (let t = 0; t < made.indices.length; t += 3) {
+			const [a, b, c] = [0, 1, 2].map((k) => world(made.indices[t + k]));
+			const u = b.map((x, k) => x - a[k]);
+			const w = c.map((x, k) => x - a[k]);
+			const n = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
+			area += Math.hypot(n[0], n[1], n[2]) / 2;
+			// The stored normal, turned as the shaders turn it: the row's axes over their lengths squared.
+			const v = made.indices[t];
+			const s = [0, 1, 2].map((k) =>
+				Math.hypot(data[o + k * 3], data[o + k * 3 + 1], data[o + k * 3 + 2]),
+			);
+			const said = [0, 1, 2].map((k) =>
+				[0, 1, 2].reduce(
+					(sum, j) => sum + data[o + j * 3 + k] * (made.vertices[v * 6 + 3 + j] / s[j] ** 2),
+					0,
+				),
+			);
+			if (n[0] * said[0] + n[1] * said[1] + n[2] * said[2] <= 0) outward = false;
+		}
+		return { area: round(area), triangles: made.indices.length / 3, outward };
+	});
+}
+
 describe("a union's parts where they meet", () => {
-	/** A block of `size` at `position`, in `rgb`. */
-	const block = (position: number[], size: number[], rgb = [10, 20, 30]) =>
-		inst("Part", {
-			CFrame: at(position),
-			size: ["Vector3", size],
-			Color3uint8: ["Color3uint8", rgb],
-			shape: ["Enum", 1],
-		});
-	/** A union at `position`, square to the world, `size` now and `made` when it was made. */
-	const square = (
-		position: number[],
-		size: number[],
-		made = size,
-		props: Record<string, [PropType, unknown]> = {},
-	) =>
-		union({
-			CFrame: at(position),
-			size: ["Vector3", size],
-			InitialSize: ["Vector3", made],
-			...props,
-		});
-
-	/** A made mesh row's triangles in the world: area, and whether each faces the way its normal says. */
-	function surface(scene: PlaceScene, set: "kinds" | "translucent" = "kinds") {
-		const { data, count } = scene[set].mesh;
-		const words = new Uint32Array(data.buffer, data.byteOffset, count * SCENE_STRIDE);
-		return Array.from({ length: count }, (_, r) => {
-			const o = r * SCENE_STRIDE;
-			const made = scene.meshes?.[(words[o + 14] >>> 16) - 1]?.made;
-			if (!made) return undefined;
-			const world = (v: number) =>
-				[0, 1, 2].map(
-					(k) =>
-						data[o + 9 + k] +
-						data[o + k] * made.vertices[v * 6] +
-						data[o + 3 + k] * made.vertices[v * 6 + 1] +
-						data[o + 6 + k] * made.vertices[v * 6 + 2],
-				);
-			let area = 0;
-			let outward = true;
-			for (let t = 0; t < made.indices.length; t += 3) {
-				const [a, b, c] = [0, 1, 2].map((k) => world(made.indices[t + k]));
-				const u = b.map((x, k) => x - a[k]);
-				const w = c.map((x, k) => x - a[k]);
-				const n = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
-				area += Math.hypot(n[0], n[1], n[2]) / 2;
-				// The stored normal, turned as the shaders turn it: the row's axes over their lengths squared.
-				const v = made.indices[t];
-				const s = [0, 1, 2].map((k) =>
-					Math.hypot(data[o + k * 3], data[o + k * 3 + 1], data[o + k * 3 + 2]),
-				);
-				const said = [0, 1, 2].map((k) =>
-					[0, 1, 2].reduce(
-						(sum, j) => sum + data[o + j * 3 + k] * (made.vertices[v * 6 + 3 + j] / s[j] ** 2),
-						0,
-					),
-				);
-				if (n[0] * said[0] + n[1] * said[1] + n[2] * said[2] <= 0) outward = false;
-			}
-			return { area: round(area), triangles: made.indices.length / 3, outward };
-		});
-	}
-
 	it("has no faces between two parts placed edge to edge: one shape, on its own box", () => {
 		const parts = solidModel(block([-0.5, 0, 0], [1, 1, 1]), block([0.5, 0, 0], [1, 1, 1]));
 		const scene = addUnions(sceneOf(square([0, 5, 0], [2, 1, 1])), models("55", parts));
@@ -439,5 +439,240 @@ describe("a union's parts where they meet", () => {
 		const scene = addUnions(sceneOf(square([0, 0, 0], [3, 1, 1])), models("55", parts));
 		expect(rowsOf(scene).map((r) => r.kind)).toEqual(["block", "block", "ball"]);
 		expect(scene.meshes).toBeUndefined();
+	});
+});
+
+/** The volume a scene's made meshes close in, in the world: positive when every face faces out. */
+function volume(scene: PlaceScene, set: "kinds" | "translucent" = "kinds"): number {
+	const { data, count } = scene[set].mesh;
+	const words = new Uint32Array(data.buffer, data.byteOffset, count * SCENE_STRIDE);
+	let sum = 0;
+	for (let r = 0; r < count; r++) {
+		const o = r * SCENE_STRIDE;
+		const made = scene.meshes?.[(words[o + 14] >>> 16) - 1]?.made;
+		if (!made) continue;
+		const world = (v: number) =>
+			[0, 1, 2].map(
+				(k) =>
+					data[o + 9 + k] +
+					data[o + k] * made.vertices[v * 6] +
+					data[o + 3 + k] * made.vertices[v * 6 + 1] +
+					data[o + 6 + k] * made.vertices[v * 6 + 2],
+			);
+		for (let t = 0; t < made.indices.length; t += 3) {
+			const [a, b, c] = [0, 1, 2].map((k) => world(made.indices[t + k]));
+			sum +=
+				(a[0] * (b[1] * c[2] - b[2] * c[1]) +
+					a[1] * (b[2] * c[0] - b[0] * c[2]) +
+					a[2] * (b[0] * c[1] - b[1] * c[0])) /
+				6;
+		}
+	}
+	return round(sum);
+}
+
+/** A NegateOperation at `position` holding `parts`, in its own frame. */
+const negate = (position: number[], parts: RbxInstance[], rotation = IDENTITY) =>
+	inst("NegateOperation", {
+		CFrame: at(position, rotation),
+		size: ["Vector3", [1, 1, 1]],
+		Color3uint8: ["Color3uint8", [255, 0, 255]],
+		ChildData: ["String", model(...parts)],
+	});
+const cutOf = (size: number[], ...parts: RbxInstance[]) =>
+	addUnions(sceneOf(square([0, 0, 0], size)), models("55", solidModel(...parts)));
+/** Half a turn about X: a wedge's slope then faces up and forward. */
+const HALF_X = [1, 0, 0, 0, -1, 0, 0, 0, -1];
+
+describe("what a union takes away", () => {
+	it("is a hole through a block, its walls facing into it", () => {
+		const scene = cutOf(
+			[4, 2, 4],
+			block([0, 0, 0], [4, 2, 4]),
+			negate([0, 0, 0], [block([0, 0, 0], [2, 4, 2])]),
+		);
+		// Top and bottom less the hole, four sides, and the hole's four walls.
+		expect(surface(scene)).toEqual([
+			expect.objectContaining({ area: 2 * 12 + 4 * 8 + 4 * 4, outward: true }),
+		]);
+		expect(volume(scene)).toBe(32 - 8);
+		expect(scene.unionCuts).toEqual([]);
+	});
+
+	it("is a notch at a corner", () => {
+		const scene = cutOf(
+			[2, 2, 2],
+			block([0, 0, 0], [2, 2, 2]),
+			negate([1, 1, 1], [block([0, 0, 0], [2, 2, 2])]),
+		);
+		// Three faces of one taken from outside, three of the notch's in their place.
+		expect(surface(scene)).toEqual([expect.objectContaining({ area: 24, outward: true })]);
+		expect(volume(scene)).toBe(7);
+	});
+
+	it("is a bevel where a wedge takes an edge away", () => {
+		const scene = cutOf(
+			[2, 2, 2],
+			block([0, 0, 0], [2, 2, 2]),
+			negate(
+				[0, 0.5, -0.5],
+				[inst("WedgePart", { CFrame: at([0, 0, 0], HALF_X), size: ["Vector3", [2, 1, 1]] })],
+			),
+		);
+		// A strip of two from the top and the front, a half from each side, and the slope.
+		expect(surface(scene)).toEqual([
+			expect.objectContaining({ area: round(24 - 2 - 2 - 1 + 2 * Math.SQRT2), outward: true }),
+		]);
+		expect(volume(scene)).toBe(7);
+	});
+
+	it("leaves nothing between faces where the cut is flush with them", () => {
+		// Half the block taken, flush on five of its faces: a box of 1x2x2.
+		const half = cutOf(
+			[2, 2, 2],
+			block([0, 0, 0], [2, 2, 2]),
+			negate([0.5, 0, 0], [block([0, 0, 0], [1, 2, 2])]),
+		);
+		expect(surface(half)).toEqual([expect.objectContaining({ area: 16, outward: true })]);
+		expect(volume(half)).toBe(4);
+		// A pocket open at the top: its floor and walls, and the top around it.
+		const pocket = cutOf(
+			[4, 2, 4],
+			block([0, 0, 0], [4, 2, 4]),
+			negate([0, 0.5, 0], [block([0, 0, 0], [2, 1, 2])]),
+		);
+		expect(surface(pocket)).toEqual([
+			expect.objectContaining({ area: 12 + 4 + 8 + 16 + 32, outward: true }),
+		]);
+		expect(volume(pocket)).toBe(28);
+	});
+
+	it("changes nothing where what it takes is outside it", () => {
+		const scene = cutOf(
+			[1, 1, 1],
+			block([0, 0, 0], [1, 1, 1]),
+			negate([5, 0, 0], [block([0, 0, 0], [1, 1, 1])]),
+		);
+		expect(rowsOf(scene).map((r) => [r.kind, r.p])).toEqual([["block", [0, 0, 0]]]);
+		expect(scene.unionCuts).toEqual([]);
+	});
+
+	it("paints the cut in the colour the negated part has, where the union's parts keep their own", () => {
+		const own = square([0, 0, 0], [4, 2, 4], [4, 2, 4], { UsePartColor: ["Bool", false] });
+		const parts = solidModel(
+			block([0, 0, 0], [4, 2, 4], [0, 0, 255]),
+			negate([0, 0, 0], [block([0, 0, 0], [2, 4, 2], [0, 255, 0])]),
+		);
+		const scene = addUnions(sceneOf(own), models("55", parts));
+		const areas = surface(scene).map((s) => s?.area);
+		const painted = rowsOf(scene).map((r, i) => [r.kind, r.rgb, areas[i]]);
+		// The block's outside in its own colour; the hole's walls in the negated part's.
+		expect(painted).toEqual(
+			expect.arrayContaining([
+				["mesh", [0, 0, 255], 24 + 32],
+				["mesh", [0, 255, 0], 16],
+			]),
+		);
+		expect(painted).toHaveLength(2);
+		expect(volume(scene)).toBe(24);
+	});
+
+	it("never draws what it takes away on its own, and says when it cannot cut", () => {
+		const alone = cutOf([2, 2, 2], negate([0, 0, 0], [block([0, 0, 0], [2, 2, 2])]));
+		expect(rowsOf(alone)).toEqual([]);
+		const mesh = inst("MeshPart", {
+			CFrame: at([0, 0, 0]),
+			size: ["Vector3", [1, 1, 1]],
+			MeshId: ["String", utf8.encode("rbxassetid://900")],
+		});
+		const scene = cutOf([2, 2, 2], block([0, 0, 0], [2, 2, 2]), negate([0, 0, 0], [mesh]));
+		expect(rowsOf(scene).map((r) => r.kind)).toEqual(["block"]);
+		expect(scene.unionCuts).toEqual([3]);
+	});
+});
+
+describe("what a union takes away, round or nested", () => {
+	it("takes away a union that has holes of its own, leaving what was in them", () => {
+		// A tube taken from a block: the tube's core stays, a pillar in a moat.
+		const tube = inst("UnionOperation", {
+			CFrame: at([0, 0, 0]),
+			size: ["Vector3", [2, 2, 2]],
+			InitialSize: ["Vector3", [2, 2, 2]],
+			ChildData: [
+				"String",
+				model(block([0, 0, 0], [2, 2, 2]), negate([0, 0, 0], [block([0, 0, 0], [1, 4, 1])])),
+			],
+		});
+		const taken = inst("NegateOperation", {
+			CFrame: at([0, 0, 0]),
+			size: ["Vector3", [2, 2, 2]],
+			ChildData: ["String", model(tube)],
+		});
+		const scene = cutOf([4, 2, 4], block([0, 0, 0], [4, 2, 4]), taken);
+		// Top and bottom less the moat, four sides, the moat's walls and the pillar's.
+		expect(surface(scene)).toEqual([
+			expect.objectContaining({ area: 2 * 13 + 32 + 16 + 8, outward: true }),
+		]);
+		expect(volume(scene)).toBe(32 - 6);
+	});
+
+	it("cuts a union inside it in that union's frame, and adds back a NegateOperation of NegateOperations", () => {
+		const notched = inst("UnionOperation", {
+			CFrame: at([5, 0, 0]),
+			size: ["Vector3", [2, 2, 2]],
+			InitialSize: ["Vector3", [2, 2, 2]],
+			ChildData: [
+				"String",
+				model(block([0, 0, 0], [2, 2, 2]), negate([1, 1, 1], [block([0, 0, 0], [2, 2, 2])])),
+			],
+		});
+		expect(volume(cutOf([2, 2, 2], notched))).toBe(7);
+		const twice = inst("NegateOperation", {
+			CFrame: at([0.5, 0, 0]),
+			size: ["Vector3", [1, 1, 1]],
+			ChildData: ["String", model(negate([0, 0, 0], [block([0, 0, 0], [1, 1, 1])]))],
+		});
+		const scene = cutOf([2, 1, 1], block([-0.5, 0, 0], [1, 1, 1]), twice);
+		expect(surface(scene)).toEqual([{ area: 10, triangles: 20, outward: true }]);
+	});
+
+	it("is a round hole where a cylinder is taken, its walls smooth", () => {
+		const post = inst(
+			"Part",
+			{ CFrame: at([0, 0, 0]), size: ["Vector3", [2, 2, 2]], shape: ["Enum", 1] },
+			[inst("CylinderMesh", {})],
+		);
+		const scene = cutOf([4, 1, 4], block([0, 0, 0], [4, 1, 4]), negate([0, 0, 0], [post]));
+		// The polygon the renderers draw: 32 sides round a circle of one.
+		const disc = 16 * Math.sin(Math.PI / 16);
+		const rim = 64 * Math.sin(Math.PI / 32);
+		expect(surface(scene)).toEqual([
+			expect.objectContaining({ area: round(2 * (16 - disc) + 16 + rim), outward: true }),
+		]);
+		expect(volume(scene)).toBe(round(16 - disc));
+		// The wall's normals lean round the hole, not one a face.
+		const made = scene.meshes?.[0].made;
+		const normals = new Set<string>();
+		for (let v = 0; made && v < made.vertices.length / 6; v++) {
+			const [x, , z, nx, ny, nz] = made.vertices.slice(v * 6, v * 6 + 6);
+			if (Math.abs(ny) < 1e-6 && Math.hypot(x, z) < 0.3) normals.add([nx, nz].map(round).join());
+		}
+		expect(normals.size).toBe(32);
+	});
+
+	it("is a hollow where a ball is taken from inside it", () => {
+		const ball = inst("Part", {
+			CFrame: at([0, 0, 0]),
+			size: ["Vector3", [1, 1, 1]],
+			shape: ["Enum", 0],
+		});
+		const scene = cutOf([2, 2, 2], block([0, 0, 0], [2, 2, 2]), negate([0, 0, 0], [ball]));
+		const [shape] = surface(scene);
+		// The polygon is a little inside the ball it stands for.
+		expect(shape?.outward).toBe(true);
+		expect(shape?.area).toBeGreaterThan(24 + 0.9 * Math.PI);
+		expect(shape?.area).toBeLessThan(24 + Math.PI);
+		expect(volume(scene)).toBeGreaterThan(8 - Math.PI / 6);
+		expect(volume(scene)).toBeLessThan(8 - 0.9 * (Math.PI / 6));
 	});
 });

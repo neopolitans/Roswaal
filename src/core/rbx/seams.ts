@@ -14,7 +14,7 @@
 
 import { SCENE_STRIDE, type SceneKind } from "./scene.js";
 
-type V = [number, number, number];
+export type V = [number, number, number];
 
 /** A flat face: its corners counter-clockwise from outside, and its plane `n · x = d`, `n` outward. */
 export interface SealedFace {
@@ -24,11 +24,11 @@ export interface SealedFace {
 }
 
 /** How near, in studs, a face must be to another part's face to lie against it. */
-const NEAR = 1e-3;
+export const NEAR = 1e-3;
 
 const h = 0.5;
 /** The unit shapes as `geometry.ts` draws them, each face counter-clockwise from outside. */
-const UNIT_FACES: Partial<Record<SceneKind, V[][]>> = {
+export const UNIT_FACES: Partial<Record<SceneKind, V[][]>> = {
 	block: [
 		[
 			[h, -h, -h],
@@ -127,7 +127,8 @@ const UNIT_FACES: Partial<Record<SceneKind, V[][]>> = {
 	],
 };
 
-const dot = (a: ArrayLike<number>, b: ArrayLike<number>) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+export const dot = (a: ArrayLike<number>, b: ArrayLike<number>) =>
+	a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 
 /** A polygon's normal times twice its area (Newell's method). */
 function areaNormal(points: readonly V[]): V {
@@ -142,9 +143,9 @@ function areaNormal(points: readonly V[]): V {
 	return n;
 }
 
-const area = (points: readonly V[]) => Math.hypot(...areaNormal(points)) / 2;
+export const area = (points: readonly V[]) => Math.hypot(...areaNormal(points)) / 2;
 
-interface Solid {
+export interface Solid {
 	faces: SealedFace[];
 	min: V;
 	max: V;
@@ -153,7 +154,11 @@ interface Solid {
 /** A row's shape as a convex solid, its faces in the row's space; none for a round shape, a mesh, or one too thin to have sides. */
 function solidOf(kind: SceneKind, row: ArrayLike<number>): Solid | undefined {
 	const unit = UNIT_FACES[kind];
-	if (!unit) return undefined;
+	return unit && solidFrom(unit, row);
+}
+
+/** A convex unit shape's faces, counter-clockwise from outside, placed by a row: a solid in the row's space, or none when the row is flat. */
+export function solidFrom(unit: readonly V[][], row: ArrayLike<number>): Solid | undefined {
 	const det =
 		row[0] * (row[4] * row[8] - row[5] * row[7]) -
 		row[3] * (row[1] * row[8] - row[2] * row[7]) +
@@ -187,7 +192,7 @@ function solidOf(kind: SceneKind, row: ArrayLike<number>): Solid | undefined {
 }
 
 /** The part of `points` where `n · x <= d`, or none. */
-function below(points: readonly V[], n: V, d: number): V[] | undefined {
+export function below(points: readonly V[], n: V, d: number): V[] | undefined {
 	const out: V[] = [];
 	for (let i = 0; i < points.length; i++) {
 		const a = points[i];
@@ -203,7 +208,7 @@ function below(points: readonly V[], n: V, d: number): V[] | undefined {
 	return out.length >= 3 ? out : undefined;
 }
 
-const flip = (n: V): V => [-n[0], -n[1], -n[2]];
+export const flip = (n: V): V => [-n[0], -n[1], -n[2]];
 
 /**
  * What of `points`, on `face`, `solid` leaves showing. `earlier` says the
@@ -246,7 +251,7 @@ function uncovered(points: V[], face: SealedFace, solid: Solid, earlier: boolean
 	return kept;
 }
 
-const overlaps = (a: Solid, b: Solid) =>
+export const overlaps = (a: Solid, b: Solid) =>
 	[0, 1, 2].every((k) => a.min[k] <= b.max[k] + NEAR && b.min[k] <= a.max[k] + NEAR);
 
 /**
