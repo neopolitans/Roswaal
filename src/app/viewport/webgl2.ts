@@ -15,6 +15,7 @@ import { LIGHT_STRIDE, type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../
 import { boxEdges, meshFor, sceneGlows } from "./geometry.js";
 import { HANDLE_KINDS, type Handles, handleMesh } from "./handles.js";
 import { invert, lookAt, multiply, perspective } from "./math.js";
+import { lightGridFor } from "./prepare.js";
 import { TEXTURE_LEVELS, TEXTURE_SIZE } from "./textures.js";
 import {
 	backToFront,
@@ -37,7 +38,6 @@ import {
 	type ImageQuad,
 	imageOrder,
 	imageQuads,
-	lightGrid,
 	type MeshGeometry,
 	postActive,
 	SELECT,
@@ -774,6 +774,7 @@ export class WebGl2View implements ViewRenderer {
 		});
 		if (!gl) throw new Error("no WebGL2");
 		this.gl = gl;
+		await this.linkAhead();
 		this.main = this.link(VS, FS);
 		// The material table: the same for every frame, so set once.
 		gl.useProgram(this.main.program);
@@ -1043,6 +1044,55 @@ export class WebGl2View implements ViewRenderer {
 		return vao;
 	}
 
+	/**
+	 * The programs init links, linked side by side before it starts where the
+	 * browser can (KHR_parallel_shader_compile), and waited for between tasks:
+	 * asking a program whether it linked holds the page until the driver has
+	 * compiled it, which is most of a second for these. A pair not listed
+	 * links when it is asked for, as every one did before.
+	 */
+	private static readonly PROGRAMS: readonly (readonly [string, string])[] = [
+		[VS, FS],
+		[VS, FS_ID],
+		[VS_OVER, FS_OVER],
+		[VS_SKY, FS_SKY],
+		[VS_IMAGE, FS_IMAGE],
+		[VS, FS_GLOW],
+		[VS_FULL, FS_BLUR],
+		[VS_FULL, FS_DOWN],
+		[VS_FULL, FS_COMPOSITE],
+		[VS_DEPTH, FS_DEPTH],
+	];
+	private linked = new Map<string, { program: WebGLProgram; shaders: WebGLShader[] }>();
+
+	private async linkAhead(): Promise<void> {
+		const gl = this.gl;
+		const parallel = gl.getExtension("KHR_parallel_shader_compile");
+		if (!parallel) return;
+		for (const [vs, fs] of WebGl2View.PROGRAMS) {
+			const program = gl.createProgram()!;
+			const shaders = (
+				[
+					[gl.VERTEX_SHADER, vs],
+					[gl.FRAGMENT_SHADER, fs],
+				] as const
+			).map(([type, src]) => {
+				const s = gl.createShader(type)!;
+				gl.shaderSource(s, src);
+				gl.compileShader(s);
+				gl.attachShader(program, s);
+				return s;
+			});
+			gl.linkProgram(program);
+			this.linked.set(`${vs}\0${fs}`, { program, shaders });
+		}
+		const done = () =>
+			[...this.linked.values()].every(({ program }) =>
+				gl.getProgramParameter(program, parallel.COMPLETION_STATUS_KHR),
+			);
+		while (!done()) await new Promise((resolve) => setTimeout(resolve, 8));
+	}
+
 	private link(vs: string, fs: string): Program {
 		const gl = this.gl;
 		const compile = (type: number, src: string) => {
@@ -1053,12 +1103,20 @@ export class WebGl2View implements ViewRenderer {
 				throw new Error(gl.getShaderInfoLog(s) ?? "shader");
 			return s;
 		};
-		const program = gl.createProgram()!;
-		gl.attachShader(program, compile(gl.VERTEX_SHADER, vs));
-		gl.attachShader(program, compile(gl.FRAGMENT_SHADER, fs));
-		gl.linkProgram(program);
-		if (!gl.getProgramParameter(program, gl.LINK_STATUS))
+		const ahead = this.linked.get(`${vs}\0${fs}`);
+		this.linked.delete(`${vs}\0${fs}`);
+		const program = ahead?.program ?? gl.createProgram()!;
+		if (!ahead) {
+			gl.attachShader(program, compile(gl.VERTEX_SHADER, vs));
+			gl.attachShader(program, compile(gl.FRAGMENT_SHADER, fs));
+			gl.linkProgram(program);
+		}
+		if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+			for (const s of ahead?.shaders ?? [])
+				if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+					throw new Error(gl.getShaderInfoLog(s) ?? "shader");
 			throw new Error(gl.getProgramInfoLog(program) ?? "link");
+		}
 		const at = (n: string) => gl.getUniformLocation(program, n);
 		return {
 			program,
@@ -1359,7 +1417,7 @@ export class WebGl2View implements ViewRenderer {
 		if (key === this.lightKey && this.lightKey !== -1) return;
 		this.lightKey = key;
 		for (const t of this.lightTextures) gl.deleteTexture(t);
-		const grid = lightGrid(lights);
+		const grid = lightGridFor(lights);
 		const count = Math.max(1, (lights?.length ?? 0) / LIGHT_STRIDE);
 		const data = new Float32Array(count * LIGHT_STRIDE);
 		if (lights) data.set(lights);
@@ -1895,7 +1953,7 @@ export class WebGl2View implements ViewRenderer {
 		gl.uniform1f(veil, 0);
 	}
 
-	setLook(layer: number, levels: HTMLCanvasElement[]): void {
+	setLook(layer: number, levels: readonly (HTMLCanvasElement | ImageBitmap)[]): void {
 		const gl = this.gl;
 		gl.activeTexture(gl.TEXTURE1);
 		gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.looks);

@@ -33,6 +33,7 @@ import {
 	type ViewportController,
 } from "./viewport/controller.js";
 import { fader } from "./viewport/fade.js";
+import { prepareScene } from "./viewport/prepare.js";
 import { readSpeed, SPEED_MAX, SPEED_MIN, SPEED_STEP, speedText } from "./viewport/speed.js";
 import { useWorkspaceControls } from "./Workspace.jsx";
 
@@ -81,6 +82,9 @@ export function Viewport({
 				const tree = await api.place();
 				if (tree.file === null) throw new Error("The project has no place file.");
 				const scene = await api.placeScene(tree.stamp);
+				if (stale) return;
+				// The lights' grid off the page, so the place does not hold it.
+				await prepareScene(scene);
 				if (stale) return;
 				controller.setPlace({ ...scene, outline: tree.outline });
 				setProblem(null);

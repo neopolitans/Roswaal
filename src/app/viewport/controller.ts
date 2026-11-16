@@ -26,6 +26,7 @@ import {
 import { loadMeshes } from "./meshes.js";
 import { clampSpeed, SPEED_NOTCH } from "./speed.js";
 import { layersUsed, loadLayer } from "./textures.js";
+import { trickle } from "./trickle.js";
 import {
 	type Camera,
 	FOV,
@@ -460,14 +461,51 @@ export class ViewportController {
 				levels.catch(() => this.looks.delete(layer));
 			}
 			levels.then(
-				(ready) => {
-					if (this.view !== view) return;
-					view.setLook(layer, ready);
-					this.redraw();
-				},
+				(ready) =>
+					this.upload(view, `look:${layer}`, ready, async () => {
+						// WebGL2 reads a canvas back from the GPU as it uploads it, waiting on
+						// whatever the GPU is doing; a bitmap made first is only copied.
+						if (view.backend !== "WebGL2") {
+							if (this.view === view) view.setLook(layer, ready);
+							return;
+						}
+						const bitmaps = await Promise.all(
+							ready.map((level) => createImageBitmap(level, { premultiplyAlpha: "none" })),
+						);
+						if (this.view === view) view.setLook(layer, bitmaps);
+						for (const bitmap of bitmaps) bitmap.close();
+					}),
 				() => {},
 			);
 		}
+	}
+
+	/** Textures go to the GPU a few a frame: see `trickle`. */
+	private uploads = trickle();
+	/** What each view has been given, by what it is, so a place sent again is not uploaded again. */
+	private given = new WeakMap<ViewRenderer, Map<string, unknown>>();
+
+	/** Whether `view` has been given `value` as `what`, and nothing since. */
+	private gave(view: ViewRenderer, what: string, value: unknown): boolean {
+		const had = this.given.get(view);
+		return had !== undefined && had.has(what) && had.get(what) === value;
+	}
+
+	/**
+	 * Gives `view` `value` as `what` through `set`, in its turn among the
+	 * uploads, unless the view is gone or already has that value.
+	 */
+	private upload(view: ViewRenderer, what: string, value: unknown, set: () => unknown): void {
+		if (this.gave(view, what, value)) return;
+		this.uploads.add(async () => {
+			if (this.view !== view || this.gave(view, what, value)) return;
+			await set();
+			if (this.view !== view) return;
+			let had = this.given.get(view);
+			if (!had) this.given.set(view, (had = new Map()));
+			had.set(what, value);
+			this.redraw();
+		});
 	}
 
 	private images = new Map<string, Promise<ImageBitmap | null>>();
@@ -498,14 +536,13 @@ export class ViewportController {
 				});
 		}
 		for (const asset of wanted) {
-			void this.images
-				.get(asset)
-				?.then((image) => image && forView(view, image))
-				.then((image) => {
-					if (!image || this.view !== view) return;
-					view.setImage(asset, image);
-					this.redraw();
+			void this.images.get(asset)?.then((image) => {
+				if (!image || this.view !== view) return;
+				this.upload(view, `image:${asset}`, image, async () => {
+					const ready = await forView(view, image);
+					if (this.view === view) view.setImage(asset, ready);
 				});
+			});
 		}
 	}
 
@@ -520,7 +557,7 @@ export class ViewportController {
 		const box = lighting.skybox;
 		if (!box) {
 			this.sky = null;
-			view.setSky(null);
+			this.upload(view, "sky", null, () => view.setSky(null));
 			return;
 		}
 		const ids = SKY_FACES.map((face) => box[face]);
@@ -548,13 +585,19 @@ export class ViewportController {
 				if (!held && this.sky?.key === key) this.sky = null;
 			});
 		}
-		void this.sky.faces
-			.then((faces) => faces && Promise.all(faces.map((face) => forView(view, face))))
-			.then((faces) => {
-				if (!faces || this.view !== view) return;
-				view.setSky(faces);
-				this.redraw();
+		void this.sky.faces.then((faces) => {
+			if (!faces || this.view !== view || this.gave(view, "sky", faces)) return;
+			// Each face readied in a turn of its own, then all six into the view at once.
+			const ready: ImageBitmap[] = [];
+			faces.forEach((face, i) => {
+				this.uploads.add(async () => {
+					if (this.view === view) ready[i] = await forView(view, face);
+				});
 			});
+			this.upload(view, "sky", faces, () => {
+				if (ready.filter(Boolean).length === faces.length) view.setSky(ready);
+			});
+		});
 	}
 
 	/** Meshes read, kept for the session by asset id; null for one that did not arrive or read. */
@@ -621,7 +664,7 @@ export class ViewportController {
 		const asset = lighting.sunImage?.asset;
 		if (!asset) {
 			this.sunImage = null;
-			view.setSunImage(null);
+			this.upload(view, "sun", null, () => view.setSunImage(null));
 			return;
 		}
 		if (this.sunImage?.asset !== asset) {
@@ -637,13 +680,13 @@ export class ViewportController {
 				if (!held && this.sunImage?.asset === asset) this.sunImage = null;
 			});
 		}
-		void this.sunImage.image
-			.then((image) => image && forView(view, image))
-			.then((image) => {
-				if (!image || this.view !== view) return;
-				view.setSunImage(image);
-				this.redraw();
+		void this.sunImage.image.then((image) => {
+			if (!image || this.view !== view) return;
+			this.upload(view, "sun", image, async () => {
+				const ready = await forView(view, image);
+				if (this.view === view) view.setSunImage(ready);
 			});
+		});
 	}
 
 	/** One pick at a time: WebGPU reads a pick back through one buffer. */

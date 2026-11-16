@@ -55,7 +55,7 @@ export interface ViewRenderer {
 	/** The instance id under a pixel, or -1 for the sky. */
 	pick(camera: Camera, x: number, y: number): Promise<number>;
 	/** A material texture, as its mip levels, into its layer; drawn from then on. */
-	setLook(layer: number, levels: HTMLCanvasElement[]): void;
+	setLook(layer: number, levels: readonly (HTMLCanvasElement | ImageBitmap)[]): void;
 	/**
 	 * A Decal's or Texture's image, by the asset id the scene's `images` name;
 	 * the faces showing it are drawn from then on.
@@ -305,48 +305,87 @@ export function lightHash(cx: number, cy: number, cz: number): number {
 /**
  * Each hash's lights: `table` holds an offset into `index` and a count per
  * hash, `index` the lights' numbers. A light is listed in every cell its
- * Range reaches, once a hash.
+ * Range reaches, once a hash: a hash's lists in the order they were first
+ * reached, each list's lights in their own order.
+ *
+ * A place's lights reach hundreds of thousands of cells, so this keeps to
+ * typed arrays and plain numbers: every (hash, light) pair once, then sorted
+ * into place by hash.
  */
 export function lightGrid(lights: readonly number[] | undefined): {
 	table: Uint32Array;
 	index: Uint32Array;
 } {
-	const buckets = new Map<number, Set<number>>();
-	const count = (lights?.length ?? 0) / LIGHT_STRIDE;
+	const l = lights ?? [];
+	const count = l.length / LIGHT_STRIDE;
+	// The light last listed under each hash, to list each light once a hash.
+	const last = new Int32Array(LIGHT_TABLE).fill(-1);
+	const sizes = new Uint32Array(LIGHT_TABLE);
+	// Hashes in the order they were first reached.
+	const first: number[] = [];
+	let pairs = new Uint32Array(1 << 16);
+	let n = 0;
 	for (let i = 0; i < count; i++) {
 		const o = i * LIGHT_STRIDE;
-		const c = [lights![o], lights![o + 1], lights![o + 2]];
+		const cx = l[o];
+		const cy = l[o + 1];
+		const cz = l[o + 2];
 		// A SurfaceLight reaches its Range from anywhere on its face.
 		const face =
-			lights![o + 7] === LIGHT_SURFACE
-				? Math.hypot(lights![o + 12], lights![o + 13], lights![o + 14]) +
-					Math.hypot(lights![o + 16], lights![o + 17], lights![o + 18])
+			l[o + 7] === LIGHT_SURFACE
+				? Math.hypot(l[o + 12], l[o + 13], l[o + 14]) + Math.hypot(l[o + 16], l[o + 17], l[o + 18])
 				: 0;
-		const reach = lights![o + 3] + face;
-		const lo = c.map((v) => Math.floor((v - reach) / LIGHT_CELL));
-		const hi = c.map((v) => Math.floor((v + reach) / LIGHT_CELL));
-		for (let x = lo[0]; x <= hi[0]; x++)
-			for (let y = lo[1]; y <= hi[1]; y++)
-				for (let z = lo[2]; z <= hi[2]; z++) {
-					// The cell's nearest point to the light, against the reach.
-					const near = [x, y, z].map((k, a) =>
-						Math.min(Math.max(c[a], k * LIGHT_CELL), (k + 1) * LIGHT_CELL),
-					);
-					if (Math.hypot(near[0] - c[0], near[1] - c[1], near[2] - c[2]) > reach) continue;
-					const h = lightHash(x, y, z);
-					let set = buckets.get(h);
-					if (!set) buckets.set(h, (set = new Set()));
-					set.add(i);
+		const reach = l[o + 3] + face;
+		// Squared distances settle all but a hair's breadth either side of the
+		// reach, where Math.hypot -- the test itself -- decides.
+		const inside = reach * reach * (1 - 1e-9);
+		const outside = reach * reach * (1 + 1e-9);
+		const x1 = Math.floor((cx + reach) / LIGHT_CELL);
+		const y1 = Math.floor((cy + reach) / LIGHT_CELL);
+		const z1 = Math.floor((cz + reach) / LIGHT_CELL);
+		for (let x = Math.floor((cx - reach) / LIGHT_CELL); x <= x1; x++) {
+			// The cell's nearest point to the light, against the reach.
+			const dx = Math.min(Math.max(cx, x * LIGHT_CELL), (x + 1) * LIGHT_CELL) - cx;
+			const hx = Math.imul(x, 73856093);
+			for (let y = Math.floor((cy - reach) / LIGHT_CELL); y <= y1; y++) {
+				const dy = Math.min(Math.max(cy, y * LIGHT_CELL), (y + 1) * LIGHT_CELL) - cy;
+				const dxy = dx * dx + dy * dy;
+				if (dxy >= outside) continue;
+				const hxy = hx ^ Math.imul(y, 19349663);
+				for (let z = Math.floor((cz - reach) / LIGHT_CELL); z <= z1; z++) {
+					const dz = Math.min(Math.max(cz, z * LIGHT_CELL), (z + 1) * LIGHT_CELL) - cz;
+					const d = dxy + dz * dz;
+					if (d >= outside || (d > inside && Math.hypot(dx, dy, dz) > reach)) continue;
+					// lightHash(x, y, z), its x and y parts kept from the loops above.
+					const h = ((hxy ^ Math.imul(z, 83492791)) >>> 0) & (LIGHT_TABLE - 1);
+					if (last[h] === i) continue;
+					last[h] = i;
+					if (sizes[h]++ === 0) first.push(h);
+					if (n * 2 === pairs.length) {
+						const more = new Uint32Array(pairs.length * 2);
+						more.set(pairs);
+						pairs = more;
+					}
+					pairs[n * 2] = h;
+					pairs[n * 2 + 1] = i;
+					n++;
 				}
+			}
+		}
 	}
 	const table = new Uint32Array(LIGHT_TABLE * 2);
-	const index: number[] = [];
-	for (const [h, set] of buckets) {
-		table[h * 2] = index.length;
-		table[h * 2 + 1] = set.size;
-		index.push(...set);
+	let at = 0;
+	for (const h of first) {
+		table[h * 2] = at;
+		table[h * 2 + 1] = sizes[h];
+		at += sizes[h];
 	}
-	return { table, index: new Uint32Array(index.length > 0 ? index : [0]) };
+	const index = new Uint32Array(Math.max(1, n));
+	// Each hash's next free slot: pairs come in light order, so each list stays in it.
+	const next = new Uint32Array(LIGHT_TABLE);
+	for (const h of first) next[h] = table[h * 2];
+	for (let p = 0; p < n; p++) index[next[pairs[p * 2]]++] = pairs[p * 2 + 1];
+	return { table, index };
 }
 
 /**

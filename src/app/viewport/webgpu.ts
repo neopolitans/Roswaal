@@ -15,6 +15,7 @@ import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene
 import { boxEdges, meshFor, sceneGlows } from "./geometry.js";
 import { HANDLE_KINDS, type Handles, handleMesh } from "./handles.js";
 import { invert, lookAt, multiply, perspective } from "./math.js";
+import { lightGridFor } from "./prepare.js";
 import { TEXTURE_LEVELS, TEXTURE_SIZE } from "./textures.js";
 import {
 	backToFront,
@@ -37,7 +38,6 @@ import {
 	type ImageQuad,
 	imageOrder,
 	imageQuads,
-	lightGrid,
 	type MeshGeometry,
 	postActive,
 	SELECT,
@@ -2008,7 +2008,7 @@ export class WebGpuView implements ViewRenderer {
 		if (key === this.lightKey && this.lightKey !== -1) return;
 		this.lightKey = key;
 		const old = this.lightBuffers;
-		const grid = lightGrid(lights);
+		const grid = lightGridFor(lights);
 		const store = (data: Float32Array | Uint32Array) => {
 			const buffer = d.createBuffer({
 				size: Math.max(16, data.byteLength),
@@ -2156,7 +2156,7 @@ struct VIn { @location(0) pos: vec3f, @location(2) c0: vec3f, @location(3) c1: v
 		});
 	}
 
-	setLook(layer: number, levels: HTMLCanvasElement[]): void {
+	setLook(layer: number, levels: readonly (HTMLCanvasElement | ImageBitmap)[]): void {
 		levels.forEach((source, mipLevel) => {
 			this.device.queue.copyExternalImageToTexture(
 				{ source },
