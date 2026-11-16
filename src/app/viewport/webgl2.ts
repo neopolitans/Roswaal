@@ -12,7 +12,7 @@
 import { type LightingParams, lightingBlock } from "../../core/rbx/lighting.js";
 import { MATERIAL_TEXTURES, MATERIALS, materialBlock } from "../../core/rbx/materials.js";
 import { LIGHT_STRIDE, type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene.js";
-import { boxEdges, meshFor, sceneGlows } from "./geometry.js";
+import { boxEdges, featureEdges, meshFor, sceneGlows } from "./geometry.js";
 import { HANDLE_KINDS, type Handles, handleMesh } from "./handles.js";
 import { invert, lookAt, multiply, perspective } from "./math.js";
 import { lightGridFor } from "./prepare.js";
@@ -23,6 +23,7 @@ import {
 	CASCADE_BLOCK,
 	CASCADE_MAP,
 	type Camera,
+	COST_FULL,
 	cascadeBlock,
 	DEFAULT_RENDER,
 	FOV,
@@ -39,8 +40,10 @@ import {
 	type ImageQuad,
 	imageOrder,
 	imageQuads,
+	LIGHTS_FULL,
 	type MeshGeometry,
 	postActive,
+	RENDER_MODE_CODE,
 	type RenderSettings,
 	type RenderStats,
 	SELECT,
@@ -61,6 +64,8 @@ import {
 
 const COMMON = `
 uniform vec4 L[11];
+// The Rendering panel: its mode (RENDER_MODE_CODE), and whether haze is drawn.
+uniform vec4 R;
 // As WebGpuView's sunLight.
 vec3 sunLight(vec3 dir) {
 	float a = dot(dir, L[0].xyz);
@@ -292,6 +297,34 @@ vec3 partLights(vec3 p, vec3 n, vec3 v, float gloss, out vec3 shine) {
 	shine *= 1.25;
 	return sum * 1.25;
 }
+// The Rendering panel's heatmaps, as WebGpuView's lightWork: the lights p is
+// tested against, and those that reach it.
+vec2 lightWork(vec3 p, vec3 n) {
+	uint h = lightCell(p);
+	uvec2 b = texelFetch(lightTable, ivec2(int(h & 255u), int(h >> 8u)), 0).xy;
+	uint count = min(b.y, 64u);
+	float reached = 0.0;
+	for (uint j = 0u; j < count; j++) {
+		uint idx = b.x + j;
+		int i = int(texelFetch(lightIndex, ivec2(int(idx & 1023u), int(idx >> 10u)), 0).r);
+		vec4 a = texelFetch(lightData, ivec2(0, i), 0);
+		vec4 col = texelFetch(lightData, ivec2(1, i), 0);
+		vec4 d = texelFetch(lightData, ivec2(2, i), 0);
+		vec3 at = a.xyz;
+		if (col.w > 1.5) {
+			vec3 su = texelFetch(lightData, ivec2(3, i), 0).xyz;
+			vec3 sv = texelFetch(lightData, ivec2(4, i), 0).xyz;
+			vec3 off = p - a.xyz;
+			at = a.xyz + su * clamp(dot(off, su) / max(dot(su, su), 1e-6), -1.0, 1.0) + sv * clamp(dot(off, sv) / max(dot(sv, sv), 1e-6), -1.0, 1.0);
+		}
+		vec3 to = at - p;
+		float dist = length(to);
+		if (dist >= a.w || dot(n, to) <= 0.0) continue;
+		if (col.w > 0.5 && dot(-to / max(dist, 1e-4), d.xyz) <= cos(d.w)) continue;
+		reached += 1.0;
+	}
+	return vec2(float(count), reached);
+}
 float skyVisibility(vec3 p, vec3 n) {
 	if (skyInfo.w < 0.5) return 1.0;
 	vec3 q = p + n * skyInfo.x * 1.5;
@@ -387,6 +420,9 @@ vec4 surface(vec3 colour, vec3 n, vec3 world, float alpha, uint look, vec3 local
 		float rim = pow(1.0 - abs(dot(n, v)), 2.0);
 		c = albedo * (0.6 + rim * 2.5);
 		alpha *= clamp(0.15 + rim * 0.85, 0.0, 1.0);
+	} else if (R.x > 2.5) {
+		// No lighting: the colour and material as they are.
+		c = albedo;
 	} else {
 		vec3 l = L[0].xyz;
 		float ndl = max(dot(n, l), 0.0);
@@ -394,11 +430,18 @@ vec4 surface(vec3 colour, vec3 n, vec3 world, float alpha, uint look, vec3 local
 		float spec = pow(max(dot(n, h), 0.0), a.y) * a.x * pat.y;
 		// Ambient everywhere, OutdoorAmbient and the sky as far as the sky
 		// reaches, and the sun where it does, as WebGpuView's surface.
-		float vis = skyVisibility(world, n);
-		vec3 lit = L[1].rgb * ndl * sunSees(world, n);
+		// The modes, as WebGpuView's surface leaves them out.
+		float vis = 1.0;
+		float sunK = 1.0;
+		if (R.x < 1.5) {
+			vis = skyVisibility(world, n);
+			sunK = sunSees(world, n);
+		}
+		vec3 lit = L[1].rgb * ndl * sunK;
 		vec3 fill = (vec3(L[8].w, L[9].w, L[10].w) + L[2].rgb * vis) * (0.9 + 0.1 * n.y);
-		vec3 lampShine;
-		vec3 lamps = partLights(world, n, v, a.y * 2.0, lampShine);
+		vec3 lampShine = vec3(0.0);
+		vec3 lamps = vec3(0.0);
+		if (R.x < 0.5) lamps = partLights(world, n, v, a.y * 2.0, lampShine);
 		c = albedo * (1.0 - a.z * 0.6) * (fill + lit + lamps) + mix(vec3(1.0), albedo, a.z) * (spec * lit + lampShine * a.x * pat.y * 4.6);
 		vec3 seen = sky(reflect(-v, n)) * max(vis, 0.05);
 		c += seen * albedo * a.z * a.x * 0.25;
@@ -407,7 +450,8 @@ vec4 surface(vec3 colour, vec3 n, vec3 world, float alpha, uint look, vec3 local
 		c = mix(c, seen, mirror);
 		c += lavaLight(pat.z) * 2.2;
 	}
-	return vec4(air(c, d, world.y), alpha);
+	if (R.y > 0.5) c = air(c, d, world.y);
+	return vec4(c, alpha);
 }
 `;
 const VS = `#version 300 es
@@ -489,12 +533,26 @@ ${SKY_VIS}
 ${SURFACE}
 ${LOG_DEPTH}
 out vec4 o;
+float heat(vec3 n) {
+	int row = int(vLook & 255u);
+	vec4 a = M[row * 3];
+	vec4 b = M[row * 3 + 1];
+	if (R.x > 5.5) return lightWork(vWorld, n).y / ${LIGHTS_FULL}.0;
+	float cost = 2.0;
+	if (a.w > 0.0) cost += 2.0;
+	if (b.w > 0.5) cost += 1.0;
+	if (b.y > 0.5 && b.y < 1.5) return cost / ${COST_FULL}.0;
+	cost += 7.0;
+	vec2 w = lightWork(vWorld, n);
+	return (cost + w.x + w.y * 1.5) / ${COST_FULL}.0;
+}
 void main() {
 #ifdef LOG_DEPTH
 	gl_FragDepth = handle > 0.5 ? logDepth() * 0.01 : logDepth();
 #endif
 	vec3 n = normalize(vNormal);
 	if (outline > 0.5) o = vec4(vColour, vAlpha);
+	else if (handle < 0.5 && R.x > 4.5) o = vec4(heat(n), 0.0, 0.0, 1.0);
 	else if (handle > 0.5) o = vec4(pow(vColour * (0.72 + 0.38 * max(dot(n, normalize(vec3(0.4, 1.0, 0.25))), 0.0)), vec3(1.0 / 2.2)), alpha);
 	else {
 		vec4 s = surface(vColour, n, vWorld, vAlpha, vLook, vLocal, vLNormal);
@@ -503,6 +561,12 @@ void main() {
 		o = vec4(shade > 0.5 && shade < 1.5 ? pow(min(s.rgb, vec3(1.0)), vec3(1.0 / 2.2)) : display(s.rgb), s.a);
 	}
 }`;
+// Wireframe only: each part's edges, as WebGpuView's fsWire.
+const FS_WIRE = `#version 300 es
+precision highp float;
+in vec3 vColour;
+out vec4 o;
+void main() { o = vec4(pow(mix(vColour, vec3(1.0), 0.3), vec3(1.0 / 2.2)), 0.85); }`;
 // A Decal's or Texture's image on its face, as WebGpuView's vsImage and fsImage draw it.
 const VS_IMAGE = `#version 300 es
 layout(location=0) in vec3 pos; layout(location=1) in vec3 nrm; layout(location=2) in vec2 uv; layout(location=3) in vec4 tint;
@@ -539,11 +603,20 @@ void main() {
 	vec3 albedo = pow(t.rgb, vec3(2.2)) * pow(vTint.rgb, vec3(2.2));
 	vec3 n = normalize(vNormal);
 	float ndl = max(dot(n, L[0].xyz), 0.0);
-	float vis = skyVisibility(vWorld, n);
+	float vis = 1.0;
+	float sunK = 1.0;
+	if (R.x < 1.5) {
+		vis = skyVisibility(vWorld, n);
+		sunK = sunSees(vWorld, n);
+	}
 	vec3 fill = (vec3(L[8].w, L[9].w, L[10].w) + L[2].rgb * vis) * (0.9 + 0.1 * n.y);
 	vec3 lampShine;
-	vec3 c = albedo * (fill + L[1].rgb * ndl * sunSees(vWorld, n) + partLights(vWorld, n, n, 1.0, lampShine));
-	o = vec4(display(air(c, length(L[6].xyz - vWorld), vWorld.y)), t.a * vTint.a);
+	vec3 lamps = vec3(0.0);
+	if (R.x < 0.5) lamps = partLights(vWorld, n, n, 1.0, lampShine);
+	vec3 c = albedo * (fill + L[1].rgb * ndl * sunK + lamps);
+	if (R.x > 2.5) c = albedo;
+	if (R.y > 0.5) c = air(c, length(L[6].xyz - vWorld), vWorld.y);
+	o = vec4(display(c), t.a * vTint.a);
 }`;
 const VS_SKY = `#version 300 es
 out vec2 ndc;
@@ -634,8 +707,21 @@ const FS_COMPOSITE = `#version 300 es
 precision highp float;
 in vec2 uv; uniform sampler2D tex; uniform sampler2D frame; uniform sampler2D wide; uniform vec4 p;
 uniform vec4 grade0; uniform vec4 grade1; out vec4 o;
+vec3 heatColour(float h, bool lights) {
+	if (lights && h < 0.01) return vec3(0.03, 0.03, 0.04);
+	float t = clamp(h, 0.0, 1.0);
+	if (t < 0.3) return mix(vec3(0.03, 0.22, 0.06), vec3(0.1, 0.72, 0.16), t / 0.3);
+	if (t < 0.55) return mix(vec3(0.1, 0.72, 0.16), vec3(0.95, 0.85, 0.12), (t - 0.3) / 0.25);
+	if (t < 0.8) return mix(vec3(0.95, 0.85, 0.12), vec3(0.9, 0.14, 0.06), (t - 0.55) / 0.25);
+	return mix(vec3(0.9, 0.14, 0.06), vec3(1.0), (t - 0.8) / 0.2);
+}
 void main() {
 	vec3 f = texelFetch(frame, ivec2(gl_FragCoord.xy), 0).rgb;
+	// A heatmap (p.w 1, or 2 for lights): the frame holds shares, not colours.
+	if (p.w > 0.5) {
+		o = vec4(heatColour(f.r, p.w > 1.5), 1.0);
+		return;
+	}
 	// The glow spreads over Decals and Textures too, as WebGpuView's fsComposite.
 	// Narrow and wide blurs added, as WebGpuView's fsComposite.
 	vec3 g = (texture(tex, uv).rgb * ${GLOW_NARROW.weight} + texture(wide, uv).rgb * ${GLOW_WIDE.weight}) * p.z;
@@ -721,6 +807,14 @@ interface ClipControl {
 	clipControlEXT(origin: number, depth: number): void;
 }
 
+/** A draw's mesh and buffers, for its wireframe's edges, and those edges once made. */
+interface WireSource {
+	mesh: { vertices: Float32Array; indices: Uint16Array | Uint32Array };
+	vertices: WebGLBuffer;
+	instances: WebGLBuffer;
+	edges?: { vao: WebGLVertexArrayObject; count: number };
+}
+
 export class WebGl2View implements ViewRenderer {
 	readonly backend = "WebGL2" as const;
 	private gl!: WebGL2RenderingContext;
@@ -764,12 +858,16 @@ export class WebGl2View implements ViewRenderer {
 		indexCount: number;
 		type: number;
 		count: number;
+		/** What a wireframe's edges are found from, and its edges once asked for. */
+		wire: WireSource;
 	}[] = [];
 	private clear: {
 		vao: WebGLVertexArrayObject;
 		indexCount: number;
 		type: number;
 		count: number;
+		/** What a wireframe's edges are found from, and its edges once asked for. */
+		wire: WireSource;
 		instances: WebGLBuffer;
 		source: Float32Array;
 		sorted: Float32Array;
@@ -781,6 +879,8 @@ export class WebGl2View implements ViewRenderer {
 		indexCount: number;
 		type: number;
 		count: number;
+		/** What a wireframe's edges are found from, and its edges once asked for. */
+		wire: WireSource;
 	}[] = [];
 	private glassHides = true;
 	private scene?: PlaceScene;
@@ -808,14 +908,65 @@ export class WebGl2View implements ViewRenderer {
 	}
 
 	/** The Rendering panel's mode and switches: see `RenderSettings`. */
-	protected render: RenderSettings = DEFAULT_RENDER;
+	private render: RenderSettings = DEFAULT_RENDER;
 
 	setRender(render: RenderSettings): void {
 		this.render = render;
 	}
 
+	/** This frame's draw calls, instances and triangles, and the last frame's. */
+	private tally = { draws: 0, instances: 0, triangles: 0 };
+	private lastTally = { draws: 0, instances: 0, triangles: 0 };
+	private cpuMs = 0;
+
+	/** WebGL2 does not time the GPU here. */
 	stats(): RenderStats {
-		return { draws: 0, instances: 0, triangles: 0, cpu: 0, gpu: null };
+		return { ...this.lastTally, cpu: this.cpuMs, gpu: null };
+	}
+
+	private count(draws: { indexCount: number; count: number }[]): void {
+		for (const d of draws) {
+			this.tally.instances += d.count;
+			this.tally.triangles += (d.count * d.indexCount) / 3;
+		}
+	}
+
+	/** Wireframe only: each draw's edges, found the first time they are asked for. */
+	private wireProgram?: Program;
+	private edgeCache = new WeakMap<object, Uint32Array>();
+	private drawWires(
+		camera: Camera,
+		draws: { count: number; indexCount: number; wire: WireSource }[],
+	): void {
+		const gl = this.gl;
+		this.wireProgram ??= this.link(VS, FS_WIRE);
+		this.use(this.wireProgram, camera, false);
+		gl.disable(gl.DEPTH_TEST);
+		gl.enable(gl.BLEND);
+		gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+		for (const d of draws) {
+			const w = d.wire;
+			if (!w.edges) {
+				let found = this.edgeCache.get(w.mesh);
+				if (!found) {
+					found = featureEdges(w.mesh);
+					this.edgeCache.set(w.mesh, found);
+				}
+				// Made with no VAO bound, so none takes its index buffer.
+				gl.bindVertexArray(null);
+				const eb = this.buffer(gl.ELEMENT_ARRAY_BUFFER, found);
+				this.sceneBuffers.push(eb);
+				w.edges = { vao: this.vao(w.vertices, w.instances, eb), count: found.length };
+			}
+			if (w.edges.count === 0) continue;
+			gl.bindVertexArray(w.edges.vao);
+			gl.drawElementsInstanced(gl.LINES, w.edges.count, gl.UNSIGNED_INT, 0, d.count);
+			this.tally.draws++;
+		}
+		gl.bindVertexArray(null);
+		gl.disable(gl.BLEND);
+		gl.enable(gl.DEPTH_TEST);
+		this.count(draws);
 	}
 	private glowTex: WebGLTexture[] = [];
 	private glowFbo: WebGLFramebuffer[] = [];
@@ -966,7 +1117,10 @@ export class WebGl2View implements ViewRenderer {
 
 	setScene(scene: PlaceScene): void {
 		const gl = this.gl;
-		for (const d of [...this.draws, ...this.clear, ...this.glass]) gl.deleteVertexArray(d.vao);
+		for (const d of [...this.draws, ...this.clear, ...this.glass]) {
+			gl.deleteVertexArray(d.vao);
+			if (d.wire.edges) gl.deleteVertexArray(d.wire.edges.vao);
+		}
 		for (const b of this.sceneBuffers) gl.deleteBuffer(b);
 		this.scene = scene;
 		// The sky's maps again only when the parts moved, not for an edit to Lighting.
@@ -1028,7 +1182,13 @@ export class WebGl2View implements ViewRenderer {
 				const eb = this.buffer(gl.ELEMENT_ARRAY_BUFFER, mesh.indices);
 				const ib = this.buffer(gl.ARRAY_BUFFER, data);
 				this.sceneBuffers.push(vb, eb, ib);
-				const draw = { vao: this.vao(vb, ib, eb), indexCount: mesh.indices.length, type, count };
+				const draw = {
+					vao: this.vao(vb, ib, eb),
+					indexCount: mesh.indices.length,
+					type,
+					count,
+					wire: { mesh, vertices: vb, instances: ib },
+				};
 				if (seeThrough)
 					this.clear.push({
 						...draw,
@@ -1464,7 +1624,13 @@ export class WebGl2View implements ViewRenderer {
 	 * added; then its depth again, without colour, for the selection to be
 	 * hidden behind it.
 	 */
-	private addGlow(camera: Camera, post: boolean): void {
+	private addGlow(
+		camera: Camera,
+		post: boolean,
+		glowing: boolean,
+		postOn: boolean,
+		heat: number,
+	): void {
 		const gl = this.gl;
 		const { width: w, height: h } = this;
 		gl.bindFramebuffer(gl.READ_FRAMEBUFFER, this.sceneFbo);
@@ -1493,8 +1659,8 @@ export class WebGl2View implements ViewRenderer {
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 		gl.useProgram(this.compositeProgram.program);
 		const at = (name: string) => gl.getUniformLocation(this.compositeProgram.program, name);
-		gl.uniform4f(at("p"), 0, 0, this.glowing ? this.shape.gain : 0, 0);
-		const grade = gradeBlock(this.lighting?.post, this.postOn);
+		gl.uniform4f(at("p"), 0, 0, glowing ? this.shape.gain : 0, heat);
+		const grade = gradeBlock(this.lighting?.post, postOn);
 		gl.uniform4fv(at("grade0"), grade.subarray(0, 4));
 		gl.uniform4fv(at("grade1"), grade.subarray(4, 8));
 		gl.activeTexture(gl.TEXTURE3);
@@ -1753,6 +1919,13 @@ export class WebGl2View implements ViewRenderer {
 			);
 		const vp = projection(reversed);
 		gl.uniformMatrix4fv(prog.viewProj, false, vp);
+		gl.uniform4f(
+			gl.getUniformLocation(prog.program, "R"),
+			RENDER_MODE_CODE[this.render.mode],
+			this.render.show.haze ? 1 : 0,
+			0,
+			0,
+		);
 		gl.uniform1f(gl.getUniformLocation(prog.program, "logFar"), 1 / Math.log2(camera.far + 1));
 		// The sky's rays through the usual projection's far plane, the same in either depth.
 		if (prog.invViewProj)
@@ -1791,6 +1964,7 @@ export class WebGl2View implements ViewRenderer {
 			.draws,
 	): void {
 		const gl = this.gl;
+		this.tally.draws += draws.length;
 		for (const d of draws) {
 			gl.bindVertexArray(d.vao);
 			gl.drawElementsInstanced(gl.TRIANGLES, d.indexCount, d.type, 0, d.count);
@@ -1805,26 +1979,57 @@ export class WebGl2View implements ViewRenderer {
 
 	draw(camera: Camera): void {
 		const gl = this.gl;
+		const started = performance.now();
+		this.tally = { draws: 0, instances: 0, triangles: 0 };
+		const { mode, show } = this.render;
+		const heat = mode === "cost" || mode === "lights";
+		const wire = mode === "wireframe";
+		// The heatmaps and the wireframe are the place's shapes alone.
+		const postOn = this.postOn && show.post && !heat && !wire;
+		const glowing = this.glowing && show.glow && !heat && !wire;
 		const partsMoved = this.skyDirty;
 		this.usualDepth(true);
 		if (this.skyDirty || this.sunDirty) this.drawSkyMaps(!this.skyDirty);
 		this.drawCascades(camera, partsMoved);
 		this.usualDepth(false);
 		gl.clearDepth(this.farDepth);
-		this.shape = glowShape(this.lighting?.post, this.postOn);
-		if (this.glowing) {
+		this.shape = glowShape(this.lighting?.post, postOn);
+		if (glowing) {
 			if (this.clear.length > 0) this.sortClear(camera.eye);
 			this.drawGlow(camera);
 		}
 		// The place is drawn off screen first when anything is added to it
 		// after: Neon's glow, or a post effect; and always where depth is
 		// reversed, which needs the float depth only a target of its own has.
-		const post = postActive(this.lighting?.post, this.postOn);
-		const composite = this.glowing || post || this.clipControl !== null;
+		const post = postActive(this.lighting?.post, postOn);
+		const composite = glowing || post || heat || this.clipControl !== null;
 		gl.bindFramebuffer(gl.FRAMEBUFFER, composite ? this.sceneFbo : null);
 		gl.viewport(0, 0, this.width, this.height);
-		gl.clearColor(0.56, 0.71, 0.86, 1);
+		if (heat) gl.clearColor(0, 0, 0, 1);
+		else if (wire) gl.clearColor(0.06, 0.07, 0.09, 1);
+		else if (show.sky) gl.clearColor(0.56, 0.71, 0.86, 1);
+		else gl.clearColor(0.16, 0.17, 0.19, 1);
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+		if (show.sky && !heat && !wire) this.drawSky(camera);
+		const images = show.images && !heat;
+		if (wire)
+			this.drawWires(
+				camera,
+				show.seeThrough ? [...this.draws, ...this.glass, ...this.clear] : this.draws,
+			);
+		else this.drawPlace(camera, images, show.seeThrough, heat);
+		// The glow is part of the place, added once the place is drawn: what
+		// marks the place is drawn over it.
+		if (composite)
+			this.addGlow(camera, post, glowing, postOn, heat ? (mode === "lights" ? 2 : 1) : 0);
+		this.drawMarks(camera);
+		this.lastTally = this.tally;
+		this.cpuMs = performance.now() - started;
+	}
+
+	/** The sky behind the place. */
+	private drawSky(camera: Camera): void {
+		const gl = this.gl;
 		this.use(this.skyProgram, camera, false);
 		const sky = this.skyOn ? (this.lighting.skyboxSun ? 2 : 1) : 0;
 		gl.uniform1f(gl.getUniformLocation(this.skyProgram.program, "hasSky"), sky);
@@ -1838,6 +2043,14 @@ export class WebGl2View implements ViewRenderer {
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
 		gl.depthMask(true);
 		gl.enable(gl.DEPTH_TEST);
+	}
+
+	/**
+	 * The place's parts and images; in a heatmap, the see-through parts each
+	 * add their share to what is behind them.
+	 */
+	private drawPlace(camera: Camera, images: boolean, seeThrough: boolean, heat: boolean): void {
+		const gl = this.gl;
 		if (this.pre) {
 			// The solid parts' depth first, then lit only where nearest: each
 			// pixel shaded once, for the surface it shows.
@@ -1852,7 +2065,22 @@ export class WebGl2View implements ViewRenderer {
 			this.use(this.main, camera, false);
 			this.solids();
 		}
-		if (this.drawImages(camera, "solid")) this.use(this.main, camera, false);
+		this.count(this.draws);
+		if (images && this.drawImages(camera, "solid")) this.use(this.main, camera, false);
+		if (!seeThrough) return;
+		if (heat) {
+			this.use(this.main, camera, false);
+			gl.enable(gl.BLEND);
+			gl.blendFunc(gl.ONE, gl.ONE);
+			gl.depthMask(false);
+			this.solids(this.glass);
+			this.solids(this.clear);
+			gl.depthMask(true);
+			gl.disable(gl.BLEND);
+			this.count(this.glass);
+			this.count(this.clear);
+			return;
+		}
 		// See-through Glass: the nearest's depth, then its colour blended at that depth.
 		if (this.glass.length > 0) {
 			this.depthOnly(camera, this.glass);
@@ -1865,6 +2093,7 @@ export class WebGl2View implements ViewRenderer {
 			gl.depthMask(true);
 			gl.depthFunc(this.nearer);
 			gl.disable(gl.BLEND);
+			this.count(this.glass);
 		}
 		// The see-through parts: blended, farthest first, hiding nothing themselves.
 		if (this.clear.length > 0) {
@@ -1875,12 +2104,15 @@ export class WebGl2View implements ViewRenderer {
 			this.solids(this.clear);
 			gl.depthMask(true);
 			gl.disable(gl.BLEND);
+			this.count(this.clear);
 		}
 		// Over the see-through parts they are on.
-		this.drawImages(camera, "seeThrough");
-		// The glow is part of the place, added once the place is drawn: what
-		// marks the place is drawn over it.
-		if (composite) this.addGlow(camera, post);
+		if (images) this.drawImages(camera, "seeThrough");
+	}
+
+	/** What marks the place, over it: the selection, the handles, the overlay. */
+	private drawMarks(camera: Camera): void {
+		const gl = this.gl;
 		if (this.selection) {
 			this.use(this.main, camera, true);
 			// Through everything, as Studio's selection box is, or hidden by what is in front.
