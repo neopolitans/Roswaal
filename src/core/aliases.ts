@@ -57,7 +57,11 @@ export const NODE_ALIASES: Readonly<Record<string, readonly string[]>> = ownTabl
 	"value.expression": ["Inline Luau"],
 	"value.typeName": ["Type Name", "Type String", "typeof Name"],
 	"value.className": ["Class Name", "Class String", "ClassName"],
-	"compare.selfNeq": ["NaN", "Is NaN", "Not a Number", "Self Compare"],
+	// Is NaN answers to the NaN names now, since `math.isnan` is the check.
+	"compare.selfNeq": ["Self Compare"],
+	"math.isNaN": ["NaN", "Not a Number", "isnan"],
+	"math.isInf": ["Infinity", "isinf"],
+	"math.isFinite": ["isfinite"],
 	// Its name until 0.155.0, so the old name still finds it.
 	"code.custom": ["Custom Code", "Luau Code", "Raw Luau", "Inline Code"],
 

@@ -812,11 +812,9 @@ export const LIBRARY_NODES: NodeDef[] = [
 	/**
 	 * `x ~= x`, which is true of exactly one value.
 	 *
-	 * NaN is not equal to itself, and that is the whole test for it: there is
-	 * no `isnan` in Luau, and `x == x` reads as a tautology to anybody who has
-	 * not met the trick. A node for it says what it is for on its face, and
-	 * makes the graph's intent legible where a comparison of a value against
-	 * itself looks like a mistake somebody should clean up.
+	 * NaN is not equal to itself, and that was the whole test for it before
+	 * Luau gained `math.isnan`, which Is NaN writes. Kept because graphs use
+	 * it, and because it takes any value where `math.isnan` takes a number.
 	 */
 	pill(
 		pure(
@@ -827,7 +825,8 @@ export const LIBRARY_NODES: NodeDef[] = [
 			[d("a", "", "any")],
 			"boolean",
 			"True only for NaN, which is the one value not equal to itself — the check for a " +
-				"number that came out of `0/0` or a normalised zero vector. Luau has no `isnan`.",
+				"number that came out of `0/0` or a normalised zero vector. For a number, Is NaN " +
+				"writes `math.isnan`.",
 		),
 		"~= self",
 	),
@@ -965,6 +964,33 @@ export const LIBRARY_NODES: NodeDef[] = [
 		"math.clamp($in.value, $in.min, $in.max)",
 		[num("value", "Value"), num("min", "Min"), num("max", "Max", 1)],
 		"number",
+	),
+	pure(
+		"math.isNaN",
+		"Is NaN",
+		"Math",
+		"math.isnan($in.a)",
+		[num("a", "A")],
+		"boolean",
+		"True only for NaN, the number `0/0` gives.",
+	),
+	pure(
+		"math.isInf",
+		"Is Infinite",
+		"Math",
+		"math.isinf($in.a)",
+		[num("a", "A")],
+		"boolean",
+		"True for `math.huge` and `-math.huge`. False for NaN.",
+	),
+	pure(
+		"math.isFinite",
+		"Is Finite",
+		"Math",
+		"math.isfinite($in.a)",
+		[num("a", "A")],
+		"boolean",
+		"True for any number that is neither NaN nor infinite.",
 	),
 	pure(
 		"math.random",
