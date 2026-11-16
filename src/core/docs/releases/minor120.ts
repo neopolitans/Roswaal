@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.257.0",
+		date: "2026-11-16",
+		headline: "The place viewer draws Beams and particles, and cuts unions.",
+		added: [
+			"**Beams and particles.** The place viewer draws Beams between their Attachments and ParticleEmitters' particles, moving, with their textures once downloaded. The Rendering panel can leave either out; the render heatmap counts each layer, and Last frame counts them.",
+			"**Union cut-outs.** A union now draws what its NegateOperations take away, with the walls of each hole or cut.",
+		],
+		fixed: [
+			"**Lights** no longer speckle the faces they light near their cone's middle.",
+		],
+	},
+	{
 		version: "0.256.0",
 		date: "2026-11-16",
 		headline: "The place viewer shows how it is drawing, and closed rooms stay dark.",
