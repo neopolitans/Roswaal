@@ -417,6 +417,10 @@ layout(location=6) in vec4 colour; layout(location=7) in uint id; layout(locatio
 uniform mat4 viewProj; uniform float outline; uniform float handle; uniform vec3 screen; uniform vec3 eye;
 out vec3 vColour; out vec3 vWorld; out vec3 vNormal; flat out uint vId; out float vAlpha; flat out uint vLook; out vec3 vLocal; out vec3 vLNormal;
 out float vDepthW;
+#ifndef LOG_DEPTH
+// Invariant: the depth pre-pass and the lit pass must land on the very same depths.
+invariant gl_Position;
+#endif
 void main() {
 	mat3 m = mat3(c0, c1, c2);
 	vec3 s = vec3(length(c0), length(c1), length(c2));
@@ -451,18 +455,29 @@ void main() {
 	vLook = look;
 	vLocal = pos * s;
 	vLNormal = nrm;
-	// A handle's depth squeezed into the front hundredth, as in WebGpuView.
+	// A handle's depth squeezed into the front hundredth, as in WebGpuView:
+	// by 1 where depth is reversed.
+#ifdef LOG_DEPTH
 	if (handle > 0.5) gl_Position.z = ((gl_Position.z / gl_Position.w + 1.0) * 0.01 - 1.0) * gl_Position.w;
+#else
+	if (handle > 0.5) gl_Position.z = gl_Position.w - (gl_Position.w - gl_Position.z) * 0.01;
+#endif
 	vDepthW = 1.0 + gl_Position.w;
 }`;
 // Depth by the logarithm of distance, written by every pass that draws the
-// place: WebGL2's depth buffer is 24 fixed bits, which the usual depth spends
-// close to the camera, so two faces a thousandth of a stud apart fought a few
-// hundred studs out. Spread evenly by distance, the same bits hold them apart
-// across the place. (WebGpuView reverses its float depth instead.)
+// place where the browser cannot reverse depth (no EXT_clip_control): WebGL2's
+// depth buffer is 24 fixed bits, which the usual depth spends close to the
+// camera, so two faces a thousandth of a stud apart fought a few hundred studs
+// out. Spread evenly by distance, the same bits hold them apart across the
+// place. Written depth turns off the early depth test, so where the browser
+// can, depth is reversed into a float buffer instead, as WebGpuView's is, and
+// the shaders write none: see WebGl2View's clipControl. Each program's source has
+// LOG_DEPTH defined in the first case only.
 const LOG_DEPTH = `
+#ifdef LOG_DEPTH
 in float vDepthW; uniform float logFar;
 float logDepth() { return log2(max(vDepthW, 1e-6)) * logFar; }
+#endif
 `;
 const FS = `#version 300 es
 precision highp float;
@@ -475,7 +490,9 @@ ${SURFACE}
 ${LOG_DEPTH}
 out vec4 o;
 void main() {
+#ifdef LOG_DEPTH
 	gl_FragDepth = handle > 0.5 ? logDepth() * 0.01 : logDepth();
+#endif
 	vec3 n = normalize(vNormal);
 	if (outline > 0.5) o = vec4(vColour, vAlpha);
 	else if (handle > 0.5) o = vec4(pow(vColour * (0.72 + 0.38 * max(dot(n, normalize(vec3(0.4, 1.0, 0.25))), 0.0)), vec3(1.0 / 2.2)), alpha);
@@ -508,7 +525,9 @@ ${SKY_VIS}
 ${LOG_DEPTH}
 out vec4 o;
 void main() {
+#ifdef LOG_DEPTH
 	gl_FragDepth = logDepth();
+#endif
 	vec4 t = texture(image, vUv);
 	// Into the depth where mostly opaque, as WebGpuView's fsImageDepth.
 	if (t.a * vTint.a < cut) discard;
@@ -644,7 +663,9 @@ ${PATTERNS}
 ${LOG_DEPTH}
 out vec4 o;
 void main() {
+#ifdef LOG_DEPTH
 	gl_FragDepth = logDepth();
+#endif
 	int row = int(vLook & 255u);
 	vec4 b = M[row * 3 + 1];
 	vec4 tex = M[row * 3 + 2];
@@ -669,7 +690,12 @@ void main() {
 const FS_ID = `#version 300 es
 precision highp float; precision highp int; in vec3 vColour; flat in uint vId; out uint o;
 ${LOG_DEPTH}
-void main() { gl_FragDepth = logDepth(); o = vId + 1u; }`;
+void main() {
+#ifdef LOG_DEPTH
+	gl_FragDepth = logDepth();
+#endif
+	o = vId + 1u;
+}`;
 
 interface Program {
 	program: WebGLProgram;
@@ -684,9 +710,34 @@ interface Program {
 	screen: WebGLUniformLocation | null;
 }
 
+/** One instanced draw of a mesh. */
+type Draw = { vao: WebGLVertexArrayObject; indexCount: number; type: number; count: number };
+
+/** EXT_clip_control, which TypeScript's DOM types do not list. */
+interface ClipControl {
+	readonly LOWER_LEFT_EXT: number;
+	readonly NEGATIVE_ONE_TO_ONE_EXT: number;
+	readonly ZERO_TO_ONE_EXT: number;
+	clipControlEXT(origin: number, depth: number): void;
+}
+
 export class WebGl2View implements ViewRenderer {
 	readonly backend = "WebGL2" as const;
 	private gl!: WebGL2RenderingContext;
+	/**
+	 * Where the browser has EXT_clip_control, depth runs 0 to 1 and is
+	 * reversed, near at 1, into float buffers, as WebGpuView's: the shaders
+	 * then write no depth of their own, and the solid parts are drawn for their
+	 * depth first and lit only where nearest. Null elsewhere: log depth.
+	 */
+	private clipControl: ClipControl | null = null;
+	/** The depth test that keeps the nearer surface, and the one that keeps an equal one too. */
+	private nearer = 0x0201;
+	private nearerOrEqual = 0x0203;
+	/** The depth a target is cleared to: the far plane. */
+	private farDepth = 1;
+	/** The solid parts' depth alone, before they are lit: only where depth is reversed. */
+	private pre: Program | null = null;
 	private main!: Program;
 	private ids!: Program;
 	private over!: Program;
@@ -805,8 +856,19 @@ export class WebGl2View implements ViewRenderer {
 		});
 		if (!gl) throw new Error("no WebGL2");
 		this.gl = gl;
+		this.nearer = gl.LESS;
+		this.nearerOrEqual = gl.LEQUAL;
+		const clip = gl.getExtension("EXT_clip_control") as ClipControl | null;
+		if (clip) {
+			clip.clipControlEXT(clip.LOWER_LEFT_EXT, clip.ZERO_TO_ONE_EXT);
+			this.clipControl = clip;
+			this.nearer = gl.GREATER;
+			this.nearerOrEqual = gl.GEQUAL;
+			this.farDepth = 0;
+		}
 		await this.linkAhead(progress);
 		this.main = this.link(VS, FS);
+		if (clip) this.pre = this.link(VS, FS_DEPTH);
 		// The material table: the same for every frame, so set once.
 		gl.useProgram(this.main.program);
 		gl.uniform4fv(gl.getUniformLocation(this.main.program, "M[0]"), materialBlock());
@@ -886,6 +948,7 @@ export class WebGl2View implements ViewRenderer {
 		this.pickColour = gl.createRenderbuffer()!;
 		this.pickDepth = gl.createRenderbuffer()!;
 		gl.enable(gl.DEPTH_TEST);
+		gl.depthFunc(this.nearer);
 		gl.enable(gl.CULL_FACE);
 		this.resize(canvas.width, canvas.height);
 		// Every program linked, ahead or here.
@@ -1098,6 +1161,13 @@ export class WebGl2View implements ViewRenderer {
 	];
 	private linked = new Map<string, { program: WebGLProgram; shaders: WebGLShader[] }>();
 
+	/** A shader's source with LOG_DEPTH defined where depth is not reversed. */
+	private source(src: string): string {
+		return this.clipControl
+			? src
+			: src.replace("#version 300 es\n", "#version 300 es\n#define LOG_DEPTH\n");
+	}
+
 	/** `progress` hears the share linked as it polls, or 0 where they link one by one in init. */
 	private async linkAhead(progress?: (shaders: number) => void): Promise<void> {
 		const gl = this.gl;
@@ -1106,7 +1176,9 @@ export class WebGl2View implements ViewRenderer {
 			progress?.(0);
 			return;
 		}
-		for (const [vs, fs] of WebGl2View.PROGRAMS) {
+		const programs = [...WebGl2View.PROGRAMS];
+		if (this.clipControl) programs.push([VS, FS_DEPTH]);
+		for (const [vs, fs] of programs) {
 			const program = gl.createProgram()!;
 			const shaders = (
 				[
@@ -1115,7 +1187,7 @@ export class WebGl2View implements ViewRenderer {
 				] as const
 			).map(([type, src]) => {
 				const s = gl.createShader(type)!;
-				gl.shaderSource(s, src);
+				gl.shaderSource(s, this.source(src));
 				gl.compileShader(s);
 				gl.attachShader(program, s);
 				return s;
@@ -1138,7 +1210,7 @@ export class WebGl2View implements ViewRenderer {
 		const gl = this.gl;
 		const compile = (type: number, src: string) => {
 			const s = gl.createShader(type)!;
-			gl.shaderSource(s, src);
+			gl.shaderSource(s, this.source(src));
 			gl.compileShader(s);
 			if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
 				throw new Error(gl.getShaderInfoLog(s) ?? "shader");
@@ -1173,6 +1245,37 @@ export class WebGl2View implements ViewRenderer {
 		};
 	}
 
+	/** Float depth where it is reversed, which keeps its precision out to the horizon. */
+	private depthFormat(): number {
+		return this.clipControl ? this.gl.DEPTH_COMPONENT32F : this.gl.DEPTH_COMPONENT24;
+	}
+
+	/**
+	 * The sky's and the sun's maps keep the usual depth, -1 to 1 with the
+	 * nearer less, whatever the view's; `on` false goes back to the view's.
+	 */
+	private usualDepth(on: boolean): void {
+		const clip = this.clipControl;
+		if (!clip) return;
+		clip.clipControlEXT(
+			clip.LOWER_LEFT_EXT,
+			on ? clip.NEGATIVE_ONE_TO_ONE_EXT : clip.ZERO_TO_ONE_EXT,
+		);
+		this.gl.depthFunc(on ? this.gl.LESS : this.nearer);
+	}
+
+	/**
+	 * Draws' depth alone: by the pre-pass's program where depth is reversed,
+	 * by the main one, which writes its log depth, elsewhere.
+	 */
+	private depthOnly(camera: Camera, draws: Draw[]): void {
+		const gl = this.gl;
+		this.use(this.pre ?? this.main, camera, false);
+		gl.colorMask(false, false, false, false);
+		this.solids(draws);
+		gl.colorMask(true, true, true, true);
+	}
+
 	resize(width: number, height: number): void {
 		const gl = this.gl;
 		this.width = Math.max(1, width);
@@ -1180,7 +1283,7 @@ export class WebGl2View implements ViewRenderer {
 		gl.bindRenderbuffer(gl.RENDERBUFFER, this.pickColour);
 		gl.renderbufferStorage(gl.RENDERBUFFER, gl.R32UI, this.width, this.height);
 		gl.bindRenderbuffer(gl.RENDERBUFFER, this.pickDepth);
-		gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, this.width, this.height);
+		gl.renderbufferStorage(gl.RENDERBUFFER, this.depthFormat(), this.width, this.height);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, this.pickFbo);
 		gl.framebufferRenderbuffer(
 			gl.FRAMEBUFFER,
@@ -1203,7 +1306,7 @@ export class WebGl2View implements ViewRenderer {
 		gl.renderbufferStorageMultisample(
 			gl.RENDERBUFFER,
 			samples,
-			gl.DEPTH_COMPONENT24,
+			this.depthFormat(),
 			this.width,
 			this.height,
 		);
@@ -1409,13 +1512,7 @@ export class WebGl2View implements ViewRenderer {
 		gl.activeTexture(gl.TEXTURE0);
 		gl.enable(gl.DEPTH_TEST);
 		gl.clear(gl.DEPTH_BUFFER_BIT);
-		if (this.selection && this.hideBehind) {
-			this.use(this.main, camera, false);
-			gl.colorMask(false, false, false, false);
-			this.solids();
-			this.solids(this.glass);
-			gl.colorMask(true, true, true, true);
-		}
+		if (this.selection && this.hideBehind) this.depthOnly(camera, [...this.draws, ...this.glass]);
 	}
 
 	setSelection(boxes: Float32Array): void {
@@ -1648,13 +1745,18 @@ export class WebGl2View implements ViewRenderer {
 	private use(prog: Program, camera: Camera, outline: boolean): void {
 		const gl = this.gl;
 		gl.useProgram(prog.program);
-		const vp = multiply(
-			perspective(FOV, this.width / this.height, camera.near, camera.far, false),
-			lookAt(camera.eye, camera.at),
-		);
+		const reversed = this.clipControl !== null;
+		const projection = (reverse: boolean) =>
+			multiply(
+				perspective(FOV, this.width / this.height, camera.near, camera.far, reverse, reverse),
+				lookAt(camera.eye, camera.at),
+			);
+		const vp = projection(reversed);
 		gl.uniformMatrix4fv(prog.viewProj, false, vp);
 		gl.uniform1f(gl.getUniformLocation(prog.program, "logFar"), 1 / Math.log2(camera.far + 1));
-		if (prog.invViewProj) gl.uniformMatrix4fv(prog.invViewProj, false, invert(vp));
+		// The sky's rays through the usual projection's far plane, the same in either depth.
+		if (prog.invViewProj)
+			gl.uniformMatrix4fv(prog.invViewProj, false, invert(reversed ? projection(false) : vp));
 		if (prog.block)
 			gl.uniform4fv(prog.block, lightingBlock(this.lighting, camera.eye, SELECT, HANDLE_ALPHA));
 		const sky = this.skyAt(prog.program);
@@ -1704,17 +1806,21 @@ export class WebGl2View implements ViewRenderer {
 	draw(camera: Camera): void {
 		const gl = this.gl;
 		const partsMoved = this.skyDirty;
+		this.usualDepth(true);
 		if (this.skyDirty || this.sunDirty) this.drawSkyMaps(!this.skyDirty);
 		this.drawCascades(camera, partsMoved);
+		this.usualDepth(false);
+		gl.clearDepth(this.farDepth);
 		this.shape = glowShape(this.lighting?.post, this.postOn);
 		if (this.glowing) {
 			if (this.clear.length > 0) this.sortClear(camera.eye);
 			this.drawGlow(camera);
 		}
 		// The place is drawn off screen first when anything is added to it
-		// after: Neon's glow, or a post effect.
+		// after: Neon's glow, or a post effect; and always where depth is
+		// reversed, which needs the float depth only a target of its own has.
 		const post = postActive(this.lighting?.post, this.postOn);
-		const composite = this.glowing || post;
+		const composite = this.glowing || post || this.clipControl !== null;
 		gl.bindFramebuffer(gl.FRAMEBUFFER, composite ? this.sceneFbo : null);
 		gl.viewport(0, 0, this.width, this.height);
 		gl.clearColor(0.56, 0.71, 0.86, 1);
@@ -1732,21 +1838,32 @@ export class WebGl2View implements ViewRenderer {
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
 		gl.depthMask(true);
 		gl.enable(gl.DEPTH_TEST);
-		this.use(this.main, camera, false);
-		this.solids();
+		if (this.pre) {
+			// The solid parts' depth first, then lit only where nearest: each
+			// pixel shaded once, for the surface it shows.
+			this.depthOnly(camera, this.draws);
+			this.use(this.main, camera, false);
+			gl.depthFunc(gl.EQUAL);
+			gl.depthMask(false);
+			this.solids();
+			gl.depthMask(true);
+			gl.depthFunc(this.nearer);
+		} else {
+			this.use(this.main, camera, false);
+			this.solids();
+		}
 		if (this.drawImages(camera, "solid")) this.use(this.main, camera, false);
 		// See-through Glass: the nearest's depth, then its colour blended at that depth.
 		if (this.glass.length > 0) {
-			gl.colorMask(false, false, false, false);
-			this.solids(this.glass);
-			gl.colorMask(true, true, true, true);
+			this.depthOnly(camera, this.glass);
+			this.use(this.main, camera, false);
 			gl.enable(gl.BLEND);
 			gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-			gl.depthFunc(gl.LEQUAL);
+			gl.depthFunc(this.nearerOrEqual);
 			gl.depthMask(false);
 			this.solids(this.glass);
 			gl.depthMask(true);
-			gl.depthFunc(gl.LESS);
+			gl.depthFunc(this.nearer);
 			gl.disable(gl.BLEND);
 		}
 		// The see-through parts: blended, farthest first, hiding nothing themselves.
@@ -1768,7 +1885,7 @@ export class WebGl2View implements ViewRenderer {
 			this.use(this.main, camera, true);
 			// Through everything, as Studio's selection box is, or hidden by what is in front.
 			if (this.hideBehind) {
-				gl.depthFunc(gl.LEQUAL);
+				gl.depthFunc(this.nearerOrEqual);
 				gl.depthMask(false);
 			} else gl.disable(gl.DEPTH_TEST);
 			gl.enable(gl.BLEND);
@@ -1785,7 +1902,7 @@ export class WebGl2View implements ViewRenderer {
 			gl.bindVertexArray(null);
 			gl.disable(gl.BLEND);
 			gl.depthMask(true);
-			gl.depthFunc(gl.LESS);
+			gl.depthFunc(this.nearer);
 			gl.enable(gl.CULL_FACE);
 			gl.enable(gl.DEPTH_TEST);
 		}
@@ -2040,6 +2157,7 @@ export class WebGl2View implements ViewRenderer {
 		gl.enable(gl.SCISSOR_TEST);
 		gl.scissor(px, py, 1, 1);
 		gl.clearBufferuiv(gl.COLOR, 0, new Uint32Array([0, 0, 0, 0]));
+		gl.clearDepth(this.farDepth);
 		gl.clear(gl.DEPTH_BUFFER_BIT);
 		this.use(this.ids, camera, false);
 		this.solids();
