@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.251.0",
+		date: "2026-11-16",
+		headline: "The place viewer draws unions.",
+		added: [
+			"**Unions in the place viewer.** With Sign in with Roblox, each union is drawn as the parts it was made from, in its colour and material. Parts it subtracts are not cut away yet, so a union with holes shows solid.",
+		],
+		fixed: [
+			"**Large images**, a Sky's faces among them, no longer stall WebGL2 as they arrive.",
+		],
+	},
+	{
 		version: "0.250.0",
 		date: "2026-11-16",
 		headline: "Ctrl+Z and Ctrl+Y undo and redo changes to the place.",
