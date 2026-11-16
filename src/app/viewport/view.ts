@@ -8,6 +8,8 @@ import type { LightingParams, PostEffects } from "../../core/rbx/lighting.js";
 import { MATERIAL_SHADE, MATERIALS } from "../../core/rbx/materials.js";
 import { type FileMesh, meshBounds } from "../../core/rbx/mesh.js";
 import {
+	LIGHT_STRIDE,
+	LIGHT_SURFACE,
 	type PlaceScene,
 	SCENE_KINDS,
 	SCENE_STRIDE,
@@ -255,6 +257,72 @@ export function skyBlock(
 	});
 	block.set([(2 * reach) / SKY_MAP, (zeroToOne ? 1 : 2) / (2 * reach), 0, 1], 16 * (SKY_VIEWS + 1));
 	return block;
+}
+
+/**
+ * The lights are found per pixel through a hashed grid: the world in cells
+ * this many studs wide, each cell's lights listed under its hash. Two cells
+ * that share a hash share a list, which only costs a light that is then too
+ * far off to count.
+ */
+export const LIGHT_CELL = 16;
+export const LIGHT_TABLE = 65536;
+/** At most this many lights are added at a pixel. */
+export const LIGHT_MOST = 64;
+
+/** A cell's hash, as the shaders work it out: see LIGHT_CELL. */
+export function lightHash(cx: number, cy: number, cz: number): number {
+	return (
+		((Math.imul(cx, 73856093) ^ Math.imul(cy, 19349663) ^ Math.imul(cz, 83492791)) >>> 0) &
+		(LIGHT_TABLE - 1)
+	);
+}
+
+/**
+ * Each hash's lights: `table` holds an offset into `index` and a count per
+ * hash, `index` the lights' numbers. A light is listed in every cell its
+ * Range reaches, once a hash.
+ */
+export function lightGrid(lights: readonly number[] | undefined): {
+	table: Uint32Array;
+	index: Uint32Array;
+} {
+	const buckets = new Map<number, Set<number>>();
+	const count = (lights?.length ?? 0) / LIGHT_STRIDE;
+	for (let i = 0; i < count; i++) {
+		const o = i * LIGHT_STRIDE;
+		const c = [lights![o], lights![o + 1], lights![o + 2]];
+		// A SurfaceLight reaches its Range from anywhere on its face.
+		const face =
+			lights![o + 7] === LIGHT_SURFACE
+				? Math.hypot(lights![o + 12], lights![o + 13], lights![o + 14]) +
+					Math.hypot(lights![o + 16], lights![o + 17], lights![o + 18])
+				: 0;
+		const reach = lights![o + 3] + face;
+		const lo = c.map((v) => Math.floor((v - reach) / LIGHT_CELL));
+		const hi = c.map((v) => Math.floor((v + reach) / LIGHT_CELL));
+		for (let x = lo[0]; x <= hi[0]; x++)
+			for (let y = lo[1]; y <= hi[1]; y++)
+				for (let z = lo[2]; z <= hi[2]; z++) {
+					// The cell's nearest point to the light, against the reach.
+					const near = [x, y, z].map((k, a) =>
+						Math.min(Math.max(c[a], k * LIGHT_CELL), (k + 1) * LIGHT_CELL),
+					);
+					if (Math.hypot(near[0] - c[0], near[1] - c[1], near[2] - c[2]) > reach) continue;
+					const h = lightHash(x, y, z);
+					let set = buckets.get(h);
+					if (!set) buckets.set(h, (set = new Set()));
+					set.add(i);
+				}
+	}
+	const table = new Uint32Array(LIGHT_TABLE * 2);
+	const index: number[] = [];
+	for (const [h, set] of buckets) {
+		table[h * 2] = index.length;
+		table[h * 2 + 1] = set.size;
+		index.push(...set);
+	}
+	return { table, index: new Uint32Array(index.length > 0 ? index : [0]) };
 }
 
 /** How wide the glow's blur is, in its own texels, for a glow `high` texels high. */

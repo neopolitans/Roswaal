@@ -79,6 +79,81 @@ export interface PlaceScene {
 	images?: SceneImage[];
 	/** The meshes MeshParts and FileMeshes draw, which a row's look names. */
 	meshes?: SceneMesh[];
+	/** The place's PointLights, SpotLights and SurfaceLights that are on: see `sceneLights`. */
+	lights?: number[];
+}
+
+/** Floats a light: see `sceneLights`. */
+export const LIGHT_STRIDE = 20;
+/** A light's kind, in its second vec4's w. */
+export const LIGHT_POINT = 0;
+export const LIGHT_SPOT = 1;
+export const LIGHT_SURFACE = 2;
+
+/**
+ * The lights in `workspace` that are on, each as five vec4s: where it is (a
+ * SurfaceLight's face's middle) and its Range; its colour, linear, times its
+ * Brightness, and its kind; the way it faces and half its Angle in radians; and
+ * for a SurfaceLight its face's two half-sides, as vectors. A light lights from
+ * its part, or from an Attachment's place in its part.
+ */
+export function sceneLights(workspace: RbxInstance | undefined): number[] {
+	const out: number[] = [];
+	const visit = (inst: RbxInstance) => {
+		for (const child of inst.children) visit(child);
+		const kind =
+			inst.className === "PointLight"
+				? LIGHT_POINT
+				: inst.className === "SpotLight"
+					? LIGHT_SPOT
+					: inst.className === "SurfaceLight"
+						? LIGHT_SURFACE
+						: -1;
+		if (kind < 0 || inst.props.get("Enabled")?.value === false) return;
+		const holder = inst.parent;
+		if (!holder) return;
+		const brightness = numberProp(inst, "Brightness", 1);
+		const range = Math.min(numberProp(inst, "Range", 8), 60);
+		if (brightness <= 0 || range <= 0) return;
+		// The part it is in, and an Attachment's offset in that part.
+		let part = holder;
+		let offset = [0, 0, 0];
+		if (holder.className === "Attachment" && holder.parent) {
+			part = holder.parent;
+			const at = holder.props.get("CFrame")?.value as { position: number[] } | undefined;
+			offset = at?.position ?? [0, 0, 0];
+		}
+		const cf = part.props.get("CFrame")?.value as
+			| { position: number[]; rotation: number[] }
+			| undefined;
+		if (!cf) return;
+		const r = cf.rotation;
+		const axis = (a: number) => [r[a], r[3 + a], r[6 + a]];
+		const size = vec3(part, "size") ?? vec3(part, "Size") ?? [4, 1, 2];
+		const centre = [0, 1, 2].map(
+			(i) =>
+				cf.position[i] + r[i * 3] * offset[0] + r[i * 3 + 1] * offset[1] + r[i * 3 + 2] * offset[2],
+		);
+		const colour = (vec3(inst, "Color") ?? [1, 1, 1]).map((c) => c ** 2.2 * brightness);
+		const half = (Math.min(Math.max(numberProp(inst, "Angle", 90), 0), 180) * Math.PI) / 360;
+		let at = centre;
+		let dir = [0, -1, 0];
+		let u = [0, 0, 0];
+		let v = [0, 0, 0];
+		if (kind !== LIGHT_POINT) {
+			const face = FACES[numberProp(inst, "Face", 5)] ?? FACES[5];
+			const n = axis(face.n[0]).map((x) => x * face.n[1]);
+			dir = n;
+			if (kind === LIGHT_SURFACE) {
+				at = centre.map((x, i) => x + n[i] * (size[face.n[0]] / 2));
+				u = axis(face.right[0]).map((x) => (x * size[face.right[0]]) / 2);
+				v = axis(face.up[0]).map((x) => (x * size[face.up[0]]) / 2);
+			}
+		}
+		out.push(...at, range, ...colour, kind, ...dir, half, ...u, 0, ...v, 0);
+	};
+	if (workspace) visit(workspace);
+	return out;
 }
 
 /**
@@ -422,6 +497,8 @@ export function buildPlaceScene(
 		...(images.length > 0 ? { images } : {}),
 		...(meshes.length > 0 ? { meshes } : {}),
 	};
+	const lights = sceneLights(workspace);
+	if (lights.length > 0) scene.lights = lights;
 	const studio = workspace?.children.find((c) => c.className === "Camera");
 	const cf = studio?.props.get("CFrame")?.value as
 		| { position: number[]; rotation: number[] }

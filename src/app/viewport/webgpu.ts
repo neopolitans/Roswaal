@@ -31,6 +31,7 @@ import {
 	type ImageQuad,
 	imageOrder,
 	imageQuads,
+	lightGrid,
 	type MeshGeometry,
 	postActive,
 	SELECT,
@@ -49,7 +50,14 @@ import {
 
 // WebGPU's flags, as the spec numbers them: TypeScript's DOM types have the
 // interfaces but not these namespaces.
-const BUFFER = { MAP_READ: 0x1, COPY_DST: 0x8, INDEX: 0x10, VERTEX: 0x20, UNIFORM: 0x40 } as const;
+const BUFFER = {
+	MAP_READ: 0x1,
+	COPY_DST: 0x8,
+	INDEX: 0x10,
+	VERTEX: 0x20,
+	UNIFORM: 0x40,
+	STORAGE: 0x80,
+} as const;
 const STAGE = { VERTEX: 0x1, FRAGMENT: 0x2 } as const;
 const TEXTURE = {
 	COPY_SRC: 0x1,
@@ -165,6 +173,51 @@ fn skySees(k: i32, p: vec3f) -> f32 {
 	let uv = vec2f(c.x * 0.5 + 0.5, 0.5 - c.y * 0.5);
 	if (any(uv < vec2f(0.0)) || any(uv > vec2f(1.0)) || c.z > 1.0) { return 1.0; }
 	return textureSampleCompareLevel(skyMaps, skyCompare, uv, k, c.z - skyU.info.y * 0.5);
+}
+// The place's lights: five vec4s each, see sceneLights; and which reach a
+// cell of the world, by its hash, see lightGrid.
+@group(0) @binding(9) var<storage, read> lightData: array<vec4f>;
+@group(0) @binding(10) var<storage, read> lightTable: array<vec2u>;
+@group(0) @binding(11) var<storage, read> lightIndex: array<u32>;
+fn lightCell(p: vec3f) -> u32 {
+	let c = vec3i(floor(p / 16.0));
+	let h = (bitcast<u32>(c.x) * 73856093u) ^ (bitcast<u32>(c.y) * 19349663u) ^ (bitcast<u32>(c.z) * 83492791u);
+	return h & 65535u;
+}
+// What the place's lights add at p, on a face turned to n, before the albedo.
+// Fitted to Studio's captures of each kind over a grey floor: a light keeps
+// its strength out to 0.7 of its Range and is gone at it, a SpotLight's or
+// SurfaceLight's cone eases from its middle to nothing at half its Angle, a
+// SurfaceLight shines from the nearest point of its face, and Brightness 1
+// adds 1.39.
+fn partLights(p: vec3f, n: vec3f) -> vec3f {
+	let b = lightTable[lightCell(p)];
+	var sum = vec3f(0.0);
+	for (var j = 0u; j < min(b.y, 64u); j++) {
+		let k = lightIndex[b.x + j] * 5u;
+		let a = lightData[k];
+		let col = lightData[k + 1u];
+		let d = lightData[k + 2u];
+		var at = a.xyz;
+		if (col.w > 1.5) {
+			let u = lightData[k + 3u].xyz;
+			let v = lightData[k + 4u].xyz;
+			let off = p - a.xyz;
+			at = a.xyz + u * clamp(dot(off, u) / max(dot(u, u), 1e-6), -1.0, 1.0) + v * clamp(dot(off, v) / max(dot(v, v), 1e-6), -1.0, 1.0);
+		}
+		let to = at - p;
+		let dist = length(to);
+		if (dist >= a.w) { continue; }
+		let l = to / max(dist, 1e-4);
+		var k2 = max(dot(n, l), 0.0) * (1.0 - smoothstep(0.7, 1.0, dist / a.w));
+		if (col.w > 0.5) {
+			let c = dot(-l, d.xyz);
+			if (c <= 0.0) { continue; }
+			k2 = k2 * (1.0 - smoothstep(0.0, 1.0, acos(min(c, 1.0)) / max(d.w, 1e-3)));
+		}
+		sum = sum + col.rgb * k2;
+	}
+	return sum * 1.39;
 }
 // How much of the sky reaches p, on a face turned to n: the share of the maps that see it.
 fn skyVisibility(p: vec3f, n: vec3f) -> f32 {
@@ -479,7 +532,7 @@ fn surface(i: VOut) -> vec4f {
 		let vis = skyVisibility(i.world, n);
 		let lit = u.sunColour.rgb * ndl * sunSees(i.world, n);
 		let fill = (vec3f(u.fog.w, u.fogColour.w, u.hazeColour.w) + u.ambient.rgb * vis) * (0.9 + 0.1 * n.y);
-		c = albedo * (1.0 - a.z * 0.6) * (fill + lit) + mix(vec3f(1.0), albedo, a.z) * spec * lit;
+		c = albedo * (1.0 - a.z * 0.6) * (fill + lit + partLights(i.world, n)) + mix(vec3f(1.0), albedo, a.z) * spec * lit;
 		let seen = sky(reflect(-v, n)) * max(vis, 0.05);
 		// A metal shows a little of the sky in its own colour.
 		c = c + seen * albedo * a.z * a.x * 0.25;
@@ -654,7 +707,7 @@ struct IOut {
 	let ndl = max(dot(n, u.sun.xyz), 0.0);
 	let vis = skyVisibility(i.world, n);
 	let fill = (vec3f(u.fog.w, u.fogColour.w, u.hazeColour.w) + u.ambient.rgb * vis) * (0.9 + 0.1 * n.y);
-	let c = albedo * (fill + u.sunColour.rgb * ndl * sunSees(i.world, n));
+	let c = albedo * (fill + u.sunColour.rgb * ndl * sunSees(i.world, n) + partLights(i.world, n));
 	let d = length(u.camPos.xyz - i.world);
 	return vec4f(display(air(c, d, i.world.y)), t.a * i.tint.a);
 }
@@ -833,10 +886,14 @@ export class WebGpuView implements ViewRenderer {
 				},
 				{ binding: 7, visibility: STAGE.FRAGMENT, sampler: { type: "comparison" } },
 				{ binding: 8, visibility: STAGE.FRAGMENT, buffer: {} },
+				{ binding: 9, visibility: STAGE.FRAGMENT, buffer: { type: "read-only-storage" } },
+				{ binding: 10, visibility: STAGE.FRAGMENT, buffer: { type: "read-only-storage" } },
+				{ binding: 11, visibility: STAGE.FRAGMENT, buffer: { type: "read-only-storage" } },
 			],
 		});
 		this.layout = layout;
 		this.makeSkyMaps(buffers);
+		this.setLights(undefined);
 		const pipelineLayout = d.createPipelineLayout({ bindGroupLayouts: [layout] });
 		const depth = {
 			format: "depth32float" as const,
@@ -1245,6 +1302,8 @@ export class WebGpuView implements ViewRenderer {
 			for (const b of [d.vertices, d.indices, d.instances]) b.destroy();
 		this.scene = scene;
 		this.skyDirty = true;
+		this.setLights(scene.lights);
+		if (this.skyImages && this.sunTexture) this.rebind();
 		this.setImages(scene);
 		this.draws = [];
 		this.clear = [];
@@ -1839,6 +1898,9 @@ export class WebGpuView implements ViewRenderer {
 				{ binding: 6, resource: this.skyMaps.createView({ dimension: "2d-array" }) },
 				{ binding: 7, resource: this.skyCompare },
 				{ binding: 8, resource: { buffer: this.skyUniform } },
+				{ binding: 9, resource: { buffer: this.lightBuffers.data } },
+				{ binding: 10, resource: { buffer: this.lightBuffers.table } },
+				{ binding: 11, resource: { buffer: this.lightBuffers.index } },
 			],
 		});
 	}
@@ -1852,6 +1914,28 @@ export class WebGpuView implements ViewRenderer {
 	private skyViewGroups: { buffer: GPUBuffer; group: GPUBindGroup }[] = [];
 	/** The maps are drawn again before the next frame: the place or the sun moved. */
 	private skyDirty = true;
+	/** The place's lights and the grid that finds them: see lightGrid. */
+	private lightBuffers!: { data: GPUBuffer; table: GPUBuffer; index: GPUBuffer };
+
+	private setLights(lights: readonly number[] | undefined): void {
+		const d = this.device;
+		const old = this.lightBuffers;
+		const grid = lightGrid(lights);
+		const store = (data: Float32Array | Uint32Array) => {
+			const buffer = d.createBuffer({
+				size: Math.max(16, data.byteLength),
+				usage: BUFFER.STORAGE | BUFFER.COPY_DST,
+			});
+			d.queue.writeBuffer(buffer, 0, data);
+			return buffer;
+		};
+		this.lightBuffers = {
+			data: store(new Float32Array(lights && lights.length > 0 ? lights : [0, 0, 0, 0])),
+			table: store(grid.table),
+			index: store(grid.index),
+		};
+		if (old) for (const b of [old.data, old.table, old.index]) b.destroy();
+	}
 
 	private makeSkyMaps(buffers: GPUVertexBufferLayout[]): void {
 		const d = this.device;

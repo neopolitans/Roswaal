@@ -11,7 +11,7 @@
 
 import { type LightingParams, lightingBlock } from "../../core/rbx/lighting.js";
 import { MATERIAL_TEXTURES, MATERIALS, materialBlock } from "../../core/rbx/materials.js";
-import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene.js";
+import { LIGHT_STRIDE, type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene.js";
 import { boxEdges, meshFor, sceneGlows } from "./geometry.js";
 import { HANDLE_KINDS, type Handles, handleMesh } from "./handles.js";
 import { invert, lookAt, multiply, perspective } from "./math.js";
@@ -31,6 +31,7 @@ import {
 	type ImageQuad,
 	imageOrder,
 	imageQuads,
+	lightGrid,
 	type MeshGeometry,
 	postActive,
 	SELECT,
@@ -230,6 +231,48 @@ float skySees(int k, vec3 p) {
 	if (any(lessThan(q.xy, vec2(0.0))) || any(greaterThan(q, vec3(1.0)))) return 1.0;
 	return texture(skyMaps, vec4(q.xy, float(k), q.z - skyInfo.y * 0.25));
 }
+// The place's lights, as WebGpuView's partLights: five texels a light, a row
+// each; and which reach a cell, 256 hashes a row, see lightGrid.
+uniform highp sampler2D lightData;
+uniform highp usampler2D lightTable;
+uniform highp usampler2D lightIndex;
+uint lightCell(vec3 p) {
+	ivec3 c = ivec3(floor(p / 16.0));
+	uint h = (uint(c.x) * 73856093u) ^ (uint(c.y) * 19349663u) ^ (uint(c.z) * 83492791u);
+	return h & 65535u;
+}
+vec3 partLights(vec3 p, vec3 n) {
+	uint h = lightCell(p);
+	uvec2 b = texelFetch(lightTable, ivec2(int(h & 255u), int(h >> 8u)), 0).xy;
+	vec3 sum = vec3(0.0);
+	uint count = min(b.y, 64u);
+	for (uint j = 0u; j < count; j++) {
+		uint idx = b.x + j;
+		int i = int(texelFetch(lightIndex, ivec2(int(idx & 1023u), int(idx >> 10u)), 0).r);
+		vec4 a = texelFetch(lightData, ivec2(0, i), 0);
+		vec4 col = texelFetch(lightData, ivec2(1, i), 0);
+		vec4 d = texelFetch(lightData, ivec2(2, i), 0);
+		vec3 at = a.xyz;
+		if (col.w > 1.5) {
+			vec3 u = texelFetch(lightData, ivec2(3, i), 0).xyz;
+			vec3 v = texelFetch(lightData, ivec2(4, i), 0).xyz;
+			vec3 off = p - a.xyz;
+			at = a.xyz + u * clamp(dot(off, u) / max(dot(u, u), 1e-6), -1.0, 1.0) + v * clamp(dot(off, v) / max(dot(v, v), 1e-6), -1.0, 1.0);
+		}
+		vec3 to = at - p;
+		float dist = length(to);
+		if (dist >= a.w) continue;
+		vec3 l = to / max(dist, 1e-4);
+		float k = max(dot(n, l), 0.0) * (1.0 - smoothstep(0.7, 1.0, dist / a.w));
+		if (col.w > 0.5) {
+			float c = dot(-l, d.xyz);
+			if (c <= 0.0) continue;
+			k *= 1.0 - smoothstep(0.0, 1.0, acos(min(c, 1.0)) / max(d.w, 1e-3));
+		}
+		sum += col.rgb * k;
+	}
+	return sum * 1.39;
+}
 float skyVisibility(vec3 p, vec3 n) {
 	if (skyInfo.w < 0.5) return 1.0;
 	vec3 q = p + n * skyInfo.x * 1.5;
@@ -303,7 +346,7 @@ vec4 surface(vec3 colour, vec3 n, vec3 world, float alpha, uint look, vec3 local
 		float vis = skyVisibility(world, n);
 		vec3 lit = L[1].rgb * ndl * sunSees(world, n);
 		vec3 fill = (vec3(L[8].w, L[9].w, L[10].w) + L[2].rgb * vis) * (0.9 + 0.1 * n.y);
-		c = albedo * (1.0 - a.z * 0.6) * (fill + lit) + mix(vec3(1.0), albedo, a.z) * spec * lit;
+		c = albedo * (1.0 - a.z * 0.6) * (fill + lit + partLights(world, n)) + mix(vec3(1.0), albedo, a.z) * spec * lit;
 		vec3 seen = sky(reflect(-v, n)) * max(vis, 0.05);
 		c += seen * albedo * a.z * a.x * 0.25;
 		float mirror = shine;
@@ -426,7 +469,7 @@ void main() {
 	float ndl = max(dot(n, L[0].xyz), 0.0);
 	float vis = skyVisibility(vWorld, n);
 	vec3 fill = (vec3(L[8].w, L[9].w, L[10].w) + L[2].rgb * vis) * (0.9 + 0.1 * n.y);
-	vec3 c = albedo * (fill + L[1].rgb * ndl * sunSees(vWorld, n));
+	vec3 c = albedo * (fill + L[1].rgb * ndl * sunSees(vWorld, n) + partLights(vWorld, n));
 	o = vec4(display(air(c, length(L[6].xyz - vWorld), vWorld.y)), t.a * vTint.a);
 }`;
 const VS_SKY = `#version 300 es
@@ -732,6 +775,7 @@ export class WebGl2View implements ViewRenderer {
 		gl.uniform1i(gl.getUniformLocation(this.imageProgram.program, "image"), 2);
 		this.glowProgram = this.link(VS, FS_GLOW);
 		this.makeSkyMaps();
+		this.setLights(undefined);
 		gl.useProgram(this.glowProgram.program);
 		gl.uniform4fv(gl.getUniformLocation(this.glowProgram.program, "M[0]"), materialBlock());
 		gl.uniform1i(gl.getUniformLocation(this.glowProgram.program, "looks"), 1);
@@ -785,6 +829,7 @@ export class WebGl2View implements ViewRenderer {
 		for (const b of this.sceneBuffers) gl.deleteBuffer(b);
 		this.scene = scene;
 		this.skyDirty = true;
+		this.setLights(scene.lights);
 		this.setImages(scene);
 		this.draws = [];
 		this.clear = [];
@@ -1240,13 +1285,49 @@ export class WebGl2View implements ViewRenderer {
 	private skyData: Float32Array = new Float32Array(SKY_BLOCK);
 	/** The maps are drawn again before the next frame: the place or the sun moved. */
 	private skyDirty = true;
+	/** The place's lights and the grid that finds them, on units 7 to 9: see lightGrid. */
+	private lightTextures: WebGLTexture[] = [];
+
+	private setLights(lights: readonly number[] | undefined): void {
+		const gl = this.gl;
+		for (const t of this.lightTextures) gl.deleteTexture(t);
+		const grid = lightGrid(lights);
+		const count = Math.max(1, (lights?.length ?? 0) / LIGHT_STRIDE);
+		const data = new Float32Array(count * LIGHT_STRIDE);
+		if (lights) data.set(lights);
+		const rows = Math.max(1, Math.ceil(grid.index.length / 1024));
+		const index = new Uint32Array(rows * 1024);
+		index.set(grid.index);
+		const make = (
+			unit: number,
+			internal: number,
+			format: number,
+			type: number,
+			w: number,
+			h: number,
+			pixels: ArrayBufferView,
+		) => {
+			const t = gl.createTexture()!;
+			gl.activeTexture(gl.TEXTURE0 + unit);
+			gl.bindTexture(gl.TEXTURE_2D, t);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+			gl.texImage2D(gl.TEXTURE_2D, 0, internal, w, h, 0, format, type, pixels);
+			return t;
+		};
+		this.lightTextures = [
+			make(7, gl.RGBA32F, gl.RGBA, gl.FLOAT, 5, count, data),
+			make(8, gl.RG32UI, gl.RG_INTEGER, gl.UNSIGNED_INT, 256, 256, grid.table),
+			make(9, gl.R32UI, gl.RED_INTEGER, gl.UNSIGNED_INT, 1024, rows, index),
+		];
+		gl.activeTexture(gl.TEXTURE0);
+	}
 	private skyLocations = new Map<
 		WebGLProgram,
-		{
-			views: WebGLUniformLocation | null;
-			info: WebGLUniformLocation | null;
-			maps: WebGLUniformLocation | null;
-		}
+		Record<
+			"views" | "info" | "maps" | "lightData" | "lightTable" | "lightIndex",
+			WebGLUniformLocation | null
+		>
 	>();
 
 	private skyAt(program: WebGLProgram) {
@@ -1257,6 +1338,9 @@ export class WebGl2View implements ViewRenderer {
 				views: gl.getUniformLocation(program, "skyViews"),
 				info: gl.getUniformLocation(program, "skyInfo"),
 				maps: gl.getUniformLocation(program, "skyMaps"),
+				lightData: gl.getUniformLocation(program, "lightData"),
+				lightTable: gl.getUniformLocation(program, "lightTable"),
+				lightIndex: gl.getUniformLocation(program, "lightIndex"),
 			};
 			this.skyLocations.set(program, at);
 		}
@@ -1331,6 +1415,9 @@ export class WebGl2View implements ViewRenderer {
 			gl.uniformMatrix4fv(sky.views, false, this.skyData.subarray(0, 16 * (SKY_VIEWS + 1)));
 			gl.uniform4fv(sky.info, this.skyData.subarray(16 * (SKY_VIEWS + 1)));
 			gl.uniform1i(sky.maps, 6);
+			gl.uniform1i(sky.lightData, 7);
+			gl.uniform1i(sky.lightTable, 8);
+			gl.uniform1i(sky.lightIndex, 9);
 		}
 		gl.uniform1f(prog.outline, outline ? 1 : 0);
 		const band = this.outlineWidth * (this.width / (this.canvas?.clientWidth || this.width));

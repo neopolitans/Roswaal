@@ -1,0 +1,122 @@
+/**
+ * A place's lights as the renderers take them: read from their parts and
+ * Attachments, and found again through the hashed grid of cells.
+ */
+
+import { describe, expect, it } from "vitest";
+import { LIGHT_CELL, lightGrid, lightHash } from "../src/app/viewport/view.js";
+import type { Prop, PropType, RbxInstance } from "../src/core/rbx/dom.js";
+import {
+	LIGHT_POINT,
+	LIGHT_SPOT,
+	LIGHT_STRIDE,
+	LIGHT_SURFACE,
+	sceneLights,
+} from "../src/core/rbx/scene.js";
+
+function inst(
+	className: string,
+	props: Record<string, [PropType, unknown]>,
+	children: RbxInstance[] = [],
+): RbxInstance {
+	const made: RbxInstance = {
+		className,
+		name: className,
+		parent: null,
+		children,
+		props: new Map<string, Prop>(
+			Object.entries(props).map(([k, [type, value]]) => [k, { type, value }]),
+		),
+		service: false,
+	};
+	for (const child of children) child.parent = made;
+	return made;
+}
+
+const IDENTITY = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+/** A 4 × 1 × 6 part at `at`, square to the world, holding `kids`. */
+const part = (at: number[], ...kids: RbxInstance[]) =>
+	inst(
+		"Part",
+		{
+			CFrame: ["CFrame", { position: at, rotation: IDENTITY }],
+			size: ["Vector3", [4, 1, 6]],
+		},
+		kids,
+	);
+const round = (xs: number[]) => xs.map((x) => Math.round(x * 1000) / 1000 + 0);
+
+describe("a place's lights", () => {
+	it("are read from their parts: where, how far, how bright and which way", () => {
+		const lights = sceneLights(
+			inst("Workspace", {}, [
+				part(
+					[10, 20, 30],
+					inst("PointLight", { Range: ["Float32", 12], Brightness: ["Float32", 2] }),
+				),
+				part(
+					[0, 5, 0],
+					inst("SurfaceLight", {
+						Range: ["Float32", 20],
+						Angle: ["Float32", 90],
+						Face: ["Enum", 4],
+						Color: ["Color3", [1, 0.5, 0]],
+					}),
+				),
+				part([0, 0, 0], inst("SpotLight", { Enabled: ["Bool", false] })),
+			]),
+		);
+		expect(lights.length).toBe(2 * LIGHT_STRIDE);
+		const [point, surface] = [lights.slice(0, LIGHT_STRIDE), lights.slice(LIGHT_STRIDE)];
+		expect(point.slice(0, 4)).toEqual([10, 20, 30, 12]);
+		expect(point.slice(4, 8)).toEqual([2, 2, 2, LIGHT_POINT]);
+		// The Bottom face's middle, facing down, its half-sides along X and Z.
+		expect(round(surface.slice(0, 4))).toEqual([0, 4.5, 0, 20]);
+		expect(round(surface.slice(4, 8))).toEqual([1, round([0.5 ** 2.2])[0], 0, LIGHT_SURFACE]);
+		expect(round(surface.slice(8, 12))).toEqual([0, -1, 0, round([Math.PI / 4])[0]]);
+		expect(Math.abs(surface[12]) + Math.abs(surface[16])).toBe(2);
+		expect(Math.abs(surface[14]) + Math.abs(surface[18])).toBe(3);
+	});
+
+	it("light from an Attachment's place in its part", () => {
+		const turned = inst(
+			"Part",
+			{
+				CFrame: ["CFrame", { position: [0, 10, 0], rotation: [0, 0, 1, 0, 1, 0, -1, 0, 0] }],
+				size: ["Vector3", [2, 2, 2]],
+			},
+			[
+				inst("Attachment", { CFrame: ["CFrame", { position: [3, 0, 0], rotation: IDENTITY }] }, [
+					inst("SpotLight", { Face: ["Enum", 5] }),
+				]),
+			],
+		);
+		const lights = sceneLights(inst("Workspace", {}, [turned]));
+		expect(round(lights.slice(0, 3))).toEqual([0, 10, -3]);
+		expect(lights[7]).toBe(LIGHT_SPOT);
+	});
+});
+
+describe("the grid that finds the lights", () => {
+	it("lists a light in the cells its Range reaches, and not beyond", () => {
+		const lights = sceneLights(
+			inst("Workspace", {}, [part([100, 50, -40], inst("PointLight", { Range: ["Float32", 20] }))]),
+		);
+		const { table, index } = lightGrid(lights);
+		const at = (p: number[]) => {
+			const h = lightHash(
+				...(p.map((v) => Math.floor(v / LIGHT_CELL)) as [number, number, number]),
+			);
+			return [...index.slice(table[h * 2], table[h * 2] + table[h * 2 + 1])];
+		};
+		expect(at([100, 50, -40])).toEqual([0]);
+		expect(at([115, 50, -40])).toEqual([0]);
+		expect(at([200, 50, -40])).toEqual([]);
+	});
+
+	it("is empty for a place with no lights", () => {
+		const { table, index } = lightGrid(undefined);
+		expect(table.every((v) => v === 0)).toBe(true);
+		expect(index.length).toBe(1);
+	});
+});
