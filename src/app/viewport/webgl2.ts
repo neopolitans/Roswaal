@@ -240,8 +240,8 @@ float skySees(int k, vec3 p) {
 	// Two taps a texel either side, as WebGpuView's skySees.
 	float a = float(k) * 0.785;
 	vec2 o = vec2(cos(a), sin(a)) * skyInfo.z;
-	float ref = q.z - skyInfo.y * 0.25;
-	return 0.5 * (texture(skyMaps, vec4(q.xy + o, float(k), ref)) + texture(skyMaps, vec4(q.xy - o, float(k), ref)));
+	float depth = q.z - skyInfo.y * 0.25;
+	return 0.5 * (texture(skyMaps, vec4(q.xy + o, float(k), depth)) + texture(skyMaps, vec4(q.xy - o, float(k), depth)));
 }
 // The place's lights, as WebGpuView's partLights: five texels a light, a row
 // each; and which reach a cell, 256 hashes a row, see lightGrid.

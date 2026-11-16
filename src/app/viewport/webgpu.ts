@@ -186,8 +186,8 @@ fn skySees(k: i32, p: vec3f) -> f32 {
 	// blur into a soft fall rather than steps where a floor meets a wall.
 	let a = f32(k) * 0.785;
 	let o = vec2f(cos(a), sin(a)) * skyU.info.z;
-	let ref = c.z - skyU.info.y * 0.5;
-	return 0.5 * (textureSampleCompareLevel(skyMaps, skyCompare, uv + o, k, ref) + textureSampleCompareLevel(skyMaps, skyCompare, uv - o, k, ref));
+	let depth = c.z - skyU.info.y * 0.5;
+	return 0.5 * (textureSampleCompareLevel(skyMaps, skyCompare, uv + o, k, depth) + textureSampleCompareLevel(skyMaps, skyCompare, uv - o, k, depth));
 }
 // The place's lights: five vec4s each, see sceneLights; and which reach a
 // cell of the world, by its hash, see lightGrid.
@@ -287,7 +287,8 @@ struct VIn {
 	@location(6) colour: vec4f, @location(7) id: u32, @location(8) look: u32,
 };
 struct VOut {
-	@builtin(position) clip: vec4f, @location(0) colour: vec3f, @location(1) @interpolate(flat) id: u32,
+	// Invariant: the depth pre-pass and the lit pass must land on the very same depths.
+	@builtin(position) @invariant clip: vec4f, @location(0) colour: vec3f, @location(1) @interpolate(flat) id: u32,
 	@location(2) world: vec3f, @location(3) normal: vec3f,
 	@location(4) alpha: f32, @location(5) @interpolate(flat) look: u32,
 	@location(6) local: vec3f, @location(7) lnormal: vec3f,
@@ -629,6 +630,10 @@ fn glowSource(i: VOut) -> vec3f {
 }
 // Neon past the display curve, each channel capped: in Studio's captures, red
 // Neon stays pure red, and dark blue comes out three times its colour.
+// The depth pre-pass: the solid parts' depth only, so the lit pass shades
+// each pixel once, for the surface it shows, rather than for every surface
+// drawn over it on the way.
+@fragment fn fsNothing() -> @location(0) vec4f { return vec4f(0.0); }
 @fragment fn fs(i: VOut) -> @location(0) vec4f {
 	let s = surface(i);
 	let shade = u.mats[(i.look & 255u) * 3u + 1u].y;
@@ -787,6 +792,7 @@ export class WebGpuView implements ViewRenderer {
 	private context!: GPUCanvasContext;
 	private format!: GPUTextureFormat;
 	private solid!: GPURenderPipeline;
+	private solidDepth!: GPURenderPipeline;
 	private lines!: GPURenderPipeline;
 	private ids!: GPURenderPipeline;
 	private over!: GPURenderPipeline;
@@ -983,12 +989,25 @@ export class WebGpuView implements ViewRenderer {
 			depthWriteEnabled: true,
 			depthCompare: "greater" as const,
 		};
+		this.pipeline((p) => (this.solidDepth = p), {
+			layout: pipelineLayout,
+			vertex: { module, entryPoint: "vs", buffers },
+			fragment: {
+				module,
+				entryPoint: "fsNothing",
+				targets: [{ format: this.format, writeMask: 0 }],
+			},
+			primitive: { topology: "triangle-list", cullMode: "back" },
+			depthStencil: depth,
+			multisample: { count: SAMPLES },
+		});
+		// Lit only where the pre-pass found it nearest.
 		this.pipeline((p) => (this.solid = p), {
 			layout: pipelineLayout,
 			vertex: { module, entryPoint: "vs", buffers },
 			fragment: { module, entryPoint: "fs", targets: [{ format: this.format }] },
 			primitive: { topology: "triangle-list", cullMode: "back" },
-			depthStencil: depth,
+			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "equal" },
 			multisample: { count: SAMPLES },
 		});
 		// The see-through parts: blended over what is behind them, hidden by
@@ -1799,6 +1818,8 @@ export class WebGpuView implements ViewRenderer {
 		pass.setBindGroup(0, this.bind);
 		pass.setPipeline(this.skyPipeline);
 		pass.draw(3);
+		pass.setPipeline(this.solidDepth);
+		this.solids(pass);
 		pass.setPipeline(this.solid);
 		this.solids(pass);
 		this.drawImages(pass, "solid", camera.eye);
