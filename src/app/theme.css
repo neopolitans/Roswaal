@@ -21668,6 +21668,17 @@ textarea.tb:where(:disabled) {
 	outline-offset: 2px;
 }
 
+/* How a heatmap is drawn: Linear heat or Cubespots. */
+.render-heat {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 4px 6px 0;
+	font-size: var(--text-md);
+	color: var(--fg);
+}
+
 /* A heatmap's colours, as the composite draws them: see heatColour. */
 .render-legend {
 	display: grid;

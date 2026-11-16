@@ -846,13 +846,27 @@ export const RENDER_SHOW: readonly (readonly [keyof RenderShow, string])[] = [
 	["seeThrough", "See-through parts"],
 ];
 
+/**
+ * How the heatmaps are drawn: by the 16-stud cells the lights are sorted
+ * into, each its own colour, or blended between them, each light weighed by
+ * how strongly it reaches.
+ */
+export type RenderHeat = "cells" | "linear";
+
+export const RENDER_HEAT: readonly (readonly [RenderHeat, string])[] = [
+	["linear", "Linear heat"],
+	["cells", "Cubespots"],
+];
+
 export interface RenderSettings {
 	mode: RenderMode;
+	heat: RenderHeat;
 	show: RenderShow;
 }
 
 export const DEFAULT_RENDER: RenderSettings = {
 	mode: "lit",
+	heat: "linear",
 	show: { glow: true, post: true, haze: true, sky: true, images: true, seeThrough: true },
 };
 

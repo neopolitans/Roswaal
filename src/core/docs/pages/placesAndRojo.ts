@@ -283,6 +283,12 @@ export function placesAndRojoPage(): DocPage {
 			{
 				t: "p",
 				text:
+					"**Heat** draws a heatmap as **Linear heat**, blended and each light weighed by how " +
+					"strongly it reaches, or as **Cubespots**, the 16-stud cells the lights are sorted into.",
+			},
+			{
+				t: "p",
+				text:
 					"Its switches leave Neon's glow, post effects, haze, the sky, Decals and Textures or " +
 					"see-through parts out of the view. **Last frame** counts draw calls, instances and " +
 					"triangles, and times the frame on the page and, where the browser allows, on the GPU.",

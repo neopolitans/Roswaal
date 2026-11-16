@@ -298,12 +298,13 @@ vec3 partLights(vec3 p, vec3 n, vec3 v, float gloss, out vec3 shine) {
 	return sum * 1.25;
 }
 // The Rendering panel's heatmaps, as WebGpuView's lightWork: the lights p is
-// tested against, and those that reach it.
-vec2 lightWork(vec3 p, vec3 n) {
+// tested against, those that reach it, and those weighed by how strongly.
+vec3 lightWork(vec3 p, vec3 n) {
 	uint h = lightCell(p);
 	uvec2 b = texelFetch(lightTable, ivec2(int(h & 255u), int(h >> 8u)), 0).xy;
 	uint count = min(b.y, 64u);
 	float reached = 0.0;
+	float weight = 0.0;
 	for (uint j = 0u; j < count; j++) {
 		uint idx = b.x + j;
 		int i = int(texelFetch(lightIndex, ivec2(int(idx & 1023u), int(idx >> 10u)), 0).r);
@@ -320,10 +321,30 @@ vec2 lightWork(vec3 p, vec3 n) {
 		vec3 to = at - p;
 		float dist = length(to);
 		if (dist >= a.w || dot(n, to) <= 0.0) continue;
-		if (col.w > 0.5 && dot(-to / max(dist, 1e-4), d.xyz) <= cos(d.w)) continue;
+		float k = 1.0 - smoothstep(0.7, 1.0, dist / a.w);
+		if (col.w > 0.5) {
+			float c = dot(-to / max(dist, 1e-4), d.xyz);
+			if (c <= cos(d.w)) continue;
+			k *= 1.0 - smoothstep(0.0, 1.0, acos(min(c, 1.0)) / max(d.w, 1e-3));
+		}
 		reached += 1.0;
+		weight += k;
 	}
-	return vec2(float(count), reached);
+	return vec3(float(count), reached, weight);
+}
+// The lights tested at p, blended between the eight nearest cells, as WebGpuView's testedSmooth.
+float testedSmooth(vec3 p) {
+	vec3 q = p / 16.0 - 0.5;
+	vec3 c = floor(q);
+	vec3 f = q - c;
+	float sum = 0.0;
+	for (int k = 0; k < 8; k++) {
+		vec3 o = vec3(float(k & 1), float((k >> 1) & 1), float((k >> 2) & 1));
+		float w = mix(1.0 - f.x, f.x, o.x) * mix(1.0 - f.y, f.y, o.y) * mix(1.0 - f.z, f.z, o.z);
+		uint h = lightCell((c + o + 0.5) * 16.0);
+		sum += w * float(min(texelFetch(lightTable, ivec2(int(h & 255u), int(h >> 8u)), 0).y, 64u));
+	}
+	return sum;
 }
 float skyVisibility(vec3 p, vec3 n) {
 	if (skyInfo.w < 0.5) return 1.0;
@@ -537,13 +558,18 @@ float heat(vec3 n) {
 	int row = int(vLook & 255u);
 	vec4 a = M[row * 3];
 	vec4 b = M[row * 3 + 1];
-	if (R.x > 5.5) return lightWork(vWorld, n).y / ${LIGHTS_FULL}.0;
+	bool linear = R.z > 0.5;
+	if (R.x > 5.5) {
+		vec3 lw = lightWork(vWorld, n);
+		return (linear ? lw.z : lw.y) / ${LIGHTS_FULL}.0;
+	}
 	float cost = 2.0;
 	if (a.w > 0.0) cost += 2.0;
 	if (b.w > 0.5) cost += 1.0;
 	if (b.y > 0.5 && b.y < 1.5) return cost / ${COST_FULL}.0;
 	cost += 7.0;
-	vec2 w = lightWork(vWorld, n);
+	vec3 w = lightWork(vWorld, n);
+	if (linear) return (cost + testedSmooth(vWorld) + w.z * 1.5) / ${COST_FULL}.0;
 	return (cost + w.x + w.y * 1.5) / ${COST_FULL}.0;
 }
 void main() {
@@ -1923,7 +1949,7 @@ export class WebGl2View implements ViewRenderer {
 			gl.getUniformLocation(prog.program, "R"),
 			RENDER_MODE_CODE[this.render.mode],
 			this.render.show.haze ? 1 : 0,
-			0,
+			this.render.heat === "linear" ? 1 : 0,
 			0,
 		);
 		gl.uniform1f(gl.getUniformLocation(prog.program, "logFar"), 1 / Math.log2(camera.far + 1));

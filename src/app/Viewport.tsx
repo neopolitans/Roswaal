@@ -36,8 +36,10 @@ import { fader } from "./viewport/fade.js";
 import { prepareScene } from "./viewport/prepare.js";
 import { readSpeed, SPEED_MAX, SPEED_MIN, SPEED_STEP, speedText } from "./viewport/speed.js";
 import {
+	RENDER_HEAT,
 	RENDER_MODES,
 	RENDER_SHOW,
+	type RenderHeat,
 	type RenderMode,
 	type RenderSettings,
 	type RenderStats,
@@ -726,6 +728,22 @@ export function RenderPanel({ controller }: { controller: ViewportController }) 
 								</label>
 							))}
 						</div>
+						{legend && (
+							<label className="render-heat">
+								<span>Heat</span>
+								<select
+									className="tb place-edit-field"
+									value={render.heat}
+									onChange={(e) => apply({ ...render, heat: e.target.value as RenderHeat })}
+								>
+									{RENDER_HEAT.map(([value, label]) => (
+										<option key={value} value={value}>
+											{label}
+										</option>
+									))}
+								</select>
+							</label>
+						)}
 						{legend && (
 							<div
 								className={cx("render-legend", render.mode === "lights" && "render-legend-lights")}

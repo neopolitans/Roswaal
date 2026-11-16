@@ -179,7 +179,8 @@ struct U {
 	screen: vec4f,
 	// Neon's glow: see \`glowShape\`'s gate.
 	bloom: vec4f,
-	// The Rendering panel: its mode (RENDER_MODE_CODE), and whether haze is drawn.
+	// The Rendering panel: its mode (RENDER_MODE_CODE), whether haze is drawn,
+	// and whether the heatmaps are linear rather than by cell.
 	debug: vec4f,
 	// The material table: two rows a material, as \`materialBlock\` writes it.
 	mats: array<vec4f, ${MATERIALS.length * 3}>,
@@ -265,11 +266,13 @@ fn partLights(p: vec3f, n: vec3f, v: vec3f, gloss: f32) -> Lamps {
 	return Lamps(sum * 1.25, shine * 1.25);
 }
 // The Rendering panel's heatmaps: the lights p is tested against, as
-// partLights walks them, and those that reach it.
-fn lightWork(p: vec3f, n: vec3f) -> vec2f {
+// partLights walks them; those that reach it; and those weighed by how
+// strongly, by Range and cone as partLights eases them.
+fn lightWork(p: vec3f, n: vec3f) -> vec3f {
 	let b = lightTable[lightCell(p)];
 	let tested = min(b.y, 64u);
 	var reached = 0.0;
+	var weight = 0.0;
 	for (var j = 0u; j < tested; j++) {
 		let k = lightIndex[b.x + j] * 5u;
 		let a = lightData[k];
@@ -285,10 +288,30 @@ fn lightWork(p: vec3f, n: vec3f) -> vec2f {
 		let to = at - p;
 		let dist = length(to);
 		if (dist >= a.w || dot(n, to) <= 0.0) { continue; }
-		if (col.w > 0.5 && dot(-to / max(dist, 1e-4), d.xyz) <= cos(d.w)) { continue; }
+		var strength = 1.0 - smoothstep(0.7, 1.0, dist / a.w);
+		if (col.w > 0.5) {
+			let c = dot(-to / max(dist, 1e-4), d.xyz);
+			if (c <= cos(d.w)) { continue; }
+			strength = strength * (1.0 - smoothstep(0.0, 1.0, acos(min(c, 1.0)) / max(d.w, 1e-3)));
+		}
 		reached = reached + 1.0;
+		weight = weight + strength;
 	}
-	return vec2f(f32(tested), reached);
+	return vec3f(f32(tested), reached, weight);
+}
+// The lights tested at p, blended between the eight cells nearest, for the
+// linear render heatmap: one cell's list against the next is a step otherwise.
+fn testedSmooth(p: vec3f) -> f32 {
+	let q = p / 16.0 - 0.5;
+	let c = floor(q);
+	let f = q - c;
+	var sum = 0.0;
+	for (var k = 0u; k < 8u; k++) {
+		let o = vec3f(f32(k & 1u), f32((k >> 1u) & 1u), f32((k >> 2u) & 1u));
+		let w = mix(1.0 - f.x, f.x, o.x) * mix(1.0 - f.y, f.y, o.y) * mix(1.0 - f.z, f.z, o.z);
+		sum = sum + w * f32(min(lightTable[lightCell((c + o + 0.5) * 16.0)].y, 64u));
+	}
+	return sum;
 }
 // A pixel's share of what shows white: for the render heatmap, its estimated
 // work in texture reads and light tests; for the lighting heatmap, the
@@ -298,7 +321,11 @@ fn heat(i: VOut) -> f32 {
 	let a = u.mats[row * 3u];
 	let b = u.mats[row * 3u + 1u];
 	let n = normalize(i.normal);
-	if (u.debug.x > 5.5) { return lightWork(i.world, n).y / ${LIGHTS_FULL}.0; }
+	let blend = u.debug.z > 0.5;
+	if (u.debug.x > 5.5) {
+		let lw = lightWork(i.world, n);
+		return select(lw.y, lw.z, blend) / ${LIGHTS_FULL}.0;
+	}
 	// The surface, its colour and the haze; a pattern's noise; a texture.
 	var cost = 2.0;
 	if (a.w > 0.0) { cost = cost + 2.0; }
@@ -308,6 +335,7 @@ fn heat(i: VOut) -> f32 {
 	// reflection; then each light tested, and more for each that reaches.
 	cost = cost + 7.0;
 	let w = lightWork(i.world, n);
+	if (blend) { return (cost + testedSmooth(i.world) + w.z * 1.5) / ${COST_FULL}.0; }
 	return (cost + w.x + w.y * 1.5) / ${COST_FULL}.0;
 }
 // How much of the sky reaches p, on a face turned to n: the share of the maps that see it.
@@ -2012,7 +2040,15 @@ export class WebGpuView implements ViewRenderer {
 		const sky = this.skyOn ? (this.lighting.skyboxSun ? 2 : 1) : 0;
 		u.set([this.width, this.height, this.band(), sky], 76);
 		u.set(this.shape.gate, 80);
-		u.set([RENDER_MODE_CODE[this.render.mode], this.render.show.haze ? 1 : 0, 0, 0], 84);
+		u.set(
+			[
+				RENDER_MODE_CODE[this.render.mode],
+				this.render.show.haze ? 1 : 0,
+				this.render.heat === "linear" ? 1 : 0,
+				0,
+			],
+			84,
+		);
 		this.device.queue.writeBuffer(this.uniform, 0, u);
 	}
 
