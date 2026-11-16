@@ -90,6 +90,12 @@ export interface PlaceScene {
 	unionCuts?: number[];
 }
 
+/**
+ * Set in a row's look for a part with CastShadow off: the shadow and sky maps
+ * leave it out. Above the mesh slot's 15 bits; readers of the slot mask it off.
+ */
+export const NO_SHADOW = 0x80000000;
+
 /** Floats a light: see `sceneLights`. */
 export const LIGHT_STRIDE = 20;
 /** A light's kind, in its second vec4's w. */
@@ -418,6 +424,8 @@ export function buildPlaceScene(
 		const alpha = Math.round((1 - see) * 255);
 		const colour = (rgb[0] & 255) | ((rgb[1] & 255) << 8) | ((rgb[2] & 255) << 16) | (alpha << 24);
 		const material = materialIndex(inst.props.get("Material")?.value);
+		// CastShadow off: it neither shades nor hides the sky from what is near it.
+		const casts = inst.props.get("CastShadow")?.value !== false;
 		const reflectance = inst.props.get("Reflectance")?.value;
 		const shine = Math.round(
 			Math.max(0, Math.min(1, typeof reflectance === "number" ? reflectance : 0)) * 255,
@@ -460,7 +468,7 @@ export function buildPlaceScene(
 			p[2],
 			colour,
 			id,
-			(material | (shine << 8)) + mesh * 65536,
+			(material | (shine << 8)) + mesh * 65536 + (casts ? 0 : NO_SHADOW),
 		);
 		positions.push(p[0], p[1], p[2]);
 		// The pivot, where it is not the drawn box's centre and axes.

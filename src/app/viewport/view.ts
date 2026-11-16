@@ -255,7 +255,10 @@ export function skyBlock(
 		block.set(view.matrix, k * 16);
 		reach = view.reach;
 	});
-	block.set([(2 * reach) / SKY_MAP, (zeroToOne ? 1 : 2) / (2 * reach), 0, 1], 16 * (SKY_VIEWS + 1));
+	block.set(
+		[(2 * reach) / SKY_MAP, (zeroToOne ? 1 : 2) / (2 * reach), 1 / SKY_MAP, 1],
+		16 * (SKY_VIEWS + 1),
+	);
 	return block;
 }
 
@@ -710,7 +713,7 @@ export function splitByMesh(
 	const rows = new Map<number, number[]>();
 	const rest: number[] = [];
 	for (let i = 0; i < from.count; i++) {
-		const slot = (words[i * stride + 14] >>> 16) - 1;
+		const slot = ((words[i * stride + 14] >>> 16) & 0x7fff) - 1;
 		if (slot >= 0 && ready(slot)) {
 			const list = rows.get(slot) ?? [];
 			list.push(i);

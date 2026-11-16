@@ -237,7 +237,11 @@ float skySees(int k, vec3 p) {
 	vec4 c = skyViews[k] * vec4(p, 1.0);
 	vec3 q = c.xyz * 0.5 + 0.5;
 	if (any(lessThan(q.xy, vec2(0.0))) || any(greaterThan(q, vec3(1.0)))) return 1.0;
-	return texture(skyMaps, vec4(q.xy, float(k), q.z - skyInfo.y * 0.25));
+	// Two taps a texel either side, as WebGpuView's skySees.
+	float a = float(k) * 0.785;
+	vec2 o = vec2(cos(a), sin(a)) * skyInfo.z;
+	float ref = q.z - skyInfo.y * 0.25;
+	return 0.5 * (texture(skyMaps, vec4(q.xy + o, float(k), ref)) + texture(skyMaps, vec4(q.xy - o, float(k), ref)));
 }
 // The place's lights, as WebGpuView's partLights: five texels a light, a row
 // each; and which reach a cell, 256 hashes a row, see lightGrid.
@@ -325,8 +329,13 @@ float sunSees(vec3 p, vec3 n) {
 const VS_DEPTH = `#version 300 es
 layout(location=0) in vec3 pos;
 layout(location=2) in vec3 c0; layout(location=3) in vec3 c1; layout(location=4) in vec3 c2; layout(location=5) in vec3 p;
+layout(location=8) in uint look;
 uniform mat4 viewProj;
-void main() { gl_Position = viewProj * vec4(mat3(c0, c1, c2) * pos + p, 1.0); }`;
+void main() {
+	// A part with CastShadow off (NO_SHADOW) is left out, past the far plane.
+	if ((look & 0x80000000u) != 0u) { gl_Position = vec4(0.0, 0.0, 2.0, 1.0); return; }
+	gl_Position = viewProj * vec4(mat3(c0, c1, c2) * pos + p, 1.0);
+}`;
 const FS_DEPTH = `#version 300 es
 precision highp float;
 void main() {}`;

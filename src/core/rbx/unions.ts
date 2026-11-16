@@ -319,8 +319,9 @@ function drawChildData(
 				out.set(axes, o);
 				out.set(p, o + 9);
 				const look = words[o + 14];
-				const mesh = look >>> 16;
-				if (mesh > 0) words[o + 14] = (look & 0xffff) | ((slots[mesh - 1] + 1) << 16);
+				// The slot's 15 bits; the top bit is NO_SHADOW, kept as it was.
+				const mesh = (look >>> 16) & 0x7fff;
+				if (mesh > 0) words[o + 14] = ((look & 0x8000ffff) | ((slots[mesh - 1] + 1) << 16)) >>> 0;
 			}
 			to[kind].push(out);
 		}

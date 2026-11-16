@@ -167,3 +167,18 @@ describe("the sun's cascades", () => {
 		expect([...a.subarray(0, 16)]).toEqual([...b.subarray(0, 16)]);
 	});
 });
+
+describe("a part with CastShadow off", () => {
+	it("is marked to be left out of the shadow and sky maps, its mesh slot as it was", async () => {
+		const { buildPlaceScene, NO_SHADOW, SCENE_STRIDE } = await import("../src/core/rbx/scene.js");
+		const lit = part([0, 0, 0]);
+		const none = part([10, 0, 0]);
+		none.props.set("CastShadow", { type: "Bool", value: false });
+		const scene = buildPlaceScene(inst("Workspace", {}, [lit, none]), () => 1);
+		const { data, count } = scene.kinds.block;
+		const words = new Uint32Array(data.buffer, data.byteOffset, count * SCENE_STRIDE);
+		const looks = [0, 1].map((r) => words[r * SCENE_STRIDE + 14]);
+		expect(looks.map((l) => (l & NO_SHADOW) !== 0)).toEqual([false, true]);
+		expect(looks.map((l) => (l >>> 16) & 0x7fff)).toEqual([0, 0]);
+	});
+});

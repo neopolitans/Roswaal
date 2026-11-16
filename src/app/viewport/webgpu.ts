@@ -182,7 +182,12 @@ fn skySees(k: i32, p: vec3f) -> f32 {
 	let c = skyU.views[k] * vec4f(p, 1.0);
 	let uv = vec2f(c.x * 0.5 + 0.5, 0.5 - c.y * 0.5);
 	if (any(uv < vec2f(0.0)) || any(uv > vec2f(1.0)) || c.z > 1.0) { return 1.0; }
-	return textureSampleCompareLevel(skyMaps, skyCompare, uv, k, c.z - skyU.info.y * 0.5);
+	// Two taps a texel either side, turned with k, so the maps' coarse texels
+	// blur into a soft fall rather than steps where a floor meets a wall.
+	let a = f32(k) * 0.785;
+	let o = vec2f(cos(a), sin(a)) * skyU.info.z;
+	let ref = c.z - skyU.info.y * 0.5;
+	return 0.5 * (textureSampleCompareLevel(skyMaps, skyCompare, uv + o, k, ref) + textureSampleCompareLevel(skyMaps, skyCompare, uv - o, k, ref));
 }
 // The place's lights: five vec4s each, see sceneLights; and which reach a
 // cell of the world, by its hash, see lightGrid.
@@ -2047,8 +2052,10 @@ export class WebGpuView implements ViewRenderer {
 		const module = d.createShaderModule({
 			code: `struct D { viewProj: mat4x4f };
 @group(0) @binding(0) var<uniform> d: D;
-struct VIn { @location(0) pos: vec3f, @location(2) c0: vec3f, @location(3) c1: vec3f, @location(4) c2: vec3f, @location(5) p: vec3f };
+struct VIn { @location(0) pos: vec3f, @location(2) c0: vec3f, @location(3) c1: vec3f, @location(4) c2: vec3f, @location(5) p: vec3f, @location(8) look: u32 };
 @vertex fn vsDepth(v: VIn) -> @builtin(position) vec4f {
+	// A part with CastShadow off (NO_SHADOW) is left out, past the far plane.
+	if ((v.look & 0x80000000u) != 0u) { return vec4f(0.0, 0.0, 2.0, 1.0); }
 	return d.viewProj * vec4f(mat3x3f(v.c0, v.c1, v.c2) * v.pos + v.p, 1.0);
 }`,
 		});
