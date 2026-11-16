@@ -12,7 +12,7 @@
 import { type LightingParams, lightingBlock } from "../../core/rbx/lighting.js";
 import { MATERIAL_TEXTURES, MATERIALS, materialBlock } from "../../core/rbx/materials.js";
 import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene.js";
-import { boxEdges, meshFor, sceneGlows } from "./geometry.js";
+import { boxEdges, featureEdges, meshFor, sceneGlows } from "./geometry.js";
 import { HANDLE_KINDS, type Handles, handleMesh } from "./handles.js";
 import { invert, lookAt, multiply, perspective } from "./math.js";
 import { lightGridFor } from "./prepare.js";
@@ -23,7 +23,9 @@ import {
 	CASCADE_BLOCK,
 	CASCADE_MAP,
 	type Camera,
+	COST_FULL,
 	cascadeBlock,
+	DEFAULT_RENDER,
 	FOV,
 	fingerprint,
 	GLOW_NARROW,
@@ -38,8 +40,12 @@ import {
 	type ImageQuad,
 	imageOrder,
 	imageQuads,
+	LIGHTS_FULL,
 	type MeshGeometry,
 	postActive,
+	RENDER_MODE_CODE,
+	type RenderSettings,
+	type RenderStats,
 	SELECT,
 	SELECT_WIDTH,
 	SKY_BLOCK,
@@ -60,11 +66,13 @@ import {
 // interfaces but not these namespaces.
 const BUFFER = {
 	MAP_READ: 0x1,
+	COPY_SRC: 0x4,
 	COPY_DST: 0x8,
 	INDEX: 0x10,
 	VERTEX: 0x20,
 	UNIFORM: 0x40,
 	STORAGE: 0x80,
+	QUERY_RESOLVE: 0x200,
 } as const;
 const STAGE = { VERTEX: 0x1, FRAGMENT: 0x2 } as const;
 const TEXTURE = {
@@ -125,8 +133,21 @@ struct Out { @builtin(position) clip: vec4f, @location(0) uv: vec2f };
 // what it adds, as Studio's captures show, and turns Neon's heart white where its
 // channels run past full. A dither under one step of the frame's 8 bits keeps
 // its long soft fall from coming out in bands.
+// The heatmaps' colours, from the share each pixel holds in red: dark green
+// where it is cheap, through green, yellow and red, to white; for the lighting
+// heatmap, near black where no light reaches.
+fn heatColour(h: f32, lights: bool) -> vec3f {
+	if (lights && h < 0.01) { return vec3f(0.03, 0.03, 0.04); }
+	let t = clamp(h, 0.0, 1.0);
+	if (t < 0.3) { return mix(vec3f(0.03, 0.22, 0.06), vec3f(0.1, 0.72, 0.16), t / 0.3); }
+	if (t < 0.55) { return mix(vec3f(0.1, 0.72, 0.16), vec3f(0.95, 0.85, 0.12), (t - 0.3) / 0.25); }
+	if (t < 0.8) { return mix(vec3f(0.95, 0.85, 0.12), vec3f(0.9, 0.14, 0.06), (t - 0.55) / 0.25); }
+	return mix(vec3f(0.9, 0.14, 0.06), vec3f(1.0), (t - 0.8) / 0.2);
+}
 @fragment fn fsComposite(i: Out) -> @location(0) vec4f {
 	let f = textureLoad(frame, vec2i(i.clip.xy), 0).rgb;
+	// A heatmap (p.w 1, or 2 for lights): the frame holds shares, not colours.
+	if (p.w > 0.5) { return vec4f(heatColour(f.r, p.w > 1.5), 1.0); }
 	// The glow spreads over Decals and Textures too: one over Neon has already
 	// kept the Neon beneath it from glowing, in the glow's pass, and the author's
 	// captures show the glow of the Neon left showing laid over the image round it.
@@ -148,8 +169,8 @@ struct Out { @builtin(position) clip: vec4f, @location(0) uv: vec2f };
 `;
 
 const SAMPLES = 4;
-/** Where the material table starts in the frame's uniforms, in bytes: after `U`'s two matrices and thirteen vec4s. */
-const UNIFORM_MATERIALS = 336;
+/** Where the material table starts in the frame's uniforms, in bytes: after `U`'s two matrices and fourteen vec4s. */
+const UNIFORM_MATERIALS = 352;
 const SHADER = /* wgsl */ `
 struct U {
 	viewProj: mat4x4f, invViewProj: mat4x4f,
@@ -158,6 +179,8 @@ struct U {
 	screen: vec4f,
 	// Neon's glow: see \`glowShape\`'s gate.
 	bloom: vec4f,
+	// The Rendering panel: its mode (RENDER_MODE_CODE), and whether haze is drawn.
+	debug: vec4f,
 	// The material table: two rows a material, as \`materialBlock\` writes it.
 	mats: array<vec4f, ${MATERIALS.length * 3}>,
 };
@@ -240,6 +263,52 @@ fn partLights(p: vec3f, n: vec3f, v: vec3f, gloss: f32) -> Lamps {
 		shine = shine + col.rgb * k2 * pow(max(dot(n, normalize(l + v)), 0.0), gloss);
 	}
 	return Lamps(sum * 1.25, shine * 1.25);
+}
+// The Rendering panel's heatmaps: the lights p is tested against, as
+// partLights walks them, and those that reach it.
+fn lightWork(p: vec3f, n: vec3f) -> vec2f {
+	let b = lightTable[lightCell(p)];
+	let tested = min(b.y, 64u);
+	var reached = 0.0;
+	for (var j = 0u; j < tested; j++) {
+		let k = lightIndex[b.x + j] * 5u;
+		let a = lightData[k];
+		let col = lightData[k + 1u];
+		let d = lightData[k + 2u];
+		var at = a.xyz;
+		if (col.w > 1.5) {
+			let su = lightData[k + 3u].xyz;
+			let sv = lightData[k + 4u].xyz;
+			let off = p - a.xyz;
+			at = a.xyz + su * clamp(dot(off, su) / max(dot(su, su), 1e-6), -1.0, 1.0) + sv * clamp(dot(off, sv) / max(dot(sv, sv), 1e-6), -1.0, 1.0);
+		}
+		let to = at - p;
+		let dist = length(to);
+		if (dist >= a.w || dot(n, to) <= 0.0) { continue; }
+		if (col.w > 0.5 && dot(-to / max(dist, 1e-4), d.xyz) <= cos(d.w)) { continue; }
+		reached = reached + 1.0;
+	}
+	return vec2f(f32(tested), reached);
+}
+// A pixel's share of what shows white: for the render heatmap, its estimated
+// work in texture reads and light tests; for the lighting heatmap, the
+// lights that reach it.
+fn heat(i: VOut) -> f32 {
+	let row = i.look & 255u;
+	let a = u.mats[row * 3u];
+	let b = u.mats[row * 3u + 1u];
+	let n = normalize(i.normal);
+	if (u.debug.x > 5.5) { return lightWork(i.world, n).y / ${LIGHTS_FULL}.0; }
+	// The surface, its colour and the haze; a pattern's noise; a texture.
+	var cost = 2.0;
+	if (a.w > 0.0) { cost = cost + 2.0; }
+	if (b.w > 0.5) { cost = cost + 1.0; }
+	if (b.y > 0.5 && b.y < 1.5) { return cost / ${COST_FULL}.0; }
+	// The sky's maps, two taps of eight; the sun's eight taps; the sky's
+	// reflection; then each light tested, and more for each that reaches.
+	cost = cost + 7.0;
+	let w = lightWork(i.world, n);
+	return (cost + w.x + w.y * 1.5) / ${COST_FULL}.0;
 }
 // How much of the sky reaches p, on a face turned to n: the share of the maps that see it.
 fn skyVisibility(p: vec3f, n: vec3f) -> f32 {
@@ -576,6 +645,9 @@ fn surface(i: VOut) -> vec4f {
 		let rim = pow(1.0 - abs(dot(n, v)), 2.0);
 		c = albedo * (0.6 + rim * 2.5);
 		alpha = alpha * clamp(0.15 + rim * 0.85, 0.0, 1.0);
+	} else if (u.debug.x > 2.5) {
+		// No lighting: the colour and material as they are.
+		c = albedo;
 	} else {
 		let l = u.sun.xyz;
 		let ndl = max(dot(n, l), 0.0);
@@ -583,10 +655,18 @@ fn surface(i: VOut) -> vec4f {
 		let spec = pow(max(dot(n, h), 0.0), a.y) * a.x * pat.y;
 		// Ambient everywhere, OutdoorAmbient and the sky as far as the sky
 		// reaches, and the sun where it does.
-		let vis = skyVisibility(i.world, n);
-		let lit = u.sunColour.rgb * ndl * sunSees(i.world, n);
+		// Global lighting only leaves the sky's reach and the sun's shadow out,
+		// and both it and Global lighting and shadows leave the lights out.
+		var vis = 1.0;
+		var sunK = 1.0;
+		if (u.debug.x < 1.5) {
+			vis = skyVisibility(i.world, n);
+			sunK = sunSees(i.world, n);
+		}
+		let lit = u.sunColour.rgb * ndl * sunK;
 		let fill = (vec3f(u.fog.w, u.fogColour.w, u.hazeColour.w) + u.ambient.rgb * vis) * (0.9 + 0.1 * n.y);
-		let lamps = partLights(i.world, n, v, a.y * 2.0);
+		var lamps = Lamps(vec3f(0.0), vec3f(0.0));
+		if (u.debug.x < 0.5) { lamps = partLights(i.world, n, v, a.y * 2.0); }
 		c = albedo * (1.0 - a.z * 0.6) * (fill + lit + lamps.diffuse) + mix(vec3f(1.0), albedo, a.z) * (spec * lit + lamps.spec * a.x * pat.y * 4.6);
 		let seen = sky(reflect(-v, n)) * max(vis, 0.05);
 		// A metal shows a little of the sky in its own colour.
@@ -597,7 +677,8 @@ fn surface(i: VOut) -> vec4f {
 		c = mix(c, seen, mirror);
 		c = c + lavaLight(pat.z) * 2.2;
 	}
-	return vec4f(air(c, d, i.world.y), alpha);
+	if (u.debug.y > 0.5) { c = air(c, d, i.world.y); }
+	return vec4f(c, alpha);
 }
 // What gives light of its own, for the glow round it, in linear light. Neon
 // as measured from Studio's captures: each channel by how far its light runs
@@ -641,10 +722,16 @@ fn glowSource(i: VOut) -> vec3f {
 // drawn over it on the way.
 @fragment fn fsNothing() -> @location(0) vec4f { return vec4f(0.0); }
 @fragment fn fs(i: VOut) -> @location(0) vec4f {
+	// The heatmaps: a share in red, added up and coloured by the composite.
+	if (u.debug.x > 4.5) { return vec4f(heat(i), 0.0, 0.0, 1.0); }
 	let s = surface(i);
 	let shade = u.mats[(i.look & 255u) * 3u + 1u].y;
 	let neon = shade > 0.5 && shade < 1.5;
 	return vec4f(select(display(s.rgb), pow(min(s.rgb, vec3f(1.0)), vec3f(1.0 / 2.2)), neon), s.a);
+}
+// Wireframe only: each part's edges, in its own colour lifted toward white.
+@fragment fn fsWire(i: VOut) -> @location(0) vec4f {
+	return vec4f(pow(mix(i.colour, vec3f(1.0), 0.3), vec3f(1.0 / 2.2)), 0.85);
 }
 // The sky behind everything: a triangle that covers the screen, each pixel's ray worked out from where it is.
 struct SOut { @builtin(position) clip: vec4f, @location(0) ndc: vec2f };
@@ -764,11 +851,20 @@ struct IOut {
 	let albedo = pow(t.rgb, vec3f(2.2)) * pow(i.tint.rgb, vec3f(2.2));
 	let n = normalize(i.normal);
 	let ndl = max(dot(n, u.sun.xyz), 0.0);
-	let vis = skyVisibility(i.world, n);
+	var vis = 1.0;
+	var sunK = 1.0;
+	if (u.debug.x < 1.5) {
+		vis = skyVisibility(i.world, n);
+		sunK = sunSees(i.world, n);
+	}
+	var lamps = vec3f(0.0);
+	if (u.debug.x < 0.5) { lamps = partLights(i.world, n, n, 1.0).diffuse; }
 	let fill = (vec3f(u.fog.w, u.fogColour.w, u.hazeColour.w) + u.ambient.rgb * vis) * (0.9 + 0.1 * n.y);
-	let c = albedo * (fill + u.sunColour.rgb * ndl * sunSees(i.world, n) + partLights(i.world, n, n, 1.0).diffuse);
+	var c = albedo * (fill + u.sunColour.rgb * ndl * sunK + lamps);
+	if (u.debug.x > 2.5) { c = albedo; }
 	let d = length(u.camPos.xyz - i.world);
-	return vec4f(display(air(c, d, i.world.y)), t.a * i.tint.a);
+	if (u.debug.y > 0.5) { c = air(c, d, i.world.y); }
+	return vec4f(display(c), t.a * i.tint.a);
 }
 // A solid part's Decal or Texture, where it is mostly opaque, into the depth:
 // a see-through part behind it is then hidden by it, one in front blends over it.
@@ -783,6 +879,10 @@ struct IOut {
 `;
 
 interface Draw {
+	/** The shape's own arrays: a wireframe's edges are found from them. */
+	mesh: { vertices: Float32Array; indices: Uint16Array | Uint32Array };
+	/** Its edges, once a wireframe has asked for them. */
+	edges?: { buffer: GPUBuffer; count: number };
 	vertices: GPUBuffer;
 	indices: GPUBuffer;
 	indexCount: number;
@@ -851,6 +951,98 @@ export class WebGpuView implements ViewRenderer {
 
 	setPostEffects(on: boolean): void {
 		this.postOn = on;
+	}
+
+	/** The Rendering panel's mode and switches: see `RenderSettings`. */
+	private render: RenderSettings = DEFAULT_RENDER;
+	private heatAdded!: GPURenderPipeline;
+	private wire!: GPURenderPipeline;
+
+	setRender(render: RenderSettings): void {
+		this.render = render;
+	}
+
+	/** This frame's draw calls, instances and triangles, and the last frame's. */
+	private tally = { draws: 0, instances: 0, triangles: 0 };
+	private lastTally = { draws: 0, instances: 0, triangles: 0 };
+	private cpuMs = 0;
+
+	stats(): RenderStats {
+		return { ...this.lastTally, cpu: this.cpuMs, gpu: this.gpuTimes };
+	}
+
+	/** Each draw's instances and triangles, toward the frame's stats. */
+	private count(draws: Draw[]): void {
+		for (const d of draws) {
+			this.tally.instances += d.count;
+			this.tally.triangles += (d.count * d.indexCount) / 3;
+		}
+	}
+
+	/** Wireframe only: each draw's edges, found the first time they are asked for. */
+	private edgeCache = new WeakMap<object, Uint32Array>();
+	private wires(pass: GPURenderPassEncoder, draws: Draw[]): void {
+		for (const draw of draws) {
+			if (!draw.edges) {
+				let found = this.edgeCache.get(draw.mesh);
+				if (!found) {
+					found = featureEdges(draw.mesh);
+					this.edgeCache.set(draw.mesh, found);
+				}
+				draw.edges = { buffer: this.make(found, BUFFER.INDEX), count: found.length };
+			}
+			if (draw.edges.count === 0) continue;
+			pass.setVertexBuffer(0, draw.vertices);
+			pass.setVertexBuffer(1, draw.instances);
+			pass.setIndexBuffer(draw.edges.buffer, "uint32");
+			pass.drawIndexed(draw.edges.count, draw.count);
+			this.tally.draws++;
+		}
+		this.count(draws);
+	}
+
+	/**
+	 * The GPU's time for each pass, where the browser can time passes: a pair
+	 * of stamps a pass, read back a frame or so later and summed by kind.
+	 */
+	private static readonly STAMPS = 32;
+	private timing?: { set: GPUQuerySet; resolve: GPUBuffer; read: GPUBuffer; busy: boolean };
+	private stamps: ("shadows" | "scene" | "post")[] = [];
+	private gpuTimes: RenderStats["gpu"] = null;
+	private stamp(kind: "shadows" | "scene" | "post"): GPURenderPassTimestampWrites | undefined {
+		const t = this.timing;
+		if (!t || t.busy || (this.stamps.length + 1) * 2 > WebGpuView.STAMPS) return undefined;
+		const at = this.stamps.length * 2;
+		this.stamps.push(kind);
+		return { querySet: t.set, beginningOfPassWriteIndex: at, endOfPassWriteIndex: at + 1 };
+	}
+	private readStamps(encoder: GPUCommandEncoder): (() => void) | undefined {
+		const t = this.timing;
+		const kinds = this.stamps;
+		this.stamps = [];
+		if (!t || kinds.length === 0) return undefined;
+		const bytes = kinds.length * 16;
+		encoder.resolveQuerySet(t.set, 0, kinds.length * 2, t.resolve, 0);
+		encoder.copyBufferToBuffer(t.resolve, 0, t.read, 0, bytes);
+		return () => {
+			t.busy = true;
+			t.read.mapAsync(MAP_READ, 0, bytes).then(
+				() => {
+					const ns = new BigUint64Array(t.read.getMappedRange(0, bytes));
+					const sum = { shadows: 0, scene: 0, post: 0 };
+					kinds.forEach((kind, j) => {
+						const took = Number(ns[j * 2 + 1] - ns[j * 2]);
+						if (took > 0 && took < 1e9) sum[kind] += took / 1e6;
+					});
+					t.read.unmap();
+					t.busy = false;
+					this.gpuTimes = sum;
+				},
+				() => {
+					t.busy = false;
+				},
+			);
+		};
 	}
 	/** The glow the place's BloomEffect asks for: see `glowShape`. */
 	private shape: GlowShape = glowShape(undefined, false);
@@ -930,7 +1122,23 @@ export class WebGpuView implements ViewRenderer {
 		this.canvas = canvas;
 		const adapter = await navigator.gpu?.requestAdapter({ powerPreference: "high-performance" });
 		if (!adapter) throw new Error("no WebGPU adapter");
-		this.device = await adapter.requestDevice();
+		// Timestamps where the adapter has them, for the Rendering panel's GPU times.
+		const timed = adapter.features.has("timestamp-query");
+		this.device = await adapter.requestDevice(
+			timed ? { requiredFeatures: ["timestamp-query"] } : undefined,
+		);
+		if (timed) {
+			const n = WebGpuView.STAMPS;
+			this.timing = {
+				set: this.device.createQuerySet({ type: "timestamp", count: n }),
+				resolve: this.device.createBuffer({
+					size: n * 8,
+					usage: BUFFER.QUERY_RESOLVE | BUFFER.COPY_SRC,
+				}),
+				read: this.device.createBuffer({ size: n * 8, usage: BUFFER.MAP_READ | BUFFER.COPY_DST }),
+				busy: false,
+			};
+		}
 		this.context = canvas.getContext("webgpu") as GPUCanvasContext;
 		if (!this.context) throw new Error("no WebGPU context");
 		this.format = navigator.gpu.getPreferredCanvasFormat();
@@ -1036,6 +1244,48 @@ export class WebGpuView implements ViewRenderer {
 			},
 			primitive: { topology: "triangle-list", cullMode: "back" },
 			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "greater" },
+			multisample: { count: SAMPLES },
+		});
+		// The heatmaps' see-through parts: each one's share added to what is behind it.
+		this.pipeline((p) => (this.heatAdded = p), {
+			layout: pipelineLayout,
+			vertex: { module, entryPoint: "vs", buffers },
+			fragment: {
+				module,
+				entryPoint: "fs",
+				targets: [
+					{
+						format: this.format,
+						blend: {
+							color: { srcFactor: "one", dstFactor: "one" },
+							alpha: { srcFactor: "one", dstFactor: "one" },
+						},
+					},
+				],
+			},
+			primitive: { topology: "triangle-list", cullMode: "back" },
+			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "greater" },
+			multisample: { count: SAMPLES },
+		});
+		// Wireframe only: every edge, those behind others included.
+		this.pipeline((p) => (this.wire = p), {
+			layout: pipelineLayout,
+			vertex: { module, entryPoint: "vs", buffers },
+			fragment: {
+				module,
+				entryPoint: "fsWire",
+				targets: [
+					{
+						format: this.format,
+						blend: {
+							color: { srcFactor: "src-alpha", dstFactor: "one-minus-src-alpha" },
+							alpha: { srcFactor: "one", dstFactor: "one-minus-src-alpha" },
+						},
+					},
+				],
+			},
+			primitive: { topology: "line-list" },
+			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "always" },
 			multisample: { count: SAMPLES },
 		});
 		// Decals and Textures: blended onto their faces, hidden by what is in
@@ -1412,8 +1662,10 @@ export class WebGpuView implements ViewRenderer {
 	}
 
 	setScene(scene: PlaceScene): void {
-		for (const d of [...this.draws, ...this.clear, ...this.glass])
+		for (const d of [...this.draws, ...this.clear, ...this.glass]) {
 			for (const b of [d.vertices, d.indices, d.instances]) b.destroy();
+			d.edges?.buffer.destroy();
+		}
 		this.scene = scene;
 		// The sky's maps again only when the parts moved, not for an edit to Lighting.
 		const key = sceneFingerprint(scene);
@@ -1439,6 +1691,7 @@ export class WebGpuView implements ViewRenderer {
 			glass: Rows,
 		) => {
 			const shape = () => ({
+				mesh,
 				vertices: this.make(mesh.vertices, BUFFER.VERTEX),
 				indices: this.make(mesh.indices, BUFFER.INDEX),
 				indexCount: mesh.indices.length,
@@ -1656,6 +1909,7 @@ export class WebGpuView implements ViewRenderer {
 		const glow = this.glow;
 		if (!glow || !this.glowFull) return;
 		const pass = encoder.beginRenderPass({
+			timestampWrites: this.stamp("post"),
 			colorAttachments: [
 				{
 					view: this.msaa!.createView(),
@@ -1693,6 +1947,7 @@ export class WebGpuView implements ViewRenderer {
 			[this.blur, 4, glow.c],
 		] as const) {
 			const step = encoder.beginRenderPass({
+				timestampWrites: this.stamp("post"),
 				colorAttachments: [
 					{
 						view: into.createView(),
@@ -1722,6 +1977,7 @@ export class WebGpuView implements ViewRenderer {
 			[1, this.frame],
 		] as const) {
 			const step = encoder.beginRenderPass({
+				timestampWrites: this.stamp("post"),
 				colorAttachments: [
 					{
 						view: into.createView(),
@@ -1756,10 +2012,12 @@ export class WebGpuView implements ViewRenderer {
 		const sky = this.skyOn ? (this.lighting.skyboxSun ? 2 : 1) : 0;
 		u.set([this.width, this.height, this.band(), sky], 76);
 		u.set(this.shape.gate, 80);
+		u.set([RENDER_MODE_CODE[this.render.mode], this.render.show.haze ? 1 : 0, 0, 0], 84);
 		this.device.queue.writeBuffer(this.uniform, 0, u);
 	}
 
 	private solids(pass: GPURenderPassEncoder, draws: Draw[] = this.draws): void {
+		this.tally.draws += draws.length;
 		for (const draw of draws) {
 			pass.setVertexBuffer(0, draw.vertices);
 			pass.setVertexBuffer(1, draw.instances);
@@ -1769,23 +2027,35 @@ export class WebGpuView implements ViewRenderer {
 	}
 
 	draw(camera: Camera): void {
-		this.shape = glowShape(this.lighting?.post, this.postOn);
+		const started = performance.now();
+		this.tally = { draws: 0, instances: 0, triangles: 0 };
+		const { mode, show } = this.render;
+		const heat = mode === "cost" || mode === "lights";
+		const wire = mode === "wireframe";
+		// The heatmaps and the wireframe are the place's shapes alone.
+		const postOn = this.postOn && show.post && !heat && !wire;
+		this.shape = glowShape(this.lighting?.post, postOn);
 		this.setCamera(camera);
 		const encoder = this.device.createCommandEncoder();
 		const partsMoved = this.skyDirty;
 		if (this.skyDirty || this.sunDirty) this.drawSkyMaps(encoder, !this.skyDirty);
 		this.drawCascades(encoder, camera, partsMoved);
 		const screen = this.context.getCurrentTexture().createView();
-		const glowing = this.glowing && !!this.glow;
-		const post = postActive(this.lighting?.post, this.postOn);
+		const glowing = this.glowing && !!this.glow && show.glow && !heat && !wire;
+		const post = postActive(this.lighting?.post, postOn);
 		// The place is drawn into its own texture first when anything is added
-		// to it after: Neon's glow, or a post effect.
-		const glow = glowing || post ? this.compositeGroup : undefined;
+		// to it after: Neon's glow, or a post effect; or a heatmap's colours.
+		const glow = glowing || post || heat ? this.compositeGroup : undefined;
 		const q = this.device.queue;
 		q.writeBuffer(
 			this.postParams[2],
 			0,
-			new Float32Array([0, 0, glowing ? this.shape.gain : 0, 0]),
+			new Float32Array([
+				0,
+				0,
+				glowing ? this.shape.gain : 0,
+				heat ? (mode === "lights" ? 2 : 1) : 0,
+			]),
 		);
 		if (this.glow && this.shapeSpread !== this.shape.spread) {
 			const { w, h } = this.glow;
@@ -1799,17 +2069,24 @@ export class WebGpuView implements ViewRenderer {
 			q.writeBuffer(this.postParams[6], 0, new Float32Array([0, 1 / h, 0, more]));
 			this.shapeSpread = this.shape.spread;
 		}
-		q.writeBuffer(this.gradeBuffer, 0, gradeBlock(this.lighting?.post, this.postOn));
+		q.writeBuffer(this.gradeBuffer, 0, gradeBlock(this.lighting?.post, postOn));
 		if (glowing) {
 			if (this.clear.length > 0) this.sortClear(camera.eye);
 			this.drawGlow(encoder);
 		}
 		let pass = encoder.beginRenderPass({
+			timestampWrites: this.stamp("scene"),
 			colorAttachments: [
 				{
 					view: this.msaa!.createView(),
 					resolveTarget: glow ? this.frame!.createView() : screen,
-					clearValue: { r: 0.56, g: 0.71, b: 0.86, a: 1 },
+					clearValue: heat
+						? { r: 0, g: 0, b: 0, a: 1 }
+						: wire
+							? { r: 0.06, g: 0.07, b: 0.09, a: 1 }
+							: show.sky
+								? { r: 0.56, g: 0.71, b: 0.86, a: 1 }
+								: { r: 0.16, g: 0.17, b: 0.19, a: 1 },
 					loadOp: "clear",
 					storeOp: "discard",
 				},
@@ -1822,32 +2099,56 @@ export class WebGpuView implements ViewRenderer {
 			},
 		});
 		pass.setBindGroup(0, this.bind);
-		pass.setPipeline(this.skyPipeline);
-		pass.draw(3);
-		pass.setPipeline(this.solidDepth);
-		this.solids(pass);
-		pass.setPipeline(this.solid);
-		this.solids(pass);
-		this.drawImages(pass, "solid", camera.eye);
-		if (this.glass.length > 0) {
-			pass.setPipeline(this.glassDepth);
-			this.solids(pass, this.glass);
-			pass.setPipeline(this.glassBlended);
-			this.solids(pass, this.glass);
+		const images = show.images && !heat;
+		if (show.sky && !heat && !wire) {
+			pass.setPipeline(this.skyPipeline);
+			pass.draw(3);
 		}
-		if (this.clear.length > 0) {
-			this.sortClear(camera.eye);
-			pass.setPipeline(this.blended);
-			this.solids(pass, this.clear);
+		if (wire) {
+			pass.setPipeline(this.wire);
+			this.wires(
+				pass,
+				show.seeThrough ? [...this.draws, ...this.glass, ...this.clear] : this.draws,
+			);
+		} else {
+			pass.setPipeline(this.solidDepth);
+			this.solids(pass);
+			pass.setPipeline(this.solid);
+			this.solids(pass);
+			this.count(this.draws);
+			if (images) this.drawImages(pass, "solid", camera.eye);
+			if (show.seeThrough && heat) {
+				// Each see-through layer adds its own share, Glass's included.
+				pass.setPipeline(this.heatAdded);
+				this.solids(pass, this.glass);
+				this.solids(pass, this.clear);
+				this.count(this.glass);
+				this.count(this.clear);
+			} else if (show.seeThrough) {
+				if (this.glass.length > 0) {
+					pass.setPipeline(this.glassDepth);
+					this.solids(pass, this.glass);
+					pass.setPipeline(this.glassBlended);
+					this.solids(pass, this.glass);
+					this.count(this.glass);
+				}
+				if (this.clear.length > 0) {
+					this.sortClear(camera.eye);
+					pass.setPipeline(this.blended);
+					this.solids(pass, this.clear);
+					this.count(this.clear);
+				}
+			}
+			// Over the see-through parts they are on.
+			if (images) this.drawImages(pass, "seeThrough", camera.eye);
 		}
-		// Over the see-through parts they are on.
-		this.drawImages(pass, "seeThrough", camera.eye);
 		// The glow is part of the place, added once the place is drawn; what
 		// marks the place goes over it, against the place's own depth.
 		if (glow) {
 			pass.end();
 			if (post) this.blurTheFrame(encoder);
 			pass = encoder.beginRenderPass({
+				timestampWrites: this.stamp("post"),
 				colorAttachments: [
 					{
 						view: this.msaa!.createView(),
@@ -1891,7 +2192,11 @@ export class WebGpuView implements ViewRenderer {
 			pass.draw(this.overlay.count);
 		}
 		pass.end();
+		const read = this.readStamps(encoder);
 		this.device.queue.submit([encoder.finish()]);
+		read?.();
+		this.lastTally = this.tally;
+		this.cpuMs = performance.now() - started;
 	}
 
 	settled(): Promise<void> {
@@ -2180,6 +2485,7 @@ struct VIn { @location(0) pos: vec3f, @location(2) c0: vec3f, @location(3) c1: v
 		this.cascadeGroups.forEach(({ buffer, group }, k) => {
 			q.writeBuffer(buffer, 0, block.subarray(k * 16, k * 16 + 16));
 			const pass = encoder.beginRenderPass({
+				timestampWrites: this.stamp("shadows"),
 				colorAttachments: [],
 				depthStencilAttachment: {
 					view: this.sunMaps.createView({ dimension: "2d", baseArrayLayer: k, arrayLayerCount: 1 }),
@@ -2208,6 +2514,7 @@ struct VIn { @location(0) pos: vec3f, @location(2) c0: vec3f, @location(3) c1: v
 			if (sunOnly && k < SKY_VIEWS) return;
 			q.writeBuffer(buffer, 0, block.subarray(k * 16, k * 16 + 16));
 			const pass = encoder.beginRenderPass({
+				timestampWrites: this.stamp("shadows"),
 				colorAttachments: [],
 				depthStencilAttachment: {
 					view: this.skyMaps.createView({ dimension: "2d", baseArrayLayer: k, arrayLayerCount: 1 }),

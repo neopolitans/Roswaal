@@ -21606,3 +21606,104 @@ textarea.tb:where(:disabled) {
 		transition: none;
 	}
 }
+
+/* Rendering: the place viewer's view modes, switches and frame stats. */
+.render-choices {
+	display: grid;
+	gap: 1px;
+	padding: 2px 0 4px;
+}
+
+.render-choice,
+.render-switch {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 26px;
+	padding: 1px 6px;
+	border-radius: var(--radius-xs);
+	font-size: var(--text-md);
+	color: var(--fg);
+	cursor: pointer;
+}
+
+.render-choice:hover,
+.render-switch:hover {
+	background: var(--bg-hover);
+}
+
+.render-choice input {
+	flex: none;
+	margin: 0;
+	accent-color: var(--accent);
+}
+
+.render-switch {
+	justify-content: space-between;
+}
+
+.render-switch input {
+	appearance: none;
+	-webkit-appearance: none;
+	flex: none;
+	width: 34px;
+	height: 20px;
+	margin: 0;
+	border-radius: 999px;
+	background:
+		radial-gradient(7.5px 7.5px at 10px 50%, #ffffff 92%, transparent 100%),
+		var(--border-strong);
+	cursor: pointer;
+}
+
+.render-switch input:checked {
+	background:
+		radial-gradient(7.5px 7.5px at calc(100% - 10px) 50%, #ffffff 92%, transparent 100%),
+		var(--accent);
+}
+
+.render-switch input:focus-visible,
+.render-choice input:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
+/* A heatmap's colours, as the composite draws them: see heatColour. */
+.render-legend {
+	display: grid;
+	gap: 3px;
+	padding: 4px 6px 2px;
+}
+
+.render-legend-bar {
+	height: 10px;
+	border-radius: 3px;
+	background: linear-gradient(
+		to right,
+		rgb(8 56 15) 0%,
+		rgb(26 184 41) 30%,
+		rgb(242 217 31) 55%,
+		rgb(230 36 15) 80%,
+		rgb(255 255 255) 100%
+	);
+}
+
+.render-legend-lights .render-legend-bar {
+	background: linear-gradient(
+		to right,
+		rgb(8 8 10) 0%,
+		rgb(8 8 10) 6%,
+		rgb(8 56 15) 6%,
+		rgb(26 184 41) 30%,
+		rgb(242 217 31) 55%,
+		rgb(230 36 15) 80%,
+		rgb(255 255 255) 100%
+	);
+}
+
+.render-legend-ends {
+	display: flex;
+	justify-content: space-between;
+	font-size: var(--text-sm);
+	color: var(--fg-muted);
+}

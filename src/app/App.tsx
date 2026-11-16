@@ -2302,6 +2302,10 @@ export function App() {
 								onToggleFull={() => setCodeFull((full) => !full)}
 							/>
 						) : undefined,
+					render:
+						placeDoc && viewer && viewport ? (
+							<viewer.RenderPanel controller={viewport} />
+						) : undefined,
 					// Script analysis is a graph's: the place in front has the bottom to itself.
 					analysis: placeDoc ? undefined : (
 						<StatusPanel

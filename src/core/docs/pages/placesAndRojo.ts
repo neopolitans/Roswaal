@@ -256,6 +256,38 @@ export function placesAndRojoPage(): DocPage {
 					"DataModel tree and Properties still work.",
 			},
 
+			{ t: "h", level: 3, text: "Rendering" },
+			{
+				t: "p",
+				text:
+					"The **Rendering** panel, in the **Panels** menu while the place is in front, changes " +
+					"how the viewer draws it, never the place.",
+			},
+			{
+				t: "table",
+				head: ["View", "Shows"],
+				rows: [
+					["Lighting, lights and shadows", "The place as the viewer draws it"],
+					["Global lighting and shadows", "The sun, the sky and Ambient, with shadows; no lights"],
+					["Global lighting only", "The sun, the sky and Ambient, without shadows"],
+					["No lighting", "Each part's colour and material"],
+					["Wireframe only", "Every part's edges, those behind others too"],
+					[
+						"Render heatmap",
+						"What each pixel costs to draw, green to white: its textures, shadows and the " +
+							"lights tested for it. See-through parts add theirs to what is behind them",
+					],
+					["Lighting heatmap", "How many lights reach each pixel; black for none"],
+				],
+			},
+			{
+				t: "p",
+				text:
+					"Its switches leave Neon's glow, post effects, haze, the sky, Decals and Textures or " +
+					"see-through parts out of the view. **Last frame** counts draw calls, instances and " +
+					"triangles, and times the frame on the page and, where the browser allows, on the GPU.",
+			},
+
 			{ t: "h", level: 2, text: "Changing properties" },
 			{
 				t: "p",

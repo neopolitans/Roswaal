@@ -24,6 +24,7 @@ import {
 	CASCADE_MAP,
 	type Camera,
 	cascadeBlock,
+	DEFAULT_RENDER,
 	FOV,
 	fingerprint,
 	GLOW_NARROW,
@@ -40,6 +41,8 @@ import {
 	imageQuads,
 	type MeshGeometry,
 	postActive,
+	type RenderSettings,
+	type RenderStats,
 	SELECT,
 	SELECT_WIDTH,
 	SKY_BLOCK,
@@ -751,6 +754,17 @@ export class WebGl2View implements ViewRenderer {
 	private shape: GlowShape = glowShape(undefined, false);
 	setPostEffects(on: boolean): void {
 		this.postOn = on;
+	}
+
+	/** The Rendering panel's mode and switches: see `RenderSettings`. */
+	protected render: RenderSettings = DEFAULT_RENDER;
+
+	setRender(render: RenderSettings): void {
+		this.render = render;
+	}
+
+	stats(): RenderStats {
+		return { draws: 0, instances: 0, triangles: 0, cpu: 0, gpu: null };
 	}
 	private glowTex: WebGLTexture[] = [];
 	private glowFbo: WebGLFramebuffer[] = [];

@@ -399,3 +399,68 @@ export function boxEdges(): { vertices: Float32Array; indices: Uint16Array } {
 		}
 	return { vertices: new Float32Array(v), indices: new Uint16Array(idx) };
 }
+
+/**
+ * A mesh's edges for a wireframe, as pairs of vertex indices: each edge of
+ * its triangles once, leaving out those between two triangles that lie in one
+ * plane, so a box shows its six faces rather than their diagonals. Vertices
+ * are split per face, so an edge is known by where its ends are.
+ */
+export function featureEdges(mesh: {
+	vertices: Float32Array;
+	indices: Uint16Array | Uint32Array;
+}): Uint32Array {
+	const v = mesh.vertices;
+	const ix = mesh.indices;
+	const stride = 6;
+	// Each vertex's position, as one number per place.
+	const places = new Map<string, number>();
+	const place = new Uint32Array(v.length / stride);
+	for (let i = 0; i < place.length; i++) {
+		const key = `${v[i * stride]},${v[i * stride + 1]},${v[i * stride + 2]}`;
+		let p = places.get(key);
+		if (p === undefined) {
+			p = places.size;
+			places.set(key, p);
+		}
+		place[i] = p;
+	}
+	const n = places.size;
+	const edges = new Map<
+		number,
+		{ a: number; b: number; nx: number; ny: number; nz: number; keep: boolean }
+	>();
+	for (let t = 0; t + 2 < ix.length; t += 3) {
+		const tri = [ix[t], ix[t + 1], ix[t + 2]];
+		const p = tri.map((i) => [v[i * stride], v[i * stride + 1], v[i * stride + 2]]);
+		const ux = p[1][0] - p[0][0];
+		const uy = p[1][1] - p[0][1];
+		const uz = p[1][2] - p[0][2];
+		const wx = p[2][0] - p[0][0];
+		const wy = p[2][1] - p[0][1];
+		const wz = p[2][2] - p[0][2];
+		let nx = uy * wz - uz * wy;
+		let ny = uz * wx - ux * wz;
+		let nz = ux * wy - uy * wx;
+		const len = Math.hypot(nx, ny, nz);
+		if (len === 0) continue;
+		nx /= len;
+		ny /= len;
+		nz /= len;
+		for (let e = 0; e < 3; e++) {
+			const a = tri[e];
+			const b = tri[(e + 1) % 3];
+			const pa = place[a];
+			const pb = place[b];
+			if (pa === pb) continue;
+			const key = Math.min(pa, pb) * n + Math.max(pa, pb);
+			const seen = edges.get(key);
+			if (!seen) edges.set(key, { a, b, nx, ny, nz, keep: true });
+			// A second face along it: kept only if it turns away from the first.
+			else seen.keep = seen.nx * nx + seen.ny * ny + seen.nz * nz < 0.999;
+		}
+	}
+	const out: number[] = [];
+	for (const e of edges.values()) if (e.keep) out.push(e.a, e.b);
+	return new Uint32Array(out);
+}

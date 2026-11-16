@@ -535,8 +535,13 @@ describe("the Panels menu", () => {
 		]);
 	});
 
-	it("offers Project and Properties with the place open, and nothing of a graph's", () => {
-		expect(panelsFor("place", true)).toEqual(["tree", "properties"]);
+	it("offers Project, Properties and Rendering with the place open, and nothing of a graph's", () => {
+		expect(panelsFor("place", true)).toEqual(["tree", "properties", "render"]);
+	});
+
+	it("offers Rendering with the place in front only", () => {
+		for (const context of ["graph", "document", "none"] as const)
+			expect(panelsFor(context, true)).not.toContain("render");
 	});
 
 	it("offers Project and Script analysis with another document or nothing open", () => {

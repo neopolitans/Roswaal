@@ -45,7 +45,8 @@ export type PanelId =
 	| "properties"
 	| "refactor"
 	| "analysis"
-	| "code";
+	| "code"
+	| "render";
 
 export const PANEL_IDS: PanelId[] = [
 	"tree",
@@ -55,6 +56,7 @@ export const PANEL_IDS: PanelId[] = [
 	"refactor",
 	"analysis",
 	"code",
+	"render",
 ];
 
 export interface PanelState {
@@ -196,6 +198,16 @@ export const DEFAULT_LAYOUT: Layout = {
 			// An even share of a side column, if it is moved to one.
 			weight: 3,
 		},
+		// The place viewer's view modes, switches and frame stats: a window
+		// over the place, opened from the Panels menu.
+		render: {
+			dock: "right",
+			open: false,
+			order: 3,
+			floating: true,
+			frame: { x: 28, y: 64, w: 300, h: 560 },
+			weight: 2,
+		},
 	},
 	docks: {
 		left: { size: 260, open: true },
@@ -220,6 +232,7 @@ export const PANEL_TITLES: Record<PanelId, string> = {
 	refactor: "Refactor",
 	analysis: "Script analysis",
 	code: "Code",
+	render: "Rendering",
 };
 
 /** Each panel's icon, in the toolbar's Panels menu. */
@@ -231,6 +244,7 @@ export const PANEL_ICONS: Record<PanelId, IconName> = {
 	refactor: "straighten",
 	analysis: "warning",
 	code: "codeFile",
+	render: "vpRender",
 };
 
 /** Why a panel cannot be shown yet, in the Panels menu: it has nothing to show. */
@@ -242,6 +256,7 @@ export const PANEL_EMPTY: Record<PanelId, string> = {
 	refactor: "Open it with the Refactor button first.",
 	analysis: "Open a project first.",
 	code: "Open a Code Block, a Luau Expression or a type's code first.",
+	render: "Open the place first.",
 };
 
 /**
@@ -268,12 +283,14 @@ export type PanelContext = "graph" | "place" | "document" | "none";
  * - **Script analysis** everywhere but the place, which has the foot to itself.
  * - **Variables**, **Inspector**, **Refactor** and **Code** with a graph only:
  *   they act on its nodes.
+ * - **Rendering** with the place in front: it changes how the viewer draws it.
  */
 export function panelsFor(context: PanelContext, hasPlace: boolean): PanelId[] {
 	return PANEL_IDS.filter((id) => {
 		if (id === "tree") return true;
 		if (id === "properties") return hasPlace;
 		if (id === "analysis") return context !== "place";
+		if (id === "render") return context === "place";
 		return context === "graph";
 	});
 }

@@ -82,6 +82,10 @@ export interface ViewRenderer {
 	setMeshes(meshes: ReadonlyMap<number, MeshGeometry>): void;
 	/** Whether the place's post effects are drawn: Settings › Scene view. */
 	setPostEffects(on: boolean): void;
+	/** How the place is drawn, from the Rendering panel: the renderer's alone, never the place's. */
+	setRender(render: RenderSettings): void;
+	/** What the last frame cost, for the Rendering panel. */
+	stats(): RenderStats;
 	/** Gives the GPU back: a browser keeps only so many contexts. */
 	destroy(): void;
 }
@@ -781,4 +785,90 @@ export function tintedOutline(box: Float32Array, alpha: number): Float32Array {
 	new Uint32Array(tinted.buffer, tinted.byteOffset, tinted.length)[12] =
 		r | (g << 8) | (b << 16) | (alpha << 24);
 	return tinted;
+}
+
+/**
+ * The Rendering panel's views of the place, as engines' editors offer: the
+ * place lit in full, then with fewer of its lights, then not at all; its
+ * triangles; and two heatmaps, of what each pixel costs to draw and of how
+ * many lights reach it.
+ */
+export type RenderMode = "lit" | "shadowed" | "global" | "unlit" | "wireframe" | "cost" | "lights";
+
+export const RENDER_MODES: readonly (readonly [RenderMode, string])[] = [
+	["lit", "Lighting, lights and shadows"],
+	["shadowed", "Global lighting and shadows"],
+	["global", "Global lighting only"],
+	["unlit", "No lighting"],
+	["wireframe", "Wireframe only"],
+	["cost", "Render heatmap"],
+	["lights", "Lighting heatmap"],
+];
+
+/** Each mode's number in the shaders. */
+export const RENDER_MODE_CODE: Record<RenderMode, number> = {
+	lit: 0,
+	shadowed: 1,
+	global: 2,
+	unlit: 3,
+	wireframe: 4,
+	cost: 5,
+	lights: 6,
+};
+
+/** What the renderer draws, each on its own: off leaves it out of the view only. */
+export interface RenderShow {
+	/** Neon's glow, and CrackedLava's. */
+	glow: boolean;
+	/** The place's post effects: bloom and colour correction. */
+	post: boolean;
+	/** Atmosphere and fog. */
+	haze: boolean;
+	/** The sky behind the place. */
+	sky: boolean;
+	/** Decals and Textures. */
+	images: boolean;
+	/** Parts that are see-through, Glass among them. */
+	seeThrough: boolean;
+}
+
+export const RENDER_SHOW: readonly (readonly [keyof RenderShow, string])[] = [
+	["glow", "Neon glow"],
+	["post", "Post effects"],
+	["haze", "Haze and fog"],
+	["sky", "Sky"],
+	["images", "Decals and Textures"],
+	["seeThrough", "See-through parts"],
+];
+
+export interface RenderSettings {
+	mode: RenderMode;
+	show: RenderShow;
+}
+
+export const DEFAULT_RENDER: RenderSettings = {
+	mode: "lit",
+	show: { glow: true, post: true, haze: true, sky: true, images: true, seeThrough: true },
+};
+
+/**
+ * The heatmaps' scales: a pixel's estimated work, in texture reads and light
+ * tests, that shows white, and the lights reaching it that do.
+ */
+export const COST_FULL = 128;
+export const LIGHTS_FULL = 8;
+
+/** One frame's work, as the Rendering panel shows it. */
+export interface RenderStats {
+	/** Draw calls, instances drawn and their triangles, in the last frame. */
+	draws: number;
+	instances: number;
+	triangles: number;
+	/** Milliseconds of the page's time spent issuing the last frame. */
+	cpu: number;
+	/**
+	 * Milliseconds of the GPU's time, by pass, where the browser can time
+	 * them: the sun's and sky's maps, the place, and its glow and effects.
+	 */
+	gpu: { shadows: number; scene: number; post: number } | null;
 }

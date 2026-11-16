@@ -33,9 +33,12 @@ import { trickle } from "./trickle.js";
 import { loadUnionModels } from "./unions.js";
 import {
 	type Camera,
+	DEFAULT_RENDER,
 	FOV,
 	type MeshGeometry,
 	meshGeometry,
+	type RenderSettings,
+	type RenderStats,
 	splitByMesh,
 	tintedOutline,
 	type ViewRenderer,
@@ -115,6 +118,8 @@ export interface ViewportState {
 	space: "object" | "world";
 	/** Modify DataModel Instances is on: the editing tools are offered. */
 	editable: boolean;
+	/** The Rendering panel's mode and switches: the view's alone, for this session. */
+	render: RenderSettings;
 }
 
 export interface Snap {
@@ -251,6 +256,7 @@ export class ViewportController {
 		pivotEdit: false,
 		space: "object",
 		editable: false,
+		render: DEFAULT_RENDER,
 	};
 	private listeners = new Set<() => void>();
 	private place: ViewportPlace | null = null;
@@ -416,6 +422,21 @@ export class ViewportController {
 	};
 
 	/** Settings' say in how the view is drawn: a new renderer starts the view again. */
+	renderSettings(): RenderSettings {
+		return this.state.render;
+	}
+
+	setRender(render: RenderSettings): void {
+		this.set({ render });
+		this.view?.setRender(render);
+		this.redraw();
+	}
+
+	/** What the last frame cost, for the Rendering panel; null with no view. */
+	renderStats(): RenderStats | null {
+		return this.view?.stats() ?? null;
+	}
+
 	setOptions(options: ViewportOptions): void {
 		const was = this.options;
 		this.options = options;
@@ -1141,6 +1162,7 @@ export class ViewportController {
 		view.setOutline(this.options.outlineWidth, this.options.hideBehind);
 		view.setGlassHides(this.options.glassHides);
 		view.setPostEffects(this.options.postEffects);
+		view.setRender(this.state.render);
 		this.view = view;
 		this.set({ backend: view.backend, fellBack, error: null });
 		if (this.place !== place) view.setScene(this.place ?? place);

@@ -35,6 +35,13 @@ import {
 import { fader } from "./viewport/fade.js";
 import { prepareScene } from "./viewport/prepare.js";
 import { readSpeed, SPEED_MAX, SPEED_MIN, SPEED_STEP, speedText } from "./viewport/speed.js";
+import {
+	RENDER_MODES,
+	RENDER_SHOW,
+	type RenderMode,
+	type RenderSettings,
+	type RenderStats,
+} from "./viewport/view.js";
 import { useWorkspaceControls } from "./Workspace.jsx";
 
 const GIZMO = 104;
@@ -669,6 +676,107 @@ export function PlaceSummary({
 							<Rows rows={summary.notes} />
 						</div>
 					)}
+				</div>
+			</div>
+		</div>
+	);
+}
+
+/** What a heatmap's colours mean, under the modes. */
+const HEAT_LEGEND: Partial<Record<RenderMode, [string, string]>> = {
+	cost: ["Cheap", "Costly"],
+	lights: ["No lights", "8 or more"],
+};
+
+const ms = (n: number) => `${n.toFixed(2)} ms`;
+
+/**
+ * Rendering: how the viewer draws the place, as engines' editors offer: the
+ * place lit in full or with less, its triangles, heatmaps of what each pixel
+ * costs and of the lights reaching it, switches for what is drawn, and what
+ * the last frame took. The view's alone, for the session; the place is untouched.
+ */
+export function RenderPanel({ controller }: { controller: ViewportController }) {
+	const { backend, render } = useViewport(controller);
+	const [stats, setStats] = useState<RenderStats | null>(null);
+	useEffect(() => {
+		const tick = setInterval(() => setStats(controller.renderStats()), 500);
+		return () => clearInterval(tick);
+	}, [controller]);
+	const apply = (next: RenderSettings) => controller.setRender(next);
+	const legend = HEAT_LEGEND[render.mode];
+	const gpu = stats?.gpu;
+	return (
+		<div className="place-properties render-panel">
+			<PanelHead sub="The view only" />
+			<div className="place-props">
+				<div className="place-groups">
+					<div className="place-group">
+						<SectionHead title="View" />
+						<div className="render-choices" role="radiogroup" aria-label="View">
+							{RENDER_MODES.map(([mode, label]) => (
+								<label className="render-choice" key={mode}>
+									<input
+										type="radio"
+										name="render-mode"
+										checked={render.mode === mode}
+										onChange={() => apply({ ...render, mode })}
+									/>
+									<span>{label}</span>
+								</label>
+							))}
+						</div>
+						{legend && (
+							<div
+								className={cx("render-legend", render.mode === "lights" && "render-legend-lights")}
+							>
+								<span className="render-legend-bar" />
+								<span className="render-legend-ends">
+									<span>{legend[0]}</span>
+									<span>{legend[1]}</span>
+								</span>
+							</div>
+						)}
+					</div>
+					<div className="place-group">
+						<SectionHead title="Show" />
+						{RENDER_SHOW.map(([key, label]) => (
+							<label className="render-switch" key={key}>
+								<span>{label}</span>
+								<input
+									type="checkbox"
+									checked={render.show[key]}
+									onChange={(e) =>
+										apply({ ...render, show: { ...render.show, [key]: e.target.checked } })
+									}
+								/>
+							</label>
+						))}
+					</div>
+					<div className="place-group">
+						<SectionHead title="Last frame" />
+						{stats ? (
+							<Rows
+								rows={[
+									["Draw calls", stats.draws.toLocaleString()],
+									["Instances", stats.instances.toLocaleString()],
+									["Triangles", Math.round(stats.triangles).toLocaleString()],
+									["Page", ms(stats.cpu)],
+									...((gpu
+										? [
+												["GPU, shadows", ms(gpu.shadows)],
+												["GPU, place", ms(gpu.scene)],
+												["GPU, effects", ms(gpu.post)],
+											]
+										: [
+												["GPU", backend === "WebGL2" ? "Not timed in WebGL2" : "Not timed here"],
+											]) as [string, string][]),
+								]}
+							/>
+						) : (
+							<p className="place-summary">Nothing drawn yet.</p>
+						)}
+					</div>
 				</div>
 			</div>
 		</div>

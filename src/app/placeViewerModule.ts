@@ -5,5 +5,5 @@
  * never draws a place never downloads it.
  */
 
-export { PlaceSummary, Viewport, ViewportBar } from "./Viewport.jsx";
+export { PlaceSummary, RenderPanel, Viewport, ViewportBar } from "./Viewport.jsx";
 export { ViewportController } from "./viewport/controller.js";
