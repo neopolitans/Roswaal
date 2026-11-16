@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.249.0",
+		date: "2026-11-16",
+		headline: "The place viewer draws sharp sun shadows near the camera.",
+		added: [
+			"**Sun shadows in the place viewer** are sharp near the camera and soften with the place's ShadowSoftness. GlobalShadows turns them off.",
+		],
+		changed: [
+			"**Sunlight** is stronger and whiter, and under a Sky of its own images the sky's fill is grey, as Studio draws them.",
+		],
+	},
+	{
 		version: "0.248.1",
 		date: "2026-11-16",
 		headline: "Editing a place's Lighting no longer stalls the place viewer.",

@@ -250,7 +250,7 @@ export function placesAndRojoPage(): DocPage {
 					"The place's ColorCorrection and Blur are drawn too, and its Bloom sets how Neon " +
 					"glows; **Settings › Scene view** can turn them off. Its PointLights, " +
 					"SpotLights and SurfaceLights light it, Ambient lights where the sky cannot reach, " +
-					"and the sun casts broad shadows; the lights cast none yet, and the handles do " +
+					"and the sun casts shadows; the lights cast none yet, and the handles do " +
 					"not drag yet. To save memory, turn the place viewer " +
 					"off in **Settings › Extended Features**; the place's tab then says so, and the " +
 					"DataModel tree and Properties still work.",

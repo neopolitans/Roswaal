@@ -133,3 +133,37 @@ describe("a place sent again after an edit", () => {
 		expect(fingerprint(parts)).not.toBe(fingerprint(new Float32Array([1, 2, 3, 4, 0])));
 	});
 });
+
+describe("the sun's cascades", () => {
+	it("reach 64, 256 and 1024 studs out, and are off with GlobalShadows off", async () => {
+		const { cascadeBlock, SUN_CASCADES } = await import("../src/app/viewport/view.js");
+		const camera = { eye: [0, 10, 30], at: [0, 0, 0], near: 0.1, far: 10000 };
+		const box = { min: [-500, 0, -500], max: [500, 100, 500] };
+		const n = SUN_CASCADES.length * 16;
+		const on = cascadeBlock(camera, 16 / 9, [-0.5, 0.866, 0], box, 0.2, true, true);
+		expect([...on.subarray(n, n + 3)]).toEqual([64, 256, 1024]);
+		expect(on[n + 7]).toBe(1);
+		// Finer near the camera than far from it.
+		expect(on[n + 4]).toBeLessThan(on[n + 5]);
+		expect(on[n + 5]).toBeLessThan(on[n + 6]);
+		expect(cascadeBlock(camera, 16 / 9, [-0.5, 0.866, 0], box, 0.2, false, true)[n + 7]).toBe(2);
+	});
+
+	it("move only by whole texels as the camera moves", async () => {
+		const { cascadeBlock } = await import("../src/app/viewport/view.js");
+		const box = { min: [-500, 0, -500], max: [500, 100, 500] };
+		const at = (x: number) =>
+			cascadeBlock(
+				{ eye: [x, 10, 30], at: [x, 0, 0], near: 0.1, far: 10000 },
+				1,
+				[0, 1, 0],
+				box,
+				0.2,
+				true,
+				true,
+			);
+		const a = at(0);
+		const b = at(0.001);
+		expect([...a.subarray(0, 16)]).toEqual([...b.subarray(0, 16)]);
+	});
+});

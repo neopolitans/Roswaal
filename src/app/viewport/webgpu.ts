@@ -19,7 +19,10 @@ import { TEXTURE_LEVELS, TEXTURE_SIZE } from "./textures.js";
 import {
 	backToFront,
 	blurSigma,
+	CASCADE_BLOCK,
+	CASCADE_MAP,
 	type Camera,
+	cascadeBlock,
 	FOV,
 	fingerprint,
 	type GlowShape,
@@ -41,6 +44,7 @@ import {
 	SKY_GAIN,
 	SKY_MAP,
 	SKY_VIEWS,
+	SUN_CASCADES,
 	SUN_GAIN,
 	sceneBox,
 	sceneFingerprint,
@@ -237,8 +241,33 @@ fn skyVisibility(p: vec3f, n: vec3f) -> f32 {
 	return seen / 8.0;
 }
 // Whether the sun reaches p: its own map, four taps a texel apart.
+// The sun's shadow near the camera, sharp close by: see cascadeBlock.
+struct CascU { views: array<mat4x4f, 3>, far: vec4f, texel: vec4f };
+@group(0) @binding(12) var sunMaps: texture_depth_2d_array;
+@group(0) @binding(13) var<uniform> cascU: CascU;
+var<private> POISSON: array<vec2f, 8> = array<vec2f, 8>(
+	vec2f(-0.326, -0.406), vec2f(-0.840, -0.074), vec2f(-0.696, 0.457), vec2f(-0.203, 0.621),
+	vec2f(0.962, -0.195), vec2f(0.473, -0.480), vec2f(0.519, 0.767), vec2f(0.185, -0.893));
+// Cascade k's share of the sun reaching p: eight taps over ShadowSoftness's width.
+fn cascadeSees(k: i32, p: vec3f, n: vec3f) -> f32 {
+	let texel = cascU.texel[k];
+	let c = cascU.views[k] * vec4f(p + n * texel * 2.0, 1.0);
+	let uv = vec2f(c.x * 0.5 + 0.5, 0.5 - c.y * 0.5);
+	let r = cascU.far.w / (texel * 1024.0);
+	var seen = 0.0;
+	for (var j = 0; j < 8; j++) {
+		seen = seen + textureSampleCompareLevel(sunMaps, skyCompare, uv + POISSON[j] * r, k, c.z - 0.00005);
+	}
+	return seen / 8.0;
+}
 fn sunSees(p: vec3f, n: vec3f) -> f32 {
-	if (skyU.info.w < 0.5) { return 1.0; }
+	if (skyU.info.w < 0.5 || cascU.texel.w > 1.5) { return 1.0; }
+	if (cascU.texel.w > 0.5) {
+		let d = length(p - u.camPos.xyz);
+		if (d < cascU.far.x) { return cascadeSees(0, p, n); }
+		if (d < cascU.far.y) { return cascadeSees(1, p, n); }
+		if (d < cascU.far.z) { return cascadeSees(2, p, n); }
+	}
 	let q = p + n * skyU.info.x * 1.5;
 	let s = skyU.info.x * 0.5;
 	return 0.25 * (skySees(8, q + vec3f(s, 0.0, s)) + skySees(8, q + vec3f(-s, 0.0, s)) + skySees(8, q + vec3f(s, 0.0, -s)) + skySees(8, q + vec3f(-s, 0.0, -s)));
@@ -899,6 +928,12 @@ export class WebGpuView implements ViewRenderer {
 				{ binding: 9, visibility: STAGE.FRAGMENT, buffer: { type: "read-only-storage" } },
 				{ binding: 10, visibility: STAGE.FRAGMENT, buffer: { type: "read-only-storage" } },
 				{ binding: 11, visibility: STAGE.FRAGMENT, buffer: { type: "read-only-storage" } },
+				{
+					binding: 12,
+					visibility: STAGE.FRAGMENT,
+					texture: { sampleType: "depth", viewDimension: "2d-array" },
+				},
+				{ binding: 13, visibility: STAGE.FRAGMENT, buffer: {} },
 			],
 		});
 		this.layout = layout;
@@ -1320,6 +1355,7 @@ export class WebGpuView implements ViewRenderer {
 		if (key !== this.skyKey) {
 			this.skyKey = key;
 			this.skyDirty = true;
+			this.box = sceneBox(scene);
 		}
 		this.setLights(scene.lights);
 		if (this.skyImages && this.sunTexture) this.rebind();
@@ -1663,7 +1699,9 @@ export class WebGpuView implements ViewRenderer {
 		this.shape = glowShape(this.lighting?.post, this.postOn);
 		this.setCamera(camera);
 		const encoder = this.device.createCommandEncoder();
+		const partsMoved = this.skyDirty;
 		if (this.skyDirty || this.sunDirty) this.drawSkyMaps(encoder, !this.skyDirty);
+		this.drawCascades(encoder, camera, partsMoved);
 		const screen = this.context.getCurrentTexture().createView();
 		const glowing = this.glowing && !!this.glow;
 		const post = postActive(this.lighting?.post, this.postOn);
@@ -1921,6 +1959,8 @@ export class WebGpuView implements ViewRenderer {
 				{ binding: 9, resource: { buffer: this.lightBuffers.data } },
 				{ binding: 10, resource: { buffer: this.lightBuffers.table } },
 				{ binding: 11, resource: { buffer: this.lightBuffers.index } },
+				{ binding: 12, resource: this.sunMaps.createView({ dimension: "2d-array" }) },
+				{ binding: 13, resource: { buffer: this.cascadeUniform } },
 			],
 		});
 	}
@@ -1999,12 +2039,73 @@ struct VIn { @location(0) pos: vec3f, @location(2) c0: vec3f, @location(3) c1: v
 			primitive: { topology: "triangle-list", cullMode: "none" },
 			depthStencil: { format: "depth32float", depthWriteEnabled: true, depthCompare: "less" },
 		});
+		this.sunMaps = d.createTexture({
+			size: [CASCADE_MAP, CASCADE_MAP, SUN_CASCADES.length],
+			format: "depth32float",
+			usage: TEXTURE.RENDER_ATTACHMENT | TEXTURE.TEXTURE_BINDING,
+		});
+		this.cascadeUniform = d.createBuffer({
+			size: CASCADE_BLOCK * 4,
+			usage: BUFFER.UNIFORM | BUFFER.COPY_DST,
+		});
+		this.cascadeGroups = SUN_CASCADES.map(() => {
+			const buffer = d.createBuffer({ size: 64, usage: BUFFER.UNIFORM | BUFFER.COPY_DST });
+			return {
+				buffer,
+				group: d.createBindGroup({ layout, entries: [{ binding: 0, resource: { buffer } }] }),
+			};
+		});
 		this.skyViewGroups = Array.from({ length: SKY_VIEWS + 1 }, () => {
 			const buffer = d.createBuffer({ size: 64, usage: BUFFER.UNIFORM | BUFFER.COPY_DST });
 			return {
 				buffer,
 				group: d.createBindGroup({ layout, entries: [{ binding: 0, resource: { buffer } }] }),
 			};
+		});
+	}
+
+	// -- the sun's cascades: see cascadeBlock ----------------------------------------
+
+	private sunMaps!: GPUTexture;
+	private cascadeUniform!: GPUBuffer;
+	private cascadeGroups: { buffer: GPUBuffer; group: GPUBindGroup }[] = [];
+	/** The cascades last drawn, to draw them again only when they moved. */
+	private cascadeLast: Float32Array = new Float32Array(CASCADE_BLOCK);
+	/** The place's box, kept with its fingerprint. */
+	private box: { min: number[]; max: number[] } | null = null;
+
+	/** The sun's cascades for this view, drawn again when they or the parts moved. */
+	private drawCascades(encoder: GPUCommandEncoder, camera: Camera, partsMoved: boolean): void {
+		const l = this.lighting;
+		const block = cascadeBlock(
+			camera,
+			this.width / this.height,
+			l?.sun ?? [0, 1, 0],
+			this.box,
+			l?.shadowSoftness ?? 0.2,
+			l?.sunShadows ?? true,
+			true,
+		);
+		if (!partsMoved && block.every((v, i) => v === this.cascadeLast[i])) return;
+		this.cascadeLast = block;
+		const q = this.device.queue;
+		q.writeBuffer(this.cascadeUniform, 0, block);
+		if (block[SUN_CASCADES.length * 16 + 7] !== 1) return;
+		this.cascadeGroups.forEach(({ buffer, group }, k) => {
+			q.writeBuffer(buffer, 0, block.subarray(k * 16, k * 16 + 16));
+			const pass = encoder.beginRenderPass({
+				colorAttachments: [],
+				depthStencilAttachment: {
+					view: this.sunMaps.createView({ dimension: "2d", baseArrayLayer: k, arrayLayerCount: 1 }),
+					depthClearValue: 1,
+					depthLoadOp: "clear",
+					depthStoreOp: "store",
+				},
+			});
+			pass.setPipeline(this.skyDepth);
+			pass.setBindGroup(0, group);
+			this.solids(pass);
+			pass.end();
 		});
 	}
 

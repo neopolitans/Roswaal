@@ -25,6 +25,10 @@ export interface LightingParams {
 	ambient: number[];
 	/** Ambient, linear: everywhere, the only fill where the sky cannot reach. */
 	indoor?: number[];
+	/** GlobalShadows: whether the sun casts shadows at all. */
+	sunShadows?: boolean;
+	/** ShadowSoftness, 0 to 1: how soft the sun's shadows' edges are. */
+	shadowSoftness?: number;
 	/** EnvironmentDiffuseScale: how much the sky lights what faces it. */
 	skyFill: number;
 	zenith: number[];
@@ -194,16 +198,21 @@ export function readLighting(doc: RbxDocument): LightingParams {
 	if (moon) sun = moonDirection(sun);
 	const brightness = prop(lighting, "Brightness", 2);
 	// Low sun is warmer: the light has come through more air.
-	const warm = mix([1, 0.62, 0.38], [1, 0.96, 0.9], Math.min(1, Math.max(0, sun[1] * 3)));
+	// The high sun's colour and strength fitted to Studio's capture of a cube
+	// in the sun beside its shadow, with Studio's camera there (16 Nov 2026).
+	const warm = mix([1, 0.62, 0.38], [1, 0.97, 0.98], Math.min(1, Math.max(0, sun[1] * 3)));
 	const sunColour = moon
 		? [0.12, 0.14, 0.2].map((v) => v * brightness * 0.12)
-		: warm.map((v) => v * brightness * 0.4);
+		: warm.map((v) => v * brightness * 0.88);
 	const size = prop(sky, "SunAngularSize", 21);
 
 	const skyFill = prop(lighting, "EnvironmentDiffuseScale", 0);
-	// With EnvironmentDiffuseScale at 0 the fill is gone and OutdoorAmbient alone is left.
+	// With EnvironmentDiffuseScale at 0 the fill is gone and OutdoorAmbient alone
+	// is left. Under a Sky of six images of its own the fill is grey, not the
+	// default sky's blue: fitted to the same capture, under a dark space Sky.
+	const fill = skyboxOf(sky) ? [0.77, 0.77, 0.77] : FILL;
 	const ambient = linRgb(prop(lighting, "OutdoorAmbient", [0.5, 0.5, 0.5])).map(
-		(v, i) => v + FILL[i] * skyFill * (0.06 + 0.94 * day),
+		(v, i) => v + fill[i] * skyFill * (0.06 + 0.94 * day),
 	);
 
 	// Blue overhead, the Atmosphere's colour at the horizon, thicker haze
@@ -252,6 +261,8 @@ export function readLighting(doc: RbxDocument): LightingParams {
 		sunDisc: Math.cos(((size / 2) * 0.25 * Math.PI) / 180),
 		ambient,
 		indoor: linRgb(prop(lighting, "Ambient", [0.275, 0.275, 0.275])),
+		sunShadows: prop(lighting, "GlobalShadows", true),
+		shadowSoftness: prop(lighting, "ShadowSoftness", 0.2),
 		skyFill,
 		zenith,
 		horizon,

@@ -19,7 +19,10 @@ import { TEXTURE_LEVELS, TEXTURE_SIZE } from "./textures.js";
 import {
 	backToFront,
 	blurSigma,
+	CASCADE_BLOCK,
+	CASCADE_MAP,
 	type Camera,
+	cascadeBlock,
 	FOV,
 	fingerprint,
 	type GlowShape,
@@ -41,6 +44,7 @@ import {
 	SKY_GAIN,
 	SKY_MAP,
 	SKY_VIEWS,
+	SUN_CASCADES,
 	SUN_GAIN,
 	sceneBox,
 	sceneFingerprint,
@@ -286,8 +290,31 @@ float skyVisibility(vec3 p, vec3 n) {
 	for (int k = 0; k < 8; k++) seen += skySees(k, q);
 	return seen / 8.0;
 }
+// The sun's shadow near the camera, as WebGpuView's cascadeSees.
+uniform highp sampler2DArrayShadow sunMaps;
+uniform mat4 cascViews[3];
+uniform vec4 cascFar;
+uniform vec4 cascTexel;
+const vec2 POISSON[8] = vec2[8](
+	vec2(-0.326, -0.406), vec2(-0.840, -0.074), vec2(-0.696, 0.457), vec2(-0.203, 0.621),
+	vec2(0.962, -0.195), vec2(0.473, -0.480), vec2(0.519, 0.767), vec2(0.185, -0.893));
+float cascadeSees(int k, vec3 p, vec3 n) {
+	float texel = cascTexel[k];
+	vec4 c = cascViews[k] * vec4(p + n * texel * 2.0, 1.0);
+	vec3 q = c.xyz * 0.5 + 0.5;
+	float r = cascFar.w / (texel * 1024.0);
+	float seen = 0.0;
+	for (int j = 0; j < 8; j++) seen += texture(sunMaps, vec4(q.xy + POISSON[j] * r, float(k), q.z - 0.00005));
+	return seen / 8.0;
+}
 float sunSees(vec3 p, vec3 n) {
-	if (skyInfo.w < 0.5) return 1.0;
+	if (skyInfo.w < 0.5 || cascTexel.w > 1.5) return 1.0;
+	if (cascTexel.w > 0.5) {
+		float d = length(p - L[6].xyz);
+		if (d < cascFar.x) return cascadeSees(0, p, n);
+		if (d < cascFar.y) return cascadeSees(1, p, n);
+		if (d < cascFar.z) return cascadeSees(2, p, n);
+	}
 	vec3 q = p + n * skyInfo.x * 1.5;
 	float s = skyInfo.x * 0.5;
 	return 0.25 * (skySees(8, q + vec3(s, 0.0, s)) + skySees(8, q + vec3(-s, 0.0, s)) + skySees(8, q + vec3(s, 0.0, -s)) + skySees(8, q + vec3(-s, 0.0, -s)));
@@ -784,6 +811,7 @@ export class WebGl2View implements ViewRenderer {
 		gl.uniform1i(gl.getUniformLocation(this.imageProgram.program, "image"), 2);
 		this.glowProgram = this.link(VS, FS_GLOW);
 		this.makeSkyMaps();
+		this.makeCascades();
 		this.setLights(undefined);
 		gl.useProgram(this.glowProgram.program);
 		gl.uniform4fv(gl.getUniformLocation(this.glowProgram.program, "M[0]"), materialBlock());
@@ -846,6 +874,7 @@ export class WebGl2View implements ViewRenderer {
 		if (key !== this.skyKey) {
 			this.skyKey = key;
 			this.skyDirty = true;
+			this.box = sceneBox(scene);
 		}
 		this.setLights(scene.lights);
 		this.setImages(scene);
@@ -1352,7 +1381,16 @@ export class WebGl2View implements ViewRenderer {
 	private skyLocations = new Map<
 		WebGLProgram,
 		Record<
-			"views" | "info" | "maps" | "lightData" | "lightTable" | "lightIndex",
+			| "views"
+			| "info"
+			| "maps"
+			| "lightData"
+			| "lightTable"
+			| "lightIndex"
+			| "sunMaps"
+			| "cascViews"
+			| "cascFar"
+			| "cascTexel",
 			WebGLUniformLocation | null
 		>
 	>();
@@ -1368,6 +1406,10 @@ export class WebGl2View implements ViewRenderer {
 				lightData: gl.getUniformLocation(program, "lightData"),
 				lightTable: gl.getUniformLocation(program, "lightTable"),
 				lightIndex: gl.getUniformLocation(program, "lightIndex"),
+				sunMaps: gl.getUniformLocation(program, "sunMaps"),
+				cascViews: gl.getUniformLocation(program, "cascViews"),
+				cascFar: gl.getUniformLocation(program, "cascFar"),
+				cascTexel: gl.getUniformLocation(program, "cascTexel"),
 			};
 			this.skyLocations.set(program, at);
 		}
@@ -1389,6 +1431,72 @@ export class WebGl2View implements ViewRenderer {
 		gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_COMPARE_FUNC, gl.LEQUAL);
 		gl.activeTexture(gl.TEXTURE0);
 		this.skyFbo = gl.createFramebuffer();
+	}
+
+	// -- the sun's cascades: see cascadeBlock ----------------------------------------
+
+	private sunMaps: WebGLTexture | null = null;
+	/** The cascades last drawn: what the shaders read, and to draw them again only when they moved. */
+	private cascadeLast: Float32Array = new Float32Array(CASCADE_BLOCK);
+	/** The place's box, kept with its fingerprint. */
+	private box: { min: number[]; max: number[] } | null = null;
+
+	private makeCascades(): void {
+		const gl = this.gl;
+		this.sunMaps = gl.createTexture();
+		gl.activeTexture(gl.TEXTURE10);
+		gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.sunMaps);
+		gl.texStorage3D(
+			gl.TEXTURE_2D_ARRAY,
+			1,
+			gl.DEPTH_COMPONENT32F,
+			CASCADE_MAP,
+			CASCADE_MAP,
+			SUN_CASCADES.length,
+		);
+		gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_COMPARE_MODE, gl.COMPARE_REF_TO_TEXTURE);
+		gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_COMPARE_FUNC, gl.LEQUAL);
+		gl.activeTexture(gl.TEXTURE0);
+	}
+
+	/** The sun's cascades for this view, drawn again when they or the parts moved. */
+	private drawCascades(camera: Camera, partsMoved: boolean): void {
+		const gl = this.gl;
+		const l = this.lighting;
+		const block = cascadeBlock(
+			camera,
+			this.width / this.height,
+			l?.sun ?? [0, 1, 0],
+			this.box,
+			l?.shadowSoftness ?? 0.2,
+			l?.sunShadows ?? true,
+			false,
+		);
+		if (!partsMoved && block.every((v, i) => v === this.cascadeLast[i])) return;
+		this.cascadeLast = block;
+		if (block[SUN_CASCADES.length * 16 + 7] !== 1 || !this.sunMaps) return;
+		gl.bindFramebuffer(gl.FRAMEBUFFER, this.skyFbo);
+		gl.drawBuffers([gl.NONE]);
+		gl.readBuffer(gl.NONE);
+		gl.viewport(0, 0, CASCADE_MAP, CASCADE_MAP);
+		gl.useProgram(this.depthProgram.program);
+		gl.disable(gl.CULL_FACE);
+		gl.enable(gl.DEPTH_TEST);
+		gl.depthMask(true);
+		gl.clearDepth(1);
+		SUN_CASCADES.forEach((_, k) => {
+			gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, this.sunMaps, 0, k);
+			gl.clear(gl.DEPTH_BUFFER_BIT);
+			gl.uniformMatrix4fv(this.depthProgram.viewProj, false, block.subarray(k * 16, k * 16 + 16));
+			this.solids();
+		});
+		gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, null, 0, 0);
+		gl.enable(gl.CULL_FACE);
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 	}
 
 	/** The place's depth from each sky direction and the sun, into the maps; or the sun's alone. */
@@ -1446,6 +1554,11 @@ export class WebGl2View implements ViewRenderer {
 			gl.uniform1i(sky.lightData, 7);
 			gl.uniform1i(sky.lightTable, 8);
 			gl.uniform1i(sky.lightIndex, 9);
+			gl.uniform1i(sky.sunMaps, 10);
+			const n = SUN_CASCADES.length * 16;
+			gl.uniformMatrix4fv(sky.cascViews, false, this.cascadeLast.subarray(0, n));
+			gl.uniform4fv(sky.cascFar, this.cascadeLast.subarray(n, n + 4));
+			gl.uniform4fv(sky.cascTexel, this.cascadeLast.subarray(n + 4, n + 8));
 		}
 		gl.uniform1f(prog.outline, outline ? 1 : 0);
 		const band = this.outlineWidth * (this.width / (this.canvas?.clientWidth || this.width));
@@ -1474,7 +1587,9 @@ export class WebGl2View implements ViewRenderer {
 
 	draw(camera: Camera): void {
 		const gl = this.gl;
+		const partsMoved = this.skyDirty;
 		if (this.skyDirty || this.sunDirty) this.drawSkyMaps(!this.skyDirty);
+		this.drawCascades(camera, partsMoved);
 		this.shape = glowShape(this.lighting?.post, this.postOn);
 		if (this.glowing) {
 			if (this.clear.length > 0) this.sortClear(camera.eye);

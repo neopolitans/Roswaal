@@ -349,6 +349,102 @@ export function lightGrid(lights: readonly number[] | undefined): {
 	return { table, index: new Uint32Array(index.length > 0 ? index : [0]) };
 }
 
+/**
+ * The sun's shadow near the camera: maps of the place as the sun sees it, each
+ * reaching this far from the camera, sharp close by and coarser further out.
+ * Past the last, the whole-place map (skyBlock's) takes over.
+ */
+export const SUN_CASCADES = [64, 256, 1024];
+/** Each cascade's side, in texels. */
+export const CASCADE_MAP = 1024;
+/** Floats in the block the shaders read: a matrix a cascade, how far each reaches, and a texel's width in each. */
+export const CASCADE_BLOCK = 16 * SUN_CASCADES.length + 8;
+
+/**
+ * The cascades for a view: each slice of the view, held in a sphere, seen by
+ * the sun square on from beyond the whole place, so what casts a shadow into
+ * the slice from outside it still does. Each map is moved only by whole texels
+ * as the camera moves, so its edges do not crawl. Then how far each reaches,
+ * the shadows' softness as a width in studs, and their texels' widths with
+ * whether they are on.
+ */
+export function cascadeBlock(
+	camera: Camera,
+	aspect: number,
+	sun: number[],
+	box: { min: number[]; max: number[] } | null,
+	softness: number,
+	on: boolean,
+	zeroToOne: boolean,
+): Float32Array {
+	const block = new Float32Array(CASCADE_BLOCK);
+	const n = SUN_CASCADES.length;
+	// GlobalShadows off: no shadow from the sun at all, the whole-place map's included.
+	if (!on) block[n * 16 + 7] = 2;
+	if (!box || !on) return block;
+	const back = Math.hypot(...sun) > 0 ? sun.map((v) => v / Math.hypot(...sun)) : [0, 1, 0];
+	const up0 = Math.abs(back[1]) > 0.99 ? [0, 0, 1] : [0, 1, 0];
+	const cross = (a: number[], b: number[]) => [
+		a[1] * b[2] - a[2] * b[1],
+		a[2] * b[0] - a[0] * b[2],
+		a[0] * b[1] - a[1] * b[0],
+	];
+	const unit = (a: number[]) => a.map((v) => v / Math.hypot(...a));
+	const dot = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+	const x = unit(cross(up0, back));
+	const y = cross(back, x);
+	const ahead = unit(camera.at.map((v, i) => v - camera.eye[i]));
+	const tan = Math.tan(FOV / 2);
+	// How far the place reaches along the sun's line, either side of a point.
+	const corners = [0, 1, 2, 3, 4, 5, 6, 7].map((k) => [
+		k & 1 ? box.max[0] : box.min[0],
+		k & 2 ? box.max[1] : box.min[1],
+		k & 4 ? box.max[2] : box.min[2],
+	]);
+	let near = 0;
+	SUN_CASCADES.forEach((far, i) => {
+		const mid = (near + far) / 2;
+		const corner = (d: number) => Math.hypot(d * tan * aspect, d * tan, d - mid);
+		const radius = Math.max(corner(near), corner(far)) + 1;
+		let centre = camera.eye.map((v, a) => v + ahead[a] * mid);
+		const texel = (2 * radius) / CASCADE_MAP;
+		const cx = dot(centre, x);
+		const cy = dot(centre, y);
+		centre = centre.map(
+			(v, a) =>
+				v +
+				x[a] * (Math.round(cx / texel) * texel - cx) +
+				y[a] * (Math.round(cy / texel) * texel - cy),
+		);
+		const along = corners.map((c) => dot(c, back) - dot(centre, back));
+		const top = Math.max(radius, ...along) + 1;
+		const depth = top - Math.min(-radius, ...along) + 1;
+		const eye = centre.map((v, a) => v + back[a] * top);
+		const view = new Float32Array(16);
+		[x, y, back].forEach((axis, r) => {
+			view[r] = axis[0];
+			view[4 + r] = axis[1];
+			view[8 + r] = axis[2];
+			view[12 + r] = -dot(axis, eye);
+		});
+		view[15] = 1;
+		const proj = new Float32Array(16);
+		proj[0] = 1 / radius;
+		proj[5] = 1 / radius;
+		proj[10] = zeroToOne ? -1 / depth : -2 / depth;
+		proj[14] = zeroToOne ? 0 : -1;
+		proj[15] = 1;
+		block.set(multiply(proj, view), i * 16);
+		block[n * 16 + i] = far;
+		block[n * 16 + 4 + i] = texel;
+		near = far;
+	});
+	// Softness as a width in studs: ShadowSoftness 0.2 blurs an edge over about a third of a stud.
+	block[n * 16 + 3] = 0.1 + Math.max(0, Math.min(1, softness)) * 1.2;
+	block[n * 16 + 7] = 1;
+	return block;
+}
+
 /** How wide the glow's blur is, in its own texels, for a glow `high` texels high. */
 export function glowSpread(high: number, shape?: GlowShape): number {
 	return (shape?.spread ?? GLOW_SPREAD) * high;
