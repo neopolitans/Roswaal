@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.259.0",
+		date: "2026-11-16",
+		headline: "Performance and Mesh Debug panels, three new views, and see-through windows.",
+		added: [
+			"**Overdraw, Triangle density and Shadow maps** views in the Rendering panel: how many surfaces each pixel draws, each part's triangles for its size, and which of the sun's shadow maps covers each pixel.",
+			"**Performance and Mesh Debug** panels, in the Panels menu while the place is in front: Last frame and its graph, and the heaviest meshes, each in its own panel.",
+			"**See-through windows.** A floating window's ⋯ menu can let the place or graph show through it, its text kept solid.",
+		],
+		fixed: [
+			"**Thin parts**, as a window's struts, no longer darken the floor under them where the sun reaches it.",
+		],
+	},
+	{
 		version: "0.258.0",
 		date: "2026-11-16",
 		headline: "The Rendering panel shows lights' reach, the heaviest meshes and a frame-time graph.",
