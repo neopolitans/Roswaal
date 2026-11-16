@@ -599,9 +599,8 @@ in vec2 uv; uniform sampler2D tex; uniform sampler2D frame; uniform vec4 p;
 uniform vec4 grade0; uniform vec4 grade1; out vec4 o;
 void main() {
 	vec3 f = texelFetch(frame, ivec2(gl_FragCoord.xy), 0).rgb;
-	// No glow over a Decal or Texture, as WebGpuView's fsComposite.
-	vec4 held = texture(tex, uv);
-	vec3 g = held.rgb * p.z * (1.0 - held.a);
+	// The glow spreads over Decals and Textures too, as WebGpuView's fsComposite.
+	vec3 g = texture(tex, uv).rgb * p.z;
 	vec3 c = pow(min(pow(f, vec3(2.2)) + g, vec3(1.0)), vec3(1.0 / 2.2));
 	// ColorCorrection, as WebGpuView's fsComposite applies it.
 	if (grade0.w > 0.5) {

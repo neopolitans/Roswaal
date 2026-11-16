@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.249.1",
+		date: "2026-11-16",
+		headline: "Neon's glow spreads over Decals and Textures, and Ambient is as strong as in Studio.",
+		fixed: [
+			"**Neon's glow** spreads over Decals and Textures beside it, as in Studio. Neon under a Texture still glows only where the Texture lets it show.",
+			"**Lighting's Ambient** lights three times as strongly, as Studio's does.",
+		],
+	},
+	{
 		version: "0.249.0",
 		date: "2026-11-16",
 		headline: "The place viewer draws sharp sun shadows near the camera.",

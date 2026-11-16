@@ -123,10 +123,10 @@ struct Out { @builtin(position) clip: vec4f, @location(0) uv: vec2f };
 // its long soft fall from coming out in bands.
 @fragment fn fsComposite(i: Out) -> @location(0) vec4f {
 	let f = textureLoad(frame, vec2i(i.clip.xy), 0).rgb;
-	// No glow over a Decal or Texture: Studio's captures show an image in front
-	// of Neon, or beside it, covering the glow as well as the Neon.
-	let held = textureSample(tex, samp, i.uv);
-	let g = held.rgb * p.z * (1.0 - held.a);
+	// The glow spreads over Decals and Textures too: one over Neon has already
+	// kept the Neon beneath it from glowing, in the glow's pass, and the author's
+	// captures show the glow of the Neon left showing laid over the image round it.
+	let g = textureSample(tex, samp, i.uv).rgb * p.z;
 	var c = pow(min(pow(f, vec3f(2.2)) + g, vec3f(1.0)), vec3f(1.0 / 2.2));
 	// ColorCorrection on the display values, as fitted to Studio's captures:
 	// brightness adds, contrast scales round mid-grey, saturation away from

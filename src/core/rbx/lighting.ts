@@ -260,7 +260,10 @@ export function readLighting(doc: RbxDocument): LightingParams {
 		// is a quarter of it across, and the glow round it does the rest.
 		sunDisc: Math.cos(((size / 2) * 0.25 * Math.PI) / 180),
 		ambient,
-		indoor: linRgb(prop(lighting, "Ambient", [0.275, 0.275, 0.275])),
+		// Three times its linear colour: Studio's captures of Exodus's halls with
+		// Ambient as set and as white, against ours, give 2.6 to 3.3 where the
+		// picture is not near white (16 Nov 2026).
+		indoor: linRgb(prop(lighting, "Ambient", [0.275, 0.275, 0.275])).map((v) => v * 3),
 		sunShadows: prop(lighting, "GlobalShadows", true),
 		shadowSoftness: prop(lighting, "ShadowSoftness", 0.2),
 		skyFill,
