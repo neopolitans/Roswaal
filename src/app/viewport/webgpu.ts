@@ -755,7 +755,9 @@ fn glowSource(i: VOut) -> vec3f {
 	if (b.y > 0.5 && b.y < 1.5) {
 		let e = pow(max(neonLevel(i.colour, i.alpha), vec3f(0.0)), vec3f(2.2));
 		let most = max(e.r, max(e.g, e.b));
-		let fade = pow(max(1.0 - (1.0 - i.alpha) / u.bloom.z, 0.0), 2.5);
+		// Gone from a Transparency of 0.3, easing as Studio's screen captures of a
+		// Neon part at 0.1, 0.2 and 0.25 show: 0.82, 0.5 and 0.29 of its glow.
+		let fade = pow(max(1.0 - (1.0 - i.alpha) / u.bloom.z, 0.0), 1.1);
 		return (1.0 - exp(-max(e - u.bloom.y, vec3f(0.0)))) * smoothstep(u.bloom.x, u.bloom.x + 0.3, most) * fade;
 	}
 	if (tex.z > 0.5 && layer >= 0) { return min(lavaLight(look.g), vec3f(1.0)) * 0.2; }

@@ -817,7 +817,8 @@ void main() {
 	if (b.y > 0.5 && b.y < 1.5) {
 		vec3 lit = pow(max(neonLevel(vColour, vAlpha), 0.0), vec3(2.2));
 		float most = max(lit.r, max(lit.g, lit.b));
-		float fade = pow(max(1.0 - (1.0 - vAlpha) / bloom.z, 0.0), 2.5);
+		// As WebGpuView's glowSource: gone from 0.3, easing as Studio's captures show.
+		float fade = pow(max(1.0 - (1.0 - vAlpha) / bloom.z, 0.0), 1.1);
 		e = (1.0 - exp(-max(lit - bloom.y, 0.0))) * smoothstep(bloom.x, bloom.x + 0.3, most) * fade;
 	}
 	else if (tex.z > 0.5 && layer >= 0) e = min(lavaLight(texture(looks, vec3(uv / tex.x, float(layer))).g), vec3(1.0)) * 0.2;
