@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.249.3",
+		date: "2026-11-16",
+		headline: "Opening a place, and editing its lights, no longer freezes the editor.",
+		fixed: [
+			"**Opening a place** with many parts and lights no longer freezes the editor for a second or two. Its textures and images arrive a few at a time.",
+			"**Editing a light** in a place no longer stalls the place viewer.",
+		],
+	},
+	{
 		version: "0.249.2",
 		date: "2026-11-16",
 		headline: "Small Neon parts glow with tighter halos, as in Studio.",
