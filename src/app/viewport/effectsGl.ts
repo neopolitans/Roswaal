@@ -8,7 +8,6 @@ import type { SceneEffects } from "../../core/rbx/effects.js";
 import type { LightingParams } from "../../core/rbx/lighting.js";
 import {
 	EFFECT_BLOCK,
-	EFFECT_COST,
 	EFFECT_VERTEX,
 	type EffectFrame,
 	type EffectShow,
@@ -22,7 +21,8 @@ import {
 	quadIndices,
 } from "./effects.js";
 import { lookAt, multiply, perspective } from "./math.js";
-import { type Camera, COST_FULL, FOV, RENDER_MODE_CODE, type RenderSettings } from "./view.js";
+import { effectShare, effectsShown } from "./renderViews.js";
+import { type Camera, FOV, type RenderSettings, renderDebug } from "./view.js";
 
 const VS_FX = `#version 300 es
 precision highp float;
@@ -191,7 +191,7 @@ export class GlEffects {
 		now: number,
 	): void {
 		const mode = render.mode;
-		if (this.sim.empty || !lighting || mode === "wireframe" || mode === "lights") {
+		if (this.sim.empty || !lighting || !effectsShown(mode)) {
 			this.last = { beams: 0, particles: 0, moving: false, draws: 0, quads: 0 };
 			return;
 		}
@@ -232,9 +232,9 @@ export class GlEffects {
 				viewProj,
 				camera.eye,
 				lighting,
-				RENDER_MODE_CODE[mode],
+				renderDebug(render)[0],
 				render.show.haze,
-				EFFECT_COST / COST_FULL,
+				effectShare(mode),
 			),
 		);
 		if (this.logFar) gl.uniform1f(this.logFar, 1 / Math.log2(camera.far + 1));

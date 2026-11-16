@@ -17,6 +17,7 @@ import { boxEdges, featureEdges, meshFor, sceneGlows } from "./geometry.js";
 import { HANDLE_KINDS, type Handles, handleMesh } from "./handles.js";
 import { invert, lookAt, multiply, perspective } from "./math.js";
 import { lightGridFor } from "./prepare.js";
+import { OVERDRAW_WGSL, VIEWS_WGSL } from "./renderViews.js";
 import { TEXTURE_LEVELS, TEXTURE_SIZE } from "./textures.js";
 import {
 	backToFront,
@@ -45,10 +46,11 @@ import {
 	type MeshGeometry,
 	nearSkyCentre,
 	nearSkyInto,
+	OVERDRAW_FULL,
 	postActive,
-	RENDER_MODE_CODE,
 	type RenderSettings,
 	type RenderStats,
+	renderDebug,
 	SELECT,
 	SELECT_WIDTH,
 	SKY_BLOCK,
@@ -65,6 +67,8 @@ import {
 	sceneBox,
 	sceneFingerprint,
 	seeThroughSets,
+	sharesComposite,
+	sharesView,
 	skyBlock,
 	splitByMesh,
 	type ViewRenderer,
@@ -152,8 +156,13 @@ fn heatColour(h: f32, lights: bool) -> vec3f {
 	if (t < 0.8) { return mix(vec3f(0.95, 0.85, 0.12), vec3f(0.9, 0.14, 0.06), (t - 0.55) / 0.25); }
 	return mix(vec3f(0.9, 0.14, 0.06), vec3f(1.0), (t - 0.8) / 0.2);
 }
+${OVERDRAW_WGSL}
 @fragment fn fsComposite(i: Out) -> @location(0) vec4f {
 	let f = textureLoad(frame, vec2i(i.clip.xy), 0).rgb;
+	// Triangle density (p.w 4): shares and shading.
+	if (p.w > 3.5) { return vec4f(densityColour(f), 1.0); }
+	// Overdraw (p.w 3): the frame holds counts' shares.
+	if (p.w > 2.5) { return vec4f(overdrawColour(f.r), 1.0); }
 	// A heatmap (p.w 1, or 2 for lights): the frame holds shares, not colours.
 	if (p.w > 0.5) { return vec4f(heatColour(f.r, p.w > 1.5), 1.0); }
 	// The glow spreads over Decals and Textures too: one over Neon has already
@@ -187,8 +196,9 @@ struct U {
 	screen: vec4f,
 	// Neon's glow: see \`glowShape\`'s gate.
 	bloom: vec4f,
-	// The Rendering panel: its mode (RENDER_MODE_CODE), whether haze is drawn,
-	// and whether the heatmaps are linear rather than by cell.
+	// The Rendering panel: its lighting (RENDER_MODE_CODE), whether haze is
+	// drawn, whether the heatmaps are linear rather than by cell, and the view
+	// drawn over it: see view.ts's renderDebug.
 	debug: vec4f,
 	// The material table: two rows a material, as \`materialBlock\` writes it.
 	mats: array<vec4f, ${MATERIALS.length * 3}>,
@@ -332,6 +342,8 @@ fn testedSmooth(p: vec3f) -> f32 {
 // work in texture reads and light tests; for the lighting heatmap, the
 // lights that reach it.
 fn heat(i: VOut) -> f32 {
+	// Overdraw: one share for each surface drawn.
+	if (u.debug.w > 0.5 && u.debug.w < 1.5) { return ${1 / OVERDRAW_FULL}; }
 	let row = i.look & 255u;
 	let a = u.mats[row * 3u];
 	let b = u.mats[row * 3u + 1u];
@@ -782,13 +794,20 @@ fn glowSource(i: VOut) -> vec3f {
 // each pixel once, for the surface it shows, rather than for every surface
 // drawn over it on the way.
 @fragment fn fsNothing() -> @location(0) vec4f { return vec4f(0.0); }
+${VIEWS_WGSL}
 @fragment fn fs(i: VOut) -> @location(0) vec4f {
+	// The near sky maps' box edge, for the Shadow maps view: found before any
+	// branch, as a derivative must be.
+	let edge = nearEdge(i.world);
+	let wide = fwidth(edge);
 	// The heatmaps: a share in red, added up and coloured by the composite.
 	if (u.debug.x > 4.5) { return vec4f(heat(i), 0.0, 0.0, 1.0); }
 	let s = surface(i);
 	let shade = u.mats[(i.look & 255u) * 3u + 1u].y;
 	let neon = shade > 0.5 && shade < 1.5;
-	return vec4f(select(display(s.rgb), pow(min(s.rgb, vec3f(1.0)), vec3f(1.0 / 2.2)), neon), s.a);
+	let shown = select(display(s.rgb), pow(min(s.rgb, vec3f(1.0)), vec3f(1.0 / 2.2)), neon);
+	if (u.debug.w > 2.5) { return vec4f(sunMapTint(shown, i.world, edge, wide), s.a); }
+	return vec4f(shown, s.a);
 }
 // Wireframe only: each part's edges, in its own colour lifted toward white.
 @fragment fn fsWire(i: VOut) -> @location(0) vec4f {
@@ -909,6 +928,8 @@ struct IOut {
 }
 @fragment fn fsImage(i: IOut) -> @location(0) vec4f {
 	let t = textureSample(image, imageSampler, i.uv);
+	let edge = nearEdge(i.world);
+	let wide = fwidth(edge);
 	let albedo = pow(t.rgb, vec3f(2.2)) * pow(i.tint.rgb, vec3f(2.2));
 	let n = normalize(i.normal);
 	let ndl = max(dot(n, u.sun.xyz), 0.0);
@@ -925,6 +946,7 @@ struct IOut {
 	if (u.debug.x > 2.5) { c = albedo; }
 	let d = length(u.camPos.xyz - i.world);
 	if (u.debug.y > 0.5) { c = air(c, d, i.world.y); }
+	if (u.debug.w > 2.5) { return vec4f(sunMapTint(display(c), i.world, edge, wide), t.a * i.tint.a); }
 	return vec4f(display(c), t.a * i.tint.a);
 }
 // A solid part's Decal or Texture, where it is mostly opaque, into the depth:
@@ -1430,6 +1452,7 @@ export class WebGpuView implements ViewRenderer {
 			depthStencil: { format: "depth32float", depthWriteEnabled: true, depthCompare: "greater" },
 			multisample: { count: SAMPLES },
 		});
+		this.viewPipelines(module, layout, buffers);
 		this.effects = new GpuEffects({
 			device: d,
 			format: this.format,
@@ -2090,15 +2113,7 @@ export class WebGpuView implements ViewRenderer {
 		const sky = this.skyOn ? (this.lighting.skyboxSun ? 2 : 1) : 0;
 		u.set([this.width, this.height, this.band(), sky], 76);
 		u.set(this.shape.gate, 80);
-		u.set(
-			[
-				RENDER_MODE_CODE[this.render.mode],
-				this.render.show.haze ? 1 : 0,
-				this.render.heat === "linear" ? 1 : 0,
-				0,
-			],
-			84,
-		);
+		u.set(renderDebug(this.render), 84);
 		this.device.queue.writeBuffer(this.uniform, 0, u);
 	}
 
@@ -2116,10 +2131,12 @@ export class WebGpuView implements ViewRenderer {
 		const started = performance.now();
 		this.tally = { draws: 0, instances: 0, triangles: 0 };
 		const { mode, show } = this.render;
-		const heat = mode === "cost" || mode === "lights";
+		const heat = sharesView(mode);
 		const wire = mode === "wireframe";
-		// The heatmaps and the wireframe are the place's shapes alone.
-		const postOn = this.postOn && show.post && !heat && !wire;
+		// The heatmaps and the wireframe are the place's shapes alone; the sun
+		// maps' tints are left as they are drawn.
+		const tinted = mode === "sunMaps";
+		const postOn = this.postOn && show.post && !heat && !wire && !tinted;
 		this.shape = glowShape(this.lighting?.post, postOn);
 		this.setCamera(camera);
 		const encoder = this.device.createCommandEncoder();
@@ -2138,7 +2155,7 @@ export class WebGpuView implements ViewRenderer {
 			);
 		this.drawCascades(encoder, camera, partsMoved);
 		const screen = this.context.getCurrentTexture().createView();
-		const glowing = this.glowing && !!this.glow && show.glow && !heat && !wire;
+		const glowing = this.glowing && !!this.glow && show.glow && !heat && !wire && !tinted;
 		const post = postActive(this.lighting?.post, postOn);
 		// The place is drawn into its own texture first when anything is added
 		// to it after: Neon's glow, or a post effect; or a heatmap's colours.
@@ -2147,12 +2164,7 @@ export class WebGpuView implements ViewRenderer {
 		q.writeBuffer(
 			this.postParams[2],
 			0,
-			new Float32Array([
-				0,
-				0,
-				glowing ? this.shape.gain : 0,
-				heat ? (mode === "lights" ? 2 : 1) : 0,
-			]),
+			new Float32Array([0, 0, glowing ? this.shape.gain : 0, sharesComposite(mode)]),
 		);
 		if (this.glow && this.shapeSpread !== this.shape.spread) {
 			const { w, h } = this.glow;
@@ -2208,6 +2220,12 @@ export class WebGpuView implements ViewRenderer {
 				show.seeThrough ? [...this.draws, ...this.glass, ...this.clear] : this.draws,
 			);
 			// The wireframe is the place's shapes alone: no effects, and nothing to animate.
+			this.drawEffects(pass, camera);
+		} else if (mode === "overdraw") {
+			this.drawOverdraw(pass, camera);
+		} else if (mode === "density") {
+			this.drawDensity(pass);
+			// None drawn: the parts alone; this only clears the last frame's count.
 			this.drawEffects(pass, camera);
 		} else {
 			pass.setPipeline(this.solidDepth);
@@ -2332,6 +2350,143 @@ export class WebGpuView implements ViewRenderer {
 		return this.effects?.last.moving ?? false;
 	}
 
+	// The Overdraw and Triangle density views: see renderViews.ts.
+	private countSolid?: GPURenderPipeline;
+	private imageCount?: GPURenderPipeline;
+	private density?: GPURenderPipeline;
+	private densityLayout!: GPUBindGroupLayout;
+	private densityTris?: { buffer: GPUBuffer; group: GPUBindGroup; room: number };
+
+	/** The views' pipelines: overdraw's counts, added up, and triangle density's colours. */
+	private viewPipelines(
+		module: GPUShaderModule,
+		layout: GPUBindGroupLayout,
+		buffers: GPUVertexBufferLayout[],
+	): void {
+		const d = this.device;
+		const added: GPUColorTargetState = {
+			format: this.format,
+			blend: {
+				color: { srcFactor: "one", dstFactor: "one" },
+				alpha: { srcFactor: "one", dstFactor: "one" },
+			},
+		};
+		// Every fragment of the solid parts, as the depth pre-pass draws them, before its depth test.
+		this.pipeline((p) => (this.countSolid = p), {
+			layout: d.createPipelineLayout({ bindGroupLayouts: [layout] }),
+			vertex: { module, entryPoint: "vs", buffers },
+			fragment: { module, entryPoint: "fsCount", targets: [added] },
+			primitive: { topology: "triangle-list", cullMode: "back" },
+			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "always" },
+			multisample: { count: SAMPLES },
+		});
+		// Every fragment of an image in front of the solid parts.
+		this.pipeline((p) => (this.imageCount = p), {
+			layout: d.createPipelineLayout({ bindGroupLayouts: [layout, this.imageLayout] }),
+			vertex: {
+				module,
+				entryPoint: "vsImage",
+				buffers: [
+					{
+						arrayStride: IMAGE_VERTEX * 4,
+						attributes: [
+							{ shaderLocation: 0, offset: 0, format: "float32x3" },
+							{ shaderLocation: 1, offset: 12, format: "float32x3" },
+							{ shaderLocation: 2, offset: 24, format: "float32x2" },
+							{ shaderLocation: 3, offset: 32, format: "float32x4" },
+						],
+					},
+				],
+			},
+			fragment: { module, entryPoint: "fsCount", targets: [added] },
+			primitive: { topology: "triangle-list", cullMode: "back" },
+			depthStencil: { format: "depth32float", depthWriteEnabled: false, depthCompare: "greater" },
+			multisample: { count: SAMPLES },
+		});
+		// Each draw's triangles, at its own offset: a draw is one mesh.
+		this.densityLayout = d.createBindGroupLayout({
+			entries: [
+				{
+					binding: 2,
+					visibility: STAGE.VERTEX,
+					buffer: { hasDynamicOffset: true, minBindingSize: 16 },
+				},
+			],
+		});
+		this.pipeline((p) => (this.density = p), {
+			layout: d.createPipelineLayout({ bindGroupLayouts: [layout, this.densityLayout] }),
+			vertex: { module, entryPoint: "vsDensity", buffers },
+			fragment: { module, entryPoint: "fsDensity", targets: [{ format: this.format }] },
+			primitive: { topology: "triangle-list", cullMode: "back" },
+			depthStencil: { format: "depth32float", depthWriteEnabled: true, depthCompare: "greater" },
+			multisample: { count: SAMPLES },
+		});
+	}
+
+	/**
+	 * Overdraw: every fragment of the solid parts, as the depth pre-pass draws
+	 * them before its depth test hides any; then, in front of them, each
+	 * see-through part, image, beam and particle; each adding one.
+	 */
+	private drawOverdraw(pass: GPURenderPassEncoder, camera: Camera): void {
+		const { show } = this.render;
+		if (!this.countSolid || !this.imageCount) return;
+		pass.setPipeline(this.countSolid);
+		this.solids(pass);
+		pass.setPipeline(this.solidDepth);
+		this.solids(pass);
+		this.count(this.draws);
+		if (show.images) this.drawImages(pass, "solid", camera.eye, this.imageCount);
+		if (show.seeThrough) {
+			pass.setPipeline(this.heatAdded);
+			this.solids(pass, this.glass);
+			this.solids(pass, this.clear);
+			this.count(this.glass);
+			this.count(this.clear);
+		}
+		if (show.images) this.drawImages(pass, "seeThrough", camera.eye, this.imageCount);
+		this.drawEffects(pass, camera);
+	}
+
+	/**
+	 * Triangle density: every part, see-through ones as if solid, coloured by
+	 * its mesh's triangles against its size (vsDensity).
+	 */
+	private drawDensity(pass: GPURenderPassEncoder): void {
+		const all = this.render.show.seeThrough
+			? [...this.draws, ...this.glass, ...this.clear]
+			: this.draws;
+		if (!this.density || all.length === 0) return;
+		// A slot a draw, at the 256 bytes dynamic offsets keep to.
+		const slot = 256;
+		const d = this.device;
+		if (!this.densityTris || this.densityTris.room < all.length) {
+			this.densityTris?.buffer.destroy();
+			const room = Math.max(all.length, (this.densityTris?.room ?? 0) * 2, 64);
+			const buffer = d.createBuffer({ size: room * slot, usage: BUFFER.UNIFORM | BUFFER.COPY_DST });
+			const group = d.createBindGroup({
+				layout: this.densityLayout,
+				entries: [{ binding: 2, resource: { buffer, size: 16 } }],
+			});
+			this.densityTris = { buffer, group, room };
+		}
+		const tris = new Float32Array((all.length * slot) / 4);
+		all.forEach((draw, k) => {
+			tris[(k * slot) / 4] = draw.indexCount / 3;
+		});
+		d.queue.writeBuffer(this.densityTris.buffer, 0, tris);
+		pass.setPipeline(this.density);
+		this.tally.draws += all.length;
+		all.forEach((draw, k) => {
+			pass.setBindGroup(1, this.densityTris!.group, [k * slot]);
+			pass.setVertexBuffer(0, draw.vertices);
+			pass.setVertexBuffer(1, draw.instances);
+			pass.setIndexBuffer(draw.indices, draw.format);
+			pass.drawIndexed(draw.indexCount, draw.count);
+		});
+		this.count(all);
+	}
+
 	private imageLayout!: GPUBindGroupLayout;
 	private imageSampler!: GPUSampler;
 	private imagePipeline!: GPURenderPipeline;
@@ -2377,15 +2532,18 @@ export class WebGpuView implements ViewRenderer {
 	}
 
 	/** One layer's images whose texture has arrived, onto their faces, farthest first. */
-	private drawImages(pass: GPURenderPassEncoder, layer: ImageLayer, eye: number[]): void {
+	private drawImages(
+		pass: GPURenderPassEncoder,
+		layer: ImageLayer,
+		eye: number[],
+		colour: GPURenderPipeline = this.imagePipeline,
+	): void {
 		if (!this.imageVertices || this.imageList.length === 0) return;
 		const order = imageOrder(this.imageList, layer, eye, (asset) => this.imageGroups.has(asset));
 		if (order.length === 0) return;
 		pass.setVertexBuffer(0, this.imageVertices);
 		// The solid parts' images then go into the depth, for the see-through parts drawn after.
-		for (const pipeline of layer === "solid"
-			? [this.imagePipeline, this.imageDepth]
-			: [this.imagePipeline]) {
+		for (const pipeline of layer === "solid" ? [colour, this.imageDepth] : [colour]) {
 			pass.setPipeline(pipeline);
 			let bound = "";
 			for (const q of order) {

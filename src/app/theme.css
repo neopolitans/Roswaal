@@ -21882,3 +21882,31 @@ textarea.tb:where(:disabled) {
 	color: var(--fg-muted);
 	font-variant-numeric: tabular-nums;
 }
+
+/* What a bar's ticks count: see renderLegend. */
+.render-legend-caption {
+	font-size: var(--text-sm);
+	color: var(--fg-muted);
+}
+
+/* Shadow maps: a swatch and a name for each of the sun's maps. */
+.render-legend-key {
+	margin: 0;
+	list-style: none;
+}
+
+.render-legend-key li {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: var(--text-sm);
+	color: var(--fg-muted);
+}
+
+.render-legend-swatch {
+	flex: none;
+	width: 10px;
+	height: 10px;
+	border-radius: 2px;
+	box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.25);
+}

@@ -44,13 +44,16 @@ import { type HeavyMesh, shortCount } from "./viewport/heaviest.js";
 import { prepareScene } from "./viewport/prepare.js";
 import { readSpeed, SPEED_MAX, SPEED_MIN, SPEED_STEP, speedText } from "./viewport/speed.js";
 import {
+	heatStyled,
 	RENDER_HEAT,
 	RENDER_MODES,
 	RENDER_SHOW,
 	type RenderHeat,
+	type RenderLegend,
 	type RenderMode,
 	type RenderSettings,
 	type RenderStats,
+	renderLegend,
 } from "./viewport/view.js";
 import { useWorkspaceControls } from "./Workspace.jsx";
 
@@ -701,7 +704,7 @@ export function PlaceSummary({
  */
 function RenderBadge({ render }: { render: RenderSettings }) {
 	const mode = RENDER_MODES.find(([m]) => m === render.mode)?.[1] ?? "";
-	const heat = HEAT_LEGEND[render.mode]
+	const heat = heatStyled(render.mode)
 		? RENDER_HEAT.find(([h]) => h === render.heat)?.[1]
 		: undefined;
 	const off = RENDER_SHOW.filter(([key]) => !render.show[key]).map(([, label]) => label);
@@ -719,6 +722,35 @@ const HEAT_LEGEND: Partial<Record<RenderMode, [string, string]>> = {
 	cost: ["Cheap", "Costly"],
 	lights: ["No lights", "8 or more"],
 };
+
+/** What the colours of Overdraw, Triangle density and Shadow maps mean: see renderLegend. */
+function ViewLegend({ legend }: { legend: RenderLegend }) {
+	if (legend.kind === "bar")
+		return (
+			<div className="render-legend">
+				<span
+					className="render-legend-bar"
+					style={{ background: `linear-gradient(to right, ${legend.stops})` }}
+				/>
+				<span className="render-legend-ends">
+					{legend.ticks.map((tick) => (
+						<span key={tick}>{tick}</span>
+					))}
+				</span>
+				<span className="render-legend-caption">{legend.caption}</span>
+			</div>
+		);
+	return (
+		<ul className="render-legend render-legend-key">
+			{legend.items.map((item) => (
+				<li key={item.label}>
+					<span className="render-legend-swatch" style={{ background: item.colour }} />
+					<span>{item.label}</span>
+				</li>
+			))}
+		</ul>
+	);
+}
 
 const ms = (n: number) => `${n.toFixed(2)} ms`;
 
@@ -935,6 +967,7 @@ export function RenderPanel({ controller }: { controller: ViewportController }) 
 	}, [controller]);
 	const apply = (next: RenderSettings) => controller.setRender(next);
 	const legend = HEAT_LEGEND[render.mode];
+	const viewLegend = renderLegend(render.mode);
 	const gpu = stats?.gpu;
 	return (
 		<div className="place-properties render-panel">
@@ -956,7 +989,7 @@ export function RenderPanel({ controller }: { controller: ViewportController }) 
 								</label>
 							))}
 						</div>
-						{legend && (
+						{heatStyled(render.mode) && (
 							<label className="render-heat">
 								<span>Heat</span>
 								<select
@@ -983,6 +1016,7 @@ export function RenderPanel({ controller }: { controller: ViewportController }) 
 								</span>
 							</div>
 						)}
+						{viewLegend && <ViewLegend legend={viewLegend} />}
 					</div>
 					<div className="place-group">
 						<SectionHead title="Show" />

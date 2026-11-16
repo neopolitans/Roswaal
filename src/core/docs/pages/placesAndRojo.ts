@@ -283,6 +283,23 @@ export function placesAndRojoPage(): DocPage {
 							"lights tested for it. See-through parts, beams and particles add theirs to what is behind them",
 					],
 					["Lighting heatmap", "How many lights reach each pixel; black for none"],
+					[
+						"Overdraw",
+						"How many surfaces are drawn over each pixel, 1 to 32 or more: every solid part, " +
+							"hidden ones too, then see-through parts, images, beams and particles in front. " +
+							"Look for red and white to find stacked or buried parts",
+					],
+					[
+						"Triangle density",
+						"Each part's triangles a square stud of its box, ¼ to 64 or more. Red and white " +
+							"parts are heavy meshes or unions: simplify them",
+					],
+					[
+						"Shadow maps",
+						"Which of the sun's maps shades each pixel, tinted: three cascades out to 64, 256 " +
+							"and 1,024 studs, then the whole place's map. A white line marks the edge of the " +
+							"sky's near maps",
+					],
 				],
 			},
 			{

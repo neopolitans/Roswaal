@@ -887,9 +887,20 @@ export function tintedOutline(box: Float32Array, alpha: number): Float32Array {
  * The Rendering panel's views of the place, as engines' editors offer: the
  * place lit in full, then with fewer of its lights, then not at all; its
  * triangles; and two heatmaps, of what each pixel costs to draw and of how
- * many lights reach it.
+ * many lights reach it; how many surfaces are drawn over each pixel; each
+ * part's triangles against its size; and which of the sun's maps shades it.
  */
-export type RenderMode = "lit" | "shadowed" | "global" | "unlit" | "wireframe" | "cost" | "lights";
+export type RenderMode =
+	| "lit"
+	| "shadowed"
+	| "global"
+	| "unlit"
+	| "wireframe"
+	| "cost"
+	| "lights"
+	| "overdraw"
+	| "density"
+	| "sunMaps";
 
 export const RENDER_MODES: readonly (readonly [RenderMode, string])[] = [
 	["lit", "Lighting, lights and shadows"],
@@ -899,6 +910,9 @@ export const RENDER_MODES: readonly (readonly [RenderMode, string])[] = [
 	["wireframe", "Wireframe only"],
 	["cost", "Render heatmap"],
 	["lights", "Lighting heatmap"],
+	["overdraw", "Overdraw"],
+	["density", "Triangle density"],
+	["sunMaps", "Shadow maps"],
 ];
 
 /** Each mode's number in the shaders. */
@@ -910,6 +924,9 @@ export const RENDER_MODE_CODE: Record<RenderMode, number> = {
 	wireframe: 4,
 	cost: 5,
 	lights: 6,
+	overdraw: 7,
+	density: 8,
+	sunMaps: 9,
 };
 
 /** What the renderer draws, each on its own: off leaves it out of the view only. */
@@ -1005,4 +1022,165 @@ export interface RenderStats {
 	 * them: the sun's and sky's maps, the place, and its glow and effects.
 	 */
 	gpu: { shadows: number; scene: number; post: number } | null;
+}
+
+/**
+ * Overdraw: how many surfaces are drawn over a pixel, each adding one share
+ * of this many, which shows white. Coloured by its logarithm, so 1, 2, 4,
+ * 8, 16 and 32 lie evenly along the heatmaps' ramp.
+ */
+export const OVERDRAW_FULL = 32;
+
+/**
+ * Triangle density: a part's triangles per square stud of its box's surface,
+ * by its logarithm from DENSITY_LOW, the ramp's start, to DENSITY_FULL,
+ * white: so ¼, 1, 4, 16 and 64 lie evenly along it. The surface counts as no
+ * less than a one-stud cube's six square studs, so a small Part's twelve
+ * triangles stay cheap.
+ */
+export const DENSITY_LOW = 1 / 4;
+export const DENSITY_FULL = 64;
+export const DENSITY_LEAST_AREA = 6;
+/** The least share a drawn part holds, so the composite never draws it black, as nothing. */
+export const DENSITY_LEAST = 1 / 64;
+
+/** Triangles per square stud of a box `size` studs across, as the shaders find it. */
+export function triangleDensity(triangles: number, size: readonly number[]): number {
+	const [x, y, z] = size;
+	const area = 2 * (x * y + y * z + z * x);
+	return triangles / Math.max(area, DENSITY_LEAST_AREA);
+}
+
+/** A density's share of white, as the shaders find it. */
+export function densityShare(density: number): number {
+	const t =
+		Math.log2(Math.max(density, 1e-6) / DENSITY_LOW) / Math.log2(DENSITY_FULL / DENSITY_LOW);
+	return Math.min(1, Math.max(DENSITY_LEAST, t));
+}
+
+/** Where `n` surfaces lie on the heatmaps' ramp, as the composite finds it: 0 for one, 1 for OVERDRAW_FULL. */
+export function overdrawShare(n: number): number {
+	return Math.min(1, Math.max(0, Math.log2(Math.max(n, 1)) / Math.log2(OVERDRAW_FULL)));
+}
+
+/**
+ * The Rendering panel's mode as the place's shaders read it: the lighting
+ * they draw (RENDER_MODE_CODE's 0 to 6), whether haze is drawn, whether the
+ * heatmaps are linear, and the view drawn over that: 0 none, 1 overdraw,
+ * 2 triangle density, 3 the sun's maps. Overdraw and density take the
+ * heatmaps' path, the sun's maps the full lighting's.
+ */
+export function renderDebug(render: RenderSettings): [number, number, number, number] {
+	const view: Partial<Record<RenderMode, number>> = { overdraw: 1, density: 2, sunMaps: 3 };
+	const w = view[render.mode] ?? 0;
+	const x = w === 3 ? 0 : w > 0 ? RENDER_MODE_CODE.cost : RENDER_MODE_CODE[render.mode];
+	return [x, render.show.haze ? 1 : 0, render.heat === "linear" ? 1 : 0, w];
+}
+
+/** The modes whose frame holds shares in red, for the composite to colour. */
+export function sharesView(mode: RenderMode): boolean {
+	return mode === "cost" || mode === "lights" || mode === "overdraw" || mode === "density";
+}
+
+/**
+ * How the composite colours a frame of shares: 0 not at all, 1 the render
+ * heatmap's ramp, 2 the same with black where nothing reaches (the lighting
+ * heatmap), 3 overdraw's counts, 4 triangle density, shaded by the green.
+ */
+export function sharesComposite(mode: RenderMode): number {
+	const code: Partial<Record<RenderMode, number>> = { cost: 1, lights: 2, overdraw: 3, density: 4 };
+	return code[mode] ?? 0;
+}
+
+/** The modes the Heat style (Linear heat or Cubespots) changes. */
+export function heatStyled(mode: RenderMode): boolean {
+	return mode === "cost" || mode === "lights";
+}
+
+/** The heatmaps' ramp, as the composite's heatColour draws it: dark green, green, yellow, red, white. */
+export function heatRamp(h: number): [number, number, number] {
+	const t = Math.min(1, Math.max(0, h));
+	const stops: [number, [number, number, number]][] = [
+		[0, [0.03, 0.22, 0.06]],
+		[0.3, [0.1, 0.72, 0.16]],
+		[0.55, [0.95, 0.85, 0.12]],
+		[0.8, [0.9, 0.14, 0.06]],
+		[1, [1, 1, 1]],
+	];
+	let k = 0;
+	while (k < stops.length - 2 && t > stops[k + 1][0]) k++;
+	const [t0, a] = stops[k];
+	const [t1, b] = stops[k + 1];
+	const f = (t - t0) / (t1 - t0);
+	return [0, 1, 2].map((i) => a[i] + (b[i] - a[i]) * f) as [number, number, number];
+}
+
+/**
+ * The sun's maps, in the Shadow maps view: each cascade's tint, then the
+ * whole-place map's, then none (off every map, or no shadows); and the near
+ * sky maps' box edge. Display colours, mixed SUN_MAP_MIX into the picture.
+ */
+export const SUN_MAP_TINTS: readonly (readonly [number, number, number])[] = [
+	[0.95, 0.3, 0.25],
+	[0.3, 0.85, 0.35],
+	[0.3, 0.5, 1],
+	[1, 0.82, 0.2],
+	[0.5, 0.5, 0.5],
+];
+export const SUN_MAP_MIX = 0.45;
+export const NEAR_EDGE_TINT: readonly [number, number, number] = [1, 1, 1];
+
+/**
+ * A view's legend: a bar coloured as the composite colours it, its ticks
+ * spread evenly along it, and what they count; or a key of swatches.
+ */
+export type RenderLegend =
+	| { kind: "bar"; stops: string; ticks: string[]; caption: string }
+	| { kind: "key"; items: { colour: string; label: string }[] };
+
+const cssColour = (c: readonly number[]) =>
+	`rgb(${c.map((v) => Math.round(Math.min(1, Math.max(0, v)) * 255)).join(" ")})`;
+
+/** The ramp from `from` to white, as a CSS gradient's stops. */
+function rampStops(from: number): string {
+	return [0, 0.3, 0.55, 0.8, 1]
+		.map((t) => `${cssColour(heatRamp(Math.max(from, t)))} ${t * 100}%`)
+		.join(", ");
+}
+
+/** The legend of each view after the two heatmaps, which have their own (Viewport.tsx). */
+export function renderLegend(mode: RenderMode): RenderLegend | null {
+	if (mode === "overdraw") {
+		const ticks: string[] = [];
+		for (let n = 1; n <= OVERDRAW_FULL; n *= 2) ticks.push(n < OVERDRAW_FULL ? `${n}` : `${n}+`);
+		return { kind: "bar", stops: rampStops(0), ticks, caption: "Surfaces a pixel; black for none" };
+	}
+	if (mode === "density") {
+		const ticks: string[] = [];
+		for (let d = DENSITY_LOW; d <= DENSITY_FULL; d *= 4)
+			ticks.push(d < 1 ? "¼" : d < DENSITY_FULL ? `${d}` : `${d}+`);
+		return {
+			kind: "bar",
+			stops: rampStops(DENSITY_LEAST),
+			ticks,
+			caption: "Triangles a square stud of each part's box",
+		};
+	}
+	if (mode === "sunMaps") {
+		const studs = (n: number) => n.toLocaleString("en-US");
+		let from = 0;
+		const items = SUN_CASCADES.map((far, k) => {
+			const label = `Cascade ${k + 1}: ${studs(from)} to ${studs(far)} studs`;
+			from = far;
+			return { colour: cssColour(SUN_MAP_TINTS[k]), label };
+		});
+		const n = SUN_CASCADES.length;
+		items.push(
+			{ colour: cssColour(SUN_MAP_TINTS[n]), label: `Whole place: past ${studs(from)} studs` },
+			{ colour: cssColour(SUN_MAP_TINTS[n + 1]), label: "None: no sun shadow" },
+			{ colour: cssColour(NEAR_EDGE_TINT), label: `Near sky maps' edge: ${SKY_NEAR} studs out` },
+		);
+		return { kind: "key", items };
+	}
+	return null;
 }

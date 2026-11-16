@@ -12,7 +12,6 @@ import type { SceneEffects } from "../../core/rbx/effects.js";
 import type { LightingParams } from "../../core/rbx/lighting.js";
 import {
 	EFFECT_BLOCK,
-	EFFECT_COST,
 	EFFECT_VERTEX,
 	type EffectFrame,
 	type EffectShow,
@@ -26,7 +25,8 @@ import {
 	quadIndices,
 } from "./effects.js";
 import { lookAt, multiply, perspective } from "./math.js";
-import { type Camera, COST_FULL, FOV, RENDER_MODE_CODE, type RenderSettings } from "./view.js";
+import { effectShare, effectsShown } from "./renderViews.js";
+import { type Camera, FOV, type RenderSettings, renderDebug } from "./view.js";
 
 const BUFFER = { INDEX: 0x10, VERTEX: 0x20, UNIFORM: 0x40, COPY_DST: 0x8 } as const;
 const STAGE = { VERTEX: 0x1, FRAGMENT: 0x2 } as const;
@@ -222,7 +222,7 @@ export class GpuEffects {
 		const mode = render.mode;
 		const none = { beams: 0, particles: 0, moving: false, draws: 0, quads: 0 };
 		// The lighting heatmap is of lights reaching surfaces; the wireframe of the place's shapes.
-		if (this.sim.empty || !lighting || mode === "wireframe" || mode === "lights" || !this.drawn) {
+		if (this.sim.empty || !lighting || !effectsShown(mode) || !this.drawn) {
 			this.last = none;
 			return;
 		}
@@ -265,9 +265,9 @@ export class GpuEffects {
 				viewProj,
 				camera.eye,
 				lighting,
-				RENDER_MODE_CODE[mode],
+				renderDebug(render)[0],
 				render.show.haze,
-				EFFECT_COST / COST_FULL,
+				effectShare(mode),
 			),
 		);
 		pass.setPipeline(this.drawn);

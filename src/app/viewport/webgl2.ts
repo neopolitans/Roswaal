@@ -17,6 +17,7 @@ import { boxEdges, featureEdges, meshFor, sceneGlows } from "./geometry.js";
 import { HANDLE_KINDS, type Handles, handleMesh } from "./handles.js";
 import { invert, lookAt, multiply, perspective } from "./math.js";
 import { lightGridFor } from "./prepare.js";
+import { DENSITY_FS_GLSL, DENSITY_GLSL, OVERDRAW_GLSL, VIEWS_GLSL } from "./renderViews.js";
 import { TEXTURE_LEVELS, TEXTURE_SIZE } from "./textures.js";
 import {
 	backToFront,
@@ -45,10 +46,11 @@ import {
 	type MeshGeometry,
 	nearSkyCentre,
 	nearSkyInto,
+	OVERDRAW_FULL,
 	postActive,
-	RENDER_MODE_CODE,
 	type RenderSettings,
 	type RenderStats,
+	renderDebug,
 	SELECT,
 	SELECT_WIDTH,
 	SKY_BLOCK,
@@ -65,6 +67,8 @@ import {
 	sceneBox,
 	sceneFingerprint,
 	seeThroughSets,
+	sharesComposite,
+	sharesView,
 	skyBlock,
 	splitByMesh,
 	type ViewRenderer,
@@ -72,7 +76,8 @@ import {
 
 const COMMON = `
 uniform vec4 L[11];
-// The Rendering panel: its mode (RENDER_MODE_CODE), and whether haze is drawn.
+// The Rendering panel: its lighting (RENDER_MODE_CODE), whether haze is drawn,
+// whether the heatmaps are linear, and the view drawn over it: see renderDebug.
 uniform vec4 R;
 // As WebGpuView's sunLight.
 vec3 sunLight(vec3 dir) {
@@ -511,8 +516,11 @@ layout(location=0) in vec3 pos; layout(location=1) in vec3 nrm;
 layout(location=2) in vec3 c0; layout(location=3) in vec3 c1; layout(location=4) in vec3 c2; layout(location=5) in vec3 p;
 layout(location=6) in vec4 colour; layout(location=7) in uint id; layout(location=8) in uint look;
 uniform mat4 viewProj; uniform float outline; uniform float handle; uniform vec3 screen; uniform vec3 eye;
+// Triangle density: the draw's triangles, or 0 in every other view; see drawDensity.
+uniform float tris;
 out vec3 vColour; out vec3 vWorld; out vec3 vNormal; flat out uint vId; out float vAlpha; flat out uint vLook; out vec3 vLocal; out vec3 vLNormal;
 out float vDepthW;
+${DENSITY_GLSL}
 #ifndef LOG_DEPTH
 // Invariant: the depth pre-pass and the lit pass must land on the very same depths.
 invariant gl_Position;
@@ -546,6 +554,8 @@ void main() {
 		// The outline's own colour, as it is to be seen.
 		vColour = colour.rgb;
 	}
+	// Triangle density's share, in the colour's red, as WebGpuView's vsDensity.
+	if (tris > 0.5) vColour = vec3(densityShare(tris, s), 0.0, 0.0);
 	vId = id;
 	vAlpha = colour.a;
 	vLook = look;
@@ -584,8 +594,12 @@ ${COMMON}
 ${SKY_VIS}
 ${SURFACE}
 ${LOG_DEPTH}
+${VIEWS_GLSL}
 out vec4 o;
+${DENSITY_FS_GLSL}
 float heat(vec3 n) {
+	// Overdraw: one share for each surface drawn.
+	if (R.w > 0.5 && R.w < 1.5) return ${1 / OVERDRAW_FULL};
 	int row = int(vLook & 255u);
 	vec4 a = M[row * 3];
 	vec4 b = M[row * 3 + 1];
@@ -609,6 +623,7 @@ void main() {
 #endif
 	vec3 n = normalize(vNormal);
 	if (outline > 0.5) o = vec4(vColour, vAlpha);
+	else if (handle < 0.5 && R.w > 1.5 && R.w < 2.5) o = densityOut(n);
 	else if (handle < 0.5 && R.x > 4.5) o = vec4(heat(n), 0.0, 0.0, 1.0);
 	else if (handle > 0.5) o = vec4(pow(vColour * (0.72 + 0.38 * max(dot(n, normalize(vec3(0.4, 1.0, 0.25))), 0.0)), vec3(1.0 / 2.2)), alpha);
 	else {
@@ -616,6 +631,8 @@ void main() {
 		// Neon past the display curve, each channel capped, as WebGpuView's fs draws it.
 		float shade = M[int(vLook & 255u) * 3 + 1].y;
 		o = vec4(shade > 0.5 && shade < 1.5 ? pow(min(s.rgb, vec3(1.0)), vec3(1.0 / 2.2)) : display(s.rgb), s.a);
+		// The Shadow maps view: tinted by the sun's map that shades it.
+		if (R.w > 2.5) o.rgb = sunMapTint(o.rgb, vWorld);
 	}
 }`;
 // Wireframe only: each part's edges, as WebGpuView's fsWire.
@@ -644,6 +661,7 @@ uniform sampler2D image; uniform float veil; uniform float cut;
 ${COMMON}
 ${SKY_VIS}
 ${LOG_DEPTH}
+${VIEWS_GLSL}
 out vec4 o;
 void main() {
 #ifdef LOG_DEPTH
@@ -652,6 +670,11 @@ void main() {
 	vec4 t = texture(image, vUv);
 	// Into the depth where mostly opaque, as WebGpuView's fsImageDepth.
 	if (t.a * vTint.a < cut) discard;
+	// Overdraw: one share, added, for each of its fragments, as WebGpuView's fsCount.
+	if (R.w > 0.5 && R.w < 1.5) {
+		o = vec4(${1 / OVERDRAW_FULL}, 0.0, 0.0, 0.0);
+		return;
+	}
 	// In the glow's pass, covering what glows beneath it, as WebGpuView's fsImageVeil.
 	if (veil > 0.5) {
 		o = vec4(0.0, 0.0, 0.0, t.a * vTint.a);
@@ -674,6 +697,7 @@ void main() {
 	if (R.x > 2.5) c = albedo;
 	if (R.y > 0.5) c = air(c, length(L[6].xyz - vWorld), vWorld.y);
 	o = vec4(display(c), t.a * vTint.a);
+	if (R.w > 2.5) o.rgb = sunMapTint(o.rgb, vWorld);
 }`;
 const VS_SKY = `#version 300 es
 out vec2 ndc;
@@ -811,8 +835,19 @@ vec3 heatColour(float h, bool lights) {
 	if (t < 0.8) return mix(vec3(0.95, 0.85, 0.12), vec3(0.9, 0.14, 0.06), (t - 0.55) / 0.25);
 	return mix(vec3(0.9, 0.14, 0.06), vec3(1.0), (t - 0.8) / 0.2);
 }
+${OVERDRAW_GLSL}
 void main() {
 	vec3 f = texelFetch(frame, ivec2(gl_FragCoord.xy), 0).rgb;
+	// Triangle density (p.w 4): shares and shading.
+	if (p.w > 3.5) {
+		o = vec4(densityColour(f), 1.0);
+		return;
+	}
+	// Overdraw (p.w 3): the frame holds counts' shares.
+	if (p.w > 2.5) {
+		o = vec4(overdrawColour(f.r), 1.0);
+		return;
+	}
 	// A heatmap (p.w 1, or 2 for lights): the frame holds shares, not colours.
 	if (p.w > 0.5) {
 		o = vec4(heatColour(f.r, p.w > 1.5), 1.0);
@@ -2180,13 +2215,7 @@ export class WebGl2View implements ViewRenderer {
 			);
 		const vp = projection(reversed);
 		gl.uniformMatrix4fv(prog.viewProj, false, vp);
-		gl.uniform4f(
-			gl.getUniformLocation(prog.program, "R"),
-			RENDER_MODE_CODE[this.render.mode],
-			this.render.show.haze ? 1 : 0,
-			this.render.heat === "linear" ? 1 : 0,
-			0,
-		);
+		gl.uniform4fv(gl.getUniformLocation(prog.program, "R"), renderDebug(this.render));
 		gl.uniform1f(gl.getUniformLocation(prog.program, "logFar"), 1 / Math.log2(camera.far + 1));
 		// The sky's rays through the usual projection's far plane, the same in either depth.
 		if (prog.invViewProj)
@@ -2245,11 +2274,13 @@ export class WebGl2View implements ViewRenderer {
 		const started = performance.now();
 		this.tally = { draws: 0, instances: 0, triangles: 0 };
 		const { mode, show } = this.render;
-		const heat = mode === "cost" || mode === "lights";
+		const heat = sharesView(mode);
 		const wire = mode === "wireframe";
-		// The heatmaps and the wireframe are the place's shapes alone.
-		const postOn = this.postOn && show.post && !heat && !wire;
-		const glowing = this.glowing && show.glow && !heat && !wire;
+		// The heatmaps and the wireframe are the place's shapes alone; the sun
+		// maps' tints are left as they are drawn.
+		const tinted = mode === "sunMaps";
+		const postOn = this.postOn && show.post && !heat && !wire && !tinted;
+		const glowing = this.glowing && show.glow && !heat && !wire && !tinted;
 		const partsMoved = this.skyDirty;
 		this.usualDepth(true);
 		const centre = nearSkyCentre(camera.eye);
@@ -2290,13 +2321,14 @@ export class WebGl2View implements ViewRenderer {
 				camera,
 				show.seeThrough ? [...this.draws, ...this.glass, ...this.clear] : this.draws,
 			);
+		else if (mode === "overdraw") this.drawOverdraw(camera);
+		else if (mode === "density") this.drawDensity(camera);
 		else this.drawPlace(camera, images, show.seeThrough, heat);
 		// Beams and particles, over everything see-through, farthest first; none in the wireframe.
 		this.drawEffects(camera);
 		// The glow is part of the place, added once the place is drawn: what
 		// marks the place is drawn over it.
-		if (composite)
-			this.addGlow(camera, post, glowing, postOn, heat ? (mode === "lights" ? 2 : 1) : 0);
+		if (composite) this.addGlow(camera, post, glowing, postOn, sharesComposite(mode));
 		this.drawMarks(camera);
 		this.lastTally = this.tally;
 		this.cpuMs = performance.now() - started;
@@ -2383,6 +2415,63 @@ export class WebGl2View implements ViewRenderer {
 		}
 		// Over the see-through parts they are on.
 		if (images) this.drawImages(camera, "seeThrough");
+	}
+
+	/**
+	 * Overdraw, as WebGpuView's drawOverdraw: every fragment of the solid
+	 * parts, before the depth test hides any; then, in front of them, each
+	 * see-through part and image; each adding one. Beams and particles follow.
+	 */
+	private drawOverdraw(camera: Camera): void {
+		const gl = this.gl;
+		const { show } = this.render;
+		this.use(this.main, camera, false);
+		gl.enable(gl.BLEND);
+		gl.blendFunc(gl.ONE, gl.ONE);
+		gl.depthFunc(gl.ALWAYS);
+		gl.depthMask(false);
+		this.solids();
+		gl.depthMask(true);
+		gl.depthFunc(this.nearer);
+		gl.disable(gl.BLEND);
+		this.depthOnly(camera, this.draws);
+		this.count(this.draws);
+		if (show.images) this.drawImages(camera, "solid", true);
+		if (show.seeThrough) {
+			this.use(this.main, camera, false);
+			gl.enable(gl.BLEND);
+			gl.blendFunc(gl.ONE, gl.ONE);
+			gl.depthMask(false);
+			this.solids(this.glass);
+			this.solids(this.clear);
+			gl.depthMask(true);
+			gl.disable(gl.BLEND);
+			this.count(this.glass);
+			this.count(this.clear);
+		}
+		if (show.images) this.drawImages(camera, "seeThrough", true);
+	}
+
+	/**
+	 * Triangle density, as WebGpuView's drawDensity: every part, see-through
+	 * ones as if solid, coloured by its mesh's triangles against its size.
+	 */
+	private drawDensity(camera: Camera): void {
+		const gl = this.gl;
+		const all = this.render.show.seeThrough
+			? [...this.draws, ...this.glass, ...this.clear]
+			: this.draws;
+		this.use(this.main, camera, false);
+		const tris = gl.getUniformLocation(this.main.program, "tris");
+		this.tally.draws += all.length;
+		for (const d of all) {
+			gl.uniform1f(tris, d.indexCount / 3);
+			gl.bindVertexArray(d.vao);
+			gl.drawElementsInstanced(gl.TRIANGLES, d.indexCount, d.type, 0, d.count);
+		}
+		gl.bindVertexArray(null);
+		gl.uniform1f(tris, 0);
+		this.count(all);
 	}
 
 	/** What marks the place, over it: the selection, the handles, the overlay. */
@@ -2561,7 +2650,7 @@ export class WebGl2View implements ViewRenderer {
 	}
 
 	/** One layer's images whose texture has arrived, onto their faces, farthest first; whether any was drawn. */
-	private drawImages(camera: Camera, layer: ImageLayer): boolean {
+	private drawImages(camera: Camera, layer: ImageLayer, added = false): boolean {
 		const gl = this.gl;
 		if (!this.imageVao) return false;
 		const order = imageOrder(this.imageList, layer, camera.eye, (asset) =>
@@ -2570,7 +2659,9 @@ export class WebGl2View implements ViewRenderer {
 		if (order.length === 0) return false;
 		this.use(this.imageProgram, camera, false);
 		gl.enable(gl.BLEND);
-		gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+		// Overdraw's counts are added up; colours blend over what is behind.
+		if (added) gl.blendFunc(gl.ONE, gl.ONE);
+		else gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 		gl.depthMask(false);
 		gl.bindVertexArray(this.imageVao);
 		gl.activeTexture(gl.TEXTURE2);
