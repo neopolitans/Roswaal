@@ -286,6 +286,8 @@ vec3 partLights(vec3 p, vec3 n, vec3 v, float gloss, out vec3 shine) {
 		vec4 d = texelFetch(lightData, ivec2(2, i), 0);
 		vec3 at = a.xyz;
 		if (col.w > 1.5) {
+			// Only in front of its face, as WebGpuView's partLights.
+			if (dot(p - a.xyz, d.xyz) < 0.05) continue;
 			vec3 u = texelFetch(lightData, ivec2(3, i), 0).xyz;
 			vec3 v = texelFetch(lightData, ivec2(4, i), 0).xyz;
 			vec3 off = p - a.xyz;
@@ -299,7 +301,7 @@ vec3 partLights(vec3 p, vec3 n, vec3 v, float gloss, out vec3 shine) {
 		if (col.w > 0.5) {
 			float c = dot(-l, d.xyz);
 			if (c <= 0.0) continue;
-			k *= 1.0 - smoothstep(0.0, 1.0, acos(min(c, 1.0)) / max(d.w, 1e-3));
+			k *= 1.0 - smoothstep(0.0, 1.0, atan(length(cross(-l, d.xyz)), c) / max(d.w, 1e-3));
 		}
 		sum += col.rgb * k;
 		shine += col.rgb * k * pow(max(dot(n, normalize(l + v)), 0.0), gloss);
@@ -323,6 +325,7 @@ vec3 lightWork(vec3 p, vec3 n) {
 		vec4 d = texelFetch(lightData, ivec2(2, i), 0);
 		vec3 at = a.xyz;
 		if (col.w > 1.5) {
+			if (dot(p - a.xyz, d.xyz) < 0.05) continue;
 			vec3 su = texelFetch(lightData, ivec2(3, i), 0).xyz;
 			vec3 sv = texelFetch(lightData, ivec2(4, i), 0).xyz;
 			vec3 off = p - a.xyz;
@@ -335,7 +338,7 @@ vec3 lightWork(vec3 p, vec3 n) {
 		if (col.w > 0.5) {
 			float c = dot(-to / max(dist, 1e-4), d.xyz);
 			if (c <= cos(d.w)) continue;
-			k *= 1.0 - smoothstep(0.0, 1.0, acos(min(c, 1.0)) / max(d.w, 1e-3));
+			k *= 1.0 - smoothstep(0.0, 1.0, atan(length(cross(-to / max(dist, 1e-4), d.xyz)), c) / max(d.w, 1e-3));
 		}
 		reached += 1.0;
 		weight += k;

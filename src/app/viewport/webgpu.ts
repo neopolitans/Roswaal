@@ -253,6 +253,9 @@ fn partLights(p: vec3f, n: vec3f, v: vec3f, gloss: f32) -> Lamps {
 		let d = lightData[k + 2u];
 		var at = a.xyz;
 		if (col.w > 1.5) {
+			// Only in front of its face: a point on the face itself, as the part
+			// the light is on, found the light's direction in rounding error.
+			if (dot(p - a.xyz, d.xyz) < 0.05) { continue; }
 			let u = lightData[k + 3u].xyz;
 			let v = lightData[k + 4u].xyz;
 			let off = p - a.xyz;
@@ -266,7 +269,7 @@ fn partLights(p: vec3f, n: vec3f, v: vec3f, gloss: f32) -> Lamps {
 		if (col.w > 0.5) {
 			let c = dot(-l, d.xyz);
 			if (c <= 0.0) { continue; }
-			k2 = k2 * (1.0 - smoothstep(0.0, 1.0, acos(min(c, 1.0)) / max(d.w, 1e-3)));
+			k2 = k2 * (1.0 - smoothstep(0.0, 1.0, atan2(length(cross(-l, d.xyz)), c) / max(d.w, 1e-3)));
 		}
 		sum = sum + col.rgb * k2;
 		shine = shine + col.rgb * k2 * pow(max(dot(n, normalize(l + v)), 0.0), gloss);
@@ -288,6 +291,7 @@ fn lightWork(p: vec3f, n: vec3f) -> vec3f {
 		let d = lightData[k + 2u];
 		var at = a.xyz;
 		if (col.w > 1.5) {
+			if (dot(p - a.xyz, d.xyz) < 0.05) { continue; }
 			let su = lightData[k + 3u].xyz;
 			let sv = lightData[k + 4u].xyz;
 			let off = p - a.xyz;
@@ -300,7 +304,7 @@ fn lightWork(p: vec3f, n: vec3f) -> vec3f {
 		if (col.w > 0.5) {
 			let c = dot(-to / max(dist, 1e-4), d.xyz);
 			if (c <= cos(d.w)) { continue; }
-			strength = strength * (1.0 - smoothstep(0.0, 1.0, acos(min(c, 1.0)) / max(d.w, 1e-3)));
+			strength = strength * (1.0 - smoothstep(0.0, 1.0, atan2(length(cross(-to / max(dist, 1e-4), d.xyz)), c) / max(d.w, 1e-3)));
 		}
 		reached = reached + 1.0;
 		weight = weight + strength;
