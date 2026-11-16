@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.247.1",
+		date: "2026-11-16",
+		headline: "Script analysis drags down to the height of what it shows.",
+		fixed: [
+			"**Script analysis** under the graph drags down to its bar and summary, or its first problem, instead of stopping at a fixed height.",
+			"**Script analysis** no longer shows a sideways scrollbar along its foot.",
+		],
+	},
+	{
 		version: "0.247.0",
 		date: "2026-11-15",
 		headline: "Alt-click can step into a Model one level at a time, and the Panels menu lists only the panels for what is open.",
