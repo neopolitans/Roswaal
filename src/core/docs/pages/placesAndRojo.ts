@@ -252,7 +252,8 @@ export function placesAndRojoPage(): DocPage {
 					"meshes and the Sky's images are downloaded once and drawn; until then, and on the " +
 					"website, a face is its part's colour, a MeshPart its box and the sky Roswaal's own. " +
 					"The place's ColorCorrection and Blur are drawn too, and its Bloom sets how Neon " +
-					"glows; **Settings › Scene view** can turn them off. Its PointLights, " +
+					"glows; **Settings › Scene view** can turn them off. Beams and ParticleEmitters " +
+					"move as they do in Studio; a particle whose image is not downloaded is a soft dot. Its PointLights, " +
 					"SpotLights and SurfaceLights light it, Ambient lights where the sky cannot reach, " +
 					"and the sun casts shadows; the lights cast none yet, and the handles do " +
 					"not drag yet. To save memory, turn the place viewer " +
@@ -279,7 +280,7 @@ export function placesAndRojoPage(): DocPage {
 					[
 						"Render heatmap",
 						"What each pixel costs to draw, green to white: its textures, shadows and the " +
-							"lights tested for it. See-through parts add theirs to what is behind them",
+							"lights tested for it. See-through parts, beams and particles add theirs to what is behind them",
 					],
 					["Lighting heatmap", "How many lights reach each pixel; black for none"],
 				],
@@ -293,10 +294,11 @@ export function placesAndRojoPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"Its switches leave Neon's glow, post effects, haze, the sky, Decals and Textures or " +
-					"see-through parts out of the view. **Last frame** counts draw calls, instances and " +
-					"triangles, and times the frame on the page and, where the browser allows, on the GPU. " +
-					"The view's mode, and any switch that is off, show over the bar's left end.",
+					"Its switches leave Neon's glow, post effects, haze, the sky, Decals and Textures, " +
+					"see-through parts, beams or particles out of the view. **Last frame** counts draw calls, " +
+					"instances, triangles, beams and particles, and times the frame on the page and, where " +
+					"the browser allows, on the GPU. The view's mode, and any switch that is off, show over the " +
+					"bar's left end.",
 			},
 
 			{ t: "h", level: 2, text: "Changing properties" },

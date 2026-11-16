@@ -12,6 +12,7 @@
 import { type LightingParams, lightingBlock } from "../../core/rbx/lighting.js";
 import { MATERIAL_TEXTURES, MATERIALS, materialBlock } from "../../core/rbx/materials.js";
 import { LIGHT_STRIDE, type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene.js";
+import { GlEffects } from "./effectsGl.js";
 import { boxEdges, featureEdges, meshFor, sceneGlows } from "./geometry.js";
 import { HANDLE_KINDS, type Handles, handleMesh } from "./handles.js";
 import { invert, lookAt, multiply, perspective } from "./math.js";
@@ -975,7 +976,39 @@ export class WebGl2View implements ViewRenderer {
 
 	/** WebGL2 does not time the GPU here. */
 	stats(): RenderStats {
-		return { ...this.lastTally, cpu: this.cpuMs, gpu: null };
+		const fx = this.effects?.last;
+		return {
+			...this.lastTally,
+			beams: fx?.beams ?? 0,
+			particles: fx?.particles ?? 0,
+			cpu: this.cpuMs,
+			gpu: null,
+		};
+	}
+
+	/** The place's Beams and ParticleEmitters: see `effectsGl.ts`. */
+	private effects?: GlEffects;
+
+	private drawEffects(camera: Camera): void {
+		const fx = this.effects;
+		if (!fx) return;
+		const { show } = this.render;
+		const on = { beams: show.beams, particles: show.particles };
+		fx.draw(
+			camera,
+			this.width,
+			this.height,
+			this.lighting,
+			this.render,
+			on,
+			performance.now() / 1000,
+		);
+		this.tally.draws += fx.last.draws;
+		this.tally.triangles += fx.last.quads * 2;
+	}
+
+	animates(): boolean {
+		return this.effects?.last.moving ?? false;
 	}
 
 	private count(draws: { indexCount: number; count: number }[]): void {
@@ -1108,6 +1141,12 @@ export class WebGl2View implements ViewRenderer {
 		this.skyImages = gl.createTexture()!;
 		this.setSky(null);
 		this.imageProgram = this.link(VS_IMAGE, FS_IMAGE);
+		this.effects = new GlEffects({
+			gl,
+			reversed: this.clipControl !== null,
+			nearer: this.nearer,
+			imageTexture: (asset) => this.imageTextures.get(asset),
+		});
 		gl.useProgram(this.imageProgram.program);
 		gl.uniform1i(gl.getUniformLocation(this.imageProgram.program, "image"), 2);
 		this.glowProgram = this.link(VS, FS_GLOW);
@@ -1186,6 +1225,7 @@ export class WebGl2View implements ViewRenderer {
 		}
 		this.setLights(scene.lights);
 		this.setImages(scene);
+		this.effects?.setEffects(scene.effects);
 		this.draws = [];
 		this.clear = [];
 		this.glass = [];
@@ -2097,6 +2137,8 @@ export class WebGl2View implements ViewRenderer {
 				show.seeThrough ? [...this.draws, ...this.glass, ...this.clear] : this.draws,
 			);
 		else this.drawPlace(camera, images, show.seeThrough, heat);
+		// Beams and particles, over everything see-through, farthest first; none in the wireframe.
+		this.drawEffects(camera);
 		// The glow is part of the place, added once the place is drawn: what
 		// marks the place is drawn over it.
 		if (composite)
@@ -2456,6 +2498,7 @@ export class WebGl2View implements ViewRenderer {
 	}
 
 	destroy(): void {
+		this.effects?.destroy();
 		this.gl?.getExtension("WEBGL_lose_context")?.loseContext();
 	}
 

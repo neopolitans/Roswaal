@@ -86,6 +86,11 @@ export interface ViewRenderer {
 	setRender(render: RenderSettings): void;
 	/** What the last frame cost, for the Rendering panel. */
 	stats(): RenderStats;
+	/**
+	 * Whether the next frame would look different though nothing else moved:
+	 * particles alive or coming, or a beam's texture scrolling, in the last frame drawn.
+	 */
+	animates(): boolean;
 	/** Gives the GPU back: a browser keeps only so many contexts. */
 	destroy(): void;
 }
@@ -914,6 +919,10 @@ export interface RenderShow {
 	images: boolean;
 	/** Parts that are see-through, Glass among them. */
 	seeThrough: boolean;
+	/** Beams. */
+	beams: boolean;
+	/** ParticleEmitters' particles. */
+	particles: boolean;
 }
 
 export const RENDER_SHOW: readonly (readonly [keyof RenderShow, string])[] = [
@@ -923,6 +932,8 @@ export const RENDER_SHOW: readonly (readonly [keyof RenderShow, string])[] = [
 	["sky", "Sky"],
 	["images", "Decals and Textures"],
 	["seeThrough", "See-through parts"],
+	["beams", "Beams"],
+	["particles", "Particles"],
 ];
 
 /**
@@ -946,7 +957,16 @@ export interface RenderSettings {
 export const DEFAULT_RENDER: RenderSettings = {
 	mode: "lit",
 	heat: "linear",
-	show: { glow: true, post: true, haze: true, sky: true, images: true, seeThrough: true },
+	show: {
+		glow: true,
+		post: true,
+		haze: true,
+		sky: true,
+		images: true,
+		seeThrough: true,
+		beams: true,
+		particles: true,
+	},
 };
 
 /**
@@ -962,6 +982,9 @@ export interface RenderStats {
 	draws: number;
 	instances: number;
 	triangles: number;
+	/** Beams drawn, and particles alive, in the last frame. */
+	beams: number;
+	particles: number;
 	/** Milliseconds of the page's time spent issuing the last frame. */
 	cpu: number;
 	/**

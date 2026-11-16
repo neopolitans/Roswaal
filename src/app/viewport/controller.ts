@@ -7,6 +7,7 @@
 
 import type { PlaceOutline } from "../../core/rbx/browse.js";
 import type { RbxInstance } from "../../core/rbx/dom.js";
+import { effectTextures } from "../../core/rbx/effects.js";
 import { type LightingParams, SKY_FACES } from "../../core/rbx/lighting.js";
 import type { FileMesh } from "../../core/rbx/mesh.js";
 import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene.js";
@@ -297,7 +298,13 @@ export class ViewportController {
 	private turning = 0;
 
 	/** `onPick` hears each pick made in the view: everything picked, the last picked last. */
-	constructor(private readonly onPick: (indices: readonly number[]) => void) {}
+	constructor(private readonly onPick: (indices: readonly number[]) => void) {
+		// Effects stop drawing while the tab is hidden: see `redraw`.
+		if (typeof document !== "undefined")
+			document.addEventListener("visibilitychange", () => {
+				if (!document.hidden) this.redraw();
+			});
+	}
 
 	// -- for React ---------------------------------------------------------------
 
@@ -555,7 +562,12 @@ export class ViewportController {
 	 * tab or renderer change does not ask again.
 	 */
 	private loadImages(view: ViewRenderer, place: PlaceScene): void {
-		const wanted = [...new Set((place.images ?? []).map((image) => image.asset))];
+		const wanted = [
+			...new Set([
+				...(place.images ?? []).map((image) => image.asset),
+				...effectTextures(place.effects),
+			]),
+		];
 		const fresh = wanted.filter((asset) => !this.images.has(asset));
 		const settled = new Map<string, (image: ImageBitmap | null) => void>();
 		for (const asset of fresh) {
@@ -1272,6 +1284,10 @@ export class ViewportController {
 			this.drawPivot();
 			this.frames.push(now);
 			this.showRotation();
+			// Beams and particles that move keep the view drawing, at the frame
+			// rate's pace, until nothing moves, the Rendering panel turns them
+			// off, or the tab is hidden; shown again, it carries on.
+			if (this.view.animates() && !document.hidden) this.redraw();
 		};
 		this.nextFrame(draw);
 	}

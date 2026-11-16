@@ -12,6 +12,7 @@
 import { type LightingParams, lightingBlock } from "../../core/rbx/lighting.js";
 import { MATERIAL_TEXTURES, MATERIALS, materialBlock } from "../../core/rbx/materials.js";
 import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene.js";
+import { GpuEffects } from "./effectsGpu.js";
 import { boxEdges, featureEdges, meshFor, sceneGlows } from "./geometry.js";
 import { HANDLE_KINDS, type Handles, handleMesh } from "./handles.js";
 import { invert, lookAt, multiply, perspective } from "./math.js";
@@ -1024,7 +1025,14 @@ export class WebGpuView implements ViewRenderer {
 	private cpuMs = 0;
 
 	stats(): RenderStats {
-		return { ...this.lastTally, cpu: this.cpuMs, gpu: this.gpuTimes };
+		const fx = this.effects?.last;
+		return {
+			...this.lastTally,
+			beams: fx?.beams ?? 0,
+			particles: fx?.particles ?? 0,
+			cpu: this.cpuMs,
+			gpu: this.gpuTimes,
+		};
 	}
 
 	/** Each draw's instances and triangles, toward the frame's stats. */
@@ -1418,6 +1426,15 @@ export class WebGpuView implements ViewRenderer {
 			depthStencil: { format: "depth32float", depthWriteEnabled: true, depthCompare: "greater" },
 			multisample: { count: SAMPLES },
 		});
+		this.effects = new GpuEffects({
+			device: d,
+			format: this.format,
+			samples: SAMPLES,
+			imageLayout: this.imageLayout,
+			imageSampler: this.imageSampler,
+			pipeline: (set, desc) => this.pipeline(set, desc),
+			imageGroup: (asset) => this.imageGroups.get(asset)?.group,
+		});
 		// See-through Glass: the nearest's depth, then its colour blended at that depth.
 		this.pipeline((p) => (this.glassDepth = p), {
 			layout: pipelineLayout,
@@ -1733,6 +1750,7 @@ export class WebGpuView implements ViewRenderer {
 		this.setLights(scene.lights);
 		if (this.skyImages && this.sunTexture) this.rebind();
 		this.setImages(scene);
+		this.effects?.setEffects(scene.effects);
 		this.draws = [];
 		this.clear = [];
 		this.glass = [];
@@ -2185,6 +2203,8 @@ export class WebGpuView implements ViewRenderer {
 				pass,
 				show.seeThrough ? [...this.draws, ...this.glass, ...this.clear] : this.draws,
 			);
+			// The wireframe is the place's shapes alone: no effects, and nothing to animate.
+			this.drawEffects(pass, camera);
 		} else {
 			pass.setPipeline(this.solidDepth);
 			this.solids(pass);
@@ -2216,6 +2236,8 @@ export class WebGpuView implements ViewRenderer {
 			}
 			// Over the see-through parts they are on.
 			if (images) this.drawImages(pass, "seeThrough", camera.eye);
+			// Beams and particles, over everything see-through, farthest first.
+			this.drawEffects(pass, camera);
 		}
 		// The glow is part of the place, added once the place is drawn; what
 		// marks the place goes over it, against the place's own depth.
@@ -2276,6 +2298,34 @@ export class WebGpuView implements ViewRenderer {
 
 	settled(): Promise<void> {
 		return this.device.queue.onSubmittedWorkDone();
+	}
+
+	/** The place's Beams and ParticleEmitters: see `effectsGpu.ts`. */
+	private effects?: GpuEffects;
+
+	private drawEffects(pass: GPURenderPassEncoder, camera: Camera): void {
+		const fx = this.effects;
+		if (!fx) return;
+		const { show } = this.render;
+		const on = { beams: show.beams, particles: show.particles };
+		fx.draw(
+			pass,
+			camera,
+			this.width,
+			this.height,
+			this.lighting,
+			this.render,
+			on,
+			performance.now() / 1000,
+		);
+		if (fx.last.draws === 0) return;
+		pass.setBindGroup(0, this.bind);
+		this.tally.draws += fx.last.draws;
+		this.tally.triangles += fx.last.quads * 2;
+	}
+
+	animates(): boolean {
+		return this.effects?.last.moving ?? false;
 	}
 
 	private imageLayout!: GPUBindGroupLayout;
@@ -2631,6 +2681,7 @@ struct VIn { @location(0) pos: vec3f, @location(2) c0: vec3f, @location(3) c1: v
 	}
 
 	destroy(): void {
+		this.effects?.destroy();
 		this.device?.destroy();
 	}
 

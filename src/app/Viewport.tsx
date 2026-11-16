@@ -800,6 +800,8 @@ export function RenderPanel({ controller }: { controller: ViewportController }) 
 									["Draw calls", stats.draws.toLocaleString()],
 									["Instances", stats.instances.toLocaleString()],
 									["Triangles", Math.round(stats.triangles).toLocaleString()],
+									["Beams", stats.beams.toLocaleString()],
+									["Particles", stats.particles.toLocaleString()],
 									["Page", ms(stats.cpu)],
 									...((gpu
 										? [
