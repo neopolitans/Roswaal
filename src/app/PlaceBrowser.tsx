@@ -58,6 +58,7 @@ import {
 	primaryOf,
 	type RowSelection,
 } from "./placeSelection.js";
+import { PROPERTY_DRAG, type PropertyDrag } from "./propertyDrag.js";
 import { showToast } from "./Toast.jsx";
 import type { Dialogs } from "./useDialogs.js";
 import { classDetail, ValuePicker } from "./ValuePicker.jsx";
@@ -1433,16 +1434,7 @@ function ClassIcon({
 	return <Icon name={icon as IconName} size={15} className={cx("kind", tone)} />;
 }
 
-/** What a drag out of Properties carries: the instance, and the property or attribute. */
-export const PROPERTY_DRAG = "application/x-roswaal-property";
-
-export interface PropertyDrag {
-	path: string[];
-	/** The instance's class, for the member's type on the node it makes. */
-	className?: string;
-	property?: string;
-	attribute?: string;
-}
+export { PROPERTY_DRAG, type PropertyDrag } from "./propertyDrag.js";
 
 function dragOut(e: React.DragEvent, payload: PropertyDrag) {
 	e.dataTransfer.setData(PROPERTY_DRAG, JSON.stringify(payload));

@@ -19,7 +19,7 @@ import {
 	referenceExpression,
 	referenceLocal,
 } from "../core/luau/instanceReference.js";
-import { PROPERTY_DRAG } from "./PlaceBrowser.jsx";
+import { PROPERTY_DRAG } from "./propertyDrag.js";
 
 /**
  * What dropping `ref` at a point on `line` writes, and where. `known` is the

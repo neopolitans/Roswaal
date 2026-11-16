@@ -49,10 +49,10 @@ import {
 	variableUsageCount,
 } from "./edits.js";
 import { configText } from "./nodeConfig.js";
-import { PROPERTY_DRAG, type PropertyDrag } from "./PlaceBrowser.jsx";
 import { pinColor } from "./palette.js";
 import { specifierSuggestions, useProjectLuaurc } from "./projectAliases.js";
 import { requiredTypes, useProjectTypes } from "./projectTypes.js";
+import { PROPERTY_DRAG, type PropertyDrag } from "./propertyDrag.js";
 import { store, useEditor } from "./store.js";
 import { TypePicker } from "./TypePicker.jsx";
 import { classDetail, ValuePicker } from "./ValuePicker.jsx";
