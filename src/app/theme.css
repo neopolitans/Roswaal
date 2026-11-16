@@ -19806,6 +19806,30 @@ html {
 	overflow: auto;
 }
 
+/* A window made see-through from its ⋯ menu: the graph or the place shows
+   through its background and header, blurred, and its text and controls stay
+   solid. Off unless chosen: dense text over the grid reads as noise. */
+.float-panel.card-see-through {
+	/* Quieter text nearer the body's, so it still reads over a dark place in
+	   the light theme and a bright one in the dark. */
+	--fg-muted: color-mix(in srgb, var(--fg) 82%, var(--bg-panel));
+	--fg-faint: color-mix(in srgb, var(--fg) 66%, var(--bg-panel));
+	background: color-mix(in srgb, var(--bg-panel) 64%, transparent);
+	border-color: color-mix(in srgb, var(--border-strong) 70%, transparent);
+	/* Unprefixed only: the build adds Safari's prefix, and given both it
+	   keeps the prefixed one alone, which Chromium ignores. */
+	backdrop-filter: blur(12px) saturate(1.2);
+}
+
+.float-panel.card-see-through > .card-head {
+	background: color-mix(in srgb, var(--card-head) 64%, transparent);
+	border-bottom-color: color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.float-panel.card-see-through.focus > .card-head {
+	background: color-mix(in srgb, var(--card-head-focus) 64%, transparent);
+}
+
 /* Script analysis draws its own header; marked in use as a card's is. */
 .card.headless.focus .status > .card-head {
 	background: var(--card-head-focus);

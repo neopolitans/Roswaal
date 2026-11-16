@@ -314,6 +314,10 @@ export function controlsPage(): DocPage {
 					["Drag a card's inner edge", "Resize that side; double-click to put it away"],
 					["Drag a window by its header", "Move it; let go at an edge or on a card to dock it"],
 					["Drag any edge or corner of a window", "Resize it. The opposite edge stays put"],
+					[
+						"**See-through** in a window's **⋯** menu",
+						"The graph or the place shows through it; its text stays solid",
+					],
 				],
 			},
 			{ t: "h", level: 2, text: "Menus" },

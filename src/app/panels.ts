@@ -95,6 +95,12 @@ export interface PanelState {
 	folded?: boolean;
 	/** The tab a card shows. Read on the head; absent, its first. */
 	active?: PanelId;
+	/**
+	 * A window drawn see-through, so the graph or the place shows behind it.
+	 * Read on the head, and only while it floats; kept while docked, so floating
+	 * it again brings it back as it was.
+	 */
+	seeThrough?: boolean;
 }
 
 /** One card: its head, its tabs in order with the head first, and what it shows. */
@@ -104,6 +110,8 @@ export interface Card {
 	active: PanelId;
 	weight: number;
 	folded: boolean;
+	/** A window drawn see-through. Never set on a docked card. */
+	seeThrough: boolean;
 }
 
 export interface PanelFrame {
@@ -558,6 +566,7 @@ export function readLayout(stored: unknown): Layout {
 		if (typeof card?.weight === "number" && card.weight > 0) panels[id].weight = card.weight;
 		else if (fallback.weight !== undefined) panels[id].weight = fallback.weight;
 		if (card?.folded === true) panels[id].folded = true;
+		if (card?.seeThrough === true) panels[id].seeThrough = true;
 		if (PANEL_IDS.includes(card?.active as PanelId)) panels[id].active = card!.active;
 		if (PANEL_IDS.includes(card?.tabOf as PanelId) && card!.tabOf !== id)
 			panels[id].tabOf = card!.tabOf;
@@ -740,7 +749,14 @@ function cardFrom(layout: Layout, head: PanelId, shown: (id: PanelId) => boolean
 	if (tabs.length === 0) return null;
 	const state = layout.panels[head];
 	const active = state.active !== undefined && tabs.includes(state.active) ? state.active : tabs[0];
-	return { head, tabs, active, weight: state.weight ?? 1, folded: state.folded === true };
+	return {
+		head,
+		tabs,
+		active,
+		weight: state.weight ?? 1,
+		folded: state.folded === true,
+		seeThrough: state.floating && state.seeThrough === true,
+	};
 }
 
 /** The cards in one dock, in order. */
@@ -811,6 +827,7 @@ export function separate(layout: Layout, panel: PanelId): Layout {
 			dock: head.dock,
 			floating: head.floating,
 			frame: head.frame,
+			seeThrough: head.seeThrough,
 		});
 		if (head.active === panel) next = patch(next, state.tabOf, { active: undefined });
 		// Beside the card it came from, not at the end of the dock.
@@ -832,6 +849,7 @@ export function separate(layout: Layout, panel: PanelId): Layout {
 		dock: state.dock,
 		floating: state.floating,
 		frame: state.frame,
+		seeThrough: state.seeThrough,
 	});
 	for (const id of rest) next = patch(next, id, { tabOf: first });
 	next = patch(next, panel, { active: undefined, folded: false });
@@ -918,6 +936,11 @@ export function showTab(layout: Layout, panel: PanelId): Layout {
 /** Folds a card to its header, or opens it again. */
 export function foldCard(layout: Layout, panel: PanelId, folded: boolean): Layout {
 	return patch(layout, cardOf(layout, panel), { folded });
+}
+
+/** A card's window drawn see-through, or solid again. Stored on its head. */
+export function seeThroughCard(layout: Layout, panel: PanelId, seeThrough: boolean): Layout {
+	return patch(layout, cardOf(layout, panel), { seeThrough: seeThrough || undefined });
 }
 
 /**

@@ -344,7 +344,8 @@ export function placesAndRojoPage(): DocPage {
 					"Fly around and watch **Performance** for spikes over the 33 ms line. In **Rendering**, " +
 					"**Light ranges** draws the reach of the lights near the camera as wire shapes, in " +
 					"their colour, and **Freeze shadows** stops redrawing the sun's and sky's shadow maps, " +
-					"so their cost can be compared.",
+					"so their cost can be compared. To watch the place through a window, pick " +
+					"**See-through** in its **⋯** menu.",
 			},
 
 			{ t: "h", level: 2, text: "Changing properties" },

@@ -74,6 +74,7 @@ import {
 	type PanelFrame,
 	type PanelId,
 	reopenPanel,
+	seeThroughCard,
 	separate,
 	shareHeight,
 	showTab,
@@ -828,6 +829,14 @@ export function Workspace({
 				label: state.folded ? "Unfold" : "Fold",
 				run: () => onLayout((l) => foldCard(l, head, !state.folded)),
 			});
+			// A window only: a docked card stays solid over the graph.
+			if (state.floating)
+				card.push({
+					label: "See-through",
+					title: "Show what is behind this window",
+					checked: state.seeThrough === true,
+					run: () => onLayout((l) => seeThroughCard(l, head, state.seeThrough !== true)),
+				});
 			card.push({ label: `Close ${title}`, run: () => onLayout((l) => closePanel(l, panel)) });
 		}
 		const closed = PANEL_IDS.filter(
@@ -1236,7 +1245,12 @@ function FloatingCard({
 			onShow={(id) => onLayout?.((l) => showTab(l, id))}
 			onFold={(folded) => onLayout?.((l) => foldCard(l, card.head, folded))}
 			onMenu={onMenu}
-			className={cx("floating", "float-panel", `float-${card.head}`)}
+			className={cx(
+				"floating",
+				"float-panel",
+				`float-${card.head}`,
+				card.seeThrough && "card-see-through",
+			)}
 			style={{
 				left: shown.x,
 				top: shown.y,

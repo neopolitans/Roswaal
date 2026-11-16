@@ -43,6 +43,7 @@ import {
 	readLayout,
 	reopenPanel,
 	resizeDock,
+	seeThroughCard,
 	separate,
 	shareHeight,
 	toggleDock,
@@ -530,6 +531,53 @@ describe("cards", () => {
 		expect(read.panels.tree.tabOf === undefined || read.panels.variables.tabOf === undefined).toBe(
 			true,
 		);
+	});
+});
+
+describe("a see-through window", () => {
+	it("starts solid", () => {
+		for (const id of PANEL_IDS) expect(DEFAULT_LAYOUT.panels[id].seeThrough, id).toBeUndefined();
+		expect(floatingCards(base()).every((c) => !c.seeThrough)).toBe(true);
+	});
+
+	it("is kept on the card's head, from any of its tabs", () => {
+		let layout = dropCard(base(), "variables", { kind: "float", frame: DEFAULT_FRAME });
+		layout = dropCard(layout, "tree", { kind: "tab", host: "variables" });
+		layout = seeThroughCard(layout, "tree", true);
+		expect(layout.panels.variables.seeThrough).toBe(true);
+		expect(layout.panels.tree.seeThrough).toBeUndefined();
+		const card = floatingCards(layout).find((c) => c.head === "variables");
+		expect(card?.seeThrough).toBe(true);
+		layout = seeThroughCard(layout, "variables", false);
+		expect(floatingCards(layout).find((c) => c.head === "variables")?.seeThrough).toBe(false);
+	});
+
+	it("is solid docked, and see-through again once it floats", () => {
+		let layout = seeThroughCard(base(), "refactor", true);
+		layout = dropCard(layout, "refactor", { kind: "dock", side: "right" });
+		expect(cardsIn(layout, "right").find((c) => c.head === "refactor")?.seeThrough).toBe(false);
+		layout = floatPanel(layout, "refactor", true);
+		expect(floatingCards(layout).find((c) => c.head === "refactor")?.seeThrough).toBe(true);
+	});
+
+	it("goes with a window's tab separated from it, and to the tab a head hands its card", () => {
+		let layout = dropCard(base(), "variables", { kind: "float", frame: DEFAULT_FRAME });
+		layout = dropCard(layout, "tree", { kind: "tab", host: "variables" });
+		layout = seeThroughCard(layout, "variables", true);
+		expect(separate(layout, "tree").panels.tree.seeThrough).toBe(true);
+		expect(separate(layout, "variables").panels.tree.seeThrough).toBe(true);
+	});
+
+	it("is read back from a stored layout, and anything but true is solid", () => {
+		const stored = base();
+		stored.panels.render.seeThrough = true;
+		expect(readLayout(stored).panels.render.seeThrough).toBe(true);
+		const json = JSON.parse(JSON.stringify(readLayout(stored)));
+		expect(readLayout(json).panels.render.seeThrough).toBe(true);
+		for (const value of [false, "yes", 1, null]) {
+			const odd = { panels: { render: { ...base().panels.render, seeThrough: value } } };
+			expect(readLayout(odd).panels.render.seeThrough, String(value)).toBeUndefined();
+		}
 	});
 });
 
