@@ -427,10 +427,73 @@ export function lightHash(cx: number, cy: number, cz: number): number {
 }
 
 /**
+ * Where a SurfaceLight can light, as the shaders light it: in front of its
+ * face, within its Range of the face's nearest point. That lies in a box: the
+ * face and its Range either side, its Range deep. Its middle, its three axes
+ * (across, up, out) and how far it reaches along each; none for a face with
+ * no frame.
+ */
+export function surfaceBox(
+	l: readonly number[],
+	o: number,
+): { mid: number[]; axes: number[][]; half: number[] } | undefined {
+	const range = l[o + 3];
+	const out = [l[o + 8], l[o + 9], l[o + 10]];
+	const u = [l[o + 12], l[o + 13], l[o + 14]];
+	const v = [l[o + 16], l[o + 17], l[o + 18]];
+	const lu = Math.hypot(u[0], u[1], u[2]);
+	const lv = Math.hypot(v[0], v[1], v[2]);
+	const lo = Math.hypot(out[0], out[1], out[2]);
+	if (lu < 1e-6 || lv < 1e-6 || lo < 1e-6) return undefined;
+	return {
+		mid: [0, 1, 2].map((a) => l[o + a] + (out[a] / lo) * (range / 2)),
+		axes: [u.map((x) => x / lu), v.map((x) => x / lv), out.map((x) => x / lo)],
+		half: [lu + range, lv + range, range / 2],
+	};
+}
+
+/**
+ * Hands `each` the hash of every cell that `box` meets: the cells over the
+ * box's own extent along each axis of the world, then those whose cube meets
+ * it along each of the box's axes too. It can take a cell that only grazes a
+ * corner; it never leaves out one the box reaches.
+ */
+export function listBox(
+	box: { mid: number[]; axes: number[][]; half: number[] },
+	each: (hash: number) => void,
+): void {
+	const { mid, axes, half } = box;
+	const c = LIGHT_CELL / 2;
+	// The box's reach along the world's axes, and each of its axes' reach over a cell.
+	const world = [0, 1, 2].map((w) => axes.reduce((s, ax, k) => s + Math.abs(ax[w]) * half[k], 0));
+	const cellReach = axes.map((ax) => c * (Math.abs(ax[0]) + Math.abs(ax[1]) + Math.abs(ax[2])));
+	const lo = [0, 1, 2].map((w) => Math.floor((mid[w] - world[w]) / LIGHT_CELL));
+	const hi = [0, 1, 2].map((w) => Math.floor((mid[w] + world[w]) / LIGHT_CELL));
+	const [a0, a1, a2] = axes;
+	const slack = 1 + 1e-9;
+	for (let x = lo[0]; x <= hi[0]; x++) {
+		const px = x * LIGHT_CELL + c - mid[0];
+		const hx = Math.imul(x, 73856093);
+		for (let y = lo[1]; y <= hi[1]; y++) {
+			const py = y * LIGHT_CELL + c - mid[1];
+			const hxy = hx ^ Math.imul(y, 19349663);
+			for (let z = lo[2]; z <= hi[2]; z++) {
+				const pz = z * LIGHT_CELL + c - mid[2];
+				if (Math.abs(px * a0[0] + py * a0[1] + pz * a0[2]) > (half[0] + cellReach[0]) * slack) continue;
+				if (Math.abs(px * a1[0] + py * a1[1] + pz * a1[2]) > (half[1] + cellReach[1]) * slack) continue;
+				if (Math.abs(px * a2[0] + py * a2[1] + pz * a2[2]) > (half[2] + cellReach[2]) * slack) continue;
+				each(((hxy ^ Math.imul(z, 83492791)) >>> 0) & (LIGHT_TABLE - 1));
+			}
+		}
+	}
+}
+
+/**
  * Each hash's lights: `table` holds an offset into `index` and a count per
  * hash, `index` the lights' numbers. A light is listed in every cell its
- * Range reaches, once a hash: a hash's lists in the order they were first
- * reached, each list's lights in their own order.
+ * Range reaches (a SurfaceLight's, in front of its face: see surfaceBox), once
+ * a hash: a hash's lists in the order they were first reached, each list's
+ * lights in their own order.
  *
  * A place's lights reach hundreds of thousands of cells, so this keeps to
  * typed arrays and plain numbers: every (hash, light) pair once, then sorted
@@ -449,12 +512,30 @@ export function lightGrid(lights: readonly number[] | undefined): {
 	const first: number[] = [];
 	let pairs = new Uint32Array(1 << 16);
 	let n = 0;
+	const list = (h: number, i: number) => {
+		if (last[h] === i) return;
+		last[h] = i;
+		if (sizes[h]++ === 0) first.push(h);
+		if (n * 2 === pairs.length) {
+			const more = new Uint32Array(pairs.length * 2);
+			more.set(pairs);
+			pairs = more;
+		}
+		pairs[n * 2] = h;
+		pairs[n * 2 + 1] = i;
+		n++;
+	};
 	for (let i = 0; i < count; i++) {
 		const o = i * LIGHT_STRIDE;
 		const cx = l[o];
 		const cy = l[o + 1];
 		const cz = l[o + 2];
-		// A SurfaceLight reaches its Range from anywhere on its face.
+		const box = l[o + 7] === LIGHT_SURFACE ? surfaceBox(l, o) : undefined;
+		if (box) {
+			listBox(box, (h) => list(h, i));
+			continue;
+		}
+		// A SurfaceLight on a face with no frame: its Range from anywhere on the face.
 		const face =
 			l[o + 7] === LIGHT_SURFACE
 				? Math.hypot(l[o + 12], l[o + 13], l[o + 14]) + Math.hypot(l[o + 16], l[o + 17], l[o + 18])
@@ -481,18 +562,7 @@ export function lightGrid(lights: readonly number[] | undefined): {
 					const d = dxy + dz * dz;
 					if (d >= outside || (d > inside && Math.hypot(dx, dy, dz) > reach)) continue;
 					// lightHash(x, y, z), its x and y parts kept from the loops above.
-					const h = ((hxy ^ Math.imul(z, 83492791)) >>> 0) & (LIGHT_TABLE - 1);
-					if (last[h] === i) continue;
-					last[h] = i;
-					if (sizes[h]++ === 0) first.push(h);
-					if (n * 2 === pairs.length) {
-						const more = new Uint32Array(pairs.length * 2);
-						more.set(pairs);
-						pairs = more;
-					}
-					pairs[n * 2] = h;
-					pairs[n * 2 + 1] = i;
-					n++;
+					list(((hxy ^ Math.imul(z, 83492791)) >>> 0) & (LIGHT_TABLE - 1), i);
 				}
 			}
 		}
