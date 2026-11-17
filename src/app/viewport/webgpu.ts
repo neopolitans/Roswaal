@@ -65,6 +65,7 @@ import {
 	SKY_OPEN,
 	SKY_SEEN_LEAST,
 	SKY_SOFT,
+	SKY_REACH,
 	SKY_VIEWS,
 	SUN_CASCADES,
 	SUN_GAIN,
@@ -256,7 +257,17 @@ fn skySeesIn(k: i32, p: vec3f, info: vec4f) -> f32 {
 	let o = vec2f(cos(a), sin(a)) * spread;
 	let q = vec2f(-o.y, o.x) * 0.5;
 	let depth = c.z - info.y * 0.5;
-	return 0.25 * (textureSampleCompareLevel(skyMaps, skyCompare, uv + o, k, depth) + textureSampleCompareLevel(skyMaps, skyCompare, uv - o, k, depth) + textureSampleCompareLevel(skyMaps, skyCompare, uv + q, k, depth) + textureSampleCompareLevel(skyMaps, skyCompare, uv - q, k, depth));
+	let seen = 0.25 * (textureSampleCompareLevel(skyMaps, skyCompare, uv + o, k, depth) + textureSampleCompareLevel(skyMaps, skyCompare, uv - o, k, depth) + textureSampleCompareLevel(skyMaps, skyCompare, uv + q, k, depth) + textureSampleCompareLevel(skyMaps, skyCompare, uv - q, k, depth));
+	// The sun's map shades from any height; the sky's only from parts within
+	// SKY_REACH above the camera, as Studio's do. Along this map's direction
+	// (straight up, or 45 degrees up), how far the ray may go before it leaves
+	// that reach: a part further on is beyond it, and the sky is seen.
+	if (k == ${SKY_VIEWS}) { return seen; }
+	let rise = select(0.70711, 1.0, k == 0 || k == ${SKY_NEAR_LAYER});
+	let along = (u.camPos.y + ${SKY_REACH}.0 - p.y) / rise;
+	if (along <= 0.0) { return 1.0; }
+	let within = textureSampleCompareLevel(skyMaps, skyCompare, uv, k, c.z - along * info.y);
+	return clamp(seen + 1.0 - within, 0.0, 1.0);
 }
 // The place's lights: five vec4s each, see sceneLights; and which reach a
 // cell of the world, by its hash, see lightGrid.

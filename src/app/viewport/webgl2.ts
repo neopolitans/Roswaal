@@ -65,6 +65,7 @@ import {
 	SKY_OPEN,
 	SKY_SEEN_LEAST,
 	SKY_SOFT,
+	SKY_REACH,
 	SKY_VIEWS,
 	SUN_CASCADES,
 	SUN_GAIN,
@@ -277,7 +278,14 @@ float skySeesIn(int k, vec3 p, vec4 info) {
 	vec2 o = vec2(cos(a), sin(a)) * spread;
 	vec2 h = vec2(-o.y, o.x) * 0.5;
 	float depth = q.z - info.y * 0.25;
-	return 0.25 * (texture(skyMaps, vec4(q.xy + o, float(k), depth)) + texture(skyMaps, vec4(q.xy - o, float(k), depth)) + texture(skyMaps, vec4(q.xy + h, float(k), depth)) + texture(skyMaps, vec4(q.xy - h, float(k), depth)));
+	float seen = 0.25 * (texture(skyMaps, vec4(q.xy + o, float(k), depth)) + texture(skyMaps, vec4(q.xy - o, float(k), depth)) + texture(skyMaps, vec4(q.xy + h, float(k), depth)) + texture(skyMaps, vec4(q.xy - h, float(k), depth)));
+	// Only parts within SKY_REACH above the camera, as WebGpuView's skySeesIn.
+	if (k == ${SKY_VIEWS}) return seen;
+	float rise = (k == 0 || k == ${SKY_NEAR_LAYER}) ? 1.0 : 0.70711;
+	float along = (L[6].y + ${SKY_REACH}.0 - p.y) / rise;
+	if (along <= 0.0) return 1.0;
+	float within = texture(skyMaps, vec4(q.xy, float(k), q.z - along * info.y * 0.5));
+	return clamp(seen + 1.0 - within, 0.0, 1.0);
 }
 // The place's lights, as WebGpuView's partLights: five texels a light, a row
 // each; and which reach a cell, 256 hashes a row, see lightGrid.

@@ -248,6 +248,17 @@ export const SKY_SEEN_LEAST = 0.025;
  * than step down where they overlap. Never under a texel, never over six.
  */
 export const SKY_SOFT = 3;
+
+/**
+ * How far above the camera a part still keeps the sky's light off what is
+ * under it, in studs. Fitted to Studio's screen captures of roofs 8 to 128
+ * studs over a floor, each 2.5 times as wide as it was high: a roof 112
+ * studs above the camera darkened the floor as one 64 above did, one 123
+ * above not at all, and with the camera raised 60 studs that roof darkened
+ * it again. Studio's lighting covers a box round the camera; what is above
+ * it shades nothing.
+ */
+export const SKY_REACH = 116;
 export const SKY_NEAR_STEP = 48;
 /**
  * What hides the sky in the near maps must be this many studs across, seen
