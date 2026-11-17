@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.264.1",
+		date: "2026-11-17",
+		headline: "Closed rooms lit as in Studio; two daemons no longer sign each other out.",
+		changed: [
+			"**Closed rooms** take some of the sky's light, as Studio's do, so they read near neutral instead of taking Ambient's colour.",
+		],
+		fixed: [
+			"**Sign in with Roblox** stays signed in when two daemons start together. One used to take the other's refresh as lost access and delete the sign-in and every project's downloads.",
+		],
+	},
+	{
 		version: "0.264.0",
 		date: "2026-11-17",
 		headline: "Parts drag onto surfaces in the place viewer; thin walls let the sky in as Studio's do.",
