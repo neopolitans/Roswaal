@@ -454,6 +454,7 @@ export function litFor(lighting: LightingParams, features: RenderFeatures): Ligh
 		ambient: on("skyFill") ? lighting.ambient : dark,
 		skyFill: on("skyFill") ? lighting.skyFill : 0,
 		indoor: on("ambient") ? lighting.indoor : dark,
+		skyIndoor: on("skyFill") ? lighting.skyIndoor : dark,
 		sunShadows: on("sunShadows") ? lighting.sunShadows : false,
 		shadowSoftness: on("softEdges") ? lighting.shadowSoftness : 0,
 		hazeDensity: on("atmosphere") ? lighting.hazeDensity : 0,

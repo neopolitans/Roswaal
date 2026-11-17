@@ -25,6 +25,8 @@ export interface LightingParams {
 	ambient: number[];
 	/** Ambient, linear: everywhere, the only fill where the sky cannot reach. */
 	indoor?: number[];
+	/** The sky's fill that reaches even closed rooms, linear: see SKY_INDOOR. */
+	skyIndoor?: number[];
 	/** GlobalShadows: whether the sun casts shadows at all. */
 	sunShadows?: boolean;
 	/** ShadowSoftness, 0 to 1: how soft the sun's shadows' edges are. */
@@ -211,9 +213,8 @@ export function readLighting(doc: RbxDocument): LightingParams {
 	// is left. Under a Sky of six images of its own the fill is grey, not the
 	// default sky's blue: fitted to the same capture, under a dark space Sky.
 	const fill = skyboxOf(sky) ? [0.77, 0.77, 0.77] : FILL;
-	const ambient = linRgb(prop(lighting, "OutdoorAmbient", [0.5, 0.5, 0.5])).map(
-		(v, i) => v + fill[i] * skyFill * (0.06 + 0.94 * day),
-	);
+	const skyLight = fill.map((v) => v * skyFill * (0.06 + 0.94 * day));
+	const ambient = linRgb(prop(lighting, "OutdoorAmbient", [0.5, 0.5, 0.5])).map((v, i) => v + skyLight[i]);
 
 	// Blue overhead, the Atmosphere's colour at the horizon, thicker haze
 	// washing the blue out; dark at night.
@@ -263,6 +264,7 @@ export function readLighting(doc: RbxDocument): LightingParams {
 		// 1.63 times its linear colour, fitted to Studio's screen captures of a
 		// closed room with Ambient black and mid grey (16 Nov 2026).
 		indoor: linRgb(prop(lighting, "Ambient", [0.275, 0.275, 0.275])).map((v) => v * 1.63),
+		skyIndoor: skyLight.map((v) => v * SKY_INDOOR),
 		sunShadows: prop(lighting, "GlobalShadows", true),
 		shadowSoftness: prop(lighting, "ShadowSoftness", 0.2),
 		skyFill,
@@ -324,6 +326,20 @@ export function skyboxOf(sky: RbxInstance | undefined): Record<SkyFace, string> 
  * camera (xyz, sun image) · select (rgb, 1) · fog (start, end, on, Ambient's
  * red) · fog colour (rgb, Ambient's green) · haze colour (rgb, Ambient's blue).
  */
+/**
+ * The share of the sky's fill (EnvironmentDiffuseScale's light) that reaches
+ * even a closed room. Fitted to Studio's screen captures of a room walled and
+ * roofed 8 studs thick, EnvironmentDiffuseScale 0 and 1, Ambient black and as
+ * set (17 Nov 2026): there the fill lights the floor about three times what
+ * OutdoorAmbient does through the same walls.
+ */
+export const SKY_INDOOR = 0.07;
+
+/** The light everywhere, indoors and out: Ambient and the sky's share indoors. */
+export function indoorAt(l: Pick<LightingParams, "indoor" | "skyIndoor">, k: number): number {
+	return (l.indoor?.[k] ?? 0) + (l.skyIndoor?.[k] ?? 0);
+}
+
 export function lightingBlock(
 	l: LightingParams,
 	camera: number[],
@@ -351,10 +367,10 @@ export function lightingBlock(
 		l.fog.start,
 		l.fog.end,
 		l.fog.on ? 1 : 0,
-		l.indoor?.[0] ?? 0,
+		indoorAt(l, 0),
 		...l.fog.colour,
-		l.indoor?.[1] ?? 0,
+		indoorAt(l, 1),
 		...l.hazeColour,
-		l.indoor?.[2] ?? 0,
+		indoorAt(l, 2),
 	]);
 }

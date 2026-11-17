@@ -19,6 +19,7 @@ import {
 	type SceneEffects,
 	type SceneEmitter,
 } from "../../core/rbx/effects.js";
+import { indoorAt } from "../../core/rbx/lighting.js";
 
 /**
  * Words a vertex: position, image position, colour as RGBA8 (Color and 1 -
@@ -805,10 +806,11 @@ export function effectLight(l: {
 	sunColour: number[];
 	ambient: number[];
 	indoor?: number[];
+	skyIndoor?: number[];
 }): number[] {
 	const up = Math.max(0, l.sun[1] ?? 0);
 	const sun = 0.35 + 0.15 * up;
-	return [0, 1, 2].map((k) => (l.indoor?.[k] ?? 0) + l.ambient[k] + l.sunColour[k] * sun);
+	return [0, 1, 2].map((k) => indoorAt(l, k) + l.ambient[k] + l.sunColour[k] * sun);
 }
 
 /**
@@ -845,6 +847,7 @@ export function effectBlock(
 		sunColour: number[];
 		ambient: number[];
 		indoor?: number[];
+		skyIndoor?: number[];
 		exposure: number;
 		hazeDensity: number;
 		hazeColour: number[];
