@@ -15,6 +15,7 @@ import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene
 import { GpuEffects } from "./effectsGpu.js";
 import {
 	boxHidden,
+	depthFits,
 	boxInView,
 	type Chunk,
 	chunkRows,
@@ -22,6 +23,7 @@ import {
 	depthCells,
 	sameView,
 	sidePlanes,
+	rowRuns,
 	visibleRuns,
 } from "./culling.js";
 import { boxEdges, featureEdges, meshFor, sceneGlows } from "./geometry.js";
@@ -1235,10 +1237,12 @@ export class WebGpuView implements ViewRenderer {
 			lookAt(camera.eye, camera.at),
 		);
 		const planes = sidePlanes(vp);
-		const depth = passes.occlusion ? this.depthImage : null;
+		const depth = passes.occlusion && depthFits(this.depthImage, camera.eye) ? this.depthImage : null;
 		this.cullView = { vp, eye: [...camera.eye] };
 		// Drawn with another view's depth: draw again once this view's arrives.
 		this.occlusionStale = passes.occlusion && !sameView(depth?.viewProj, vp);
+		const seen = (min: readonly number[], max: readonly number[]) =>
+			(!passes.frustum || boxInView(planes, min, max)) && !(depth && boxHidden(depth, min, max));
 		let drawn = 0;
 		let of = 0;
 		for (const draw of draws) {
@@ -1247,13 +1251,16 @@ export class WebGpuView implements ViewRenderer {
 				drawn += draw.count;
 				continue;
 			}
-			const runs = visibleRuns(
-				draw.chunks,
-				(c) =>
-					(!passes.frustum || boxInView(planes, c.min, c.max)) &&
-					!(depth && boxHidden(depth, c.min, c.max)),
-			);
+			const runs = visibleRuns(draw.chunks, (c) => seen(c.min, c.max));
 			this.runs.set(draw, runs);
+			for (let i = 1; i < runs.length; i += 2) drawn += runs[i];
+		}
+		// The see-through parts one by one, in the order they are drawn, back to front.
+		this.sortClear(camera.eye);
+		for (const c of this.clear) {
+			of += c.count;
+			const runs = rowRuns(c.sorted, c.count, seen);
+			this.runs.set(c, runs);
 			for (let i = 1; i < runs.length; i += 2) drawn += runs[i];
 		}
 		this.culled = { drawn, of };
@@ -2043,12 +2050,15 @@ export class WebGpuView implements ViewRenderer {
 				indexCount: mesh.indices.length,
 				format: (mesh.indices instanceof Uint32Array ? "uint32" : "uint16") as GPUIndexFormat,
 			});
-			if (glass.count > 0)
+			if (glass.count > 0) {
+				const chunked = chunkRows(glass.data, glass.count);
 				this.glass.push({
 					...shape(),
-					instances: this.make(glass.data, BUFFER.VERTEX),
+					instances: this.make(chunked.data, BUFFER.VERTEX),
 					count: glass.count,
+					chunks: chunked.chunks,
 				});
+			}
 			if (solid.count > 0) {
 				// Sorted into chunks of nearby parts, for culling.
 				const chunked = chunkRows(solid.data, solid.count);
@@ -2444,7 +2454,7 @@ export class WebGpuView implements ViewRenderer {
 			);
 		this.drawCascades(encoder, camera, partsMoved);
 		// The camera's passes from here draw only the chunks in view.
-		this.cull(camera, this.draws);
+		this.cull(camera, [...this.draws, ...this.glass]);
 		// Occlusion: the solid parts' depth first, in a pass of its own.
 		const passes = passesOf(this.render.features);
 		// Made in every view, so occlusion works in each; only the picture's

@@ -4,11 +4,13 @@
  * the runs of chunks to draw. The shadow and sky maps draw every part, since
  * a part out of view still casts a shadow into it.
  *
- * Occlusion is tested against a small depth image of the last frame: a chunk
+ * Occlusion is tested against a small depth image of a recent frame: a chunk
  * whose nearest point lies behind the farthest depth drawn over all of its
- * box on screen is hidden. A frame late, so a chunk coming into view from
- * behind something can show a frame after it should; never one that is in
- * front.
+ * box on screen is hidden. The image is used only while the eye is where it
+ * was drawn from (`depthFits`): turning the camera keeps it, since a view
+ * turned about its eye sees the same depths, and a box reaching past the
+ * image's edge counts as seen; moving the eye uncovers what was behind
+ * things, so occlusion waits for the new place's image.
  */
 
 import { SCENE_STRIDE } from "../../core/rbx/scene.js";
@@ -16,6 +18,15 @@ import { SCENE_STRIDE } from "../../core/rbx/scene.js";
 /** Cells a chunk's parts are gathered in, studs a side; and the most parts a chunk. */
 export const CHUNK_CELL = 32;
 export const CHUNK_MOST = 256;
+/**
+ * Parts larger than a cell go in chunks of their own, on a grid this many
+ * cells a side, so a floor or a hull plate does not stretch the box of the
+ * small parts beside it, which could then never be hidden.
+ */
+export const CHUNK_BIG = 4;
+
+/** How far the eye may be from where a depth image was drawn for it still to hide parts, studs. */
+export const DEPTH_EYE_SLACK = 0.05;
 
 /** A run of instances, by their place in the draw's (reordered) buffer, and the box round them. */
 export interface Chunk {
@@ -54,10 +65,15 @@ export function chunkRows(
 ): { data: Float32Array; chunks: Chunk[] } {
 	const keys = new Array<string>(count);
 	const order = new Array<number>(count);
+	const lo = [0, 0, 0];
+	const hi = [0, 0, 0];
 	for (let i = 0; i < count; i++) {
 		const o = i * SCENE_STRIDE;
+		instanceBox(data, i, lo, hi);
+		const big = hi[0] - lo[0] > cell || hi[1] - lo[1] > cell || hi[2] - lo[2] > cell;
+		const size = big ? cell * CHUNK_BIG : cell;
 		keys[i] =
-			`${Math.floor(data[o + 9] / cell)},${Math.floor(data[o + 10] / cell)},${Math.floor(data[o + 11] / cell)}`;
+			`${big ? "B" : ""}${Math.floor(data[o + 9] / size)},${Math.floor(data[o + 10] / size)},${Math.floor(data[o + 11] / size)}`;
 		order[i] = i;
 	}
 	order.sort((a, b) => (keys[a] < keys[b] ? -1 : keys[a] > keys[b] ? 1 : a - b));
@@ -66,8 +82,6 @@ export function chunkRows(
 	const out = new Float32Array(count * SCENE_STRIDE);
 	const to = new Uint32Array(out.buffer);
 	const chunks: Chunk[] = [];
-	const lo = [0, 0, 0];
-	const hi = [0, 0, 0];
 	let chunk: Chunk | null = null;
 	let key = "";
 	for (let n = 0; n < count; n++) {
@@ -174,6 +188,8 @@ export function boxHidden(
 		if (w <= 1e-3) return false;
 		const x = (m[0] * p[0] + m[4] * p[1] + m[8] * p[2] + m[12]) / w;
 		const y = (m[1] * p[0] + m[5] * p[1] + m[9] * p[2] + m[13]) / w;
+		// Past the image's edge nothing is known: what the camera has turned to.
+		if (x < -1 || x > 1 || y < -1 || y > 1) return false;
 		if (x < x0) x0 = x;
 		if (x > x1) x1 = x;
 		if (y < y0) y0 = y;
@@ -196,6 +212,18 @@ export function boxHidden(
 	return true;
 }
 
+/** Whether `depth` may hide parts from an eye at `eye`: see DEPTH_EYE_SLACK. */
+export function depthFits(
+	depth: DepthImage | null | undefined,
+	eye: readonly number[],
+): depth is DepthImage {
+	if (!depth) return false;
+	return (
+		Math.hypot(eye[0] - depth.eye[0], eye[1] - depth.eye[1], eye[2] - depth.eye[2]) <=
+		DEPTH_EYE_SLACK
+	);
+}
+
 /** The depth image's width in cells; its height keeps the view's shape. */
 export const DEPTH_COLS = 160;
 
@@ -210,6 +238,32 @@ export function sameView(a: ArrayLike<number> | null | undefined, b: ArrayLike<n
 	if (!a || a.length !== b.length) return false;
 	for (let i = 0; i < b.length; i++) if (a[i] !== b[i]) return false;
 	return true;
+}
+
+/**
+ * The runs of single instances to draw, as first instance and count, for rows
+ * whose order must be kept (see-through parts, drawn back to front): each
+ * instance tested on its own box; gaps of `bridge` or fewer hidden instances
+ * are drawn anyway, so the draw is not cut into many.
+ */
+export function rowRuns(
+	data: Float32Array,
+	count: number,
+	shown: (min: readonly number[], max: readonly number[]) => boolean,
+	bridge = 2,
+): number[] {
+	const runs: number[] = [];
+	const min = [0, 0, 0];
+	const max = [0, 0, 0];
+	for (let i = 0; i < count; i++) {
+		instanceBox(data, i, min, max);
+		if (!shown(min, max)) continue;
+		const n = runs.length;
+		const end = n > 0 ? runs[n - 2] + runs[n - 1] : -Infinity;
+		if (i - end <= bridge) runs[n - 1] = i + 1 - runs[n - 2];
+		else runs.push(i, 1);
+	}
+	return runs;
 }
 
 /** The runs of chunks to draw, as first instance and count, neighbours joined. */

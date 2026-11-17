@@ -10,6 +10,7 @@ import {
 	chunkRows,
 	type DepthImage,
 	depthCells,
+	depthFits,
 	sameView,
 	sidePlanes,
 	visibleRuns,
@@ -102,6 +103,50 @@ describe("culling", () => {
 		// The eye inside the box, or the box reaching behind the eye: never hidden.
 		expect(boxHidden(wall(1), [-1, -1, -1], [1, 1, 1])).toBe(false);
 		expect(boxHidden(wall(1), [-1, -1, -40], [1, 1, 10])).toBe(false);
+	});
+
+	it("leaves seen a box reaching past the image's edge, as the camera turns to it", () => {
+		const vp = view([0, 0, 0], [0, 0, -1]);
+		const { cols, rows } = depthCells(1600, 900);
+		const near: DepthImage = {
+			cols,
+			rows,
+			far: new Float32Array(cols * rows).fill(5),
+			viewProj: vp,
+			eye: [0, 0, 0],
+		};
+		// Ahead and inside the image: hidden by the wall 5 studs off.
+		expect(boxHidden(near, [-1, -1, -40], [1, 1, -38])).toBe(true);
+		// Half off the image's right edge: only half of it is known.
+		expect(boxHidden(near, [30, -1, -40], [60, 1, -38])).toBe(false);
+	});
+
+	it("hides parts with a depth image only from the eye it was drawn from", () => {
+		const depth: DepthImage = {
+			cols: 1,
+			rows: 1,
+			far: new Float32Array(1),
+			viewProj: view([0, 0, 0], [0, 0, -1]),
+			eye: [10, 2, 3],
+		};
+		expect(depthFits(depth, [10, 2, 3])).toBe(true);
+		expect(depthFits(depth, [10.5, 2, 3])).toBe(false);
+		expect(depthFits(null, [10, 2, 3])).toBe(false);
+	});
+
+	it("keeps a large part out of the small parts' chunks", () => {
+		const data = cubes([
+			[0, 0, 0],
+			[2, 0, 0],
+			[4, 0, 0],
+		]);
+		// The middle one a 400-stud plate.
+		data[SCENE_STRIDE + 0] = 400;
+		data[SCENE_STRIDE + 8] = 400;
+		const { chunks } = chunkRows(data, 3);
+		expect(chunks).toHaveLength(2);
+		const small = chunks.find((c) => c.count === 2)!;
+		expect(small.max[0] - small.min[0]).toBeLessThan(10);
 	});
 
 	it("joins neighbouring chunks into runs", () => {

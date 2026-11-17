@@ -15,6 +15,7 @@ import { LIGHT_STRIDE, type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../
 import { GlEffects } from "./effectsGl.js";
 import {
 	boxHidden,
+	depthFits,
 	boxInView,
 	type Chunk,
 	chunkRows,
@@ -22,6 +23,7 @@ import {
 	depthCells,
 	sameView,
 	sidePlanes,
+	rowRuns,
 	visibleRuns,
 } from "./culling.js";
 import { boxEdges, featureEdges, meshFor, sceneGlows } from "./geometry.js";
@@ -1467,10 +1469,12 @@ export class WebGl2View implements ViewRenderer {
 		);
 		const planes = sidePlanes(vp);
 		this.pollFar();
-		const depth = passes.occlusion ? this.depthImage : null;
+		const depth = passes.occlusion && depthFits(this.depthImage, camera.eye) ? this.depthImage : null;
 		this.cullView = { vp, eye: [...camera.eye] };
 		// Drawn with another view's depth: draw again once this view's arrives.
 		this.occlusionStale = passes.occlusion && !sameView(depth?.viewProj, vp);
+		const seen = (min: readonly number[], max: readonly number[]) =>
+			(!passes.frustum || boxInView(planes, min, max)) && !(depth && boxHidden(depth, min, max));
 		let drawn = 0;
 		let of = 0;
 		for (const draw of draws) {
@@ -1479,13 +1483,16 @@ export class WebGl2View implements ViewRenderer {
 				drawn += draw.count;
 				continue;
 			}
-			const runs = visibleRuns(
-				draw.chunks,
-				(c) =>
-					(!passes.frustum || boxInView(planes, c.min, c.max)) &&
-					!(depth && boxHidden(depth, c.min, c.max)),
-			);
+			const runs = visibleRuns(draw.chunks, (c) => seen(c.min, c.max));
 			this.runs.set(draw, runs);
+			for (let i = 1; i < runs.length; i += 2) drawn += runs[i];
+		}
+		// The see-through parts one by one, in the order they are drawn, back to front.
+		this.sortClear(camera.eye);
+		for (const c of this.clear) {
+			of += c.count;
+			const runs = rowRuns(c.sorted, c.count, seen);
+			this.runs.set(c, runs);
 			for (let i = 1; i < runs.length; i += 2) drawn += runs[i];
 		}
 		this.culled = { drawn, of };
@@ -1799,7 +1806,8 @@ export class WebGl2View implements ViewRenderer {
 				const vb = this.buffer(gl.ARRAY_BUFFER, mesh.vertices);
 				const eb = this.buffer(gl.ELEMENT_ARRAY_BUFFER, mesh.indices);
 				// The solid parts sorted into chunks of nearby parts, for culling.
-				const chunked = set === "solid" ? chunkRows(data, count) : null;
+				// Glass too; the see-through parts keep their order, and are culled one by one.
+				const chunked = set !== "clear" ? chunkRows(data, count) : null;
 				const ib = this.buffer(gl.ARRAY_BUFFER, chunked ? chunked.data : data);
 				this.sceneBuffers.push(vb, eb, ib);
 				const draw = {
@@ -2803,7 +2811,7 @@ export class WebGl2View implements ViewRenderer {
 		this.drawCascades(camera, partsMoved);
 		if (nearDrawn) this.fillCells(camera);
 		// The camera's passes from here draw only the chunks in view.
-		this.cull(camera, this.draws);
+		this.cull(camera, [...this.draws, ...this.glass]);
 		const culling = passesOf(this.render.features);
 		if (culling.occlusion) this.drawFar(camera);
 		this.usualDepth(false);
