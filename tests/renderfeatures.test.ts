@@ -53,7 +53,9 @@ const lighting = {
 
 describe("the Rendering panel's switches", () => {
 	it("are all on as Studio draws the place, each in one group, every step with its own", () => {
-		expect(FEATURES.every((i) => STUDIO_FEATURES[i.key])).toBe(true);
+		// Every switch on as Studio draws the place, but the Roswaal fixes, which are off.
+		expect(FEATURES.every((i) => STUDIO_FEATURES[i.key] === !i.fix)).toBe(true);
+		expect(FEATURES.some((i) => i.fix)).toBe(true);
 		expect(new Set(FEATURES.map((i) => i.key)).size).toBe(FEATURES.length);
 		for (let s = 1; s <= RENDER_STEPS.length; s++)
 			expect(FEATURES.some((i) => i.step === s)).toBe(true);
@@ -87,6 +89,14 @@ describe("the Rendering panel's switches", () => {
 		// The lights alone still light the place.
 		const lightsOnly = { ...upToStep(1), pointLights: true };
 		expect(featureBits(lightsOnly) & FEATURE_BIT.unlit).toBe(0);
+	});
+
+	it("let the sky through thin walls as Studio does, unless Thin walls block sky is on", () => {
+		expect(featureBits(STUDIO_FEATURES) & FEATURE_BIT.leak).toBe(FEATURE_BIT.leak);
+		expect(featureBits({ ...STUDIO_FEATURES, thinWallsBlockSky: true }) & FEATURE_BIT.leak).toBe(0);
+		// A fix is no step: stepping leaves it off.
+		for (let n = 0; n <= RENDER_STEPS.length; n++) expect(upToStep(n).thinWallsBlockSky).toBe(false);
+		expect(changedFrom({ ...STUDIO_FEATURES, thinWallsBlockSky: true })).toEqual(["thinWallsBlockSky"]);
 	});
 
 	it("take what is off out of the lighting the view is given, and leave the rest", () => {

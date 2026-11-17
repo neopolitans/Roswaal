@@ -53,7 +53,12 @@ describe("the Rendering panel's views", () => {
 		expect(renderDebug(settings("density"))).toEqual([RENDER_MODE_CODE.cost, all, 1, 2]);
 		expect(renderDebug(settings("sunMaps"))).toEqual([RENDER_MODE_CODE.lit, all, 1, 3]);
 		const plain = { ...DEFAULT_RENDER, heat: "cells" as const, features: upToStep(0) };
-		expect(renderDebug({ ...plain, mode: "cost" })).toEqual([RENDER_MODE_CODE.cost, FEATURE_BIT.unlit, 0, 0]);
+		expect(renderDebug({ ...plain, mode: "cost" })).toEqual([
+			RENDER_MODE_CODE.cost,
+			FEATURE_BIT.unlit | FEATURE_BIT.leak,
+			0,
+			0,
+		]);
 	});
 
 	it("draw shares for the composite in the heatmaps, overdraw and density, each coloured its own way", () => {

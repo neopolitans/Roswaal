@@ -77,6 +77,9 @@ import {
 	SKY_SEEN_LEAST,
 	SKY_SOFT,
 	SKY_REACH,
+	SKY_CELL,
+	SKY_CELLS,
+	SKY_LEAK,
 	SKY_VIEWS,
 	SUN_CASCADES,
 	SUN_GAIN,
@@ -89,7 +92,7 @@ import {
 	splitByMesh,
 	type ViewRenderer,
 } from "./view.js";
-import { FEATURE_BIT, passesOf } from "./renderFeatures.js";
+import { FEATURE_BIT, featureBits, passesOf } from "./renderFeatures.js";
 
 const COMMON = `
 uniform vec4 L[11];
@@ -400,7 +403,7 @@ float testedSmooth(vec3 p) {
 	}
 	return sum;
 }
-float skyVisibility(vec3 p, vec3 n) {
+float skyVisibilityMaps(vec3 p, vec3 n) {
 	if (skyInfo.w < 0.5 || !has(${FEATURE_BIT.skyShadows})) return 1.0;
 	// The near maps near the camera, as WebGpuView's skyVisibility.
 	float edge = 2.0;
@@ -421,6 +424,16 @@ float skyVisibility(vec3 p, vec3 n) {
 	seen /= 8.0;
 	if (edge >= 1.0) return seen;
 	return mix(near, seen, smoothstep(0.75, 1.0, edge));
+}
+// The lighting cells round the near maps' centre, as WebGpuView's skyVisibility reads them.
+uniform highp sampler3D skyCells;
+vec3 cellOrigin() { return skyNearAt.xyz - vec3(${SKY_CELLS[0] * SKY_CELL / 2}.0, ${SKY_CELLS[1] * SKY_CELL / 2}.0, ${SKY_CELLS[2] * SKY_CELL / 2}.0); }
+float skyVisibility(vec3 p, vec3 n) {
+	float v = skyVisibilityMaps(p, n);
+	if (!has(${FEATURE_BIT.leak}) || skyNear.w < 0.5) return v;
+	vec3 uvw = (p + n * ${SKY_CELL / 2}.0 - cellOrigin()) / vec3(${SKY_CELLS[0] * SKY_CELL}.0, ${SKY_CELLS[1] * SKY_CELL}.0, ${SKY_CELLS[2] * SKY_CELL}.0);
+	if (any(lessThan(uvw, vec3(0.0))) || any(greaterThan(uvw, vec3(1.0)))) return v;
+	return max(v, texture(skyCells, vec3(uvw.x, uvw.z, uvw.y)).r * ${SKY_LEAK.toFixed(3)});
 }
 // The sun's shadow near the camera, as WebGpuView's cascadeSees.
 uniform highp sampler2DArrayShadow sunMaps;
@@ -656,6 +669,29 @@ void main() {
 		for (int x = x0; x < x1; x++) far = max(far, texelFetch(dist, ivec2(x, y), 0).r);
 	}
 	o = vec4(far, 0.0, 0.0, 1.0);
+}`;
+/** A slice of the lighting cells, as WebGpuView's vsCell. */
+const VS_CELL = `#version 300 es
+void main() {
+	vec2 q = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));
+	gl_Position = vec4(q * 2.0 - 1.0, 0.0, 1.0);
+}`;
+/** A lighting cell: the share of the sky round its middle, as WebGpuView's fsCell. */
+const FS_CELL = `#version 300 es
+precision highp float;
+precision highp int;
+${COMMON}
+${SKY_VIS}
+uniform float cellSlice;
+out vec4 o;
+void main() {
+	vec3 cell = vec3(floor(gl_FragCoord.x), cellSlice, floor(gl_FragCoord.y));
+	vec3 p = cellOrigin() + (cell + 0.5) * ${SKY_CELL}.0;
+	float sum = 0.0;
+	for (int x = -1; x <= 1; x++)
+		for (int y = -1; y <= 1; y++)
+			for (int z = -1; z <= 1; z++) sum += skyVisibilityMaps(p + vec3(float(x), float(y), float(z)) * ${SKY_CELL}.0, vec3(0.0, 1.0, 0.0));
+	o = vec4(sum / 27.0, 0.0, 0.0, 1.0);
 }`;
 const FS = `#version 300 es
 precision highp float;
@@ -1143,8 +1179,10 @@ export class WebGl2View implements ViewRenderer {
 
 	setRender(render: RenderSettings): void {
 		// Thin parts' switch changes what the near sky maps hold: draw them again.
-		if (passesOf(render.features).thinParts !== passesOf(this.render.features).thinParts)
-			this.nearCentre = null;
+		// What the near maps and the lighting cells hold changed: draw them again.
+		const held = (r: RenderSettings) =>
+			`${passesOf(r.features).thinParts} ${featureBits(r.features) & (FEATURE_BIT.skyShadows | FEATURE_BIT.nearSky)}`;
+		if (held(render) !== held(this.render)) this.nearCentre = null;
 		this.render = render;
 	}
 
@@ -1189,6 +1227,60 @@ export class WebGl2View implements ViewRenderer {
 
 	animates(): boolean {
 		return (this.effects?.last.moving ?? false) || this.occlusionStale;
+	}
+
+	// -- the lighting cells: see SKY_CELL, and WebGpuView's fillCells ------------------
+
+	private cellTex: WebGLTexture[] = [];
+	private cellsRead = 0;
+	private cellFbo: WebGLFramebuffer | null = null;
+	private cellVao: WebGLVertexArrayObject | null = null;
+	private cellProg?: Program;
+
+	/** Each lighting cell from the maps just drawn, into the cells not read; then read, on unit 13. */
+	private fillCells(camera: Camera): void {
+		const gl = this.gl;
+		if (!this.cellProg) {
+			this.cellProg = this.link(VS_CELL, FS_CELL);
+			this.cellFbo = gl.createFramebuffer();
+			this.cellVao = gl.createVertexArray();
+			for (let k = 0; k < 2; k++) {
+				const t = gl.createTexture()!;
+				gl.activeTexture(gl.TEXTURE13);
+				gl.bindTexture(gl.TEXTURE_3D, t);
+				gl.texStorage3D(gl.TEXTURE_3D, 1, gl.R8, SKY_CELLS[0], SKY_CELLS[2], SKY_CELLS[1]);
+				gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+				gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+				for (const wrap of [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T, gl.TEXTURE_WRAP_R])
+					gl.texParameteri(gl.TEXTURE_3D, wrap, gl.CLAMP_TO_EDGE);
+				this.cellTex.push(t);
+			}
+		}
+		const target = this.cellTex[1 - this.cellsRead];
+		// Unit 13 holds the cells read, never the ones drawn into.
+		gl.activeTexture(gl.TEXTURE13);
+		gl.bindTexture(gl.TEXTURE_3D, this.cellTex[this.cellsRead]);
+		gl.activeTexture(gl.TEXTURE0);
+		this.use(this.cellProg, camera, false);
+		const slice = gl.getUniformLocation(this.cellProg.program, "cellSlice");
+		gl.bindFramebuffer(gl.FRAMEBUFFER, this.cellFbo);
+		gl.viewport(0, 0, SKY_CELLS[0], SKY_CELLS[2]);
+		gl.disable(gl.DEPTH_TEST);
+		gl.disable(gl.BLEND);
+		gl.bindVertexArray(this.cellVao);
+		for (let y = 0; y < SKY_CELLS[1]; y++) {
+			gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, target, 0, y);
+			gl.uniform1f(slice, y);
+			gl.drawArrays(gl.TRIANGLES, 0, 3);
+		}
+		gl.bindVertexArray(null);
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+		gl.viewport(0, 0, this.width, this.height);
+		gl.enable(gl.DEPTH_TEST);
+		this.cellsRead = 1 - this.cellsRead;
+		gl.activeTexture(gl.TEXTURE13);
+		gl.bindTexture(gl.TEXTURE_3D, this.cellTex[this.cellsRead]);
+		gl.activeTexture(gl.TEXTURE0);
 	}
 
 	// -- occlusion: the solid parts' distances, small, read back a frame late -------
@@ -2338,6 +2430,7 @@ export class WebGl2View implements ViewRenderer {
 			| "lightTable"
 			| "lightIndex"
 			| "sunMaps"
+			| "cells"
 			| "cascViews"
 			| "cascFar"
 			| "cascTexel",
@@ -2359,6 +2452,7 @@ export class WebGl2View implements ViewRenderer {
 				lightTable: gl.getUniformLocation(program, "lightTable"),
 				lightIndex: gl.getUniformLocation(program, "lightIndex"),
 				sunMaps: gl.getUniformLocation(program, "sunMaps"),
+				cells: gl.getUniformLocation(program, "skyCells"),
 				cascViews: gl.getUniformLocation(program, "cascViews"),
 				cascFar: gl.getUniformLocation(program, "cascFar"),
 				cascTexel: gl.getUniformLocation(program, "cascTexel"),
@@ -2634,6 +2728,7 @@ export class WebGl2View implements ViewRenderer {
 			gl.uniform1i(sky.lightTable, 8);
 			gl.uniform1i(sky.lightIndex, 9);
 			gl.uniform1i(sky.sunMaps, 10);
+			gl.uniform1i(sky.cells, 13);
 			const n = SUN_CASCADES.length * 16;
 			gl.uniformMatrix4fv(sky.cascViews, false, this.cascadeLast.subarray(0, n));
 			gl.uniform4fv(sky.cascFar, this.cascadeLast.subarray(n, n + 4));
@@ -2692,6 +2787,7 @@ export class WebGl2View implements ViewRenderer {
 		this.usualDepth(true);
 		const centre = nearSkyCentre(camera.eye);
 		const nearMoved = !this.nearCentre || centre.some((v, a) => v !== this.nearCentre![a]);
+		const nearDrawn = this.skyDirty || nearMoved;
 		if (this.skyDirty || this.sunDirty || nearMoved)
 			this.drawSkyMaps(
 				{
@@ -2702,6 +2798,7 @@ export class WebGl2View implements ViewRenderer {
 				centre,
 			);
 		this.drawCascades(camera, partsMoved);
+		if (nearDrawn) this.fillCells(camera);
 		// The camera's passes from here draw only the chunks in view.
 		this.cull(camera, this.draws);
 		const culling = passesOf(this.render.features);

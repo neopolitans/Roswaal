@@ -77,6 +77,9 @@ import {
 	SKY_SEEN_LEAST,
 	SKY_SOFT,
 	SKY_REACH,
+	SKY_CELL,
+	SKY_CELLS,
+	SKY_LEAK,
 	SKY_VIEWS,
 	SUN_CASCADES,
 	SUN_GAIN,
@@ -89,7 +92,7 @@ import {
 	splitByMesh,
 	type ViewRenderer,
 } from "./view.js";
-import { FEATURE_BIT, passesOf } from "./renderFeatures.js";
+import { FEATURE_BIT, featureBits, passesOf } from "./renderFeatures.js";
 
 // WebGPU's flags, as the spec numbers them: TypeScript's DOM types have the
 // interfaces but not these namespaces.
@@ -419,7 +422,45 @@ fn heat(i: VOut) -> f32 {
 	return (cost + w.x + w.y * 1.5) / ${COST_FULL}.0;
 }
 // How much of the sky reaches p, on a face turned to n: the share of the maps that see it.
+// The lighting cells round the near maps' centre: see SKY_CELL.
+@group(0) @binding(14) var skyCells: texture_3d<f32>;
+@group(0) @binding(15) var skyCellSampler: sampler;
+fn cellOrigin() -> vec3f { return skyU.nearAt.xyz - vec3f(${SKY_CELLS[0] * SKY_CELL / 2}.0, ${SKY_CELLS[1] * SKY_CELL / 2}.0, ${SKY_CELLS[2] * SKY_CELL / 2}.0); }
+// How much of the sky reaches p: the maps', and at least what the lighting
+// cells round it see, blended between their middles, as Studio's lighting is.
 fn skyVisibility(p: vec3f, n: vec3f) -> f32 {
+	let v = skyVisibilityMaps(p, n);
+	if (!has(${FEATURE_BIT.leak}u) || skyU.near.w < 0.5) { return v; }
+	// Read half a cell out from the face, where the light it gathers is.
+	let uvw = (p + n * ${SKY_CELL / 2}.0 - cellOrigin()) / vec3f(${SKY_CELLS[0] * SKY_CELL}.0, ${SKY_CELLS[1] * SKY_CELL}.0, ${SKY_CELLS[2] * SKY_CELL}.0);
+	if (any(uvw < vec3f(0.0)) || any(uvw > vec3f(1.0))) { return v; }
+	let seen = textureSampleLevel(skyCells, skyCellSampler, vec3f(uvw.x, uvw.z, uvw.y), 0.0).r;
+	return max(v, seen * ${SKY_LEAK.toFixed(3)});
+}
+// A lighting cell: the share of the sky its middle sees, a slice of cells a draw.
+struct CellOut { @builtin(position) pos: vec4f, @location(0) @interpolate(flat) slice: u32 };
+@vertex fn vsCell(@builtin(vertex_index) i: u32, @builtin(instance_index) s: u32) -> CellOut {
+	var o: CellOut;
+	let q = vec2f(f32((i << 1u) & 2u), f32(i & 2u));
+	o.pos = vec4f(q * 2.0 - 1.0, 0.0, 1.0);
+	o.slice = s;
+	return o;
+}
+@fragment fn fsCell(c: CellOut) -> @location(0) vec4f {
+	let cell = vec3f(floor(c.pos.x), f32(c.slice), floor(c.pos.y));
+	let p = cellOrigin() + (cell + 0.5) * ${SKY_CELL}.0;
+	// The light a cell gathers from its neighbours as well as its middle.
+	var sum = 0.0;
+	for (var x = -1; x <= 1; x++) {
+		for (var y = -1; y <= 1; y++) {
+			for (var z = -1; z <= 1; z++) {
+				sum = sum + skyVisibilityMaps(p + vec3f(f32(x), f32(y), f32(z)) * ${SKY_CELL}.0, vec3f(0.0, 1.0, 0.0));
+			}
+		}
+	}
+	return vec4f(sum / 27.0, 0.0, 0.0, 1.0);
+}
+fn skyVisibilityMaps(p: vec3f, n: vec3f) -> f32 {
 	if (skyU.info.w < 0.5 || !has(${FEATURE_BIT.skyShadows}u)) { return 1.0; }
 	// Near the camera the near maps, a texel well under a wall's width; the
 	// whole place's further off, blended over the box's last quarter.
@@ -1133,8 +1174,10 @@ export class WebGpuView implements ViewRenderer {
 
 	setRender(render: RenderSettings): void {
 		// Thin parts' switch changes what the near sky maps hold: draw them again.
-		if (passesOf(render.features).thinParts !== passesOf(this.render.features).thinParts)
-			this.nearCentre = null;
+		// What the near maps and the lighting cells hold changed: draw them again.
+		const held = (r: RenderSettings) =>
+			`${passesOf(r.features).thinParts} ${featureBits(r.features) & (FEATURE_BIT.skyShadows | FEATURE_BIT.nearSky)}`;
+		if (held(render) !== held(this.render)) this.nearCentre = null;
 		this.render = render;
 	}
 
@@ -1443,9 +1486,27 @@ export class WebGpuView implements ViewRenderer {
 					texture: { sampleType: "depth", viewDimension: "2d-array" },
 				},
 				{ binding: 13, visibility: STAGE.FRAGMENT, buffer: {} },
+				{ binding: 14, visibility: STAGE.FRAGMENT, texture: { viewDimension: "3d" } },
+				{ binding: 15, visibility: STAGE.FRAGMENT, sampler: {} },
 			],
 		});
 		this.layout = layout;
+		// The lighting cells, two: one read while the other is filled. See fillCells.
+		this.cells = [0, 1].map(() =>
+			d.createTexture({
+				size: [SKY_CELLS[0], SKY_CELLS[2], SKY_CELLS[1]],
+				dimension: "3d",
+				format: "r8unorm",
+				usage: TEXTURE.TEXTURE_BINDING | TEXTURE.RENDER_ATTACHMENT,
+			}),
+		);
+		this.cellSampler = d.createSampler({ magFilter: "linear", minFilter: "linear" });
+		this.pipeline((p) => (this.cellPipe = p), {
+			layout: d.createPipelineLayout({ bindGroupLayouts: [layout] }),
+			vertex: { module, entryPoint: "vsCell" },
+			fragment: { module, entryPoint: "fsCell", targets: [{ format: "r8unorm" }] },
+			primitive: { topology: "triangle-list" },
+		});
 		this.makeSkyMaps(buffers);
 		this.setLights(undefined);
 		const pipelineLayout = d.createPipelineLayout({ bindGroupLayouts: [layout] });
@@ -3015,8 +3076,45 @@ export class WebGpuView implements ViewRenderer {
 				{ binding: 11, resource: { buffer: this.lightBuffers.index } },
 				{ binding: 12, resource: this.sunMaps.createView({ dimension: "2d-array" }) },
 				{ binding: 13, resource: { buffer: this.cascadeUniform } },
+				{ binding: 14, resource: this.cells[this.cellsRead].createView({ dimension: "3d" }) },
+				{ binding: 15, resource: this.cellSampler },
 			],
 		});
+	}
+
+	// -- the lighting cells: see SKY_CELL ---------------------------------------------
+
+	private cells: GPUTexture[] = [];
+	private cellsRead = 0;
+	private cellSampler!: GPUSampler;
+	private cellPipe?: GPURenderPipeline;
+
+	/**
+	 * Each lighting cell the share of the sky its middle sees, from the maps
+	 * just drawn: into the cells not being read, a slice a pass, then read.
+	 */
+	private fillCells(encoder: GPUCommandEncoder): void {
+		if (!this.cellPipe) return;
+		const target = this.cells[1 - this.cellsRead];
+		for (let y = 0; y < SKY_CELLS[1]; y++) {
+			const pass = encoder.beginRenderPass({
+				colorAttachments: [
+					{
+						view: target.createView({ dimension: "3d" }),
+						depthSlice: y,
+						loadOp: "clear",
+						storeOp: "store",
+						clearValue: { r: 1, g: 0, b: 0, a: 1 },
+					},
+				],
+			});
+			pass.setPipeline(this.cellPipe);
+			pass.setBindGroup(0, this.bind);
+			pass.draw(3, 1, 0, y);
+			pass.end();
+		}
+		this.cellsRead = 1 - this.cellsRead;
+		this.rebind();
 	}
 
 	// -- sky visibility: see skyBlock ------------------------------------------------
@@ -3388,6 +3486,7 @@ fn along(pos: vec4f) -> f32 {
 			pass.end();
 		});
 		if (which.near && passesOf(this.render.features).thinParts) this.openNearMaps(encoder);
+		if (which.near) this.fillCells(encoder);
 	}
 
 	setLook(layer: number, levels: readonly (HTMLCanvasElement | ImageBitmap)[]): void {

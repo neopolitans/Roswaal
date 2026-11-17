@@ -287,7 +287,9 @@ export function placesAndRojoPage(): DocPage {
 					"what culling left. **Gizmos** draws Attachments, welds and constraints over the " +
 					"view, and those of what is picked. **Performance** holds frustum and occlusion culling: " +
 					"parts out of view, or hidden behind solid parts, are not drawn, and the wireframe shows " +
-					"what is left.",
+					"what is left. **Roswaal fixes** change the picture from Studio's on purpose and start " +
+					"off: **Thin walls block sky** keeps closed rooms dark whatever their walls' thickness, " +
+					"where Studio lets the sky through walls thinner than 4 studs.",
 			},
 			{
 				t: "table",

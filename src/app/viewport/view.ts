@@ -259,6 +259,20 @@ export const SKY_SOFT = 3;
  * it shades nothing.
  */
 export const SKY_REACH = 116;
+
+/**
+ * Studio's lighting is held in cells 4 studs a side round the camera, read
+ * blended between their middles, so the sky seen by a cell just outside a
+ * wall thinner than a cell reaches a few studs in: thin-walled rooms are lit
+ * near their walls and joins. Ours keeps the same grid round the near sky
+ * maps' centre (SKY_CELLS cells along x, y and z), each the share of the sky
+ * its middle sees, and a point sees at least SKY_LEAK of it. Fitted to
+ * Studio's screen captures of closed rooms with walls and roofs 1, 2, 4 and 8
+ * studs thick. "Thin walls block sky" turns it off.
+ */
+export const SKY_CELL = 4;
+export const SKY_CELLS = [96, 32, 96] as const;
+export const SKY_LEAK = 1;
 export const SKY_NEAR_STEP = 48;
 /**
  * What hides the sky in the near maps must be this many studs across, seen

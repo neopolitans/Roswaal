@@ -48,6 +48,7 @@ export interface RenderFeatures {
 	blur: boolean;
 	frustumCulling: boolean;
 	occlusionCulling: boolean;
+	thinWallsBlockSky: boolean;
 }
 
 export type FeatureKey = keyof RenderFeatures;
@@ -59,6 +60,8 @@ export interface FeatureInfo {
 	step: number;
 	hint: string;
 	parent?: FeatureKey;
+	/** A Roswaal fix: a change from Studio's picture on purpose, off to begin with. */
+	fix?: boolean;
 }
 
 /** The ten steps a frame is built in, in order: each turns on its own switches. */
@@ -81,7 +84,8 @@ const f = (
 	step: number,
 	hint: string,
 	parent?: FeatureKey,
-): FeatureInfo => ({ key, label, step, hint, parent });
+	fix?: boolean,
+): FeatureInfo => ({ key, label, step, hint, parent, fix });
 
 /** The panel's groups of switches, in the order it shows them. */
 export const FEATURE_GROUPS: readonly { title: string; features: readonly FeatureInfo[] }[] = [
@@ -198,6 +202,19 @@ export const FEATURE_GROUPS: readonly { title: string; features: readonly Featur
 			),
 		],
 	},
+	{
+		title: "Roswaal fixes",
+		features: [
+			f(
+				"thinWallsBlockSky",
+				"Thin walls block sky",
+				0,
+				"Closed rooms stay dark whatever their walls' thickness. Studio lets the sky through walls thinner than its 4-stud lighting cells.",
+				undefined,
+				true,
+			),
+		],
+	},
 ];
 
 export const FEATURES: readonly FeatureInfo[] = FEATURE_GROUPS.flatMap((g) => g.features);
@@ -205,7 +222,7 @@ const BY_KEY = new Map(FEATURES.map((i) => [i.key, i]));
 
 /** Everything on: the picture as Studio draws it. */
 export const STUDIO_FEATURES: RenderFeatures = Object.fromEntries(
-	FEATURES.map((i) => [i.key, true]),
+	FEATURES.map((i) => [i.key, !i.fix]),
 ) as unknown as RenderFeatures;
 
 /** Whether a switch takes effect: on, and every switch it sits under on. */
@@ -229,7 +246,9 @@ export function stepOf(features: RenderFeatures): { step: number; exact: boolean
 
 /** Everything up to step `n` on, everything after it off. */
 export function upToStep(n: number): RenderFeatures {
-	return Object.fromEntries(FEATURES.map((i) => [i.key, i.step <= n])) as unknown as RenderFeatures;
+	return Object.fromEntries(
+		FEATURES.map((i) => [i.key, i.step === 0 ? !i.fix : i.step <= n]),
+	) as unknown as RenderFeatures;
 }
 
 /** The switches set apart from `base`, by key. */
@@ -266,11 +285,14 @@ const BASE: FeatureKey[] = [
 ];
 const only = (keys: FeatureKey[]): RenderFeatures =>
 	Object.fromEntries(
-		FEATURES.map((i) => [i.key, i.step === 0 || BASE.includes(i.key) || keys.includes(i.key)]),
+		FEATURES.map((i) => [
+			i.key,
+			i.step === 0 ? !i.fix : BASE.includes(i.key) || keys.includes(i.key),
+		]),
 	) as unknown as RenderFeatures;
 const without = (keys: FeatureKey[]): RenderFeatures =>
 	Object.fromEntries(
-		FEATURES.map((i) => [i.key, !keys.includes(i.key)]),
+		FEATURES.map((i) => [i.key, !i.fix && !keys.includes(i.key)]),
 	) as unknown as RenderFeatures;
 
 /** Performance presets: from Studio's picture down to the least the view can draw. */
@@ -370,6 +392,8 @@ export const FEATURE_BIT = {
 	lava: 8192,
 	/** Neon's halo, in the glow's source; CrackedLava's is `lava`. */
 	neonGlow: 32768,
+	/** The sky's light through walls thinner than a lighting cell, as Studio's: see SKY_CELL. */
+	leak: 65536,
 	/** No light at all is on: the parts drawn in their colours, as the Surfaces step shows them. */
 	unlit: 16384,
 } as const;
@@ -392,6 +416,7 @@ export function featureBits(features: RenderFeatures): number {
 		[on("lightHighlights"), FEATURE_BIT.lightHighlights],
 		[on("lavaGlow"), FEATURE_BIT.lava],
 		[on("neonGlow"), FEATURE_BIT.neonGlow],
+		[!on("thinWallsBlockSky"), FEATURE_BIT.leak],
 		[!litAtAll(features), FEATURE_BIT.unlit],
 	];
 	return pairs.reduce((bits, [yes, bit]) => (yes ? bits | bit : bits), 0);
