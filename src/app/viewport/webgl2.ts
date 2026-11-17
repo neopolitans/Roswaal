@@ -433,7 +433,10 @@ float skyVisibility(vec3 p, vec3 n) {
 	if (!has(${FEATURE_BIT.leak}) || skyNear.w < 0.5) return v;
 	vec3 uvw = (p + n * ${SKY_CELL / 2}.0 - cellOrigin()) / vec3(${SKY_CELLS[0] * SKY_CELL}.0, ${SKY_CELLS[1] * SKY_CELL}.0, ${SKY_CELLS[2] * SKY_CELL}.0);
 	if (any(lessThan(uvw, vec3(0.0))) || any(greaterThan(uvw, vec3(1.0)))) return v;
-	return max(v, texture(skyCells, vec3(uvw.x, uvw.z, uvw.y)).r * ${SKY_LEAK.toFixed(3)});
+	float seen = texture(skyCells, vec3(uvw.x, uvw.z, uvw.y)).r * ${SKY_LEAK.toFixed(3)};
+	// As WebGpuView's: the cells' alone, easing to the maps at their edge.
+	float edge = min(min(uvw.x, 1.0 - uvw.x), min(min(uvw.y, 1.0 - uvw.y), min(uvw.z, 1.0 - uvw.z)));
+	return mix(v, seen, smoothstep(0.0, 0.08, edge));
 }
 // The sun's shadow near the camera, as WebGpuView's cascadeSees.
 uniform highp sampler2DArrayShadow sunMaps;

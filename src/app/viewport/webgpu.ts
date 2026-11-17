@@ -435,7 +435,11 @@ fn skyVisibility(p: vec3f, n: vec3f) -> f32 {
 	let uvw = (p + n * ${SKY_CELL / 2}.0 - cellOrigin()) / vec3f(${SKY_CELLS[0] * SKY_CELL}.0, ${SKY_CELLS[1] * SKY_CELL}.0, ${SKY_CELLS[2] * SKY_CELL}.0);
 	if (any(uvw < vec3f(0.0)) || any(uvw > vec3f(1.0))) { return v; }
 	let seen = textureSampleLevel(skyCells, skyCellSampler, vec3f(uvw.x, uvw.z, uvw.y), 0.0).r;
-	return max(v, seen * ${SKY_LEAK.toFixed(3)});
+	// Studio's sky light is its cells', blended between their middles, so a
+	// beam overhead casts no sharp sky shadow: the cells' alone, then, easing
+	// to the maps at the cells' edge.
+	let edge = min(min(uvw.x, 1.0 - uvw.x), min(min(uvw.y, 1.0 - uvw.y), min(uvw.z, 1.0 - uvw.z)));
+	return mix(v, seen * ${SKY_LEAK.toFixed(3)}, smoothstep(0.0, 0.08, edge));
 }
 // A lighting cell: the share of the sky its middle sees, a slice of cells a draw.
 struct CellOut { @builtin(position) pos: vec4f, @location(0) @interpolate(flat) slice: u32 };
