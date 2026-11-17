@@ -488,10 +488,11 @@ export const ATTRIBUTIONS: Attribution[] = [
 		licence: "CC-BY-4.0",
 		ships: true,
 		where:
-			"`src/core/robloxEngine.json` and `src/core/robloxMembers.ts`. Licence: " +
-			"`notices/upstream/creator-docs.txt`.",
+			"`src/core/robloxEngine.json`, `src/core/robloxMembers.ts` and " +
+			"`src/core/rbx/brickColors.ts`. Licence: `notices/upstream/creator-docs.txt`.",
 		note:
-			"Roswaal shows one-sentence summaries of the engine's API, © Roblox Corporation. " +
+			"Roswaal shows one-sentence summaries of the engine's API, © Roblox Corporation, " +
+			"and draws BrickColors in the colours its BrickColor table lists. " +
 			"Changed: shortened, and markup removed. This text stays under CC BY 4.0, not 0BSD.",
 		url: "https://github.com/Roblox/creator-docs",
 	},

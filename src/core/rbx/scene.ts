@@ -27,6 +27,7 @@
 import { assetIdOf } from "./browse.js";
 import { type RbxInstance, stringProp } from "./dom.js";
 import { type SceneEffects, sceneEffects } from "./effects.js";
+import { type SceneGizmos, sceneGizmos } from "./gizmos.js";
 import { MATERIAL_SHADE, MATERIALS, materialIndex } from "./materials.js";
 import type { SceneUnion } from "./unions.js";
 
@@ -91,6 +92,8 @@ export interface PlaceScene {
 	unionCuts?: number[];
 	/** The place's Beams and ParticleEmitters, animated by the viewer: see `effects.ts`. */
 	effects?: SceneEffects;
+	/** The place's Attachments, welds and constraints, for the viewer's gizmos: see `gizmos.ts`. */
+	gizmos?: SceneGizmos;
 }
 
 /**
@@ -526,6 +529,8 @@ export function buildPlaceScene(
 	if (lights.length > 0) scene.lights = lights;
 	const effects = sceneEffects(workspace, idOf);
 	if (effects.beams.length > 0 || effects.emitters.length > 0) scene.effects = effects;
+	const gizmos = sceneGizmos(workspace, idOf);
+	if (gizmos.attachments.length > 0 || gizmos.joints.length > 0) scene.gizmos = gizmos;
 	const studio = workspace?.children.find((c) => c.className === "Camera");
 	const cf = studio?.props.get("CFrame")?.value as
 		| { position: number[]; rotation: number[] }
