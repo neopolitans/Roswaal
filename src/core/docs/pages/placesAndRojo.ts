@@ -284,7 +284,9 @@ export function placesAndRojoPage(): DocPage {
 					"**Preset** sets them at once. **Performance** presets take away what costs most, down " +
 					"to **Lowest**; **Render debugging** presets show one feature alone, or open the view " +
 					"that shows what it costs. **Gizmos** draws Attachments, welds and constraints over the " +
-					"view, and those of what is picked.",
+					"view, and those of what is picked. **Performance** holds frustum and occlusion culling: " +
+					"parts out of view, or hidden behind solid parts, are not drawn, and the wireframe shows " +
+					"what is left.",
 			},
 			{
 				t: "table",
