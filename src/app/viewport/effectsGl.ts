@@ -24,6 +24,7 @@ import {
 import { lookAt, multiply, perspective } from "./math.js";
 import { effectShare, effectsShown } from "./renderViews.js";
 import { type Camera, FOV, type RenderSettings, renderDebug } from "./view.js";
+import { airOn, FEATURE_BIT, featureBits } from "./renderFeatures.js";
 
 const VS_FX = `#version 300 es
 precision highp float;
@@ -238,8 +239,9 @@ export class GlEffects {
 				viewProj,
 				camera.eye,
 				lighting,
-				renderDebug(render)[0],
-				render.show.haze,
+				// No light at all: the effects in their own colours, as the parts are.
+				featureBits(render.features) & FEATURE_BIT.unlit ? 3 : renderDebug(render)[0],
+				airOn(render.features),
 				effectShare(mode),
 			),
 		);

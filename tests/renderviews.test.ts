@@ -31,6 +31,7 @@ import {
 	sharesView,
 	triangleDensity,
 } from "../src/app/viewport/view.js";
+import { FEATURE_BIT, featureBits, upToStep } from "../src/app/viewport/renderFeatures.js";
 
 const settings = (mode: RenderMode) => ({ ...DEFAULT_RENDER, mode });
 
@@ -44,18 +45,15 @@ describe("the Rendering panel's views", () => {
 		expect(new Set(codes).size).toBe(codes.length);
 	});
 
-	it("reach the shaders as the heatmaps' path or the full lighting's, with the view in w", () => {
-		expect(renderDebug(settings("lit"))).toEqual([0, 1, 1, 0]);
-		expect(renderDebug(settings("lights"))).toEqual([RENDER_MODE_CODE.lights, 1, 1, 0]);
-		expect(renderDebug(settings("overdraw"))).toEqual([RENDER_MODE_CODE.cost, 1, 1, 1]);
-		expect(renderDebug(settings("density"))).toEqual([RENDER_MODE_CODE.cost, 1, 1, 2]);
-		expect(renderDebug(settings("sunMaps"))).toEqual([RENDER_MODE_CODE.lit, 1, 1, 3]);
-		const plain = {
-			...DEFAULT_RENDER,
-			heat: "cells" as const,
-			show: { ...DEFAULT_RENDER.show, haze: false },
-		};
-		expect(renderDebug({ ...plain, mode: "cost" })).toEqual([RENDER_MODE_CODE.cost, 0, 0, 0]);
+	it("reach the shaders as the heatmaps' path or the picture's, the switches' bits in y and the view in w", () => {
+		const all = featureBits(DEFAULT_RENDER.features);
+		expect(renderDebug(settings("lit"))).toEqual([0, all, 1, 0]);
+		expect(renderDebug(settings("lights"))).toEqual([RENDER_MODE_CODE.lights, all, 1, 0]);
+		expect(renderDebug(settings("overdraw"))).toEqual([RENDER_MODE_CODE.cost, all, 1, 1]);
+		expect(renderDebug(settings("density"))).toEqual([RENDER_MODE_CODE.cost, all, 1, 2]);
+		expect(renderDebug(settings("sunMaps"))).toEqual([RENDER_MODE_CODE.lit, all, 1, 3]);
+		const plain = { ...DEFAULT_RENDER, heat: "cells" as const, features: upToStep(0) };
+		expect(renderDebug({ ...plain, mode: "cost" })).toEqual([RENDER_MODE_CODE.cost, FEATURE_BIT.unlit, 0, 0]);
 	});
 
 	it("draw shares for the composite in the heatmaps, overdraw and density, each coloured its own way", () => {
@@ -66,7 +64,7 @@ describe("the Rendering panel's views", () => {
 			"density",
 		]);
 		expect(RENDER_MODES.map(([mode]) => sharesComposite(mode))).toEqual([
-			0, 0, 0, 0, 0, 1, 2, 3, 4, 0,
+			0, 0, 1, 2, 3, 4, 0,
 		]);
 	});
 

@@ -76,12 +76,16 @@ import {
 	splitByMesh,
 	type ViewRenderer,
 } from "./view.js";
+import { FEATURE_BIT, passesOf } from "./renderFeatures.js";
 
 const COMMON = `
 uniform vec4 L[11];
-// The Rendering panel: its lighting (RENDER_MODE_CODE), whether haze is drawn,
-// whether the heatmaps are linear, and the view drawn over it: see renderDebug.
+// The Rendering panel: its view (RENDER_MODE_CODE), its switches' bits
+// (renderFeatures.ts), whether the heatmaps are linear, and the view drawn
+// over it: see renderDebug.
 uniform vec4 R;
+// Whether a switch is on, as WebGpuView's has.
+bool has(int bit) { return (int(R.y + 0.5) & bit) != 0; }
 // As WebGpuView's sunLight.
 vec3 sunLight(vec3 dir) {
 	float a = dot(dir, L[0].xyz);
@@ -295,6 +299,8 @@ vec3 partLights(vec3 p, vec3 n, vec3 v, float gloss, out vec3 shine) {
 		vec4 a = texelFetch(lightData, ivec2(0, i), 0);
 		vec4 col = texelFetch(lightData, ivec2(1, i), 0);
 		vec4 d = texelFetch(lightData, ivec2(2, i), 0);
+		int kind = col.w > 1.5 ? ${FEATURE_BIT.surfaceLights} : col.w > 0.5 ? ${FEATURE_BIT.spotLights} : ${FEATURE_BIT.pointLights};
+		if (!has(kind)) continue;
 		vec3 at = a.xyz;
 		if (col.w > 1.5) {
 			// Only in front of its face, as WebGpuView's partLights.
@@ -334,6 +340,8 @@ vec3 lightWork(vec3 p, vec3 n) {
 		vec4 a = texelFetch(lightData, ivec2(0, i), 0);
 		vec4 col = texelFetch(lightData, ivec2(1, i), 0);
 		vec4 d = texelFetch(lightData, ivec2(2, i), 0);
+		int kind = col.w > 1.5 ? ${FEATURE_BIT.surfaceLights} : col.w > 0.5 ? ${FEATURE_BIT.spotLights} : ${FEATURE_BIT.pointLights};
+		if (!has(kind)) continue;
 		vec3 at = a.xyz;
 		if (col.w > 1.5) {
 			if (dot(p - a.xyz, d.xyz) < 0.05) continue;
@@ -371,10 +379,10 @@ float testedSmooth(vec3 p) {
 	return sum;
 }
 float skyVisibility(vec3 p, vec3 n) {
-	if (skyInfo.w < 0.5) return 1.0;
+	if (skyInfo.w < 0.5 || !has(${FEATURE_BIT.skyShadows})) return 1.0;
 	// The near maps near the camera, as WebGpuView's skyVisibility.
 	float edge = 2.0;
-	if (skyNear.w > 0.5) {
+	if (skyNear.w > 0.5 && has(${FEATURE_BIT.nearSky})) {
 		vec3 off = abs(p - skyNearAt.xyz);
 		edge = max(off.x, max(off.y, off.z)) / skyNearAt.w;
 	}
@@ -421,6 +429,7 @@ float sunSees(vec3 p, vec3 n) {
 		if (d < cascFar.y) return cascadeSees(1, p, n);
 		if (d < cascFar.z) return cascadeSees(2, p, n);
 	}
+	if (!has(${FEATURE_BIT.farShadows})) return 1.0;
 	vec3 q = p + n * skyInfo.x * 1.5;
 	float s = skyInfo.x * 0.5;
 	return 0.25 * (skySees(8, q + vec3(s, 0.0, s)) + skySees(8, q + vec3(-s, 0.0, s)) + skySees(8, q + vec3(s, 0.0, -s)) + skySees(8, q + vec3(-s, 0.0, -s)));
@@ -462,7 +471,7 @@ vec4 surface(vec3 colour, vec3 n, vec3 world, float alpha, uint look, vec3 local
 	float d = length(toEye);
 	vec3 v = toEye / max(d, 1e-4);
 	vec3 albedo = colour;
-	if (a.w > 0.0) {
+	if (a.w > 0.0 && has(${FEATURE_BIT.grain})) {
 		float g = noise3(local / b.x) * 0.65 + noise3(local / b.x * 3.1) * 0.35;
 		albedo *= 1.0 + a.w * (g - 0.5) * 2.0;
 	}
@@ -470,47 +479,48 @@ vec4 surface(vec3 colour, vec3 n, vec3 world, float alpha, uint look, vec3 local
 	vec2 uv = faceUv(local, ln);
 	int layer = int(b.w) - 1;
 	vec4 lk = texture(looks, vec3(uv / tex.x, float(max(layer, 0))));
-	vec3 pat = layer >= 0 ? vec3(mix(1.0, lk.r * 2.0, tex.y), 1.0, tex.z * lk.g) : pattern(int(b.z), uv, b.x);
+	vec3 pat = pattern(int(b.z), uv, b.x);
+	if (!has(${FEATURE_BIT.grain})) pat = vec3(1.0, 1.0, pat.z);
+	if (layer >= 0 && has(${FEATURE_BIT.textures})) pat = vec3(mix(1.0, lk.r * 2.0, tex.y), 1.0, tex.z * lk.g);
 	albedo *= pat.x;
 	vec3 c;
-	if (b.y > 0.5 && b.y < 1.5) {
+	if (b.y > 0.5 && b.y < 1.5 && has(${FEATURE_BIT.neon})) {
 		c = pow(clamp(neonLevel(albedo, alpha), 0.0, 1.0), vec3(2.2));
 		alpha = neonAlpha(alpha);
 	} else if (b.y > 2.5) {
 		float rim = pow(1.0 - abs(dot(n, v)), 2.0);
 		c = albedo * (0.6 + rim * 2.5);
 		alpha *= clamp(0.15 + rim * 0.85, 0.0, 1.0);
-	} else if (R.x > 2.5) {
-		// No lighting: the colour and material as they are.
+	} else if (has(${FEATURE_BIT.unlit})) {
+		// No light at all: the colour and material as they are.
 		c = albedo;
 	} else {
 		vec3 l = L[0].xyz;
 		float ndl = max(dot(n, l), 0.0);
 		vec3 h = normalize(l + v);
-		float spec = pow(max(dot(n, h), 0.0), a.y) * a.x * pat.y;
+		float spec = has(${FEATURE_BIT.highlights}) ? pow(max(dot(n, h), 0.0), a.y) * a.x * pat.y : 0.0;
 		// Ambient everywhere, OutdoorAmbient and the sky as far as the sky
-		// reaches, and the sun where it does, as WebGpuView's surface.
-		// The modes, as WebGpuView's surface leaves them out.
-		float vis = 1.0;
-		float sunK = 1.0;
-		if (R.x < 1.5) {
-			vis = skyVisibility(world, n);
-			sunK = sunSees(world, n);
-		}
+		// reaches, and the sun where it does, as WebGpuView's surface; the
+		// switches as it leaves them out.
+		float vis = skyVisibility(world, n);
+		float sunK = sunSees(world, n);
 		vec3 lit = L[1].rgb * ndl * sunK;
 		vec3 fill = (vec3(L[8].w, L[9].w, L[10].w) + L[2].rgb * max(vis, ${SKY_SEEN_LEAST})) * (0.9 + 0.1 * n.y);
 		vec3 lampShine = vec3(0.0);
 		vec3 lamps = vec3(0.0);
-		if (R.x < 0.5) lamps = partLights(world, n, v, a.y * 2.0, lampShine);
+		if (has(${FEATURE_BIT.pointLights} | ${FEATURE_BIT.spotLights} | ${FEATURE_BIT.surfaceLights})) lamps = partLights(world, n, v, a.y * 2.0, lampShine);
+		if (!has(${FEATURE_BIT.lightHighlights})) lampShine = vec3(0.0);
 		c = albedo * (1.0 - a.z * 0.6) * (fill + lit + lamps) + mix(vec3(1.0), albedo, a.z) * (spec * lit + lampShine * a.x * pat.y * 4.6);
-		vec3 seen = sky(reflect(-v, n)) * max(vis, 0.05);
-		c += seen * albedo * a.z * a.x * 0.25;
-		float mirror = shine;
-		if (b.y > 1.5) mirror = max(mirror, 0.2 + 0.5 * pow(1.0 - abs(dot(n, v)), 3.0));
-		c = mix(c, seen, mirror);
-		c += lavaLight(pat.z) * 2.2;
+		if (has(${FEATURE_BIT.reflections})) {
+			vec3 seen = sky(reflect(-v, n)) * max(vis, 0.05);
+			c += seen * albedo * a.z * a.x * 0.25;
+			float mirror = shine;
+			if (b.y > 1.5) mirror = max(mirror, 0.2 + 0.5 * pow(1.0 - abs(dot(n, v)), 3.0));
+			c = mix(c, seen, mirror);
+		}
+		if (has(${FEATURE_BIT.lava})) c += lavaLight(pat.z) * 2.2;
 	}
-	if (R.y > 0.5) c = air(c, d, world.y);
+	c = air(c, d, world.y);
 	return vec4(c, alpha);
 }
 `;
@@ -625,6 +635,9 @@ void main() {
 	gl_FragDepth = handle > 0.5 ? logDepth() * 0.01 : logDepth();
 #endif
 	vec3 n = normalize(vNormal);
+	// Smooth shading off: each triangle's own face, as WebGpuView's surface.
+	vec3 faceN = normalize(cross(dFdx(vWorld), dFdy(vWorld)));
+	if (!has(${FEATURE_BIT.smooth}) && handle < 0.5 && outline < 0.5) n = dot(faceN, n) >= 0.0 ? faceN : -faceN;
 	if (outline > 0.5) o = vec4(vColour, vAlpha);
 	else if (handle < 0.5 && R.w > 1.5 && R.w < 2.5) o = densityOut(n);
 	else if (handle < 0.5 && R.x > 4.5) o = vec4(heat(n), 0.0, 0.0, 1.0);
@@ -686,19 +699,15 @@ void main() {
 	vec3 albedo = pow(t.rgb, vec3(2.2)) * pow(vTint.rgb, vec3(2.2));
 	vec3 n = normalize(vNormal);
 	float ndl = max(dot(n, L[0].xyz), 0.0);
-	float vis = 1.0;
-	float sunK = 1.0;
-	if (R.x < 1.5) {
-		vis = skyVisibility(vWorld, n);
-		sunK = sunSees(vWorld, n);
-	}
+	float vis = skyVisibility(vWorld, n);
+	float sunK = sunSees(vWorld, n);
 	vec3 fill = (vec3(L[8].w, L[9].w, L[10].w) + L[2].rgb * max(vis, ${SKY_SEEN_LEAST})) * (0.9 + 0.1 * n.y);
 	vec3 lampShine;
 	vec3 lamps = vec3(0.0);
-	if (R.x < 0.5) lamps = partLights(vWorld, n, n, 1.0, lampShine);
+	if (has(${FEATURE_BIT.pointLights} | ${FEATURE_BIT.spotLights} | ${FEATURE_BIT.surfaceLights})) lamps = partLights(vWorld, n, n, 1.0, lampShine);
 	vec3 c = albedo * (fill + L[1].rgb * ndl * sunK + lamps);
-	if (R.x > 2.5) c = albedo;
-	if (R.y > 0.5) c = air(c, length(L[6].xyz - vWorld), vWorld.y);
+	if (has(${FEATURE_BIT.unlit})) c = albedo;
+	c = air(c, length(L[6].xyz - vWorld), vWorld.y);
 	o = vec4(display(c), t.a * vTint.a);
 	if (R.w > 2.5) o.rgb = sunMapTint(o.rgb, vWorld);
 }`;
@@ -892,6 +901,8 @@ in vec3 vColour; in vec3 vWorld; in vec3 vNormal; flat in uint vId; in float vAl
 uniform vec4 M[${MATERIALS.length * 3}];
 uniform mediump sampler2DArray looks;
 uniform float seen;
+uniform vec4 R;
+bool has(int bit) { return (int(R.y + 0.5) & bit) != 0; }
 // Neon's glow: see glowShape's gate.
 uniform vec4 bloom;
 ${PATTERNS}
@@ -909,12 +920,13 @@ void main() {
 	vec3 e = vec3(0.0);
 	// In linear light, as WebGpuView's glowSource gives it.
 	if (b.y > 0.5 && b.y < 1.5) {
-		vec3 lit = pow(max(neonLevel(vColour, vAlpha), 0.0), vec3(2.2));
+		vec3 lit = has(${FEATURE_BIT.neonGlow}) ? pow(max(neonLevel(vColour, vAlpha), 0.0), vec3(2.2)) : vec3(0.0);
 		float most = max(lit.r, max(lit.g, lit.b));
 		// As WebGpuView's glowSource: gone from 0.3, easing as Studio's captures show.
 		float fade = pow(max(1.0 - (1.0 - vAlpha) / bloom.z, 0.0), 1.1);
 		e = (1.0 - exp(-max(lit - bloom.y, 0.0))) * smoothstep(bloom.x, bloom.x + 0.3, most) * fade;
 	}
+	else if (!has(${FEATURE_BIT.lava})) e = vec3(0.0);
 	else if (tex.z > 0.5 && layer >= 0) e = min(lavaLight(texture(looks, vec3(uv / tex.x, float(layer))).g), vec3(1.0)) * 0.2;
 	else if (int(b.z) == 14) e = min(lavaLight(pattern(14, uv, b.x).z), vec3(1.0)) * 0.2;
 	// A see-through part over what glows behind it, as WebGpuView's fsGlowSeen.
@@ -1061,6 +1073,9 @@ export class WebGl2View implements ViewRenderer {
 	private render: RenderSettings = DEFAULT_RENDER;
 
 	setRender(render: RenderSettings): void {
+		// Thin parts' switch changes what the near sky maps hold: draw them again.
+		if (passesOf(render.features).thinParts !== passesOf(this.render.features).thinParts)
+			this.nearCentre = null;
 		this.render = render;
 	}
 
@@ -1087,7 +1102,7 @@ export class WebGl2View implements ViewRenderer {
 	private drawEffects(camera: Camera): void {
 		const fx = this.effects;
 		if (!fx) return;
-		const { show } = this.render;
+		const show = passesOf(this.render.features);
 		const on = { beams: show.beams, particles: show.particles };
 		fx.draw(
 			camera,
@@ -2153,7 +2168,7 @@ export class WebGl2View implements ViewRenderer {
 			this.solids();
 		}
 		gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, null, 0, 0);
-		if (which.near) this.openNearMaps();
+		if (which.near && passesOf(this.render.features).thinParts) this.openNearMaps();
 		gl.enable(gl.CULL_FACE);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 		gl.activeTexture(gl.TEXTURE6);
@@ -2337,7 +2352,8 @@ export class WebGl2View implements ViewRenderer {
 		const gl = this.gl;
 		const started = performance.now();
 		this.tally = { draws: 0, instances: 0, triangles: 0 };
-		const { mode, show } = this.render;
+		const { mode } = this.render;
+		const show = passesOf(this.render.features);
 		const heat = sharesView(mode);
 		const wire = mode === "wireframe";
 		// The heatmaps and the wireframe are the place's shapes alone; the sun
@@ -2405,7 +2421,7 @@ export class WebGl2View implements ViewRenderer {
 	private drawSky(camera: Camera): void {
 		const gl = this.gl;
 		this.use(this.skyProgram, camera, false);
-		const sky = this.skyOn ? (this.lighting.skyboxSun ? 2 : 1) : 0;
+		const sky = this.skyOn && passesOf(this.render.features).skyImages ? (this.lighting.skyboxSun ? 2 : 1) : 0;
 		gl.uniform1f(gl.getUniformLocation(this.skyProgram.program, "hasSky"), sky);
 		gl.activeTexture(gl.TEXTURE4);
 		gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.skyImages);
@@ -2491,7 +2507,7 @@ export class WebGl2View implements ViewRenderer {
 	 */
 	private drawOverdraw(camera: Camera): void {
 		const gl = this.gl;
-		const { show } = this.render;
+		const show = passesOf(this.render.features);
 		this.use(this.main, camera, false);
 		gl.enable(gl.BLEND);
 		gl.blendFunc(gl.ONE, gl.ONE);
@@ -2525,7 +2541,7 @@ export class WebGl2View implements ViewRenderer {
 	 */
 	private drawDensity(camera: Camera): void {
 		const gl = this.gl;
-		const all = this.render.show.seeThrough
+		const all = passesOf(this.render.features).seeThrough
 			? [...this.draws, ...this.glass, ...this.clear]
 			: this.draws;
 		this.use(this.main, camera, false);

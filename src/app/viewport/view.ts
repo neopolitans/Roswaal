@@ -19,6 +19,7 @@ import {
 } from "../../core/rbx/scene.js";
 import type { Handles } from "./handles.js";
 import { lookAt, type Mat4, multiply } from "./math.js";
+import { featureBits, type RenderFeatures, STUDIO_FEATURES } from "./renderFeatures.js";
 
 export interface Camera {
 	eye: number[];
@@ -973,17 +974,14 @@ export function tintedOutline(box: Float32Array, alpha: number): Float32Array {
 }
 
 /**
- * The Rendering panel's views of the place, as engines' editors offer: the
- * place lit in full, then with fewer of its lights, then not at all; its
- * triangles; and two heatmaps, of what each pixel costs to draw and of how
- * many lights reach it; how many surfaces are drawn over each pixel; each
- * part's triangles against its size; and which of the sun's maps shades it.
+ * What the Rendering panel looks at: the picture, as its switches leave it
+ * (see renderFeatures.ts); its triangles; two heatmaps, of what each pixel
+ * costs to draw and of how many lights reach it; how many surfaces are drawn
+ * over each pixel; each part's triangles against its size; and which of the
+ * sun's maps shades it.
  */
 export type RenderMode =
 	| "lit"
-	| "shadowed"
-	| "global"
-	| "unlit"
 	| "wireframe"
 	| "cost"
 	| "lights"
@@ -992,11 +990,8 @@ export type RenderMode =
 	| "sunMaps";
 
 export const RENDER_MODES: readonly (readonly [RenderMode, string])[] = [
-	["lit", "Lighting, lights and shadows"],
-	["shadowed", "Global lighting and shadows"],
-	["global", "Global lighting only"],
-	["unlit", "No lighting"],
-	["wireframe", "Wireframe only"],
+	["lit", "The picture"],
+	["wireframe", "Wireframe"],
 	["cost", "Render heatmap"],
 	["lights", "Lighting heatmap"],
 	["overdraw", "Overdraw"],
@@ -1004,12 +999,9 @@ export const RENDER_MODES: readonly (readonly [RenderMode, string])[] = [
 	["sunMaps", "Shadow maps"],
 ];
 
-/** Each mode's number in the shaders. */
+/** Each view's number in the shaders. 1 to 3 were lighting modes, now switches. */
 export const RENDER_MODE_CODE: Record<RenderMode, number> = {
 	lit: 0,
-	shadowed: 1,
-	global: 2,
-	unlit: 3,
 	wireframe: 4,
 	cost: 5,
 	lights: 6,
@@ -1017,37 +1009,6 @@ export const RENDER_MODE_CODE: Record<RenderMode, number> = {
 	density: 8,
 	sunMaps: 9,
 };
-
-/** What the renderer draws, each on its own: off leaves it out of the view only. */
-export interface RenderShow {
-	/** Neon's glow, and CrackedLava's. */
-	glow: boolean;
-	/** The place's post effects: bloom and colour correction. */
-	post: boolean;
-	/** Atmosphere and fog. */
-	haze: boolean;
-	/** The sky behind the place. */
-	sky: boolean;
-	/** Decals and Textures. */
-	images: boolean;
-	/** Parts that are see-through, Glass among them. */
-	seeThrough: boolean;
-	/** Beams. */
-	beams: boolean;
-	/** ParticleEmitters' particles. */
-	particles: boolean;
-}
-
-export const RENDER_SHOW: readonly (readonly [keyof RenderShow, string])[] = [
-	["glow", "Neon glow"],
-	["post", "Post effects"],
-	["haze", "Haze and fog"],
-	["sky", "Sky"],
-	["images", "Decals and Textures"],
-	["seeThrough", "See-through parts"],
-	["beams", "Beams"],
-	["particles", "Particles"],
-];
 
 /**
  * How the heatmaps are drawn: by the 16-stud cells the lights are sorted
@@ -1064,7 +1025,8 @@ export const RENDER_HEAT: readonly (readonly [RenderHeat, string])[] = [
 export interface RenderSettings {
 	mode: RenderMode;
 	heat: RenderHeat;
-	show: RenderShow;
+	/** Each part of the picture, on or off: see renderFeatures.ts. */
+	features: RenderFeatures;
 	/** The lights near the camera drawn as wire shapes of their reach: see `gizmos.ts`. */
 	lightRanges: boolean;
 	/** The sun's cascades and the sky maps left as last drawn, to compare what they cost. */
@@ -1074,16 +1036,7 @@ export interface RenderSettings {
 export const DEFAULT_RENDER: RenderSettings = {
 	mode: "lit",
 	heat: "linear",
-	show: {
-		glow: true,
-		post: true,
-		haze: true,
-		sky: true,
-		images: true,
-		seeThrough: true,
-		beams: true,
-		particles: true,
-	},
+	features: STUDIO_FEATURES,
 	lightRanges: false,
 	freezeShadows: false,
 };
@@ -1153,17 +1106,17 @@ export function overdrawShare(n: number): number {
 }
 
 /**
- * The Rendering panel's mode as the place's shaders read it: the lighting
- * they draw (RENDER_MODE_CODE's 0 to 6), whether haze is drawn, whether the
- * heatmaps are linear, and the view drawn over that: 0 none, 1 overdraw,
+ * The Rendering panel as the place's shaders read it: the view
+ * (RENDER_MODE_CODE's 0, 4 to 6), the switches' bits (featureBits), whether
+ * the heatmaps are linear, and the view drawn over that: 0 none, 1 overdraw,
  * 2 triangle density, 3 the sun's maps. Overdraw and density take the
- * heatmaps' path, the sun's maps the full lighting's.
+ * heatmaps' path, the sun's maps the picture's.
  */
 export function renderDebug(render: RenderSettings): [number, number, number, number] {
 	const view: Partial<Record<RenderMode, number>> = { overdraw: 1, density: 2, sunMaps: 3 };
 	const w = view[render.mode] ?? 0;
 	const x = w === 3 ? 0 : w > 0 ? RENDER_MODE_CODE.cost : RENDER_MODE_CODE[render.mode];
-	return [x, render.show.haze ? 1 : 0, render.heat === "linear" ? 1 : 0, w];
+	return [x, featureBits(render.features), render.heat === "linear" ? 1 : 0, w];
 }
 
 /** The modes whose frame holds shares in red, for the composite to colour. */

@@ -57,6 +57,7 @@ import {
 	tintedOutline,
 	type ViewRenderer,
 } from "./view.js";
+import { litFor } from "./renderFeatures.js";
 
 /** Of `rows`, those that draw a MeshPart's or FileMesh's mesh, or its box: not a mesh made here. */
 function meshPartRows(rows: { data: Float32Array; count: number }, place: PlaceScene): number {
@@ -371,7 +372,7 @@ export class ViewportController {
 			this.view.setScene(place);
 			this.loadLooks(this.view, place);
 			this.loadImages(this.view, place);
-			this.view.setLighting(place.lighting);
+			this.view.setLighting(litFor(place.lighting, this.state.render.features));
 			this.loadSky(this.view, place.lighting);
 			this.loadSunImage(this.view, place.lighting);
 			this.loadMeshes(this.view, place);
@@ -457,6 +458,8 @@ export class ViewportController {
 	setRender(render: RenderSettings): void {
 		const was = this.state.render;
 		this.set({ render });
+		if (render.features !== was.features && this.place)
+			this.view?.setLighting(litFor(this.place.lighting, render.features));
 		this.view?.setRender(render);
 		if (render.lightRanges !== was.lightRanges) this.view?.setOverlay(this.overlayLines());
 		this.redraw();
@@ -1247,7 +1250,7 @@ export class ViewportController {
 			view.destroy();
 			return;
 		}
-		view.setLighting(place.lighting);
+		view.setLighting(litFor((this.place ?? place).lighting, this.state.render.features));
 		view.setOverlay(this.overlayLines());
 		view.setOutline(this.options.outlineWidth, this.options.hideBehind);
 		view.setGlassHides(this.options.glassHides);

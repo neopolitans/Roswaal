@@ -28,6 +28,7 @@ import {
 import { lookAt, multiply, perspective } from "./math.js";
 import { effectShare, effectsShown } from "./renderViews.js";
 import { type Camera, FOV, type RenderSettings, renderDebug } from "./view.js";
+import { airOn, FEATURE_BIT, featureBits } from "./renderFeatures.js";
 
 const BUFFER = { INDEX: 0x10, VERTEX: 0x20, UNIFORM: 0x40, COPY_DST: 0x8 } as const;
 const STAGE = { VERTEX: 0x1, FRAGMENT: 0x2 } as const;
@@ -261,8 +262,9 @@ export class GpuEffects {
 				viewProj,
 				camera.eye,
 				lighting,
-				renderDebug(render)[0],
-				render.show.haze,
+				// No light at all: the effects in their own colours, as the parts are.
+				featureBits(render.features) & FEATURE_BIT.unlit ? 3 : renderDebug(render)[0],
+				airOn(render.features),
 				effectShare(mode),
 			),
 		);

@@ -47,7 +47,6 @@ import {
 	heatStyled,
 	RENDER_HEAT,
 	RENDER_MODES,
-	RENDER_SHOW,
 	type RenderHeat,
 	type RenderLegend,
 	type RenderMode,
@@ -55,6 +54,19 @@ import {
 	type RenderStats,
 	renderLegend,
 } from "./viewport/view.js";
+import {
+	changedFrom,
+	DEBUG_PRESETS,
+	FEATURE_GROUPS,
+	featureOn,
+	PERFORMANCE_PRESETS,
+	RENDER_PRESETS,
+	RENDER_STEPS,
+	type RenderFeatures,
+	STUDIO_FEATURES,
+	stepOf,
+	upToStep,
+} from "./viewport/renderFeatures.js";
 import { useWorkspaceControls } from "./Workspace.jsx";
 
 const GIZMO = 104;
@@ -699,19 +711,29 @@ export function PlaceSummary({
 }
 
 /**
- * How the view is drawn, over the bar's left end: the Rendering panel's mode,
- * a heatmap's style, and what its switches leave out.
+ * How the view is drawn, over the bar's left end: what the Rendering panel
+ * looks at, a heatmap's style, the step its switches show, and how many are
+ * set apart from Studio's.
  */
 function RenderBadge({ render }: { render: RenderSettings }) {
 	const mode = RENDER_MODES.find(([m]) => m === render.mode)?.[1] ?? "";
 	const heat = heatStyled(render.mode)
 		? RENDER_HEAT.find(([h]) => h === render.heat)?.[1]
 		: undefined;
-	const off = RENDER_SHOW.filter(([key]) => !render.show[key]).map(([, label]) => label);
+	const { step, exact } = stepOf(render.features);
+	const changed = changedFrom(render.features).length;
+	const stepText =
+		changed === 0
+			? null
+			: exact
+				? step === 0
+					? "Nothing lit"
+					: `Step ${step}: ${RENDER_STEPS[step - 1][0]}`
+				: `${changed} switch${changed === 1 ? "" : "es"} changed`;
 	return (
 		<div className="vp-render-badge" title="How the view is drawn: the Rendering panel">
 			<span>{heat ? `${mode} · ${heat}` : mode}</span>
-			{off.length > 0 && <span className="vp-render-badge-off">Off: {off.join(", ")}</span>}
+			{stepText && <span className="vp-render-badge-off">{stepText}</span>}
 			{render.freezeShadows && <span className="vp-render-badge-frozen">Shadows frozen</span>}
 		</div>
 	);
@@ -1007,36 +1029,105 @@ export function PerformancePanel({ controller }: { controller: ViewportControlle
 }
 
 /**
- * Rendering: how the viewer draws the place, as engines' editors offer: the
- * place lit in full or with less, its triangles, heatmaps of what each pixel
- * costs and of the lights reaching it, and switches for what is drawn. The
- * view's alone, for the session; the place is untouched.
+ * Rendering: how the viewer draws the place, as engines' editors offer. A
+ * switch for each part of the picture, the ten steps a frame is built in to
+ * walk through, presets for speed and for looking into one feature, and the
+ * views of what it costs. The view's alone, for the session; the place is
+ * untouched.
  */
 export function RenderPanel({ controller }: { controller: ViewportController }) {
 	const { render } = useViewport(controller);
 	const apply = (next: RenderSettings) => controller.setRender(next);
 	const legend = HEAT_LEGEND[render.mode];
 	const viewLegend = renderLegend(render.mode);
+	const { features } = render;
+	const setFeatures = (next: RenderFeatures) => apply({ ...render, features: next, mode: "lit" });
+	const { step, exact } = stepOf(features);
+	const [shut, setShut] = useState<ReadonlySet<string>>(() => new Set(["Post effects"]));
+	const [hint, setHint] = useState<string | null>(null);
+	const preset = presetOf(render);
+	const changed = changedFrom(features).length;
+	const toStep = (n: number) => setFeatures(upToStep(Math.max(0, Math.min(RENDER_STEPS.length, n))));
+	const choose = (id: string) => {
+		const p = RENDER_PRESETS.find((x) => x.id === id);
+		if (!p) return;
+		apply({ ...render, features: p.features, mode: p.look ?? "lit", lightRanges: p.lightRanges ?? false });
+	};
 	return (
 		<div className="place-properties render-panel">
 			<PanelHead sub="The view only" />
 			<div className="place-props">
 				<div className="place-groups">
 					<div className="place-group">
-						<SectionHead title="View" />
-						<div className="render-choices" role="radiogroup" aria-label="View">
-							{RENDER_MODES.map(([mode, label]) => (
-								<label className="render-choice" key={mode}>
-									<input
-										type="radio"
-										name="render-mode"
-										checked={render.mode === mode}
-										onChange={() => apply({ ...render, mode })}
-									/>
-									<span>{label}</span>
-								</label>
-							))}
+						<label className="render-heat">
+							<span>Preset</span>
+							<select
+								className="tb place-edit-field"
+								value={preset}
+								onChange={(e) => choose(e.target.value)}
+							>
+								<optgroup label="Performance">
+									{PERFORMANCE_PRESETS.map((p) => (
+										<option key={p.id} value={p.id}>
+											{p.label}
+										</option>
+									))}
+								</optgroup>
+								<optgroup label="Render debugging">
+									{DEBUG_PRESETS.map((p) => (
+										<option key={p.id} value={p.id}>
+											{p.label}
+										</option>
+									))}
+								</optgroup>
+								<option value="custom" disabled>
+									Custom
+								</option>
+							</select>
+						</label>
+						<div className="render-step">
+							<button
+								type="button"
+								className="tb icon-only"
+								aria-label="Previous step"
+								disabled={step === 0 && exact}
+								onClick={() => toStep(exact ? step - 1 : step)}
+							>
+								<Icon name="chevron" size={14} className="render-step-back" />
+							</button>
+							<span className="render-step-where" aria-live="polite">
+								<span className="render-step-count">
+									{step === 0 ? "Before step 1" : `Step ${step} of ${RENDER_STEPS.length}`}
+								</span>
+								<span className="render-step-name">
+									{step === 0 ? "Nothing lit" : RENDER_STEPS[step - 1][0]}
+									{exact ? "" : ", and more"}
+								</span>
+							</span>
+							<button
+								type="button"
+								className="tb icon-only"
+								aria-label="Next step"
+								disabled={step === RENDER_STEPS.length}
+								onClick={() => toStep(step + 1)}
+							>
+								<Icon name="chevron" size={14} className="render-step-on" />
+							</button>
 						</div>
+						<label className="render-heat">
+							<span>Look at</span>
+							<select
+								className="tb place-edit-field"
+								value={render.mode}
+								onChange={(e) => apply({ ...render, mode: e.target.value as RenderMode })}
+							>
+								{RENDER_MODES.map(([mode, label]) => (
+									<option key={mode} value={mode}>
+										{label}
+									</option>
+								))}
+							</select>
+						</label>
 						{heatStyled(render.mode) && (
 							<label className="render-heat">
 								<span>Heat</span>
@@ -1066,20 +1157,57 @@ export function RenderPanel({ controller }: { controller: ViewportController }) 
 						)}
 						{viewLegend && <ViewLegend legend={viewLegend} />}
 					</div>
-					<div className="place-group">
-						<SectionHead title="Show" />
-						{RENDER_SHOW.map(([key, label]) => (
-							<label className="render-switch" key={key}>
-								<span>{label}</span>
-								<input
-									type="checkbox"
-									checked={render.show[key]}
-									onChange={(e) =>
-										apply({ ...render, show: { ...render.show, [key]: e.target.checked } })
+					{FEATURE_GROUPS.map((group) => {
+						const open = !shut.has(group.title);
+						const on = group.features.filter((i) => featureOn(features, i.key)).length;
+						return (
+							<div className="place-group" key={group.title}>
+								<SectionHead
+									title={group.title}
+									open={open}
+									onToggle={() =>
+										setShut((was) => {
+											const next = new Set(was);
+											if (!next.delete(group.title)) next.add(group.title);
+											return next;
+										})
 									}
-								/>
-							</label>
-						))}
+								>
+									<span className="render-group-count">
+										{on}/{group.features.length}
+									</span>
+								</SectionHead>
+								{open &&
+									group.features.map((info) => (
+										<label
+											key={info.key}
+											className={cx(
+												"render-switch",
+												info.parent && "render-switch-under",
+												!featureOn(features, info.key) && features[info.key] && "render-switch-held",
+											)}
+											onPointerEnter={() => setHint(info.hint)}
+										>
+											<span>
+												{features[info.key] !== STUDIO_FEATURES[info.key] && (
+													<span className="render-switch-changed" title="Changed from Studio" />
+												)}
+												{info.label}
+											</span>
+											<input
+												type="checkbox"
+												checked={features[info.key]}
+												disabled={!!info.parent && !featureOn(features, info.parent)}
+												onFocus={() => setHint(info.hint)}
+												onChange={(e) => setFeatures({ ...features, [info.key]: e.target.checked })}
+											/>
+										</label>
+									))}
+							</div>
+						);
+					})}
+					<div className="place-group">
+						<SectionHead title="Tools" />
 						<RenderToolSwitch
 							label="Light ranges"
 							on={render.lightRanges}
@@ -1093,6 +1221,31 @@ export function RenderPanel({ controller }: { controller: ViewportController }) 
 					</div>
 				</div>
 			</div>
+			<p className="render-hint">{hint ?? "Point at a switch to see what it does."}</p>
+			<div className="render-foot">
+				<span>{changed === 0 ? "As Studio" : `${changed} changed from Studio`}</span>
+				<button
+					type="button"
+					className="tb"
+					disabled={changed === 0 && render.mode === "lit"}
+					onClick={() => choose("studio")}
+				>
+					Reset to Studio
+				</button>
+			</div>
 		</div>
 	);
+}
+
+/** The preset the panel's settings are, or "custom". */
+function presetOf(render: RenderSettings): string {
+	const same = (a: RenderFeatures, b: RenderFeatures) =>
+		FEATURE_GROUPS.every((g) => g.features.every((i) => a[i.key] === b[i.key]));
+	const p = RENDER_PRESETS.find(
+		(x) =>
+			same(x.features, render.features) &&
+			(x.look ?? "lit") === render.mode &&
+			(x.lightRanges ?? false) === render.lightRanges,
+	);
+	return p?.id ?? "custom";
 }

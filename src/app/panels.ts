@@ -217,7 +217,7 @@ export const DEFAULT_LAYOUT: Layout = {
 			open: false,
 			order: 3,
 			floating: true,
-			frame: { x: 28, y: 64, w: 300, h: 560 },
+			frame: { x: 28, y: 64, w: 300, h: 680 },
 			weight: 2,
 		},
 		// What the last frame cost, and the frame-time graph: beside Rendering.

@@ -76,6 +76,7 @@ import {
 	splitByMesh,
 	type ViewRenderer,
 } from "./view.js";
+import { FEATURE_BIT, passesOf } from "./renderFeatures.js";
 
 // WebGPU's flags, as the spec numbers them: TypeScript's DOM types have the
 // interfaces but not these namespaces.
@@ -222,6 +223,8 @@ struct U {
 	mats: array<vec4f, ${MATERIALS.length * 3}>,
 };
 @group(0) @binding(0) var<uniform> u: U;
+// Whether a Rendering panel switch is on: its bit in debug.y (see renderFeatures.ts).
+fn has(bit: u32) -> bool { return (u32(u.debug.y) & bit) != 0u; }
 // The material textures, a layer each, tinted by the part's Color.
 @group(0) @binding(1) var looks: texture_2d_array<f32>;
 @group(0) @binding(2) var lookSampler: sampler;
@@ -282,6 +285,8 @@ fn partLights(p: vec3f, n: vec3f, v: vec3f, gloss: f32) -> Lamps {
 		let a = lightData[k];
 		let col = lightData[k + 1u];
 		let d = lightData[k + 2u];
+		let kind = select(select(${FEATURE_BIT.pointLights}u, ${FEATURE_BIT.spotLights}u, col.w > 0.5), ${FEATURE_BIT.surfaceLights}u, col.w > 1.5);
+		if (!has(kind)) { continue; }
 		var at = a.xyz;
 		if (col.w > 1.5) {
 			// Only in front of its face: a point on the face itself, as the part
@@ -320,6 +325,8 @@ fn lightWork(p: vec3f, n: vec3f) -> vec3f {
 		let a = lightData[k];
 		let col = lightData[k + 1u];
 		let d = lightData[k + 2u];
+		let kind = select(select(${FEATURE_BIT.pointLights}u, ${FEATURE_BIT.spotLights}u, col.w > 0.5), ${FEATURE_BIT.surfaceLights}u, col.w > 1.5);
+		if (!has(kind)) { continue; }
 		var at = a.xyz;
 		if (col.w > 1.5) {
 			if (dot(p - a.xyz, d.xyz) < 0.05) { continue; }
@@ -385,11 +392,11 @@ fn heat(i: VOut) -> f32 {
 }
 // How much of the sky reaches p, on a face turned to n: the share of the maps that see it.
 fn skyVisibility(p: vec3f, n: vec3f) -> f32 {
-	if (skyU.info.w < 0.5) { return 1.0; }
+	if (skyU.info.w < 0.5 || !has(${FEATURE_BIT.skyShadows}u)) { return 1.0; }
 	// Near the camera the near maps, a texel well under a wall's width; the
 	// whole place's further off, blended over the box's last quarter.
 	var edge = 2.0;
-	if (skyU.near.w > 0.5) {
+	if (skyU.near.w > 0.5 && has(${FEATURE_BIT.nearSky}u)) {
 		let off = abs(p - skyU.nearAt.xyz);
 		edge = max(off.x, max(off.y, off.z)) / skyU.nearAt.w;
 	}
@@ -441,6 +448,7 @@ fn sunSees(p: vec3f, n: vec3f) -> f32 {
 		if (d < cascU.far.y) { return cascadeSees(1, p, n); }
 		if (d < cascU.far.z) { return cascadeSees(2, p, n); }
 	}
+	if (!has(${FEATURE_BIT.farShadows}u)) { return 1.0; }
 	let q = p + n * skyU.info.x * 1.5;
 	let s = skyU.info.x * 0.5;
 	return 0.25 * (skySees(8, q + vec3f(s, 0.0, s)) + skySees(8, q + vec3f(-s, 0.0, s)) + skySees(8, q + vec3f(s, 0.0, -s)) + skySees(8, q + vec3f(-s, 0.0, -s)));
@@ -707,12 +715,15 @@ fn surface(i: VOut) -> vec4f {
 	let a = u.mats[row * 3u];
 	let b = u.mats[row * 3u + 1u];
 	let tex = u.mats[row * 3u + 2u];
-	let n = normalize(i.normal);
+	// Smooth shading off: each triangle's own face, turned the way its normal is.
+	let faceN = normalize(cross(dpdx(i.world), dpdy(i.world)));
+	var n = normalize(i.normal);
+	if (!has(${FEATURE_BIT.smooth}u)) { n = select(-faceN, faceN, dot(faceN, n) >= 0.0); }
 	let toEye = u.camPos.xyz - i.world;
 	let d = length(toEye);
 	let v = toEye / max(d, 1e-4);
 	var albedo = i.colour;
-	if (a.w > 0.0) {
+	if (a.w > 0.0 && has(${FEATURE_BIT.grain}u)) {
 		let g = noise3(i.local / b.x) * 0.65 + noise3(i.local / b.x * 3.1) * 0.35;
 		albedo = albedo * (1.0 + a.w * (g - 0.5) * 2.0);
 	}
@@ -721,52 +732,52 @@ fn surface(i: VOut) -> vec4f {
 	let layer = i32(b.w) - 1;
 	let look = textureSample(looks, lookSampler, uv / tex.x, max(layer, 0));
 	var pat = pattern(u32(b.z), uv, b.x);
-	if (layer >= 0) {
+	if (!has(${FEATURE_BIT.grain}u)) { pat = vec3f(1.0, 1.0, pat.z); }
+	if (layer >= 0 && has(${FEATURE_BIT.textures}u)) {
 		pat = vec3f(mix(1.0, look.r * 2.0, tex.y), 1.0, tex.z * look.g);
 	}
 	albedo = albedo * pat.x;
 	var alpha = i.alpha;
 	var c: vec3f;
-	if (b.y > 0.5 && b.y < 1.5) {
+	if (b.y > 0.5 && b.y < 1.5 && has(${FEATURE_BIT.neon}u)) {
 		c = pow(clamp(neonLevel(albedo, i.alpha), vec3f(0.0), vec3f(1.0)), vec3f(2.2));
 		alpha = neonAlpha(i.alpha);
 	} else if (b.y > 2.5) {
 		let rim = pow(1.0 - abs(dot(n, v)), 2.0);
 		c = albedo * (0.6 + rim * 2.5);
 		alpha = alpha * clamp(0.15 + rim * 0.85, 0.0, 1.0);
-	} else if (u.debug.x > 2.5) {
-		// No lighting: the colour and material as they are.
+	} else if (has(${FEATURE_BIT.unlit}u)) {
+		// No light at all: the colour and material as they are.
 		c = albedo;
 	} else {
 		let l = u.sun.xyz;
 		let ndl = max(dot(n, l), 0.0);
 		let h = normalize(l + v);
-		let spec = pow(max(dot(n, h), 0.0), a.y) * a.x * pat.y;
+		var spec = 0.0;
+		if (has(${FEATURE_BIT.highlights}u)) { spec = pow(max(dot(n, h), 0.0), a.y) * a.x * pat.y; }
 		// Ambient everywhere, OutdoorAmbient and the sky as far as the sky
-		// reaches, and the sun where it does.
-		// Global lighting only leaves the sky's reach and the sun's shadow out,
-		// and both it and Global lighting and shadows leave the lights out.
-		var vis = 1.0;
-		var sunK = 1.0;
-		if (u.debug.x < 1.5) {
-			vis = skyVisibility(i.world, n);
-			sunK = sunSees(i.world, n);
-		}
+		// reaches, and the sun where it does. A switch off leaves its light out
+		// of the lighting (renderFeatures.ts's litFor) or its bit unset.
+		let vis = skyVisibility(i.world, n);
+		let sunK = sunSees(i.world, n);
 		let lit = u.sunColour.rgb * ndl * sunK;
 		let fill = (vec3f(u.fog.w, u.fogColour.w, u.hazeColour.w) + u.ambient.rgb * max(vis, ${SKY_SEEN_LEAST})) * (0.9 + 0.1 * n.y);
 		var lamps = Lamps(vec3f(0.0), vec3f(0.0));
-		if (u.debug.x < 0.5) { lamps = partLights(i.world, n, v, a.y * 2.0); }
-		c = albedo * (1.0 - a.z * 0.6) * (fill + lit + lamps.diffuse) + mix(vec3f(1.0), albedo, a.z) * (spec * lit + lamps.spec * a.x * pat.y * 4.6);
-		let seen = sky(reflect(-v, n)) * max(vis, 0.05);
-		// A metal shows a little of the sky in its own colour.
-		c = c + seen * albedo * a.z * a.x * 0.25;
-		// Reflectance, and glass's own, stronger at a glancing angle.
-		var mirror = shine;
-		if (b.y > 1.5) { mirror = max(mirror, 0.2 + 0.5 * pow(1.0 - abs(dot(n, v)), 3.0)); }
-		c = mix(c, seen, mirror);
-		c = c + lavaLight(pat.z) * 2.2;
+		if (has(${FEATURE_BIT.pointLights}u | ${FEATURE_BIT.spotLights}u | ${FEATURE_BIT.surfaceLights}u)) { lamps = partLights(i.world, n, v, a.y * 2.0); }
+		let lampShine = select(0.0, 1.0, has(${FEATURE_BIT.lightHighlights}u));
+		c = albedo * (1.0 - a.z * 0.6) * (fill + lit + lamps.diffuse) + mix(vec3f(1.0), albedo, a.z) * (spec * lit + lamps.spec * a.x * pat.y * 4.6 * lampShine);
+		if (has(${FEATURE_BIT.reflections}u)) {
+			let seen = sky(reflect(-v, n)) * max(vis, 0.05);
+			// A metal shows a little of the sky in its own colour.
+			c = c + seen * albedo * a.z * a.x * 0.25;
+			// Reflectance, and glass's own, stronger at a glancing angle.
+			var mirror = shine;
+			if (b.y > 1.5) { mirror = max(mirror, 0.2 + 0.5 * pow(1.0 - abs(dot(n, v)), 3.0)); }
+			c = mix(c, seen, mirror);
+		}
+		if (has(${FEATURE_BIT.lava}u)) { c = c + lavaLight(pat.z) * 2.2; }
 	}
-	if (u.debug.y > 0.5) { c = air(c, d, i.world.y); }
+	c = air(c, d, i.world.y);
 	return vec4f(c, alpha);
 }
 // What gives light of its own, for the glow round it, in linear light. Neon
@@ -785,6 +796,7 @@ fn glowSource(i: VOut) -> vec3f {
 	// Sampled before any branch: WGSL samples only in uniform control flow.
 	let look = textureSample(looks, lookSampler, uv / tex.x, max(layer, 0));
 	if (b.y > 0.5 && b.y < 1.5) {
+		if (!has(${FEATURE_BIT.neonGlow}u)) { return vec3f(0.0); }
 		let e = pow(max(neonLevel(i.colour, i.alpha), vec3f(0.0)), vec3f(2.2));
 		let most = max(e.r, max(e.g, e.b));
 		// Gone from a Transparency of 0.3, easing as Studio's screen captures of a
@@ -792,6 +804,7 @@ fn glowSource(i: VOut) -> vec3f {
 		let fade = pow(max(1.0 - (1.0 - i.alpha) / u.bloom.z, 0.0), 1.1);
 		return (1.0 - exp(-max(e - u.bloom.y, vec3f(0.0)))) * smoothstep(u.bloom.x, u.bloom.x + 0.3, most) * fade;
 	}
+	if (!has(${FEATURE_BIT.lava}u)) { return vec3f(0.0); }
 	if (tex.z > 0.5 && layer >= 0) { return min(lavaLight(look.g), vec3f(1.0)) * 0.2; }
 	if (u32(b.z) == 14u) { return min(lavaLight(pattern(14u, uv, b.x).z), vec3f(1.0)) * 0.2; }
 	return vec3f(0.0);
@@ -951,19 +964,15 @@ struct IOut {
 	let albedo = pow(t.rgb, vec3f(2.2)) * pow(i.tint.rgb, vec3f(2.2));
 	let n = normalize(i.normal);
 	let ndl = max(dot(n, u.sun.xyz), 0.0);
-	var vis = 1.0;
-	var sunK = 1.0;
-	if (u.debug.x < 1.5) {
-		vis = skyVisibility(i.world, n);
-		sunK = sunSees(i.world, n);
-	}
+	let vis = skyVisibility(i.world, n);
+	let sunK = sunSees(i.world, n);
 	var lamps = vec3f(0.0);
-	if (u.debug.x < 0.5) { lamps = partLights(i.world, n, n, 1.0).diffuse; }
+	if (has(${FEATURE_BIT.pointLights}u | ${FEATURE_BIT.spotLights}u | ${FEATURE_BIT.surfaceLights}u)) { lamps = partLights(i.world, n, n, 1.0).diffuse; }
 	let fill = (vec3f(u.fog.w, u.fogColour.w, u.hazeColour.w) + u.ambient.rgb * max(vis, ${SKY_SEEN_LEAST})) * (0.9 + 0.1 * n.y);
 	var c = albedo * (fill + u.sunColour.rgb * ndl * sunK + lamps);
-	if (u.debug.x > 2.5) { c = albedo; }
+	if (has(${FEATURE_BIT.unlit}u)) { c = albedo; }
 	let d = length(u.camPos.xyz - i.world);
-	if (u.debug.y > 0.5) { c = air(c, d, i.world.y); }
+	c = air(c, d, i.world.y);
 	if (u.debug.w > 2.5) { return vec4f(sunMapTint(display(c), i.world, edge, wide), t.a * i.tint.a); }
 	return vec4f(display(c), t.a * i.tint.a);
 }
@@ -1061,6 +1070,9 @@ export class WebGpuView implements ViewRenderer {
 	private wire!: GPURenderPipeline;
 
 	setRender(render: RenderSettings): void {
+		// Thin parts' switch changes what the near sky maps hold: draw them again.
+		if (passesOf(render.features).thinParts !== passesOf(this.render.features).thinParts)
+			this.nearCentre = null;
 		this.render = render;
 	}
 
@@ -2180,7 +2192,8 @@ export class WebGpuView implements ViewRenderer {
 		u.set(vp, 0);
 		u.set(invert(vp), 16);
 		u.set(lightingBlock(this.lighting, camera.eye, SELECT, HANDLE_ALPHA), 32);
-		const sky = this.skyOn ? (this.lighting.skyboxSun ? 2 : 1) : 0;
+		const skyImages = this.skyOn && passesOf(this.render.features).skyImages;
+		const sky = skyImages ? (this.lighting.skyboxSun ? 2 : 1) : 0;
 		u.set([this.width, this.height, this.band(), sky], 76);
 		u.set(this.shape.gate, 80);
 		u.set(renderDebug(this.render), 84);
@@ -2200,7 +2213,8 @@ export class WebGpuView implements ViewRenderer {
 	draw(camera: Camera): void {
 		const started = performance.now();
 		this.tally = { draws: 0, instances: 0, triangles: 0 };
-		const { mode, show } = this.render;
+		const { mode } = this.render;
+		const show = passesOf(this.render.features);
 		const heat = sharesView(mode);
 		const wire = mode === "wireframe";
 		// The heatmaps and the wireframe are the place's shapes alone; the sun
@@ -2410,7 +2424,7 @@ export class WebGpuView implements ViewRenderer {
 	private drawEffects(pass: GPURenderPassEncoder, camera: Camera): void {
 		const fx = this.effects;
 		if (!fx) return;
-		const { show } = this.render;
+		const show = passesOf(this.render.features);
 		const on = { beams: show.beams, particles: show.particles };
 		fx.draw(
 			pass,
@@ -2511,7 +2525,7 @@ export class WebGpuView implements ViewRenderer {
 	 * see-through part, image, beam and particle; each adding one.
 	 */
 	private drawOverdraw(pass: GPURenderPassEncoder, camera: Camera): void {
-		const { show } = this.render;
+		const show = passesOf(this.render.features);
 		if (!this.countSolid || !this.imageCount) return;
 		pass.setPipeline(this.countSolid);
 		this.solids(pass);
@@ -2535,7 +2549,7 @@ export class WebGpuView implements ViewRenderer {
 	 * its mesh's triangles against its size (vsDensity).
 	 */
 	private drawDensity(pass: GPURenderPassEncoder): void {
-		const all = this.render.show.seeThrough
+		const all = passesOf(this.render.features).seeThrough
 			? [...this.draws, ...this.glass, ...this.clear]
 			: this.draws;
 		if (!this.density || all.length === 0) return;
@@ -3091,7 +3105,7 @@ fn along(pos: vec4f) -> f32 {
 			this.solids(pass);
 			pass.end();
 		});
-		if (which.near) this.openNearMaps(encoder);
+		if (which.near && passesOf(this.render.features).thinParts) this.openNearMaps(encoder);
 	}
 
 	setLook(layer: number, levels: readonly (HTMLCanvasElement | ImageBitmap)[]): void {
