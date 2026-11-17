@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.263.0",
+		date: "2026-11-17",
+		headline: "The Rendering panel's View is one dropdown and every switch works in every view; Neon under a beam no longer washes out.",
+		changed: [
+			"**View** in the Rendering panel holds the Final output presets and the inspecting views in one dropdown. A switch changes only itself, so the wireframe shows the place as culled; the steps show under Final output.",
+			"**Presets** set switches only, and the debugging ones leave culling on. Solid parts alone and Without culling are new.",
+			"**Occlusion culling** works without frustum culling, and in every view.",
+		],
+		fixed: [
+			"**Bloom** starts from a pixel's light, so a Neon logo under a beam blooms as Studio's does rather than washing out.",
+		],
+	},
+	{
 		version: "0.262.0",
 		date: "2026-11-17",
 		headline: "Frustum and occlusion culling; sky shadows blend into one shade and stop where Studio's do.",
