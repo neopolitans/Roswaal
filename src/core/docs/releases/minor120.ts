@@ -9,6 +9,22 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.265.0",
+		date: "2026-11-17",
+		headline: "Place edits wait for Save; the place viewer shows its assets loading.",
+		added: [
+			"**Save for place edits.** Edits to the place show at once but reach the file only on Save or Ctrl+S. The place tab marks unsaved changes, and closing asks first.",
+			"**Asset loading card.** The place viewer counts its textures, images, meshes and unions in, and says when all are loaded or how many could not be.",
+		],
+		changed: [
+			"**Dragging by the pivot** rings the pivot on hover and tags it while dragging.",
+			"**Sky light** under beams and lattices is smooth, as in Studio, so shadows on a floor read as one shade.",
+		],
+		fixed: [
+			"**Occlusion culling** no longer pops parts in when the camera moves or turns, and now culls glass and see-through parts too.",
+		],
+	},
+	{
 		version: "0.264.1",
 		date: "2026-11-17",
 		headline: "Closed rooms lit as in Studio; two daemons no longer sign each other out.",
