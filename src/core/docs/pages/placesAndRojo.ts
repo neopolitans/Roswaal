@@ -270,14 +270,28 @@ export function placesAndRojoPage(): DocPage {
 					"how the viewer draws it, never the place.",
 			},
 			{
+				t: "p",
+				text:
+					"Every part of the picture has its own switch, in groups: surfaces, light, shadows, " +
+					"lights, glow and effects, sky and air, post effects. A dot marks a switch changed " +
+					"from Studio; **Reset to Studio** puts them all back. The arrows step through the ten " +
+					"steps a frame is built in, from the parts unlit to the post effects, each turning on " +
+					"its own switches and every earlier step's.",
+			},
+			{
+				t: "p",
+				text:
+					"**Preset** sets them at once. **Performance** presets take away what costs most, down " +
+					"to **Lowest**; **Render debugging** presets show one feature alone, or open the view " +
+					"that shows what it costs. **Gizmos** draws Attachments, welds and constraints over the " +
+					"view, and those of what is picked.",
+			},
+			{
 				t: "table",
-				head: ["View", "Shows"],
+				head: ["Look at", "Shows"],
 				rows: [
-					["Lighting, lights and shadows", "The place as the viewer draws it"],
-					["Global lighting and shadows", "The sun, the sky and Ambient, with shadows; no lights"],
-					["Global lighting only", "The sun, the sky and Ambient, without shadows"],
-					["No lighting", "Each part's colour and material"],
-					["Wireframe only", "Every part's edges, those behind others too"],
+					["The picture", "The place as the switches leave it"],
+					["Wireframe", "Every part's edges, those behind others too"],
 					[
 						"Render heatmap",
 						"What each pixel costs to draw, green to white: its textures, shadows and the " +
@@ -312,9 +326,7 @@ export function placesAndRojoPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"Its switches leave Neon's glow, post effects, haze, the sky, Decals and Textures, " +
-					"see-through parts, beams or particles out of the view. The view's mode, and any switch " +
-					"that is off, show over the bar's left end.",
+					"What the panel looks at, and the step its switches show, show over the bar's left end.",
 			},
 			{ t: "h", level: 3, text: "Finding what is slow" },
 			{
