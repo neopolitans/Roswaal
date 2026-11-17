@@ -195,7 +195,6 @@ export const FEATURE_GROUPS: readonly { title: string; features: readonly Featur
 				"Occlusion culling",
 				0,
 				"Parts hidden behind solid parts are not drawn, tested against the last frame. The wireframe shows what is left.",
-				"frustumCulling",
 			),
 		],
 	},
@@ -241,18 +240,21 @@ export function changedFrom(
 	return FEATURES.filter((i) => features[i.key] !== base[i.key]).map((i) => i.key);
 }
 
-/** A preset: its name, what it sets, and the view it looks at (a debugging preset's). */
+/**
+ * A preset: its name and the switches it sets. Only the switches: what the
+ * panel shows (See) and its tools are the developer's, whatever the preset.
+ */
 export interface RenderPreset {
 	id: string;
 	label: string;
 	features: RenderFeatures;
-	/** The view a debugging preset opens on: see RenderMode. */
-	look?: "lit" | "cost" | "lights" | "overdraw" | "density" | "sunMaps";
-	/** Light ranges drawn. */
-	lightRanges?: boolean;
 }
 
-/** The surfaces and sky every debugging preset keeps, so what it shows has a place to show on. */
+/**
+ * The surfaces and sky every debugging preset keeps, so what it shows has a
+ * place to show on; and the Performance switches, which a debugging preset
+ * leaves on.
+ */
 const BASE: FeatureKey[] = [
 	"matTextures",
 	"matGrain",
@@ -264,7 +266,7 @@ const BASE: FeatureKey[] = [
 ];
 const only = (keys: FeatureKey[]): RenderFeatures =>
 	Object.fromEntries(
-		FEATURES.map((i) => [i.key, BASE.includes(i.key) || keys.includes(i.key)]),
+		FEATURES.map((i) => [i.key, i.step === 0 || BASE.includes(i.key) || keys.includes(i.key)]),
 	) as unknown as RenderFeatures;
 const without = (keys: FeatureKey[]): RenderFeatures =>
 	Object.fromEntries(
@@ -300,7 +302,7 @@ export const PERFORMANCE_PRESETS: readonly RenderPreset[] = [
 	},
 ];
 
-/** Render debugging presets: one feature at a time, with the view that shows what it costs. */
+/** Render debugging presets: one feature at a time; See shows it lit, as wires or as its cost. */
 export const DEBUG_PRESETS: readonly RenderPreset[] = [
 	{
 		id: "debug-sun",
@@ -316,13 +318,6 @@ export const DEBUG_PRESETS: readonly RenderPreset[] = [
 		id: "debug-lights",
 		label: "Part lights alone",
 		features: only(["pointLights", "spotLights", "surfaceLights", "lightHighlights"]),
-		lightRanges: true,
-	},
-	{
-		id: "debug-light-cost",
-		label: "What the lights cost",
-		features: STUDIO_FEATURES,
-		look: "lights",
 	},
 	{
 		id: "debug-surfaces",
@@ -335,12 +330,15 @@ export const DEBUG_PRESETS: readonly RenderPreset[] = [
 		features: only(["sun", "skyFill", "ambient", "neonGlow", "lavaGlow", "beams", "particles"]),
 	},
 	{
-		id: "debug-see-through",
-		label: "See-through cost",
-		features: STUDIO_FEATURES,
-		look: "overdraw",
+		id: "debug-solids",
+		label: "Solid parts alone",
+		features: only(["sun", "skyFill", "ambient"]),
 	},
-	{ id: "debug-triangles", label: "Triangle cost", features: STUDIO_FEATURES, look: "density" },
+	{
+		id: "debug-no-culling",
+		label: "Without culling",
+		features: without(["frustumCulling", "occlusionCulling"]),
+	},
 ];
 
 export const RENDER_PRESETS: readonly RenderPreset[] = [...PERFORMANCE_PRESETS, ...DEBUG_PRESETS];

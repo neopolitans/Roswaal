@@ -274,23 +274,24 @@ export function placesAndRojoPage(): DocPage {
 				text:
 					"Every part of the picture has its own switch, in groups: surfaces, light, shadows, " +
 					"lights, glow and effects, sky and air, post effects. A dot marks a switch changed " +
-					"from the preset chosen; **Reset** puts them back. The arrows step through the ten " +
-					"steps a frame is built in, from the parts unlit to the post effects, each turning on " +
-					"its own switches and every earlier step's.",
+					"from the preset chosen; **Reset** puts them back. A switch changes only itself, in " +
+					"whatever the view shows.",
 			},
 			{
 				t: "p",
 				text:
-					"**Preset** sets them at once. **Performance** presets take away what costs most, down " +
-					"to **Lowest**; **Render debugging** presets show one feature alone, or open the view " +
-					"that shows what it costs. **Gizmos** draws Attachments, welds and constraints over the " +
+					"**View** chooses what is shown. Its **Final output** presets set the switches: " +
+					"performance ones take away what costs most, down to **Lowest**, and the rest show one " +
+					"feature alone; under them the arrows step through the ten steps a frame is built in. " +
+					"Its inspecting views show the place as the switches leave it, so the wireframe shows " +
+					"what culling left. **Gizmos** draws Attachments, welds and constraints over the " +
 					"view, and those of what is picked. **Performance** holds frustum and occlusion culling: " +
 					"parts out of view, or hidden behind solid parts, are not drawn, and the wireframe shows " +
 					"what is left.",
 			},
 			{
 				t: "table",
-				head: ["See", "Shows"],
+				head: ["View", "Shows"],
 				rows: [
 					["Final output", "The place as the switches leave it"],
 					["Wireframe", "Every part's edges, those behind others too"],

@@ -137,8 +137,10 @@ describe("the Rendering panel's switches", () => {
 			const now = changedFrom(PERFORMANCE_PRESETS[i].features);
 			expect(before.every((k) => now.includes(k))).toBe(true);
 		}
-		for (const p of DEBUG_PRESETS)
-			expect(changedFrom(p.features).length > 0 || !!p.look).toBe(true);
+		for (const p of DEBUG_PRESETS) expect(changedFrom(p.features).length).toBeGreaterThan(0);
+		// Debugging presets leave culling as it is.
+		for (const p of DEBUG_PRESETS.filter((x) => x.id !== "debug-no-culling"))
+			expect(p.features.frustumCulling && p.features.occlusionCulling).toBe(true);
 		expect(new Set(RENDER_PRESETS.map((p) => p.id)).size).toBe(RENDER_PRESETS.length);
 	});
 });

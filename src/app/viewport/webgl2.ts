@@ -1359,8 +1359,9 @@ export class WebGl2View implements ViewRenderer {
 	private cull(camera: Camera, draws: readonly { chunks?: Chunk[]; count: number }[]): void {
 		this.runs.clear();
 		const passes = passesOf(this.render.features);
-		if (!passes.frustum) {
+		if (!passes.frustum && !passes.occlusion) {
 			this.culled = null;
+			this.occlusionStale = false;
 			return;
 		}
 		const vp = multiply(
@@ -1383,7 +1384,9 @@ export class WebGl2View implements ViewRenderer {
 			}
 			const runs = visibleRuns(
 				draw.chunks,
-				(c) => boxInView(planes, c.min, c.max) && !(depth && boxHidden(depth, c.min, c.max)),
+				(c) =>
+					(!passes.frustum || boxInView(planes, c.min, c.max)) &&
+					!(depth && boxHidden(depth, c.min, c.max)),
 			);
 			this.runs.set(draw, runs);
 			for (let i = 1; i < runs.length; i += 2) drawn += runs[i];
@@ -2700,7 +2703,7 @@ export class WebGl2View implements ViewRenderer {
 		// The camera's passes from here draw only the chunks in view.
 		this.cull(camera, this.draws);
 		const culling = passesOf(this.render.features);
-		if (culling.frustum && culling.occlusion) this.drawFar(camera);
+		if (culling.occlusion) this.drawFar(camera);
 		this.usualDepth(false);
 		gl.clearDepth(this.farDepth);
 		this.shape = glowShape(this.lighting?.post, postOn);

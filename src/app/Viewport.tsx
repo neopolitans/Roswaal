@@ -1038,7 +1038,8 @@ export function RenderPanel({ controller }: { controller: ViewportController }) 
 	const legend = HEAT_LEGEND[render.mode];
 	const viewLegend = renderLegend(render.mode);
 	const { features } = render;
-	const setFeatures = (next: RenderFeatures) => apply({ ...render, features: next, mode: "lit" });
+	// See, the preset and the switches are independent: a switch changes only itself.
+	const setFeatures = (next: RenderFeatures) => apply({ ...render, features: next });
 	const { step, exact } = stepOf(features);
 	const [shut, setShut] = useState<ReadonlySet<string>>(() => new Set(["Post effects"]));
 	const [hint, setHint] = useState<string | null>(null);
@@ -1048,13 +1049,19 @@ export function RenderPanel({ controller }: { controller: ViewportController }) 
 	const toStep = (n: number) => setFeatures(upToStep(Math.max(0, Math.min(RENDER_STEPS.length, n))));
 	const choose = (id: string) => {
 		const p = presetById(id);
-		apply({
-			...render,
-			preset: p.id,
-			features: p.features,
-			mode: p.look ?? "lit",
-			lightRanges: p.lightRanges ?? false,
-		});
+		apply({ ...render, preset: p.id, features: p.features });
+	};
+	/**
+	 * One dropdown for what the panel shows: a preset is the final output with
+	 * its switches; an inspecting view keeps the switches as they are, so the
+	 * wireframe shows the place as culled, and so on.
+	 */
+	const pick = (value: string) => {
+		const [kind, id] = value.split(":");
+		if (kind === "preset") {
+			const p = presetById(id);
+			apply({ ...render, mode: "lit", preset: p.id, features: p.features });
+		} else apply({ ...render, mode: id as RenderMode });
 	};
 	return (
 		<div className="place-properties render-panel">
@@ -1063,71 +1070,66 @@ export function RenderPanel({ controller }: { controller: ViewportController }) 
 				<div className="place-groups">
 					<div className="place-group">
 						<label className="render-heat">
-							<span>Preset</span>
+							<span>View</span>
 							<select
 								className="tb place-edit-field"
-								value={base.id}
-								onChange={(e) => choose(e.target.value)}
+								value={render.mode === "lit" ? `preset:${base.id}` : `mode:${render.mode}`}
+								onChange={(e) => pick(e.target.value)}
 							>
-								<optgroup label="Performance">
+								<optgroup label="Final output">
 									{PERFORMANCE_PRESETS.map((p) => (
-										<option key={p.id} value={p.id}>
+										<option key={p.id} value={`preset:${p.id}`}>
 											{p.label}
 										</option>
 									))}
 								</optgroup>
-								<optgroup label="Render debugging">
+								<optgroup label="Final output, one feature">
 									{DEBUG_PRESETS.map((p) => (
-										<option key={p.id} value={p.id}>
+										<option key={p.id} value={`preset:${p.id}`}>
 											{p.label}
+										</option>
+									))}
+								</optgroup>
+								<optgroup label="Inspect, as the switches leave it">
+									{RENDER_MODES.filter(([mode]) => mode !== "lit").map(([mode, label]) => (
+										<option key={mode} value={`mode:${mode}`}>
+											{label}
 										</option>
 									))}
 								</optgroup>
 							</select>
 						</label>
-						<div className="render-step">
-							<button
-								type="button"
-								className="tb icon-only"
-								aria-label="Previous step"
-								disabled={step === 0 && exact}
-								onClick={() => toStep(exact ? step - 1 : step)}
-							>
-								<Icon name="chevron" size={14} className="render-step-back" />
-							</button>
-							<span className="render-step-where" aria-live="polite">
-								<span className="render-step-count">
-									{step === 0 ? "Before step 1" : `Step ${step} of ${RENDER_STEPS.length}`}
+						{render.mode === "lit" && (
+							<div className="render-step">
+								<button
+									type="button"
+									className="tb icon-only"
+									aria-label="Previous step"
+									disabled={step === 0 && exact}
+									onClick={() => toStep(exact ? step - 1 : step)}
+								>
+									<Icon name="chevron" size={14} className="render-step-back" />
+								</button>
+								<span className="render-step-where" aria-live="polite">
+									<span className="render-step-count">
+										{step === 0 ? "Before step 1" : `Step ${step} of ${RENDER_STEPS.length}`}
+									</span>
+									<span className="render-step-name">
+										{step === 0 ? "Nothing lit" : RENDER_STEPS[step - 1][0]}
+										{exact ? "" : ", and more"}
+									</span>
 								</span>
-								<span className="render-step-name">
-									{step === 0 ? "Nothing lit" : RENDER_STEPS[step - 1][0]}
-									{exact ? "" : ", and more"}
-								</span>
-							</span>
-							<button
-								type="button"
-								className="tb icon-only"
-								aria-label="Next step"
-								disabled={step === RENDER_STEPS.length}
-								onClick={() => toStep(step + 1)}
-							>
-								<Icon name="chevron" size={14} className="render-step-on" />
-							</button>
-						</div>
-						<label className="render-heat">
-							<span>See</span>
-							<select
-								className="tb place-edit-field"
-								value={render.mode}
-								onChange={(e) => apply({ ...render, mode: e.target.value as RenderMode })}
-							>
-								{RENDER_MODES.map(([mode, label]) => (
-									<option key={mode} value={mode}>
-										{label}
-									</option>
-								))}
-							</select>
-						</label>
+								<button
+									type="button"
+									className="tb icon-only"
+									aria-label="Next step"
+									disabled={step === RENDER_STEPS.length}
+									onClick={() => toStep(step + 1)}
+								>
+									<Icon name="chevron" size={14} className="render-step-on" />
+								</button>
+							</div>
+						)}
 						{heatStyled(render.mode) && (
 							<label className="render-heat">
 								<span>Heat</span>
@@ -1232,7 +1234,7 @@ export function RenderPanel({ controller }: { controller: ViewportController }) 
 				<button
 					type="button"
 					className="tb"
-					disabled={changed === 0 && render.mode === (base.look ?? "lit")}
+					disabled={changed === 0}
 					onClick={() => choose(base.id)}
 				>
 					Reset

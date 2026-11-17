@@ -1175,8 +1175,9 @@ export class WebGpuView implements ViewRenderer {
 	private cull(camera: Camera, draws: readonly { chunks?: Chunk[]; count: number }[]): void {
 		this.runs.clear();
 		const passes = passesOf(this.render.features);
-		if (!passes.frustum) {
+		if (!passes.frustum && !passes.occlusion) {
 			this.culled = null;
+			this.occlusionStale = false;
 			return;
 		}
 		const vp = multiply(
@@ -1198,7 +1199,9 @@ export class WebGpuView implements ViewRenderer {
 			}
 			const runs = visibleRuns(
 				draw.chunks,
-				(c) => boxInView(planes, c.min, c.max) && !(depth && boxHidden(depth, c.min, c.max)),
+				(c) =>
+					(!passes.frustum || boxInView(planes, c.min, c.max)) &&
+					!(depth && boxHidden(depth, c.min, c.max)),
 			);
 			this.runs.set(draw, runs);
 			for (let i = 1; i < runs.length; i += 2) drawn += runs[i];
@@ -2376,7 +2379,10 @@ export class WebGpuView implements ViewRenderer {
 		this.cull(camera, this.draws);
 		// Occlusion: the solid parts' depth first, in a pass of its own.
 		const passes = passesOf(this.render.features);
-		const early = passes.frustum && passes.occlusion && mode !== "overdraw" && mode !== "density";
+		// Made in every view, so occlusion works in each; only the picture's
+		// and the wireframe's passes go on from its depth.
+		const early = passes.occlusion;
+		const load = early && mode !== "overdraw" && mode !== "density";
 		const screen = this.context.getCurrentTexture().createView();
 		// A BloomEffect blooms the whole picture, Neon or not: see fsBright.
 		const bloom = postOn && !!this.lighting?.post.bloom && show.glow && !heat && !wire && !tinted;
@@ -2431,7 +2437,7 @@ export class WebGpuView implements ViewRenderer {
 			depthStencilAttachment: {
 				view: this.depth!.createView(),
 				depthClearValue: 0,
-				depthLoadOp: early ? "load" : "clear",
+				depthLoadOp: load ? "load" : "clear",
 				depthStoreOp: glow ? "store" : "discard",
 			},
 		});
@@ -2457,7 +2463,7 @@ export class WebGpuView implements ViewRenderer {
 			this.drawEffects(pass, camera);
 		} else {
 			// The solid parts' depth, unless occlusion's pass has drawn it.
-			if (!early) {
+			if (!load) {
 				pass.setPipeline(this.solidDepth);
 				this.solids(pass);
 			}
@@ -2837,13 +2843,21 @@ export class WebGpuView implements ViewRenderer {
 		});
 		d.queue.writeBuffer(this.densityTris.buffer, 0, tris);
 		pass.setPipeline(this.density);
-		this.tally.draws += all.length;
 		all.forEach((draw, k) => {
+			// Culled as the picture is: see cull.
+			const runs = this.runs.get(draw);
+			if (runs && runs.length === 0) return;
 			pass.setBindGroup(1, this.densityTris!.group, [k * slot]);
 			pass.setVertexBuffer(0, draw.vertices);
 			pass.setVertexBuffer(1, draw.instances);
 			pass.setIndexBuffer(draw.indices, draw.format);
-			pass.drawIndexed(draw.indexCount, draw.count);
+			if (!runs) {
+				pass.drawIndexed(draw.indexCount, draw.count);
+				this.tally.draws++;
+				return;
+			}
+			for (let i = 0; i < runs.length; i += 2) pass.drawIndexed(draw.indexCount, runs[i + 1], 0, 0, runs[i]);
+			this.tally.draws += runs.length / 2;
 		});
 		this.count(all);
 	}
