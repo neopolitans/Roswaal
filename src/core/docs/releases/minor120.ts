@@ -9,6 +9,25 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.261.0",
+		date: "2026-11-17",
+		headline: "The Rendering panel has a switch for every part of the picture, steps through a frame and presets; beams light as Studio's.",
+		added: [
+			"**A switch for every part of the picture.** The Rendering panel has one for each part of the picture, in groups, and steps through the ten steps a frame is built in. A dot marks what is changed from Studio.",
+			"**Presets.** Performance presets, from As Studio to Lowest, and render debugging presets that show one feature alone or what it costs.",
+			"**Gizmos.** Attachments, welds and constraints drawn over the place, and those of what is picked.",
+			"**Add Service to Explorer** opens a picker like the type picker: searchable, grouped, each service with its icon.",
+		],
+		changed: [
+			"**Beams and particles** are lit as Studio lights them: a cyan beam stays cyan where it turned white.",
+			"**The lighting modes** are now steps in the Rendering panel. Look at holds the picture and the debugging views.",
+		],
+		fixed: [
+			"**Faint images in WebGPU**, such as a Beam's scan lines, are as bright as in WebGL2.",
+			"**A SurfaceLight on a wide face** no longer slows every pixel in the place, and no light is left out where many meet.",
+		],
+	},
+	{
 		version: "0.260.0",
 		date: "2026-11-16",
 		headline: "A BloomEffect blooms the whole picture, and glass panels blur what is behind them again.",
