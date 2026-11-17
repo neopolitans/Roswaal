@@ -91,7 +91,7 @@ export function gizmosOn(settings: GizmoSettings, picked: boolean): boolean {
 
 /** How large a gizmo `d` studs from the camera is drawn. */
 export function gizmoScale(d: number): number {
-	return Math.min(4, Math.max(0.4, d / BASE_DISTANCE));
+	return Math.min(4, Math.max(0.5, d / BASE_DISTANCE));
 }
 
 /** A short cross of the world's three axes at `p`, `r` each way. */
@@ -209,7 +209,7 @@ export function jointLines(j: SceneJoint, s: number, out: number[]): void {
 			return;
 		}
 		case "hinge": {
-			const r = Math.max(j.radius ?? 0.15, 0.25 * s);
+			const r = Math.max(j.radius ?? 0.15, 0.4 * s);
 			for (const f of j.to ? [j.from, j.to] : [j.from]) {
 				const x = xAxis(f);
 				const y = yAxis(f);
@@ -224,7 +224,7 @@ export function jointLines(j: SceneJoint, s: number, out: number[]): void {
 				const z = [j.from.rotation[2], j.from.rotation[5], j.from.rotation[8]];
 				const from = ((j.lower ?? -45) * Math.PI) / 180;
 				const to = ((j.upper ?? 45) * Math.PI) / 180;
-				const far = r * 2.4;
+				const far = Math.max(r * 2.4, 1.6 * s);
 				lines.arc(a, y, z, far, Math.min(from, to), Math.max(from, to));
 				for (const t of [from, to])
 					lines.line(a, add(add(a, y, far * Math.cos(t)), z, far * Math.sin(t)));
@@ -240,7 +240,7 @@ export function jointLines(j: SceneJoint, s: number, out: number[]): void {
 				const x = xAxis(j.from);
 				const [u, v] = across(x);
 				const half = (Math.min(Math.max(j.upper ?? 45, 0), 180) * Math.PI) / 180;
-				const l = 1.6 * s;
+				const l = 2 * s;
 				const rim = add(a, x, l * Math.cos(half));
 				const rr = l * Math.sin(half);
 				lines.arc(rim, u, v, rr);

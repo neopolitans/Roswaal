@@ -70,7 +70,7 @@ describe("an Attachment's lines", () => {
 	});
 
 	it("grow with the distance from the camera, within bounds", () => {
-		expect(gizmoScale(4)).toBe(0.4);
+		expect(gizmoScale(4)).toBe(0.5);
 		expect(gizmoScale(40)).toBe(1);
 		expect(gizmoScale(80)).toBe(2);
 		expect(gizmoScale(10_000)).toBe(4);
