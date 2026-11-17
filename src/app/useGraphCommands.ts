@@ -592,6 +592,8 @@ export function useGraphCommands(context: GraphCommandsContext) {
 			// compile the graph behind it, which is not what its button says.
 			if (mod && e.key.toLowerCase() === "s") {
 				e.preventDefault();
+				// The place saves its own while it has the keys: see App.
+				if (placeHasKeys(e.target)) return;
 				if (mapDoc) void runCompileMap(mapDoc.path);
 				else if (!source && editor.path) void runCompile(editor.path, true, false, true);
 				return;

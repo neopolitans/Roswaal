@@ -259,6 +259,8 @@ export function ProjectBar(props: ProjectBarProps) {
 							{props.action}
 						</ToolGroup>
 					)}
+					{/* The place's Save, alone: there is nothing to compile while it is in front. */}
+					{!scripting && props.action && <ToolGroup>{props.action}</ToolGroup>}
 					<ToolGroup>
 						<button
 							className={cx("tb icon-only", cards.isOpen("right") && "on")}
@@ -405,7 +407,8 @@ export function DocumentBar(props: DocumentBarProps) {
 
 /**
  * The open document's primary action, at the end of the compile group: a
- * graph compiles, a node map writes its project file.
+ * graph compiles, a node map writes its project file, and the place saves
+ * its changes -- `hasPath` there is whether it has any.
  */
 export function DocumentAction({
 	kind,
@@ -413,7 +416,7 @@ export function DocumentAction({
 	hasPath,
 	onCompile,
 }: {
-	kind: "graph" | "map";
+	kind: "graph" | "map" | "place";
 	busy: string | null;
 	hasPath: boolean;
 	onCompile: () => void;
@@ -422,15 +425,21 @@ export function DocumentAction({
 		<button
 			className="tb primary with-icon tb-collapsible"
 			title={
-				kind === "map"
-					? "Write project file — the Rojo project this map describes (Ctrl+S)"
-					: "Compile script — just this document (Ctrl+S)"
+				kind === "place"
+					? hasPath
+						? "Save the place's changes into its file (Ctrl+S)"
+						: "No changes to save"
+					: kind === "map"
+						? "Write project file — the Rojo project this map describes (Ctrl+S)"
+						: "Compile script — just this document (Ctrl+S)"
 			}
 			disabled={!hasPath || busy !== null}
 			onClick={onCompile}
 		>
-			<Icon name="build" size={15} />
-			<span className="tb-label">{kind === "map" ? "Write project file" : "Compile script"}</span>
+			<Icon name={kind === "place" ? "save" : "build"} size={15} />
+			<span className="tb-label">
+				{kind === "place" ? "Save" : kind === "map" ? "Write project file" : "Compile script"}
+			</span>
 		</button>
 	);
 }

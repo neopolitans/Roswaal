@@ -8,8 +8,8 @@
  *
  * Read-only unless Modify DataModel Instances is on. Then a property the host
  * offers an edit for is changed in Properties, an instance is added, deleted
- * or duplicated from its menu and moved by dragging it onto another, and the
- * host writes each change into the place file.
+ * or duplicated from its menu and moved by dragging it onto another. The host
+ * keeps each change until the place is saved (see `placeSave.ts`).
  */
 
 import { memo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -235,8 +235,8 @@ export interface PlaceBrowserProps {
 	confirmEdit?: (studio: boolean) => Promise<boolean>;
 	/** For the confirmation a deletion asks. */
 	ask?: Dialogs["ask"];
-	/** A change to the tree was written: the place's new version, and the backup kept first. */
-	onChanged?: (stamp: string, backup?: string) => void;
+	/** A change to the tree was made: the place's new version. */
+	onChanged?: (stamp: string) => void;
 }
 
 type Loaded = Extract<PlaceTree, { stamp: string }>;
@@ -613,7 +613,7 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 					answer.stamp,
 				);
 				followChange(answer, moved);
-				onChanged?.(answer.stamp, answer.backup);
+				onChanged?.(answer.stamp);
 			} catch (err) {
 				setRefusal(errorMessage(err));
 			} finally {
@@ -656,7 +656,7 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 					treeChanges.add(answer.stamp);
 					if (s.property === "Name" && nodes)
 						renamedAt.set(answer.stamp, { from: pathTo(nodes, s.index), to: answer.instance.path });
-					onChanged?.(answer.stamp, answer.backup);
+					onChanged?.(answer.stamp);
 				} else {
 					const c = s.change;
 					const was = nodes && c.kind === "move" ? pathTo(nodes, c.index) : null;
@@ -670,7 +670,7 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 							: undefined,
 					);
 					if (c.kind === "delete") setSelection(NO_SELECTION);
-					onChanged?.(answer.stamp, answer.backup);
+					onChanged?.(answer.stamp);
 				}
 				showToast({ title: which === "undo" ? "Undo" : "Redo", detail: s.label, icon: which });
 			} catch (err) {
@@ -945,7 +945,7 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 			</div>
 			{(busy || refusal) && (
 				<p className={cx("place-note", refusal && "place-refused")}>
-					{busy ? "Writing the place…" : refusal}
+					{busy ? "Changing the place…" : refusal}
 				</p>
 			)}
 
@@ -1039,10 +1039,10 @@ export interface PlacePropertiesProps {
 	/** Asks before the first change to the place; resolves to whether to go on. */
 	confirmEdit?: (target: PlaceTarget) => Promise<boolean>;
 	/**
-	 * A change was written: the place's new version, the backup kept first, if
-	 * one was, and the instance as it now is -- a rename moves it in the tree.
+	 * A change was made: the place's new version, and the instance as it now
+	 * is -- a rename moves it in the tree.
 	 */
-	onWritten?: (stamp: string, backup?: string, instance?: PlaceInstanceInfo) => void;
+	onWritten?: (stamp: string, instance?: PlaceInstanceInfo) => void;
 	/** For an attribute's name and type, and a tag's name, as one is added. */
 	ask?: Dialogs["ask"];
 	/** Pins what is shown in a window of its own, the panel left to follow the pick. */
@@ -1061,7 +1061,6 @@ export const PlaceProperties = memo(function PlaceProperties(props: PlacePropert
 	/** The property being written, and the last change refused, by property name. */
 	const [busy, setBusy] = useState<string | null>(null);
 	const [refused, setRefused] = useState<{ name: string; message: string } | null>(null);
-	const [backup, setBackup] = useState<string | null>(null);
 	// The version a change is made against: the last one written here, or the target's.
 	const stamp = useRef(target.stamp);
 	useEffect(() => {
@@ -1098,8 +1097,7 @@ export const PlaceProperties = memo(function PlaceProperties(props: PlacePropert
 					renamedAt.set(answer.stamp, { from: info.path, to: answer.instance.path });
 				stamp.current = answer.stamp;
 				setInfo(answer.instance);
-				if (answer.backup) setBackup(answer.backup);
-				onWritten?.(answer.stamp, answer.backup, answer.instance);
+				onWritten?.(answer.stamp, answer.instance);
 			} catch (err) {
 				setRefused({ name: label, message: errorMessage(err) });
 			} finally {
@@ -1256,11 +1254,6 @@ export const PlaceProperties = memo(function PlaceProperties(props: PlacePropert
 				{editable && target.studio && (
 					<p className="place-summary place-studio">
 						Studio has this place open. Its next save puts back the values it has.
-					</p>
-				)}
-				{editable && backup && (
-					<p className="place-summary" title={backup}>
-						Backup: {backup.split("/").pop()}
 					</p>
 				)}
 				{problem ? (

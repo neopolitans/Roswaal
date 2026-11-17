@@ -9,6 +9,7 @@ import type { LightingParams } from "../core/rbx/lighting.js";
 import type { PlaceReport } from "../core/rbx/placeExport.js";
 import type { RawItem, RawProp } from "../core/rbx/rawValue.js";
 import { type PlaceScene, SCENE_KINDS } from "../core/rbx/scene.js";
+import { applyScenePatch, type ScenePatch } from "../core/rbx/sceneDiff.js";
 
 /** What adding a package did. See `src/server/wally.ts`. */
 export interface WallyOutcome {
@@ -41,6 +42,7 @@ import type { NodeDef, NodeScript, RoswaalConfig, ScriptClass, Target } from "..
 import type { ExportedFunction } from "../core/scriptCalls.js";
 import type { TypeField } from "../core/typeFields.js";
 import { keyedEventStream } from "./keyedEvents.js";
+import { notePlaceSave } from "./placeSave.js";
 
 export interface TreeEntry {
 	path: string;
@@ -103,6 +105,10 @@ export type PlaceTree =
 			scripts: Record<number, string>;
 			/** Studio has the place open: its lock file is beside it. */
 			studio?: boolean;
+			/** Edits are waiting for a save: see `POST /place/save`. */
+			unsaved?: boolean;
+			/** The file changed on disk since those edits began. */
+			diskChanged?: boolean;
 	  };
 
 /** A node pack on disk. The daemon's copy is in `src/server/project.ts`. */
@@ -272,8 +278,22 @@ export interface PlaceFrame {
 export interface PlaceWritten {
 	stamp: string;
 	instance: PlaceInstanceInfo;
-	backup?: string;
 	undo?: { property: string; raw: RawProp };
+	/** Edits are waiting for a save. */
+	unsaved?: boolean;
+	diskChanged?: boolean;
+}
+
+/** An answer about the place, read for whether it has edits waiting, and handed on. */
+function noted<T extends object>(answer: T): T {
+	notePlaceSave(answer as { unsaved?: boolean; diskChanged?: boolean });
+	return answer;
+}
+
+/** The place's scene as the viewer was last sent it, which `placeScene` can be sent the changes to. */
+export interface SceneSince {
+	stamp: string;
+	scene: PlaceScene & { lighting: LightingParams };
 }
 
 /**
@@ -341,7 +361,8 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 		if (body.code === "project-changed") {
 			throw new ProjectChangedError(body.error ?? "The project changed.", body.root ?? "");
 		}
-		throw new Error(body.error ?? "Request failed");
+		// The code goes with it, for a caller that answers one refusal differently.
+		throw Object.assign(new Error(body.error ?? "Request failed"), { code: body.code });
 	}
 	return payload as T;
 }
@@ -506,7 +527,24 @@ export const api = {
 	addPlaceFile: (fileName: string, data: string) =>
 		post<{ file: string }>("/api/place/import", { fileName, data }),
 	/** The place as a tree of names and classes, for the DataModel browser. */
-	place: () => request<PlaceTree>("/api/place"),
+	place: () =>
+		request<PlaceTree>("/api/place").then((tree) => {
+			notePlaceSave(tree.file === null ? {} : tree);
+			return tree;
+		}),
+	/**
+	 * Writes the place's unsaved edits into its file. Refused with code
+	 * `place-changed-on-disk` when Studio saved it since, unless `overwrite`.
+	 */
+	placeSave: (overwrite = false) =>
+		post<Extract<PlaceTree, { stamp: string }> & { backup?: string }>("/api/place/save", {
+			overwrite,
+		}).then(noted),
+	/** Lets the place's unsaved edits go: the place is the file again. */
+	placeRevert: () =>
+		post<Extract<PlaceTree, { stamp: string }>>("/api/place/revert", {}).then(noted),
+	/** Keeps the unsaved edits over a file changed on disk: the next save writes over it. */
+	placeKeep: () => post<Extract<PlaceTree, { stamp: string }>>("/api/place/keep", {}).then(noted),
 	/** The services the project's Luau reaches, for which DataModel lists. */
 	placeServices: () => request<{ used: string[] }>("/api/place/services"),
 	/** One instance of the place, its properties as text. */
@@ -514,16 +552,30 @@ export const api = {
 		request<PlaceInstanceInfo>(
 			`/api/place/instance?stamp=${encodeURIComponent(stamp)}&index=${index}`,
 		),
-	/** The place's Workspace as the viewport draws it: see `GET /place/scene`. */
-	placeScene: async (stamp: string): Promise<PlaceScene & { lighting: LightingParams }> => {
+	/**
+	 * The place's Workspace as the viewport draws it: see `GET /place/scene`.
+	 * Given the scene the viewer has, only what changed since is sent, and
+	 * put into a copy of it.
+	 */
+	placeScene: async (
+		stamp: string,
+		since?: SceneSince,
+	): Promise<PlaceScene & { lighting: LightingParams }> => {
 		type Wire = Record<string, { data: string; count: number }>;
 		const wire = await request<
 			Omit<PlaceScene, "kinds" | "translucent"> & {
 				kinds: Wire;
 				translucent?: Wire;
 				lighting: LightingParams;
+				patch?: true;
+				changed?: number[];
+				fields?: ScenePatch["fields"];
 			}
-		>(`/api/place/scene?stamp=${encodeURIComponent(stamp)}`);
+		>(
+			`/api/place/scene?stamp=${encodeURIComponent(stamp)}${
+				since ? `&since=${encodeURIComponent(since.stamp)}` : ""
+			}`,
+		);
 		const decode = (from: Wire | undefined) => {
 			const out = {} as PlaceScene["kinds"];
 			for (const k of SCENE_KINDS) {
@@ -532,25 +584,33 @@ export const api = {
 			}
 			return out;
 		};
+		if (wire.patch && since) {
+			const patch: ScenePatch = {
+				changed: wire.changed ?? [],
+				fields: wire.fields ?? {},
+				kinds: decode(wire.kinds),
+				translucent: decode(wire.translucent),
+			};
+			return { ...applyScenePatch(since.scene, patch), lighting: wire.lighting };
+		}
 		return { ...wire, kinds: decode(wire.kinds), translucent: decode(wire.translucent) };
 	},
 	/**
-	 * Adds, deletes, moves or duplicates an instance in the place file itself.
-	 * Answers with the place as it now is, where the instance made or moved
-	 * now is, and the backup kept first, when one was.
+	 * Adds, deletes, moves or duplicates an instance in the place, unsaved
+	 * until `placeSave`. Answers with the place as it now is, and where the
+	 * instance made or moved now is.
 	 */
 	placeChange: (stamp: string, change: PlaceInstanceChange) =>
 		post<
 			Extract<PlaceTree, { stamp: string }> & {
 				index?: number;
-				backup?: string;
 				undo?: PlaceInstanceChange;
 			}
-		>("/api/place/instance", { stamp, ...change }),
+		>("/api/place/instance", { stamp, ...change }).then(noted),
 	/**
-	 * Changes one property of one instance in the place file itself. Answers
-	 * with the place's new stamp, the instance as it now is, and the backup
-	 * kept first, when one was.
+	 * Changes one property of one instance in the place, unsaved until
+	 * `placeSave`. Answers with the place's new stamp and the instance as it
+	 * now is.
 	 */
 	placeProperty: (stamp: string, index: number, property: string, value: unknown) =>
 		post<PlaceWritten>("/api/place/property", {
@@ -558,11 +618,11 @@ export const api = {
 			index,
 			property,
 			value,
-		}),
+		}).then(noted),
 	/** Puts back a value a change's `undo` gave, exactly as the file held it. */
 	placeRestoreProperty: (stamp: string, index: number, property: string, raw: RawProp) =>
-		post<PlaceWritten>("/api/place/property", { stamp, index, property, raw }),
-	/** Changes, adds or removes one attribute in the place file: `value`, `add` with a type, or `remove`. */
+		post<PlaceWritten>("/api/place/property", { stamp, index, property, raw }).then(noted),
+	/** Changes, adds or removes one attribute in the place: `value`, `add` with a type, or `remove`. */
 	placeAttribute: (
 		stamp: string,
 		index: number,
@@ -572,15 +632,15 @@ export const api = {
 			stamp,
 			index,
 			...change,
-		}),
-	/** Adds or removes one tag in the place file. */
+		}).then(noted),
+	/** Adds or removes one tag in the place. */
 	placeTag: (stamp: string, index: number, tag: string, remove = false) =>
 		post<PlaceWritten>("/api/place/tag", {
 			stamp,
 			index,
 			tag,
 			remove,
-		}),
+		}).then(noted),
 	customNodes: () => request<{ custom: NodeDef[]; errors: string[] }>("/api/nodes"),
 
 	readScript: (path: string) =>

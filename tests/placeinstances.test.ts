@@ -404,11 +404,14 @@ describe("the instance route", () => {
 		})) as Outline;
 		expect(answer.stamp).not.toBe(place.stamp);
 		expect(answer.index).toBe(at(answer, "Barrel"));
-		expect(
+		const onDisk = async () =>
 			readRbx(await readFile(path.join(root, "place.rbxl"))).instances.some(
 				(i) => i.name === "Barrel",
-			),
-		).toBe(true);
+			);
+		// Unsaved until a save writes it.
+		expect(await onDisk()).toBe(false);
+		await session.handle("POST", "/place/save", { body: {} });
+		expect(await onDisk()).toBe(true);
 	});
 
 	it("asks before a deletion unlinks a script, and keeps the file", async () => {

@@ -1,7 +1,7 @@
 /**
  * Changing a property in a place: which properties may change, the one value
  * written into a binary or an XML place with every other byte kept, and the
- * route that writes it over the project's place with a backup first.
+ * route that makes it an unsaved edit, written at a save with a backup first.
  */
 
 import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -275,38 +275,53 @@ describe("the property route", () => {
 		instance: { index: number; properties: { name: string; value: string }[] };
 	};
 
-	it("writes the place, keeps one backup until the file changes elsewhere, and keeps the outline", async () => {
+	it("keeps changes unsaved, writes them at a save with one backup until the file changes elsewhere, and keeps the outline", async () => {
 		const { session, tree, at } = await open();
 		const original = await readFile(path.join(root, "place.rbxl"));
+		const save = () =>
+			session.handle("POST", "/place/save", { body: {} }) as Promise<{
+				stamp: string;
+				backup?: string;
+			}>;
 		const first = (await session.handle("POST", "/place/property", {
 			body: { stamp: tree.stamp, index: at("B"), property: "Anchored", value: false },
-		})) as Answer;
-		expect(first.backup).toMatch(/^\.roswaal\/backups\/place\.\d{8}-\d{6}\.rbxl$/);
-		expect(new Uint8Array(await readFile(path.join(root, first.backup!)))).toEqual(
-			new Uint8Array(original),
-		);
+		})) as Answer & { unsaved?: boolean };
+		expect(first.unsaved).toBe(true);
 		expect(first.instance.index).toBe(at("B"));
 		expect(first.instance.properties.find((p) => p.name === "Anchored")!.value).toBe("false");
+		// Nothing on disk yet.
+		expect(new Uint8Array(await readFile(path.join(root, "place.rbxl")))).toEqual(
+			new Uint8Array(original),
+		);
+
+		const saved = await save();
+		expect(saved.stamp).toBe(first.stamp);
+		expect(saved.backup).toMatch(/^\.roswaal\/backups\/place\.\d{8}-\d{6}\.rbxl$/);
+		expect(new Uint8Array(await readFile(path.join(root, saved.backup!)))).toEqual(
+			new Uint8Array(original),
+		);
 
 		const second = (await session.handle("POST", "/place/property", {
 			body: { stamp: first.stamp, index: at("B"), property: "Transparency", value: 0.5 },
 		})) as Answer;
-		expect(second.backup).toBeUndefined();
-		const again = (await session.handle("GET", "/place")) as typeof tree;
+		expect((await save()).backup).toBeUndefined();
+		const again = (await session.handle("GET", "/place")) as typeof tree & { unsaved?: boolean };
 		expect(again.stamp).toBe(second.stamp);
+		expect(again.unsaved).toBeUndefined();
 		expect(again.outline).toEqual(tree.outline);
 		const doc = readRbx(await readFile(path.join(root, "place.rbxl")));
 		expect(named(doc, "B").props.get("Anchored")!.value).toBe(false);
 		expect(named(doc, "B").props.get("Transparency")!.value).toBe(0.5);
 
-		// Saved elsewhere since: the next change copies that version first.
+		// Saved elsewhere since: the next save copies that version first.
 		await writeFile(path.join(root, "place.rbxl"), buildPlace(lighting(), "none"));
 		const fresh = (await session.handle("GET", "/place")) as typeof tree;
-		const third = (await session.handle("POST", "/place/property", {
+		await session.handle("POST", "/place/property", {
 			body: { stamp: fresh.stamp, index: at("A"), property: "Anchored", value: true },
-		})) as Answer;
+		});
+		const third = await save();
 		expect(third.backup).toBeDefined();
-		expect(third.backup).not.toBe(first.backup);
+		expect(third.backup).not.toBe(saved.backup);
 		expect(await readdir(path.join(root, ".roswaal", "backups"))).toHaveLength(2);
 	});
 

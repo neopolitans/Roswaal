@@ -109,7 +109,15 @@ import {
 	reopenPanel,
 	showTab,
 } from "./panels.js";
-import { setPlaceInFront, watchPlaceFocus } from "./placeHistory.js";
+import {
+	EMPTY as NO_PLACE_HISTORY,
+	placeHasKeys,
+	seen,
+	setHistory as setPlaceHistory,
+	setPlaceInFront,
+	watchPlaceFocus,
+} from "./placeHistory.js";
+import { placeSaveState, saveKey, usePlaceSave } from "./placeSave.js";
 import { readOutline, rememberOutline } from "./placeOutline.js";
 import type * as PlaceViewer from "./placeViewerModule.js";
 import { OUTLINE_WIDTHS, readPreferences, wheelAction } from "./preferences.js";
@@ -469,13 +477,130 @@ export function App() {
 
 	const { dialog, dialogOpen, ask, notify } = useDialogs();
 
-	/** The version of the place a property change last wrote, for the browser to read. */
+	/** The version of the place a change last made, for the browser and the view to read. */
 	const [placeWritten, setPlaceWritten] = useState<string | null>(null);
 	/** Place files a property change has been agreed to this session. */
 	const placeEditsAgreed = useRef(new Set<string>());
+	/** Whether the place has edits not saved, and whether its file changed under them. */
+	const placeSave = usePlaceSave();
+	const [placeSaving, setPlaceSaving] = useState(false);
+
+	/** The place's edits let go: the file's version again, with nothing to undo. */
+	const revertPlace = useCallback(async () => {
+		const answer = await api.placeRevert();
+		setPlaceHistory(api.projectRoot() ?? "", seen(NO_PLACE_HISTORY, answer.stamp));
+		setPlaceWritten(answer.stamp);
+	}, []);
+
 	/**
-	 * Asks before the first property change to a place: it is written into
-	 * the place file, which Studio may have open.
+	 * Writes the place's edits into its file. When Studio saved the file since
+	 * they began, asks which to keep. Resolves to whether nothing is left
+	 * unsaved: saved, or let go for the file's version.
+	 */
+	const savePlace = useCallback(async (): Promise<boolean> => {
+		const file = project?.place;
+		if (!file || !placeSaveState().unsaved) return true;
+		const saved = (backup?: string) =>
+			showToast({
+				title: `Saved **${file.split("/").pop()}**`,
+				detail: backup ? `Backup: ${backup}` : undefined,
+				icon: "save",
+				tone: "ok",
+			});
+		setPlaceSaving(true);
+		try {
+			saved((await api.placeSave()).backup);
+			return true;
+		} catch (err) {
+			if ((err as { code?: string }).code !== "place-changed-on-disk") {
+				notify("The place was not saved", errorMessage(err));
+				return false;
+			}
+			const choice = await ask({
+				kind: "choice",
+				title: "The place changed on disk",
+				message: "It was saved outside Roswaal since your edits began.",
+				items: [file],
+				choices: [
+					{ value: "disk", label: "Use the file" },
+					{ value: "mine", label: "Save mine over it", primary: true },
+				],
+			});
+			try {
+				if (choice === "mine") saved((await api.placeSave(true)).backup);
+				else if (choice === "disk") await revertPlace();
+				else return false;
+				return true;
+			} catch (again) {
+				notify("The place was not saved", errorMessage(again));
+				return false;
+			}
+		} finally {
+			setPlaceSaving(false);
+		}
+	}, [project?.place, ask, notify, revertPlace]);
+
+	/**
+	 * Before the place's edits would be left behind -- its tab closed, another
+	 * place or project opened -- asks whether to save them. Resolves to
+	 * whether to go on.
+	 */
+	const settlePlace = useCallback(async (): Promise<boolean> => {
+		const file = project?.place;
+		if (!file || !placeSaveState().unsaved) return true;
+		const choice = await ask({
+			kind: "choice",
+			title: `Save changes to ${file.split("/").pop()}?`,
+			message: "Your changes to the place are not saved.",
+			choices: [
+				{ value: "discard", label: "Don't Save" },
+				{ value: "save", label: "Save", primary: true },
+			],
+		});
+		if (choice === "save") return savePlace();
+		if (choice !== "discard") return false;
+		try {
+			await revertPlace();
+			return true;
+		} catch (err) {
+			notify("The changes were not let go", errorMessage(err));
+			return false;
+		}
+	}, [project?.place, ask, notify, savePlace, revertPlace]);
+
+	// The file changed on disk under edits not saved: which is kept is asked, once.
+	const askedDiskChange = useRef(false);
+	useEffect(() => {
+		if (!placeSave.diskChanged) {
+			askedDiskChange.current = false;
+			return;
+		}
+		const file = project?.place;
+		if (askedDiskChange.current || !file) return;
+		askedDiskChange.current = true;
+		void (async () => {
+			const choice = await ask({
+				kind: "choice",
+				title: "The place changed on disk",
+				message: "It was saved outside Roswaal while you had changes that are not saved.",
+				items: [file],
+				choices: [
+					{ value: "disk", label: "Use the file" },
+					{ value: "mine", label: "Keep my changes", primary: true },
+				],
+			});
+			try {
+				if (choice === "disk") await revertPlace();
+				else if (choice === "mine") await api.placeKeep();
+			} catch (err) {
+				notify("The place could not be read", errorMessage(err));
+			}
+		})();
+	}, [placeSave.diskChanged, project?.place, ask, notify, revertPlace]);
+
+	/**
+	 * Asks before the first change to a place this session: changes are kept
+	 * until Save, which writes them into the file Studio may have open.
 	 */
 	const confirmPlaceEdit = useCallback(
 		async (target: { studio?: boolean }) => {
@@ -486,8 +611,8 @@ export function App() {
 				kind: "confirm",
 				title: `Change ${file}?`,
 				message:
-					"Each change is written into the place file as you make it. A copy of the file " +
-					"as it is now goes in .roswaal/backups first.",
+					"Changes show at once and reach the file when you save (Ctrl+S). A copy of the " +
+					"file as it was goes in .roswaal/backups first.",
 				points: [
 					target.studio
 						? "Studio has this place open. Its next save puts back the values it has, so close it first."
@@ -504,7 +629,7 @@ export function App() {
 		(studio: boolean) => confirmPlaceEdit({ studio }),
 		[confirmPlaceEdit],
 	);
-	const onPlaceWritten = useCallback((stamp: string, _backup?: string, now?: PlaceInstanceInfo) => {
+	const onPlaceWritten = useCallback((stamp: string, now?: PlaceInstanceInfo) => {
 		// Renamed, it sorts elsewhere: the panel follows it to its new place.
 		setPlaceInspect((shown) =>
 			shown
@@ -519,7 +644,7 @@ export function App() {
 	useEffect(() => {
 		if (!viewport) return;
 		viewport.setMover(async ({ stamp, items, by, label }) => {
-			if (!prefs.modifyDataModel || !(await confirmPlaceEdit({}))) return false;
+			if (!prefs.modifyDataModel || !(await confirmPlaceEdit({}))) return null;
 			try {
 				const answer = await api.placeChange(stamp, {
 					kind: "transform",
@@ -532,10 +657,10 @@ export function App() {
 					answer.stamp,
 				);
 				onPlaceWritten(answer.stamp);
-				return true;
+				return answer.stamp;
 			} catch (err) {
 				showToast({ title: "Could not move it", detail: errorMessage(err), tone: "warn" });
-				return false;
+				return null;
 			}
 		});
 		return () => viewport.setMover(null);
@@ -622,7 +747,7 @@ export function App() {
 							onClose={() => setPins((was) => was.filter((p) => p.id !== pin.id))}
 							editable={prefs.modifyDataModel}
 							confirmEdit={confirmPlaceEdit}
-							onWritten={(stamp, _backup, now) => pinWritten(pin.id, stamp, now)}
+							onWritten={(stamp, now) => pinWritten(pin.id, stamp, now)}
 							ask={ask}
 						/>
 					</DockedPin>
@@ -936,6 +1061,7 @@ export function App() {
 	 */
 	const switchProject = useCallback(
 		async (root: string, quiet = false): Promise<boolean> => {
+			if (!(await settlePlace())) return false;
 			try {
 				await saves.flushAll();
 				// Still dirty means an earlier write failed and nothing is
@@ -957,7 +1083,7 @@ export function App() {
 			store.closeAll();
 			return loadProject(root, false, quiet);
 		},
-		[loadProject, notify, saves],
+		[loadProject, notify, saves, settlePlace],
 	);
 
 	/** Import Rojo project, which the project actions further down provide. */
@@ -1336,7 +1462,8 @@ export function App() {
 	const placeContext = useRef<{
 		place: string | null | undefined;
 		setConfig: (patch: Partial<RoswaalConfig>) => Promise<void>;
-	}>({ place: null, setConfig: async () => {} });
+		settle: () => Promise<boolean>;
+	}>({ place: null, setConfig: async () => {}, settle: async () => true });
 
 	const openEntry = useCallback(async (entry: TreeEntry): Promise<void> => {
 		// A package listed under wally.toml opens the module a require of it reaches.
@@ -1352,7 +1479,7 @@ export function App() {
 		if (entry.kind === "wally" || entry.kind === "model") return;
 		// The project's place opens in DataModel; another one can become it.
 		if (entry.kind === "place") {
-			const { place, setConfig: saveConfig } = placeContext.current;
+			const { place, setConfig: saveConfig, settle } = placeContext.current;
 			if (entry.path === place) {
 				setProjectView("datamodel");
 				setPlaceSeen(true);
@@ -1366,7 +1493,7 @@ export function App() {
 					"DataModel, Properties and Export read it from then on. It is set as `place` in roswaal.json.",
 				confirmLabel: "Use It",
 			});
-			if (yes === true) {
+			if (yes === true && (await settle())) {
 				await saveConfig({ place: entry.path });
 				setProjectView("datamodel");
 				setPlaceSeen(true);
@@ -1709,7 +1836,48 @@ export function App() {
 		},
 		[project, refreshTree, notify, onProjectChanged],
 	);
-	placeContext.current = { place: project?.place, setConfig };
+	placeContext.current = { place: project?.place, setConfig, settle: settlePlace };
+
+	// Ctrl+S, or Cmd, saves the place while it has the keys: see `placeHasKeys`.
+	useEffect(() => {
+		const onKey = (e: KeyboardEvent) => {
+			if (!saveKey(e) || !showing() || !project?.place || !placeHasKeys(e.target)) return;
+			e.preventDefault();
+			if (!dialogOpen.current) void savePlace();
+		};
+		addEventListener("keydown", onKey);
+		return () => removeEventListener("keydown", onKey);
+	}, [showing, project?.place, dialogOpen, savePlace]);
+
+	// Leaving the page with the place's changes not saved: the browser asks.
+	useEffect(() => {
+		const leaving = (e: BeforeUnloadEvent) => {
+			if (!placeSaveState().unsaved) return;
+			e.preventDefault();
+			e.returnValue = "";
+		};
+		addEventListener("beforeunload", leaving);
+		return () => removeEventListener("beforeunload", leaving);
+	}, []);
+
+	/** Tabs closed from their row: the place's asks first when its changes are not saved. */
+	const closeTabs = useCallback(
+		async (keys: string[], keep?: string) => {
+			const place = documents.some((d) => d.kind === "place" && keys.includes(d.key));
+			if (place && !(await settlePlace())) return;
+			if (keys.length === 1 && keep === undefined) store.closeDocument(keys[0]);
+			else store.closeDocuments(keys, keep);
+		},
+		[documents, settlePlace],
+	);
+	/** The tabs as the row shows them: the place's dotted while its changes are not saved. */
+	const shownDocuments = useMemo(
+		() =>
+			placeSave.unsaved
+				? documents.map((d) => (d.kind === "place" ? { ...d, dirty: true } : d))
+				: documents,
+		[documents, placeSave.unsaved],
+	);
 
 	const { writeGraph, followDiskRef } = useAutosave({
 		saves,
@@ -1958,11 +2126,11 @@ export function App() {
 								    beside it while there is room, and a list of all of them.
 								    Graphs, functions, node maps, Luau and .luaurc alike. */}
 								<GraphTabs
-									documents={documents}
+									documents={shownDocuments}
 									functionTabs={prefs.functionTabs}
 									onActivate={(key) => store.activate(key)}
-									onClose={(key) => store.closeDocument(key)}
-									onCloseMany={(keys, keep) => store.closeDocuments(keys, keep)}
+									onClose={(key) => void closeTabs([key])}
+									onCloseMany={(keys, keep) => void closeTabs(keys, keep)}
 									onReorder={(key, before) => store.reorder(key, before)}
 								/>
 								{mapDoc ? (
@@ -1983,7 +2151,14 @@ export function App() {
 							</>
 						}
 						action={
-							mapDoc ? (
+							placeDoc ? (
+								<DocumentAction
+									kind="place"
+									busy={placeSaving ? "save" : null}
+									hasPath={placeSave.unsaved}
+									onCompile={() => void savePlace()}
+								/>
+							) : mapDoc ? (
 								<DocumentAction
 									kind="map"
 									busy={busy}
@@ -2602,7 +2777,7 @@ export function App() {
 								onClose={() => setPins((was) => was.filter((p) => p.id !== pin.id))}
 								editable={prefs.modifyDataModel}
 								confirmEdit={confirmPlaceEdit}
-								onWritten={(stamp, _backup, now) => pinWritten(pin.id, stamp, now)}
+								onWritten={(stamp, now) => pinWritten(pin.id, stamp, now)}
 								ask={ask}
 							/>
 						</PinnedWindow>

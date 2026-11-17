@@ -2013,15 +2013,16 @@ export class WebGpuView implements ViewRenderer {
 		});
 	}
 
-	setScene(scene: PlaceScene): void {
+	setScene(scene: PlaceScene, moving = false): void {
 		for (const d of [...this.draws, ...this.clear, ...this.glass]) {
 			for (const b of [d.vertices, d.indices, d.instances]) b.destroy();
 			d.edges?.buffer.destroy();
 		}
 		this.scene = scene;
-		// The sky's maps again only when the parts moved, not for an edit to Lighting.
+		// The sky's maps again only when the parts moved, not for an edit to Lighting,
+		// and not while a drag is moving them: once, when it is let go.
 		const key = sceneFingerprint(scene);
-		if (key !== this.skyKey) {
+		if (!moving && key !== this.skyKey) {
 			this.skyKey = key;
 			this.skyDirty = true;
 			this.box = sceneBox(scene);

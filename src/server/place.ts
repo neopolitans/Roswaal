@@ -39,7 +39,7 @@ import { safeJoin, toPosix } from "./paths.js";
  * `.rbxl` or `.rbxlx` in the root: `place.rbxl` first, as Rojo projects
  * conventionally keep one, then the first by name. A place is data the
  * project reads; nothing is written into it unless an export is asked for,
- * or a property is changed in the DataModel browser.
+ * or edits made in the editor are saved.
  */
 export async function findPlaceFile(root: string, config: RoswaalConfig): Promise<string | null> {
 	if (config.place) {
@@ -150,12 +150,16 @@ export interface PlaceExport {
  *
  * The files are the ones `.roswaal/place.json` links to the place, and any
  * other Luau under `outDir` a node map places: a graph compiled since the
- * import, or hand-written Luau in a Rojo project.
+ * import, or hand-written Luau in a Rojo project. `unsaved` is the place
+ * with edits not saved yet, when it has some: what the editor shows.
  */
-export async function exportPlace(project: OpenProject): Promise<PlaceExport | null> {
+export async function exportPlace(
+	project: OpenProject,
+	unsaved?: Uint8Array,
+): Promise<PlaceExport | null> {
 	const file = await findPlaceFile(project.root, project.config);
 	if (!file) return null;
-	const bytes = await fs.readFile(safeJoin(project.root, file));
+	const bytes = unsaved ?? (await fs.readFile(safeJoin(project.root, file)));
 	const doc = readRbx(bytes);
 	const entries = await placeEntries(project);
 
@@ -277,6 +281,17 @@ export async function relink(
 		}
 	}
 	if (changed) await writeFileAtomically(file, `${JSON.stringify(links, null, "\t")}\n`);
+}
+
+/** `.roswaal/place.json` as it is, or null when there is none: what a discard of unsaved edits puts back. */
+export async function readLinksText(project: OpenProject): Promise<string | null> {
+	return fs.readFile(safeJoin(project.root, LINKS_FILE), "utf8").catch(() => null);
+}
+
+/** `.roswaal/place.json` as `readLinksText` read it, written back only when it differs. */
+export async function putLinksBack(project: OpenProject, text: string | null): Promise<void> {
+	if (text === null || (await readLinksText(project)) === text) return;
+	await writeFileAtomically(safeJoin(project.root, LINKS_FILE), text);
 }
 
 /** The files `.roswaal/place.json` links to the place. */

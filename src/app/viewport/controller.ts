@@ -109,6 +109,8 @@ type Reach = "top" | "down" | "part";
 /** How far a press moves, in CSS pixels, before it is a drag rather than a click. */
 const DRAG = 6;
 
+/** The selection's blue, which the pivot's mark is ringed in where a press would drag by it. */
+const PIVOT_BLUE = "#0d99ff";
 /** How near the pivot's mark a press takes hold of the pivot rather than the part, in CSS pixels. */
 const PIVOT_GRIP = 10;
 
@@ -347,6 +349,8 @@ export class ViewportController {
 	};
 	private listeners = new Set<() => void>();
 	private place: ViewportPlace | null = null;
+	/** The place as the host last gave it, before unions or a drag changed the copy drawn. */
+	private host: ViewportPlace | null = null;
 	/** Each drawn part's 14 words, by its row in the DataModel browser. */
 	private words = new Map<number, Float32Array>();
 	private kids: number[][] = [];
@@ -403,6 +407,72 @@ export class ViewportController {
 		// A drag under way was of the place as it was: what is read now stands.
 		this.drag = null;
 		this.place = place;
+		this.host = place;
+		this.adopt(place);
+		if (this.view) {
+			this.tally.begin();
+			this.view.setScene(place);
+			this.loadLooks(this.view, place);
+			this.loadImages(this.view, place);
+			this.view.setLighting(litFor(place.lighting, this.state.render.features));
+			this.loadSky(this.view, place.lighting);
+			this.loadSunImage(this.view, place.lighting);
+			this.loadMeshes(this.view, place);
+			this.loadUnions(this.view, place);
+			this.view.setOverlay(this.overlayLines());
+			this.refreshSelection();
+		} else void this.start();
+		if (!this.framed) {
+			this.framed = true;
+			this.fitAll();
+		}
+	}
+
+	/**
+	 * The place again after an edit, drawn where it stands: the camera, the
+	 * pick and what has been downloaded stay, the view's rows are replaced
+	 * once, and the meshes are given again only when the place names others.
+	 * A drag under way carries on from it.
+	 */
+	updatePlace(place: ViewportPlace): void {
+		const was = this.host;
+		const view = this.view;
+		if (!view || !was) {
+			this.setPlace(place);
+			return;
+		}
+		const drag = this.drag;
+		this.place = place;
+		this.host = place;
+		this.adopt(place);
+		view.setScene(place);
+		this.loadLooks(view, place);
+		this.loadImages(view, place);
+		view.setLighting(litFor(place.lighting, this.state.render.features));
+		this.loadSky(view, place.lighting);
+		this.loadSunImage(view, place.lighting);
+		if (JSON.stringify(place.meshes ?? []) !== JSON.stringify(was.meshes ?? []))
+			this.loadMeshes(view, place);
+		this.loadUnions(view, place);
+		view.setOverlay(this.overlayLines());
+		if (drag) {
+			// From the place as it now is: what the drag holds, where it now stands.
+			const words = new Map<number, Float32Array>();
+			const pivots = new Map<number, number[]>();
+			for (const id of drag.ids) {
+				const w = this.words.get(id);
+				if (w) words.set(id, w);
+				const p = this.pivots[id];
+				if (p) pivots.set(id, p);
+			}
+			drag.base = { place: this.place, words, pivots };
+			this.showDrag();
+		}
+		this.refreshSelection();
+	}
+
+	/** What the controller keeps of a place for picking, boxes and the summary. */
+	private adopt(place: ViewportPlace): void {
 		this.words.clear();
 		for (const set of [place.kinds, place.translucent])
 			for (const k of SCENE_KINDS) {
@@ -434,23 +504,6 @@ export class ViewportController {
 				notes: place.lighting.notes,
 			},
 		});
-		if (this.view) {
-			this.tally.begin();
-			this.view.setScene(place);
-			this.loadLooks(this.view, place);
-			this.loadImages(this.view, place);
-			this.view.setLighting(litFor(place.lighting, this.state.render.features));
-			this.loadSky(this.view, place.lighting);
-			this.loadSunImage(this.view, place.lighting);
-			this.loadMeshes(this.view, place);
-			this.loadUnions(this.view, place);
-			this.view.setOverlay(this.overlayLines());
-			this.refreshSelection();
-		} else void this.start();
-		if (!this.framed) {
-			this.framed = true;
-			this.fitAll();
-		}
 	}
 
 	/** What is picked elsewhere -- the tree, or Properties -- to outline, each on its own. Leaves the camera be. */
@@ -823,6 +876,9 @@ export class ViewportController {
 		});
 	}
 
+	/** Each call of `loadMeshes`, counted: only the last one's meshes go into the view. */
+	private meshLoads = 0;
+
 	/** Meshes read, kept for the session by asset id; null for one that did not arrive or read. */
 	private meshCache = new Map<string, Promise<FileMesh | null>>();
 
@@ -832,6 +888,7 @@ export class ViewportController {
 	 * view is given them all at once: each time rebuilds its buffers.
 	 */
 	private loadMeshes(view: ViewRenderer, place: PlaceScene): void {
+		const load = ++this.meshLoads;
 		const uses = place.meshes ?? [];
 		if (uses.length === 0) {
 			view.setMeshes(new Map());
@@ -875,7 +932,8 @@ export class ViewportController {
 		this.rankMeshes(place, here);
 		const reading = uses.map((use) => !use.made && this.meshCache.get(use.asset));
 		void Promise.all(reading).then((meshes) => {
-			if (this.view !== view || this.place !== place) return;
+			// A later load stands: a drag or an edit since leaves this one's meshes to draw.
+			if (this.view !== view || this.meshLoads !== load) return;
 			const made = new Map(here);
 			meshes.forEach((mesh, slot) => {
 				if (mesh) made.set(slot, meshGeometry(mesh, uses[slot]));
@@ -959,7 +1017,8 @@ export class ViewportController {
 				if (this.unionModels.has(asset)) this.tally.arrive(`union:${asset}`);
 				else this.tally.fail(`union:${asset}`);
 			}
-			if (this.view !== view || this.place !== place) return;
+			// A newer place, or a drag under way, which a union drawn now would undo.
+			if (this.view !== view || this.host !== place || this.drag) return;
 			const drawn = addUnions(place, this.unionModels);
 			for (const asset of waiting)
 				if (this.unionModels.has(asset)) this.tally.give(`union:${asset}`);
@@ -1093,11 +1152,14 @@ export class ViewportController {
 
 	// -- dragging parts --------------------------------------------------------------
 
-	/** Writes a drag's move into the place, answering whether it did: App's, which keeps its undo. */
-	private mover: ((move: PlaceMove) => Promise<boolean>) | null = null;
+	/**
+	 * Makes a drag's move in the place, answering with the place's new stamp,
+	 * or null when it did not: App's, which keeps its undo.
+	 */
+	private mover: ((move: PlaceMove) => Promise<string | null>) | null = null;
 	private drag: Dragging | null = null;
 
-	setMover(mover: ((move: PlaceMove) => Promise<boolean>) | null): void {
+	setMover(mover: ((move: PlaceMove) => Promise<string | null>) | null): void {
 		this.mover = mover;
 	}
 
@@ -1127,13 +1189,8 @@ export class ViewportController {
 			return null;
 		const eye = this.eye();
 		const d = this.rayAt(x, y, box);
-		const one = this.selection.length === 1 ? this.selection[0] : null;
-		const pivot = one !== null && this.movable(one) ? this.pivotOf(one) : null;
-		if (pivot) {
-			const mark = screenPoint(this.shot(box), pivot.at);
-			if (mark && Math.hypot(mark[0] - x, mark[1] - y) <= PIVOT_GRIP)
-				return { items: [one as number], grab: pivot.at, byPivot: true };
-		}
+		const pivot = this.pivotGrip(x, y, box);
+		if (pivot) return { items: [pivot.index], grab: pivot.at, byPivot: true };
 		const hit = rayHit(this.place, eye, d);
 		// A Locked part stays put, as in Studio: the press draws a box over it instead.
 		if (!hit || this.place.locked?.includes(hit.id)) return null;
@@ -1143,6 +1200,43 @@ export class ViewportController {
 		const items = (picked ? this.selection : [target]).filter((i) => this.movable(i));
 		if (items.length === 0) return null;
 		return { items, grab: eye.map((v, a) => v + d[a] * hit.t), byPivot: false };
+	}
+
+	/**
+	 * The one thing picked, and where its pivot is, when a press at `x`, `y`
+	 * (CSS pixels from the canvas's corner) would take hold of its pivot
+	 * rather than of the part there; null otherwise, or with editing off.
+	 */
+	private pivotGrip(x: number, y: number, box: DOMRect): { index: number; at: number[] } | null {
+		if (!this.state.editable || !this.mover || !this.place?.stamp || !picks(this.state.tool))
+			return null;
+		const one = this.selection.length === 1 ? this.selection[0] : null;
+		const pivot = one !== null && this.movable(one) ? this.pivotOf(one) : null;
+		if (one === null || !pivot) return null;
+		const mark = screenPoint(this.shot(box), pivot.at);
+		return mark && Math.hypot(mark[0] - x, mark[1] - y) <= PIVOT_GRIP
+			? { index: one, at: pivot.at }
+			: null;
+	}
+
+	/** The pointer is over the pivot's mark, where a press drags by the pivot. */
+	private pivotHover = false;
+
+	/** The pivot's mark grown and ringed, and the move cursor, while a press there would take it. */
+	private setPivotHover(on: boolean): void {
+		if (on === this.pivotHover) return;
+		this.pivotHover = on;
+		this.dragLook();
+		this.drawPivot();
+	}
+
+	/** The canvas's cursor for what a press or the drag under way holds: the pivot, or the part. */
+	private dragLook(): void {
+		const canvas = this.canvas;
+		if (!canvas) return;
+		const byPivot = this.drag ? this.drag.start.byPivot : this.pivotHover;
+		canvas.classList.toggle("vp-canvas-pivot", byPivot);
+		canvas.classList.toggle("vp-canvas-dragging", this.drag !== null && !this.drag.start.byPivot);
 	}
 
 	/** Every row in these, and in what they hold. */
@@ -1190,6 +1284,7 @@ export class ViewportController {
 			base: { place, words, pivots },
 		};
 		this.setHover(null);
+		this.dragLook();
 	}
 
 	/** The drag follows the pointer, at `x`, `y` in client pixels. */
@@ -1261,7 +1356,8 @@ export class ViewportController {
 		this.sceneQueued = true;
 		requestAnimationFrame(() => {
 			this.sceneQueued = false;
-			if (this.view && this.place) this.view.setScene(this.place);
+			// Rows only: the sky's maps and the shadows wait for the drag to be let go.
+			if (this.view && this.place && this.drag) this.view.setScene(this.place, true);
 			this.refreshSelection();
 		});
 	}
@@ -1283,40 +1379,51 @@ export class ViewportController {
 		const drag = this.drag;
 		if (!drag) return false;
 		this.drag = null;
+		this.pivotHover = false;
+		this.dragLook();
 		this.undoDrag(drag);
 		return true;
 	}
 
-	/** The drag let go: its move written into the place, or everything back where it was. */
+	/** The drag let go: its move made in the place, or everything back where it was. */
 	private async endDrag(): Promise<void> {
 		const drag = this.drag;
 		if (!drag) return;
 		this.drag = null;
+		this.pivotHover = false;
+		this.dragLook();
 		const stamp = drag.base.place.stamp;
 		if (still(drag.move) || !stamp || !this.mover) {
 			this.undoDrag(drag);
 			return;
 		}
+		// Where it was let go, with the sky's maps and the shadows drawn again once.
+		this.sceneQueued = false;
+		if (this.view && this.place) this.view.setScene(this.place);
+		this.refreshSelection();
 		const { r, t } = drag.move;
 		const nodes = drag.base.place.outline.nodes;
 		const label =
 			drag.items.length === 1
 				? `Drag ${nodes[drag.items[0]]?.[1] ?? ""}`
 				: `Drag ${drag.items.length} items`;
-		let written = false;
+		let made: string | null = null;
 		try {
-			written = await this.mover({
+			made = await this.mover({
 				stamp,
 				items: drag.items,
 				by: { position: [...t], rotation: [...r] },
 				label,
 			});
 		} catch {
-			written = false;
+			made = null;
 		}
-		// Written: the place read again replaces this copy. Refused, or a newer place came meanwhile.
-		if (!written && this.place !== null && this.drag === null && this.place.stamp === stamp)
-			this.undoDrag(drag);
+		const now = this.place;
+		if (!now || now.stamp !== stamp) return;
+		// Made: this copy is that version until the host's arrives, so a drag at
+		// once names it. Refused: back where it was, unless a drag is under way.
+		if (made) this.place = { ...now, stamp: made };
+		else if (this.drag === null) this.undoDrag(drag);
 	}
 
 	// -- the camera ----------------------------------------------------------------
@@ -1935,7 +2042,9 @@ export class ViewportController {
 
 	/**
 	 * The pivot of the one thing picked, as Studio shows it: a dot, with its
-	 * three axes in their colours, over every part in front of it.
+	 * three axes in their colours, over every part in front of it. Where a
+	 * press would drag by it the dot grows in a ring of the selection's blue,
+	 * and a drag by it keeps it so, filled, with a Pivot tag beside it.
 	 */
 	private drawPivot(): void {
 		const canvas = this.canvas;
@@ -1983,7 +2092,18 @@ export class ViewportController {
 				return `<line x1="${centre[0].toFixed(1)}" y1="${centre[1].toFixed(1)}" x2="${x}" y2="${y}" stroke="${col}" stroke-width="2.5" stroke-linecap="round"/><circle cx="${x}" cy="${y}" r="3" fill="${col}"/>`;
 			})
 			.join("");
-		mark.innerHTML = `${lines}<circle cx="${centre[0].toFixed(1)}" cy="${centre[1].toFixed(1)}" r="5" fill="#fff" stroke="#14171c" stroke-width="1.5"/>`;
+		const [cx, cy] = centre.map((v) => v.toFixed(1));
+		const held = this.drag?.start.byPivot === true;
+		const ringed = held || (this.pivotHover && this.drag === null);
+		mark.classList.toggle("vp-pivot-held", held);
+		const ring = ringed
+			? `<circle cx="${cx}" cy="${cy}" r="11" fill="${PIVOT_BLUE}" fill-opacity="0.18" stroke="${PIVOT_BLUE}" stroke-width="2"/>`
+			: "";
+		const dot = `<circle cx="${cx}" cy="${cy}" r="${ringed ? 6.5 : 5}" fill="${held ? PIVOT_BLUE : "#fff"}" stroke="${held ? "#fff" : "#14171c"}" stroke-width="1.5"/>`;
+		const tag = held
+			? `<g class="vp-pivot-tag" transform="translate(${(centre[0] + 15).toFixed(1)} ${(centre[1] - 27).toFixed(1)})"><rect width="38" height="18" rx="4" fill="${PIVOT_BLUE}"/><text x="19" y="12.5" text-anchor="middle">Pivot</text></g>`
+			: "";
+		mark.innerHTML = `${lines}${ring}${dot}${tag}`;
 	}
 
 	/** The handles' axes, object or world: Ctrl+L, and the bar's toggle. */
@@ -2257,6 +2377,9 @@ export class ViewportController {
 		};
 		el.addEventListener("pointermove", (e) => {
 			if (e.pointerType !== "mouse" || pointers.size > 0) return;
+			// Over the pivot's mark, a press drags by the pivot: it says so first.
+			const r = el.getBoundingClientRect();
+			this.setPivotHover(this.pivotGrip(e.clientX - r.left, e.clientY - r.top, r) !== null);
 			// With no tool nothing is picked, so nothing is outlined as if it would be.
 			if (!picks(this.state.tool)) {
 				aim = null;
@@ -2277,6 +2400,7 @@ export class ViewportController {
 			aim = null;
 			aimed = -1;
 			this.setHover(null);
+			if (!this.drag) this.setPivotHover(false);
 		});
 		el.addEventListener("contextmenu", (e) => e.preventDefault());
 		el.addEventListener("pointerdown", (e) => {

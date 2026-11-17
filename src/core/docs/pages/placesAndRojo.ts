@@ -222,12 +222,16 @@ export function placesAndRojoPage(): DocPage {
 						"Move a part or a model onto a surface",
 						"Drag it, with any tool: it rests on what is under the pointer",
 					],
-					["Set it down by its pivot", "Drag the pivot's dot: the pivot goes on the surface"],
+					[
+						"Set it down by its pivot",
+						"Drag the pivot's dot, ringed blue under the pointer: the pivot goes on the surface",
+					],
 					[
 						"Turn what is dragged",
 						"`R` turns it, `T` tilts it, a quarter each; `Esc` puts it back",
 					],
 					["Put the handles on the pivot", "**Pivot** in the bar: Edit Pivot"],
+					["Save the place", "`Ctrl` + `S`, `Cmd` + `S` on a Mac, or **Save** in the bar"],
 					[
 						"Turn the handles to the world's axes, or back to the object's",
 						"`Ctrl` + `L`, `Cmd` + `L` on a Mac, or **Object** in the bar",
@@ -247,7 +251,8 @@ export function placesAndRojoPage(): DocPage {
 				text:
 					"Move, Rotate, Scale, **Pivot** and **Object** are editing tools, offered with " +
 					"**Settings › Workspace › Modify DataModel Instances** on, as is dragging; a Locked " +
-					"part stays put, and `Ctrl` + `Z` takes a drag back. Importing a place, or a Rojo " +
+					"part stays put, and `Ctrl` + `Z` takes a drag back. A drag by the pivot keeps its dot " +
+					"ringed, with a **Pivot** tag. Importing a place, or a Rojo " +
 					"project with one, asks whether to view it only or to view and edit it.",
 			},
 			{
@@ -388,9 +393,10 @@ export function placesAndRojoPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"Each change is written into the place file straight away. The first one asks, and a " +
-					"copy of the file as it was goes in `.roswaal/backups` first, and again whenever the " +
-					"file has changed since Roswaal last wrote it.",
+					"Changes show at once and reach the place file when you save: `Ctrl` + `S`, or **Save** " +
+					"in the bar. Until then the place's tab has a dot, and closing it or leaving the page " +
+					"asks first. A save keeps a copy of the file as it was in `.roswaal/backups`, unless " +
+					"Roswaal saved it last. If Studio saves the file meanwhile, you pick which to keep.",
 			},
 			{
 				t: "table",
@@ -449,8 +455,8 @@ export function placesAndRojoPage(): DocPage {
 				t: "p",
 				text:
 					"`Ctrl` + `Z` undoes the last change to the place, a deletion included, and `Ctrl` + " +
-					"`Y` redoes it, from the place's tab, DataModel or Properties. On a graph they undo " +
-					"the graph.",
+					"`Y` redoes it, from the place's tab, DataModel or Properties, saved or not. On a graph " +
+					"they undo the graph.",
 			},
 
 			{ t: "h", level: 2, text: "Dragging onto a graph" },

@@ -283,7 +283,11 @@ describe("the routes' undo", () => {
 		await session.openAt(root);
 		const tree = (await session.handle("GET", "/place")) as Tree;
 		const at = (t: Tree, name: string) => t.outline.nodes.findIndex(([, n]) => n === name);
-		const bytes = async () => new Uint8Array(await readFile(path.join(root, file)));
+		// The file once what is unsaved is saved: a save between steps changes no stamp.
+		const bytes = async () => {
+			await session.handle("POST", "/place/save", { body: {} });
+			return new Uint8Array(await readFile(path.join(root, file)));
+		};
 		const links = async () => JSON.parse(await readFile(path.join(root, LINKS_FILE), "utf8"));
 		const post = (route: string, body: object) => session.handle("POST", route, { body });
 		return { session, tree, at, bytes, links, post };

@@ -387,7 +387,11 @@ describe("the transform change", () => {
 			};
 			const tree = (await session.handle("GET", "/place")) as Tree;
 			const at = (name: string) => tree.outline.nodes.findIndex(([, n]) => n === name);
-			const bytes = async () => new Uint8Array(await readFile(path.join(root, file)));
+			// The file once the drag is saved: a save changes no stamp.
+			const bytes = async () => {
+				await session.handle("POST", "/place/save", { body: {} });
+				return new Uint8Array(await readFile(path.join(root, file)));
+			};
 			// Every frame, as the file holds it: a turn once stored as one byte comes back as its matrix.
 			const frames = async () => {
 				const doc = readRbx(await bytes());

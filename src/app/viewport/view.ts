@@ -55,8 +55,12 @@ export interface ViewRenderer {
 	setHandles(handles: Handles): void;
 	/** The place's light: Lighting, its Atmosphere and its Sky. */
 	setLighting(lighting: LightingParams): void;
-	/** The place drawn again, after an instance is added. */
-	setScene(scene: PlaceScene): void;
+	/**
+	 * The place drawn again, after an instance is added. `moving` while a drag
+	 * moves its rows: the sky's maps, its lighting cells and the sun's cascades
+	 * are drawn again only at the next call without it, when the drag is let go.
+	 */
+	setScene(scene: PlaceScene, moving?: boolean): void;
 	draw(camera: Camera): void;
 	/** Resolves once the GPU has finished the frames drawn so far. */
 	settled(): Promise<void>;

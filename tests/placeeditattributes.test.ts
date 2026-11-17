@@ -108,6 +108,8 @@ describe.each(["rbxl", "rbxlx"] as const)("the attribute and tag routes, on a .%
 				body: { stamp, index, ...body },
 			})) as { stamp: string };
 			stamp = answer.stamp;
+			// Saved, so the file holds it: a save changes no stamp.
+			await session.handle("POST", "/place/save", { body: {} });
 			return answer;
 		};
 		const hull = async (name = "Hull") => {

@@ -83,6 +83,7 @@ import {
 	type RawProp,
 } from "../core/rbx/rawValue.js";
 import { buildPlaceScene, type PlaceScene, SCENE_KINDS } from "../core/rbx/scene.js";
+import { diffScene } from "../core/rbx/sceneDiff.js";
 import { convertPlace, leftOutOf, placeFormatOf } from "../core/rbx/serialize.js";
 import { withUnions } from "../core/rbx/unions.js";
 import { legacyBinaryUniqueId } from "../core/rbx/uniqueId.js";
@@ -130,10 +131,12 @@ import {
 	packUsage,
 	placeEntries,
 	placeReport,
+	putLinksBack,
 	readConfig,
 	readLuaurcFiles,
 	readMap,
 	readPack,
+	readLinksText,
 	readPlaceBytes,
 	readScript,
 	readText,
@@ -285,6 +288,16 @@ export class ApiSession {
 	 */
 	private placeWrites = new Map<string, string>();
 
+	/**
+	 * Each place's edits not saved yet, by its file: the place as they leave
+	 * it, which every route reads in place of the file until `POST
+	 * /place/save` writes it or `POST /place/revert` lets it go.
+	 */
+	private unsaved = new Map<string, UnsavedPlace>();
+
+	/** Scenes built lately, by project and stamp, for `GET /place/scene`'s `since`. */
+	private scenes = new Map<string, { scene: PlaceScene; outline: PlaceOutline }>();
+
 	readonly routes: Readonly<Record<string, RouteHandler>>;
 
 	constructor(private readonly hooks: SessionHooks = {}) {
@@ -355,10 +368,10 @@ export class ApiSession {
 	}
 
 	/**
-	 * One change written into the project's place: the instance at `index` in
-	 * the version `stamp` names, the stored property and value `change` gives
-	 * for it, a backup first unless this session wrote the file last, and the
-	 * instance as it now is. A 409 when the place has changed since `stamp`.
+	 * One change made to the project's place, unsaved: the instance at
+	 * `index` in the version `stamp` names, the stored property and value
+	 * `change` gives for it, and the instance as it now is. A 409 when the
+	 * place has changed since `stamp`.
 	 *
 	 * Answers with `undo` too: the property and the value it held, which
 	 * `POST /place/property` given as `raw` puts back exactly.
@@ -371,9 +384,10 @@ export class ApiSession {
 		const file = await findPlaceFile(project.root, project.config);
 		if (!file) throw new HttpError(404, "The project has no place file.");
 		const stamp = need(text(body.stamp), "stamp");
-		const before = await readPlaceBytes(project, file);
+		const read = await this.placeBytes(project, file);
+		const before = read.bytes;
 		const loaded = await this.loadPlace(project, file);
-		if (stamp !== loaded.stamp || loaded.stamp !== `${file}:${fingerprint(before)}`)
+		if (stamp !== loaded.stamp || loaded.stamp !== read.stamp)
 			throw new HttpError(409, "The place file has changed. Reload it.");
 		const inst = typeof body.index === "number" ? loaded.order[body.index] : undefined;
 		if (!inst) throw new HttpError(404, `No instance ${body.index} in the place.`);
@@ -412,39 +426,65 @@ export class ApiSession {
 			if (err instanceof RbxError) throw new HttpError(422, errorMessage(err));
 			throw err;
 		}
-		const { now, backup } = await this.savePlace(project, file, before, after, loaded);
+		const now = await this.stage(project, file, read, after);
 		const index = now.order.findIndex((other) => other.ref === inst.ref);
 		return {
 			stamp: now.stamp,
 			instance: describeInstance(now.order[index], index, (other) => now.index.get(other)),
-			...(backup ? { backup } : {}),
+			...this.saveState(project, file),
 			...(undo ? { undo } : {}),
 		};
 	}
 
 	/**
-	 * `after` written over the place, which held `before` when it was read as
-	 * `loaded`: a backup first unless this session wrote the file last, and the
-	 * place as it now is.
+	 * The place's bytes as the editor sees them: with its unsaved edits when
+	 * it has some, else the file's. `disk` is the file's stamp either way.
+	 * Edits that leave the place as the file has it are no longer unsaved.
 	 */
-	private async savePlace(
+	private async placeBytes(project: OpenProject, file: string): Promise<PlaceRead> {
+		const disk = await readPlaceBytes(project, file);
+		const diskStamp = `${file}:${fingerprint(disk)}`;
+		const key = path.join(project.root, file);
+		const edits = this.unsaved.get(key);
+		if (edits && edits.stamp === diskStamp) this.unsaved.delete(key);
+		else if (edits) {
+			edits.seen = diskStamp;
+			return { bytes: edits.bytes, stamp: edits.stamp, disk: diskStamp, edits };
+		}
+		return { bytes: disk, stamp: diskStamp, disk: diskStamp };
+	}
+
+	/**
+	 * `after`, made from the place as `read` found it, as the place's unsaved
+	 * edits: the file is left as it is, and the place as it now is answered.
+	 * `.roswaal/place.json` is kept as it was before the first edit, for a
+	 * discard to put back.
+	 */
+	private async stage(
 		project: OpenProject,
 		file: string,
-		before: Uint8Array,
+		read: PlaceRead,
 		after: Uint8Array,
-		loaded: LoadedPlace,
-	): Promise<{ now: LoadedPlace; backup: string | undefined }> {
+	): Promise<LoadedPlace> {
 		const key = path.join(project.root, file);
-		const backup = await writePlaceFile(
-			project,
-			file,
-			before,
-			after,
-			this.placeWrites.get(key) !== loaded.stamp,
-		);
-		const now = await this.loadPlace(project, file);
-		this.placeWrites.set(key, now.stamp);
-		return { now, backup };
+		const stamp = `${file}:${fingerprint(after)}`;
+		if (stamp === read.disk) this.unsaved.delete(key);
+		else
+			this.unsaved.set(key, {
+				bytes: after,
+				stamp,
+				base: read.edits?.base ?? read.disk,
+				seen: read.disk,
+				links: read.edits ? read.edits.links : await readLinksText(project),
+			});
+		return this.loadPlace(project, file);
+	}
+
+	/** Whether the place has edits not saved, and whether the file changed on disk under them. */
+	private saveState(project: OpenProject, file: string): { unsaved?: true; diskChanged?: true } {
+		const edits = this.unsaved.get(path.join(project.root, file));
+		if (!edits) return {};
+		return edits.base === edits.seen ? { unsaved: true } : { unsaved: true, diskChanged: true };
 	}
 
 	/**
@@ -455,7 +495,7 @@ export class ApiSession {
 	private async moveFrames(
 		project: OpenProject,
 		file: string,
-		before: Uint8Array,
+		read: PlaceRead,
 		loaded: LoadedPlace,
 		at: (index: unknown) => RbxInstance,
 		body: { kind?: string; items?: unknown; by?: unknown; sets?: unknown },
@@ -494,12 +534,12 @@ export class ApiSession {
 		if (writes.length === 0) throw new HttpError(422, "Nothing there moves.");
 		let after: Uint8Array;
 		try {
-			after = writeProperties(before, loaded.doc, writes);
+			after = writeProperties(read.bytes, loaded.doc, writes);
 		} catch (err) {
 			if (err instanceof RbxError) throw new HttpError(422, errorMessage(err));
 			throw err;
 		}
-		const { now, backup } = await this.savePlace(project, file, before, after, loaded);
+		const now = await this.stage(project, file, read, after);
 		const indexOf = new Map(now.order.map((other, i) => [other.ref, i]));
 		const sets = was.flatMap((w) => {
 			const index = indexOf.get(w.inst.ref);
@@ -510,7 +550,6 @@ export class ApiSession {
 		});
 		return {
 			...(await this.placeAnswer(project, file, now)),
-			...(backup ? { backup } : {}),
 			...(sets.length === was.length
 				? { undo: { kind: "frames", index: sets[0].index, sets } }
 				: {}),
@@ -532,13 +571,13 @@ export class ApiSession {
 			outline: loaded.outline,
 			scripts,
 			...(studio ? { studio } : {}),
+			...this.saveState(project, file),
 		};
 	}
 
 	/** The project's place, parsed, from the cache while its bytes are unchanged. */
 	private async loadPlace(project: OpenProject, file: string): Promise<LoadedPlace> {
-		const bytes = await readPlaceBytes(project, file);
-		const stamp = `${file}:${fingerprint(bytes)}`;
+		const { bytes, stamp } = await this.placeBytes(project, file);
 		if (this.place?.root === project.root && this.place.stamp === stamp) return this.place;
 		const doc = readRbx(bytes);
 		const { outline, order } = outlinePlace(doc);
@@ -839,16 +878,14 @@ export class ApiSession {
 			},
 
 			/**
-			 * Changes one property of one instance, in the place file itself.
-			 * Only a property the instance's answer offers an `edit` for, with a
-			 * value that property can hold; anything else is a 422 saying why,
-			 * and the file is left as it was. A 409 when the place has changed
-			 * since `stamp`.
+			 * Changes one property of one instance, as an unsaved edit to the
+			 * place: the file changes at `POST /place/save`. Only a property the
+			 * instance's answer offers an `edit` for, with a value that property
+			 * can hold; anything else is a 422 saying why, and the place is left
+			 * as it was. A 409 when the place has changed since `stamp`.
 			 *
-			 * The file as it was is copied under `.roswaal/backups/` first,
-			 * unless it still holds what the last change here wrote. Answers
-			 * with the new stamp and the instance as it now is: the outline is
-			 * the same, since no name changes.
+			 * Answers with the new stamp, the instance as it now is, and
+			 * `unsaved` while the place has edits not saved.
 			 *
 			 * An undo sends `raw` instead of `value`: a value as the file holds
 			 * it, from a change's `undo`, put back exactly. It may name the
@@ -883,7 +920,7 @@ export class ApiSession {
 			},
 
 			/**
-			 * Changes, adds or removes one attribute, in the place file itself:
+			 * Changes, adds or removes one attribute, as an unsaved edit:
 			 * `value` for a new value, `add` with a type to add one, `remove`.
 			 * The whole list is written back, every other attribute as it was.
 			 */
@@ -932,7 +969,7 @@ export class ApiSession {
 				});
 			},
 
-			/** Adds or removes one tag, in the place file itself. */
+			/** Adds or removes one tag, as an unsaved edit. */
 			"POST /place/tag": async (req) => {
 				const body = fields<{ stamp: string; index: number; tag: string; remove?: boolean }>(req);
 				const tag = (body.tag ?? "").trim();
@@ -950,11 +987,12 @@ export class ApiSession {
 			},
 
 			/**
-			 * Adds, deletes, moves or duplicates an instance, in the place file
-			 * itself: the instance at `index`, which an add makes a `className`
-			 * named `name` in and a move puts in the instance at `parent`. What
-			 * Studio would refuse is a 422 saying why, and the file is left as it
-			 * was; a 409 when the place has changed since `stamp`.
+			 * Adds, deletes, moves or duplicates an instance, as an unsaved edit
+			 * to the place: the instance at `index`, which an add makes a
+			 * `className` named `name` in and a move puts in the instance at
+			 * `parent`. What Studio would refuse is a 422 saying why, and the
+			 * place is left as it was; a 409 when the place has changed since
+			 * `stamp`.
 			 *
 			 * Deleting scripts the project's files write is a 409 with code
 			 * `linked-scripts` naming them, until asked again with `unlink`: their
@@ -996,9 +1034,10 @@ export class ApiSession {
 				const file = await findPlaceFile(project.root, project.config);
 				if (!file) throw new HttpError(404, "The project has no place file.");
 				const stamp = need(text(body.stamp), "stamp");
-				const before = await readPlaceBytes(project, file);
+				const read = await this.placeBytes(project, file);
+				const before = read.bytes;
 				const loaded = await this.loadPlace(project, file);
-				if (stamp !== loaded.stamp || loaded.stamp !== `${file}:${fingerprint(before)}`)
+				if (stamp !== loaded.stamp || loaded.stamp !== read.stamp)
 					throw new HttpError(409, "The place file has changed. Reload it.");
 				const at = (index: unknown) => {
 					const inst = typeof index === "number" ? loaded.order[index] : undefined;
@@ -1007,7 +1046,7 @@ export class ApiSession {
 					return inst;
 				};
 				if (body.kind === "transform" || body.kind === "frames")
-					return this.moveFrames(project, file, before, loaded, at, body);
+					return this.moveFrames(project, file, read, loaded, at, body);
 				const inst = at(body.index);
 				const sibling = body.before === undefined ? {} : { before: at(body.before).ref! };
 				let change: InstanceChange;
@@ -1101,7 +1140,7 @@ export class ApiSession {
 					throw err;
 				}
 				const from = pathOf(inst);
-				const { now, backup } = await this.savePlace(project, file, before, after, loaded);
+				const now = await this.stage(project, file, read, after);
 				if (change.kind === "delete" && owners.size) links = await unlinkUnder(project, from, ids);
 				if (change.kind === "restore" && links.length) await relink(project, links);
 				if (change.kind === "move")
@@ -1118,9 +1157,73 @@ export class ApiSession {
 				return {
 					...(await this.placeAnswer(project, file, now)),
 					...(index === -1 ? {} : { index }),
-					...(backup ? { backup } : {}),
 					...(undo ? { undo } : {}),
 				};
+			},
+
+			/**
+			 * Writes the place's unsaved edits into its file, the file as it
+			 * was copied under `.roswaal/backups/` first unless it still holds
+			 * what the last save here wrote. A 409 with code
+			 * `place-changed-on-disk` when the file changed since the edits
+			 * began -- Studio saved it -- unless `overwrite`. Answers with the
+			 * place as `GET /place` does, at the same stamp, and `backup`.
+			 */
+			"POST /place/save": async (req) => {
+				const { overwrite } = fields<{ overwrite?: boolean }>(req);
+				const project = this.project();
+				const file = await findPlaceFile(project.root, project.config);
+				if (!file) throw new HttpError(404, "The project has no place file.");
+				const read = await this.placeBytes(project, file);
+				let backup: string | undefined;
+				if (read.edits) {
+					if (read.edits.base !== read.disk && overwrite !== true)
+						throw new HttpError(409, `${file} changed on disk since your edits began.`, {
+							code: "place-changed-on-disk",
+						});
+					const key = path.join(project.root, file);
+					backup = await writePlaceFile(
+						project,
+						file,
+						await readPlaceBytes(project, file),
+						read.edits.bytes,
+						this.placeWrites.get(key) !== read.disk,
+					);
+					this.unsaved.delete(key);
+					this.placeWrites.set(key, read.edits.stamp);
+				}
+				const now = await this.loadPlace(project, file);
+				return { ...(await this.placeAnswer(project, file, now)), ...(backup ? { backup } : {}) };
+			},
+
+			/**
+			 * Lets the place's unsaved edits go: the place is the file again,
+			 * and `.roswaal/place.json` as it was before the first of them.
+			 */
+			"POST /place/revert": async () => {
+				const project = this.project();
+				const file = await findPlaceFile(project.root, project.config);
+				if (!file) throw new HttpError(404, "The project has no place file.");
+				const key = path.join(project.root, file);
+				const edits = this.unsaved.get(key);
+				if (edits) {
+					this.unsaved.delete(key);
+					await putLinksBack(project, edits.links);
+				}
+				return this.placeAnswer(project, file, await this.loadPlace(project, file));
+			},
+
+			/**
+			 * Keeps the unsaved edits over a file that changed on disk under
+			 * them: the next save writes them over it without asking.
+			 */
+			"POST /place/keep": async () => {
+				const project = this.project();
+				const file = await findPlaceFile(project.root, project.config);
+				if (!file) throw new HttpError(404, "The project has no place file.");
+				const read = await this.placeBytes(project, file);
+				if (read.edits) read.edits.base = read.disk;
+				return this.placeAnswer(project, file, await this.loadPlace(project, file));
 			},
 
 			/**
@@ -1146,6 +1249,12 @@ export class ApiSession {
 			 * shape, as base64, built once per version of the place, with its
 			 * lighting and Studio's saved camera. A 409 when the place has
 			 * changed since `stamp`, as for an instance.
+			 *
+			 * `since` names the version the viewer has. When this session built
+			 * that one's scene lately and the outline is the same, the answer
+			 * is a `patch`: the rows of the instances that changed, in `kinds`
+			 * and `translucent`, every id whose rows go in `changed`, and the
+			 * scene's other parts only where they differ. See `sceneDiff.ts`.
 			 */
 			"GET /place/scene": async (req) => {
 				const project = this.project();
@@ -1158,6 +1267,15 @@ export class ApiSession {
 				const idOf = (inst: RbxInstance) => loaded.index.get(inst);
 				loaded.scene ??= withUnions(buildPlaceScene(workspace, idOf), workspace, idOf);
 				const scene = loaded.scene;
+				const key = (stamp: string) => `${project.root}\0${stamp}`;
+				const since = this.scenes.get(key(text(req.query?.since) ?? ""));
+				this.scenes.delete(key(loaded.stamp));
+				this.scenes.set(key(loaded.stamp), { scene, outline: loaded.outline });
+				// The last few, for the viewer to ask what changed since.
+				for (const old of this.scenes.keys()) {
+					if (this.scenes.size <= 4) break;
+					this.scenes.delete(old);
+				}
 				const encode = (from: PlaceScene["kinds"]) => {
 					const out: Record<string, { data: string; count: number }> = {};
 					for (const k of SCENE_KINDS) {
@@ -1169,6 +1287,17 @@ export class ApiSession {
 					}
 					return out;
 				};
+				if (since && sameOutline(since.outline, loaded.outline)) {
+					const patch = diffScene(since.scene, scene);
+					return {
+						patch: true,
+						changed: patch.changed,
+						fields: patch.fields,
+						kinds: encode(patch.kinds),
+						translucent: encode(patch.translucent),
+						lighting: readLighting(loaded.doc),
+					};
+				}
 				return {
 					...scene,
 					kinds: encode(scene.kinds),
@@ -1772,6 +1901,9 @@ export class ApiSession {
 				const format = optionalQuery(req, "format", ["rbxl", "rbxlx"]);
 				const binaries = await collectBinaries(project);
 				const placeFile = await findPlaceFile(project.root, project.config);
+				// The place as the editor shows it, unsaved edits and all.
+				const unsaved = placeFile ? (await this.placeBytes(project, placeFile)).edits : undefined;
+				if (placeFile && unsaved) binaries[placeFile] = toBase64(unsaved.bytes);
 				let place:
 					| {
 							file: string;
@@ -1782,7 +1914,7 @@ export class ApiSession {
 					  }
 					| undefined = placeFile ? { file: placeFile } : undefined;
 				if (placeFile && modify) {
-					const written = await exportPlace(project);
+					const written = await exportPlace(project, unsaved?.bytes);
 					if (written) {
 						binaries[written.file] = toBase64(written.bytes);
 						place = { file: written.file, report: placeReport(written.update) };
@@ -1841,6 +1973,39 @@ interface LoadedPlace {
 	index: Map<RbxInstance, number>;
 	/** The viewport's buffers, built the first time they are asked for. */
 	scene?: PlaceScene;
+}
+
+/** A place's edits not saved yet: see `ApiSession.unsaved`. */
+interface UnsavedPlace {
+	/** The place with every edit made. */
+	bytes: Uint8Array;
+	stamp: string;
+	/** The file's stamp when the edits began, or when they were kept over a newer one. */
+	base: string;
+	/** The file's stamp when it was last read; not `base` once it changed on disk under the edits. */
+	seen: string;
+	/** `.roswaal/place.json` before the first edit, for a discard to put back; null for none. */
+	links: string | null;
+}
+
+/** The place as `placeBytes` read it. */
+interface PlaceRead {
+	bytes: Uint8Array;
+	stamp: string;
+	/** The file's own stamp. */
+	disk: string;
+	edits?: UnsavedPlace;
+}
+
+/** Whether two outlines list the same instances in the same order, so an index names the same one in each. */
+function sameOutline(a: PlaceOutline, b: PlaceOutline): boolean {
+	if (a === b) return true;
+	if (a.nodes.length !== b.nodes.length || a.classes.length !== b.classes.length) return false;
+	if (a.classes.some((c, i) => c !== b.classes[i])) return false;
+	return a.nodes.every((n, i) => {
+		const m = b.nodes[i];
+		return n.length === m.length && n.every((v, j) => v === m[j]);
+	});
 }
 
 /** The links a deletion took, per file, which its undo puts back. */

@@ -14,7 +14,7 @@ import {
 	useSyncExternalStore,
 } from "react";
 import { errorMessage } from "../core/errorMessage.js";
-import { api } from "./api.js";
+import { api, type SceneSince } from "./api.js";
 import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
@@ -100,12 +100,14 @@ export function Viewport({
 	controller: ViewportController;
 	/** Changes whenever the project tree is read again, which is when to look again. */
 	refreshKey: unknown;
-	/** The version of the place a change last wrote: read it again. */
+	/** The version of the place a change last made: read it again. */
 	written?: string | null;
 }) {
 	const holder = useRef<HTMLDivElement>(null);
 	const [problem, setProblem] = useState<string | null>(null);
 	const state = useViewport(controller);
+	// The scene drawn, as the host sent it, and its file: an edit sends what changed since.
+	const drawnScene = useRef<(SceneSince & { file: string }) | null>(null);
 
 	useEffect(() => {
 		if (!holder.current) return;
@@ -119,12 +121,20 @@ export function Viewport({
 			try {
 				const tree = await api.place();
 				if (tree.file === null) throw new Error("The project has no place file.");
-				const scene = await api.placeScene(tree.stamp);
+				const was = drawnScene.current?.file === tree.file ? drawnScene.current : null;
+				// The same version: nothing to draw again.
+				if (was?.stamp === tree.stamp) return;
+				const scene = await api.placeScene(tree.stamp, was ?? undefined);
 				if (stale) return;
 				// The lights' grid off the page, so the place does not hold it.
 				await prepareScene(scene);
 				if (stale) return;
-				controller.setPlace({ ...scene, outline: tree.outline, stamp: tree.stamp });
+				const place = { ...scene, outline: tree.outline, stamp: tree.stamp };
+				// An edit, or the file saved elsewhere: drawn where it stands, the
+				// rows it changed replaced, rather than the place loaded again.
+				if (was) controller.updatePlace(place);
+				else controller.setPlace(place);
+				drawnScene.current = { file: tree.file, stamp: tree.stamp, scene };
 				setProblem(null);
 			} catch (err) {
 				if (!stale) setProblem(errorMessage(err));

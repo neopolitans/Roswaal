@@ -1739,7 +1739,7 @@ export class WebGl2View implements ViewRenderer {
 		}
 	}
 
-	setScene(scene: PlaceScene): void {
+	setScene(scene: PlaceScene, moving = false): void {
 		const gl = this.gl;
 		for (const d of [...this.draws, ...this.clear, ...this.glass]) {
 			gl.deleteVertexArray(d.vao);
@@ -1747,9 +1747,10 @@ export class WebGl2View implements ViewRenderer {
 		}
 		for (const b of this.sceneBuffers) gl.deleteBuffer(b);
 		this.scene = scene;
-		// The sky's maps again only when the parts moved, not for an edit to Lighting.
+		// The sky's maps again only when the parts moved, not for an edit to Lighting,
+		// and not while a drag is moving them: once, when it is let go.
 		const key = sceneFingerprint(scene);
-		if (key !== this.skyKey) {
+		if (!moving && key !== this.skyKey) {
 			this.skyKey = key;
 			this.skyDirty = true;
 			this.box = sceneBox(scene);

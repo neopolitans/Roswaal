@@ -100,7 +100,7 @@ describe("a place imported in the browser", () => {
 });
 
 describe("a property changed in the browser", () => {
-	it("is written into the volume's place, after a backup there", async () => {
+	it("is written into the volume's place at a save, after a backup there", async () => {
 		const root = "/Changed";
 		const place = buildPlace(
 			[
@@ -122,9 +122,15 @@ describe("a property changed in the browser", () => {
 		};
 		const index = tree.outline.nodes.findIndex(([, n]) => n === "Floor");
 		const before = volume.binaryStamp;
-		const answer = (await session.handle("POST", "/place/property", {
+		await session.handle("POST", "/place/property", {
 			body: { stamp: tree.stamp, index, property: "Anchored", value: true },
-		})) as { backup: string };
+		});
+		// Unsaved: the volume's place is as it was.
+		expect(volume.binaryStamp).toBe(before);
+		expect(Array.from(await volume.readFile(`${root}/place.rbxl`))).toEqual(Array.from(place));
+		const answer = (await session.handle("POST", "/place/save", { body: {} })) as {
+			backup: string;
+		};
 		const floor = readRbx(await volume.readFile(`${root}/place.rbxl`)).instances.find(
 			(i) => i.name === "Floor",
 		);

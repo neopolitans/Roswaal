@@ -21237,6 +21237,25 @@ textarea.tb:where(:disabled) {
 	pointer-events: none;
 }
 
+/* Over the pivot's mark, and while dragging by it: the move cursor. A drag by
+   the part itself holds it. */
+.vp-canvas.vp-canvas-pivot {
+	cursor: move;
+}
+
+.vp-canvas.vp-canvas-dragging {
+	cursor: grabbing;
+}
+
+/* The tag beside the pivot while a drag holds it. */
+.vp-pivot-tag text {
+	fill: #fff;
+	font-family: inherit;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+}
+
 .vp-problem {
 	position: absolute;
 	top: 50%;

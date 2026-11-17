@@ -89,6 +89,8 @@ export {
 	type PlaceExport,
 	placeEntries,
 	placeReport,
+	putLinksBack,
+	readLinksText,
 	readPlaceBytes,
 	relink,
 	renameInLinks,
