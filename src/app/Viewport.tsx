@@ -18,6 +18,7 @@ import { api } from "./api.js";
 import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
+import { GizmoSection } from "./GizmoSection.jsx";
 import { Ident, SectionHead } from "./PanelParts.jsx";
 import {
 	VIEWPORT_FRAME_RATES,
@@ -1206,6 +1207,7 @@ export function RenderPanel({ controller }: { controller: ViewportController }) 
 							</div>
 						);
 					})}
+					<GizmoSection controller={controller} />
 					<div className="place-group">
 						<SectionHead title="Tools" />
 						<RenderToolSwitch
