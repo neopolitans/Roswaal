@@ -10,6 +10,7 @@ import {
 	EFFECT_BLOCK,
 	EFFECT_VERTEX,
 	type EffectFrame,
+	FX_CURVE,
 	type EffectShow,
 	EffectsSim,
 	effectBlock,
@@ -50,20 +51,15 @@ in float vDepthW; uniform float logFar;
 uniform vec4 FX[${EFFECT_BLOCK / 4}];
 uniform sampler2D fxImage;
 out vec4 o;
-vec3 fxAces(vec3 colour) {
-	mat3 i = mat3(0.59719, 0.07600, 0.02840, 0.35458, 0.90834, 0.13383, 0.04823, 0.01566, 0.83777);
-	mat3 m = mat3(1.60475, -0.10208, -0.00327, -0.53108, 1.10813, -0.07276, -0.07367, -0.00605, 1.07602);
-	vec3 v = i * colour;
-	vec3 a = v * (v + 0.0245786) - 0.000090537;
-	vec3 b = v * (0.983729 * v + 0.4329510) + 0.238081;
-	return clamp(m * (a / b), vec3(0.0), vec3(1.0));
-}
-vec3 fxDisplay(vec3 c) { return pow(fxAces(c * FX[4].w), vec3(1.0 / 2.2)); }
 vec4 fxAir(float d, float y) {
 	if (FX[7].w < 0.5) return vec4(0.0);
 	if (FX[6].z > 0.5) return vec4(FX[7].rgb, clamp((d - FX[6].x) / max(FX[6].y - FX[6].x, 1.0), 0.0, 1.0));
 	float thin = exp(-max(y, 0.0) * 0.004);
 	return vec4(FX[8].rgb, 1.0 - exp(-d * FX[6].w * thin));
+}
+vec3 fxCurve(vec3 x) {
+	vec3 p = pow(max(x, vec3(1e-6)), vec3(${FX_CURVE.power}));
+	return pow(p / (p + ${FX_CURVE.knee}), vec3(1.0 / 2.2));
 }
 void main() {
 #ifdef LOG_DEPTH
@@ -73,12 +69,13 @@ void main() {
 	if (FX[5].w > 4.5) { o = vec4(FX[8].w, 0.0, 0.0, 0.0); return; }
 	float a = t.a * vColour.a;
 	vec3 albedo = pow(t.rgb * vColour.rgb, vec3(2.2));
+	float added = clamp(vLook.x, 0.0, 1.0);
+	if (FX[5].w > 2.5) { o = vec4(pow(min(albedo, vec3(1.0)), vec3(1.0 / 2.2)) * a, a * (1.0 - added)); return; }
 	vec4 air = fxAir(length(FX[4].xyz - vWorld), vWorld.y);
-	vec3 lit = fxDisplay(mix(albedo * FX[5].rgb, air.rgb, air.a));
-	vec3 own = pow(min(mix(albedo * vLook.z, air.rgb, air.a), vec3(1.0)), vec3(1.0 / 2.2));
-	vec3 c = mix(own, lit, clamp(vLook.y, 0.0, 1.0));
-	if (FX[5].w > 2.5) c = pow(min(albedo, vec3(1.0)), vec3(1.0 / 2.2));
-	o = vec4(c * a, a * (1.0 - clamp(vLook.x, 0.0, 1.0)));
+	vec3 own = albedo * sqrt(max(vLook.z, 0.0));
+	vec3 lit = albedo * FX[5].rgb * ${FX_CURVE.lit};
+	vec3 light = mix(mix(own, lit, clamp(vLook.y, 0.0, 1.0)), air.rgb, air.a);
+	o = vec4(fxCurve(light * a * FX[4].w), a * (1.0 - added));
 }`;
 
 /** What the effects need of WebGl2View: its context, its depth, and its images. */

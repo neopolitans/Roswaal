@@ -14,6 +14,7 @@ import {
 	EFFECT_BLOCK,
 	EFFECT_VERTEX,
 	type EffectFrame,
+	FX_CURVE,
 	type EffectShow,
 	EffectsSim,
 	effectBlock,
@@ -54,17 +55,6 @@ struct FxOut {
 	o.look = look;
 	return o;
 }
-fn fxAces(colour: vec3f) -> vec3f {
-	let i = mat3x3f(0.59719, 0.07600, 0.02840, 0.35458, 0.90834, 0.13383, 0.04823, 0.01566, 0.83777);
-	let o = mat3x3f(1.60475, -0.10208, -0.00327, -0.53108, 1.10813, -0.07276, -0.07367, -0.00605, 1.07602);
-	let v = i * colour;
-	let a = v * (v + 0.0245786) - 0.000090537;
-	let b = v * (0.983729 * v + 0.4329510) + 0.238081;
-	return clamp(o * (a / b), vec3f(0.0), vec3f(1.0));
-}
-fn fxDisplay(c: vec3f) -> vec3f {
-	return pow(fxAces(c * fx.camPos.w), vec3f(1.0 / 2.2));
-}
 // How much of the air's colour lies over a point this far off: the fog, or the haze.
 fn fxAir(d: f32, y: f32) -> vec4f {
 	if (fx.fogColour.w < 0.5) { return vec4f(0.0); }
@@ -75,20 +65,26 @@ fn fxAir(d: f32, y: f32) -> vec4f {
 	let thin = exp(-max(y, 0.0) * 0.004);
 	return vec4f(fx.hazeColour.rgb, 1.0 - exp(-d * fx.fog.w * thin));
 }
+// The effects' own curve, channel by channel, so a cyan beam stays cyan.
+fn fxCurve(x: vec3f) -> vec3f {
+	let p = pow(max(x, vec3f(1e-6)), vec3f(${FX_CURVE.power}));
+	return pow(p / (p + ${FX_CURVE.knee}), vec3f(1.0 / 2.2));
+}
 @fragment fn fsFx(i: FxOut) -> @location(0) vec4f {
 	let t = textureSample(image, imageSampler, i.uv);
 	// The render heatmap: the pixel's share, added to what is behind.
 	if (fx.light.w > 4.5) { return vec4f(fx.hazeColour.w, 0.0, 0.0, 0.0); }
 	let a = t.a * i.colour.a;
 	let albedo = pow(t.rgb * i.colour.rgb, vec3f(2.2));
-	let air = fxAir(length(fx.camPos.xyz - i.world), i.world.y);
-	// Lit, through the display curve as a face is; or its own colour times Brightness.
-	let lit = fxDisplay(mix(albedo * fx.light.rgb, air.rgb, air.a));
-	let own = pow(min(mix(albedo * i.look.z, air.rgb, air.a), vec3f(1.0)), vec3f(1.0 / 2.2));
-	var c = mix(own, lit, clamp(i.look.y, 0.0, 1.0));
-	if (fx.light.w > 2.5) { c = pow(min(albedo, vec3f(1.0)), vec3f(1.0 / 2.2)); }
 	let added = clamp(i.look.x, 0.0, 1.0);
-	return vec4f(c * a, a * (1.0 - added));
+	if (fx.light.w > 2.5) { return vec4f(pow(min(albedo, vec3f(1.0)), vec3f(1.0 / 2.2)) * a, a * (1.0 - added)); }
+	let air = fxAir(length(fx.camPos.xyz - i.world), i.world.y);
+	// Its own light (Brightness, as its square root) or the place's, then the
+	// air; scaled by its opacity before the curve, not after.
+	let own = albedo * sqrt(max(i.look.z, 0.0));
+	let lit = albedo * fx.light.rgb * ${FX_CURVE.lit};
+	let light = mix(mix(own, lit, clamp(i.look.y, 0.0, 1.0)), air.rgb, air.a);
+	return vec4f(fxCurve(light * a * fx.camPos.w), a * (1.0 - added));
 }
 `;
 

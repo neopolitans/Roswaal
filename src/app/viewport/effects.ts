@@ -811,6 +811,19 @@ export function effectLight(l: {
 	return [0, 1, 2].map((k) => (l.indoor?.[k] ?? 0) + l.ambient[k] + l.sunColour[k] * sun);
 }
 
+/**
+ * How Beams and particles are lit and shown, fitted to Studio's screen
+ * captures of a test beam over black and grey (white and cyan; Transparency
+ * 0, 0.5 and 0.8; LightEmission and LightInfluence 0 and 1; Brightness 1 and
+ * 2) in Exodus's lighting: light adds in linear before a curve of the effects'
+ * own, x^3.4 / (x^3.4 + 0.33) and then the display's 2.2, on each channel
+ * (2.5 levels rms over the captures); Transparency scales the light before the
+ * curve; Brightness counts as its square root; lit is 0.5 of `effectLight`
+ * (Studio's lit beam was 1.74 times its unlit one there, where ours is 3.46).
+ * As GLSL and WGSL float literals.
+ */
+export const FX_CURVE = { power: "3.4", knee: "0.33", lit: "0.5" } as const;
+
 /** What a particle or beam pixel adds to the render heatmap, in its units: an image read, its colour, the air, the blend. */
 export const EFFECT_COST = 4;
 

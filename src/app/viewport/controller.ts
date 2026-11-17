@@ -251,12 +251,17 @@ export interface CornerElements {
 
 /**
  * An image as a renderer takes it: loadImages already decodes its colours as
- * they are, not multiplied by their alpha, which both renderers want, so it is
- * handed over as it is. (WebGL2 once needed a copy made here, a long task on
- * the page's thread for a large sky face.)
+ * they are, not multiplied by their alpha, which WebGL2 takes as it is. (It
+ * once needed a copy made here, a long task on the page's thread for a large
+ * sky face.) WebGPU gets a copy in the browser's own form: Chromium's
+ * copyExternalImageToTexture multiplies a grey-and-alpha PNG decoded that way
+ * by its alpha though told not to, so a Beam's scan lines (white, alpha 0.1 to
+ * 0.4) came out at a third of their light. From the browser's own form the
+ * copy is right for every PNG.
  */
-function forView(_view: ViewRenderer, image: ImageBitmap): Promise<ImageBitmap> {
-	return Promise.resolve(image);
+function forView(view: ViewRenderer, image: ImageBitmap): Promise<ImageBitmap> {
+	if (view.backend !== "WebGPU") return Promise.resolve(image);
+	return createImageBitmap(image, { premultiplyAlpha: "default" }).catch(() => image);
 }
 
 export class ViewportController {
