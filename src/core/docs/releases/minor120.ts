@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.264.0",
+		date: "2026-11-17",
+		headline: "Parts drag onto surfaces in the place viewer; thin walls let the sky in as Studio's do.",
+		added: [
+			"**Dragging parts.** With Modify DataModel Instances on, drag a part, Model or union in the place viewer with any tool: it rests by its nearest side on the surface under the pointer, or by its pivot when the pivot is grabbed. R and T turn it while dragging, Esc puts it back, and Ctrl+Z undoes it.",
+			"**Thin walls let the sky in.** Rooms with walls thinner than 4 studs are lit near their walls and joins, as in Studio.",
+			"**Roswaal fixes** in the Rendering panel change the picture from Studio's on purpose. The first, Thin walls block sky, keeps closed rooms dark.",
+		],
+		changed: [
+			"**Edit Pivot** shows only the chosen tool's handles on the pivot.",
+		],
+	},
+	{
 		version: "0.263.0",
 		date: "2026-11-17",
 		headline: "The Rendering panel's View is one dropdown and every switch works in every view; Neon under a beam no longer washes out.",
