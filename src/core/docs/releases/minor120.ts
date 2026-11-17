@@ -9,6 +9,21 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_0_120: Release[] = [
 	{
+		version: "0.262.0",
+		date: "2026-11-17",
+		headline: "Frustum and occlusion culling; sky shadows blend into one shade and stop where Studio's do.",
+		added: [
+			"**Frustum and occlusion culling.** The place viewer draws only the solid parts in view and not hidden behind others: switches in the Rendering panel's Performance group, on to begin with. The wireframe shows what is left, and Performance shows how many parts are drawn.",
+		],
+		changed: [
+			"**The Rendering panel** shows the preset chosen and how many switches are changed from it, there and over the bar. Look at is now See, and The picture Final output. Gizmos and Tools fold.",
+		],
+		fixed: [
+			"**Overlapping sky shadows**, such as a row of beams overhead, blend into one shade rather than stepping darker where they overlap.",
+			"**Parts far above the camera** no longer darken the sky's light under them, as in Studio: a deck under a ship's hull is lit as Studio lights it.",
+		],
+	},
+	{
 		version: "0.261.0",
 		date: "2026-11-17",
 		headline: "The Rendering panel has a switch for every part of the picture, steps through a frame and presets; beams light as Studio's.",
