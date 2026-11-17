@@ -5,16 +5,17 @@
  */
 
 import { useSyncExternalStore } from "react";
-import { SectionHead } from "./PanelParts.jsx";
+import { SectionHead, useFold } from "./PanelParts.jsx";
 import type { ViewportController } from "./viewport/controller.js";
 import { GIZMO_SWITCHES } from "./viewport/visualGizmos.js";
 
 export function GizmoSection({ controller }: { controller: ViewportController }) {
 	const { gizmos } = useSyncExternalStore(controller.subscribe, controller.getState);
+	const [open, toggle] = useFold(false);
 	return (
 		<div className="place-group">
-			<SectionHead title="Gizmos" />
-			{GIZMO_SWITCHES.map(([key, label]) => (
+			<SectionHead title="Gizmos" open={open} onToggle={toggle} />
+			{open && GIZMO_SWITCHES.map(([key, label]) => (
 				<label className="render-switch" key={key}>
 					<span>{label}</span>
 					<input

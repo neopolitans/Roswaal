@@ -990,7 +990,7 @@ export type RenderMode =
 	| "sunMaps";
 
 export const RENDER_MODES: readonly (readonly [RenderMode, string])[] = [
-	["lit", "The picture"],
+	["lit", "Final output"],
 	["wireframe", "Wireframe"],
 	["cost", "Render heatmap"],
 	["lights", "Lighting heatmap"],
@@ -1027,6 +1027,8 @@ export interface RenderSettings {
 	heat: RenderHeat;
 	/** Each part of the picture, on or off: see renderFeatures.ts. */
 	features: RenderFeatures;
+	/** The preset last chosen: what the switches are counted against (RENDER_PRESETS' id). */
+	preset: string;
 	/** The lights near the camera drawn as wire shapes of their reach: see `gizmos.ts`. */
 	lightRanges: boolean;
 	/** The sun's cascades and the sky maps left as last drawn, to compare what they cost. */
@@ -1037,6 +1039,7 @@ export const DEFAULT_RENDER: RenderSettings = {
 	mode: "lit",
 	heat: "linear",
 	features: STUDIO_FEATURES,
+	preset: "studio",
 	lightRanges: false,
 	freezeShadows: false,
 };

@@ -325,6 +325,11 @@ export const DEBUG_PRESETS: readonly RenderPreset[] = [
 
 export const RENDER_PRESETS: readonly RenderPreset[] = [...PERFORMANCE_PRESETS, ...DEBUG_PRESETS];
 
+/** The preset by its id; As Studio for one that is gone. */
+export function presetById(id: string): RenderPreset {
+	return RENDER_PRESETS.find((p) => p.id === id) ?? PERFORMANCE_PRESETS[0];
+}
+
 /**
  * The bits the place's shaders read, in the Rendering panel's vec4's y (see
  * view.ts's renderDebug): which parts of a surface's look and light are on.

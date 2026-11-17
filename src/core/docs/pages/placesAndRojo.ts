@@ -274,7 +274,7 @@ export function placesAndRojoPage(): DocPage {
 				text:
 					"Every part of the picture has its own switch, in groups: surfaces, light, shadows, " +
 					"lights, glow and effects, sky and air, post effects. A dot marks a switch changed " +
-					"from Studio; **Reset to Studio** puts them all back. The arrows step through the ten " +
+					"from the preset chosen; **Reset** puts them back. The arrows step through the ten " +
 					"steps a frame is built in, from the parts unlit to the post effects, each turning on " +
 					"its own switches and every earlier step's.",
 			},
@@ -288,9 +288,9 @@ export function placesAndRojoPage(): DocPage {
 			},
 			{
 				t: "table",
-				head: ["Look at", "Shows"],
+				head: ["See", "Shows"],
 				rows: [
-					["The picture", "The place as the switches leave it"],
+					["Final output", "The place as the switches leave it"],
 					["Wireframe", "Every part's edges, those behind others too"],
 					[
 						"Render heatmap",
