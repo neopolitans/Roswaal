@@ -1146,6 +1146,32 @@ select optgroup {
 	}
 }
 
+/* Add Service to Explorer: a dozen services rather than six hundred classes,
+   so as tall as its list and no taller. Held from the top, so the search field
+   stays put as a search shortens the list. */
+.value-picker.value-picker-services {
+	align-self: start;
+	margin-top: min(12vh, 120px);
+	width: min(760px, 92vw);
+	height: auto;
+	max-height: min(660px, 76vh);
+}
+
+.value-picker-services .value-option {
+	padding-block: 4px;
+}
+
+/* Rows a finger can take. */
+@media (pointer: coarse) {
+	.value-picker-services .value-option {
+		min-height: 36px;
+	}
+
+	.value-picker-services .value-rail button {
+		min-height: 36px;
+	}
+}
+
 /* The pin's own control: what it holds, and a chevron saying there is more. */
 .literal.picker {
 	display: flex;

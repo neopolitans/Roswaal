@@ -150,8 +150,9 @@ export function placesAndRojoPage(): DocPage {
 					"When the project has a place, the Project panel switches between **Files** and " +
 					"**DataModel**. DataModel lists the place's instances as Studio's Explorer does: its " +
 					"usual services first and children by name. It lists the services that hold something " +
-					"and those the project's Luau reaches; **Add Service to Explorer** lists another, " +
-					"from then on. Filter by name, or by a class name typed in full.",
+					"and those the project's Luau reaches. **Add Service to Explorer** opens the rest, " +
+					"grouped and searchable, and the one picked is listed from then on. Filter by name, " +
+					"or by a class name typed in full.",
 			},
 			{ t: "toolbar", bar: DATAMODEL_BROWSER, hint: true },
 			{

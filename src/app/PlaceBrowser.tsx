@@ -59,6 +59,12 @@ import {
 	type RowSelection,
 } from "./placeSelection.js";
 import { PROPERTY_DRAG, type PropertyDrag } from "./propertyDrag.js";
+import {
+	SERVICE_GROUPS_FIRST,
+	type ServiceChoice,
+	serviceChoices,
+	serviceGroup,
+} from "./servicePicker.js";
 import { showToast } from "./Toast.jsx";
 import type { Dialogs } from "./useDialogs.js";
 import { classDetail, ValuePicker } from "./ValuePicker.jsx";
@@ -239,7 +245,7 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 	const [added, setAdded] = useState<ReadonlySet<string>>(() => readAddedServices(file));
 	// Shown for this visit because something on it was asked for: a pick in the view.
 	const [revealed, setRevealed] = useState<ReadonlySet<number>>(new Set());
-	const [serviceMenu, setServiceMenu] = useState<Element | null>(null);
+	const [pickingService, setPickingService] = useState(false);
 	useEffect(() => setAdded(readAddedServices(file)), [file]);
 	const [filter, setFilter] = useState("");
 	// What is picked: one row or many. The last picked is the one Properties shows.
@@ -515,15 +521,19 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 		revealed,
 	]);
 
-	/** The services DataModel holds and does not list, for Add Service's menu. */
+	/** The services DataModel holds and does not list, for Add Service's picker. */
 	const unlisted = useMemo(() => {
 		if (!nodes || !classes) return [];
-		return (children.get(-1) ?? []).filter(
-			(i) =>
-				(children.get(i)?.length ?? 0) === 0 &&
-				!used.has(classes[nodes[i][0]]) &&
-				!added.has(classes[nodes[i][0]]) &&
-				!revealed.has(i),
+		return serviceChoices(
+			(children.get(-1) ?? [])
+				.filter(
+					(i) =>
+						(children.get(i)?.length ?? 0) === 0 &&
+						!used.has(classes[nodes[i][0]]) &&
+						!added.has(classes[nodes[i][0]]) &&
+						!revealed.has(i),
+				)
+				.map((i) => ({ className: classes[nodes[i][0]], name: nodes[i][1] })),
 		);
 	}, [nodes, classes, children, used, added, revealed]);
 
@@ -808,8 +818,8 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 								key={`more-${n}`}
 								className="tree-row place-more"
 								style={{ ...depthStyle(row.depth), paddingLeft: 6 + row.depth * 13 + 20 }}
-								onClick={(e) => {
-									if (row.kind === "addService") setServiceMenu(e.currentTarget);
+								onClick={() => {
+									if (row.kind === "addService") setPickingService(true);
 									else if (row.parent !== undefined) setShowAll((s) => new Set(s).add(row.parent!));
 								}}
 							>
@@ -929,20 +939,11 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 				</p>
 			)}
 
-			{serviceMenu && nodes && classes && (
-				<Menu
-					at={{ element: serviceMenu, align: "start" }}
-					label="Add Service to Explorer"
-					onClose={() => setServiceMenu(null)}
-					sections={[
-						{
-							entries: unlisted.map((i) => ({
-								label: nodes[i][1],
-								hint: "Holds nothing yet",
-								run: () => addService(classes[nodes[i][0]]),
-							})),
-						},
-					]}
+			{pickingService && (
+				<ServicePicker
+					services={unlisted}
+					onPick={addService}
+					onClose={() => setPickingService(false)}
 				/>
 			)}
 
@@ -1432,6 +1433,39 @@ function ClassIcon({
 	if (wearsClassIcon(className)) return <EngineIcon name={className} size={15} />;
 	const { icon, tone } = classGlyph(className, service, open);
 	return <Icon name={icon as IconName} size={15} className={cx("kind", tone)} />;
+}
+
+/**
+ * Add Service to Explorer: the services DataModel holds and does not list, in
+ * the type picker's shape. Search at the top, grouped by purpose, in columns,
+ * each with the icon its row will have. Only these can be picked.
+ */
+function ServicePicker({
+	services,
+	onPick,
+	onClose,
+}: {
+	services: readonly ServiceChoice[];
+	onPick: (className: string) => void;
+	onClose: () => void;
+}) {
+	const names = useMemo(() => new Map(services.map((s) => [s.className, s.name])), [services]);
+	return (
+		<ValuePicker
+			what="services"
+			variant="value-picker-services"
+			options={services.map((s) => s.className)}
+			value=""
+			labelOf={(className) => names.get(className) ?? className}
+			groupOf={serviceGroup}
+			groupsFirst={SERVICE_GROUPS_FIRST}
+			detailOf={(className) => (names.has(className) ? "Holds nothing yet" : "")}
+			iconOf={(className) => <ClassIcon className={className} service open={false} />}
+			listOnly
+			onPick={onPick}
+			onClose={onClose}
+		/>
+	);
 }
 
 export { PROPERTY_DRAG, type PropertyDrag } from "./propertyDrag.js";

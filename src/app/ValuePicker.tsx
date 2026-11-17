@@ -34,7 +34,7 @@
  * hand — a class newer than this build has to be reachable.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { classIconOf, purposeLabel } from "../core/classIcons.js";
@@ -81,6 +81,16 @@ export interface ValuePickerProps {
 	 * the classes are grouped as Settings › Group classes says.
 	 */
 	classes?: boolean;
+	/**
+	 * Only what is listed can be picked: Enter on a search that matches nothing
+	 * picks nothing. For a list that is the whole answer, such as the services a
+	 * place holds.
+	 */
+	listOnly?: boolean;
+	/** What is drawn beside a value, in place of its class icon or dot. */
+	iconOf?: (value: string) => ReactNode;
+	/** A class of the picker's own, for a list styled apart: `value-picker-services`. */
+	variant?: string;
 	onPick: (value: string) => void;
 	onClose: () => void;
 }
@@ -95,6 +105,35 @@ function score(name: string, query: string): number {
 	if (lower.startsWith(query)) return 500 - name.length;
 	if (lower.includes(query)) return 200 - name.length;
 	return 0;
+}
+
+/** The values matching a search, best first; null for no search. */
+export function rankMatches(
+	options: readonly string[],
+	query: string,
+	labelOf?: (value: string) => string,
+): string[] | null {
+	const needle = query.trim().toLowerCase();
+	if (needle === "") return null;
+	return options
+		.map((name) => ({ name, rank: score(labelOf?.(name) ?? name, needle) }))
+		.filter((entry) => entry.rank > 0)
+		.sort((a, b) => b.rank - a.rank || a.name.localeCompare(b.name))
+		.map((entry) => entry.name);
+}
+
+/**
+ * What Enter picks: the highlight, or what is typed when nothing matches it.
+ * A list-only picker picks nothing then, and "" says so.
+ */
+export function enterChoice(
+	matches: readonly string[] | null,
+	active: string,
+	query: string,
+	listOnly = false,
+): string {
+	if (matches !== null && matches.length === 0) return listOnly ? "" : query.trim();
+	return active || (listOnly ? "" : query.trim());
 }
 
 /** The inheritance chain, for a class. Anything else has none to show. */
@@ -140,14 +179,7 @@ export function ValuePicker(props: ValuePickerProps) {
 	// Grouping is dropped while searching. Six matches spread over four headings
 	// is four headings too many, and the thing you are doing when you type is
 	// reading one list top to bottom.
-	const matches = useMemo(() => {
-		if (needle === "") return null;
-		return options
-			.map((name) => ({ name, rank: score(labelOf?.(name) ?? name, needle) }))
-			.filter((entry) => entry.rank > 0)
-			.sort((a, b) => b.rank - a.rank || a.name.localeCompare(b.name))
-			.map((entry) => entry.name);
-	}, [options, needle]);
+	const matches = useMemo(() => rankMatches(options, needle, labelOf), [options, needle]);
 
 	const groups = useMemo(() => {
 		if (matches !== null) return null;
@@ -236,7 +268,7 @@ export function ValuePicker(props: ValuePickerProps) {
 			// What is typed wins over what is highlighted when it is not on the
 			// list at all: that is the only way to reach a name this build has
 			// never heard of, and it is why the field is not a filter alone.
-			commit(matches !== null && matches.length === 0 ? query.trim() : active || query.trim());
+			commit(enterChoice(matches, active, query, props.listOnly));
 			return;
 		}
 		// Tab takes the highlight too, from the search field only and only when
@@ -271,7 +303,9 @@ export function ValuePicker(props: ValuePickerProps) {
 				onPointerEnter={() => setActive(name)}
 				onClick={() => commit(name)}
 			>
-				{script ? (
+				{props.iconOf ? (
+					props.iconOf(name)
+				) : script ? (
 					<Icon name={script.icon as IconName} size={14} className={script.tone} />
 				) : icon ? (
 					<ClassIcon name={name} tint={color && color !== PLAIN ? color : undefined} />
@@ -299,7 +333,7 @@ export function ValuePicker(props: ValuePickerProps) {
 	return createPortal(
 		<div className="docs-backdrop" style={{ zIndex: LAYER.menu + 1 }} onPointerDown={props.onClose}>
 			<div
-				className="value-picker"
+				className={cx("value-picker", props.variant)}
 				ref={root}
 				onPointerDown={(e) => e.stopPropagation()}
 				onKeyDown={onKeyDown}
@@ -311,7 +345,9 @@ export function ValuePicker(props: ValuePickerProps) {
 							ref={field}
 							className="tb"
 							value={query}
-							placeholder={`Search ${props.what}, or type any`}
+							placeholder={
+								props.listOnly ? `Search ${props.what}` : `Search ${props.what}, or type any`
+							}
 							spellCheck={false}
 							onChange={(e) => setQuery(e.target.value)}
 						/>
@@ -343,7 +379,9 @@ export function ValuePicker(props: ValuePickerProps) {
 						</nav>
 					)}
 					<div className="value-list" ref={list} onScroll={follow}>
-						{nothing ? (
+						{nothing && props.listOnly ? (
+							<p className="value-empty">Nothing matches “{query}”.</p>
+						) : nothing ? (
 							<p className="value-empty">
 								Nothing matches “{query}”. <strong>Enter</strong> uses it anyway — the list is what
 								this build knows, not what the pin will take.
