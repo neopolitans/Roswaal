@@ -128,6 +128,16 @@ function remember(step: PlaceStep | null, stamp: string): void {
 	setHistory(historyKey(), recorded(historyOf(historyKey()), step, stamp));
 }
 
+/**
+ * A drag the place viewer wrote, at `stamp`: on this history, so Ctrl+Z here
+ * takes it back, and a version of the place this keeps the tree open and
+ * picked through, as it does its own.
+ */
+export function rememberViewerChange(step: PlaceStep | null, stamp: string): void {
+	writtenStamps.add(stamp);
+	remember(step, stamp);
+}
+
 /** What a drag out of the tree carries when it can move the instance: its index. */
 const PLACE_MOVE = "application/x-roswaal-place-move";
 
@@ -1356,6 +1366,9 @@ function changeLabel(
 			return `Duplicate ${name}`;
 		case "restore":
 			return "Put back";
+		case "transform":
+		case "frames":
+			return `Drag ${name}`;
 	}
 }
 

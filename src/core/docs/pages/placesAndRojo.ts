@@ -218,6 +218,15 @@ export function placesAndRojoPage(): DocPage {
 						"Use the camera alone",
 						"`1` with Select chosen, or click **Select**: clicks pick nothing; `1` again picks it up",
 					],
+					[
+						"Move a part or a model onto a surface",
+						"Drag it, with any tool: it rests on what is under the pointer",
+					],
+					["Set it down by its pivot", "Drag the pivot's dot: the pivot goes on the surface"],
+					[
+						"Turn what is dragged",
+						"`R` turns it, `T` tilts it, a quarter each; `Esc` puts it back",
+					],
 					["Put the handles on the pivot", "**Pivot** in the bar: Edit Pivot"],
 					[
 						"Turn the handles to the world's axes, or back to the object's",
@@ -237,7 +246,8 @@ export function placesAndRojoPage(): DocPage {
 				t: "p",
 				text:
 					"Move, Rotate, Scale, **Pivot** and **Object** are editing tools, offered with " +
-					"**Settings › Workspace › Modify DataModel Instances** on. Importing a place, or a Rojo " +
+					"**Settings › Workspace › Modify DataModel Instances** on, as is dragging; a Locked " +
+					"part stays put, and `Ctrl` + `Z` takes a drag back. Importing a place, or a Rojo " +
 					"project with one, asks whether to view it only or to view and edit it.",
 			},
 			{

@@ -422,23 +422,62 @@ export function writeProperty(
 	stored: string,
 	value: unknown,
 ): Uint8Array {
-	if (inst.ref === undefined) throw new RbxError(`"${inst.name}" has no identity in the file`);
-	const prop = inst.props.get(stored);
-	if (!prop) throw new RbxError(`"${inst.name}" has no ${stored} in the file`);
+	return writeProperties(bytes, doc, [{ inst, stored, value }]);
+}
+
+/** One value `writeProperties` writes: `inst`'s `stored`, in the form `storedValue` gives. */
+export interface PropertyWrite {
+	inst: RbxInstance;
+	stored: string;
+	value: unknown;
+}
+
+/**
+ * The place with each of `writes` written, in one pass over the file: a drag
+ * moves every part of a Model at once. Nothing else in the file changes, and
+ * the file is read back once, every value checked. A shared string is written
+ * alone.
+ */
+export function writeProperties(
+	bytes: Uint8Array,
+	doc: RbxDocument,
+	writes: readonly PropertyWrite[],
+): Uint8Array {
+	if (writes.length === 0) return bytes;
+	const edits = writes.map(({ inst, stored, value }) => {
+		if (inst.ref === undefined) throw new RbxError(`"${inst.name}" has no identity in the file`);
+		const prop = inst.props.get(stored);
+		if (!prop) throw new RbxError(`"${inst.name}" has no ${stored} in the file`);
+		return { ref: inst.ref, stored, type: prop.type, value };
+	});
+	if (edits.length > 1 && edits.some((e) => e.type === "SharedString"))
+		throw new RbxError("a shared string is written on its own");
 	let out: Uint8Array;
 	if (doc.format === "binary") {
 		if (!isBinaryRbx(bytes)) throw new RbxError("the document was read from a different file");
-		out = writeBinary(bytes, inst.ref as number, stored, prop.type, value);
+		out = writeBinary(
+			bytes,
+			edits.map((e) => ({ ...e, ref: e.ref as number })),
+		);
 	} else {
-		out = writeXml(new TextDecoder().decode(bytes), String(inst.ref), stored, prop.type, value);
+		out = writeXml(
+			new TextDecoder().decode(bytes),
+			edits.map((e) => ({ ...e, referent: String(e.ref) })),
+		);
 	}
 
-	// Read back: the new value where it was asked for, and nothing lost.
+	// Read back: each new value where it was asked for, and nothing lost.
 	const again = readRbx(out);
-	const found = again.instances.find((other) => other.ref === inst.ref);
-	const now = found?.props.get(stored);
-	if (again.instances.length !== doc.instances.length || !now || !same(prop.type, now.value, value))
-		throw new RbxError(`${stored} did not read back as written, so the place was left as it was`);
+	if (again.instances.length !== doc.instances.length)
+		throw new RbxError("the place lost an instance being written, so it was left as it was");
+	const byRef = new Map(again.instances.map((other) => [other.ref, other]));
+	for (const e of edits) {
+		const now = byRef.get(e.ref)?.props.get(e.stored);
+		if (!now || !same(e.type, now.value, e.value))
+			throw new RbxError(
+				`${e.stored} did not read back as written, so the place was left as it was`,
+			);
+	}
 	return out;
 }
 
@@ -667,25 +706,31 @@ function putTransposed(out: Uint8Array, base: number, count: number, slot: numbe
 	for (let k = 0; k < 4; k++) out[base + k * count + slot] = (v >>> (24 - 8 * k)) & 255;
 }
 
-function writeBinary(
-	bytes: Uint8Array,
-	ref: number,
-	stored: string,
-	type: PropType,
-	value: unknown,
-): Uint8Array {
-	const typeByte = TYPE_BYTE[type];
-	if (typeByte === undefined) throw new RbxError(`a ${type} value is not written here`);
-	// A shared string is an index into the place's table, which takes the value first.
-	if (type === "SharedString") {
-		const shared = withShared(bytes, value as Uint8Array);
-		bytes = shared.bytes;
-		value = shared.index;
-	}
-	const parts: Uint8Array[] = [bytes.subarray(0, FIRST_CHUNK)];
+/** One value into a binary place: the instance by its referent. */
+interface BinaryEdit {
+	ref: number;
+	stored: string;
+	type: PropType;
+	value: unknown;
 	/** The instance's class, and where it stands among that class's instances. */
-	let target: { classId: number; slot: number; count: number } | null = null;
-	let written = false;
+	target?: { classId: number; slot: number; count: number };
+	written?: boolean;
+}
+
+function writeBinary(bytes: Uint8Array, edits: BinaryEdit[]): Uint8Array {
+	for (const e of edits) {
+		if (TYPE_BYTE[e.type] === undefined)
+			throw new RbxError(`a ${e.type} value is not written here`);
+		// A shared string is an index into the place's table, which takes the value first.
+		if (e.type === "SharedString") {
+			const shared = withShared(bytes, e.value as Uint8Array);
+			bytes = shared.bytes;
+			e.value = shared.index;
+		}
+	}
+	const byRef = new Map<number, BinaryEdit[]>();
+	for (const e of edits) byRef.set(e.ref, [...(byRef.get(e.ref) ?? []), e]);
+	const parts: Uint8Array[] = [bytes.subarray(0, FIRST_CHUNK)];
 
 	for (const chunk of readChunks(bytes)) {
 		const { name, whole } = chunk;
@@ -698,22 +743,36 @@ function writeBinary(
 		const nameLength = u32(data, 4);
 		if (name === "INST") {
 			const count = u32(data, 8 + nameLength + 1);
-			const slot = readReferents(data, 8 + nameLength + 5, count).indexOf(ref);
-			if (slot !== -1) target = { classId, slot, count };
+			readReferents(data, 8 + nameLength + 5, count).forEach((ref, slot) => {
+				for (const e of byRef.get(ref) ?? []) e.target = { classId, slot, count };
+			});
 			parts.push(whole);
 			continue;
 		}
 		const label = new TextDecoder().decode(data.subarray(8, 8 + nameLength));
-		if (!target || classId !== target.classId || label !== stored) {
+		const here = edits.filter((e) => e.target?.classId === classId && e.stored === label);
+		if (here.length === 0) {
 			parts.push(whole);
 			continue;
 		}
 		const at = 8 + nameLength;
-		if (data[at] !== typeByte) throw new RbxError(`${stored} is not stored as a ${type}`);
-		parts.push(sealChunk("PROP", patch(data, at + 1, typeByte, target, value)));
-		written = true;
+		const typeByte = TYPE_BYTE[here[0].type] as number;
+		if (data[at] !== typeByte) throw new RbxError(`${label} is not stored as a ${here[0].type}`);
+		let out = data;
+		// CFrames are rebuilt a chunk at a time, every value in it at once.
+		if (typeByte === 16 || typeByte === 30) {
+			const values = new Map(here.map((e) => [e.target!.slot, e.value as CFrameValue]));
+			const count = here[0].target!.count;
+			out =
+				typeByte === 16
+					? patchCFrame(data, at + 1, count, values)
+					: patchOptionalCFrame(data, at + 1, count, values);
+		} else for (const e of here) out = patch(out, at + 1, typeByte, e.target!, e.value);
+		parts.push(sealChunk("PROP", out));
+		for (const e of here) e.written = true;
 	}
-	if (!written) throw new RbxError(`the file stores no ${stored} for this instance`);
+	const missed = edits.find((e) => !e.written);
+	if (missed) throw new RbxError(`the file stores no ${missed.stored} for this instance`);
 
 	const out = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0));
 	let o = 0;
@@ -733,8 +792,9 @@ function patch(
 	value: unknown,
 ): Uint8Array {
 	if (type === 1) return patchString(data, base, slot, count, value as Uint8Array);
-	if (type === 16) return patchCFrame(data, base, slot, count, value as CFrameValue);
-	if (type === 30) return patchOptionalCFrame(data, base, slot, count, value as CFrameValue);
+	if (type === 16) return patchCFrame(data, base, count, new Map([[slot, value as CFrameValue]]));
+	if (type === 30)
+		return patchOptionalCFrame(data, base, count, new Map([[slot, value as CFrameValue]]));
 	if (data.length !== base + count * SIZE[type])
 		throw new RbxError("a property chunk is not the length its values need");
 	const out = data.slice();
@@ -835,26 +895,27 @@ function patch(
 function patchOptionalCFrame(
 	data: Uint8Array,
 	base: number,
-	slot: number,
 	count: number,
-	value: CFrameValue,
+	values: ReadonlyMap<number, CFrameValue>,
 ): Uint8Array {
 	if (data[base] !== 16) throw new RbxError("an OptionalCFrame without its CFrames");
 	// The Bool column is the last `count` bytes, after its type byte.
 	const flags = data.length - count;
 	if (data[flags - 1] !== 2) throw new RbxError("an OptionalCFrame without its flags");
-	const out = patchCFrame(data, base + 1, slot, count, value, count + 1);
-	out[out.length - count + slot] = 1;
+	const out = patchCFrame(data, base + 1, count, values, count + 1);
+	for (const slot of values.keys()) out[out.length - count + slot] = 1;
 	return out;
 }
 
-/** `tail` bytes after the positions are kept as they are: an OptionalCFrame's flags. */
+/**
+ * `values` by their slot written into a CFrame column. `tail` bytes after the
+ * positions are kept as they are: an OptionalCFrame's flags.
+ */
 function patchCFrame(
 	data: Uint8Array,
 	base: number,
-	slot: number,
 	count: number,
-	value: CFrameValue,
+	values: ReadonlyMap<number, CFrameValue>,
 	tail = 0,
 ): Uint8Array {
 	const rotations: Uint8Array[] = [];
@@ -867,10 +928,12 @@ function patchCFrame(
 	}
 	if (data.length - at !== 12 * count + tail)
 		throw new RbxError("a property chunk is not the length its values need");
-	const matrix = new Uint8Array(37);
-	const view = new DataView(matrix.buffer);
-	value.rotation.forEach((c, i) => view.setFloat32(1 + 4 * i, c, true));
-	rotations[slot] = matrix;
+	for (const [slot, value] of values) {
+		const matrix = new Uint8Array(37);
+		const view = new DataView(matrix.buffer);
+		value.rotation.forEach((c, i) => view.setFloat32(1 + 4 * i, c, true));
+		rotations[slot] = matrix;
+	}
 
 	const head = base + rotations.reduce((sum, r) => sum + r.length, 0);
 	const out = new Uint8Array(head + 12 * count + tail);
@@ -881,9 +944,10 @@ function patchCFrame(
 		o += r.length;
 	}
 	out.set(data.subarray(at), head);
-	value.position.forEach((c, i) =>
-		putTransposed(out, head + i * 4 * count, count, slot, rotated(c)),
-	);
+	for (const [slot, value] of values)
+		value.position.forEach((c, i) =>
+			putTransposed(out, head + i * 4 * count, count, slot, rotated(c)),
+		);
 	return out;
 }
 
@@ -999,23 +1063,55 @@ function spliceChildren(el: XmlElement, fields: [string, string][]) {
 const escapeText = (s: string) =>
 	s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-function writeXml(
+/** One value into an XML place: the instance by its referent. */
+interface XmlEdit {
+	referent: string;
+	stored: string;
+	type: PropType;
+	value: unknown;
+}
+
+type Splice = { start: number; end: number; text: string };
+
+function writeXml(source: string, edits: readonly XmlEdit[]): Uint8Array {
+	const wanted = new Set(edits.map((e) => e.referent));
+	const items = new Map<string, XmlElement>();
+	const visit = (el: XmlElement) => {
+		if (items.size === wanted.size) return;
+		if (el.name === "Item" && wanted.has(el.attrs.referent)) items.set(el.attrs.referent, el);
+		el.children.forEach(visit);
+	};
+	visit(parseXml(source));
+	const splices: Splice[] = [];
+	for (const { referent, stored, type, value } of edits) {
+		const props = items.get(referent)?.children.find((c) => c.name === "Properties");
+		const el = props?.children.find((c) => c.attrs.name === stored);
+		if (!el) throw new RbxError(`the file stores no ${stored} for this instance`);
+		if (type === "SharedString") {
+			// The key in the element, the value in the table at the end of the file.
+			if (el.name !== ELEMENT[type]) throw new RbxError(`${stored} is not stored as a ${type}`);
+			const key = sharedKey(value as Uint8Array);
+			const keyed = `${source.slice(0, el.start)}${key}${source.slice(el.end)}`;
+			return utf8.encode(withSharedXml(keyed, key, value as Uint8Array));
+		}
+		splices.push(...xmlSplices(source, el, stored, type, value));
+	}
+
+	// From the end, so each splice leaves the offsets before it where they were.
+	splices.sort((a, b) => b.start - a.start);
+	let out = source;
+	for (const s of splices) out = out.slice(0, s.start) + s.text + out.slice(s.end);
+	return utf8.encode(out);
+}
+
+/** The splices that write `value` into one property's element. */
+function xmlSplices(
 	source: string,
-	referent: string,
+	el: XmlElement,
 	stored: string,
 	type: PropType,
 	value: unknown,
-): Uint8Array {
-	let item: XmlElement | undefined;
-	const visit = (el: XmlElement) => {
-		if (item) return;
-		if (el.name === "Item" && el.attrs.referent === referent) item = el;
-		else el.children.forEach(visit);
-	};
-	visit(parseXml(source));
-	const props = item?.children.find((c) => c.name === "Properties");
-	const el = props?.children.find((c) => c.attrs.name === stored);
-	if (!el) throw new RbxError(`the file stores no ${stored} for this instance`);
+): Splice[] {
 	// An asset link is a String to the reader, kept in a Content element;
 	// attributes and tags are too, kept as base64 in a BinaryString.
 	const link = type === "String" && el.name === "Content";
@@ -1023,13 +1119,7 @@ function writeXml(
 	if (el.name !== ELEMENT[type] && !link && !binary)
 		throw new RbxError(`${stored} is not stored as a ${type}`);
 
-	if (type === "SharedString") {
-		// The key in the element, the value in the table at the end of the file.
-		const key = sharedKey(value as Uint8Array);
-		const keyed = `${source.slice(0, el.start)}${key}${source.slice(el.end)}`;
-		return utf8.encode(withSharedXml(keyed, key, value as Uint8Array));
-	}
-	const splices: { start: number; end: number; text: string }[] = [];
+	const splices: Splice[] = [];
 	if (binary) {
 		splices.push(content(source, el, toBase64(value as Uint8Array)));
 	} else if (link) {
@@ -1093,12 +1183,7 @@ function writeXml(
 	} else {
 		splices.push(content(source, el, xmlText(type, value, el)));
 	}
-
-	// From the end, so each splice leaves the offsets before it where they were.
-	splices.sort((a, b) => b.start - a.start);
-	let out = source;
-	for (const s of splices) out = out.slice(0, s.start) + s.text + out.slice(s.end);
-	return utf8.encode(out);
+	return splices;
 }
 
 /**

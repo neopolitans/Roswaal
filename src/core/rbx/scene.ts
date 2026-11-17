@@ -73,6 +73,8 @@ export interface PlaceScene {
 	 * `Model:GetBoundingBox` describes.
 	 */
 	pivots?: Record<number, number[]>;
+	/** Parts with Locked on, by row: a drag in the viewer leaves them where they are, as Studio's does. */
+	locked?: number[];
 	/** Where Studio's camera was when the place was saved: Workspace's Camera. */
 	camera?: { id: number; position: number[]; rotation: number[]; fieldOfView: number };
 	/**
@@ -349,6 +351,7 @@ export function buildPlaceScene(
 	const images: SceneImage[] = [];
 	const meshes: SceneMesh[] = [];
 	const meshSlots = new Map<string, number>();
+	const locked: number[] = [];
 	let transparent = 0;
 
 	const visit = (inst: RbxInstance) => {
@@ -359,6 +362,10 @@ export function buildPlaceScene(
 			if (id !== undefined && pivot) pivots[id] = flat(pivot);
 		}
 		if (!PARTS.has(inst.className)) return;
+		if (inst.props.get("Locked")?.value === true) {
+			const id = idOf(inst);
+			if (id !== undefined) locked.push(id);
+		}
 		const transparency = inst.props.get("Transparency")?.value;
 		if (typeof transparency === "number" && transparency >= 0.999) {
 			transparent++;
@@ -524,6 +531,7 @@ export function buildPlaceScene(
 		pivots,
 		...(images.length > 0 ? { images } : {}),
 		...(meshes.length > 0 ? { meshes } : {}),
+		...(locked.length > 0 ? { locked } : {}),
 	};
 	const lights = sceneLights(workspace);
 	if (lights.length > 0) scene.lights = lights;

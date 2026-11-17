@@ -88,7 +88,13 @@ import { functionNameOf } from "./nodeConfig.js";
 import { Overlays } from "./Overlays.jsx";
 import type { PinMenuTarget } from "./PinMenu.jsx";
 import { DockedPin, type PinnedFrame, PinnedWindow } from "./PinnedWindow.jsx";
-import { PlaceBrowser, PlaceProperties, type PlaceTarget, targetAtPath } from "./PlaceBrowser.jsx";
+import {
+	PlaceBrowser,
+	PlaceProperties,
+	type PlaceTarget,
+	rememberViewerChange,
+	targetAtPath,
+} from "./PlaceBrowser.jsx";
 import { PlaceViewerOff } from "./PlaceViewerOff.jsx";
 import { ProjectPicker } from "./ProjectPicker.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
@@ -507,6 +513,33 @@ export function App() {
 		);
 		setPlaceWritten(stamp);
 	}, []);
+
+	// A drag in the place viewer, written into the place as Properties' changes
+	// are: the first asks, and Ctrl+Z takes it back.
+	useEffect(() => {
+		if (!viewport) return;
+		viewport.setMover(async ({ stamp, items, by, label }) => {
+			if (!prefs.modifyDataModel || !(await confirmPlaceEdit({}))) return false;
+			try {
+				const answer = await api.placeChange(stamp, {
+					kind: "transform",
+					index: items[0],
+					items,
+					by,
+				});
+				rememberViewerChange(
+					answer.undo ? { kind: "instance", change: answer.undo, label } : null,
+					answer.stamp,
+				);
+				onPlaceWritten(answer.stamp);
+				return true;
+			} catch (err) {
+				showToast({ title: "Could not move it", detail: errorMessage(err), tone: "warn" });
+				return false;
+			}
+		});
+		return () => viewport.setMover(null);
+	}, [viewport, prefs.modifyDataModel, confirmPlaceEdit, onPlaceWritten]);
 
 	/**
 	 * Properties pinned to one instance each, in windows of their own, while the

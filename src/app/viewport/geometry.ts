@@ -19,14 +19,38 @@ import {
  * starts inside is passed through, as the view draws it from inside.
  */
 export function rayPick(scene: PlaceScene, o: number[], d: number[]): number {
+	return rayHit(scene, o, d)?.id ?? -1;
+}
+
+/** Where a ray meets a part: its id, how far along the ray, and the face's outward normal there. */
+export interface RayHit {
+	id: number;
+	/** In lengths of the ray's direction. */
+	t: number;
+	/** At length 1, in the world. */
+	normal: number[];
+}
+
+/**
+ * As `rayPick`, with where the ray meets the part and which way that face
+ * looks: what a drag sets a part down on. Parts `skip` names are passed
+ * through, as a dragged part is.
+ */
+export function rayHit(
+	scene: PlaceScene,
+	o: number[],
+	d: number[],
+	skip?: (id: number) => boolean,
+): RayHit | null {
 	let best = Infinity;
-	let found = -1;
+	let found: { id: number; at: number; data: Float32Array; local: number[] } | null = null;
 	for (const set of [scene.kinds, scene.translucent])
 		for (const kind of SCENE_KINDS) {
 			const { data, count } = set[kind];
 			const words = new Uint32Array(data.buffer, data.byteOffset, data.length);
 			for (let i = 0; i < count; i++) {
 				const at = i * SCENE_STRIDE;
+				if (skip?.(words[at + 13])) continue;
 				// Into the part's unit space: each column's share, over its length squared.
 				const ox = o[0] - data[at + 9];
 				const oy = o[1] - data[at + 10];
@@ -43,6 +67,13 @@ export function rayPick(scene: PlaceScene, o: number[], d: number[]): number {
 				}
 				let near = -Infinity;
 				let far = Infinity;
+				// The face the ray comes in through, in unit space; null for a round one.
+				let face: number[] | null = null;
+				const enter = (t: number, normal: number[] | null) => {
+					if (t <= near) return;
+					near = t;
+					face = normal;
+				};
 				// The unit box's slabs, along each axis.
 				const slab = (a: number) => {
 					if (Math.abs(ld[a]) < 1e-12) {
@@ -52,7 +83,9 @@ export function rayPick(scene: PlaceScene, o: number[], d: number[]): number {
 					let t0 = (-0.5 - lo[a]) / ld[a];
 					let t1 = (0.5 - lo[a]) / ld[a];
 					if (t0 > t1) [t0, t1] = [t1, t0];
-					near = Math.max(near, t0);
+					const normal = [0, 0, 0];
+					normal[a] = ld[a] > 0 ? -1 : 1;
+					enter(t0, normal);
 					far = Math.min(far, t1);
 				};
 				// Inside a circle of radius 0.5 across axes `a` and `b`.
@@ -71,7 +104,7 @@ export function rayPick(scene: PlaceScene, o: number[], d: number[]): number {
 						return;
 					}
 					const r = Math.sqrt(disc);
-					near = Math.max(near, (-qb - r) / (2 * qa));
+					enter((-qb - r) / (2 * qa), null);
 					far = Math.min(far, (-qb + r) / (2 * qa));
 				};
 				if (kind === "ball") round([0, 1, 2]);
@@ -89,17 +122,33 @@ export function rayPick(scene: PlaceScene, o: number[], d: number[]): number {
 						if (Math.abs(f1) < 1e-12) {
 							if (f0 > 0) far = -Infinity;
 						} else if (f1 > 0) far = Math.min(far, -f0 / f1);
-						else near = Math.max(near, -f0 / f1);
+						else enter(-f0 / f1, [0, 1, -1]);
 					}
 				}
 				if (near > far || far <= 0 || near <= 0) continue;
 				if (near < best) {
 					best = near;
-					found = words[at + 13];
+					// A round face looks out from the middle (a cylinder's, from its axis).
+					const local =
+						(face as number[] | null) ??
+						lo.map((v, a) => (kind === "cylinder" && a === 0 ? 0 : v + ld[a] * near));
+					found = { id: words[at + 13], at, data, local };
 				}
 			}
 		}
-	return found;
+	if (!found) return null;
+	// Back to the world: a unit-space gradient through each column over its length squared.
+	const { at, data, local } = found;
+	const n = [0, 0, 0];
+	for (let a = 0; a < 3; a++) {
+		const cx = data[at + a * 3];
+		const cy = data[at + a * 3 + 1];
+		const cz = data[at + a * 3 + 2];
+		const ss = cx * cx + cy * cy + cz * cz || 1e-9;
+		for (const [k, c] of [cx, cy, cz].entries()) n[k] += (local[a] * c) / ss;
+	}
+	const len = Math.hypot(n[0], n[1], n[2]) || 1;
+	return { id: found.id, t: best, normal: n.map((v) => v / len) };
 }
 
 /** Whether anything in the place gives light of its own -- Neon, CrackedLava -- for the glow. */

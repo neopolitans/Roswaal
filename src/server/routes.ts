@@ -49,7 +49,15 @@ import {
 	type PlaceOutline,
 	propertyEdit,
 } from "../core/rbx/browse.js";
-import { ADDED_IF_MISSING, storedValue, withEmptyString, writeProperty } from "../core/rbx/edit.js";
+import {
+	ADDED_IF_MISSING,
+	type PropertyWrite,
+	storedValue,
+	withEmptyString,
+	writeProperties,
+	writeProperty,
+} from "../core/rbx/edit.js";
+import { framesOf, isFrame, movedBy } from "../core/rbx/frames.js";
 import {
 	pathOf,
 	type RbxDocument,
@@ -437,6 +445,76 @@ export class ApiSession {
 		const now = await this.loadPlace(project, file);
 		this.placeWrites.set(key, now.stamp);
 		return { now, backup };
+	}
+
+	/**
+	 * A `transform` or `frames` change to the place: see `POST /place/instance`.
+	 * Every frame is written in one pass, and the answer's `undo` puts each
+	 * back as it was.
+	 */
+	private async moveFrames(
+		project: OpenProject,
+		file: string,
+		before: Uint8Array,
+		loaded: LoadedPlace,
+		at: (index: unknown) => RbxInstance,
+		body: { kind?: string; items?: unknown; by?: unknown; sets?: unknown },
+	) {
+		let was: PropertyWrite[];
+		let writes: PropertyWrite[];
+		try {
+			if (body.kind === "transform") {
+				if (!Array.isArray(body.items) || !isFrame(body.by))
+					throw new HttpError(400, "A transform takes `items` and a CFrame `by`.");
+				was = framesOf(body.items.map(at));
+				writes = movedBy(was, body.by);
+			} else {
+				if (!Array.isArray(body.sets)) throw new HttpError(400, "Frames take `sets`.");
+				writes = body.sets.map((s) => {
+					const { index, property, position, rotation } = (s ?? {}) as Record<string, unknown>;
+					const value = { position, rotation };
+					if ((property !== "CFrame" && property !== "WorldPivotData") || !isFrame(value))
+						throw new HttpError(400, "Each of `sets` is an index, a property and a CFrame.");
+					return { inst: at(index), stored: property, value };
+				});
+				was = writes.map((w) => {
+					const value = w.inst.props.get(w.stored)?.value;
+					if (!isFrame(value))
+						throw new HttpError(
+							409,
+							`${w.inst.name}.${w.stored} is not as it was. Reload the place.`,
+						);
+					return { ...w, value };
+				});
+			}
+		} catch (err) {
+			if (err instanceof RbxError) throw new HttpError(422, errorMessage(err));
+			throw err;
+		}
+		if (writes.length === 0) throw new HttpError(422, "Nothing there moves.");
+		let after: Uint8Array;
+		try {
+			after = writeProperties(before, loaded.doc, writes);
+		} catch (err) {
+			if (err instanceof RbxError) throw new HttpError(422, errorMessage(err));
+			throw err;
+		}
+		const { now, backup } = await this.savePlace(project, file, before, after, loaded);
+		const indexOf = new Map(now.order.map((other, i) => [other.ref, i]));
+		const sets = was.flatMap((w) => {
+			const index = indexOf.get(w.inst.ref);
+			const { position, rotation } = w.value as { position: number[]; rotation: number[] };
+			return index === undefined
+				? []
+				: [{ index, property: w.stored, position: [...position], rotation: [...rotation] }];
+		});
+		return {
+			...(await this.placeAnswer(project, file, now)),
+			...(backup ? { backup } : {}),
+			...(sets.length === was.length
+				? { undo: { kind: "frames", index: sets[0].index, sets } }
+				: {}),
+		};
 	}
 
 	/** The place as the DataModel browser is given it. See `GET /place`. */
@@ -890,6 +968,12 @@ export class ApiSession {
 			 * `restore` of what was taken -- every value, and the references
 			 * and links the deletion cleared. A move given `before` goes in
 			 * front of that child rather than last.
+			 *
+			 * A `transform` moves `items` (parts and Models) by `by`, a CFrame
+			 * the world is turned and moved by, as a drag in the place viewer
+			 * does: each part's CFrame and each Model's WorldPivot. Its undo, and
+			 * a `frames`'s, is a `frames` putting each back exactly: `sets` of
+			 * an index, a property and a position and rotation.
 			 */
 			"POST /place/instance": async (req) => {
 				const body = fields<{
@@ -904,6 +988,9 @@ export class ApiSession {
 					tree?: unknown;
 					repoint?: unknown;
 					links?: unknown;
+					items?: unknown;
+					by?: unknown;
+					sets?: unknown;
 				}>(req);
 				const project = this.project();
 				const file = await findPlaceFile(project.root, project.config);
@@ -919,6 +1006,8 @@ export class ApiSession {
 						throw new HttpError(404, `No instance ${index} in the place.`);
 					return inst;
 				};
+				if (body.kind === "transform" || body.kind === "frames")
+					return this.moveFrames(project, file, before, loaded, at, body);
 				const inst = at(body.index);
 				const sibling = body.before === undefined ? {} : { before: at(body.before).ref! };
 				let change: InstanceChange;
@@ -967,7 +1056,10 @@ export class ApiSession {
 						break;
 					}
 					default:
-						throw new HttpError(400, "`kind` is add, delete, move, duplicate or restore.");
+						throw new HttpError(
+							400,
+							"`kind` is add, delete, move, duplicate, restore, transform or frames.",
+						);
 				}
 
 				// The scripts a deletion takes that the project's files write.

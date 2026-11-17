@@ -247,7 +247,26 @@ export type PlaceInstanceChange =
 			tree: RawItem[];
 			repoint?: { holder: number; prop: string; target: number }[];
 			links?: { file: string; instances: { path: string[]; id?: string }[] }[];
+	  }
+	| {
+			/** Parts and Models moved whole by `by`, as the place viewer's drag moves them. */
+			kind: "transform";
+			index: number;
+			items: number[];
+			by: PlaceFrame;
+	  }
+	| {
+			/** Frames put back exactly: what a transform's undo is. */
+			kind: "frames";
+			index: number;
+			sets: (PlaceFrame & { index: number; property: "CFrame" | "WorldPivotData" })[];
 	  };
+
+/** A CFrame: a position, and a row-major rotation. */
+export interface PlaceFrame {
+	position: number[];
+	rotation: number[];
+}
 
 /** What a property, attribute or tag change answers: the instance now, and what puts it back. */
 export interface PlaceWritten {

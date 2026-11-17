@@ -118,7 +118,7 @@ export function Viewport({
 				// The lights' grid off the page, so the place does not hold it.
 				await prepareScene(scene);
 				if (stale) return;
-				controller.setPlace({ ...scene, outline: tree.outline });
+				controller.setPlace({ ...scene, outline: tree.outline, stamp: tree.stamp });
 				setProblem(null);
 			} catch (err) {
 				if (!stale) setProblem(errorMessage(err));
