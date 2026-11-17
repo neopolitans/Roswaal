@@ -81,7 +81,16 @@ export interface RobloxSignInOptions {
 	onChange?: (status: RobloxStatus) => void;
 	/** Deletes what was downloaded through the sign-in. */
 	onForget?: () => Promise<void>;
+	/** Waits, for a refresh another daemon may be finishing: see `refresh`. */
+	wait?: (ms: number) => Promise<void>;
 }
+
+/**
+ * How long a refused refresh waits for another daemon on this computer to
+ * store the refresh token it was just given, before taking the refusal as lost
+ * access: a refresh answer and the write after it take well under this.
+ */
+export const RIVAL_REFRESH_MS = 2000;
 
 const b64url = (bytes: Buffer) => bytes.toString("base64url");
 
@@ -98,6 +107,7 @@ export class RobloxSignIn implements RobloxAccount {
 	private readonly now: () => number;
 	private readonly onChange?: (status: RobloxStatus) => void;
 	private readonly onForget?: () => Promise<void>;
+	private readonly wait: (ms: number) => Promise<void>;
 
 	private access: { token: string; expiresAt: number } | null = null;
 	private refreshing: Promise<string> | null = null;
@@ -113,6 +123,7 @@ export class RobloxSignIn implements RobloxAccount {
 		this.now = options.now ?? Date.now;
 		this.onChange = options.onChange;
 		this.onForget = options.onForget;
+		this.wait = options.wait ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
 	}
 
 	private get redirectUri(): string {
@@ -320,25 +331,47 @@ export class RobloxSignIn implements RobloxAccount {
 		return this.refreshing;
 	}
 
+	/**
+	 * Spends the kept refresh token for a new pair. Every daemon on this
+	 * computer shares the vault, and a refresh token is good once: two daemons
+	 * starting together both refresh, and Roblox refuses the one that comes
+	 * second. So a refusal is lost access only when the vault still holds the
+	 * token refused; when another daemon has stored a newer one, that is used.
+	 */
 	private async refresh(): Promise<string> {
-		const kept = await this.vault.read();
-		if (!kept) throw new Error("Nobody is signed in with Roblox.");
-		try {
-			const tokens = await this.token({
-				grant_type: "refresh_token",
-				refresh_token: kept.refreshToken,
-				client_id: this.clientId,
-			});
-			await this.vault.write({ refreshToken: tokens.refresh_token, userId: kept.userId });
-			this.access = {
-				token: tokens.access_token,
-				expiresAt: this.now() + tokens.expires_in * 1000,
-			};
-			return tokens.access_token;
-		} catch (err) {
-			if (err instanceof AccessLostError) await this.forgetEverything();
-			throw err;
+		for (let tries = 0; ; tries++) {
+			const kept = await this.vault.read();
+			if (!kept) throw new Error("Nobody is signed in with Roblox.");
+			try {
+				const tokens = await this.token({
+					grant_type: "refresh_token",
+					refresh_token: kept.refreshToken,
+					client_id: this.clientId,
+				});
+				await this.vault.write({ refreshToken: tokens.refresh_token, userId: kept.userId });
+				this.access = {
+					token: tokens.access_token,
+					expiresAt: this.now() + tokens.expires_in * 1000,
+				};
+				return tokens.access_token;
+			} catch (err) {
+				if (!(err instanceof AccessLostError)) throw err;
+				if (tries < 2 && (await this.rivalRefreshed(kept.refreshToken))) continue;
+				await this.forgetEverything();
+				throw err;
+			}
 		}
+	}
+
+	/** Whether another daemon has stored a newer refresh token than `spent`, now or shortly. */
+	private async rivalRefreshed(spent: string): Promise<boolean> {
+		const changed = async () => {
+			const now = await this.vault.read();
+			return now !== null && now.refreshToken !== spent;
+		};
+		if (await changed()) return true;
+		await this.wait(RIVAL_REFRESH_MS);
+		return changed();
 	}
 
 	/**

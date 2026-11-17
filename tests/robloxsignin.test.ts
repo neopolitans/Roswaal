@@ -96,6 +96,7 @@ async function signedIn(options: { now?: () => number } = {}) {
 			forgotten++;
 		},
 		now: options.now,
+		wait: async () => {},
 	});
 	opened.push(account);
 	const { url } = await account.signIn();
@@ -223,6 +224,42 @@ describe("staying signed in", () => {
 		expect(vault.kept).toBeNull();
 		expect(forgotten()).toBe(1);
 		expect((await account.status()).signedIn).toBe(false);
+	});
+
+	it("keeps the sign-in when another daemon spent the refresh token first", async () => {
+		const { account, answers, vault, tick, forgotten } = await ready();
+		// Roblox as it is: each refresh token good once.
+		const good = new Set([vault.kept!.refreshToken]);
+		let issued = 0;
+		answers["/oauth/v1/token"] = (call) => {
+			const spent = call.body?.get("refresh_token") ?? "";
+			if (!good.delete(spent)) return { status: 400, body: { error: "invalid_grant" } };
+			const next = `shared-${++issued}`;
+			good.add(next);
+			return {
+				status: 200,
+				body: { access_token: `a-${issued}`, refresh_token: next, token_type: "Bearer", expires_in: 899 },
+			};
+		};
+		// A second daemon on the same computer: the same vault, its own memory.
+		const clock = 1_000_000 + 15 * 60_000;
+		const other = new RobloxSignIn({
+			vault,
+			fetch: fakeRoblox(answers).fetch,
+			redirect: { host: "localhost", port: await freePort(), path: "/oauth/callback" },
+			now: () => clock,
+			onForget: async () => {
+				throw new Error("the other daemon forgot the sign-in");
+			},
+			wait: async () => {},
+		});
+		opened.push(other);
+		tick(15 * 60_000);
+		const [mine, theirs] = await Promise.all([account.accessToken(), other.accessToken()]);
+		expect(new Set([mine, theirs]).size).toBe(2);
+		expect(forgotten()).toBe(0);
+		expect(vault.kept?.refreshToken).toBe(`shared-${issued}`);
+		expect(good.has(vault.kept!.refreshToken)).toBe(true);
 	});
 
 	it("revokes the refresh token on signing out, with no secret, and forgets everything", async () => {
