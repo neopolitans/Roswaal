@@ -881,7 +881,9 @@ void main() {
 	vec3 t = pow(texture(frame, uv).rgb, vec3(2.2));
 	vec4 s = texture(src, uv);
 	float m = max(t.r, max(t.g, t.b));
-	float over = max(m - p.x, 0.0) / max(1.0 - p.x, 1e-3);
+	// By its light, as WebGpuView's fsBright.
+	float y = dot(t, vec3(0.2126, 0.7152, 0.0722));
+	float over = max(y - p.x, 0.0) / max(1.0 - p.x, 1e-3);
 	float lit = pow(over, p.z) * p.w * (1.0 - smoothstep(0.02, 0.1, max(s.r, max(s.g, s.b))));
 	o = vec4(s.rgb + t / max(m, 1e-4) * lit, s.a);
 }`;

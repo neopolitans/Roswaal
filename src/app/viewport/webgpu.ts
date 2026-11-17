@@ -152,7 +152,10 @@ struct Out { @builtin(position) clip: vec4f, @location(0) uv: vec2f };
 	let src = textureSampleLevel(tex, samp, i.uv, 0.0).rgb;
 	let t = pow(f, vec3f(2.2));
 	let m = max(t.r, max(t.g, t.b));
-	let over = max(m - p.x, 0.0) / max(1.0 - p.x, 1e-3);
+	// Past the start by its light, not its brightest channel: saturated cyan
+	// or red is not as bright as white, and blooms little or not at all.
+	let y = dot(t, vec3f(0.2126, 0.7152, 0.0722));
+	let over = max(y - p.x, 0.0) / max(1.0 - p.x, 1e-3);
 	let lit = pow(over, p.z) * p.w * (1.0 - smoothstep(0.02, 0.1, max(src.r, max(src.g, src.b))));
 	return vec4f(t / max(m, 1e-4) * lit, 0.0);
 }
