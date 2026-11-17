@@ -64,6 +64,7 @@ import {
 	SKY_NEAR_LAYER,
 	SKY_OPEN,
 	SKY_SEEN_LEAST,
+	SKY_SOFT,
 	SKY_VIEWS,
 	SUN_CASCADES,
 	SUN_GAIN,
@@ -248,12 +249,14 @@ fn skySeesIn(k: i32, p: vec3f, info: vec4f) -> f32 {
 	let c = skyU.views[k] * vec4f(p, 1.0);
 	let uv = vec2f(c.x * 0.5 + 0.5, 0.5 - c.y * 0.5);
 	if (any(uv < vec2f(0.0)) || any(uv > vec2f(1.0)) || c.z > 1.0) { return 1.0; }
-	// Two taps a texel either side, turned with k, so the maps' coarse texels
-	// blur into a soft fall rather than steps where a floor meets a wall.
+	// Four taps SKY_SOFT studs apart, turned with k, so each direction's
+	// shadow is soft and the eight blend into one shade (see SKY_SOFT).
 	let a = f32(k) * 0.785;
-	let o = vec2f(cos(a), sin(a)) * info.z;
+	let spread = clamp(${SKY_SOFT}.0 / max(info.x, 1e-3), 1.0, 6.0) * info.z;
+	let o = vec2f(cos(a), sin(a)) * spread;
+	let q = vec2f(-o.y, o.x) * 0.5;
 	let depth = c.z - info.y * 0.5;
-	return 0.5 * (textureSampleCompareLevel(skyMaps, skyCompare, uv + o, k, depth) + textureSampleCompareLevel(skyMaps, skyCompare, uv - o, k, depth));
+	return 0.25 * (textureSampleCompareLevel(skyMaps, skyCompare, uv + o, k, depth) + textureSampleCompareLevel(skyMaps, skyCompare, uv - o, k, depth) + textureSampleCompareLevel(skyMaps, skyCompare, uv + q, k, depth) + textureSampleCompareLevel(skyMaps, skyCompare, uv - q, k, depth));
 }
 // The place's lights: five vec4s each, see sceneLights; and which reach a
 // cell of the world, by its hash, see lightGrid.

@@ -240,6 +240,14 @@ export const SKY_NEAR = 192;
  * about a fortieth of what reaches outside, once Ambient is taken off.
  */
 export const SKY_SEEN_LEAST = 0.025;
+
+/**
+ * How far each sky map's shadow is softened, in studs: four taps this far
+ * apart, so the eight directions' shadows of a beam or a roof's edge blend
+ * into one shade, as Studio's (its lighting is 4 studs to a cell), rather
+ * than step down where they overlap. Never under a texel, never over six.
+ */
+export const SKY_SOFT = 3;
 export const SKY_NEAR_STEP = 48;
 /**
  * What hides the sky in the near maps must be this many studs across, seen

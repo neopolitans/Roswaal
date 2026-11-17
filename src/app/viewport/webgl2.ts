@@ -64,6 +64,7 @@ import {
 	SKY_NEAR_LAYER,
 	SKY_OPEN,
 	SKY_SEEN_LEAST,
+	SKY_SOFT,
 	SKY_VIEWS,
 	SUN_CASCADES,
 	SUN_GAIN,
@@ -270,11 +271,13 @@ float skySeesIn(int k, vec3 p, vec4 info) {
 	vec4 c = skyViews[k] * vec4(p, 1.0);
 	vec3 q = c.xyz * 0.5 + 0.5;
 	if (any(lessThan(q.xy, vec2(0.0))) || any(greaterThan(q, vec3(1.0)))) return 1.0;
-	// Two taps a texel either side, as WebGpuView's skySees.
+	// Four taps SKY_SOFT studs apart, as WebGpuView's skySees.
 	float a = float(k) * 0.785;
-	vec2 o = vec2(cos(a), sin(a)) * info.z;
+	float spread = clamp(${SKY_SOFT}.0 / max(info.x, 1e-3), 1.0, 6.0) * info.z;
+	vec2 o = vec2(cos(a), sin(a)) * spread;
+	vec2 h = vec2(-o.y, o.x) * 0.5;
 	float depth = q.z - info.y * 0.25;
-	return 0.5 * (texture(skyMaps, vec4(q.xy + o, float(k), depth)) + texture(skyMaps, vec4(q.xy - o, float(k), depth)));
+	return 0.25 * (texture(skyMaps, vec4(q.xy + o, float(k), depth)) + texture(skyMaps, vec4(q.xy - o, float(k), depth)) + texture(skyMaps, vec4(q.xy + h, float(k), depth)) + texture(skyMaps, vec4(q.xy - h, float(k), depth)));
 }
 // The place's lights, as WebGpuView's partLights: five texels a light, a row
 // each; and which reach a cell, 256 hashes a row, see lightGrid.
