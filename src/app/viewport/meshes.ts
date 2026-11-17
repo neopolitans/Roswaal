@@ -8,20 +8,20 @@
  */
 
 import { type FileMesh, readMesh } from "../../core/rbx/mesh.js";
-import { api } from "../api.js";
-import { bytesOf, ensure } from "./images.js";
+import type { NotAsked } from "./assetProgress.js";
+import { bytesOf, ensure, notAsked } from "./images.js";
 
 /** Roblox's asset type for a mesh. */
 const MESH_TYPE = 4;
 
-/** Each of `assets` read as a mesh, handed to `show` as it arrives. */
+/** Each of `assets` read as a mesh, handed to `show` as it arrives; the answer is why none were asked for, or null. */
 export async function loadMeshes(
 	assets: readonly string[],
 	show: (asset: string, mesh: FileMesh) => void,
-): Promise<void> {
-	if (assets.length === 0) return;
-	const status = await api.robloxStatus().catch(() => null);
-	if (!status?.signedIn) return;
+): Promise<NotAsked | null> {
+	if (assets.length === 0) return null;
+	const why = await notAsked();
+	if (why) return why;
 	const unique = [...new Set(assets)];
 	const ready = await ensure(unique);
 	for (const id of unique) {
@@ -34,4 +34,5 @@ export async function loadMeshes(
 			// Not a mesh Roswaal reads, as one compressed with Draco: it stays a box.
 		}
 	}
+	return null;
 }

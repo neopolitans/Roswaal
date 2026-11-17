@@ -21304,6 +21304,106 @@ textarea.tb:where(:disabled) {
 	opacity: 0.85;
 }
 
+/* The asset card over the badge: see AssetCard in Viewport.tsx. */
+.vp-above-left {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 6px;
+	min-width: 0;
+}
+
+.vp-assets {
+	display: grid;
+	gap: 4px;
+	box-sizing: border-box;
+	width: 230px;
+	max-width: 100%;
+	padding: 6px 10px 7px;
+	background: var(--card-head);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-raised);
+	color: var(--fg);
+	font-size: var(--text-sm);
+	pointer-events: auto;
+	transition: opacity 0.6s;
+}
+
+.vp-assets.vp-assets-settled {
+	width: auto;
+}
+
+.vp-assets.vp-assets-fading {
+	opacity: 0;
+}
+
+.vp-assets .vp-assets-head {
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.vp-assets .vp-assets-bar {
+	position: relative;
+	height: 4px;
+	border-radius: 2px;
+	background: var(--bg-input);
+	overflow: hidden;
+}
+
+.vp-assets .vp-assets-bar > span {
+	position: absolute;
+	inset: 0 auto 0 0;
+	border-radius: inherit;
+	transition: width 0.2s;
+}
+
+.vp-assets .vp-assets-arrived {
+	background: color-mix(in srgb, var(--accent) 35%, var(--bg-input));
+}
+
+.vp-assets .vp-assets-uploaded {
+	background: var(--accent);
+}
+
+.vp-assets .vp-assets-note {
+	color: var(--fg-muted);
+	font-size: var(--text-xs);
+}
+
+/* A phone's dock is as narrow as its bar: the card stands over it, centred,
+   and lets touches through to the sticks. */
+@media (max-width: 600px) {
+	.vp-assets {
+		position: absolute;
+		bottom: calc(100% + 8px);
+		left: 50%;
+		transform: translateX(-50%);
+		width: max-content;
+		max-width: calc(100vw - 32px);
+		pointer-events: none;
+	}
+
+	.vp-assets.vp-assets-settled {
+		width: max-content;
+	}
+
+	.vp-assets .vp-assets-bar {
+		width: 200px;
+		max-width: 100%;
+	}
+}
+
+/* Over the touch sticks, which stand 72px over the dock's foot and are 120px tall. */
+@media (max-width: 600px) and (hover: none) and (pointer: coarse) {
+	.vp-assets {
+		bottom: 204px;
+	}
+}
+
 .vp-cluster {
 	display: flex;
 	flex-direction: column;

@@ -14,6 +14,7 @@ import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene
 import { addUnions, unionOutline, unionsWaiting } from "../../core/rbx/unions.js";
 import { isSubclassOf } from "../../core/roblox.js";
 import { addTo, sameItems } from "../placeSelection.js";
+import { type AssetProgress, AssetTally } from "./assetProgress.js";
 import { boxAround } from "./box.js";
 import {
 	type DragStart,
@@ -157,6 +158,8 @@ export interface ViewportState {
 	gizmos: GizmoSettings;
 	/** The meshes costing the most triangles, and drawn most often: null until meshes are drawn. */
 	heaviest: Heaviest | null;
+	/** The place's assets: needed, arrived, on the GPU, and not coming. Null while it needs none. */
+	assets: AssetProgress | null;
 }
 
 export interface Snap {
@@ -340,6 +343,7 @@ export class ViewportController {
 		render: DEFAULT_RENDER,
 		gizmos: DEFAULT_GIZMOS,
 		heaviest: null,
+		assets: null,
 	};
 	private listeners = new Set<() => void>();
 	private place: ViewportPlace | null = null;
@@ -431,6 +435,7 @@ export class ViewportController {
 			},
 		});
 		if (this.view) {
+			this.tally.begin();
 			this.view.setScene(place);
 			this.loadLooks(this.view, place);
 			this.loadImages(this.view, place);
@@ -589,7 +594,9 @@ export class ViewportController {
 	 */
 	private loadLooks(view: ViewRenderer, place: PlaceScene): void {
 		for (const layer of layersUsed(place)) {
+			const key = `look:${layer}`;
 			let levels = this.looks.get(layer);
+			this.tally.want(key, !levels);
 			if (!levels) {
 				levels = loadLayer(layer);
 				this.looks.set(layer, levels);
@@ -597,21 +604,29 @@ export class ViewportController {
 				levels.catch(() => this.looks.delete(layer));
 			}
 			levels.then(
-				(ready) =>
-					this.upload(view, `look:${layer}`, ready, async () => {
-						// WebGL2 reads a canvas back from the GPU as it uploads it, waiting on
-						// whatever the GPU is doing; a bitmap made first is only copied.
-						if (view.backend !== "WebGL2") {
-							if (this.view === view) view.setLook(layer, ready);
-							return;
-						}
-						const bitmaps = await Promise.all(
-							ready.map((level) => createImageBitmap(level, { premultiplyAlpha: "none" })),
-						);
-						if (this.view === view) view.setLook(layer, bitmaps);
-						for (const bitmap of bitmaps) bitmap.close();
-					}),
-				() => {},
+				(ready) => {
+					this.tally.arrive(key);
+					this.upload(
+						view,
+						key,
+						ready,
+						async () => {
+							// WebGL2 reads a canvas back from the GPU as it uploads it, waiting on
+							// whatever the GPU is doing; a bitmap made first is only copied.
+							if (view.backend !== "WebGL2") {
+								if (this.view === view) view.setLook(layer, ready);
+								return;
+							}
+							const bitmaps = await Promise.all(
+								ready.map((level) => createImageBitmap(level, { premultiplyAlpha: "none" })),
+							);
+							if (this.view === view) view.setLook(layer, bitmaps);
+							for (const bitmap of bitmaps) bitmap.close();
+						},
+						[key],
+					);
+				},
+				() => this.tally.fail(key),
 			);
 		}
 	}
@@ -629,19 +644,51 @@ export class ViewportController {
 
 	/**
 	 * Gives `view` `value` as `what` through `set`, in its turn among the
-	 * uploads, unless the view is gone or already has that value.
+	 * uploads, unless the view is gone or already has that value. `keys` are
+	 * the assets it carries, counted in once it is in.
 	 */
-	private upload(view: ViewRenderer, what: string, value: unknown, set: () => unknown): void {
-		if (this.gave(view, what, value)) return;
+	private upload(
+		view: ViewRenderer,
+		what: string,
+		value: unknown,
+		set: () => unknown,
+		keys: readonly string[] = [],
+	): void {
+		const done = () => {
+			for (const key of keys) this.tally.give(key);
+		};
+		if (this.gave(view, what, value)) return done();
 		this.uploads.add(async () => {
-			if (this.view !== view || this.gave(view, what, value)) return;
-			await set();
+			if (this.view !== view) return;
+			if (this.gave(view, what, value)) return done();
+			try {
+				await set();
+			} catch (err) {
+				for (const key of keys) this.tally.fail(key);
+				throw err;
+			}
 			if (this.view !== view) return;
 			let had = this.given.get(view);
 			if (!had) this.given.set(view, (had = new Map()));
 			had.set(what, value);
+			done();
 			this.redraw();
 		});
+	}
+
+	/** The place's assets, counted for the progress card: see `assetProgress.ts`. */
+	private tally = new AssetTally(() => this.tallied());
+	private tallying = false;
+
+	/** The count into the state a tenth of a second after it changes, however often it did. */
+	private tallied(): void {
+		if (this.tallying) return;
+		this.tallying = true;
+		setTimeout(() => {
+			this.tallying = false;
+			const assets = this.tally.progress;
+			this.set({ assets: assets.needed > 0 ? assets : null });
+		}, 100);
 	}
 
 	private images = new Map<string, Promise<ImageBitmap | null>>();
@@ -660,11 +707,15 @@ export class ViewportController {
 		];
 		const fresh = wanted.filter((asset) => !this.images.has(asset));
 		const settled = new Map<string, (image: ImageBitmap | null) => void>();
+		for (const asset of wanted) this.tally.want(`image:${asset}`, !this.images.has(asset));
 		for (const asset of fresh) {
 			this.images.set(asset, new Promise((resolve) => settled.set(asset, resolve)));
 		}
 		if (fresh.length > 0) {
 			void loadImages(fresh, (asset, image) => settled.get(asset)?.(image))
+				.then((why) => {
+					if (why) for (const asset of fresh) this.tally.notAsked(`image:${asset}`, why);
+				})
 				.catch(() => {})
 				.finally(() => {
 					// What did not arrive is asked for again next time.
@@ -677,12 +728,21 @@ export class ViewportController {
 				});
 		}
 		for (const asset of wanted) {
+			const key = `image:${asset}`;
 			void this.images.get(asset)?.then((image) => {
+				if (image) this.tally.arrive(key);
+				else this.tally.fail(key);
 				if (!image || this.view !== view) return;
-				this.upload(view, `image:${asset}`, image, async () => {
-					const ready = await forView(view, image);
-					if (this.view === view) view.setImage(asset, ready);
-				});
+				this.upload(
+					view,
+					key,
+					image,
+					async () => {
+						const ready = await forView(view, image);
+						if (this.view === view) view.setImage(asset, ready);
+					},
+					[key],
+				);
 			});
 		}
 	}
@@ -703,10 +763,13 @@ export class ViewportController {
 		}
 		const ids = SKY_FACES.map((face) => box[face]);
 		const key = ids.join(",");
+		const keys = [...new Set(ids)].map((id) => `sky:${id}`);
+		for (const k of keys) this.tally.want(k, this.sky?.key !== key);
 		if (this.sky?.key !== key) {
 			const got = new Map<string, ImageBitmap>();
 			const faces = loadImages(ids, (asset, image) => got.set(asset, image))
-				.then(async () => {
+				.then(async (why) => {
+					if (why) for (const k of keys) this.tally.notAsked(k, why);
 					const each = ids.map((id) => got.get(id));
 					if (each.some((face) => !face)) return null;
 					const first = each[0] as ImageBitmap;
@@ -731,7 +794,16 @@ export class ViewportController {
 			});
 		}
 		void this.sky.faces.then((faces) => {
-			if (!faces || this.view !== view || this.gave(view, "sky", faces)) return;
+			// A Sky is drawn whole or not at all: one face missing, and none are in.
+			for (const k of keys) {
+				if (faces) this.tally.arrive(k);
+				else this.tally.fail(k);
+			}
+			if (!faces || this.view !== view) return;
+			if (this.gave(view, "sky", faces)) {
+				for (const k of keys) this.tally.give(k);
+				return;
+			}
 			// Each face readied in a turn of its own, then all six into the view at once.
 			const ready: ImageBitmap[] = [];
 			faces.forEach((face, i) => {
@@ -739,9 +811,15 @@ export class ViewportController {
 					if (this.view === view) ready[i] = await forView(view, face);
 				});
 			});
-			this.upload(view, "sky", faces, () => {
-				if (ready.filter(Boolean).length === faces.length) view.setSky(ready);
-			});
+			this.upload(
+				view,
+				"sky",
+				faces,
+				() => {
+					if (ready.filter(Boolean).length === faces.length) view.setSky(ready);
+				},
+				keys,
+			);
 		});
 	}
 
@@ -760,14 +838,22 @@ export class ViewportController {
 			this.rankMeshes(place, new Map());
 			return;
 		}
-		const fresh = [...new Set(uses.filter((use) => !use.made).map((use) => use.asset))].filter(
-			(a) => !this.meshCache.has(a),
-		);
+		const asked = [...new Set(uses.filter((use) => !use.made).map((use) => use.asset))];
+		const fresh = asked.filter((a) => !this.meshCache.has(a));
+		for (const asset of asked) this.tally.want(`mesh:${asset}`, !this.meshCache.has(asset));
 		const settled = new Map<string, (mesh: FileMesh | null) => void>();
 		for (const asset of fresh)
 			this.meshCache.set(asset, new Promise((resolve) => settled.set(asset, resolve)));
+		for (const asset of asked)
+			void this.meshCache.get(asset)?.then((mesh) => {
+				if (mesh) this.tally.arrive(`mesh:${asset}`);
+				else this.tally.fail(`mesh:${asset}`);
+			});
 		if (fresh.length > 0) {
 			void loadMeshes(fresh, (asset, mesh) => settled.get(asset)?.(mesh))
+				.then((why) => {
+					if (why) for (const asset of fresh) this.tally.notAsked(`mesh:${asset}`, why);
+				})
 				.catch(() => {})
 				.finally(() => {
 					// What did not arrive is asked for again next time.
@@ -797,6 +883,8 @@ export class ViewportController {
 			// Nothing downloaded: the view has all there is.
 			if (made.size === here.size) return;
 			view.setMeshes(made);
+			for (const slot of made.keys())
+				if (!uses[slot].made) this.tally.give(`mesh:${uses[slot].asset}`);
 			this.rankMeshes(place, made);
 			const read = (slot: number) => made.has(slot) && !uses[slot].made;
 			const drawn = (rows: { data: Float32Array; count: number }) =>
@@ -855,16 +943,26 @@ export class ViewportController {
 		const uses = place.unions ?? [];
 		if (uses.length === 0) return;
 		for (const use of uses) this.words.set(use.id, unionOutline(use));
-		const fresh = unionsWaiting(place).filter((asset) => !this.unionModels.has(asset));
+		const waiting = unionsWaiting(place);
+		const fresh = waiting.filter((asset) => !this.unionModels.has(asset));
+		for (const asset of waiting) this.tally.want(`union:${asset}`, !this.unionModels.has(asset));
 		const arrived =
 			fresh.length > 0
-				? loadUnionModels(fresh, (asset, roots) => this.unionModels.set(asset, roots)).catch(
-						() => {},
-					)
+				? loadUnionModels(fresh, (asset, roots) => this.unionModels.set(asset, roots))
+						.then((why) => {
+							if (why) for (const asset of fresh) this.tally.notAsked(`union:${asset}`, why);
+						})
+						.catch(() => {})
 				: Promise.resolve();
 		void arrived.then(() => {
+			for (const asset of waiting) {
+				if (this.unionModels.has(asset)) this.tally.arrive(`union:${asset}`);
+				else this.tally.fail(`union:${asset}`);
+			}
 			if (this.view !== view || this.place !== place) return;
 			const drawn = addUnions(place, this.unionModels);
+			for (const asset of waiting)
+				if (this.unionModels.has(asset)) this.tally.give(`union:${asset}`);
 			if (drawn === place) return;
 			this.place = drawn;
 			view.setScene(drawn);
@@ -885,12 +983,17 @@ export class ViewportController {
 			this.upload(view, "sun", null, () => view.setSunImage(null));
 			return;
 		}
+		const key = `sun:${asset}`;
+		this.tally.want(key, this.sunImage?.asset !== asset);
 		if (this.sunImage?.asset !== asset) {
 			let got: ImageBitmap | null = null;
 			const image = loadImages([asset], (_, bitmap) => {
 				got = bitmap;
 			})
-				.then(() => got)
+				.then((why) => {
+					if (why) this.tally.notAsked(key, why);
+					return got;
+				})
 				.catch(() => null);
 			this.sunImage = { asset, image };
 			// What did not arrive is asked for again next time.
@@ -899,11 +1002,19 @@ export class ViewportController {
 			});
 		}
 		void this.sunImage.image.then((image) => {
+			if (image) this.tally.arrive(key);
+			else this.tally.fail(key);
 			if (!image || this.view !== view) return;
-			this.upload(view, "sun", image, async () => {
-				const ready = await forView(view, image);
-				if (this.view === view) view.setSunImage(ready);
-			});
+			this.upload(
+				view,
+				"sun",
+				image,
+				async () => {
+					const ready = await forView(view, image);
+					if (this.view === view) view.setSunImage(ready);
+				},
+				[key],
+			);
 		});
 	}
 
@@ -1561,6 +1672,7 @@ export class ViewportController {
 		this.view = view;
 		this.set({ backend: view.backend, fellBack, error: null });
 		if (this.place !== place) view.setScene(this.place ?? place);
+		this.tally.begin();
 		this.loadLooks(view, this.place ?? place);
 		this.loadImages(view, this.place ?? place);
 		this.loadSky(view, (this.place ?? place).lighting);

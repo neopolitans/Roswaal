@@ -10,17 +10,20 @@
 
 import type { RbxInstance } from "../../core/rbx/dom.js";
 import { childDataOf, nestedUnionAssets, SOLID_MODEL_TYPE } from "../../core/rbx/unions.js";
-import { api } from "../api.js";
-import { bytesOf, ensure } from "./images.js";
+import type { NotAsked } from "./assetProgress.js";
+import { bytesOf, ensure, notAsked } from "./images.js";
 
-/** Each of `assets`, and the assets the unions inside them name, handed to `show` as its ChildData is read. */
+/**
+ * Each of `assets`, and the assets the unions inside them name, handed to
+ * `show` as its ChildData is read; the answer is why none were asked for, or null.
+ */
 export async function loadUnionModels(
 	assets: readonly string[],
 	show: (asset: string, roots: RbxInstance[]) => void,
-): Promise<void> {
-	if (assets.length === 0) return;
-	const status = await api.robloxStatus().catch(() => null);
-	if (!status?.signedIn) return;
+): Promise<NotAsked | null> {
+	if (assets.length === 0) return null;
+	const why = await notAsked();
+	if (why) return why;
 	const seen = new Set<string>();
 	let wanted = [...new Set(assets)];
 	// A few levels at most: a union made of unions made of unions.
@@ -39,4 +42,5 @@ export async function loadUnionModels(
 		}
 		wanted = [...new Set(inner)].filter((id) => !seen.has(id));
 	}
+	return null;
 }

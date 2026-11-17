@@ -14,6 +14,7 @@
 import { fromBase64 } from "../../core/base64.js";
 import { assetIdOf } from "../../core/rbx/browse.js";
 import { api } from "../api.js";
+import type { NotAsked } from "./assetProgress.js";
 
 /** Roblox's asset types for what a Decal or Texture can name. */
 const IMAGE_TYPE = 1;
@@ -42,6 +43,14 @@ export async function ensure(ids: string[]): Promise<Set<string>> {
 	return ready;
 }
 
+/** Why nothing can be asked of the daemon now; null while someone is signed in. */
+export async function notAsked(): Promise<NotAsked | null> {
+	const status = await api.robloxStatus().catch(() => null);
+	if (!status) return "offline";
+	if (!status.available) return "unavailable";
+	return status.signedIn ? null : "sign-in";
+}
+
 /** One downloaded asset's bytes and type, or null. */
 export async function bytesOf(
 	id: string,
@@ -54,50 +63,19 @@ export async function bytesOf(
 /**
  * Each of `assets` as a decoded image, handed to `show` as it arrives. A
  * Decal asset is followed to its image. Nothing happens unless someone is
- * signed in with Roblox.
+ * signed in with Roblox; the answer is why not, or null.
  */
 export async function loadImages(
 	assets: readonly string[],
 	show: (asset: string, image: ImageBitmap) => void,
-): Promise<void> {
-	if (assets.length === 0) return;
-	const status = await api.robloxStatus().catch(() => null);
-	if (!status?.signedIn) return;
+): Promise<NotAsked | null> {
+	if (assets.length === 0) return null;
+	const why = await notAsked();
+	if (why) return why;
 	const unique = [...new Set(assets)];
 	const ready = await ensure(unique);
 
-	// What each asked-for id draws: itself, or the image its Decal asset names.
-	const imageFor = new Map<string, string>();
-	const decals: string[] = [];
-	const held = new Map<string, Uint8Array>();
-	for (const id of unique) {
-		if (!ready.has(id)) continue;
-		const got = await bytesOf(id);
-		if (!got) continue;
-		if (got.assetTypeId === DECAL_TYPE) {
-			const image = decalImageOf(got.bytes);
-			if (image) {
-				imageFor.set(id, image);
-				decals.push(image);
-			}
-		} else if (got.assetTypeId === undefined || got.assetTypeId === IMAGE_TYPE) {
-			imageFor.set(id, id);
-			held.set(id, got.bytes);
-		}
-	}
-	const inner = [...new Set(decals)].filter((id) => !held.has(id));
-	if (inner.length > 0) {
-		const innerReady = await ensure(inner);
-		for (const id of inner) {
-			if (!innerReady.has(id)) continue;
-			const got = await bytesOf(id);
-			if (got) held.set(id, got.bytes);
-		}
-	}
-
-	for (const [asked, image] of imageFor) {
-		const bytes = held.get(image);
-		if (!bytes) continue;
+	const draw = async (asked: string, bytes: Uint8Array) => {
 		try {
 			// Its colours as they are, not multiplied by its alpha: both renderers
 			// take them so, and undoing the multiply later is lossy at faint edges
@@ -109,5 +87,35 @@ export async function loadImages(
 		} catch {
 			// Not an image a browser can read: that face keeps its box colour.
 		}
+	};
+
+	// An image is drawn as it arrives; a Decal asset once the image it names has.
+	const decals = new Map<string, string[]>();
+	const held = new Map<string, Uint8Array>();
+	for (const id of unique) {
+		if (!ready.has(id)) continue;
+		const got = await bytesOf(id);
+		if (!got) continue;
+		if (got.assetTypeId === DECAL_TYPE) {
+			const image = decalImageOf(got.bytes);
+			if (image) decals.set(image, [...(decals.get(image) ?? []), id]);
+		} else if (got.assetTypeId === undefined || got.assetTypeId === IMAGE_TYPE) {
+			held.set(id, got.bytes);
+			await draw(id, got.bytes);
+		}
 	}
+	const inner = [...decals.keys()].filter((id) => !held.has(id));
+	if (inner.length > 0) {
+		const innerReady = await ensure(inner);
+		for (const id of inner) {
+			if (!innerReady.has(id)) continue;
+			const got = await bytesOf(id);
+			if (got) held.set(id, got.bytes);
+		}
+	}
+	for (const [image, asked] of decals) {
+		const bytes = held.get(image);
+		if (bytes) for (const id of asked) await draw(id, bytes);
+	}
+	return null;
 }

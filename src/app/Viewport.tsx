@@ -33,6 +33,12 @@ import {
 	type Tool,
 	type ViewportController,
 } from "./viewport/controller.js";
+import {
+	type AssetProgress,
+	assetsMissing,
+	assetsPending,
+	assetWords,
+} from "./viewport/assetProgress.js";
 import { fader } from "./viewport/fade.js";
 import {
 	FRAME_GUIDES,
@@ -436,7 +442,10 @@ export function ViewportBar({ controller }: { controller: ViewportController }) 
 		// opens or shuts.
 		<div className="vp-dock">
 			<div className="vp-above">
-				<RenderBadge render={state.render} />
+				<div className="vp-above-left">
+					<AssetCard assets={state.assets} />
+					<RenderBadge render={state.render} />
+				</div>
 				<div className="vp-cluster">
 					<div className="vp-gizmo" ref={gizmo}>
 						<svg
@@ -730,6 +739,82 @@ function RenderBadge({ render }: { render: RenderSettings }) {
 	);
 }
 
+/** How long the card stays once nothing is pending: a moment, or longer when some did not come. */
+const ASSETS_HOLD = 2500;
+const ASSETS_HOLD_MISSING = 7000;
+const ASSETS_FADE = 600;
+
+/**
+ * The place's assets on their way: how many are in the view, a bar for those
+ * downloaded and those on the GPU, and what will not come. Once nothing is
+ * pending it settles to one line and fades. A count seen before, as after the
+ * place is saved, is not shown again.
+ */
+function AssetCard({ assets }: { assets: AssetProgress | null }) {
+	const [phase, setPhase] = useState<"hidden" | "shown" | "fading">("hidden");
+	/** Whether the card is up: read by the effect, which does not follow it. */
+	const up = useRef(false);
+	up.current = phase !== "hidden";
+	/** The last counts settled on, so the same ones are not shown twice. */
+	const seen = useRef("");
+	const pending = assets ? assetsPending(assets) : 0;
+	const missing = assets ? assetsMissing(assets) : 0;
+	const counted = assets
+		? `${assets.needed}:${assets.uploaded}:${assets.failed}:${assets.signIn}:${assets.unavailable}`
+		: "";
+	useEffect(() => {
+		if (!counted) {
+			setPhase("hidden");
+			return;
+		}
+		if (pending > 0) {
+			setPhase("shown");
+			return;
+		}
+		const fresh = counted !== seen.current;
+		seen.current = counted;
+		if (!up.current && !(fresh && missing > 0)) return;
+		setPhase("shown");
+		const hold = missing > 0 ? ASSETS_HOLD_MISSING : ASSETS_HOLD;
+		const fade = setTimeout(() => setPhase("fading"), hold);
+		const hide = setTimeout(() => setPhase("hidden"), hold + ASSETS_FADE);
+		return () => {
+			clearTimeout(fade);
+			clearTimeout(hide);
+		};
+	}, [counted, pending, missing]);
+	if (!assets || phase === "hidden") return null;
+	const { head, notes } = assetWords(assets);
+	const share = (n: number) => `${Math.min(100, (n / Math.max(1, assets.needed)) * 100)}%`;
+	return (
+		<div
+			className={cx(
+				"vp-assets",
+				pending === 0 && "vp-assets-settled",
+				phase === "fading" && "vp-assets-fading",
+			)}
+			role="status"
+			title={`${assets.arrived.toLocaleString()} downloaded, ${assets.uploaded.toLocaleString()} on the GPU`}
+		>
+			<span className="vp-assets-head">{head}</span>
+			{pending > 0 && (
+				<span className="vp-assets-bar" aria-hidden="true">
+					<span className="vp-assets-arrived" style={{ width: share(assets.arrived + missing) }} />
+					<span
+						className="vp-assets-uploaded"
+						style={{ width: share(assets.uploaded + missing) }}
+					/>
+				</span>
+			)}
+			{notes.map((note) => (
+				<span key={note} className="vp-assets-note">
+					{note}
+				</span>
+			))}
+		</div>
+	);
+}
+
 /** What a heatmap's colours mean, under the modes. */
 const HEAT_LEGEND: Partial<Record<RenderMode, [string, string]>> = {
 	cost: ["Cheap", "Costly"],
@@ -974,7 +1059,7 @@ function RenderToolSwitch({
  * Polled only while the panel is mounted.
  */
 export function PerformancePanel({ controller }: { controller: ViewportController }) {
-	const { backend } = useViewport(controller);
+	const { backend, assets } = useViewport(controller);
 	const [stats, setStats] = useState<RenderStats | null>(null);
 	useEffect(() => {
 		setStats(controller.renderStats());
@@ -1018,6 +1103,19 @@ export function PerformancePanel({ controller }: { controller: ViewportControlle
 						) : (
 							<p className="place-summary">Nothing drawn yet.</p>
 						)}
+						{assets && (
+							<Rows
+								rows={[
+									[
+										"Assets",
+										[
+											`${assets.uploaded.toLocaleString()} of ${assets.needed.toLocaleString()} loaded`,
+											...assetWords(assets).notes,
+										].join(", "),
+									],
+								]}
+							/>
+						)}
 					</div>
 				</div>
 			</div>
@@ -1046,7 +1144,8 @@ export function RenderPanel({ controller }: { controller: ViewportController }) 
 	const [toolsOpen, toggleTools] = useFold(false);
 	const base = presetById(render.preset);
 	const changed = changedFrom(features, base.features).length;
-	const toStep = (n: number) => setFeatures(upToStep(Math.max(0, Math.min(RENDER_STEPS.length, n))));
+	const toStep = (n: number) =>
+		setFeatures(upToStep(Math.max(0, Math.min(RENDER_STEPS.length, n))));
 	const choose = (id: string) => {
 		const p = presetById(id);
 		apply({ ...render, preset: p.id, features: p.features });
@@ -1186,13 +1285,18 @@ export function RenderPanel({ controller }: { controller: ViewportController }) 
 											className={cx(
 												"render-switch",
 												info.parent && "render-switch-under",
-												!featureOn(features, info.key) && features[info.key] && "render-switch-held",
+												!featureOn(features, info.key) &&
+													features[info.key] &&
+													"render-switch-held",
 											)}
 											onPointerEnter={() => setHint(info.hint)}
 										>
 											<span>
 												{features[info.key] !== base.features[info.key] && (
-													<span className="render-switch-changed" title={`Changed from ${base.label}`} />
+													<span
+														className="render-switch-changed"
+														title={`Changed from ${base.label}`}
+													/>
 												)}
 												{info.label}
 											</span>

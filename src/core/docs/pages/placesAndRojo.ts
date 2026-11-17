@@ -262,6 +262,8 @@ export function placesAndRojoPage(): DocPage {
 					"Glass. Signed in with Roblox through `roswaal serve`, Decals and Textures, MeshParts' " +
 					"meshes and the Sky's images are downloaded once and drawn; until then, and on the " +
 					"website, a face is its part's colour, a MeshPart its box and the sky Roswaal's own. " +
+					"A card over the bar counts the assets in as they load, and any that failed or need " +
+					"signing in. " +
 					"The place's ColorCorrection and Blur are drawn too, and its Bloom sets how Neon " +
 					"glows; **Settings › Scene view** can turn them off. Beams and ParticleEmitters " +
 					"move as they do in Studio; a particle whose image is not downloaded is a soft dot. Its PointLights, " +
@@ -340,8 +342,7 @@ export function placesAndRojoPage(): DocPage {
 			},
 			{
 				t: "p",
-				text:
-					"What the panel looks at, and the step its switches show, show over the bar's left end.",
+				text: "What the panel looks at, and the step its switches show, show over the bar's left end.",
 			},
 			{ t: "h", level: 3, text: "Finding what is slow" },
 			{
