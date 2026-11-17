@@ -67,10 +67,12 @@ export function nearLights(
 	return near.slice(0, most).map(([, i]) => i);
 }
 
-/** Lines into `out`, as the overlay reads them: x, y, z, r, g, b for each end. */
-class Lines {
-	readonly out: number[] = [];
-	constructor(private col: V) {}
+/** Lines into `out`, as the overlay reads them: x, y, z, r, g, b for each end, in `col`. */
+export class Lines {
+	constructor(
+		public col: V,
+		readonly out: number[] = [],
+	) {}
 	line(a: V, b: V): void {
 		this.out.push(a[0], a[1], a[2], this.col[0], this.col[1], this.col[2]);
 		this.out.push(b[0], b[1], b[2], this.col[0], this.col[1], this.col[2]);

@@ -58,6 +58,7 @@ import {
 	type ViewRenderer,
 } from "./view.js";
 import { litFor } from "./renderFeatures.js";
+import { DEFAULT_GIZMOS, type GizmoSettings, gizmosOn, visualGizmoLines } from "./visualGizmos.js";
 
 /** Of `rows`, those that draw a MeshPart's or FileMesh's mesh, or its box: not a mesh made here. */
 function meshPartRows(rows: { data: Float32Array; count: number }, place: PlaceScene): number {
@@ -135,6 +136,8 @@ export interface ViewportState {
 	editable: boolean;
 	/** The Rendering panel's mode and switches: the view's alone, for this session. */
 	render: RenderSettings;
+	/** Which gizmos are drawn over the view: see `visualGizmos.ts`. The view's alone, for this session. */
+	gizmos: GizmoSettings;
 	/** The meshes costing the most triangles, and drawn most often: null until meshes are drawn. */
 	heaviest: Heaviest | null;
 }
@@ -279,6 +282,7 @@ export class ViewportController {
 		space: "object",
 		editable: false,
 		render: DEFAULT_RENDER,
+		gizmos: DEFAULT_GIZMOS,
 		heaviest: null,
 	};
 	private listeners = new Set<() => void>();
@@ -391,6 +395,7 @@ export class ViewportController {
 		if (sameItems(indices, this.selection)) return;
 		this.selection = [...indices];
 		if (this.state.picked !== indices.length > 0) this.set({ picked: indices.length > 0 });
+		if (this.state.gizmos.picked) this.view?.setOverlay(this.overlayLines());
 		this.refreshSelection();
 	}
 
@@ -462,6 +467,17 @@ export class ViewportController {
 			this.view?.setLighting(litFor(this.place.lighting, render.features));
 		this.view?.setRender(render);
 		if (render.lightRanges !== was.lightRanges) this.view?.setOverlay(this.overlayLines());
+		this.redraw();
+	}
+
+	/** Which gizmos are drawn over the view: see `visualGizmos.ts`. */
+	gizmoSettings(): GizmoSettings {
+		return this.state.gizmos;
+	}
+
+	setGizmos(gizmos: GizmoSettings): void {
+		this.set({ gizmos });
+		this.view?.setOverlay(this.overlayLines());
 		this.redraw();
 	}
 
@@ -1618,28 +1634,59 @@ export class ViewportController {
 		return new Float32Array(out);
 	}
 
-	/** Where the light ranges were last found from, or null with them off. */
+	/** Where the light ranges and gizmos were last found from, or null with them off. */
 	private gizmoAt: string | null = null;
 
-	/** The overlay: Studio's camera, and with Light ranges on, the lights near `eye`. */
+	/** The light ranges or the gizmos are drawn, and so follow the camera. */
+	private overlayFollows(): boolean {
+		return this.state.render.lightRanges || gizmosOn(this.state.gizmos, this.selection.length > 0);
+	}
+
+	/** Every row picked, and every row inside one: what With the selection shows the gizmos of. */
+	private pickedRows(): Set<number> {
+		const out = new Set<number>();
+		const take = (i: number) => {
+			if (out.has(i)) return;
+			out.add(i);
+			for (const k of this.kids[i] ?? []) take(k);
+		};
+		for (const i of this.selection) take(i);
+		return out;
+	}
+
+	/**
+	 * The overlay: Studio's camera, and with Light ranges on the lights near
+	 * `eye`, and the gizmos that are on (see `visualGizmos.ts`).
+	 */
 	private overlayLines(eye: number[] = this.eye()): Float32Array {
 		const frustum = this.frustumLines();
-		if (!this.state.render.lightRanges) {
+		if (!this.overlayFollows()) {
 			this.gizmoAt = null;
 			return frustum;
 		}
 		this.gizmoAt = gizmoCell(eye);
-		const gizmos = lightGizmoLines(this.place?.lights, eye);
-		if (gizmos.length === 0) return frustum;
-		const out = new Float32Array(frustum.length + gizmos.length);
+		const lights = this.state.render.lightRanges
+			? lightGizmoLines(this.place?.lights, eye)
+			: new Float32Array();
+		const gizmos = gizmosOn(this.state.gizmos, this.selection.length > 0)
+			? visualGizmoLines(
+					this.place?.gizmos,
+					this.state.gizmos,
+					eye,
+					this.state.gizmos.picked ? this.pickedRows() : undefined,
+				)
+			: new Float32Array();
+		if (lights.length === 0 && gizmos.length === 0) return frustum;
+		const out = new Float32Array(frustum.length + lights.length + gizmos.length);
 		out.set(frustum);
-		out.set(gizmos, frustum.length);
+		out.set(lights, frustum.length);
+		out.set(gizmos, frustum.length + lights.length);
 		return out;
 	}
 
-	/** The light ranges found again once the camera has moved a step: see `GIZMO_STEP`. */
+	/** The light ranges and gizmos found again once the camera has moved a step: see `GIZMO_STEP`. */
 	private followGizmos(eye: number[]): void {
-		if (!this.view || !this.state.render.lightRanges || this.gizmoAt === gizmoCell(eye)) return;
+		if (!this.view || !this.overlayFollows() || this.gizmoAt === gizmoCell(eye)) return;
 		this.view.setOverlay(this.overlayLines(eye));
 	}
 

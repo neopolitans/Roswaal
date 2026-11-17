@@ -5,6 +5,7 @@
  * never draws a place never downloads it.
  */
 
+export { GizmoSection } from "./GizmoSection.jsx";
 export {
 	MeshesPanel,
 	PerformancePanel,
