@@ -46,6 +46,8 @@ export interface RenderFeatures {
 	bloom: boolean;
 	colourCorrection: boolean;
 	blur: boolean;
+	frustumCulling: boolean;
+	occlusionCulling: boolean;
 }
 
 export type FeatureKey = keyof RenderFeatures;
@@ -177,6 +179,24 @@ export const FEATURE_GROUPS: readonly { title: string; features: readonly Featur
 			f("bloom", "Bloom", 10, "A BloomEffect over the whole picture."),
 			f("colourCorrection", "Colour correction", 10, "A ColorCorrectionEffect."),
 			f("blur", "Blur", 10, "A BlurEffect."),
+		],
+	},
+	{
+		title: "Performance",
+		features: [
+			f(
+				"frustumCulling",
+				"Frustum culling",
+				0,
+				"Parts outside the view are not drawn. The wireframe shows what is left.",
+			),
+			f(
+				"occlusionCulling",
+				"Occlusion culling",
+				0,
+				"Parts hidden behind solid parts are not drawn, tested against the last frame. The wireframe shows what is left.",
+				"frustumCulling",
+			),
 		],
 	},
 ];
@@ -434,6 +454,9 @@ export interface RenderPasses {
 	particles: boolean;
 	/** The near sky maps opened, so thin parts cast no sky shadow. */
 	thinParts: boolean;
+	/** Parts out of view, and hidden behind solid parts, left out of the camera's passes. */
+	frustum: boolean;
+	occlusion: boolean;
 }
 
 export function passesOf(features: RenderFeatures): RenderPasses {
@@ -448,6 +471,8 @@ export function passesOf(features: RenderFeatures): RenderPasses {
 		beams: on("beams"),
 		particles: on("particles"),
 		thinParts: on("thinParts"),
+		frustum: on("frustumCulling"),
+		occlusion: on("occlusionCulling"),
 	};
 }
 

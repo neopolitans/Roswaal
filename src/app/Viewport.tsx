@@ -994,6 +994,12 @@ export function PerformancePanel({ controller }: { controller: ViewportControlle
 								rows={[
 									["Draw calls", stats.draws.toLocaleString()],
 									["Instances", stats.instances.toLocaleString()],
+									[
+										"Solid parts drawn",
+										stats.culled
+											? `${stats.culled.drawn.toLocaleString()} of ${stats.culled.of.toLocaleString()}`
+											: "All: culling off",
+									],
 									["Triangles", Math.round(stats.triangles).toLocaleString()],
 									["Beams", stats.beams.toLocaleString()],
 									["Particles", stats.particles.toLocaleString()],

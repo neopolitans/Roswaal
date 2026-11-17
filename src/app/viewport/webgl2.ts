@@ -13,6 +13,17 @@ import { type LightingParams, lightingBlock } from "../../core/rbx/lighting.js";
 import { MATERIAL_TEXTURES, MATERIALS, materialBlock } from "../../core/rbx/materials.js";
 import { LIGHT_STRIDE, type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene.js";
 import { GlEffects } from "./effectsGl.js";
+import {
+	boxHidden,
+	boxInView,
+	type Chunk,
+	chunkRows,
+	type DepthImage,
+	depthCells,
+	sameView,
+	sidePlanes,
+	visibleRuns,
+} from "./culling.js";
 import { boxEdges, featureEdges, meshFor, sceneGlows } from "./geometry.js";
 import { HANDLE_KINDS, type Handles, handleMesh } from "./handles.js";
 import { invert, lookAt, multiply, perspective } from "./math.js";
@@ -609,6 +620,43 @@ in float vDepthW; uniform float logFar;
 float logDepth() { return log2(max(vDepthW, 1e-6)) * logFar; }
 #endif
 `;
+/** Occlusion's depth image: each solid part's distance from the eye, nearest kept. */
+const FS_DIST = `#version 300 es
+precision highp float;
+in vec3 vWorld;
+uniform vec3 eye;
+${LOG_DEPTH}
+out vec4 o;
+void main() {
+#ifdef LOG_DEPTH
+	gl_FragDepth = logDepth();
+#endif
+	o = vec4(distance(vWorld, eye), 0.0, 0.0, 1.0);
+}`;
+/** A triangle over the whole target, for the depth image's reduction. */
+const VS_FULL_CELLS = `#version 300 es
+void main() {
+	vec2 p = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));
+	gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
+}`;
+/** Each cell the farthest of the distances over its pixels, as WebGpuView's fsFar. */
+const FS_FAR_CELLS = `#version 300 es
+precision highp float;
+uniform highp sampler2D dist;
+uniform vec4 size;
+out vec4 o;
+void main() {
+	vec2 cell = floor(gl_FragCoord.xy);
+	int x0 = int(floor(cell.x * size.x / size.z));
+	int x1 = max(int(floor((cell.x + 1.0) * size.x / size.z)), x0 + 1);
+	int y0 = int(floor(cell.y * size.y / size.w));
+	int y1 = max(int(floor((cell.y + 1.0) * size.y / size.w)), y0 + 1);
+	float far = 0.0;
+	for (int y = y0; y < y1; y++) {
+		for (int x = x0; x < x1; x++) far = max(far, texelFetch(dist, ivec2(x, y), 0).r);
+	}
+	o = vec4(far, 0.0, 0.0, 1.0);
+}`;
 const FS = `#version 300 es
 precision highp float;
 precision highp int;
@@ -970,7 +1018,13 @@ interface Program {
 }
 
 /** One instanced draw of a mesh. */
-type Draw = { vao: WebGLVertexArrayObject; indexCount: number; type: number; count: number };
+type Draw = {
+	vao: WebGLVertexArrayObject;
+	indexCount: number;
+	type: number;
+	count: number;
+	wire: WireSource;
+};
 
 /** EXT_clip_control, which TypeScript's DOM types do not list. */
 interface ClipControl {
@@ -1033,6 +1087,8 @@ export class WebGl2View implements ViewRenderer {
 		count: number;
 		/** What a wireframe's edges are found from, and its edges once asked for. */
 		wire: WireSource;
+		/** The solid parts' chunks, for culling: see culling.ts. */
+		chunks?: Chunk[];
 	}[] = [];
 	private clear: {
 		vao: WebGLVertexArrayObject;
@@ -1100,6 +1156,7 @@ export class WebGl2View implements ViewRenderer {
 		const fx = this.effects?.last;
 		return {
 			...this.lastTally,
+			culled: this.culled,
 			beams: fx?.beams ?? 0,
 			particles: fx?.particles ?? 0,
 			cpu: this.cpuMs,
@@ -1129,14 +1186,262 @@ export class WebGl2View implements ViewRenderer {
 	}
 
 	animates(): boolean {
-		return this.effects?.last.moving ?? false;
+		return (this.effects?.last.moving ?? false) || this.occlusionStale;
+	}
+
+	// -- occlusion: the solid parts' distances, small, read back a frame late -------
+
+	private far: {
+		dist: Program;
+		cells: WebGLProgram;
+		cellsSize: WebGLUniformLocation | null;
+		vao: WebGLVertexArrayObject;
+		distFbo: WebGLFramebuffer;
+		distTex: WebGLTexture;
+		distDepth: WebGLRenderbuffer;
+		cellFbo: WebGLFramebuffer;
+		cellTex: WebGLTexture;
+		pbo: WebGLBuffer;
+		size: number[];
+		cols: number;
+		rows: number;
+		/** The read under way: its fence, and the view it was drawn from. */
+		pending: { fence: WebGLSync; vp: Float32Array; eye: number[]; cols: number; rows: number } | null;
+	} | null = null;
+	private cullView: { vp: Float32Array; eye: number[] } | null = null;
+	private occlusionStale = false;
+
+	/** Takes up a read the GPU has finished, as the depth image for the next culling. */
+	private pollFar(): void {
+		const gl = this.gl;
+		const pend = this.far?.pending;
+		if (!this.far || !pend) return;
+		const status = gl.getSyncParameter(pend.fence, gl.SYNC_STATUS);
+		if (status !== gl.SIGNALED) return;
+		gl.deleteSync(pend.fence);
+		this.far.pending = null;
+		const rgba = new Float32Array(pend.cols * pend.rows * 4);
+		gl.bindBuffer(gl.PIXEL_PACK_BUFFER, this.far.pbo);
+		gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, rgba);
+		gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+		// Read bottom row first; the image is top row first.
+		const far = new Float32Array(pend.cols * pend.rows);
+		for (let r = 0; r < pend.rows; r++)
+			for (let c = 0; c < pend.cols; c++) far[r * pend.cols + c] = rgba[((pend.rows - 1 - r) * pend.cols + c) * 4];
+		this.depthImage = { cols: pend.cols, rows: pend.rows, far, viewProj: pend.vp, eye: pend.eye };
+	}
+
+	/**
+	 * The solid parts in view, each pixel its distance from the eye, into a
+	 * target of its own (WebGL2 cannot read the multisampled depth), made
+	 * small and read back without waiting: see pollFar.
+	 */
+	private drawFar(camera: Camera): void {
+		const gl = this.gl;
+		if (!this.cullView || this.far?.pending) return;
+		if (!this.far) {
+			if (!gl.getExtension("EXT_color_buffer_float")) return;
+			const cells = gl.createProgram()!;
+			const compile = (type: number, src: string) => {
+				const sh = gl.createShader(type)!;
+				gl.shaderSource(sh, src);
+				gl.compileShader(sh);
+				gl.attachShader(cells, sh);
+			};
+			compile(gl.VERTEX_SHADER, VS_FULL_CELLS);
+			compile(gl.FRAGMENT_SHADER, FS_FAR_CELLS);
+			gl.linkProgram(cells);
+			if (!gl.getProgramParameter(cells, gl.LINK_STATUS)) return;
+			const tex = () => {
+				const t = gl.createTexture()!;
+				gl.bindTexture(gl.TEXTURE_2D, t);
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+				return t;
+			};
+			this.far = {
+				dist: this.link(VS, FS_DIST),
+				cells,
+				cellsSize: gl.getUniformLocation(cells, "size"),
+				vao: gl.createVertexArray()!,
+				distFbo: gl.createFramebuffer()!,
+				distTex: tex(),
+				distDepth: gl.createRenderbuffer()!,
+				cellFbo: gl.createFramebuffer()!,
+				cellTex: tex(),
+				pbo: gl.createBuffer()!,
+				size: [0, 0],
+				cols: 0,
+				rows: 0,
+				pending: null,
+			};
+			gl.bindTexture(gl.TEXTURE_2D, null);
+		}
+		const f = this.far;
+		const { cols, rows } = depthCells(this.width, this.height);
+		if (f.size[0] !== this.width || f.size[1] !== this.height) {
+			gl.bindTexture(gl.TEXTURE_2D, f.distTex);
+			gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, this.width, this.height, 0, gl.RED, gl.FLOAT, null);
+			gl.bindRenderbuffer(gl.RENDERBUFFER, f.distDepth);
+			gl.renderbufferStorage(gl.RENDERBUFFER, this.depthFormat(), this.width, this.height);
+			gl.bindFramebuffer(gl.FRAMEBUFFER, f.distFbo);
+			gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, f.distTex, 0);
+			gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, f.distDepth);
+			f.size = [this.width, this.height];
+		}
+		if (f.cols !== cols || f.rows !== rows) {
+			gl.bindTexture(gl.TEXTURE_2D, f.cellTex);
+			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, cols, rows, 0, gl.RGBA, gl.FLOAT, null);
+			gl.bindFramebuffer(gl.FRAMEBUFFER, f.cellFbo);
+			gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, f.cellTex, 0);
+			gl.bindBuffer(gl.PIXEL_PACK_BUFFER, f.pbo);
+			gl.bufferData(gl.PIXEL_PACK_BUFFER, cols * rows * 16, gl.STREAM_READ);
+			gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+			f.cols = cols;
+			f.rows = rows;
+		}
+		gl.bindTexture(gl.TEXTURE_2D, null);
+		// The distances, nearest kept by the depth test as the place's own.
+		gl.bindFramebuffer(gl.FRAMEBUFFER, f.distFbo);
+		gl.viewport(0, 0, this.width, this.height);
+		gl.clearBufferfv(gl.COLOR, 0, [1e30, 0, 0, 0]);
+		gl.clearDepth(this.farDepth);
+		gl.clear(gl.DEPTH_BUFFER_BIT);
+		gl.enable(gl.DEPTH_TEST);
+		gl.depthFunc(this.nearer);
+		gl.depthMask(true);
+		gl.disable(gl.BLEND);
+		this.use(f.dist, camera, false);
+		gl.uniform3fv(gl.getUniformLocation(f.dist.program, "eye"), camera.eye);
+		this.solids();
+		// Each cell the farthest over its pixels.
+		gl.bindFramebuffer(gl.FRAMEBUFFER, f.cellFbo);
+		gl.viewport(0, 0, cols, rows);
+		gl.disable(gl.DEPTH_TEST);
+		gl.useProgram(f.cells);
+		gl.activeTexture(gl.TEXTURE0);
+		gl.bindTexture(gl.TEXTURE_2D, f.distTex);
+		gl.uniform1i(gl.getUniformLocation(f.cells, "dist"), 0);
+		gl.uniform4f(f.cellsSize, this.width, this.height, cols, rows);
+		gl.bindVertexArray(f.vao);
+		gl.drawArrays(gl.TRIANGLES, 0, 3);
+		gl.bindVertexArray(null);
+		gl.bindTexture(gl.TEXTURE_2D, null);
+		gl.bindBuffer(gl.PIXEL_PACK_BUFFER, f.pbo);
+		gl.readPixels(0, 0, cols, rows, gl.RGBA, gl.FLOAT, 0);
+		gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+		const fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+		if (fence) f.pending = { fence, vp: this.cullView.vp, eye: this.cullView.eye, cols, rows };
+		gl.enable(gl.DEPTH_TEST);
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+		gl.viewport(0, 0, this.width, this.height);
 	}
 
 	private count(draws: { indexCount: number; count: number }[]): void {
 		for (const d of draws) {
-			this.tally.instances += d.count;
-			this.tally.triangles += (d.count * d.indexCount) / 3;
+			const n = this.shown(d);
+			this.tally.instances += n;
+			this.tally.triangles += (n * d.indexCount) / 3;
 		}
+	}
+
+	/** Each solid draw's runs of instances the camera's passes draw: see culling.ts. */
+	private runs = new Map<object, number[]>();
+	/** The last frame's depth, small, for occlusion; and what culling left. */
+	depthImage: DepthImage | null = null;
+	private culled: { drawn: number; of: number } | null = null;
+
+	/**
+	 * Which of the solid parts' chunks the camera's passes draw: in view, and
+	 * not hidden behind the last frame's solid parts. Found after the shadow
+	 * and sky maps, which draw every part, and cleared when the frame is done.
+	 */
+	private cull(camera: Camera, draws: readonly { chunks?: Chunk[]; count: number }[]): void {
+		this.runs.clear();
+		const passes = passesOf(this.render.features);
+		if (!passes.frustum) {
+			this.culled = null;
+			return;
+		}
+		const vp = multiply(
+			perspective(FOV, this.width / this.height, camera.near, camera.far, true, true),
+			lookAt(camera.eye, camera.at),
+		);
+		const planes = sidePlanes(vp);
+		this.pollFar();
+		const depth = passes.occlusion ? this.depthImage : null;
+		this.cullView = { vp, eye: [...camera.eye] };
+		// Drawn with another view's depth: draw again once this view's arrives.
+		this.occlusionStale = passes.occlusion && !sameView(depth?.viewProj, vp);
+		let drawn = 0;
+		let of = 0;
+		for (const draw of draws) {
+			of += draw.count;
+			if (!draw.chunks) {
+				drawn += draw.count;
+				continue;
+			}
+			const runs = visibleRuns(
+				draw.chunks,
+				(c) => boxInView(planes, c.min, c.max) && !(depth && boxHidden(depth, c.min, c.max)),
+			);
+			this.runs.set(draw, runs);
+			for (let i = 1; i < runs.length; i += 2) drawn += runs[i];
+		}
+		this.culled = { drawn, of };
+	}
+
+	/** How many of a draw's instances this frame draws. */
+	private shown(draw: { count: number }): number {
+		const runs = this.runs.get(draw);
+		if (!runs) return draw.count;
+		let n = 0;
+		for (let i = 1; i < runs.length; i += 2) n += runs[i];
+		return n;
+	}
+
+	/**
+	 * Draws a draw's runs, or all of it: WebGL2 has no first instance to start
+	 * a draw at, so each run points the instance attributes `first` rows on,
+	 * and they are pointed back after.
+	 */
+	private drawRuns(
+		vao: WebGLVertexArrayObject,
+		instances: WebGLBuffer,
+		key: object,
+		mode: number,
+		indexCount: number,
+		type: number,
+		count: number,
+	): void {
+		const gl = this.gl;
+		gl.bindVertexArray(vao);
+		const runs = this.runs.get(key);
+		if (!runs) {
+			gl.drawElementsInstanced(mode, indexCount, type, 0, count);
+			this.tally.draws++;
+			return;
+		}
+		if (runs.length === 0) return;
+		gl.bindBuffer(gl.ARRAY_BUFFER, instances);
+		for (let i = 0; i < runs.length; i += 2) {
+			this.pointInstances(runs[i]);
+			gl.drawElementsInstanced(mode, indexCount, type, 0, runs[i + 1]);
+		}
+		this.pointInstances(0);
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+		this.tally.draws += runs.length / 2;
+	}
+
+	/** The bound VAO's instance attributes, `first` rows into the bound buffer: as vao() sets them. */
+	private pointInstances(first: number): void {
+		const gl = this.gl;
+		const stride = SCENE_STRIDE * 4;
+		const base = first * stride;
+		for (let i = 0; i < 4; i++) gl.vertexAttribPointer(2 + i, 3, gl.FLOAT, false, stride, base + i * 12);
+		gl.vertexAttribPointer(6, 4, gl.UNSIGNED_BYTE, true, stride, base + 48);
+		gl.vertexAttribIPointer(7, 1, gl.UNSIGNED_INT, stride, base + 52);
+		gl.vertexAttribIPointer(8, 1, gl.UNSIGNED_INT, stride, base + 56);
 	}
 
 	/** Wireframe only: each draw's edges, found the first time they are asked for. */
@@ -1167,9 +1472,7 @@ export class WebGl2View implements ViewRenderer {
 				w.edges = { vao: this.vao(w.vertices, w.instances, eb), count: found.length };
 			}
 			if (w.edges.count === 0) continue;
-			gl.bindVertexArray(w.edges.vao);
-			gl.drawElementsInstanced(gl.LINES, w.edges.count, gl.UNSIGNED_INT, 0, d.count);
-			this.tally.draws++;
+			this.drawRuns(w.edges.vao, w.instances, d, gl.LINES, w.edges.count, gl.UNSIGNED_INT, d.count);
 		}
 		gl.bindVertexArray(null);
 		gl.disable(gl.BLEND);
@@ -1395,7 +1698,9 @@ export class WebGl2View implements ViewRenderer {
 				if (count === 0) continue;
 				const vb = this.buffer(gl.ARRAY_BUFFER, mesh.vertices);
 				const eb = this.buffer(gl.ELEMENT_ARRAY_BUFFER, mesh.indices);
-				const ib = this.buffer(gl.ARRAY_BUFFER, data);
+				// The solid parts sorted into chunks of nearby parts, for culling.
+				const chunked = set === "solid" ? chunkRows(data, count) : null;
+				const ib = this.buffer(gl.ARRAY_BUFFER, chunked ? chunked.data : data);
 				this.sceneBuffers.push(vb, eb, ib);
 				const draw = {
 					vao: this.vao(vb, ib, eb),
@@ -1403,6 +1708,7 @@ export class WebGl2View implements ViewRenderer {
 					type,
 					count,
 					wire: { mesh, vertices: vb, instances: ib },
+					chunks: chunked?.chunks,
 				};
 				if (seeThrough)
 					this.clear.push({
@@ -2342,15 +2648,17 @@ export class WebGl2View implements ViewRenderer {
 	}
 
 	private solids(
-		draws: { vao: WebGLVertexArrayObject; indexCount: number; type: number; count: number }[] = this
-			.draws,
+		draws: {
+			vao: WebGLVertexArrayObject;
+			indexCount: number;
+			type: number;
+			count: number;
+			wire: WireSource;
+		}[] = this.draws,
 	): void {
 		const gl = this.gl;
-		this.tally.draws += draws.length;
-		for (const d of draws) {
-			gl.bindVertexArray(d.vao);
-			gl.drawElementsInstanced(gl.TRIANGLES, d.indexCount, d.type, 0, d.count);
-		}
+		for (const d of draws)
+			this.drawRuns(d.vao, d.wire.instances, d, gl.TRIANGLES, d.indexCount, d.type, d.count);
 		gl.bindVertexArray(null);
 	}
 
@@ -2389,6 +2697,10 @@ export class WebGl2View implements ViewRenderer {
 				centre,
 			);
 		this.drawCascades(camera, partsMoved);
+		// The camera's passes from here draw only the chunks in view.
+		this.cull(camera, this.draws);
+		const culling = passesOf(this.render.features);
+		if (culling.frustum && culling.occlusion) this.drawFar(camera);
 		this.usualDepth(false);
 		gl.clearDepth(this.farDepth);
 		this.shape = glowShape(this.lighting?.post, postOn);
@@ -2425,6 +2737,7 @@ export class WebGl2View implements ViewRenderer {
 		if (composite) this.addGlow(camera, post, glowing, postOn, sharesComposite(mode));
 		this.drawMarks(camera);
 		this.lastTally = this.tally;
+		this.runs.clear();
 		this.cpuMs = performance.now() - started;
 	}
 

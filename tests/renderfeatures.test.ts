@@ -119,6 +119,8 @@ describe("the Rendering panel's switches", () => {
 			beams: true,
 			particles: true,
 			thinParts: true,
+			frustum: true,
+			occlusion: true,
 		});
 		expect(passesOf({ ...STUDIO_FEATURES, neonGlow: false }).glow).toBe(true);
 		expect(passesOf({ ...STUDIO_FEATURES, neonGlow: false, lavaGlow: false }).glow).toBe(false);

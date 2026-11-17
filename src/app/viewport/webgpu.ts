@@ -13,6 +13,17 @@ import { type LightingParams, lightingBlock } from "../../core/rbx/lighting.js";
 import { MATERIAL_TEXTURES, MATERIALS, materialBlock } from "../../core/rbx/materials.js";
 import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../../core/rbx/scene.js";
 import { GpuEffects } from "./effectsGpu.js";
+import {
+	boxHidden,
+	boxInView,
+	type Chunk,
+	chunkRows,
+	type DepthImage,
+	depthCells,
+	sameView,
+	sidePlanes,
+	visibleRuns,
+} from "./culling.js";
 import { boxEdges, featureEdges, meshFor, sceneGlows } from "./geometry.js";
 import { HANDLE_KINDS, type Handles, handleMesh } from "./handles.js";
 import { invert, lookAt, multiply, perspective } from "./math.js";
@@ -1014,7 +1025,41 @@ interface Draw {
 	format: GPUIndexFormat;
 	instances: GPUBuffer;
 	count: number;
+	/** The solid parts' chunks, for culling: see culling.ts. */
+	chunks?: Chunk[];
 }
+
+/**
+ * The depth image for occlusion: each cell the farthest of the solid parts'
+ * depths over its pixels, as a distance from the eye; 1e30 where nothing is.
+ */
+const FAR_SHADER = /* wgsl */ `
+struct FarU { invViewProj: mat4x4f, eye: vec4f, size: vec4f };
+@group(0) @binding(0) var depthTex: texture_depth_multisampled_2d;
+@group(0) @binding(1) var<uniform> fu: FarU;
+@vertex fn vsFar(@builtin(vertex_index) i: u32) -> @builtin(position) vec4f {
+	let p = vec2f(f32((i << 1u) & 2u), f32(i & 2u));
+	return vec4f(p * 2.0 - 1.0, 0.0, 1.0);
+}
+@fragment fn fsFar(@builtin(position) at: vec4f) -> @location(0) vec4f {
+	let cell = floor(at.xy);
+	let x0 = i32(floor(cell.x * fu.size.x / fu.size.z));
+	let x1 = max(i32(floor((cell.x + 1.0) * fu.size.x / fu.size.z)), x0 + 1);
+	let y0 = i32(floor(cell.y * fu.size.y / fu.size.w));
+	let y1 = max(i32(floor((cell.y + 1.0) * fu.size.y / fu.size.w)), y0 + 1);
+	var far = 0.0;
+	for (var y = y0; y < y1; y++) {
+		for (var x = x0; x < x1; x++) {
+			let d = textureLoad(depthTex, vec2i(x, y), 0);
+			if (d <= 0.0) { return vec4f(1e30, 0.0, 0.0, 1.0); }
+			let ndc = vec2f((f32(x) + 0.5) / fu.size.x * 2.0 - 1.0, 1.0 - (f32(y) + 0.5) / fu.size.y * 2.0);
+			let w = fu.invViewProj * vec4f(ndc, d, 1.0);
+			far = max(far, distance(w.xyz / w.w, fu.eye.xyz));
+		}
+	}
+	return vec4f(far, 0.0, 0.0, 1.0);
+}
+`;
 
 export class WebGpuView implements ViewRenderer {
 	readonly backend = "WebGPU" as const;
@@ -1099,6 +1144,7 @@ export class WebGpuView implements ViewRenderer {
 		const fx = this.effects?.last;
 		return {
 			...this.lastTally,
+			culled: this.culled,
 			beams: fx?.beams ?? 0,
 			particles: fx?.particles ?? 0,
 			cpu: this.cpuMs,
@@ -1109,10 +1155,66 @@ export class WebGpuView implements ViewRenderer {
 	/** Each draw's instances and triangles, toward the frame's stats. */
 	private count(draws: Draw[]): void {
 		for (const d of draws) {
-			this.tally.instances += d.count;
-			this.tally.triangles += (d.count * d.indexCount) / 3;
+			const n = this.shown(d);
+			this.tally.instances += n;
+			this.tally.triangles += (n * d.indexCount) / 3;
 		}
 	}
+
+	/** Each solid draw's runs of instances the camera's passes draw: see culling.ts. */
+	private runs = new Map<object, number[]>();
+	/** The last frame's depth, small, for occlusion; and what culling left. */
+	depthImage: DepthImage | null = null;
+	private culled: { drawn: number; of: number } | null = null;
+
+	/**
+	 * Which of the solid parts' chunks the camera's passes draw: in view, and
+	 * not hidden behind the last frame's solid parts. Found after the shadow
+	 * and sky maps, which draw every part, and cleared when the frame is done.
+	 */
+	private cull(camera: Camera, draws: readonly { chunks?: Chunk[]; count: number }[]): void {
+		this.runs.clear();
+		const passes = passesOf(this.render.features);
+		if (!passes.frustum) {
+			this.culled = null;
+			return;
+		}
+		const vp = multiply(
+			perspective(FOV, this.width / this.height, camera.near, camera.far, true, true),
+			lookAt(camera.eye, camera.at),
+		);
+		const planes = sidePlanes(vp);
+		const depth = passes.occlusion ? this.depthImage : null;
+		this.cullView = { vp, eye: [...camera.eye] };
+		// Drawn with another view's depth: draw again once this view's arrives.
+		this.occlusionStale = passes.occlusion && !sameView(depth?.viewProj, vp);
+		let drawn = 0;
+		let of = 0;
+		for (const draw of draws) {
+			of += draw.count;
+			if (!draw.chunks) {
+				drawn += draw.count;
+				continue;
+			}
+			const runs = visibleRuns(
+				draw.chunks,
+				(c) => boxInView(planes, c.min, c.max) && !(depth && boxHidden(depth, c.min, c.max)),
+			);
+			this.runs.set(draw, runs);
+			for (let i = 1; i < runs.length; i += 2) drawn += runs[i];
+		}
+		this.culled = { drawn, of };
+	}
+
+	/** How many of a draw's instances this frame draws. */
+	private shown(draw: { count: number }): number {
+		const runs = this.runs.get(draw);
+		if (!runs) return draw.count;
+		let n = 0;
+		for (let i = 1; i < runs.length; i += 2) n += runs[i];
+		return n;
+	}
+
 
 	/** Wireframe only: each draw's edges, found the first time they are asked for. */
 	private edgeCache = new WeakMap<object, Uint32Array>();
@@ -1130,8 +1232,14 @@ export class WebGpuView implements ViewRenderer {
 			pass.setVertexBuffer(0, draw.vertices);
 			pass.setVertexBuffer(1, draw.instances);
 			pass.setIndexBuffer(draw.edges.buffer, "uint32");
-			pass.drawIndexed(draw.edges.count, draw.count);
-			this.tally.draws++;
+			const runs = this.runs.get(draw);
+			if (!runs) {
+				pass.drawIndexed(draw.edges.count, draw.count);
+				this.tally.draws++;
+				continue;
+			}
+			for (let i = 0; i < runs.length; i += 2) pass.drawIndexed(draw.edges.count, runs[i + 1], 0, 0, runs[i]);
+			this.tally.draws += runs.length / 2;
 		}
 		this.count(draws);
 	}
@@ -1870,12 +1978,16 @@ export class WebGpuView implements ViewRenderer {
 					instances: this.make(glass.data, BUFFER.VERTEX),
 					count: glass.count,
 				});
-			if (solid.count > 0)
+			if (solid.count > 0) {
+				// Sorted into chunks of nearby parts, for culling.
+				const chunked = chunkRows(solid.data, solid.count);
 				this.draws.push({
 					...shape(),
-					instances: this.make(solid.data, BUFFER.VERTEX),
+					instances: this.make(chunked.data, BUFFER.VERTEX),
 					count: solid.count,
+					chunks: chunked.chunks,
 				});
+			}
 			if (seen.count > 0)
 				this.clear.push({
 					...shape(),
@@ -1968,7 +2080,8 @@ export class WebGpuView implements ViewRenderer {
 			size,
 			sampleCount: SAMPLES,
 			format: "depth32float",
-			usage: TEXTURE.RENDER_ATTACHMENT,
+			// Read by occlusion's depth image: see drawFar.
+			usage: TEXTURE.RENDER_ATTACHMENT | TEXTURE.TEXTURE_BINDING,
 		});
 		// The place drawn and resolved, for the glow to be added to, and the
 		// glow's own source, resolved the same way.
@@ -2215,12 +2328,19 @@ export class WebGpuView implements ViewRenderer {
 	}
 
 	private solids(pass: GPURenderPassEncoder, draws: Draw[] = this.draws): void {
-		this.tally.draws += draws.length;
 		for (const draw of draws) {
+			const runs = this.runs.get(draw);
+			if (runs && runs.length === 0) continue;
 			pass.setVertexBuffer(0, draw.vertices);
 			pass.setVertexBuffer(1, draw.instances);
 			pass.setIndexBuffer(draw.indices, draw.format);
-			pass.drawIndexed(draw.indexCount, draw.count);
+			if (!runs) {
+				pass.drawIndexed(draw.indexCount, draw.count);
+				this.tally.draws++;
+				continue;
+			}
+			for (let i = 0; i < runs.length; i += 2) pass.drawIndexed(draw.indexCount, runs[i + 1], 0, 0, runs[i]);
+			this.tally.draws += runs.length / 2;
 		}
 	}
 
@@ -2252,6 +2372,11 @@ export class WebGpuView implements ViewRenderer {
 				centre,
 			);
 		this.drawCascades(encoder, camera, partsMoved);
+		// The camera's passes from here draw only the chunks in view.
+		this.cull(camera, this.draws);
+		// Occlusion: the solid parts' depth first, in a pass of its own.
+		const passes = passesOf(this.render.features);
+		const early = passes.frustum && passes.occlusion && mode !== "overdraw" && mode !== "density";
 		const screen = this.context.getCurrentTexture().createView();
 		// A BloomEffect blooms the whole picture, Neon or not: see fsBright.
 		const bloom = postOn && !!this.lighting?.post.bloom && show.glow && !heat && !wire && !tinted;
@@ -2284,6 +2409,8 @@ export class WebGpuView implements ViewRenderer {
 			if (this.clear.length > 0) this.sortClear(camera.eye);
 			this.drawGlow(encoder);
 		}
+		// After the glow, which clears the same depth for its own pass.
+		const readBack = early && this.drawFar(encoder);
 		let pass = encoder.beginRenderPass({
 			timestampWrites: this.stamp("scene"),
 			colorAttachments: [
@@ -2304,7 +2431,7 @@ export class WebGpuView implements ViewRenderer {
 			depthStencilAttachment: {
 				view: this.depth!.createView(),
 				depthClearValue: 0,
-				depthLoadOp: "clear",
+				depthLoadOp: early ? "load" : "clear",
 				depthStoreOp: glow ? "store" : "discard",
 			},
 		});
@@ -2329,8 +2456,11 @@ export class WebGpuView implements ViewRenderer {
 			// None drawn: the parts alone; this only clears the last frame's count.
 			this.drawEffects(pass, camera);
 		} else {
-			pass.setPipeline(this.solidDepth);
-			this.solids(pass);
+			// The solid parts' depth, unless occlusion's pass has drawn it.
+			if (!early) {
+				pass.setPipeline(this.solidDepth);
+				this.solids(pass);
+			}
 			pass.setPipeline(this.solid);
 			this.solids(pass);
 			this.count(this.draws);
@@ -2424,7 +2554,9 @@ export class WebGpuView implements ViewRenderer {
 		const read = this.readStamps(encoder);
 		this.device.queue.submit([encoder.finish()]);
 		read?.();
+		if (readBack) this.readFar();
 		this.lastTally = this.tally;
+		this.runs.clear();
 		this.cpuMs = performance.now() - started;
 	}
 
@@ -2457,7 +2589,126 @@ export class WebGpuView implements ViewRenderer {
 	}
 
 	animates(): boolean {
-		return this.effects?.last.moving ?? false;
+		return (this.effects?.last.moving ?? false) || this.occlusionStale;
+	}
+
+	// -- occlusion: the solid parts' depth, small, read back a frame late ----------
+
+	private farPipe?: GPURenderPipeline;
+	private farLayout?: GPUBindGroupLayout;
+	private farTex?: GPUTexture;
+	private farUniform?: GPUBuffer;
+	private farRead?: GPUBuffer;
+	private farBusy = false;
+	private farCells = { cols: 0, rows: 0, bytesPerRow: 0 };
+	/** The view the culling used this frame, and whether its depth image was another view's. */
+	private cullView: { vp: Float32Array; eye: number[] } | null = null;
+	private occlusionStale = false;
+
+	/**
+	 * The solid parts' depth in a pass of its own, so Glass and the rest drawn
+	 * after do not hide what is behind them; then made small. The main pass
+	 * goes on from this depth. Returns whether the image is to be read back.
+	 */
+	private drawFar(encoder: GPUCommandEncoder): boolean {
+		const d = this.device;
+		const pass = encoder.beginRenderPass({
+			colorAttachments: [
+				{ view: this.msaa!.createView(), loadOp: "clear", storeOp: "discard", clearValue: { r: 0, g: 0, b: 0, a: 1 } },
+			],
+			depthStencilAttachment: {
+				view: this.depth!.createView(),
+				depthClearValue: 0,
+				depthLoadOp: "clear",
+				depthStoreOp: "store",
+			},
+		});
+		pass.setBindGroup(0, this.bind);
+		pass.setPipeline(this.solidDepth);
+		this.solids(pass);
+		pass.end();
+		if (!this.cullView) return false;
+		const { cols, rows } = depthCells(this.width, this.height);
+		if (!this.farPipe || !this.farLayout) {
+			const module = d.createShaderModule({ code: FAR_SHADER });
+			this.farLayout = d.createBindGroupLayout({
+				entries: [
+					{ binding: 0, visibility: STAGE.FRAGMENT, texture: { sampleType: "depth", multisampled: true } },
+					{ binding: 1, visibility: STAGE.FRAGMENT, buffer: {} },
+				],
+			});
+			this.farPipe = d.createRenderPipeline({
+				layout: d.createPipelineLayout({ bindGroupLayouts: [this.farLayout] }),
+				vertex: { module, entryPoint: "vsFar" },
+				fragment: { module, entryPoint: "fsFar", targets: [{ format: "r32float" }] },
+				primitive: { topology: "triangle-list" },
+			});
+			this.farUniform = d.createBuffer({ size: 96, usage: BUFFER.UNIFORM | BUFFER.COPY_DST });
+		}
+		if (this.farCells.cols !== cols || this.farCells.rows !== rows) {
+			this.farTex?.destroy();
+			if (!this.farBusy) this.farRead?.destroy();
+			const bytesPerRow = Math.ceil((cols * 4) / 256) * 256;
+			this.farTex = d.createTexture({
+				size: [cols, rows],
+				format: "r32float",
+				usage: TEXTURE.RENDER_ATTACHMENT | TEXTURE.COPY_SRC,
+			});
+			this.farRead = d.createBuffer({ size: bytesPerRow * rows, usage: BUFFER.MAP_READ | BUFFER.COPY_DST });
+			this.farBusy = false;
+			this.farCells = { cols, rows, bytesPerRow };
+		}
+		const { vp, eye } = this.cullView;
+		const u = new Float32Array(24);
+		u.set(invert(vp), 0);
+		u.set([eye[0], eye[1], eye[2], 0], 16);
+		u.set([this.width, this.height, cols, rows], 20);
+		d.queue.writeBuffer(this.farUniform!, 0, u);
+		const group = d.createBindGroup({
+			layout: this.farLayout,
+			entries: [
+				{ binding: 0, resource: this.depth!.createView() },
+				{ binding: 1, resource: { buffer: this.farUniform! } },
+			],
+		});
+		const reduce = encoder.beginRenderPass({
+			colorAttachments: [{ view: this.farTex!.createView(), loadOp: "clear", storeOp: "store", clearValue: { r: 1e30, g: 0, b: 0, a: 1 } }],
+		});
+		reduce.setPipeline(this.farPipe);
+		reduce.setBindGroup(0, group);
+		reduce.draw(3);
+		reduce.end();
+		if (this.farBusy) return false;
+		encoder.copyTextureToBuffer(
+			{ texture: this.farTex! },
+			{ buffer: this.farRead!, bytesPerRow: this.farCells.bytesPerRow },
+			[cols, rows],
+		);
+		return true;
+	}
+
+	/** Reads the image just made back, once the GPU is done with it, for the next frame's culling. */
+	private readFar(): void {
+		const buffer = this.farRead;
+		const view = this.cullView;
+		if (!buffer || !view) return;
+		const { cols, rows, bytesPerRow } = this.farCells;
+		this.farBusy = true;
+		buffer
+			.mapAsync(MAP_READ)
+			.then(() => {
+				const bytes = new Float32Array(buffer.getMappedRange());
+				const far = new Float32Array(cols * rows);
+				const stride = bytesPerRow / 4;
+				for (let r = 0; r < rows; r++) far.set(bytes.subarray(r * stride, r * stride + cols), r * cols);
+				buffer.unmap();
+				this.depthImage = { cols, rows, far, viewProj: view.vp, eye: view.eye };
+			})
+			.catch(() => {})
+			.finally(() => {
+				if (this.farRead === buffer) this.farBusy = false;
+				else buffer.destroy();
+			});
 	}
 
 	// The Overdraw and Triangle density views: see renderViews.ts.

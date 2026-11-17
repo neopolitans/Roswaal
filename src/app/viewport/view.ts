@@ -1076,6 +1076,8 @@ export interface RenderStats {
 	draws: number;
 	instances: number;
 	triangles: number;
+	/** Solid parts drawn by the camera's passes, of all of them; null with culling off. */
+	culled?: { drawn: number; of: number } | null;
 	/** Beams drawn, and particles alive, in the last frame. */
 	beams: number;
 	particles: number;
