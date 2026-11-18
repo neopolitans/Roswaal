@@ -7,7 +7,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-
+import { ENGINE } from "../src/core/robloxEngine.js";
 import {
 	MATERIAL_PATTERN,
 	MATERIAL_ROW,
@@ -15,8 +15,7 @@ import {
 	MATERIALS,
 	materialBlock,
 	materialIndex,
-} from "../src/core/rbx/materials.js";
-import { ENGINE } from "../src/core/robloxEngine.js";
+} from "../src/extensions/placeViewer/core/materials.js";
 
 const rowOf = (name: string) => MATERIALS.findIndex((m) => m.name === name) * MATERIAL_ROW;
 
@@ -60,13 +59,16 @@ describe("The material table", () => {
 	});
 
 	it("has a map in the viewport's textures for every textured material", () => {
-		const dir = path.join(__dirname, "../src/app/viewport/textures");
+		const dir = path.join(__dirname, "../src/extensions/placeViewer/app/viewport/textures");
 		const files = new Set(fs.readdirSync(dir));
 		for (const t of MATERIAL_TEXTURES) {
 			const file = t.glows ? `${t.material}.png` : `${t.material}.jpg`;
 			expect(files.has(file), file).toBe(true);
 		}
-		const source = fs.readFileSync(path.join(__dirname, "../src/app/viewport/textures.ts"), "utf8");
+		const source = fs.readFileSync(
+			path.join(__dirname, "../src/extensions/placeViewer/app/viewport/textures.ts"),
+			"utf8",
+		);
 		for (const t of MATERIAL_TEXTURES)
 			expect(source, t.material).toContain(`./textures/${t.material}.`);
 	});

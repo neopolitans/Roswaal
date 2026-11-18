@@ -72,7 +72,6 @@ import {
 	type InstanceChange,
 	type InstanceRef,
 } from "../core/rbx/instances.js";
-import { readLighting } from "../core/rbx/lighting.js";
 import { type PlaceReport, planPlaceUpdate } from "../core/rbx/placeExport.js";
 import {
 	decodeRaw,
@@ -82,13 +81,15 @@ import {
 	type Raw,
 	type RawProp,
 } from "../core/rbx/rawValue.js";
-import { buildPlaceScene, type PlaceScene, SCENE_KINDS } from "../core/rbx/scene.js";
-import { diffScene } from "../core/rbx/sceneDiff.js";
 import { convertPlace, leftOutOf, placeFormatOf } from "../core/rbx/serialize.js";
-import { withUnions } from "../core/rbx/unions.js";
 import { legacyBinaryUniqueId } from "../core/rbx/uniqueId.js";
 import { emptyScript, type NodeDef, type NodeScript, type Target } from "../core/schema.js";
 import { servicesUsed } from "../core/servicesUsed.js";
+import {
+	type ExtensionCapabilities,
+	extensionAbilities,
+	extensionRoutes,
+} from "../extensions/server.js";
 import { errorMessage, HttpError, UserError } from "./errors.js";
 import { exists, walkFiles } from "./files.js";
 import { fs, path } from "./host.js";
@@ -133,10 +134,10 @@ import {
 	placeReport,
 	putLinksBack,
 	readConfig,
+	readLinksText,
 	readLuaurcFiles,
 	readMap,
 	readPack,
-	readLinksText,
 	readPlaceBytes,
 	readScript,
 	readText,
@@ -159,8 +160,6 @@ import {
 } from "./project.js";
 import { fields, need, optionalQuery, query, type RouteRequest, realmOf, text } from "./request.js";
 import { instancePathOf, modulesRequiredBy, projectInstances } from "./requires.js";
-import type { AssetOutcome } from "./roblox/assets.js";
-import type { RobloxAccount } from "./roblox/signin.js";
 import { addFromWally, installGithub, installZip, packageUses, removePackage } from "./wally.js";
 
 export { type ErrorBody, errorResponse, HttpError, UserError } from "./errors.js";
@@ -222,26 +221,12 @@ export interface HostCapabilities {
 	 * hosted editor cannot fetch one and does not offer to.
 	 */
 	githubDownload?(owner: string, repo: string, ref: string): Promise<Uint8Array>;
-	/**
-	 * Sign in with Roblox. The daemon's alone: the sign-in and its tokens stay
-	 * on this computer (`server/roblox/signin.ts`), and the website does not
-	 * offer it.
-	 */
-	roblox?: RobloxAccount;
-	/** What Sign in with Roblox downloads, kept in the project: `server/roblox/assets.ts`. */
-	robloxAssets?: RobloxAssets;
-}
-
-/** The downloads' side of Sign in with Roblox, as the routes use it. */
-export interface RobloxAssets {
-	fetchAll(root: string, ids: readonly string[]): Promise<Record<string, AssetOutcome>>;
-	summary(root: string): Promise<{ count: number; bytes: number }>;
-	clear(root: string): Promise<void>;
-	read(root: string, id: string): Promise<{ assetTypeId?: number; bytes: Uint8Array } | null>;
 }
 
 export interface SessionHooks {
 	capabilities?: HostCapabilities;
+	/** What the host gives each extension: `src/extensions/server.ts`. */
+	extensions?: ExtensionCapabilities;
 	/**
 	 * The open project changed. `switched` separates "a different project is now
 	 * open", which every tab needs to hear about, from "the same project was
@@ -295,9 +280,6 @@ export class ApiSession {
 	 */
 	private unsaved = new Map<string, UnsavedPlace>();
 
-	/** Scenes built lately, by project and stamp, for `GET /place/scene`'s `since`. */
-	private scenes = new Map<string, { scene: PlaceScene; outline: PlaceOutline }>();
-
 	readonly routes: Readonly<Record<string, RouteHandler>>;
 
 	constructor(private readonly hooks: SessionHooks = {}) {
@@ -313,9 +295,12 @@ export class ApiSession {
 	/** The capabilities this host passed, by name, for the editor to read. */
 	private abilities(): string[] {
 		const given = this.hooks.capabilities ?? {};
-		return (Object.keys(given) as (keyof HostCapabilities)[])
-			.filter((name) => given[name] !== undefined)
-			.sort();
+		return [
+			...(Object.keys(given) as (keyof HostCapabilities)[]).filter(
+				(name) => given[name] !== undefined,
+			),
+			...extensionAbilities(this.hooks.extensions),
+		].sort();
 	}
 
 	private ability<K extends keyof HostCapabilities>(name: K): NonNullable<HostCapabilities[K]> {
@@ -597,6 +582,14 @@ export class ApiSession {
 			...this.entryRoutes(),
 			...this.packRoutes(),
 			...this.compileRoutes(),
+			...extensionRoutes(
+				{
+					project: () => this.project(),
+					current: () => this.current,
+					loadPlace: (project, file) => this.loadPlace(project, file),
+				},
+				this.hooks.extensions,
+			),
 		};
 	}
 
@@ -635,68 +628,6 @@ export class ApiSession {
 			 * failing on the click. Names, not a boolean each, so a host that
 			 * gains one does not need this shape changed.
 			 */
-			/** Whether anyone is signed in with Roblox, and who: never a token. */
-			"GET /roblox": async () => {
-				const account = this.hooks.capabilities?.roblox;
-				return account ? { available: true, ...(await account.status()) } : { available: false };
-			},
-
-			/** Starts a sign-in; the editor opens the address it is given. */
-			"POST /roblox/signin": async () => this.ability("roblox").signIn(),
-
-			/** Revokes the sign-in and deletes it and everything it downloaded. */
-			"POST /roblox/signout": async () => {
-				await this.ability("roblox").signOut();
-				return { ok: true };
-			},
-
-			/** How many assets the open project holds from Sign in with Roblox. Reads only. */
-			"GET /roblox/assets": async () => {
-				const assets = this.hooks.capabilities?.robloxAssets;
-				if (!assets || !this.current) return { available: Boolean(assets), count: 0, bytes: 0 };
-				return { available: true, ...(await assets.summary(this.current.root)) };
-			},
-
-			/**
-			 * Makes sure the open project has these assets, downloading what it
-			 * lacks through the sign-in. Roblox's own are skipped. Answered per id.
-			 */
-			"POST /roblox/assets": async (req) => {
-				const { ids } = fields<{ ids: unknown }>(req);
-				if (!Array.isArray(ids) || ids.some((id) => typeof id !== "string")) {
-					throw new UserError("Pass `ids`, a list of asset ids as strings.");
-				}
-				const status = await this.ability("roblox").status();
-				if (!status.signedIn) throw new HttpError(409, "Sign in with Roblox first.");
-				return {
-					assets: await this.ability("robloxAssets").fetchAll(this.project().root, ids as string[]),
-				};
-			},
-
-			/**
-			 * One downloaded asset's bytes, for the place viewer to draw: base64,
-			 * as every answer is JSON. Reads only, and asks Roblox nothing; an
-			 * asset not downloaded yet is `found: false`.
-			 */
-			"GET /roblox/asset": async (req) => {
-				const assets = this.hooks.capabilities?.robloxAssets;
-				if (!assets || !this.current) return { available: Boolean(assets), found: false };
-				const held = await assets.read(this.current.root, query(req, "id") ?? "");
-				if (!held) return { available: true, found: false };
-				return {
-					available: true,
-					found: true,
-					...(held.assetTypeId !== undefined ? { assetTypeId: held.assetTypeId } : {}),
-					data: toBase64(held.bytes),
-				};
-			},
-
-			/** Deletes the open project's downloaded assets. */
-			"POST /roblox/assets/clear": async () => {
-				await this.ability("robloxAssets").clear(this.project().root);
-				return { ok: true };
-			},
-
 			"GET /health": async () => ({
 				ok: true,
 				project: this.current?.root ?? null,
@@ -1242,68 +1173,6 @@ export class ApiSession {
 				const inst = loaded.order[index];
 				if (!inst) throw new HttpError(404, `No instance ${index} in the place.`);
 				return describeInstance(inst, index, (other) => loaded.index.get(other));
-			},
-
-			/**
-			 * The place's Workspace for the viewport: one instance buffer per
-			 * shape, as base64, built once per version of the place, with its
-			 * lighting and Studio's saved camera. A 409 when the place has
-			 * changed since `stamp`, as for an instance.
-			 *
-			 * `since` names the version the viewer has. When this session built
-			 * that one's scene lately and the outline is the same, the answer
-			 * is a `patch`: the rows of the instances that changed, in `kinds`
-			 * and `translucent`, every id whose rows go in `changed`, and the
-			 * scene's other parts only where they differ. See `sceneDiff.ts`.
-			 */
-			"GET /place/scene": async (req) => {
-				const project = this.project();
-				const file = await findPlaceFile(project.root, project.config);
-				if (!file) throw new HttpError(404, "The project has no place file.");
-				const loaded = await this.loadPlace(project, file);
-				if (query(req, "stamp") !== loaded.stamp)
-					throw new HttpError(409, "The place file has changed. Reload it.");
-				const workspace = loaded.doc.roots.find((r) => r.className === "Workspace");
-				const idOf = (inst: RbxInstance) => loaded.index.get(inst);
-				loaded.scene ??= withUnions(buildPlaceScene(workspace, idOf), workspace, idOf);
-				const scene = loaded.scene;
-				const key = (stamp: string) => `${project.root}\0${stamp}`;
-				const since = this.scenes.get(key(text(req.query?.since) ?? ""));
-				this.scenes.delete(key(loaded.stamp));
-				this.scenes.set(key(loaded.stamp), { scene, outline: loaded.outline });
-				// The last few, for the viewer to ask what changed since.
-				for (const old of this.scenes.keys()) {
-					if (this.scenes.size <= 4) break;
-					this.scenes.delete(old);
-				}
-				const encode = (from: PlaceScene["kinds"]) => {
-					const out: Record<string, { data: string; count: number }> = {};
-					for (const k of SCENE_KINDS) {
-						const { data, count } = from[k];
-						out[k] = {
-							data: toBase64(new Uint8Array(data.buffer, data.byteOffset, data.byteLength)),
-							count,
-						};
-					}
-					return out;
-				};
-				if (since && sameOutline(since.outline, loaded.outline)) {
-					const patch = diffScene(since.scene, scene);
-					return {
-						patch: true,
-						changed: patch.changed,
-						fields: patch.fields,
-						kinds: encode(patch.kinds),
-						translucent: encode(patch.translucent),
-						lighting: readLighting(loaded.doc),
-					};
-				}
-				return {
-					...scene,
-					kinds: encode(scene.kinds),
-					translucent: encode(scene.translucent),
-					lighting: readLighting(loaded.doc),
-				};
 			},
 
 			/**
@@ -1964,15 +1833,13 @@ export class ApiSession {
 	}
 }
 
-interface LoadedPlace {
+export interface LoadedPlace {
 	root: string;
 	stamp: string;
 	doc: RbxDocument;
 	outline: PlaceOutline;
 	order: RbxInstance[];
 	index: Map<RbxInstance, number>;
-	/** The viewport's buffers, built the first time they are asked for. */
-	scene?: PlaceScene;
 }
 
 /** A place's edits not saved yet: see `ApiSession.unsaved`. */
@@ -1995,17 +1862,6 @@ interface PlaceRead {
 	/** The file's own stamp. */
 	disk: string;
 	edits?: UnsavedPlace;
-}
-
-/** Whether two outlines list the same instances in the same order, so an index names the same one in each. */
-function sameOutline(a: PlaceOutline, b: PlaceOutline): boolean {
-	if (a === b) return true;
-	if (a.nodes.length !== b.nodes.length || a.classes.length !== b.classes.length) return false;
-	if (a.classes.some((c, i) => c !== b.classes[i])) return false;
-	return a.nodes.every((n, i) => {
-		const m = b.nodes[i];
-		return n.length === m.length && n.every((v, j) => v === m[j]);
-	});
 }
 
 /** The links a deletion took, per file, which its undo puts back. */

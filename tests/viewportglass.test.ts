@@ -5,9 +5,13 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { seeThroughSets } from "../src/app/viewport/view.js";
-import { MATERIALS } from "../src/core/rbx/materials.js";
-import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../src/core/rbx/scene.js";
+import { seeThroughSets } from "../src/extensions/placeViewer/app/viewport/view.js";
+import { MATERIALS } from "../src/extensions/placeViewer/core/materials.js";
+import {
+	type PlaceScene,
+	SCENE_KINDS,
+	SCENE_STRIDE,
+} from "../src/extensions/placeViewer/core/scene.js";
 
 const GLASS = MATERIALS.findIndex((m) => m.name === "Glass");
 const PLASTIC = MATERIALS.findIndex((m) => m.name === "Plastic");

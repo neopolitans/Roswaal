@@ -4,13 +4,13 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { rayPick } from "../src/app/viewport/geometry.js";
+import { rayPick } from "../src/extensions/placeViewer/app/viewport/geometry.js";
 import {
 	type PlaceScene,
 	SCENE_KINDS,
 	SCENE_STRIDE,
 	type SceneKind,
-} from "../src/core/rbx/scene.js";
+} from "../src/extensions/placeViewer/core/scene.js";
 
 /** A scene of unrotated parts: each a shape, a size, a place and an id. */
 function sceneOf(

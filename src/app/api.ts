@@ -1,15 +1,11 @@
 /** Thin wrapper over the daemon's HTTP API. */
 
-import { fromBase64 } from "../core/base64.js";
 import type { DocComment } from "../core/luau/docComment.js";
 import type { TableMember } from "../core/luau/infer.js";
 import type { InstanceOutline } from "../core/luau/instances.js";
 import type { PlaceInstanceInfo, PlaceOutline } from "../core/rbx/browse.js";
-import type { LightingParams } from "../core/rbx/lighting.js";
 import type { PlaceReport } from "../core/rbx/placeExport.js";
 import type { RawItem, RawProp } from "../core/rbx/rawValue.js";
-import { type PlaceScene, SCENE_KINDS } from "../core/rbx/scene.js";
-import { applyScenePatch, type ScenePatch } from "../core/rbx/sceneDiff.js";
 
 /** What adding a package did. See `src/server/wally.ts`. */
 export interface WallyOutcome {
@@ -290,12 +286,6 @@ function noted<T extends object>(answer: T): T {
 	return answer;
 }
 
-/** The place's scene as the viewer was last sent it, which `placeScene` can be sent the changes to. */
-export interface SceneSince {
-	stamp: string;
-	scene: PlaceScene & { lighting: LightingParams };
-}
-
 /**
  * How a request reaches whatever is serving the API.
  *
@@ -346,7 +336,11 @@ export function openEventStream(): EventStream {
 	return openStream();
 }
 
-async function request<T>(url: string, init?: RequestInit): Promise<T> {
+/**
+ * A request to the API with the project's header, answered as JSON or thrown
+ * as an error. Exported for extensions, whose routes join the same table.
+ */
+export async function apiRequest<T>(url: string, init?: RequestInit): Promise<T> {
 	const response = await transport(url, {
 		...init,
 		headers: {
@@ -370,7 +364,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 const post = <T>(url: string, body: unknown) =>
 	request<T>(url, { method: "POST", body: JSON.stringify(body) });
 
-/** Sign in with Roblox as the daemon tells it. See `server/roblox/signin.ts`. */
+/** Sign in with Roblox as the daemon tells it. See `src/extensions/placeViewer/server/roblox/signin.ts`. */
 export interface RobloxStatus {
 	/** Whether this copy of Roswaal offers it: the daemon does, the website does not. */
 	available: boolean;
@@ -379,6 +373,8 @@ export interface RobloxStatus {
 	signingIn?: boolean;
 	failed?: string;
 }
+
+const request = apiRequest;
 
 export const api = {
 	/** Called whenever a project is opened, so writes can be guarded. */
@@ -552,49 +548,6 @@ export const api = {
 		request<PlaceInstanceInfo>(
 			`/api/place/instance?stamp=${encodeURIComponent(stamp)}&index=${index}`,
 		),
-	/**
-	 * The place's Workspace as the viewport draws it: see `GET /place/scene`.
-	 * Given the scene the viewer has, only what changed since is sent, and
-	 * put into a copy of it.
-	 */
-	placeScene: async (
-		stamp: string,
-		since?: SceneSince,
-	): Promise<PlaceScene & { lighting: LightingParams }> => {
-		type Wire = Record<string, { data: string; count: number }>;
-		const wire = await request<
-			Omit<PlaceScene, "kinds" | "translucent"> & {
-				kinds: Wire;
-				translucent?: Wire;
-				lighting: LightingParams;
-				patch?: true;
-				changed?: number[];
-				fields?: ScenePatch["fields"];
-			}
-		>(
-			`/api/place/scene?stamp=${encodeURIComponent(stamp)}${
-				since ? `&since=${encodeURIComponent(since.stamp)}` : ""
-			}`,
-		);
-		const decode = (from: Wire | undefined) => {
-			const out = {} as PlaceScene["kinds"];
-			for (const k of SCENE_KINDS) {
-				const { data, count } = from?.[k] ?? { data: "", count: 0 };
-				out[k] = { data: new Float32Array(fromBase64(data).buffer), count };
-			}
-			return out;
-		};
-		if (wire.patch && since) {
-			const patch: ScenePatch = {
-				changed: wire.changed ?? [],
-				fields: wire.fields ?? {},
-				kinds: decode(wire.kinds),
-				translucent: decode(wire.translucent),
-			};
-			return { ...applyScenePatch(since.scene, patch), lighting: wire.lighting };
-		}
-		return { ...wire, kinds: decode(wire.kinds), translucent: decode(wire.translucent) };
-	},
 	/**
 	 * Adds, deletes, moves or duplicates an instance in the place, unsaved
 	 * until `placeSave`. Answers with the place as it now is, and where the

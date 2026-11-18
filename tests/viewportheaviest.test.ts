@@ -4,8 +4,12 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { heaviest, meshCosts, shortCount } from "../src/app/viewport/heaviest.js";
-import { instanceData, SCENE_STRIDE } from "../src/core/rbx/scene.js";
+import {
+	heaviest,
+	meshCosts,
+	shortCount,
+} from "../src/extensions/placeViewer/app/viewport/heaviest.js";
+import { instanceData, SCENE_STRIDE } from "../src/extensions/placeViewer/core/scene.js";
 
 /** Rows of the mesh shape: each an id and the mesh slot it draws, -1 for its box. */
 function rows(list: [id: number, slot: number][]): { data: Float32Array; count: number } {

@@ -9,8 +9,8 @@ import {
 	rectBetween,
 	screenPoint,
 	type ViewShot,
-} from "../src/app/viewport/marquee.js";
-import { SCENE_STRIDE } from "../src/core/rbx/scene.js";
+} from "../src/extensions/placeViewer/app/viewport/marquee.js";
+import { SCENE_STRIDE } from "../src/extensions/placeViewer/core/scene.js";
 
 /** Ten studs back from the origin, looking down -Z, a view twice as wide as it is tall. */
 const shot: ViewShot = {
@@ -95,14 +95,16 @@ describe("what a box takes", () => {
 	};
 
 	it("takes each part's outermost Model, once, and the parts no Model holds", async () => {
-		const { boxTargets } = await import("../src/app/viewport/marquee.js");
+		const { boxTargets } = await import("../src/extensions/placeViewer/app/viewport/marquee.js");
 		expect(boxTargets(outline, 0, [3, 4, 5, 8, 9])).toEqual([1, 7, 9]);
 		expect(boxTargets(outline, 0, [9])).toEqual([9]);
 		expect(boxTargets(outline, 0, [])).toEqual([]);
 	});
 
 	it("picks as a click does: the outermost Model, never the Workspace", async () => {
-		const { outermostModel } = await import("../src/app/viewport/marquee.js");
+		const { outermostModel } = await import(
+			"../src/extensions/placeViewer/app/viewport/marquee.js"
+		);
 		expect(outermostModel(outline, 0, 3)).toBe(1);
 		expect(outermostModel(outline, 0, 8)).toBe(7);
 		expect(outermostModel(outline, 0, 9)).toBe(9);

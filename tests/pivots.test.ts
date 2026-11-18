@@ -5,15 +5,19 @@
  */
 
 import { describe, expect, it } from "vitest";
-
-import { boxAround } from "../src/app/viewport/box.js";
 import { blankPlace } from "../src/core/rbx/blankPlace.js";
 import { describeInstance, propertyEdit } from "../src/core/rbx/browse.js";
 import type { Prop, PropType, RbxInstance } from "../src/core/rbx/dom.js";
 import { storedValue, writeProperty } from "../src/core/rbx/edit.js";
 import { readRbx } from "../src/core/rbx/index.js";
-import { buildPlaceScene, modelPivot, partPivot, SCENE_STRIDE } from "../src/core/rbx/scene.js";
 import { writeBinaryPlace, writeXmlPlace } from "../src/core/rbx/serialize.js";
+import { boxAround } from "../src/extensions/placeViewer/app/viewport/box.js";
+import {
+	buildPlaceScene,
+	modelPivot,
+	partPivot,
+	SCENE_STRIDE,
+} from "../src/extensions/placeViewer/core/scene.js";
 
 function inst(
 	className: string,

@@ -20,8 +20,8 @@ import {
 	STUDIO_FEATURES,
 	stepOf,
 	upToStep,
-} from "../src/app/viewport/renderFeatures.js";
-import type { LightingParams } from "../src/core/rbx/lighting.js";
+} from "../src/extensions/placeViewer/app/viewport/renderFeatures.js";
+import type { LightingParams } from "../src/extensions/placeViewer/core/lighting.js";
 
 const lighting = {
 	sun: [0, 1, 0],
@@ -95,8 +95,11 @@ describe("the Rendering panel's switches", () => {
 		expect(featureBits(STUDIO_FEATURES) & FEATURE_BIT.leak).toBe(FEATURE_BIT.leak);
 		expect(featureBits({ ...STUDIO_FEATURES, thinWallsBlockSky: true }) & FEATURE_BIT.leak).toBe(0);
 		// A fix is no step: stepping leaves it off.
-		for (let n = 0; n <= RENDER_STEPS.length; n++) expect(upToStep(n).thinWallsBlockSky).toBe(false);
-		expect(changedFrom({ ...STUDIO_FEATURES, thinWallsBlockSky: true })).toEqual(["thinWallsBlockSky"]);
+		for (let n = 0; n <= RENDER_STEPS.length; n++)
+			expect(upToStep(n).thinWallsBlockSky).toBe(false);
+		expect(changedFrom({ ...STUDIO_FEATURES, thinWallsBlockSky: true })).toEqual([
+			"thinWallsBlockSky",
+		]);
 	});
 
 	it("take what is off out of the lighting the view is given, and leave the rest", () => {

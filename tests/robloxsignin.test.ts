@@ -13,8 +13,11 @@ import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { AccessLostError, RobloxSignIn } from "../src/server/roblox/signin.js";
-import { fileVault, memoryVault } from "../src/server/roblox/vault.js";
+import {
+	AccessLostError,
+	RobloxSignIn,
+} from "../src/extensions/placeViewer/server/roblox/signin.js";
+import { fileVault, memoryVault } from "../src/extensions/placeViewer/server/roblox/vault.js";
 
 /** A port nothing is using, for this test's callback. */
 async function freePort(): Promise<number> {
@@ -238,7 +241,12 @@ describe("staying signed in", () => {
 			good.add(next);
 			return {
 				status: 200,
-				body: { access_token: `a-${issued}`, refresh_token: next, token_type: "Bearer", expires_in: 899 },
+				body: {
+					access_token: `a-${issued}`,
+					refresh_token: next,
+					token_type: "Bearer",
+					expires_in: 899,
+				},
 			};
 		};
 		// A second daemon on the same computer: the same vault, its own memory.

@@ -11,7 +11,12 @@ import os from "node:os";
 import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
-
+import { blankPlace } from "../src/core/rbx/blankPlace.js";
+import type { CFrameValue, Prop, RbxInstance } from "../src/core/rbx/dom.js";
+import { writeProperties } from "../src/core/rbx/edit.js";
+import { composeFrame, framesOf, movedBy } from "../src/core/rbx/frames.js";
+import { readRbx } from "../src/core/rbx/index.js";
+import { writeBinaryPlace, writeXmlPlace } from "../src/core/rbx/serialize.js";
 import {
 	type DragStart,
 	dragMove,
@@ -24,20 +29,14 @@ import {
 	snapTo,
 	tiltAxis,
 	turnedBy,
-} from "../src/app/viewport/drag.js";
-import { rayHit } from "../src/app/viewport/geometry.js";
-import { blankPlace } from "../src/core/rbx/blankPlace.js";
-import type { CFrameValue, Prop, RbxInstance } from "../src/core/rbx/dom.js";
-import { writeProperties } from "../src/core/rbx/edit.js";
-import { composeFrame, framesOf, movedBy } from "../src/core/rbx/frames.js";
-import { readRbx } from "../src/core/rbx/index.js";
+} from "../src/extensions/placeViewer/app/viewport/drag.js";
+import { rayHit } from "../src/extensions/placeViewer/app/viewport/geometry.js";
 import {
 	type PlaceScene,
 	SCENE_KINDS,
 	SCENE_STRIDE,
 	type SceneKind,
-} from "../src/core/rbx/scene.js";
-import { writeBinaryPlace, writeXmlPlace } from "../src/core/rbx/serialize.js";
+} from "../src/extensions/placeViewer/core/scene.js";
 import { ApiSession } from "../src/server/routes.js";
 
 const close = (a: ArrayLike<number>, b: ArrayLike<number>) =>

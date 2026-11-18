@@ -4,7 +4,11 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { FADE_AFTER, type FadeTimers, fader } from "../src/app/viewport/fade.js";
+import {
+	FADE_AFTER,
+	type FadeTimers,
+	fader,
+} from "../src/extensions/placeViewer/app/viewport/fade.js";
 
 /** A clock moved by hand, with the one wait a fader keeps. */
 function clock() {

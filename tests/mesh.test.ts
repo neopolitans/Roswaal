@@ -5,10 +5,10 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { meshGeometry, splitByMesh } from "../src/app/viewport/view.js";
 import type { RbxInstance } from "../src/core/rbx/dom.js";
-import { MeshError, readMesh } from "../src/core/rbx/mesh.js";
-import { buildPlaceScene, SCENE_STRIDE } from "../src/core/rbx/scene.js";
+import { meshGeometry, splitByMesh } from "../src/extensions/placeViewer/app/viewport/view.js";
+import { MeshError, readMesh } from "../src/extensions/placeViewer/core/mesh.js";
+import { buildPlaceScene, SCENE_STRIDE } from "../src/extensions/placeViewer/core/scene.js";
 
 /** Little-endian bytes, written in order. */
 class Bytes {

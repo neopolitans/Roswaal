@@ -9,14 +9,14 @@ import { describe, expect, it } from "vitest";
 
 import { assetIdOf } from "../src/core/rbx/browse.js";
 import type { Prop, PropType, RbxInstance } from "../src/core/rbx/dom.js";
-import { materialIndex } from "../src/core/rbx/materials.js";
+import { writeBinaryPlace } from "../src/core/rbx/serialize.js";
+import { materialIndex } from "../src/extensions/placeViewer/core/materials.js";
 import {
 	buildPlaceScene,
 	type PlaceScene,
 	SCENE_KINDS,
 	SCENE_STRIDE,
-} from "../src/core/rbx/scene.js";
-import { writeBinaryPlace } from "../src/core/rbx/serialize.js";
+} from "../src/extensions/placeViewer/core/scene.js";
 import {
 	addUnions,
 	childDataOf,
@@ -24,7 +24,7 @@ import {
 	unionOutline,
 	unionsWaiting,
 	withUnions,
-} from "../src/core/rbx/unions.js";
+} from "../src/extensions/placeViewer/core/unions.js";
 
 const utf8 = new TextEncoder();
 const IDENTITY = [1, 0, 0, 0, 1, 0, 0, 0, 1];

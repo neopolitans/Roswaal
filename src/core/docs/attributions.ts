@@ -261,7 +261,8 @@ export const ATTRIBUTIONS: Attribution[] = [
 		holder: "Lennart Demes",
 		licence: "CC0-1.0",
 		ships: true,
-		where: "`src/app/viewport/textures/`. Licence: `notices/upstream/ambientcg.txt`.",
+		where:
+			"`src/extensions/placeViewer/app/viewport/textures/`. Licence: `notices/upstream/ambientcg.txt`.",
 		note:
 			"Roswaal draws forty of the viewport's materials, Brick and Grass among them, from grey " +
 			"maps made from ambientCG's textures.",
@@ -275,7 +276,7 @@ export const ATTRIBUTIONS: Attribution[] = [
 		licence: "MIT",
 		ships: true,
 		where:
-			"`src/app/viewport/webgpu.ts`, `src/app/viewport/webgl2.ts`. Licence: " +
+			"`src/extensions/placeViewer/app/viewport/webgpu.ts`, `src/extensions/placeViewer/app/viewport/webgl2.ts`. Licence: " +
 			"`notices/upstream/bakinglab.txt`.",
 		note:
 			"Roswaal tones the viewport's colours with Stephen Hill's fit of the ACES curve, as " +
@@ -489,7 +490,7 @@ export const ATTRIBUTIONS: Attribution[] = [
 		ships: true,
 		where:
 			"`src/core/robloxEngine.json`, `src/core/robloxMembers.ts` and " +
-			"`src/core/rbx/brickColors.ts`. Licence: `notices/upstream/creator-docs.txt`.",
+			"`src/extensions/placeViewer/core/brickColors.ts`. Licence: `notices/upstream/creator-docs.txt`.",
 		note:
 			"Roswaal shows one-sentence summaries of the engine's API, © Roblox Corporation, " +
 			"and draws BrickColors in the colours its BrickColor table lists. " +

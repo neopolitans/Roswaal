@@ -18,9 +18,17 @@ import type { Prop, RbxInstance } from "../src/core/rbx/dom.js";
 import { readRbx } from "../src/core/rbx/index.js";
 import { LINKS_FILE } from "../src/core/rbx/placeImport.js";
 import type { RawProp } from "../src/core/rbx/rawValue.js";
-import { type PlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../src/core/rbx/scene.js";
-import { applyScenePatch, diffScene, type ScenePatch } from "../src/core/rbx/sceneDiff.js";
 import { writeBinaryPlace } from "../src/core/rbx/serialize.js";
+import {
+	type PlaceScene,
+	SCENE_KINDS,
+	SCENE_STRIDE,
+} from "../src/extensions/placeViewer/core/scene.js";
+import {
+	applyScenePatch,
+	diffScene,
+	type ScenePatch,
+} from "../src/extensions/placeViewer/core/sceneDiff.js";
 import { ApiSession } from "../src/server/routes.js";
 
 const utf8 = new TextEncoder();

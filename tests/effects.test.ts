@@ -5,7 +5,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-
+import type { Prop, PropType, RbxInstance } from "../src/core/rbx/dom.js";
+import { readRbx } from "../src/core/rbx/index.js";
+import { writeBinaryPlace } from "../src/core/rbx/serialize.js";
 import {
 	EFFECT_VERTEX,
 	EffectsSim,
@@ -20,8 +22,7 @@ import {
 	quadIndices,
 	seeded,
 	spreadDirection,
-} from "../src/app/viewport/effects.js";
-import type { Prop, PropType, RbxInstance } from "../src/core/rbx/dom.js";
+} from "../src/extensions/placeViewer/app/viewport/effects.js";
 import {
 	beamControls,
 	bezier,
@@ -30,10 +31,8 @@ import {
 	numberAt,
 	type SceneBeam,
 	type SceneEmitter,
-} from "../src/core/rbx/effects.js";
-import { readRbx } from "../src/core/rbx/index.js";
-import { buildPlaceScene } from "../src/core/rbx/scene.js";
-import { writeBinaryPlace } from "../src/core/rbx/serialize.js";
+} from "../src/extensions/placeViewer/core/effects.js";
+import { buildPlaceScene } from "../src/extensions/placeViewer/core/scene.js";
 
 const utf8 = new TextEncoder();
 const IDENTITY = [1, 0, 0, 0, 1, 0, 0, 0, 1];

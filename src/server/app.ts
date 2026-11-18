@@ -28,15 +28,17 @@ import { CSP_HEADER } from "../core/csp.js";
 import { DEMO_PROJECTS } from "../core/demoProjects.js";
 import { ownTable } from "../core/ownTable.js";
 import type { Target } from "../core/schema.js";
+import {
+	type DaemonExtensionOptions,
+	type DaemonExtensions,
+	daemonExtensions,
+} from "../extensions/daemon.js";
 import { chooseDirectory, NoPickerError } from "./browse.js";
 import { githubZipball } from "./download.js";
 import { errorResponse, HttpError } from "./errors.js";
-import { broadcastCompile, broadcastProject, broadcastRoblox, streamEvents } from "./events.js";
+import { broadcast, broadcastCompile, broadcastProject, streamEvents } from "./events.js";
 import { collectScripts, isInitialised, readConfig } from "./project.js";
 import { openInEditor, revealInFileManager } from "./reveal.js";
-import { AssetCache, downloadRegistry } from "./roblox/assets.js";
-import { RobloxSignIn } from "./roblox/signin.js";
-import { fileVault } from "./roblox/vault.js";
 import { ApiSession, type HostCapabilities, type RouteRequest } from "./routes.js";
 import { isToken, newToken, tokenOf } from "./token.js";
 import { DynamicCompiler } from "./watcher.js";
@@ -228,8 +230,8 @@ export interface Daemon {
 	readonly session: ApiSession;
 	/** The key a request to `/api` has to carry: see `token.ts`. */
 	readonly token: string;
-	/** Sign in with Roblox, when this daemon offers it. */
-	readonly roblox: RobloxSignIn | null;
+	/** What the extensions run on the daemon alone. */
+	readonly extensions: DaemonExtensions;
 	/** Opens `root` if given, mounts the editor, and listens on loopback. */
 	start(options?: DaemonOptions): Promise<void>;
 	/** Closes the socket and the watcher, for a test that started one. */
@@ -241,28 +243,12 @@ export interface Daemon {
  * route on it. Nothing listens until `start` is called.
  */
 export function createDaemon(
-	options: { token?: string; roblox?: RobloxSignIn | null } = {},
+	options: { token?: string; roblox?: DaemonExtensionOptions["roblox"] } = {},
 ): Daemon {
 	// A key of its own when none is given, so no daemon ever answers without one.
 	const token = options.token ?? newToken();
-	// Sign in with Roblox, kept in this account's vault. A test passes its own,
-	// or null for none, so it never reads the real one.
-	// What it downloads is kept in each project; signing out, or losing access,
-	// deletes all of it.
-	let assets: AssetCache | null = null;
-	const roblox =
-		options.roblox === undefined
-			? new RobloxSignIn({
-					vault: fileVault(),
-					onChange: broadcastRoblox,
-					onForget: async () => {
-						await assets?.clearEverywhere();
-					},
-				})
-			: options.roblox;
-	if (roblox) {
-		assets = new AssetCache({ token: () => roblox.accessToken(), registry: downloadRegistry() });
-	}
+	// What the extensions run on the daemon alone: Sign in with Roblox, for one.
+	const extensions = daemonExtensions({ broadcast, roblox: options.roblox });
 	const app = express();
 	// Express matches a route in any case by default, which gives every API
 	// path a second spelling the connection guard has to know about. Set
@@ -270,10 +256,8 @@ export function createDaemon(
 	app.set("case sensitive routing", true);
 	const dynamic = new DynamicCompiler();
 	const session: ApiSession = new ApiSession({
-		capabilities: {
-			...hostCapabilities(),
-			...(roblox && assets ? { roblox, robloxAssets: assets } : {}),
-		},
+		capabilities: hostCapabilities(),
+		extensions: extensions.capabilities,
 		projectChanged: (project, { switched }) => {
 			// Watches the open project, compiling on change in Dynamic mode only.
 			// The stored value is still `"hot"`. Manual mode is watched too, so an
@@ -308,7 +292,7 @@ export function createDaemon(
 		app,
 		session,
 		token,
-		roblox,
+		extensions,
 		async start(options = {}) {
 			trusted = trustedOrigins(options.port ?? DEFAULT_PORT, options.trustOrigins);
 			if (options.root) await session.openAt(options.root);
@@ -317,7 +301,7 @@ export function createDaemon(
 		},
 		async stop() {
 			dynamic.stop();
-			roblox?.close();
+			extensions.close();
 			const closing = server;
 			server = null;
 			if (!closing) return;

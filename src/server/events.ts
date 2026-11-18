@@ -8,7 +8,6 @@
 
 import type { Request, Response } from "express";
 import type { CompileStep } from "./project.js";
-import type { RobloxStatus } from "./roblox/signin.js";
 import type { DynamicCompiler, WatchEvent } from "./watcher.js";
 
 /** Some proxies drop an idle stream; a periodic comment keeps it open. */
@@ -49,7 +48,7 @@ export function streamCount(): number {
  * through would let one dead tab silence every live one. A compile pushes two
  * of these per file, which is a great many chances to find out.
  */
-function broadcast(event: string, data: unknown): void {
+export function broadcast(event: string, data: unknown): void {
 	for (const res of [...streams]) {
 		try {
 			if (res.writableEnded || res.destroyed) throw new Error("stream closed");
@@ -76,11 +75,6 @@ export function broadcastProject(root: string | null): void {
  */
 export function broadcastCompile(step: CompileStep): void {
 	broadcast("compile", step);
-}
-
-/** Tells every open editor that Sign in with Roblox changed: who, or nobody. Never a token. */
-export function broadcastRoblox(status: RobloxStatus): void {
-	broadcast("roblox", status);
 }
 
 export function streamEvents(dynamic: DynamicCompiler, req: Request, res: Response): void {

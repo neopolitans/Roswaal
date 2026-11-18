@@ -14,9 +14,9 @@ import {
 	sameView,
 	sidePlanes,
 	visibleRuns,
-} from "../src/app/viewport/culling.js";
-import { lookAt, multiply, perspective } from "../src/app/viewport/math.js";
-import { SCENE_STRIDE } from "../src/core/rbx/scene.js";
+} from "../src/extensions/placeViewer/app/viewport/culling.js";
+import { lookAt, multiply, perspective } from "../src/extensions/placeViewer/app/viewport/math.js";
+import { SCENE_STRIDE } from "../src/extensions/placeViewer/core/scene.js";
 
 /** Unit cubes at `points`, each row's whole numbers its own index (and a NaN-like colour). */
 function cubes(points: number[][]): Float32Array {

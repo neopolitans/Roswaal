@@ -31,6 +31,7 @@ import { BUILTIN_NODES, createRegistry } from "../core/nodes/index.js";
 import type { PlaceInstanceInfo } from "../core/rbx/browse.js";
 import { indentUnit, type NodeDef, type RoswaalConfig } from "../core/schema.js";
 import { unformattedGroups, unformattedMessage, unformattedWhat } from "../core/unformatted.js";
+import { PLACE_VIEWER, type PlaceViewerModule } from "../extensions/index.js";
 import { AliasDocument } from "./AliasDocument.jsx";
 import { analyseProject, graphLabel, mergeOutcomes } from "./analysis.js";
 import {
@@ -117,9 +118,8 @@ import {
 	setPlaceInFront,
 	watchPlaceFocus,
 } from "./placeHistory.js";
-import { placeSaveState, saveKey, usePlaceSave } from "./placeSave.js";
 import { readOutline, rememberOutline } from "./placeOutline.js";
-import type * as PlaceViewer from "./placeViewerModule.js";
+import { placeSaveState, saveKey, usePlaceSave } from "./placeSave.js";
 import { OUTLINE_WIDTHS, readPreferences, wheelAction } from "./preferences.js";
 import { SiteBanner } from "./previewBuild.jsx";
 import { setProjectAliases } from "./projectAliases.js";
@@ -387,12 +387,12 @@ export function App() {
 	// An Extended Feature: loaded the first time a place's tab opens with it
 	// on, and never while it is off, so a browser that does not want it pays
 	// for none of it.
-	const [viewer, setViewer] = useState<typeof PlaceViewer | null>(null);
+	const [viewer, setViewer] = useState<PlaceViewerModule | null>(null);
 	const wantsViewer = prefs.placeViewer && placeDoc !== null;
 	useEffect(() => {
 		if (!wantsViewer || viewer) return;
 		let live = true;
-		void import("./placeViewerModule.js").then((loaded) => {
+		void PLACE_VIEWER.load().then((loaded) => {
 			if (live) setViewer(loaded);
 		});
 		return () => {

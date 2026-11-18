@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { featureEdges, meshFor } from "../src/app/viewport/geometry.js";
+import { featureEdges, meshFor } from "../src/extensions/placeViewer/app/viewport/geometry.js";
 
 /** The edges as pairs of positions, each pair sorted, for comparing by shape. */
 function edgesOf(kind: Parameters<typeof meshFor>[0]): string[] {

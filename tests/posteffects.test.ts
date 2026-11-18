@@ -5,6 +5,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import type { RbxInstance } from "../src/core/rbx/dom.js";
 import {
 	BLOOM_DEFAULT,
 	blurSigma,
@@ -13,9 +14,8 @@ import {
 	glowShape,
 	gradeBlock,
 	postActive,
-} from "../src/app/viewport/view.js";
-import type { RbxInstance } from "../src/core/rbx/dom.js";
-import { readPostEffects } from "../src/core/rbx/lighting.js";
+} from "../src/extensions/placeViewer/app/viewport/view.js";
+import { readPostEffects } from "../src/extensions/placeViewer/core/lighting.js";
 
 function inst(
 	className: string,

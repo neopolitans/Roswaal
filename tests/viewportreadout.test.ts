@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { startingText } from "../src/app/viewport/readout.js";
+import { startingText } from "../src/extensions/placeViewer/app/viewport/readout.js";
 
 describe("startingText", () => {
 	it("names the renderer and the share of its shaders compiled", () => {

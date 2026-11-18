@@ -19,9 +19,9 @@ import {
 	SECONDARY_COLOUR,
 	VISUAL_REACH,
 	visualGizmoLines,
-} from "../src/app/viewport/visualGizmos.js";
-import type { EffectFrame } from "../src/core/rbx/effects.js";
-import type { SceneGizmos, SceneJoint } from "../src/core/rbx/gizmos.js";
+} from "../src/extensions/placeViewer/app/viewport/visualGizmos.js";
+import type { EffectFrame } from "../src/extensions/placeViewer/core/effects.js";
+import type { SceneGizmos, SceneJoint } from "../src/extensions/placeViewer/core/gizmos.js";
 
 const IDENTITY = [1, 0, 0, 0, 1, 0, 0, 0, 1];
 const at = (position: number[], rotation = IDENTITY): EffectFrame => ({ position, rotation });

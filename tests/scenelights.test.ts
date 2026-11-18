@@ -4,15 +4,19 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { LIGHT_CELL, lightGrid, lightHash } from "../src/app/viewport/view.js";
 import type { Prop, PropType, RbxInstance } from "../src/core/rbx/dom.js";
+import {
+	LIGHT_CELL,
+	lightGrid,
+	lightHash,
+} from "../src/extensions/placeViewer/app/viewport/view.js";
 import {
 	LIGHT_POINT,
 	LIGHT_SPOT,
 	LIGHT_STRIDE,
 	LIGHT_SURFACE,
 	sceneLights,
-} from "../src/core/rbx/scene.js";
+} from "../src/extensions/placeViewer/core/scene.js";
 
 function inst(
 	className: string,
@@ -126,7 +130,7 @@ describe("the grid that finds the lights", () => {
 
 describe("a place sent again after an edit", () => {
 	it("keeps its fingerprint while its parts and lights are unchanged", async () => {
-		const { fingerprint } = await import("../src/app/viewport/view.js");
+		const { fingerprint } = await import("../src/extensions/placeViewer/app/viewport/view.js");
 		const parts = new Float32Array([1, 2, 3, 4]);
 		expect(fingerprint(parts, [5, 6])).toBe(fingerprint(new Float32Array([1, 2, 3, 4]), [5, 6]));
 		expect(fingerprint(parts, [5, 6])).not.toBe(fingerprint(parts, [5, 7]));
@@ -136,7 +140,9 @@ describe("a place sent again after an edit", () => {
 
 describe("the sun's cascades", () => {
 	it("reach 64, 256 and 1024 studs out, and are off with GlobalShadows off", async () => {
-		const { cascadeBlock, SUN_CASCADES } = await import("../src/app/viewport/view.js");
+		const { cascadeBlock, SUN_CASCADES } = await import(
+			"../src/extensions/placeViewer/app/viewport/view.js"
+		);
 		const camera = { eye: [0, 10, 30], at: [0, 0, 0], near: 0.1, far: 10000 };
 		const box = { min: [-500, 0, -500], max: [500, 100, 500] };
 		const n = SUN_CASCADES.length * 16;
@@ -150,7 +156,7 @@ describe("the sun's cascades", () => {
 	});
 
 	it("move only by whole texels as the camera moves", async () => {
-		const { cascadeBlock } = await import("../src/app/viewport/view.js");
+		const { cascadeBlock } = await import("../src/extensions/placeViewer/app/viewport/view.js");
 		const box = { min: [-500, 0, -500], max: [500, 100, 500] };
 		const at = (x: number) =>
 			cascadeBlock(
@@ -170,7 +176,9 @@ describe("the sun's cascades", () => {
 
 describe("a part with CastShadow off", () => {
 	it("is marked to be left out of the shadow and sky maps, its mesh slot as it was", async () => {
-		const { buildPlaceScene, NO_SHADOW, SCENE_STRIDE } = await import("../src/core/rbx/scene.js");
+		const { buildPlaceScene, NO_SHADOW, SCENE_STRIDE } = await import(
+			"../src/extensions/placeViewer/core/scene.js"
+		);
 		const lit = part([0, 0, 0]);
 		const none = part([10, 0, 0]);
 		none.props.set("CastShadow", { type: "Bool", value: false });

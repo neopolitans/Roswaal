@@ -4,10 +4,14 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { brickColorRgb } from "../src/core/rbx/brickColors.js";
 import type { Prop, PropType, RbxInstance } from "../src/core/rbx/dom.js";
-import { JOINT_COLOURS, MOTOR_COLOUR, sceneGizmos } from "../src/core/rbx/gizmos.js";
-import { buildPlaceScene } from "../src/core/rbx/scene.js";
+import { brickColorRgb } from "../src/extensions/placeViewer/core/brickColors.js";
+import {
+	JOINT_COLOURS,
+	MOTOR_COLOUR,
+	sceneGizmos,
+} from "../src/extensions/placeViewer/core/gizmos.js";
+import { buildPlaceScene } from "../src/extensions/placeViewer/core/scene.js";
 
 function inst(
 	className: string,

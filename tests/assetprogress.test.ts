@@ -9,7 +9,7 @@ import {
 	assetsMissing,
 	assetsPending,
 	assetWords,
-} from "../src/app/viewport/assetProgress.js";
+} from "../src/extensions/placeViewer/app/viewport/assetProgress.js";
 
 describe("AssetTally", () => {
 	it("counts needed, then arrived, then uploaded", () => {

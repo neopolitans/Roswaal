@@ -25,12 +25,12 @@ covers the descriptions in `src/core/luneApi.ts`, taken at the tag they were gen
 `creator-docs.txt` the summaries in `src/core/robloxEngine.json` and `src/core/robloxMembers.ts`.
 `vt323.txt` covers `src/app/fonts/VT323-Regular.ttf`, the font file from the same folder of
 `google/fonts`, carried unchanged and loaded only by the theme drawn in it.
-`bakinglab.txt` covers the viewport's tone curve in `src/app/viewport/webgpu.ts` and `webgl2.ts`:
+`bakinglab.txt` covers the viewport's tone curve in `src/extensions/placeViewer/app/viewport/webgpu.ts` and `webgl2.ts`:
 Stephen Hill's fit of the ACES curve, as BakingLab's `ACES.hlsl` has it, its two matrices and its
 rational fit carried over to WGSL and GLSL.
-`ambientcg.txt` covers `src/app/viewport/textures/`: forty grey detail maps made from ambientCG
+`ambientcg.txt` covers `src/extensions/placeViewer/app/viewport/textures/`: forty grey detail maps made from ambientCG
 assets' colour, occlusion, displacement and roughness maps, some layered with Roswaal's own
-(`src/core/rbx/materials.ts` names each map's sources). The assets: 39 of them,
+(`src/extensions/placeViewer/core/materials.ts` names each map's sources). The assets: 39 of them,
 Asphalt031, Bricks105, Cardboard002, Carpet012, Concrete049, DiamondPlate008B, Fabric086, Foil001,
 Granite003A, Granite005A, Grass001, Grass005, Ground037, Ground093C, Ground106, Leather037,
 Marble012, Metal022, Metal055A, PavingStones138, PavingStones141, PavingStones152, Plaster001,

@@ -11,7 +11,7 @@ import {
 	TOOLS,
 	toolAfter,
 	toolForKey,
-} from "../src/app/viewport/tools.js";
+} from "../src/extensions/placeViewer/app/viewport/tools.js";
 
 const mouse = (button: number, keys: { shift?: boolean; alt?: boolean } = {}) => ({
 	button,

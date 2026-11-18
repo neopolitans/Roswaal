@@ -13,7 +13,7 @@ import {
 	gpuTotal,
 	graphTop,
 	graphY,
-} from "../src/app/viewport/frameGraph.js";
+} from "../src/extensions/placeViewer/app/viewport/frameGraph.js";
 
 const frame = (interval: number, gpu?: [number, number, number]): FrameSample => ({
 	interval,

@@ -5,17 +5,17 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { lightGridFor } from "../src/app/viewport/prepare.js";
-import { trickle } from "../src/app/viewport/trickle.js";
+import { fromBase64, fromBase64ByHand, toBase64 } from "../src/core/base64.js";
+import { lightGridFor } from "../src/extensions/placeViewer/app/viewport/prepare.js";
+import { trickle } from "../src/extensions/placeViewer/app/viewport/trickle.js";
 import {
 	LIGHT_CELL,
 	LIGHT_TABLE,
 	lightGrid,
 	lightHash,
 	surfaceBox,
-} from "../src/app/viewport/view.js";
-import { fromBase64, fromBase64ByHand, toBase64 } from "../src/core/base64.js";
-import { LIGHT_STRIDE, LIGHT_SURFACE } from "../src/core/rbx/scene.js";
+} from "../src/extensions/placeViewer/app/viewport/view.js";
+import { LIGHT_STRIDE, LIGHT_SURFACE } from "../src/extensions/placeViewer/core/scene.js";
 
 /** Whether a cell's cube meets a SurfaceLight's box, worked out plainly. */
 function cellMeetsBox(
@@ -172,7 +172,9 @@ describe("the lights' grid", () => {
 		};
 		const { table, index } = lightGrid(face(64));
 		const lists = (p: number[]) => {
-			const h = lightHash(...(p.map((v) => Math.floor(v / LIGHT_CELL)) as [number, number, number]));
+			const h = lightHash(
+				...(p.map((v) => Math.floor(v / LIGHT_CELL)) as [number, number, number]),
+			);
 			return [...index.slice(table[h * 2], table[h * 2] + table[h * 2 + 1])];
 		};
 		expect(lists([0, 30, 0])).toEqual([0]);
@@ -213,7 +215,9 @@ describe("the lights' grid", () => {
 				const cv = Math.max(-1, Math.min(1, dot(off, v) / dot(v, v)));
 				const near = at.map((x, a) => x + u[a] * cu + v[a] * cv);
 				if (Math.hypot(...near.map((x, a) => x - p[a])) >= range) continue;
-				const h = lightHash(...(p.map((x) => Math.floor(x / LIGHT_CELL)) as [number, number, number]));
+				const h = lightHash(
+					...(p.map((x) => Math.floor(x / LIGHT_CELL)) as [number, number, number]),
+				);
 				const listed = index.slice(table[h * 2], table[h * 2] + table[h * 2 + 1]);
 				expect(listed.includes(i)).toBe(true);
 			}

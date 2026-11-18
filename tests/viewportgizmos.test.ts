@@ -11,8 +11,13 @@ import {
 	lightGizmoLines,
 	lightLines,
 	nearLights,
-} from "../src/app/viewport/gizmos.js";
-import { LIGHT_POINT, LIGHT_SPOT, LIGHT_STRIDE, LIGHT_SURFACE } from "../src/core/rbx/scene.js";
+} from "../src/extensions/placeViewer/app/viewport/gizmos.js";
+import {
+	LIGHT_POINT,
+	LIGHT_SPOT,
+	LIGHT_STRIDE,
+	LIGHT_SURFACE,
+} from "../src/extensions/placeViewer/core/scene.js";
 
 /** One light as `sceneLights` lays it out. */
 function light(

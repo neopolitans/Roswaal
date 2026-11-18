@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { DEFAULT_RENDER } from "../src/app/viewport/view.js";
+import { DEFAULT_RENDER } from "../src/extensions/placeViewer/app/viewport/view.js";
 
 describe("the Rendering panel's tools", () => {
 	it("start off", () => {

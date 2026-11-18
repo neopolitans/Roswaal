@@ -5,8 +5,12 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { modelSteps, outermostModel, stepDown } from "../src/app/viewport/marquee.js";
 import type { PlaceOutline } from "../src/core/rbx/browse.js";
+import {
+	modelSteps,
+	outermostModel,
+	stepDown,
+} from "../src/extensions/placeViewer/app/viewport/marquee.js";
 
 const classes = ["Workspace", "Model", "Folder", "UnionOperation", "Part"];
 const [WORKSPACE, MODEL, FOLDER, UNION, PART] = [0, 1, 2, 3, 4];

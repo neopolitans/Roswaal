@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { EFFECT_COST } from "../src/app/viewport/effects.js";
+import { EFFECT_COST } from "../src/extensions/placeViewer/app/viewport/effects.js";
+import {
+	FEATURE_BIT,
+	featureBits,
+	upToStep,
+} from "../src/extensions/placeViewer/app/viewport/renderFeatures.js";
 import {
 	DENSITY_GLSL,
 	effectShare,
@@ -8,7 +13,7 @@ import {
 	OVERDRAW_WGSL,
 	VIEWS_GLSL,
 	VIEWS_WGSL,
-} from "../src/app/viewport/renderViews.js";
+} from "../src/extensions/placeViewer/app/viewport/renderViews.js";
 import {
 	COST_FULL,
 	DEFAULT_RENDER,
@@ -30,8 +35,7 @@ import {
 	sharesComposite,
 	sharesView,
 	triangleDensity,
-} from "../src/app/viewport/view.js";
-import { FEATURE_BIT, featureBits, upToStep } from "../src/app/viewport/renderFeatures.js";
+} from "../src/extensions/placeViewer/app/viewport/view.js";
 
 const settings = (mode: RenderMode) => ({ ...DEFAULT_RENDER, mode });
 
@@ -68,9 +72,7 @@ describe("the Rendering panel's views", () => {
 			"overdraw",
 			"density",
 		]);
-		expect(RENDER_MODES.map(([mode]) => sharesComposite(mode))).toEqual([
-			0, 0, 1, 2, 3, 4, 0,
-		]);
+		expect(RENDER_MODES.map(([mode]) => sharesComposite(mode))).toEqual([0, 0, 1, 2, 3, 4, 0]);
 	});
 
 	it("offer the Heat style for the two heatmaps only", () => {

@@ -14,9 +14,13 @@ import { fromBase64 } from "../src/core/base64.js";
 import { outlinePlace } from "../src/core/rbx/browse.js";
 import type { Prop, PropType, RbxInstance } from "../src/core/rbx/dom.js";
 import { readRbx } from "../src/core/rbx/index.js";
-import { moonDirection, sunDirection } from "../src/core/rbx/lighting.js";
-import { MATERIALS } from "../src/core/rbx/materials.js";
-import { buildPlaceScene, SCENE_KINDS, SCENE_STRIDE } from "../src/core/rbx/scene.js";
+import { moonDirection, sunDirection } from "../src/extensions/placeViewer/core/lighting.js";
+import { MATERIALS } from "../src/extensions/placeViewer/core/materials.js";
+import {
+	buildPlaceScene,
+	SCENE_KINDS,
+	SCENE_STRIDE,
+} from "../src/extensions/placeViewer/core/scene.js";
 import { ApiSession } from "../src/server/routes.js";
 
 const M103 = path.join(import.meta.dirname, "..", "examples", "m103", "place.rbxl");
