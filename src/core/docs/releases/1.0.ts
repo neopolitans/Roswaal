@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.5",
+		date: "2026-11-18",
+		headline: "Script icons say the script in their corner.",
+		changed: [
+			"**Script icons** in Graph Content, Compile Content and the tab row carry a badge in the corner: a server for a Script, a monitor for a LocalScript, a puzzle piece for a ModuleScript. The icon is drawn whole, the Luau logo included, and cut away behind the badge.",
+		],
+		affects: ["editor"],
+	},
+	{
 		version: "1.0.0-canary.4",
 		date: "2026-11-18",
 		headline: "New graph asks where on a graph's menu; graphs are coloured by the script they become.",

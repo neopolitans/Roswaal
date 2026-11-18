@@ -68,6 +68,7 @@ import { type MapDocument, type SideDocument, sideName, sidePath } from "./centr
 import type { View } from "./geometry.js";
 import { functionNameOf } from "./nodeConfig.js";
 import { syncModuleCallsFor } from "./projectTypes.js";
+import { realmOfLuau, realmOfScript, type ScriptRealm } from "./ScriptIcon.jsx";
 
 const HISTORY_LIMIT = 100;
 
@@ -152,6 +153,14 @@ export interface OpenDocument {
 	dirty: boolean;
 	active: boolean;
 	kind: TabKind;
+	/** A graph's or a Luau file's script, which its icon shows. */
+	realm?: ScriptRealm;
+}
+
+/** A graph's script, as a field to spread: none for a Lune graph. */
+function realmField(script: NodeScript): { realm?: ScriptRealm } {
+	const realm = realmOfScript(script);
+	return realm ? { realm } : {};
 }
 
 type Listener = () => void;
@@ -268,6 +277,7 @@ class Store {
 					dirty: t.side.kind === "map" && t.side.doc.dirty,
 					active: t.key === this.activeKey,
 					kind: SIDE_KIND[t.side.kind],
+					...(t.side.kind === "luau" ? { realm: realmOfLuau(t.path) } : {}),
 				};
 			}
 			const open = this.docs.get(t.path)!;
@@ -281,6 +291,7 @@ class Store {
 				dirty: open.dirty,
 				active: t.key === this.activeKey,
 				kind: t.graph === null ? "nodescript" : "function",
+				...(t.graph === null ? realmField(open.script) : {}),
 			};
 		});
 

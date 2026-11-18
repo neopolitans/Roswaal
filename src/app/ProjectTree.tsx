@@ -16,6 +16,7 @@ import { importableLuau } from "./importable.js";
 import { Menu } from "./Menu.jsx";
 import { AddButton, depthStyle, SectionHead } from "./PanelParts.jsx";
 import { useNarrowBar, usePhone } from "./Popout.jsx";
+import { realmClass, realmOfLuau, ScriptIcon } from "./ScriptIcon.jsx";
 import { fileMenu, packageMenu, type TreeAction } from "./treeMenus.js";
 
 const KIND_ICONS: Record<Exclude<TreeEntry["kind"], "directory">, IconName> = {
@@ -470,11 +471,16 @@ export const ProjectTree = memo(function ProjectTree({
 									rotate={collapsed.has(entry.path) ? -90 : 0}
 								/>
 								{entry.script ? (
-									<Icon
-										name={KIND_ICONS.nodescript}
-										size={15}
-										className={cx("kind nodescript", realmClass(entry.realm))}
-									/>
+									entry.realm ? (
+										<ScriptIcon
+											kind="nodescript"
+											realm={entry.realm}
+											size={15}
+											className={cx("kind nodescript", realmClass(entry.realm))}
+										/>
+									) : (
+										<Icon name={KIND_ICONS.nodescript} size={15} className="kind nodescript" />
+									)
 								) : (
 									<Icon
 										name={folderIcon(collapsed.has(entry.path), entry.role !== undefined)}
@@ -507,16 +513,33 @@ export const ProjectTree = memo(function ProjectTree({
 										/>
 									</span>
 								)}
-								<Icon
-									name={KIND_ICONS[entry.kind as keyof typeof KIND_ICONS]}
-									size={15}
-									className={cx(
-										"kind",
-										entry.kind,
-										entry.kind === "luau" && scriptClass(entry.name),
-										entry.kind === "nodescript" && realmClass(entry.realm),
-									)}
-								/>
+								{(() => {
+									const realm =
+										entry.kind === "luau"
+											? realmOfLuau(entry.path)
+											: entry.kind === "nodescript"
+												? entry.realm
+												: undefined;
+									return realm && (entry.kind === "luau" || entry.kind === "nodescript") ? (
+										<ScriptIcon
+											kind={entry.kind}
+											realm={realm}
+											size={15}
+											className={cx("kind", entry.kind, realmClass(realm))}
+										/>
+									) : (
+										<Icon
+											name={KIND_ICONS[entry.kind as keyof typeof KIND_ICONS]}
+											size={15}
+											className={cx(
+												"kind",
+												entry.kind,
+												entry.kind === "luau" && scriptClass(entry.name),
+												entry.kind === "nodescript" && realmClass(entry.realm),
+											)}
+										/>
+									);
+								})()}
 							</>
 						)}
 						<span className="label">{entry.name}</span>
@@ -711,14 +734,6 @@ const FOLDER_TITLE: Record<NonNullable<TreeEntry["role"]>, string> = {
  * A Luau file by the script it becomes: a Server Script white on dark and
  * slate on light, a LocalScript green, a ModuleScript blue.
  */
-/** A graph's icon by the script it compiles to, in the colours its Luau's has. */
-function realmClass(realm: TreeEntry["realm"]): string | undefined {
-	if (realm === "server") return "tree-script-server";
-	if (realm === "client") return "tree-script-local";
-	if (realm === "module") return "tree-script-module";
-	return undefined;
-}
-
 function scriptClass(name: string): string {
 	if (/\.server\.luau?$/i.test(name)) return "tree-script-server";
 	if (/\.client\.luau?$/i.test(name)) return "tree-script-local";

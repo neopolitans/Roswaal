@@ -41,6 +41,7 @@ import { Icon, type IconName } from "./icons.jsx";
 import { Menu } from "./Menu.jsx";
 import { trackPointer } from "./pointer.js";
 import type { FunctionTabs } from "./preferences.js";
+import { realmClass, ScriptIcon } from "./ScriptIcon.jsx";
 import { useSidewaysWheel } from "./sidewaysWheel.js";
 import type { OpenDocument, TabKind } from "./store.js";
 
@@ -89,8 +90,17 @@ function luauClass(path: string): string {
 	return "tree-script-module";
 }
 
-/** A tab's icon, coloured by its kind. */
+/** A tab's icon, coloured by its kind; a script's with its class in the corner. */
 export function TabIcon({ doc, size }: { doc: OpenDocument; size: number }) {
+	if (doc.realm && (doc.kind === "nodescript" || doc.kind === "luau"))
+		return (
+			<ScriptIcon
+				kind={doc.kind}
+				realm={doc.realm}
+				size={size}
+				className={cx("tab-kind", `tab-kind-${doc.kind}`, realmClass(doc.realm))}
+			/>
+		);
 	return (
 		<Icon
 			name={KIND_ICON[doc.kind]}
