@@ -954,6 +954,43 @@ export function useProjectActions(context: ProjectActionsContext) {
 		[ask, notify, refreshTree],
 	);
 
+	/**
+	 * New child script: a graph under another. A graph with no children yet
+	 * becomes its folder's init.nodescript first, so it is saved before it
+	 * moves and its tab follows it. A child starts as a ModuleScript, which is
+	 * what a script most often holds.
+	 */
+	const createChildOf = useCallback(
+		async (parent: string) => {
+			const parentName = (
+				parent.endsWith("/init.nodescript")
+					? parent.slice(0, -"/init.nodescript".length)
+					: parent.replace(/\.nodescript$/, "")
+			)
+				.split("/")
+				.pop();
+			const name = await ask({
+				kind: "prompt",
+				title: "New child script",
+				label: "Name",
+				hint: `A child of ${parentName}`,
+				value: "Untitled",
+				icon: "newFile",
+			});
+			if (typeof name !== "string") return;
+			try {
+				await flushUnder(parent);
+				const created = await api.createChildScript(parent, name, "ModuleScript");
+				if (created.moved) await followMove(parent, created.parent);
+				await refreshTree();
+				store.open(created.path, created.script);
+			} catch (err) {
+				notify("Could not create that child script", errorMessage(err));
+			}
+		},
+		[ask, notify, refreshTree, flushUnder, followMove],
+	);
+
 	const createMapIn = useCallback(
 		async (dir: string) => {
 			const name = await ask({
@@ -1298,6 +1335,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 
 	return {
 		createGraphIn,
+		createChildOf,
 		createMapIn,
 		importLuauFile,
 		importLuauFiles,

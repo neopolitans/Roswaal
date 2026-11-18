@@ -317,6 +317,14 @@ export async function projectInstances(
 				const className = i === segments.length - 1 ? leafClass : i === 0 ? name : "Folder";
 				at = nodes.push([classIndex(className), name, parent, FROM_PROJECT]) - 1;
 				under.set(name, at);
+			} else if (
+				i === segments.length - 1 &&
+				nodes[at][3] === FROM_PROJECT &&
+				classes[nodes[at][0]] === "Folder"
+			) {
+				// A child's file was read first and stood its parent in as a
+				// Folder: the parent's own init file says what it really is.
+				nodes[at][0] = classIndex(leafClass);
 			}
 			parent = at;
 		});

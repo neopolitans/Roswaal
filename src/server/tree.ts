@@ -18,8 +18,8 @@ import { collectMaps, readMap } from "./documents.js";
 import { fs, path } from "./host.js";
 import { mappedOutputFolders } from "./mapFolders.js";
 import { generatedIndex, importGraphPath } from "./outputs.js";
-import { PLACE_BACKUPS } from "./place.js";
 import { safeJoin, tidyPath, toPosix } from "./paths.js";
+import { PLACE_BACKUPS } from "./place.js";
 
 /**
  * Folders the project tree leaves out. Wally's are shown -- a project's
@@ -60,6 +60,8 @@ export interface TreeEntry {
 	children?: TreeEntry[];
 	/** What a folder is, where it is more than a folder. See `folderRole`. */
 	role?: FolderRole;
+	/** A graph folder that is a script: its `init.nodescript`, the graph it is. */
+	script?: string;
 	/** A package's installed version, from its `_Index` folder. */
 	version?: string;
 	/** The file a package opens: its module in `_Index`. */
@@ -231,7 +233,8 @@ async function mappedFolders(project: OpenProject): Promise<Map<string, "service
 	return out;
 }
 
-const INIT_FILE = /^init(\.server|\.client)?\.luau?$/;
+/** A script's own file in its folder: Rojo's `init.server.luau` and the rest, or a graph's `init.nodescript`. */
+const INIT_FILE = /^init((\.server|\.client)?\.luau?|\.nodescript)$/;
 
 function folderRole(
 	rel: string,
@@ -272,12 +275,18 @@ async function walk(
 				);
 			if (!keep) continue;
 			const role = folderRole(rel, children, mapped);
+			// A graph folder that is a script: the graph it is, which the tree opens.
+			const script =
+				role === "script"
+					? children.find((c) => c.kind === "nodescript" && c.name === "init.nodescript")?.path
+					: undefined;
 			out.push({
 				path: rel,
 				name: entry.name,
 				kind: "directory",
 				children,
 				...(role ? { role } : {}),
+				...(script ? { script } : {}),
 			});
 			continue;
 		}

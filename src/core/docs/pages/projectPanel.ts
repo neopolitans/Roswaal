@@ -82,6 +82,10 @@ export function projectPanelPage(): DocPage {
 						"**New graph here** and **New map here** under `.roswaal/`, **New folder**, **Show in file manager**, **Rename** and **Delete**",
 					],
 					[
+						"A graph",
+						"**New child script** as well: a ModuleScript under it, as Rojo puts scripts under scripts",
+					],
+					[
 						"A `.luau` you wrote",
 						'**Import as graph** as well: a new graph that compiles back to that file. Its prompt names the risks and asks what file-level locals become and how the graph reads. It is laid out in rows as the file reads, keeping its blank lines. Names and types stay as the file has them, and a name that hides a global or a service is flagged on its node. A line such as `local Players = game:GetService("Players")` becomes one of the graph\'s services, and a method call becomes its node where the importer knows what it is called on. The file stays as it is until you overwrite it, after seeing what changes',
 					],
@@ -90,6 +94,24 @@ export function projectPanelPage(): DocPage {
 						"Adding and removing packages. See [Wally packages](wally-packages)",
 					],
 				],
+			},
+
+			{ t: "h", level: 2, text: "Scripts with children" },
+			{
+				t: "p",
+				text:
+					"**New child script** makes the graph its folder's `init.nodescript`, so " +
+					"`Greeter.nodescript` becomes `Greeter/init.nodescript`, and puts the child " +
+					"beside it. It compiles to `Greeter/init.luau`, as Rojo makes a folder holding an " +
+					"`init` file a script. The tree shows the folder as the script, named Greeter; " +
+					"double-click it to open its graph. In Dynamic mode its Luau moves at once.",
+			},
+			{
+				t: "note",
+				kind: "info",
+				text:
+					"A graph and a folder of the same name side by side would be two instances Studio " +
+					"calls by one name, so Roswaal refuses to make one beside the other.",
 			},
 
 			{ t: "h", level: 2, text: "Opening everything inside" },

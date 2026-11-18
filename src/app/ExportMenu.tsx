@@ -19,6 +19,7 @@ import { fromBase64 } from "../core/base64.js";
 import { errorMessage } from "../core/errorMessage.js";
 import { describePlaceReport, type PlaceReport } from "../core/rbx/placeExport.js";
 import type { ExportChoices, RoswaalConfig } from "../core/schema.js";
+import { graphLabel } from "./analysis.js";
 import { api } from "./api.js";
 import { cx } from "./cx.js";
 import { LAYER } from "./layers.js";
@@ -61,12 +62,8 @@ function summary(file: string, report: PlaceReport): string {
 	return `${line[0].toUpperCase()}${line.slice(1)}.`;
 }
 
-/** Graphs by name: the file's name without its folder or extension. */
-const graphName = (path: string) =>
-	path
-		.split("/")
-		.pop()!
-		.replace(/\.nodescript$/, "");
+/** Graphs by name: the file's name, or a script with children's folder. */
+const graphName = graphLabel;
 
 /** "Lobby, Obstacles and 3 more". */
 function names(paths: readonly string[]): string {

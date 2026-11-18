@@ -156,7 +156,8 @@ function unparsedOutput(emitted: EmitResult): Diagnostic[] {
  * run context have to be encoded in the name rather than the contents.
  */
 export function outputFileName(script: NodeScript): string {
-	const base = script.name;
+	// A script with children is its folder's init file; the folder is its name.
+	const base = script.init ? "init" : script.name;
 	if (script.target === "lune") return `${base}.luau`;
 	switch (script.scriptClass) {
 		case "ModuleScript":

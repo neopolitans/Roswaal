@@ -9,7 +9,7 @@
  */
 
 import type { OpenProject } from "./config.js";
-import { graphName, readScript, writeScript } from "./documents.js";
+import { graphName, isInitGraph, readScript, writeScript } from "./documents.js";
 import { UserError } from "./errors.js";
 import { exists, SKIP_DIRS } from "./files.js";
 import { fs, path } from "./host.js";
@@ -40,10 +40,63 @@ function assertEditable(project: OpenProject, relPath: string, verb: string): vo
  * into Folder instances. Making one here is how you get a folder in the
  * DataModel without touching the project file.
  */
+/**
+ * Refuses a graph and a folder of one name side by side: `Foo.nodescript`
+ * beside `Foo/` compiles to a Script and a Folder that Studio would both
+ * call Foo. A script with children is `Foo/init.nodescript` instead.
+ */
+export async function assertNoNameClash(project: OpenProject, relPath: string): Promise<void> {
+	const rel = toPosix(relPath);
+	const graph = rel.endsWith(".nodescript");
+	const other = graph ? rel.slice(0, -".nodescript".length) : `${rel}.nodescript`;
+	if (!(await exists(entryPath(project.root, other)))) return;
+	const name = path.posix.basename(graph ? other : rel);
+	throw new UserError(
+		graph
+			? `A folder called ${name} is already here, so a graph called ${name} would make two instances of that name in Studio. Use New child script on a graph to give it children.`
+			: `A graph called ${name} is already here, so a folder called ${name} would make two instances of that name in Studio. Use New child script on the graph to give it children.`,
+	);
+}
+
+/**
+ * Refuses a graph named `init`, unless it already was one: that name is
+ * how a script holds its children, and New child script makes it.
+ */
+export function assertNotInit(relPath: string, was?: string): void {
+	if (isInitGraph(relPath) && !(was && isInitGraph(was)))
+		throw new UserError(
+			"init is the name a script with children has in its folder. Use New child script on a graph instead.",
+		);
+}
+
+/**
+ * Makes a graph a script with children: `Foo.nodescript` becomes
+ * `Foo/init.nodescript`, as Rojo makes a folder holding `init.server.luau`
+ * a Script. A graph that is already its folder's init stays where it is.
+ * Answers where the graph is now and the folder its children go in.
+ */
+export async function nestScript(
+	project: OpenProject,
+	graph: string,
+): Promise<{ graph: string; dir: string; moved: boolean }> {
+	const rel = toPosix(graph);
+	if (!rel.endsWith(".nodescript")) throw new UserError(`${rel} is not a graph.`);
+	if (isInitGraph(rel)) return { graph: rel, dir: path.posix.dirname(rel), moved: false };
+	assertEditable(project, rel, "add a child script");
+	const dir = rel.slice(0, -".nodescript".length);
+	const target = path.posix.join(dir, "init.nodescript");
+	if (await exists(entryPath(project.root, target)))
+		throw new UserError(`${dir} already has a script of its own, init.nodescript.`);
+	await fs.mkdir(entryPath(project.root, dir), { recursive: true });
+	await fs.rename(entryPath(project.root, rel), entryPath(project.root, target));
+	return { graph: target, dir, moved: true };
+}
+
 export async function createFolder(project: OpenProject, relPath: string): Promise<string> {
 	assertEditable(project, relPath, "create a folder");
 	const abs = safeJoin(project.root, relPath);
 	if (await exists(abs)) throw new UserError(`${relPath} already exists.`);
+	await assertNoNameClash(project, relPath);
 	await fs.mkdir(abs, { recursive: true });
 	return relPath;
 }
@@ -62,6 +115,8 @@ export async function renameEntry(
 	const dest = entryPath(project.root, destRel);
 	if (source === dest) return destRel;
 	if (await exists(dest)) throw new UserError(`${destRel} already exists.`);
+	assertNotInit(destRel, toPosix(relPath));
+	await assertNoNameClash(project, destRel);
 	await fs.rename(source, dest);
 
 	// A graph carries its own name, and that name — not the file's — is what the

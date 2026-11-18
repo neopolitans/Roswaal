@@ -37,6 +37,8 @@ export async function readScript(project: OpenProject, relPath: string): Promise
 	// cannot, and the collision check in `compileScript` is a net under that.
 	const derived = graphNameFor(relPath);
 	if (derived !== "") script.name = derived;
+	if (isInitGraph(relPath)) script.init = true;
+	else delete script.init;
 
 	return script;
 }
@@ -50,7 +52,15 @@ export async function readScript(project: OpenProject, relPath: string): Promise
  * at all would compile to `.luau`.
  */
 export function graphNameFor(relPath: string): string {
-	return graphName(path.posix.basename(toPosix(relPath), ".nodescript"));
+	const posix = toPosix(relPath);
+	// A folder's init graph is the script the folder is, and has its name.
+	const file = isInitGraph(posix) ? path.posix.dirname(posix) : posix;
+	return graphName(path.posix.basename(file, ".nodescript"));
+}
+
+/** Whether a graph is its folder's `init.nodescript`: a script with children. */
+export function isInitGraph(relPath: string): boolean {
+	return path.posix.basename(toPosix(relPath)).toLowerCase() === "init.nodescript";
 }
 
 /**

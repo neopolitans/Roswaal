@@ -58,6 +58,8 @@ export interface ProjectTreeProps {
 	/** A row was clicked: a folder is itself, a file is its parent. */
 	onTargetDir: (dir: string) => void;
 	onNewGraph: (parentDir: string) => void;
+	/** New child script, under this graph. */
+	onNewChild?: (graph: string) => void;
 	onNewMap: (parentDir: string) => void;
 	onNewFolder: (parentDir: string) => void;
 	onRename: (path: string) => void;
@@ -105,6 +107,7 @@ export const ProjectTree = memo(function ProjectTree({
 	onMove,
 	onTargetDir,
 	onNewGraph,
+	onNewChild,
 	onNewMap,
 	onNewFolder,
 	onRename,
@@ -320,6 +323,8 @@ export const ProjectTree = memo(function ProjectTree({
 				return onPackage?.("remove", entry);
 			case "newGraph":
 				return onNewGraph(dir);
+			case "newChild":
+				return onNewChild?.(entry.script ?? entry.path);
 			case "newMap":
 				return onNewMap(dir);
 			case "import":
@@ -399,7 +404,8 @@ export const ProjectTree = memo(function ProjectTree({
 								entry.path === targetDir &&
 								holdsGraphs(entry.path) &&
 								"target-dir",
-							openPath === entry.path && "open-doc",
+							(openPath === entry.path || (entry.script && openPath === entry.script)) &&
+								"open-doc",
 							readonly && "readonly",
 							dropTarget === entry.path && "drop-target",
 						)}
@@ -415,9 +421,11 @@ export const ProjectTree = memo(function ProjectTree({
 						onDragLeave={() => setDropTarget((t) => (t === entry.path ? null : t))}
 						onDrop={(e) => isDir && onDrop(e, entry.path)}
 						onClick={(e) => click(e, entry)}
-						onDoubleClick={() =>
-							!isDir && entry.kind !== "wally" && !entry.missing && onOpen(entry)
-						}
+						onDoubleClick={() => {
+							// A script with children opens as its graph, as a graph does.
+							const opens = isDir ? entry.children?.find((c) => c.path === entry.script) : entry;
+							if (opens && opens.kind !== "wally" && !opens.missing) onOpen(opens);
+						}}
 						onContextMenu={(e) => {
 							e.preventDefault();
 							// wally.toml and its packages: a menu of their own, for adding.
@@ -436,9 +444,11 @@ export const ProjectTree = memo(function ProjectTree({
 								? entry.missing
 									? `${entry.name} is in wally.toml, and not installed: run wally install.`
 									: `${entry.name} ${shownVersion(entry)}. Double-click to open ${entry.target}.`
-								: isDir && !groups.isGraph(entry) && entry.role
-									? `${entry.path}: ${FOLDER_TITLE[entry.role]}`
-									: entry.path
+								: entry.script
+									? `${entry.name}, a script with children. Double-click to open its graph.`
+									: isDir && !groups.isGraph(entry) && entry.role
+										? `${entry.path}: ${FOLDER_TITLE[entry.role]}`
+										: entry.path
 						}
 					>
 						{entry.kind === "wally" ? (
@@ -459,11 +469,15 @@ export const ProjectTree = memo(function ProjectTree({
 									className="twist"
 									rotate={collapsed.has(entry.path) ? -90 : 0}
 								/>
-								<Icon
-									name={folderIcon(collapsed.has(entry.path), entry.role !== undefined)}
-									size={15}
-									className={folderClass(entry, groups.isGraph(entry))}
-								/>
+								{entry.script ? (
+									<Icon name={KIND_ICONS.nodescript} size={15} className="kind nodescript" />
+								) : (
+									<Icon
+										name={folderIcon(collapsed.has(entry.path), entry.role !== undefined)}
+										size={15}
+										className={folderClass(entry, groups.isGraph(entry))}
+									/>
+								)}
 							</>
 						) : (
 							<>
@@ -710,12 +724,15 @@ function flatten(
 	depth: number,
 	fnsOf: (entry: TreeEntry) => FunctionInfo[],
 	expanded: ReadonlySet<string>,
+	/** A script folder's own graph, which its folder's row stands for. */
+	hide?: string,
 ): Row[] {
 	const out: Row[] = [];
 	for (const entry of entries) {
+		if (entry.path === hide) continue;
 		out.push({ entry, depth });
 		if (entry.children && !collapsed.has(entry.path)) {
-			out.push(...flatten(entry.children, collapsed, depth + 1, fnsOf, expanded));
+			out.push(...flatten(entry.children, collapsed, depth + 1, fnsOf, expanded, entry.script));
 		}
 		if (entry.kind === "nodescript" && expanded.has(entry.path)) {
 			for (const fn of fnsOf(entry)) out.push({ entry, depth: depth + 1, fn });

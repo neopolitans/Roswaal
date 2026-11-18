@@ -98,6 +98,8 @@ import { createProject } from "./newProject.js";
 import { importGraphPath } from "./outputs.js";
 import { toPosix } from "./paths.js";
 import {
+	assertNoNameClash,
+	assertNotInit,
 	buildTree,
 	type CompileStep,
 	collectBinaries,
@@ -127,6 +129,7 @@ import {
 	listPacks,
 	locateFile,
 	moveEntry,
+	nestScript,
 	type OpenProject,
 	openProject,
 	packUsage,
@@ -1386,24 +1389,35 @@ export class ApiSession {
 					name: string;
 					scriptClass: NodeScript["scriptClass"];
 				}>(req);
-				// The same function renaming uses, so a graph created as "My Graph"
-				// and one renamed to it end up called the same thing.
-				const safeName = graphName(name ?? "Untitled") || "Untitled";
-				const relPath = path.posix.join(dir ?? project.config.sourceDir, `${safeName}.nodescript`);
+				return createGraph(project, dir ?? project.config.sourceDir, name, scriptClass);
+			},
 
-				const script = emptyScript(safeName, newId());
-				script.target = project.config.target;
-				if (scriptClass) script.scriptClass = scriptClass;
-				// A new graph is useless without somewhere for execution to start.
-				script.nodes.push({
-					id: newId(),
-					def: scriptClass === "ModuleScript" ? "module.exports" : "script.begin",
-					x: 120,
-					y: 160,
-				});
-
-				await writeScript(project, relPath, script);
-				return { path: relPath, script };
+			/**
+			 * A new graph as another graph's child. A graph with no children yet
+			 * becomes its folder's `init.nodescript` first -- `Foo.nodescript`
+			 * to `Foo/init.nodescript` -- as Rojo makes a folder holding
+			 * `init.server.luau` a Script, and a Rojo meta file beside its Luau
+			 * goes with it. In Dynamic mode it is compiled again there, which
+			 * removes the Luau it wrote before.
+			 */
+			"POST /script/child": async (req) => {
+				const project = this.project();
+				const { parent, name, scriptClass } = fields<{
+					parent: string;
+					name: string;
+					scriptClass: NodeScript["scriptClass"];
+				}>(req);
+				const graph = need(parent, "parent");
+				const before = await graphOutputPath(project, graph);
+				const nested = await nestScript(project, graph);
+				if (nested.moved) {
+					const after = await graphOutputPath(project, nested.graph);
+					if (before && after) await moveMetaFile(project, before, after);
+					if (project.config.compileMode === "hot")
+						await compileScript(project, nested.graph, { write: true });
+				}
+				const child = await createGraph(project, nested.dir, name, scriptClass);
+				return { ...child, parent: nested.graph, moved: nested.moved };
 			},
 
 			/**
@@ -1478,7 +1492,9 @@ export class ApiSession {
 				if (!result.ok)
 					throw new HttpError(422, `${fileName} could not be read as Luau. ${result.error}`);
 				await writeScript(project, relPath, result.script);
-				return { path: relPath, script: result.script, report: result.report };
+				// Read back, so an `init` file comes back named for its folder, as a read would.
+				const script = await readScript(project, relPath);
+				return { path: relPath, script, report: result.report };
 			},
 
 			"POST /script/move": async (req) => {
@@ -1982,4 +1998,48 @@ function restored(inst: RbxInstance, loaded: LoadedPlace, property: string, raw:
 /** Kept out of the handlers so the id source is one line to find and to change. */
 function newId(): string {
 	return globalThis.crypto.randomUUID();
+}
+
+/**
+ * A new, empty graph in `dir`, with somewhere for execution to start. Its
+ * name goes through the same function renaming uses, so a graph created as
+ * "My Graph" and one renamed to it end up called the same thing.
+ */
+async function createGraph(
+	project: OpenProject,
+	dir: string,
+	name: string | undefined,
+	scriptClass: NodeScript["scriptClass"] | undefined,
+): Promise<{ path: string; script: NodeScript }> {
+	const safeName = graphName(name ?? "Untitled") || "Untitled";
+	const relPath = path.posix.join(dir, `${safeName}.nodescript`);
+	assertNotInit(relPath);
+	await assertNoNameClash(project, relPath);
+
+	const script = emptyScript(safeName, newId());
+	script.target = project.config.target;
+	if (scriptClass) script.scriptClass = scriptClass;
+	script.nodes.push({
+		id: newId(),
+		def: scriptClass === "ModuleScript" ? "module.exports" : "script.begin",
+		x: 120,
+		y: 160,
+	});
+
+	await writeScript(project, relPath, script);
+	return { path: relPath, script };
+}
+
+/**
+ * Moves the Rojo meta file beside a graph's Luau to follow it:
+ * `Foo.meta.json` beside `Foo.server.luau` becomes `Foo/init.meta.json`
+ * when the graph becomes its folder's init. Leaves one already there alone.
+ */
+async function moveMetaFile(project: OpenProject, from: string, to: string): Promise<void> {
+	const meta = (luau: string) => luau.replace(/(\.server|\.client)?\.luau$/, ".meta.json");
+	const source = safeJoin(project.root, meta(from));
+	const dest = safeJoin(project.root, meta(to));
+	if (source === dest || !(await exists(source)) || (await exists(dest))) return;
+	await fs.mkdir(path.dirname(dest), { recursive: true });
+	await fs.rename(source, dest);
 }

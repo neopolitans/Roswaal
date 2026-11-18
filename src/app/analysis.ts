@@ -74,9 +74,16 @@ export const addCounts = (a: Counts, b: Counts): Counts => ({
 	warnings: a.warnings + b.warnings,
 });
 
-/** "Rig", from `.roswaal/scripts/ReplicatedStorage/Tank/Rig.nodescript`. */
+/**
+ * "Rig", from `.roswaal/scripts/ReplicatedStorage/Tank/Rig.nodescript`; and
+ * "Config", from `.../Tank/Config/init.nodescript`, a script with children,
+ * which is its folder.
+ */
 export function graphLabel(path: string): string {
-	return (path.split("/").pop() ?? path).replace(/\.nodescript$/, "");
+	const parts = path.split("/");
+	const file = parts.pop() ?? path;
+	if (file.toLowerCase() === "init.nodescript" && parts.length > 0) return parts.pop() ?? file;
+	return file.replace(/\.nodescript$/, "");
 }
 
 /** The project scope: the files first, then each graph with something to say. */

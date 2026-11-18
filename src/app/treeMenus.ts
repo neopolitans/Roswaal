@@ -16,6 +16,7 @@ export type TreeAction =
 	| "github"
 	| "removePackage"
 	| "newGraph"
+	| "newChild"
 	| "newMap"
 	| "import"
 	| "importMany"
@@ -93,12 +94,17 @@ export function packageMenu(
  * something in it.
  */
 export function fileMenu(
-	entry: { kind: string; generatedFrom?: string; graph?: string },
+	entry: { kind: string; generatedFrom?: string; graph?: string; script?: string },
 	ctx: TreeMenuContext,
 ): TreeMenuEntry[][] {
 	return [
 		present([
 			ctx.holdsGraphs && { action: "newGraph", label: "New graph here", icon: "newFile" },
+			(Boolean(entry.script) || (ctx.holdsGraphs && entry.kind === "nodescript")) && {
+				action: "newChild",
+				label: "New child script",
+				icon: "newFile",
+			},
 			ctx.holdsGraphs && { action: "newMap", label: "New map here", icon: "map" },
 			ctx.canImport &&
 				entry.kind === "luau" &&

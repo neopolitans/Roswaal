@@ -62,6 +62,8 @@ export interface TreeEntry {
 	children?: TreeEntry[];
 	/** A folder that is a service or container, a script, place-only, or Wally's. */
 	role?: "service" | "synced" | "script" | "place" | "packages";
+	/** A graph folder that is a script: its `init.nodescript`, the graph it is. */
+	script?: string;
 	/** A package's installed version. */
 	version?: string;
 	/** The file a package opens: its module in `_Index`. */
@@ -567,6 +569,15 @@ export const api = {
 			method: "PUT",
 			body: JSON.stringify({ path, script }),
 		}),
+	/**
+	 * A new graph as another's child. A graph with no children yet becomes its
+	 * folder's init.nodescript first; `parent` says where it is now.
+	 */
+	createChildScript: (parent: string, name: string, scriptClass: ScriptClass) =>
+		post<{ path: string; script: NodeScript; parent: string; moved: boolean }>(
+			"/api/script/child",
+			{ parent, name, scriptClass },
+		),
 	createScript: (dir: string, name: string, scriptClass: ScriptClass) =>
 		post<{ path: string; script: NodeScript }>("/api/script/create", { dir, name, scriptClass }),
 	/** A `.luau` file read into a new graph; the file itself is left alone. */

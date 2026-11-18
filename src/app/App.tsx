@@ -1759,11 +1759,7 @@ export function App() {
 				if (one?.written && one.unformatted) {
 					warnUnformatted([one]);
 				} else if (one?.written) {
-					const name =
-						(path ?? "")
-							.split("/")
-							.pop()
-							?.replace(/\.nodescript$/, "") ?? "";
+					const name = graphLabel(path ?? "");
 					showToast({
 						title: `Compiled ${name}`,
 						detail: one.outputPath,
@@ -1932,6 +1928,7 @@ export function App() {
 
 	const {
 		createGraphIn,
+		createChildOf,
 		createMapIn,
 		importLuauFile,
 		importLuauFiles,
@@ -2314,6 +2311,7 @@ export function App() {
 									onImportMany={importLuauFiles}
 									onTargetDir={setTargetDir}
 									onNewGraph={createGraphIn}
+									onNewChild={(graph) => void createChildOf(graph)}
 									onNewMap={createMapIn}
 									onNewFolder={onTreeNewFolder}
 									onRename={onTreeRename}

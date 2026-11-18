@@ -45,6 +45,7 @@ export {
 	graphName,
 	graphNameFor,
 	importRojoProject,
+	isInitGraph,
 	type RojoImportOutcome,
 	type RojoProjectFile,
 	readMap,
@@ -53,7 +54,15 @@ export {
 	writeMap,
 	writeScript,
 } from "./documents.js";
-export { createFolder, deleteEntry, moveEntry, renameEntry } from "./entries.js";
+export {
+	assertNoNameClash,
+	assertNotInit,
+	createFolder,
+	deleteEntry,
+	moveEntry,
+	nestScript,
+	renameEntry,
+} from "./entries.js";
 export { formatLuau } from "./host.js";
 export {
 	type ExportedModuleFunction,

@@ -604,6 +604,14 @@ export interface NodeScript {
 	kind: "script";
 	id: string;
 	name: string;
+	/**
+	 * Set when the graph is a folder's `init.nodescript`: the script that
+	 * folder is, whose other graphs are its children, as Rojo makes a folder
+	 * holding `init.server.luau` a Script. It compiles to `init.<realm>.luau`
+	 * and takes the folder's name. Taken from the path whenever the graph is
+	 * read, as `name` is, and never written to the file.
+	 */
+	init?: boolean;
 	scriptClass: ScriptClass;
 	runContext?: RunContext;
 	target: Target;

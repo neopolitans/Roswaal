@@ -9,6 +9,23 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.3",
+		date: "2026-11-18",
+		headline: "Graphs can have child scripts, as Rojo's scripts do.",
+		added: [
+			"**New child script.** Right-click a graph to add a ModuleScript under it. The graph becomes its folder's init.nodescript and compiles to init.luau, init.server.luau or init.client.luau there; a Rojo meta file beside its Luau goes with it.",
+			"**Scripts with children in the tree.** The folder shows as the script, with its name; double-click it to open its graph.",
+		],
+		changed: [
+			"**Names Studio could not tell apart** are refused: a graph called init, and a graph and a folder of one name side by side.",
+		],
+		fixed: [
+			"**Instance lint** knew a script with children as a Folder when a child's file was read before the script's own.",
+			"**Importing an init file** opened a graph called init until it was opened again.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.2",
 		date: "2026-11-18",
 		headline: "The Place Viewer is an extension, with its own page in Settings.",
