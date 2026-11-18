@@ -275,7 +275,7 @@ export function placesAndRojoPage(): DocPage {
 					"SpotLights and SurfaceLights light it, Ambient lights where the sky cannot reach, " +
 					"and the sun casts shadows; the lights cast none yet, and the handles do " +
 					"not drag yet. To save memory, turn the place viewer " +
-					"off in **Settings › Extended Features**; the place's tab then says so, and the " +
+					"off in **Settings › Place Viewer**; the place's tab then says so, and the " +
 					"DataModel tree and Properties still work.",
 			},
 

@@ -10,17 +10,15 @@ import { matches, settingsPages } from "../src/app/SettingsPanel.jsx";
 const titles = (pages: { title: string }[]) => pages.map((page) => page.title);
 
 describe("the pages Settings offers", () => {
-	it("in the editor, every page, the project's first", () => {
+	it("in the editor, every page of its own, the project's first; extensions list theirs", () => {
 		expect(titles(settingsPages("editor", true))).toEqual([
 			"Compiling",
 			"Node packs",
 			"Canvas",
 			"Nodes",
 			"Workspace",
-			"Scene view",
 			"Themes",
 			"Docs",
-			"Extended Features",
 			"How Roswaal is made",
 			"Licences",
 		]);

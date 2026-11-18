@@ -12471,6 +12471,47 @@ a.docs-minor-row .aside {
 	font-weight: 600;
 }
 
+/* A page an extension adds, under the extension's own, on a thread. */
+.settings-link.sub {
+	position: relative;
+	padding-left: 26px;
+}
+
+.settings-link.sub::before {
+	content: "";
+	position: absolute;
+	left: 15px;
+	top: 6px;
+	bottom: 6px;
+	border-left: 1px solid var(--border);
+}
+
+.settings-link .ext-state {
+	margin-left: 6px;
+	font-size: var(--text-sm);
+	font-weight: 400;
+	color: var(--fg-faint);
+}
+
+/* An extension's version and maturity, beside its name. */
+.ext-badge {
+	display: inline-block;
+	margin-left: 8px;
+	padding: 1px 6px;
+	border: 1px solid var(--border-strong);
+	border-radius: 999px;
+	color: var(--fg-muted);
+	font-size: var(--text-sm);
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	vertical-align: 3px;
+}
+
+.ext-badge.preview {
+	border-color: var(--accent);
+	color: var(--accent);
+}
+
 /* The docs' note on where the rest is. */
 .settings-elsewhere {
 	margin: auto 4px 0;
@@ -12815,12 +12856,38 @@ a.docs-minor-row .aside {
 	width: 100%;
 }
 
-/* Extended Features: a title and what it does, and a checkbox at the right,
-   as Studio lists its Beta Features. */
-.setting.setting-feature {
-	grid-template-columns: 1fr auto;
-	align-items: center;
-	cursor: pointer;
+/* A setting not at its default: a bar in the row's left padding, and a reset
+   beside its control, as VS Code marks one. */
+.setting.is-changed {
+	position: relative;
+}
+
+.setting.is-changed::before {
+	content: "";
+	position: absolute;
+	left: 6px;
+	top: 12px;
+	bottom: 12px;
+	width: 3px;
+	border-radius: 2px;
+	background: var(--accent);
+}
+
+.setting-control {
+	gap: 8px;
+}
+
+.setting-control > .settings-reset {
+	width: auto;
+	flex: none;
+}
+
+/* What an extension adds, and its releases: a word at the right, not a control. */
+.setting-control > .settings-aside {
+	width: auto;
+	color: var(--fg-faint);
+	font-size: var(--text-md);
+	text-align: right;
 }
 
 /* Sign in with Roblox: what is asked for, before Roblox's own page. */
@@ -12838,14 +12905,6 @@ a.docs-minor-row .aside {
 	justify-content: flex-end;
 	gap: 8px;
 	margin-top: 10px;
-}
-
-.setting-feature .setting-control > input[type="checkbox"] {
-	width: 18px;
-	height: 18px;
-	margin: 0;
-	accent-color: var(--accent);
-	cursor: pointer;
 }
 
 /* A segmented control is `inline-flex` everywhere else, because on the toolbar

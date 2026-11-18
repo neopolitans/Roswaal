@@ -10,8 +10,23 @@
 import type { ExtensionManifest } from "./manifest.js";
 import { PLACE_VIEWER } from "./placeViewer/manifest.js";
 
-export type { ExtensionManifest } from "./manifest.js";
+export type {
+	ExtensionAddition,
+	ExtensionManifest,
+	ExtensionPage,
+	ExtensionRelease,
+	SettingChoice,
+	SettingDecl,
+	SettingGroup,
+} from "./manifest.js";
 export { PLACE_VIEWER, type PlaceViewerModule } from "./placeViewer/manifest.js";
+export {
+	OUTLINE_WIDTHS,
+	type OutlineWidth,
+	type PlaceViewerSettings,
+	type ViewportFrameRate,
+	type ViewportRenderer,
+} from "./placeViewer/settings.js";
 
 /** Every extension, in the order Settings lists them. */
 export const EXTENSIONS: readonly ExtensionManifest[] = [PLACE_VIEWER];

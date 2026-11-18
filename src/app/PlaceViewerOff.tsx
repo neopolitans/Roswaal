@@ -1,6 +1,6 @@
 /**
  * What a place's tab shows when the place viewer is not drawing it: a moment
- * while it loads, or, with Settings › Extended Features › Place viewer off,
+ * while it loads, or, with Settings › Place Viewer off,
  * that it is off and how to turn it on. The place itself is still in the
  * DataModel tree and Properties either way.
  */

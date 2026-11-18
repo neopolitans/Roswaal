@@ -18,14 +18,14 @@ import { PanelHead } from "../../../app/Cards.jsx";
 import { cx } from "../../../app/cx.js";
 import { Icon, type IconName } from "../../../app/icons.jsx";
 import { Ident, SectionHead, useFold } from "../../../app/PanelParts.jsx";
+import { useWorkspaceControls } from "../../../app/Workspace.jsx";
+import { errorMessage } from "../../../core/errorMessage.js";
 import {
 	VIEWPORT_FRAME_RATES,
 	VIEWPORT_RENDERERS,
 	type ViewportFrameRate,
 	type ViewportRenderer,
-} from "../../../app/preferences.js";
-import { useWorkspaceControls } from "../../../app/Workspace.jsx";
-import { errorMessage } from "../../../core/errorMessage.js";
+} from "../settings.js";
 import { GizmoSection } from "./GizmoSection.jsx";
 import { placeScene, type SceneSince } from "./sceneApi.js";
 import {
@@ -684,7 +684,7 @@ export function PlaceSummary({
 										value={renderer}
 										onChange={(e) => onRenderer(e.target.value as ViewportRenderer)}
 									>
-										{VIEWPORT_RENDERERS.map(([value, label]) => (
+										{VIEWPORT_RENDERERS.map(({ value, label }) => (
 											<option key={value} value={value}>
 												{value === "auto" ? `${label}: ${AUTOMATIC}` : label}
 											</option>
@@ -703,7 +703,7 @@ export function PlaceSummary({
 										value={frameRate}
 										onChange={(e) => onFrameRate(e.target.value as ViewportFrameRate)}
 									>
-										{VIEWPORT_FRAME_RATES.map(([value, label]) => (
+										{VIEWPORT_FRAME_RATES.map(({ value, label }) => (
 											<option key={value} value={value}>
 												{label}
 											</option>

@@ -79,37 +79,6 @@ export const FILTER_SUMMARY: Record<MenuFilter, string> = {
 export const PREFERENCES_KEY = "roswaal.preferences";
 const KEY = PREFERENCES_KEY;
 
-/** The place's selection outline, by name, in CSS pixels. */
-export const OUTLINE_WIDTHS = { thin: 2, medium: 3.5, thick: 5 } as const;
-export type OutlineWidth = keyof typeof OUTLINE_WIDTHS;
-
-/** What draws the place in 3D, by name, as Settings offers them. */
-export const VIEWPORT_RENDERERS = [
-	["auto", "Automatic"],
-	["webgpu", "WebGPU"],
-	["webgl2", "WebGL2"],
-] as const;
-export type ViewportRenderer = (typeof VIEWPORT_RENDERERS)[number][0];
-
-/**
- * How often the place is drawn, at most, while it moves: frames a second, the
- * display's own rate, or as fast as it will go. It is drawn only when it
- * changes either way.
- */
-export const VIEWPORT_FRAME_RATES = [
-	["24", "24"],
-	["30", "30"],
-	["60", "60"],
-	["120", "120"],
-	["144", "144"],
-	["165", "165"],
-	["180", "180"],
-	["240", "240"],
-	["vsync", "VSync"],
-	["unlimited", "Unlimited"],
-] as const;
-export type ViewportFrameRate = (typeof VIEWPORT_FRAME_RATES)[number][0];
-
 export interface Preferences {
 	/**
 	 * The colour scheme by name, or `null` to follow the operating system.
@@ -281,28 +250,6 @@ export interface Preferences {
 	 * only showing them. Off until asked for: it writes a file Studio owns.
 	 */
 	modifyDataModel: boolean;
-	/** What draws the place in 3D: Automatic, WebGPU where the browser has it; or either by name. */
-	viewportRenderer: ViewportRenderer;
-	/** The most the place is drawn a second while it moves: see VIEWPORT_FRAME_RATES. */
-	viewportFrameRate: ViewportFrameRate;
-	/** How wide the place's selection outline is. */
-	outlineWidth: OutlineWidth;
-	/** The outline shows through what is in front of it, as Studio's does, rather than being hidden by it. */
-	outlineThrough: boolean;
-	/**
-	 * Alt and a click in the place, or a long press, picks one Model further in
-	 * each time, down to the part, rather than the part at once as Studio's does.
-	 */
-	altClickSteps: boolean;
-	/** See-through Glass hides the see-through parts behind it, as Studio's does. */
-	glassHides: boolean;
-	/** The place's post effects, ColorCorrection, Blur and the rest, are drawn in the place viewer. */
-	postEffects: boolean;
-	/**
-	 * The place viewer, an Extended Feature: the place in 3D, its tab and its
-	 * summary. Off, its code is never downloaded and no scene is built.
-	 */
-	placeViewer: boolean;
 	/** The hidden schemes found on the Themes page, by name: listed from then on. */
 	foundThemes: string[];
 	/**
@@ -511,14 +458,6 @@ export const DEFAULTS: Preferences = {
 	analysisScope: "script",
 	analysisSize: null,
 	modifyDataModel: false,
-	viewportRenderer: "auto",
-	viewportFrameRate: "vsync",
-	outlineWidth: "medium",
-	outlineThrough: true,
-	altClickSteps: false,
-	glassHides: true,
-	postEffects: true,
-	placeViewer: true,
 	foundThemes: [],
 	// Everything the target allows, which is what the menu did before there was
 	// a filter at all.
@@ -672,26 +611,6 @@ export function readPreferences(): Preferences {
 			typeof stored.modifyDataModel === "boolean"
 				? stored.modifyDataModel
 				: DEFAULTS.modifyDataModel,
-		viewportRenderer:
-			stored.viewportRenderer === "webgl2" || stored.viewportRenderer === "webgpu"
-				? stored.viewportRenderer
-				: DEFAULTS.viewportRenderer,
-		viewportFrameRate: VIEWPORT_FRAME_RATES.some(([value]) => value === stored.viewportFrameRate)
-			? (stored.viewportFrameRate as ViewportFrameRate)
-			: DEFAULTS.viewportFrameRate,
-		outlineWidth:
-			typeof stored.outlineWidth === "string" && stored.outlineWidth in OUTLINE_WIDTHS
-				? (stored.outlineWidth as OutlineWidth)
-				: DEFAULTS.outlineWidth,
-		outlineThrough:
-			typeof stored.outlineThrough === "boolean" ? stored.outlineThrough : DEFAULTS.outlineThrough,
-		altClickSteps:
-			typeof stored.altClickSteps === "boolean" ? stored.altClickSteps : DEFAULTS.altClickSteps,
-		glassHides: typeof stored.glassHides === "boolean" ? stored.glassHides : DEFAULTS.glassHides,
-		postEffects:
-			typeof stored.postEffects === "boolean" ? stored.postEffects : DEFAULTS.postEffects,
-		placeViewer:
-			typeof stored.placeViewer === "boolean" ? stored.placeViewer : DEFAULTS.placeViewer,
 		foundThemes: Array.isArray(stored.foundThemes)
 			? stored.foundThemes.filter((name): name is string => typeof name === "string")
 			: DEFAULTS.foundThemes,

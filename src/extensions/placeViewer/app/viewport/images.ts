@@ -11,9 +11,9 @@
  * faces they have always had.
  */
 
-import { api } from "../../../../app/api.js";
 import { fromBase64 } from "../../../../core/base64.js";
 import { assetIdOf } from "../../../../core/rbx/browse.js";
+import { robloxApi } from "../robloxApi.js";
 import type { NotAsked } from "./assetProgress.js";
 
 /** Roblox's asset types for what a Decal or Texture can name. */
@@ -36,7 +36,7 @@ export function decalImageOf(bytes: Uint8Array): string | undefined {
 export async function ensure(ids: string[]): Promise<Set<string>> {
 	const ready = new Set<string>();
 	for (let at = 0; at < ids.length; at += BATCH) {
-		const { assets } = await api.robloxFetchAssets(ids.slice(at, at + BATCH));
+		const { assets } = await robloxApi.fetchAssets(ids.slice(at, at + BATCH));
 		for (const [id, outcome] of Object.entries(assets))
 			if (outcome.state === "ready") ready.add(id);
 	}
@@ -45,7 +45,7 @@ export async function ensure(ids: string[]): Promise<Set<string>> {
 
 /** Why nothing can be asked of the daemon now; null while someone is signed in. */
 export async function notAsked(): Promise<NotAsked | null> {
-	const status = await api.robloxStatus().catch(() => null);
+	const status = await robloxApi.status().catch(() => null);
 	if (!status) return "offline";
 	if (!status.available) return "unavailable";
 	return status.signedIn ? null : "sign-in";
@@ -55,7 +55,7 @@ export async function notAsked(): Promise<NotAsked | null> {
 export async function bytesOf(
 	id: string,
 ): Promise<{ assetTypeId?: number; bytes: Uint8Array } | null> {
-	const answer = await api.robloxAsset(id);
+	const answer = await robloxApi.asset(id);
 	if (!answer.found || !answer.data) return null;
 	return { assetTypeId: answer.assetTypeId, bytes: fromBase64(answer.data) };
 }

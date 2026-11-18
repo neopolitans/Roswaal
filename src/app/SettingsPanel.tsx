@@ -17,8 +17,10 @@
  */
 
 import {
-	createContext,
+	Fragment,
+	lazy,
 	type ReactNode,
+	Suspense,
 	useCallback,
 	useContext,
 	useEffect,
@@ -29,12 +31,17 @@ import {
 import { CARRIED_LICENCES } from "../core/licenceData.js";
 import { INDENT_WIDTHS, type RoswaalConfig, type Target } from "../core/schema.js";
 import { CODE_ROLES, ROLES, type Theme } from "../core/theme.js";
-import { api } from "./api.js";
+import {
+	EXTENSIONS,
+	type ExtensionManifest,
+	type ExtensionPage,
+	type SettingDecl,
+} from "../extensions/index.js";
 import { cx } from "./cx.js";
+import { isChanged, type SettingValue, useExtension } from "./extensionSettings.js";
 import { Icon } from "./icons.jsx";
 import { BundledNotices, LicenceDetail } from "./LicenceView.jsx";
 import { LAYER } from "./layers.js";
-import { pageHref } from "./pages.js";
 import { nodeColor, pinColor } from "./palette.js";
 import { floatPanel } from "./panels.js";
 import {
@@ -47,19 +54,16 @@ import {
 	FUNCTION_TAB_CHOICES,
 	GRID_CONTRASTS,
 	GRID_PATTERNS,
-	OUTLINE_WIDTHS,
-	type OutlineWidth,
 	PREVIEW_SCALE,
 	type Preferences,
 	previewScaleOf,
-	VIEWPORT_FRAME_RATES,
-	VIEWPORT_RENDERERS,
-	type ViewportFrameRate,
 	WHEEL_CHOICES,
 	WIRE_STYLES,
 } from "./preferences.js";
-import { signOutOfRoblox, startRobloxSignIn, useRobloxStatus } from "./robloxAccount.js";
+import { Group, matches, Row, Search, Toggle } from "./settingsParts.jsx";
 import { BUILTIN_THEMES } from "./theme.js";
+
+export { matches } from "./settingsParts.jsx";
 
 /** Where a page's settings are kept, which the list is grouped by. */
 type Keeper = "project" | "browser" | "about";
@@ -70,15 +74,24 @@ const PAGES = [
 	{ id: "canvas", title: "Canvas", keeper: "browser" },
 	{ id: "nodes", title: "Nodes", keeper: "browser" },
 	{ id: "workspace", title: "Workspace", keeper: "browser" },
-	{ id: "scene", title: "Scene view", keeper: "browser" },
 	{ id: "themes", title: "Themes", keeper: "browser" },
 	{ id: "docs", title: "Docs", keeper: "browser" },
-	{ id: "features", title: "Extended Features", keeper: "browser" },
 	{ id: "made", title: "How Roswaal is made", keeper: "about" },
 	{ id: "licences", title: "Licences", keeper: "about" },
 ] as const satisfies readonly { id: string; title: string; keeper: Keeper }[];
 
 type PageId = (typeof PAGES)[number]["id"];
+
+/**
+ * A page in the list: one of the editor's own, an extension's own page
+ * (`ext:placeViewer`), or a page an extension adds (`ext:placeViewer:scene`).
+ */
+type TabId = PageId | `ext:${string}`;
+
+/** The extensions a window lists: the editor's. Node Design and the docs touch none yet. */
+function extensionsFor(scope: SettingsScope): readonly ExtensionManifest[] {
+	return scope === "editor" ? EXTENSIONS : [];
+}
 
 /** What the list of pages says over each group of them. */
 const KEEPERS: Record<Keeper, { title: string; sub?: string }> = {
@@ -122,22 +135,6 @@ export interface SettingsPanelProps {
 	editorHref?: string;
 }
 
-/**
- * What the search box holds, and whether the page being drawn matched it by
- * name -- in which case all of it shows, rows and all.
- */
-const Search = createContext<{ query: string; page: boolean }>({ query: "", page: false });
-
-/** Whether every word typed is somewhere in the text, ignoring case. */
-export function matches(query: string, ...texts: string[]): boolean {
-	const text = texts.join(" ").toLowerCase();
-	return query
-		.toLowerCase()
-		.split(/\s+/)
-		.filter(Boolean)
-		.every((word) => text.includes(word));
-}
-
 /** The pages a window offers, in order: its scope's, less the project's where there is none. */
 export function settingsPages(scope: SettingsScope, hasProject: boolean) {
 	return PAGES.filter(
@@ -149,7 +146,8 @@ export function SettingsPanel(props: SettingsPanelProps) {
 	const { config, onConfig } = props;
 	const scope = props.scope ?? "editor";
 	const offered = settingsPages(scope, config !== undefined);
-	const [tab, setTab] = useState<PageId>(
+	const extensions = extensionsFor(scope);
+	const [tab, setTab] = useState<TabId>(
 		offered.some((page) => page.id === props.initialTab) ? props.initialTab! : offered[0].id,
 	);
 	const [query, setQuery] = useState("");
@@ -160,8 +158,19 @@ export function SettingsPanel(props: SettingsPanelProps) {
 		panel.current?.focus();
 	}, []);
 
-	const pageOf = (id: PageId) => {
-		switch (id) {
+	const pageOf = (id: TabId) => {
+		if (id.startsWith("ext:")) {
+			const [, extId, pageId] = id.split(":");
+			const manifest = extensions.find((m) => m.id === extId);
+			if (!manifest) return null;
+			const page = manifest.pages.find((p) => p.id === pageId);
+			return page ? (
+				<ExtensionSubPage manifest={manifest} page={page} />
+			) : (
+				<ExtensionOwnPage manifest={manifest} />
+			);
+		}
+		switch (id as PageId) {
 			case "compiling":
 				return config && onConfig ? (
 					<CompilingSettings config={config} onConfig={onConfig} />
@@ -174,14 +183,10 @@ export function SettingsPanel(props: SettingsPanelProps) {
 				return <NodeSettings {...props} />;
 			case "workspace":
 				return <WorkspaceSettings {...props} />;
-			case "scene":
-				return <SceneSettings {...props} />;
 			case "themes":
 				return <ThemeSettings {...props} />;
 			case "docs":
 				return <DocsSettings {...props} />;
-			case "features":
-				return <FeatureSettings {...props} />;
 			case "made":
 				return <Made />;
 			case "licences":
@@ -227,29 +232,47 @@ export function SettingsPanel(props: SettingsPanelProps) {
 						/>
 					</label>
 					{keepers.map((keeper) => (
-						<div key={keeper} className={cx("settings-keeper", `keeper-${keeper}`)}>
-							{keeper !== "about" && (
-								<div className="settings-keeper-head">
-									{KEEPERS[keeper].title}
-									{KEEPERS[keeper].sub && <code>{KEEPERS[keeper].sub}</code>}
+						<Fragment key={keeper}>
+							{keeper === "about" && extensions.length > 0 && (
+								<div className="settings-keeper keeper-extensions">
+									<div className="settings-keeper-head">Extensions</div>
+									{extensions.map((manifest) => (
+										<ExtensionLinks
+											key={manifest.id}
+											manifest={manifest}
+											current={searching ? null : tab}
+											go={(id) => {
+												setQuery("");
+												setTab(id);
+											}}
+										/>
+									))}
 								</div>
 							)}
-							{offered
-								.filter((page) => page.keeper === keeper)
-								.map((page) => (
-									<button
-										key={page.id}
-										className={cx("settings-link", !searching && tab === page.id && "on")}
-										aria-current={!searching && tab === page.id ? "page" : undefined}
-										onClick={() => {
-											setQuery("");
-											setTab(page.id);
-										}}
-									>
-										{page.title}
-									</button>
-								))}
-						</div>
+							<div className={cx("settings-keeper", `keeper-${keeper}`)}>
+								{keeper !== "about" && (
+									<div className="settings-keeper-head">
+										{KEEPERS[keeper].title}
+										{KEEPERS[keeper].sub && <code>{KEEPERS[keeper].sub}</code>}
+									</div>
+								)}
+								{offered
+									.filter((page) => page.keeper === keeper)
+									.map((page) => (
+										<button
+											key={page.id}
+											className={cx("settings-link", !searching && tab === page.id && "on")}
+											aria-current={!searching && tab === page.id ? "page" : undefined}
+											onClick={() => {
+												setQuery("");
+												setTab(page.id);
+											}}
+										>
+											{page.title}
+										</button>
+									))}
+							</div>
+						</Fragment>
 					))}
 					{scope === "docs" && (
 						<p className="settings-elsewhere">
@@ -269,16 +292,25 @@ export function SettingsPanel(props: SettingsPanelProps) {
 					</button>
 					{searching ? (
 						<div className="settings-results">
-							{offered
-								.filter((page) => page.id !== "licences")
-								.map((page) => (
-									<Search.Provider
-										key={page.id}
-										value={{ query, page: matches(query, page.title) }}
-									>
-										{pageOf(page.id)}
-									</Search.Provider>
-								))}
+							{/* In the list's order: the editor's pages, the extensions', then About. */}
+							{([false, true] as const).map((about) => (
+								<Fragment key={String(about)}>
+									{offered
+										.filter((page) => page.id !== "licences" && (page.keeper === "about") === about)
+										.map((page) => (
+											<Search.Provider
+												key={page.id}
+												value={{ query, page: matches(query, page.title) }}
+											>
+												{pageOf(page.id)}
+											</Search.Provider>
+										))}
+									{!about &&
+										extensions.map((manifest) => (
+											<ExtensionResults key={manifest.id} manifest={manifest} query={query} />
+										))}
+								</Fragment>
+							))}
 							<p className="settings-empty">Nothing in Settings matches “{query.trim()}”.</p>
 						</div>
 					) : (
@@ -294,27 +326,28 @@ export function SettingsPanel(props: SettingsPanelProps) {
  * One page: its title and what it is for, then its groups. While searching,
  * one section of the results -- shown only when something in it matched.
  */
-function Page({ id, note, children }: { id: PageId; note: ReactNode; children: ReactNode }) {
+function Page({
+	id,
+	title,
+	note,
+	children,
+}: {
+	id: TabId;
+	/** The heading: the page's own title, unless given. */
+	title?: ReactNode;
+	note: ReactNode;
+	children: ReactNode;
+}) {
 	const { query, page } = useContext(Search);
-	const title = PAGES.find((p) => p.id === id)?.title ?? "";
+	const heading = title ?? PAGES.find((p) => p.id === id)?.title ?? "";
 	return (
 		<section className={cx("settings-section", query && page && "matched")} data-page={id}>
 			<header className="settings-page-head">
-				<h2>{title}</h2>
+				<h2>{heading}</h2>
 				<p className="settings-note">{note}</p>
 			</header>
 			{children}
 		</section>
-	);
-}
-
-/** Rows that belong together, under a small heading, in one box. */
-function Group({ title, children }: { title: string; children: ReactNode }) {
-	return (
-		<div className="settings-group">
-			<h3>{title}</h3>
-			<div className="settings-box">{children}</div>
-		</div>
 	);
 }
 
@@ -449,6 +482,21 @@ function CompilingSettings({
 						</select>
 					</Row>
 				)}
+			</Group>
+
+			<Group title="Studio betas">
+				{STUDIO_BETAS.map((beta) => {
+					const on = config[beta.key] === true;
+					return (
+						<Row key={beta.key} label={beta.title} help={beta.description}>
+							<Toggle
+								on={on}
+								label={on ? beta.on : beta.off}
+								onChange={(next) => onConfig({ [beta.key]: next })}
+							/>
+						</Row>
+					);
+				})}
 			</Group>
 
 			<ExportingSettings config={config} onConfig={onConfig} />
@@ -907,127 +955,9 @@ function WorkspaceSettings({ prefs, onPrefs }: SettingsPanelProps) {
 	);
 }
 
-function SceneSettings({ prefs, onPrefs }: SettingsPanelProps) {
-	return (
-		<Page id="scene" note="How a place is drawn in 3D. Kept in this browser.">
-			<Group title="Renderer">
-				<Row
-					label="Renderer"
-					help="Automatic draws with WebGPU where the browser has it, and WebGL2 where it does not. WebGPU falls back to WebGL2 where there is none."
-				>
-					<div className="segmented">
-						{VIEWPORT_RENDERERS.map(([value, label]) => (
-							<button
-								key={value}
-								className={prefs.viewportRenderer === value ? "on" : ""}
-								onClick={() => onPrefs({ viewportRenderer: value })}
-							>
-								{label}
-							</button>
-						))}
-					</div>
-				</Row>
-
-				<Row
-					label="Frame rate"
-					help="The most the view is drawn a second while it moves. VSync matches the display; Unlimited draws as fast as it can. The view is drawn only when something changes."
-				>
-					<select
-						className="tb"
-						value={prefs.viewportFrameRate}
-						onChange={(e) => onPrefs({ viewportFrameRate: e.target.value as ViewportFrameRate })}
-					>
-						{VIEWPORT_FRAME_RATES.map(([value, label]) => (
-							<option key={value} value={value}>
-								{label}
-							</option>
-						))}
-					</select>
-				</Row>
-			</Group>
-
-			<Group title="Selection">
-				<Row label="Selection outline" help="How wide the outline round what is picked is drawn.">
-					<div className="segmented">
-						{(Object.keys(OUTLINE_WIDTHS) as OutlineWidth[]).map((width) => (
-							<button
-								key={width}
-								className={prefs.outlineWidth === width ? "on" : ""}
-								onClick={() => onPrefs({ outlineWidth: width })}
-							>
-								{width[0].toUpperCase() + width.slice(1)}
-							</button>
-						))}
-					</div>
-				</Row>
-				<Row
-					label="Hidden edges"
-					help="Whether the outline shows through the parts in front of it, as Studio's does."
-				>
-					<Toggle
-						on={prefs.outlineThrough}
-						onChange={(on) => onPrefs({ outlineThrough: on })}
-						label={prefs.outlineThrough ? "Shown through parts" : "Hidden by parts in front"}
-					/>
-				</Row>
-				<Row
-					label="Alt-click"
-					help="What Alt and a click on a part picks, and a long press: the part, as in Studio, or one Model further in each time. Shift and a click always picks the part."
-				>
-					<Toggle
-						on={prefs.altClickSteps}
-						onChange={(on) => onPrefs({ altClickSteps: on })}
-						label={prefs.altClickSteps ? "Steps in a Model at a time" : "Picks the part"}
-					/>
-				</Row>
-			</Group>
-
-			<Group title="Transparency">
-				<Row
-					label="Glass"
-					help="Whether see-through Glass hides the see-through parts behind it, as Studio's does. Places are often built around it."
-				>
-					<Toggle
-						on={prefs.glassHides}
-						onChange={(on) => onPrefs({ glassHides: on })}
-						label={prefs.glassHides ? "Hides see-through parts behind it" : "Shows them through it"}
-					/>
-				</Row>
-			</Group>
-
-			<Group title="Post effects">
-				<Row
-					label="Post effects"
-					help="The place's own ColorCorrection and Blur, under Lighting or its Camera. Off shows the place as it is underneath."
-				>
-					<Toggle
-						on={prefs.postEffects}
-						onChange={(on) => onPrefs({ postEffects: on })}
-						label={prefs.postEffects ? "Drawn" : "Not drawn"}
-					/>
-				</Row>
-			</Group>
-		</Page>
-	);
-}
-
 // ---------------------------------------------------------------------------
 // Docs
 // ---------------------------------------------------------------------------
-
-/**
- * Parts of Roswaal that can be turned off, listed as Studio lists its Beta
- * Features: what each is called, a line or two on what it does, and a
- * checkbox. One that is off is not loaded at all.
- */
-const FEATURES = [
-	{
-		key: "placeViewer",
-		title: "Place viewer",
-		description:
-			"Draws your place in 3D, in a tab of its own. Off, it is not loaded, which saves memory in the browser.",
-	},
-] as const satisfies readonly { key: keyof Preferences; title: string; description: string }[];
 
 /**
  * Roblox Studio betas the generated Luau can use, each off until asked for.
@@ -1039,233 +969,17 @@ const STUDIO_BETAS = [
 		key: "conditionalBindings",
 		title: "If local and while local",
 		description:
-			"Bind writes if local, elseif local and while local, which need Studio's If Local/Const Bindings beta. Off, it writes plain Luau. Saved in roswaal.json.",
+			"Bind writes if local, elseif local and while local, which need Studio's If Local/Const Bindings beta. Off, it writes plain Luau.",
+		on: "Writes if local",
+		off: "Writes plain Luau",
 	},
-] as const satisfies readonly { key: keyof RoswaalConfig; title: string; description: string }[];
-
-function FeatureSettings({ prefs, onPrefs, config, onConfig }: SettingsPanelProps) {
-	return (
-		<Page
-			id="features"
-			note="Parts of Roswaal you can turn on or off. Features are kept in this browser; Studio betas in the project."
-		>
-			{config && onConfig && (
-				<Group title="Studio betas">
-					{STUDIO_BETAS.map((beta) => (
-						<FeatureRow
-							key={beta.key}
-							title={beta.title}
-							description={beta.description}
-							on={config[beta.key] === true}
-							onChange={(on) => onConfig({ [beta.key]: on })}
-						/>
-					))}
-				</Group>
-			)}
-			<Group title="Features">
-				{FEATURES.map((feature) => (
-					<FeatureRow
-						key={feature.key}
-						title={feature.title}
-						description={feature.description}
-						on={prefs[feature.key] === true}
-						onChange={(on) => onPrefs({ [feature.key]: on })}
-					/>
-				))}
-			</Group>
-			<RobloxSignInGroup />
-		</Page>
-	);
-}
-
-/**
- * Sign in with Roblox, where the host offers it: the daemon does, the website
- * does not. Before Roblox's own page, what is asked for, where it is kept, how
- * to remove it, and a word for anyone under 18 -- the screen the sign-in
- * research asked for. The sign-in itself is the daemon's; this never sees a
- * token.
- */
-function RobloxSignInGroup() {
-	const status = useRobloxStatus();
-	const [explaining, setExplaining] = useState(false);
-	const [busy, setBusy] = useState(false);
-	const [error, setError] = useState<string | null>(null);
-	if (!status.available) return null;
-
-	const run = async (action: () => Promise<void>) => {
-		setBusy(true);
-		setError(null);
-		try {
-			await action();
-		} catch (err) {
-			setError(err instanceof Error ? err.message : String(err));
-		} finally {
-			setBusy(false);
-		}
-	};
-
-	return (
-		<Group title="Sign in with Roblox">
-			{status.signedIn ? (
-				<>
-					<Row
-						label={`Signed in as Roblox user ${status.userId ?? ""}`}
-						help="Signing out ends the sign-in on Roblox and deletes what it downloaded."
-					>
-						<button
-							type="button"
-							className="tb"
-							disabled={busy}
-							onClick={() => void run(signOutOfRoblox)}
-						>
-							Sign out
-						</button>
-					</Row>
-					<DownloadedAssetsRow />
-				</>
-			) : explaining ? (
-				<div className="setting roblox-consent">
-					<div className="setting-label">
-						<strong>Before you continue to Roblox</strong>
-						<ul className="dialog-points">
-							<li>
-								Roblox asks you to let Roswaal download assets, read who made an asset, and know
-								your Roblox user ID. Nothing else: not your name, avatar or friends.
-							</li>
-							<li>
-								The sign-in stays on this computer, readable only by your account, and encrypted on
-								Windows. It never goes into a project, this tab or a log.
-							</li>
-							<li>
-								Meshes and images Roswaal downloads stay in the project's <code>.roswaal</code>{" "}
-								folder, out of Git, and are never shared.
-							</li>
-							<li>
-								Sign out here at any time. It ends the sign-in on Roblox and deletes what was
-								downloaded.
-							</li>
-							<li>
-								<strong>Under 18?</strong> Ask a parent or guardian before you sign in.
-							</li>
-						</ul>
-						<span>
-							More in the{" "}
-							<a href={pageHref("docs", "privacy")} target="_blank" rel="noopener">
-								Privacy Policy
-							</a>
-							.
-						</span>
-						<div className="roblox-consent-actions">
-							<button type="button" className="tb" onClick={() => setExplaining(false)}>
-								Cancel
-							</button>
-							<button
-								type="button"
-								className="tb primary"
-								disabled={busy}
-								onClick={() =>
-									void run(async () => {
-										await startRobloxSignIn();
-										setExplaining(false);
-									})
-								}
-							>
-								Continue to Roblox
-							</button>
-						</div>
-					</div>
-				</div>
-			) : (
-				<Row
-					label={status.signingIn ? "Waiting for Roblox" : "Not signed in"}
-					help={
-						status.signingIn
-							? "Finish signing in on Roblox's page, in the tab that opened."
-							: "Optional. Draws the meshes and images your places use from the Creator Marketplace. Everything else works without it."
-					}
-				>
-					<button type="button" className="tb" onClick={() => setExplaining(true)}>
-						{status.signingIn ? "Start again" : "Sign in…"}
-					</button>
-				</Row>
-			)}
-			{(error ?? status.failed) && <p className="settings-note">{error ?? status.failed}</p>}
-		</Group>
-	);
-}
-
-/**
- * What the open project holds from Sign in with Roblox, and a way to delete it.
- * Unused assets go by themselves after 30 days.
- */
-function DownloadedAssetsRow() {
-	const [held, setHeld] = useState<{ count: number; bytes: number } | null>(null);
-	const [busy, setBusy] = useState(false);
-	const load = useCallback(() => {
-		api.robloxAssets().then(
-			(answer) => setHeld(answer.available ? answer : null),
-			() => setHeld(null),
-		);
-	}, []);
-	useEffect(load, [load]);
-	if (!held) return null;
-	const size =
-		held.bytes < 1024 * 1024
-			? `${Math.ceil(held.bytes / 1024)} KB`
-			: `${(held.bytes / 1024 / 1024).toFixed(1)} MB`;
-	return (
-		<Row
-			label="Downloaded assets"
-			help={
-				held.count === 0
-					? "None in this project. Any not used for 30 days are deleted by themselves."
-					: `${held.count} in this project, ${size}, out of Git. Any not used for 30 days are deleted by themselves.`
-			}
-		>
-			<button
-				type="button"
-				className="tb"
-				disabled={busy || held.count === 0}
-				onClick={() => {
-					setBusy(true);
-					api
-						.robloxClearAssets()
-						.then(load, load)
-						.finally(() => setBusy(false));
-				}}
-			>
-				Clear
-			</button>
-		</Row>
-	);
-}
-
-/** One Extended Feature: its name and what it does, with its checkbox at the right. */
-function FeatureRow({
-	title,
-	description,
-	on,
-	onChange,
-}: {
+] as const satisfies readonly {
+	key: keyof RoswaalConfig;
 	title: string;
 	description: string;
-	on: boolean;
-	onChange: (on: boolean) => void;
-}) {
-	const { query, page } = useContext(Search);
-	if (query && !page && !matches(query, title, description)) return null;
-	return (
-		<label className="setting setting-feature">
-			<span className="setting-label">
-				<strong>{title}</strong>
-				<span>{description}</span>
-			</span>
-			<span className="setting-control">
-				<input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} />
-			</span>
-		</label>
-	);
-}
+	on: string;
+	off: string;
+}[];
 
 function DocsSettings({ prefs, onPrefs }: SettingsPanelProps) {
 	const percent = Math.round(prefs.docsPreviewScale * 100);
@@ -1664,28 +1378,6 @@ function Made() {
 // Pieces
 // ---------------------------------------------------------------------------
 
-function Row({
-	label,
-	help,
-	children,
-}: {
-	label: string;
-	help: string;
-	children: React.ReactNode;
-}) {
-	const { query, page } = useContext(Search);
-	if (query && !page && !matches(query, label, help)) return null;
-	return (
-		<div className="setting">
-			<div className="setting-label">
-				<strong>{label}</strong>
-				<span>{help}</span>
-			</div>
-			<div className="setting-control">{children}</div>
-		</div>
-	);
-}
-
 /**
  * A text setting that commits on blur or Enter, not per keystroke.
  *
@@ -1733,23 +1425,6 @@ function TextSetting({
 				}
 			}}
 		/>
-	);
-}
-
-function Toggle({
-	on,
-	label,
-	onChange,
-}: {
-	on: boolean;
-	label: string;
-	onChange: (on: boolean) => void;
-}) {
-	return (
-		<label className="settings-toggle">
-			<input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} />
-			<span>{label}</span>
-		</label>
 	);
 }
 
@@ -1807,5 +1482,215 @@ function PathList({ paths, onChange }: { paths: string[]; onChange: (paths: stri
 				</button>
 			</div>
 		</div>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Extensions
+// ---------------------------------------------------------------------------
+
+/** An extension in the list: its own page, then, while it is on, the pages it adds. */
+function ExtensionLinks({
+	manifest,
+	current,
+	go,
+}: {
+	manifest: ExtensionManifest;
+	/** The page shown, or null while searching. */
+	current: TabId | null;
+	go: (id: TabId) => void;
+}) {
+	const extension = useExtension(manifest);
+	const own: TabId = `ext:${manifest.id}`;
+	const link = (id: TabId, title: string, sub: boolean, off?: boolean) => (
+		<button
+			key={id}
+			className={cx("settings-link", sub && "sub", current === id && "on")}
+			aria-current={current === id ? "page" : undefined}
+			onClick={() => go(id)}
+		>
+			{title}
+			{off && <span className="ext-state">Off</span>}
+		</button>
+	);
+	return (
+		<>
+			{link(own, manifest.name, false, !extension.on)}
+			{extension.on && manifest.pages.map((page) => link(`${own}:${page.id}`, page.title, true))}
+		</>
+	);
+}
+
+/**
+ * An extension's own page: what it is, its version, its switch, what it adds
+ * and its release notes. Listed whether it is on or off, so it can be turned
+ * back on.
+ */
+function ExtensionOwnPage({ manifest }: { manifest: ExtensionManifest }) {
+	const extension = useExtension(manifest);
+	return (
+		<Page
+			id={`ext:${manifest.id}`}
+			title={
+				<>
+					{manifest.name}
+					<span className="ext-badge">{manifest.version}</span>
+					<span className={cx("ext-badge", manifest.maturity)}>
+						{manifest.maturity === "preview" ? "Preview" : "Stable"}
+					</span>
+				</>
+			}
+			note={`${manifest.description} An extension: kept in this browser.`}
+		>
+			<Group title="Extension">
+				<Row label={manifest.name} help={manifest.offNote}>
+					<Toggle
+						on={extension.on}
+						label={extension.on ? "On" : "Off"}
+						onChange={extension.setOn}
+					/>
+				</Row>
+			</Group>
+			<Group title="What it adds">
+				{manifest.adds.map((addition) => (
+					<Row key={addition.title} label={addition.title} help={addition.what}>
+						<span className="settings-aside">{addition.kind}</span>
+					</Row>
+				))}
+			</Group>
+			<Group title="Release notes">
+				{manifest.releases.map((release) => (
+					<Row key={release.version} label={release.version} help={release.text}>
+						<span className="settings-aside">
+							Roswaal {release.roswaal} · {release.date}
+						</span>
+					</Row>
+				))}
+			</Group>
+		</Page>
+	);
+}
+
+/**
+ * A page an extension adds: its declared settings, drawn here, or its own
+ * controls, loaded when the page is. Shows the extension's own page instead
+ * while it is off.
+ */
+function ExtensionSubPage({
+	manifest,
+	page,
+}: {
+	manifest: ExtensionManifest;
+	page: ExtensionPage;
+}) {
+	const extension = useExtension(manifest);
+	const Own = useMemo(() => (page.component ? lazy(page.component) : null), [page]);
+	if (!extension.on) return <ExtensionOwnPage manifest={manifest} />;
+	return (
+		<Page id={`ext:${manifest.id}:${page.id}`} title={page.title} note={page.note}>
+			{page.groups?.map((group) => (
+				<Group key={group.title} title={group.title}>
+					{group.settings.map((decl) => (
+						<DeclaredSetting
+							key={decl.key}
+							decl={decl}
+							value={extension.values[decl.key]}
+							onChange={(value) => extension.set(decl.key, value)}
+							onReset={() => extension.reset(decl.key)}
+						/>
+					))}
+				</Group>
+			))}
+			{Own && (
+				<Suspense fallback={null}>
+					<Own />
+				</Suspense>
+			)}
+		</Page>
+	);
+}
+
+/** An extension's pages while searching, each matched by its own title. */
+function ExtensionResults({ manifest, query }: { manifest: ExtensionManifest; query: string }) {
+	const extension = useExtension(manifest);
+	return (
+		<>
+			<Search.Provider value={{ query, page: matches(query, manifest.name) }}>
+				<ExtensionOwnPage manifest={manifest} />
+			</Search.Provider>
+			{extension.on &&
+				manifest.pages.map((page) => (
+					<Search.Provider key={page.id} value={{ query, page: matches(query, page.title) }}>
+						<ExtensionSubPage manifest={manifest} page={page} />
+					</Search.Provider>
+				))}
+		</>
+	);
+}
+
+/**
+ * A setting an extension declared: a switch for a boolean; for a choice,
+ * buttons side by side when there are four or fewer, a dropdown when more. One
+ * not at its default is marked, with a way back.
+ */
+function DeclaredSetting({
+	decl,
+	value,
+	onChange,
+	onReset,
+}: {
+	decl: SettingDecl;
+	value: SettingValue;
+	onChange: (value: SettingValue) => void;
+	onReset: () => void;
+}) {
+	const resetTo =
+		decl.type === "boolean"
+			? decl.default
+				? decl.on
+				: decl.off
+			: (decl.choices.find((choice) => choice.value === decl.default)?.label ?? decl.default);
+	return (
+		<Row
+			label={decl.title}
+			help={decl.help}
+			changed={isChanged(decl, value)}
+			onReset={onReset}
+			resetTitle={`Reset to ${resetTo}`}
+		>
+			{decl.type === "boolean" ? (
+				<Toggle
+					on={value === true}
+					label={value === true ? decl.on : decl.off}
+					onChange={onChange}
+				/>
+			) : decl.choices.length <= 4 ? (
+				<div className="segmented">
+					{decl.choices.map((choice) => (
+						<button
+							key={choice.value}
+							type="button"
+							className={value === choice.value ? "on" : ""}
+							onClick={() => onChange(choice.value)}
+						>
+							{choice.label}
+						</button>
+					))}
+				</div>
+			) : (
+				<select
+					className="tb"
+					value={String(value)}
+					aria-label={decl.title}
+					onChange={(e) => onChange(e.target.value)}
+				>
+					{decl.choices.map((choice) => (
+						<option key={choice.value} value={choice.value}>
+							{choice.label}
+						</option>
+					))}
+				</select>
+			)}
+		</Row>
 	);
 }

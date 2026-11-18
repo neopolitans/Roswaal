@@ -49,7 +49,7 @@ export function settingsPage(): DocPage {
 					[
 						"**Compiling**",
 						"`roswaal.json`",
-						"Where graphs and Luau live, how a graph compiles, and indentation",
+						"Where graphs and Luau live, how a graph compiles, indentation, and Studio betas the Luau can use",
 					],
 					["**Node packs**", "`roswaal.json`", "The directories scanned for node packs"],
 					["**Canvas**", "This browser", "The grid, wires, node corners, and what scrolling does"],
@@ -63,17 +63,22 @@ export function settingsPage(): DocPage {
 						"This browser",
 						"Writing a graph, the Variables panel, function tabs, the action row, and what opens first",
 					],
-					[
-						"**Scene view**",
-						"This browser",
-						"How a place is drawn in 3D: the renderer, the selection outline, Alt-click, Glass and post effects",
-					],
 					["**Themes**", "This browser", "The colour scheme"],
 					["**Docs**", "This browser", "The docs' font and the size of their pictures"],
 					[
-						"**Extended Features**",
-						"This browser, and `roswaal.json` for Studio betas",
-						"Parts of Roswaal you can turn on or off, each with a checkbox: the place viewer, and Studio betas the Luau can use. Through `roswaal serve`, Sign in with Roblox too",
+						"**Place Viewer**",
+						"This browser",
+						"An extension: its version, its switch, what it adds and its release notes. Its pages are listed under it while it is on",
+					],
+					[
+						"**Scene view**",
+						"This browser",
+						"Under Place Viewer. How a place is drawn in 3D: the renderer, the selection outline, Alt-click, Glass and post effects",
+					],
+					[
+						"**Roblox account**",
+						"This computer",
+						"Under Place Viewer. Sign in with Roblox and what it downloaded, through `roswaal serve`",
 					],
 				],
 			},
@@ -140,7 +145,7 @@ export function settingsPage(): DocPage {
 					[
 						"`conditionalBindings`",
 						"`false`",
-						"**Settings › Extended Features**, under Studio betas. On, a Branch or While Loop with Bind on writes `if local`, `elseif local` and `while local`. They need Studio's If Local/Const Bindings beta. Off, Bind writes plain Luau that runs everywhere: the value in a local, then the test.",
+						"**Settings › Compiling**, under Studio betas. On, a Branch or While Loop with Bind on writes `if local`, `elseif local` and `while local`. They need Studio's If Local/Const Bindings beta. Off, Bind writes plain Luau that runs everywhere: the value in a local, then the test.",
 					],
 					[
 						"`indentStyle`",

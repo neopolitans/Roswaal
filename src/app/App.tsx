@@ -31,7 +31,13 @@ import { BUILTIN_NODES, createRegistry } from "../core/nodes/index.js";
 import type { PlaceInstanceInfo } from "../core/rbx/browse.js";
 import { indentUnit, type NodeDef, type RoswaalConfig } from "../core/schema.js";
 import { unformattedGroups, unformattedMessage, unformattedWhat } from "../core/unformatted.js";
-import { PLACE_VIEWER, type PlaceViewerModule } from "../extensions/index.js";
+import {
+	EXTENSIONS,
+	OUTLINE_WIDTHS,
+	PLACE_VIEWER,
+	type PlaceViewerModule,
+	type PlaceViewerSettings,
+} from "../extensions/index.js";
 import { AliasDocument } from "./AliasDocument.jsx";
 import { analyseProject, graphLabel, mergeOutcomes } from "./analysis.js";
 import {
@@ -65,6 +71,7 @@ import {
 	setConfig as setNodeConfig,
 	updateComment,
 } from "./edits.js";
+import { useExtension } from "./extensionSettings.js";
 import { FloatingTools, ToolGroup } from "./FloatingTools.jsx";
 import { chooseFolder } from "./folderDialog.js";
 import { GraphSettings } from "./GraphSettings.jsx";
@@ -120,13 +127,12 @@ import {
 } from "./placeHistory.js";
 import { readOutline, rememberOutline } from "./placeOutline.js";
 import { placeSaveState, saveKey, usePlaceSave } from "./placeSave.js";
-import { OUTLINE_WIDTHS, readPreferences, wheelAction } from "./preferences.js";
+import { readPreferences, wheelAction } from "./preferences.js";
 import { SiteBanner } from "./previewBuild.jsx";
 import { setProjectAliases } from "./projectAliases.js";
 import { setProjectFunctions, setProjectTypes } from "./projectTypes.js";
 import { RefactorPanel } from "./RefactorPanel.jsx";
 import { forget, lastProject, remember } from "./recents.js";
-import { setRobloxStatus } from "./robloxAccount.js";
 import { previewSelection } from "./SelectionPreview.jsx";
 import { SourceView } from "./SourceView.jsx";
 import { StatusPanel } from "./StatusPanel.jsx";
@@ -384,11 +390,13 @@ export function App() {
 	 * picked rows. Another project's place is a new view.
 	 */
 	//
-	// An Extended Feature: loaded the first time a place's tab opens with it
+	// An extension: loaded the first time a place's tab opens with it
 	// on, and never while it is off, so a browser that does not want it pays
 	// for none of it.
+	const placeViewer = useExtension(PLACE_VIEWER);
+	const sceneView = placeViewer.values as unknown as PlaceViewerSettings;
 	const [viewer, setViewer] = useState<PlaceViewerModule | null>(null);
-	const wantsViewer = prefs.placeViewer && placeDoc !== null;
+	const wantsViewer = placeViewer.on && placeDoc !== null;
 	useEffect(() => {
 		if (!wantsViewer || viewer) return;
 		let live = true;
@@ -402,7 +410,7 @@ export function App() {
 	// biome-ignore lint/correctness/useExhaustiveDependencies: a new project is a new view.
 	const viewport = useMemo(
 		() =>
-			viewer && prefs.placeViewer
+			viewer && placeViewer.on
 				? new viewer.ViewportController((indices) =>
 						setPlaceReveal((prev) => ({
 							index: indices.at(-1) ?? -1,
@@ -412,7 +420,7 @@ export function App() {
 						})),
 					)
 				: null,
-		[viewer, prefs.placeViewer, project?.root],
+		[viewer, placeViewer.on, project?.root],
 	);
 	const onPlaceSelect = useCallback(
 		(indices: readonly number[]) => viewport?.select(indices),
@@ -422,28 +430,28 @@ export function App() {
 	useEffect(
 		() =>
 			viewport?.setOptions({
-				renderer: prefs.viewportRenderer,
-				outlineWidth: OUTLINE_WIDTHS[prefs.outlineWidth],
-				hideBehind: !prefs.outlineThrough,
-				glassHides: prefs.glassHides,
-				postEffects: prefs.postEffects,
+				renderer: sceneView.renderer,
+				outlineWidth: OUTLINE_WIDTHS[sceneView.outlineWidth],
+				hideBehind: !sceneView.outlineThrough,
+				glassHides: sceneView.glassHides,
+				postEffects: sceneView.postEffects,
 				editable: prefs.modifyDataModel,
 				frameRate:
-					prefs.viewportFrameRate === "vsync" || prefs.viewportFrameRate === "unlimited"
-						? prefs.viewportFrameRate
-						: Number(prefs.viewportFrameRate),
-				altClickSteps: prefs.altClickSteps,
+					sceneView.frameRate === "vsync" || sceneView.frameRate === "unlimited"
+						? sceneView.frameRate
+						: Number(sceneView.frameRate),
+				altClickSteps: sceneView.altClickSteps,
 			}),
 		[
 			viewport,
-			prefs.viewportRenderer,
-			prefs.outlineWidth,
-			prefs.outlineThrough,
-			prefs.glassHides,
-			prefs.postEffects,
+			sceneView.renderer,
+			sceneView.outlineWidth,
+			sceneView.outlineThrough,
+			sceneView.glassHides,
+			sceneView.postEffects,
 			prefs.modifyDataModel,
-			prefs.viewportFrameRate,
-			prefs.altClickSteps,
+			sceneView.frameRate,
+			sceneView.altClickSteps,
 		],
 	);
 	// The folder from a previous session, when one is waiting on a click.
@@ -1365,10 +1373,15 @@ export function App() {
 			});
 		});
 
-		// Sign in with Roblox started, finished, or ended: who, never a token.
-		stream.addEventListener("roblox", (event) => {
-			setRobloxStatus(JSON.parse((event as MessageEvent).data));
-		});
+		// The extensions' own events: Sign in with Roblox started, finished or
+		// ended, for one, which says who and never a token.
+		for (const extension of EXTENSIONS) {
+			for (const [name, handle] of Object.entries(extension.events ?? {})) {
+				stream.addEventListener(name, (event) => {
+					handle(JSON.parse((event as MessageEvent).data));
+				});
+			}
+		}
 
 		stream.addEventListener("project", (event) => {
 			const { root } = JSON.parse((event as MessageEvent).data) as { root: string | null };
@@ -2455,10 +2468,10 @@ export function App() {
 							<viewer.PlaceSummary
 								controller={viewport}
 								file={project.place}
-								renderer={prefs.viewportRenderer}
-								onRenderer={(viewportRenderer) => updatePrefs({ viewportRenderer })}
-								frameRate={prefs.viewportFrameRate}
-								onFrameRate={(viewportFrameRate) => updatePrefs({ viewportFrameRate })}
+								renderer={sceneView.renderer}
+								onRenderer={(renderer) => placeViewer.set("renderer", renderer)}
+								frameRate={sceneView.frameRate}
+								onFrameRate={(frameRate) => placeViewer.set("frameRate", frameRate)}
 							/>
 						) : undefined,
 					),
@@ -2593,8 +2606,8 @@ export function App() {
 									/>
 								) : (
 									<PlaceViewerOff
-										loading={prefs.placeViewer}
-										onTurnOn={() => updatePrefs({ placeViewer: true })}
+										loading={placeViewer.on}
+										onTurnOn={() => placeViewer.setOn(true)}
 									/>
 								)
 							) : aliasDoc ? (

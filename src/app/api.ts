@@ -364,16 +364,6 @@ export async function apiRequest<T>(url: string, init?: RequestInit): Promise<T>
 const post = <T>(url: string, body: unknown) =>
 	request<T>(url, { method: "POST", body: JSON.stringify(body) });
 
-/** Sign in with Roblox as the daemon tells it. See `src/extensions/placeViewer/server/roblox/signin.ts`. */
-export interface RobloxStatus {
-	/** Whether this copy of Roswaal offers it: the daemon does, the website does not. */
-	available: boolean;
-	signedIn?: boolean;
-	userId?: string;
-	signingIn?: boolean;
-	failed?: string;
-}
-
 const request = apiRequest;
 
 export const api = {
@@ -438,32 +428,6 @@ export const api = {
 		}),
 
 	tree: () => request<{ tree: TreeEntry[]; place: string | null }>("/api/tree"),
-	/** Sign in with Roblox: whether it is offered here, and who is signed in. Never a token. */
-	robloxStatus: () => request<RobloxStatus>("/api/roblox"),
-	/** Starts a sign-in; the address is Roblox's own sign-in page. */
-	robloxSignIn: () => post<{ url: string }>("/api/roblox/signin", {}),
-	/** Revokes the sign-in and deletes it and what it downloaded. */
-	robloxSignOut: () => post<{ ok: boolean }>("/api/roblox/signout", {}),
-	/** How many assets the open project holds from Sign in with Roblox, and their size. */
-	robloxAssets: () =>
-		request<{ available: boolean; count: number; bytes: number }>("/api/roblox/assets"),
-	/** Makes sure the open project has these assets: downloaded, or skipped as Roblox's own. */
-	robloxFetchAssets: (ids: string[]) =>
-		post<{
-			assets: Record<
-				string,
-				| { state: "ready"; assetTypeId?: number }
-				| { state: "skipped"; reason: string }
-				| { state: "failed"; reason: string }
-			>;
-		}>("/api/roblox/assets", { ids }),
-	/** Deletes the open project's downloaded assets. */
-	robloxClearAssets: () => post<{ ok: boolean }>("/api/roblox/assets/clear", {}),
-	/** One downloaded asset's bytes, base64, for the place viewer: never fetched from Roblox here. */
-	robloxAsset: (id: string) =>
-		request<{ available: boolean; found: boolean; assetTypeId?: number; data?: string }>(
-			`/api/roblox/asset?id=${encodeURIComponent(id)}`,
-		),
 	/** What each `local X = require(…)` in a Luau file holds, followed to the module. */
 	luauModules: (path: string, text?: string) =>
 		post<{ modules: RequiredModule[]; self: string[] | null }>("/api/luau/modules", {

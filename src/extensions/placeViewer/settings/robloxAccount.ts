@@ -1,12 +1,13 @@
 /**
  * Sign in with Roblox as the editor knows it: asked of the daemon once, and
- * kept current by its `roblox` event (`App.tsx` passes that on here). Never a
+ * kept current by its `roblox` event, which the Place Viewer's manifest
+ * passes on here. Never a
  * token: the daemon holds those and the editor never sees one.
  */
 
 import { useSyncExternalStore } from "react";
 
-import { api, type RobloxStatus } from "./api.js";
+import { type RobloxStatus, robloxApi } from "../app/robloxApi.js";
 
 let status: RobloxStatus = { available: false };
 let asked = false;
@@ -25,7 +26,7 @@ export function setRobloxStatus(next: Omit<RobloxStatus, "available">): void {
 /** Asks the daemon again. */
 export async function refreshRobloxStatus(): Promise<void> {
 	try {
-		set(await api.robloxStatus());
+		set(await robloxApi.status());
 	} catch {
 		set({ available: false });
 	}
@@ -55,7 +56,7 @@ export function useRobloxStatus(): RobloxStatus {
 export async function startRobloxSignIn(): Promise<void> {
 	const tab = window.open("about:blank", "_blank");
 	try {
-		const { url } = await api.robloxSignIn();
+		const { url } = await robloxApi.signIn();
 		if (tab) {
 			tab.opener = null;
 			tab.location.href = url;
@@ -69,6 +70,6 @@ export async function startRobloxSignIn(): Promise<void> {
 }
 
 export async function signOutOfRoblox(): Promise<void> {
-	await api.robloxSignOut();
+	await robloxApi.signOut();
 	await refreshRobloxStatus();
 }
