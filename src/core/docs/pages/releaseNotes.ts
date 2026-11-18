@@ -8,6 +8,7 @@
  * versions dropdown reaches the rest. `buildSite` places them.
  */
 
+import { isCanary, minorOf, parseVersion, releaseOf } from "../../version.js";
 import { RELEASES, type Release } from "../releases.js";
 import { releaseTags } from "../releaseTags.js";
 import {
@@ -34,11 +35,6 @@ export const RECENT_MINORS = 5;
  * have to step over two years of a private project to find it.
  */
 const PUBLIC_FROM: [number, number] = [0, 59];
-
-/** `0.144`, the minor version a release belongs to. */
-export function minorOf(version: string): string {
-	return version.split(".").slice(0, 2).join(".");
-}
 
 function isPrePublic(minor: string): boolean {
 	const [major, second] = minor.split(".").map((part) => Number.parseInt(part, 10));
@@ -74,6 +70,10 @@ function tagsOf(releases: readonly Release[]): ReleaseTag[] {
 /**
  * A minor version's releases as one view, every line carrying the release it
  * shipped in. `releases` newest first.
+ *
+ * A canary build whose stable release is out reads as that release: its lines
+ * carry the stable version, and it is listed under that release rather than
+ * beside it. One still on its way to a release is listed as itself.
  */
 export function minorView(
 	minor: string,
@@ -81,10 +81,24 @@ export function minorView(
 	titles: ReadonlyMap<string, string>,
 	latest = false,
 ): MinorView {
+	const stable = new Set(releases.filter((r) => !isCanary(r.version)).map((r) => r.version));
+	const shippedIn = (version: string) =>
+		isCanary(version) && stable.has(releaseOf(version)) ? releaseOf(version) : version;
 	const shipped = (pick: (r: Release) => readonly string[] | undefined): Shipped[] =>
-		releases.flatMap((r) => (pick(r) ?? []).map((text) => ({ version: r.version, text })));
+		releases.flatMap((r) => {
+			const version = shippedIn(r.version);
+			const build = version === r.version ? {} : { build: r.version };
+			return (pick(r) ?? []).map((text) => ({ version, ...build, text }));
+		});
 	const link = (slug: string) => `[${titles.get(slug) ?? slug}](${slug})`;
-	const first = releases.find((r) => r.version.endsWith(".0")) ?? releases[releases.length - 1];
+	const first =
+		releases.find((r) => {
+			const v = parseVersion(r.version);
+			return v?.patch === 0 && v.canary === undefined;
+		}) ?? releases[releases.length - 1];
+	const listed = releases.filter((r) => shippedIn(r.version) === r.version);
+	const buildsOf = (r: Release) =>
+		releases.filter((b) => b !== r && isCanary(b.version) && shippedIn(b.version) === r.version);
 	const sections = (
 		[
 			["added", "Added", shipped((r) => r.added)],
@@ -111,13 +125,25 @@ export function minorView(
 		tags: tagsOf(releases),
 		from: releases[releases.length - 1].date,
 		to: releases[0].date,
-		releases: releases.map((r, i) => ({
-			version: r.version,
-			date: r.date,
-			headline: r.headline,
-			tags: releaseTags(r),
-			...(latest && i === 0 ? { latest: true } : {}),
-		})),
+		releases: listed.map((r, i) => {
+			const builds = buildsOf(r);
+			return {
+				version: r.version,
+				date: r.date,
+				headline: r.headline,
+				tags: tagsOf([r, ...builds]),
+				...(latest && i === 0 ? { latest: true } : {}),
+				...(builds.length > 0
+					? {
+							builds: builds.map((b) => ({
+								version: b.version,
+								date: b.date,
+								headline: b.headline,
+							})),
+						}
+					: {}),
+			};
+		}),
 		watch: shipped((r) => r.watch),
 		sections,
 		articles,

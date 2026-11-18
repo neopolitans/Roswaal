@@ -55,6 +55,9 @@ jobs:
             echo "::error::The tag is $TAG, and its version.json says $version."
             exit 1
           fi
+          case "$version" in
+            *-*) echo "::error::$version is a canary build, which is never released."; exit 1 ;;
+          esac
 
       - run: npm ci
 

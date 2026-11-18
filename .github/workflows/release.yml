@@ -83,6 +83,10 @@ jobs:
             echo "::error::The tag is $TAG, and version.json says $version. Run this from the commit that release is of."
             exit 1
           fi
+          # Releases are stable versions; a canary build is a preview of one.
+          case "$version" in
+            *-*) echo "::error::$version is a canary build. Release the stable version it leads to."; exit 1 ;;
+          esac
 
       - name: A release to attach to
         env:

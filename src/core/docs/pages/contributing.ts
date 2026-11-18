@@ -46,6 +46,7 @@ export function contributingPage(): DocPage {
 				items: [
 					"**Tests**, in `tests/`, run with `npm test`.",
 					"**A release-notes entry** at the top of the newest file in `src/core/docs/releases/`, saying what changed, and the version bumped in `version.json` and `package.json`. A test fails when the notes and the version disagree.",
+					"**The next canary build's number.** A change is numbered as a canary build of the release it leads to: after 1.2.0, 1.2.1-canary.1 when it fixes something, 1.3.0-canary.1 when it adds something, and 2.0.0-canary.1 when it breaks something that worked. Stable releases take the plain number.",
 					"**The reasoning**, where a later reader will find it: a comment on the code it explains, and the pull request. The maintainer's working notes, the architecture map and the wording rules are kept out of the repository until they have been read through for publication.",
 					"**Words that name the result.** A label, a heading or a message says what happened, not which rule produced it.",
 					"**Code that follows the style guide**, [STYLE.md](https://github.com/neopolitans/Roswaal/blob/main/STYLE.md) in the repository root. `npm run format` fixes what a tool can; the rest is for review.",

@@ -20,6 +20,7 @@
  * who opened a changelog to find out what is different.
  */
 
+import { RELEASES_1_0 } from "./releases/1.0.js";
 import { RELEASES_0_0 } from "./releases/minor0.js";
 import { RELEASES_0_10 } from "./releases/minor10.js";
 import { RELEASES_0_20 } from "./releases/minor20.js";
@@ -119,11 +120,14 @@ export function taglineFor(version: string): string | undefined {
  * Newest first: each file is newest first, and the files are in order of
  * their minor versions, newest first.
  *
- * A new release goes at the top of the newest file. The first release of a
- * new tenth — 0.120.0 — starts `releases/minor120.ts`, spread in above the
- * rest.
+ * From 1.0, a file holds one minor version: `releases/1.0.ts` holds 1.0.0,
+ * its patches, and the canary builds leading to each (`1.0.0-canary.3`). A
+ * new release goes at the top of the newest file; the first canary build of a
+ * new minor version starts its file, spread in above the rest. The 0.x files,
+ * a tenth of the minor versions each, are kept as they were.
  */
 export const RELEASES: Release[] = [
+	...RELEASES_1_0,
 	...RELEASES_0_120,
 	...RELEASES_0_110,
 	...RELEASES_0_100,

@@ -71,14 +71,43 @@ function tagsHtml(tags: readonly ReleaseTag[]): string {
 		.join("");
 }
 
+/**
+ * A line's `data-version` is the build it came in, which is what the dots on
+ * what is new compare against; `data-release` is the release its badge names,
+ * which a link to that release lights.
+ */
 function linesHtml(lines: readonly Shipped[], pageHref: PageHref): string {
 	return lines
 		.map(
 			(line) =>
-				`<li data-version="${escapeHtml(line.version)}">${shipped(line.version)}` +
+				`<li data-version="${escapeHtml(line.build ?? line.version)}"` +
+				(line.build ? ` data-release="${escapeHtml(line.version)}"` : "") +
+				`>${shipped(line.version)}` +
 				`<span class="docs-ver-text">${inlineHtml(line.text, pageHref)}</span></li>`,
 		)
 		.join("");
+}
+
+/** The canary builds a stable release grew from, folded under it. */
+function buildsHtml(
+	builds: readonly { version: string; date: string; headline: string }[],
+	pageHref: PageHref,
+): string {
+	const items = builds
+		.map(
+			(b) =>
+				`<li id="${releaseAnchor(b.version)}" data-version="${escapeHtml(b.version)}">` +
+				shipped(b.version) +
+				`<span class="docs-ver-text">${inlineHtml(b.headline, pageHref)}</span>` +
+				NEW +
+				`<span class="aside">${escapeHtml(b.date)}</span></li>`,
+		)
+		.join("");
+	return (
+		`<details class="docs-release-builds"><summary>` +
+		`${builds.length} canary ${builds.length === 1 ? "build" : "builds"}</summary>` +
+		`<ol>${items}</ol></details>`
+	);
 }
 
 function minorHtml(m: MinorView, pageHref: PageHref, link: boolean): string {
@@ -97,7 +126,9 @@ function minorHtml(m: MinorView, pageHref: PageHref, link: boolean): string {
 					? `<span class="docs-tag tag-security" title="${escapeHtml(SECURITY_TITLE)}">${TAG_LABELS.security}</span>`
 					: "") +
 				NEW +
-				`<span class="aside">${escapeHtml(r.date)}</span></li>`,
+				`<span class="aside">${escapeHtml(r.date)}</span>` +
+				(r.builds ? buildsHtml(r.builds, pageHref) : "") +
+				`</li>`,
 		)
 		.join("");
 	const watch =

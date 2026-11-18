@@ -18,6 +18,8 @@
  *   the newest is remembered once a release notes page has been seen.
  */
 
+import { isNewer, parseVersion } from "../core/version.js";
+
 const SEEN_KEY = "roswaal.docs.releasesSeen";
 
 /** Where a link or a choice in the release notes leads: the page, and its address on the site. */
@@ -26,16 +28,13 @@ export interface ReleaseTarget {
 	href: string;
 }
 
-/** Newer, as versions compare: 0.10.0 after 0.9.3. */
+/**
+ * Newer, as versions compare: 0.10.0 after 0.9.3, 1.1.0 after 1.1.0-canary.3.
+ * False when either is not a version, since what this browser remembers may
+ * have been written by something else.
+ */
 export function newerVersion(a: string, b: string): boolean {
-	const pa = a.split(".").map(Number);
-	const pb = b.split(".").map(Number);
-	for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-		const x = pa[i] ?? 0;
-		const y = pb[i] ?? 0;
-		if (x !== y) return x > y;
-	}
-	return false;
+	return parseVersion(a) !== undefined && parseVersion(b) !== undefined && isNewer(a, b);
 }
 
 /** The newest release this browser has seen the notes for, if it has seen any. */
@@ -85,10 +84,17 @@ export function latestRelease(root: ParentNode): string | null {
  * line in the list of releases. False when this page does not have it.
  */
 export function showRelease(root: ParentNode, version: string): boolean {
-	const lines = [...root.querySelectorAll<HTMLElement>(`[data-version="${CSS.escape(version)}"]`)];
+	const quoted = CSS.escape(version);
+	const lines = [
+		...root.querySelectorAll<HTMLElement>(`[data-version="${quoted}"], [data-release="${quoted}"]`),
+	];
 	if (lines.length === 0) return false;
 	for (const line of root.querySelectorAll(".is-target")) line.classList.remove("is-target");
-	for (const line of lines) line.classList.add("is-target");
+	for (const line of lines) {
+		line.classList.add("is-target");
+		// A canary build's line is folded under its release until asked for.
+		line.closest("details")?.setAttribute("open", "");
+	}
 	lines[0].scrollIntoView({ block: "center" });
 	return true;
 }

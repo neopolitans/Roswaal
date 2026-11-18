@@ -30,6 +30,7 @@ import type { NodeMap } from "../nodemap.js";
 import { categories, type Registry, subcategories, ZUP_CONVERSIONS } from "../nodes/index.js";
 import type { Runtime } from "../nodes/runtimes.js";
 import { ENGINE_TYPES, type NodeScript } from "../schema.js";
+import { minorOf } from "../version.js";
 import type { LayoutSpec } from "./layouts.js";
 import { documentRegistry, type NodeDoc } from "./nodeReference.js";
 import { aliasesPage } from "./pages/aliases.js";
@@ -91,7 +92,13 @@ export { buildSearchIndex } from "./searchIndex.js";
 
 /** One line of a minor version's notes, and the release it shipped in. */
 export interface Shipped {
+	/** The release it shipped in, which its badge names. */
 	version: string;
+	/**
+	 * The canary build it came in, when that build has since shipped as
+	 * `version`: 1.1.0-canary.3's lines read as 1.1.0 once 1.1.0 is out.
+	 */
+	build?: string;
 	/** Inline markup. */
 	text: string;
 }
@@ -121,13 +128,19 @@ export interface MinorView {
 	/** Its oldest and newest release's dates. */
 	from: string;
 	to: string;
-	/** Its releases, newest first: each one's version, date, tags and summary. */
+	/**
+	 * Its releases, newest first: each one's version, date, tags and summary.
+	 * A stable release carries the canary builds that led to it, newest first,
+	 * and its tags are theirs too; a canary build with no stable release yet is
+	 * a release of its own.
+	 */
 	releases: {
 		version: string;
 		date: string;
 		headline: string;
 		tags: ReleaseTag[];
 		latest?: boolean;
+		builds?: { version: string; date: string; headline: string }[];
 	}[];
 	/** What to know before upgrading, from any of its releases. */
 	watch: Shipped[];
@@ -160,9 +173,9 @@ export function releaseAnchor(version: string): string {
 	return `v${version}`;
 }
 
-/** The page a release's notes are on: `release-notes/0.144` for 0.144.3. */
+/** The page a release's notes are on: `release-notes/0.144` for 0.144.3, `release-notes/1.1` for 1.1.0-canary.3. */
 export function releasePageSlug(version: string): string {
-	return `release-notes/${version.split(".").slice(0, 2).join(".")}`;
+	return `release-notes/${minorOf(version)}`;
 }
 
 /**

@@ -11437,6 +11437,35 @@ a.docs-release-version:hover {
 	font-variant-numeric: tabular-nums;
 }
 
+/* The canary builds a stable release grew from: folded under it, a line each. */
+.docs-release-builds {
+	flex-basis: 100%;
+	margin: 2px 0 0;
+	font-size: var(--text-sm);
+}
+
+.docs-release-builds > summary {
+	cursor: pointer;
+	color: var(--fg-muted);
+}
+
+.docs-page .docs-content .docs-release-builds > ol {
+	margin: 4px 0 0;
+	padding: 0 0 0 12px;
+	list-style: none;
+	border-left: 2px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.docs-page .docs-content .docs-release-builds > ol > li {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 4px 8px;
+	margin: 0;
+	padding: 4px 0;
+	scroll-margin-top: calc(var(--chrome-top, 60px) + 40px);
+}
+
 /* One release, asked for by its address: its lines lit, the rest left as
    they are. */
 .docs-release li.is-target {
