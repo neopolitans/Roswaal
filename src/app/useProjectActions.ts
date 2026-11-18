@@ -11,7 +11,7 @@ import { errorMessage } from "../core/errorMessage.js";
 import type { ImportMode } from "../core/import/modes.js";
 import { detectTarget } from "../core/import/modes.js";
 import { projectNameProblem } from "../core/newProject.js";
-import type { NodeScript, Target } from "../core/schema.js";
+import type { NodeScript, ScriptClass, Target } from "../core/schema.js";
 import {
 	api,
 	type NewProjectChoice,
@@ -955,37 +955,70 @@ export function useProjectActions(context: ProjectActionsContext) {
 	);
 
 	/**
-	 * New child script: a graph under another. A graph with no children yet
+	 * New graph from a graph's menu: inside it, as its child, which is the
+	 * default, or beside it in its folder. A graph with no children yet
 	 * becomes its folder's init.nodescript first, so it is saved before it
-	 * moves and its tab follows it. A child starts as a ModuleScript, which is
-	 * what a script most often holds.
+	 * moves and its tab follows it. A child most often is a ModuleScript, so
+	 * that is what the form starts on.
 	 */
-	const createChildOf = useCallback(
-		async (parent: string) => {
-			const parentName = (
-				parent.endsWith("/init.nodescript")
-					? parent.slice(0, -"/init.nodescript".length)
-					: parent.replace(/\.nodescript$/, "")
-			)
-				.split("/")
-				.pop();
-			const name = await ask({
-				kind: "prompt",
-				title: "New child script",
-				label: "Name",
-				hint: `A child of ${parentName}`,
-				value: "Untitled",
+	const createGraphNear = useCallback(
+		async (graph: string) => {
+			const nested = graph.endsWith("/init.nodescript");
+			const folderOf = (p: string) => p.slice(0, Math.max(0, p.lastIndexOf("/")));
+			const own = nested ? folderOf(graph) : graph.replace(/\.nodescript$/, "");
+			const name = own.split("/").pop() ?? own;
+			const besideDir = folderOf(own);
+			const answer = await ask({
+				kind: "form",
+				title: "New graph",
+				message: nested
+					? `Inside ${name} makes it one of ${name}'s children. Beside puts it in ${besideDir.split("/").pop()}.`
+					: `Inside makes ${name} a script with children, in a folder of its own. Beside puts it in ${besideDir.split("/").pop()}.`,
+				fields: [
+					{ id: "name", kind: "text", label: "Name", value: "Untitled" },
+					{
+						id: "place",
+						kind: "choice",
+						label: "Place",
+						value: "inside",
+						options: [
+							{ value: "inside", label: `Inside ${name}` },
+							{ value: "beside", label: `Beside ${name}` },
+						],
+					},
+					{
+						id: "scriptClass",
+						kind: "choice",
+						label: "Starts as",
+						value: "ModuleScript",
+						options: [
+							{ value: "ModuleScript", label: "ModuleScript" },
+							{ value: "Script", label: "Script" },
+							{ value: "LocalScript", label: "LocalScript" },
+						],
+					},
+				],
+				confirmLabel: "Create",
 				icon: "newFile",
 			});
-			if (typeof name !== "string") return;
+			if (typeof answer !== "string") return;
+			const form = JSON.parse(answer) as FormAnswers;
+			const childName = String(form.name ?? "").trim() || "Untitled";
+			const scriptClass = form.scriptClass as ScriptClass;
 			try {
-				await flushUnder(parent);
-				const created = await api.createChildScript(parent, name, "ModuleScript");
-				if (created.moved) await followMove(parent, created.parent);
+				if (form.place === "beside") {
+					const created = await api.createScript(besideDir, childName, scriptClass);
+					await refreshTree();
+					store.open(created.path, created.script);
+					return;
+				}
+				await flushUnder(graph);
+				const created = await api.createChildScript(graph, childName, scriptClass);
+				if (created.moved) await followMove(graph, created.parent);
 				await refreshTree();
 				store.open(created.path, created.script);
 			} catch (err) {
-				notify("Could not create that child script", errorMessage(err));
+				notify("Could not create that graph", errorMessage(err));
 			}
 		},
 		[ask, notify, refreshTree, flushUnder, followMove],
@@ -1335,7 +1368,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 
 	return {
 		createGraphIn,
-		createChildOf,
+		createGraphNear,
 		createMapIn,
 		importLuauFile,
 		importLuauFiles,

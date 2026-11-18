@@ -29,6 +29,9 @@ const TREE_SKIP = new Set(["node_modules", ".git", ".vscode", "dist", "build", "
 
 const WALLY_DIRS = new Set(Object.values(REALM_DIRS));
 
+/** The script a graph compiles to: a Script, a LocalScript or a ModuleScript. */
+export type ScriptRealm = "server" | "client" | "module";
+
 export interface TreeEntry {
 	/** Path relative to the project root, with forward slashes. */
 	path: string;
@@ -62,6 +65,8 @@ export interface TreeEntry {
 	role?: FolderRole;
 	/** A graph folder that is a script: its `init.nodescript`, the graph it is. */
 	script?: string;
+	/** On a graph, or a script folder: the script it compiles to, which the tree colours. */
+	realm?: ScriptRealm;
 	/** A package's installed version, from its `_Index` folder. */
 	version?: string;
 	/** The file a package opens: its module in `_Index`. */
@@ -276,9 +281,9 @@ async function walk(
 			if (!keep) continue;
 			const role = folderRole(rel, children, mapped);
 			// A graph folder that is a script: the graph it is, which the tree opens.
-			const script =
+			const init =
 				role === "script"
-					? children.find((c) => c.kind === "nodescript" && c.name === "init.nodescript")?.path
+					? children.find((c) => c.kind === "nodescript" && c.name === "init.nodescript")
 					: undefined;
 			out.push({
 				path: rel,
@@ -286,19 +291,21 @@ async function walk(
 				kind: "directory",
 				children,
 				...(role ? { role } : {}),
-				...(script ? { script } : {}),
+				...(init ? { script: init.path } : {}),
+				...(init?.realm ? { realm: init.realm } : {}),
 			});
 			continue;
 		}
 		const kind = classify(entry.name);
 		if (!kind) continue;
-		const functions = kind === "nodescript" ? await functionsIn(abs) : [];
+		const { functions, realm } = kind === "nodescript" ? await graphFacts(abs) : { functions: [] };
 		out.push({
 			path: rel,
 			name: entry.name,
 			kind,
 			...(generated.has(rel) ? { generatedFrom: generated.get(rel) } : {}),
 			...(functions.length > 0 ? { functions } : {}),
+			...(realm ? { realm } : {}),
 		});
 	}
 
@@ -314,13 +321,31 @@ async function walk(
  * A graph's functions, for the tree. A file that will not parse has none here;
  * opening it is where that gets reported.
  */
-async function functionsIn(abs: string): Promise<FunctionInfo[]> {
+/** What the tree shows of a graph: its functions, and the script it compiles to. */
+async function graphFacts(
+	abs: string,
+): Promise<{ functions: FunctionInfo[]; realm?: ScriptRealm }> {
 	try {
 		const parsed = JSON.parse(await fs.readFile(abs, "utf8")) as Partial<NodeScript>;
-		return Array.isArray(parsed.nodes) ? functionOutline({ nodes: parsed.nodes }) : [];
+		const functions = Array.isArray(parsed.nodes) ? functionOutline({ nodes: parsed.nodes }) : [];
+		const realm = realmOf(parsed);
+		return { functions, ...(realm ? { realm } : {}) };
 	} catch {
-		return [];
+		return { functions: [] };
 	}
+}
+
+/**
+ * The script a Roblox graph becomes, as the tree colours it: a Script, a
+ * LocalScript (or a Script run on the client), or a ModuleScript. A Lune graph
+ * is none of these.
+ */
+function realmOf(script: Partial<NodeScript>): ScriptRealm | undefined {
+	if (script.target === "lune") return undefined;
+	if (script.scriptClass === "ModuleScript") return "module";
+	if (script.scriptClass === "LocalScript") return "client";
+	if (script.scriptClass === "Script") return script.runContext === "Client" ? "client" : "server";
+	return undefined;
 }
 
 function classify(name: string): TreeEntry["kind"] | null {

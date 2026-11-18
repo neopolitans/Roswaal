@@ -53,19 +53,19 @@ export async function assertNoNameClash(project: OpenProject, relPath: string): 
 	const name = path.posix.basename(graph ? other : rel);
 	throw new UserError(
 		graph
-			? `A folder called ${name} is already here, so a graph called ${name} would make two instances of that name in Studio. Use New child script on a graph to give it children.`
-			: `A graph called ${name} is already here, so a folder called ${name} would make two instances of that name in Studio. Use New child script on the graph to give it children.`,
+			? `A folder called ${name} is already here, so a graph called ${name} would make two instances of that name in Studio. To give a graph children, right-click it and choose New graph.`
+			: `A graph called ${name} is already here, so a folder called ${name} would make two instances of that name in Studio. To give the graph children, right-click it and choose New graph.`,
 	);
 }
 
 /**
  * Refuses a graph named `init`, unless it already was one: that name is
- * how a script holds its children, and New child script makes it.
+ * how a script holds its children, and New graph, inside a graph, makes it.
  */
 export function assertNotInit(relPath: string, was?: string): void {
 	if (isInitGraph(relPath) && !(was && isInitGraph(was)))
 		throw new UserError(
-			"init is the name a script with children has in its folder. Use New child script on a graph instead.",
+			"init is the name a script with children has in its folder. To give a graph children, right-click it and choose New graph.",
 		);
 }
 

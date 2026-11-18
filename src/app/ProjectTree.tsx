@@ -58,8 +58,8 @@ export interface ProjectTreeProps {
 	/** A row was clicked: a folder is itself, a file is its parent. */
 	onTargetDir: (dir: string) => void;
 	onNewGraph: (parentDir: string) => void;
-	/** New child script, under this graph. */
-	onNewChild?: (graph: string) => void;
+	/** New graph from a graph's menu: inside it, as its child, or beside it. */
+	onNewGraphNear?: (graph: string) => void;
 	onNewMap: (parentDir: string) => void;
 	onNewFolder: (parentDir: string) => void;
 	onRename: (path: string) => void;
@@ -107,7 +107,7 @@ export const ProjectTree = memo(function ProjectTree({
 	onMove,
 	onTargetDir,
 	onNewGraph,
-	onNewChild,
+	onNewGraphNear,
 	onNewMap,
 	onNewFolder,
 	onRename,
@@ -322,9 +322,9 @@ export const ProjectTree = memo(function ProjectTree({
 			case "removePackage":
 				return onPackage?.("remove", entry);
 			case "newGraph":
+				if (onNewGraphNear && (entry.script || entry.kind === "nodescript"))
+					return onNewGraphNear(entry.script ?? entry.path);
 				return onNewGraph(dir);
-			case "newChild":
-				return onNewChild?.(entry.script ?? entry.path);
 			case "newMap":
 				return onNewMap(dir);
 			case "import":
@@ -470,7 +470,11 @@ export const ProjectTree = memo(function ProjectTree({
 									rotate={collapsed.has(entry.path) ? -90 : 0}
 								/>
 								{entry.script ? (
-									<Icon name={KIND_ICONS.nodescript} size={15} className="kind nodescript" />
+									<Icon
+										name={KIND_ICONS.nodescript}
+										size={15}
+										className={cx("kind nodescript", realmClass(entry.realm))}
+									/>
 								) : (
 									<Icon
 										name={folderIcon(collapsed.has(entry.path), entry.role !== undefined)}
@@ -510,6 +514,7 @@ export const ProjectTree = memo(function ProjectTree({
 										"kind",
 										entry.kind,
 										entry.kind === "luau" && scriptClass(entry.name),
+										entry.kind === "nodescript" && realmClass(entry.realm),
 									)}
 								/>
 							</>
@@ -706,6 +711,14 @@ const FOLDER_TITLE: Record<NonNullable<TreeEntry["role"]>, string> = {
  * A Luau file by the script it becomes: a Server Script white on dark and
  * slate on light, a LocalScript green, a ModuleScript blue.
  */
+/** A graph's icon by the script it compiles to, in the colours its Luau's has. */
+function realmClass(realm: TreeEntry["realm"]): string | undefined {
+	if (realm === "server") return "tree-script-server";
+	if (realm === "client") return "tree-script-local";
+	if (realm === "module") return "tree-script-module";
+	return undefined;
+}
+
 function scriptClass(name: string): string {
 	if (/\.server\.luau?$/i.test(name)) return "tree-script-server";
 	if (/\.client\.luau?$/i.test(name)) return "tree-script-local";

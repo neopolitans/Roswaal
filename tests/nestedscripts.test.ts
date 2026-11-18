@@ -83,7 +83,7 @@ describe("a graph's name and file, as a script with children", () => {
 	});
 });
 
-describe("New child script", () => {
+describe("New graph, inside a graph", () => {
 	let parent = "";
 
 	it("makes the graph its folder's init, moves its Luau and meta file, and adds the child", async () => {
@@ -134,6 +134,9 @@ describe("New child script", () => {
 		const folder = find(tree, `${SHARED}/Greeter`);
 		expect(folder?.role).toBe("script");
 		expect(folder?.script).toBe(parent);
+		// Coloured as the script it is: Greeter is a ModuleScript, as is its child.
+		expect(folder?.realm).toBe("module");
+		expect(find(tree, `${SHARED}/Greeter/Phrases.nodescript`)?.realm).toBe("module");
 	});
 });
 
@@ -141,6 +144,7 @@ interface TreeNode {
 	path: string;
 	role?: string;
 	script?: string;
+	realm?: string;
 	children?: TreeNode[];
 }
 function find(nodes: TreeNode[], path: string): TreeNode | undefined {
@@ -155,7 +159,7 @@ function find(nodes: TreeNode[], path: string): TreeNode | undefined {
 describe("names Studio could not tell apart", () => {
 	it("refuses a graph called init", async () => {
 		expect(await refusal(post("/script/create", { dir: SHARED, name: "init" }))).toMatch(
-			/New child script/,
+			/choose New graph/,
 		);
 	});
 

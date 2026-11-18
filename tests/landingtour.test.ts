@@ -85,7 +85,7 @@ describe("the tour", () => {
 				new RegExp(`aria-haspopup="menu" aria-expanded="(true|false)" data-menu="${key}"`),
 			);
 		}
-		expect(menuOf("graph")).toContain("New graph here");
+		expect(menuOf("graph")).toContain("New graph…");
 		expect(menuOf("graph")).not.toContain("Import as graph");
 		expect(menuOf("luau")).toContain("Import as graph");
 		expect(menuOf("generated")).not.toContain("Import as graph");

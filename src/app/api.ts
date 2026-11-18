@@ -64,6 +64,8 @@ export interface TreeEntry {
 	role?: "service" | "synced" | "script" | "place" | "packages";
 	/** A graph folder that is a script: its `init.nodescript`, the graph it is. */
 	script?: string;
+	/** On a graph, or a script folder: the script it compiles to, which the tree colours. */
+	realm?: "server" | "client" | "module";
 	/** A package's installed version. */
 	version?: string;
 	/** The file a package opens: its module in `_Index`. */

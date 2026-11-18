@@ -83,7 +83,7 @@ export function projectPanelPage(): DocPage {
 					],
 					[
 						"A graph",
-						"**New child script** as well: a ModuleScript under it, as Rojo puts scripts under scripts",
+						"**New graph…**, which asks where: inside it, as its child, or beside it in its folder",
 					],
 					[
 						"A `.luau` you wrote",
@@ -100,7 +100,8 @@ export function projectPanelPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"**New child script** makes the graph its folder's `init.nodescript`, so " +
+					"**New graph…** on a graph puts the new one inside it, unless you choose Beside. " +
+					"The first child makes the graph its folder's `init.nodescript`, so " +
 					"`Greeter.nodescript` becomes `Greeter/init.nodescript`, and puts the child " +
 					"beside it. It compiles to `Greeter/init.luau`, as Rojo makes a folder holding an " +
 					"`init` file a script. The tree shows the folder as the script, named Greeter; " +

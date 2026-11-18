@@ -16,7 +16,6 @@ export type TreeAction =
 	| "github"
 	| "removePackage"
 	| "newGraph"
-	| "newChild"
 	| "newMap"
 	| "import"
 	| "importMany"
@@ -99,10 +98,10 @@ export function fileMenu(
 ): TreeMenuEntry[][] {
 	return [
 		present([
-			ctx.holdsGraphs && { action: "newGraph", label: "New graph here", icon: "newFile" },
-			(Boolean(entry.script) || (ctx.holdsGraphs && entry.kind === "nodescript")) && {
-				action: "newChild",
-				label: "New child script",
+			(ctx.holdsGraphs || Boolean(entry.script)) && {
+				action: "newGraph",
+				// On a graph it asks: inside it, as its child, or beside it.
+				label: entry.script || entry.kind === "nodescript" ? "New graph…" : "New graph here",
 				icon: "newFile",
 			},
 			ctx.holdsGraphs && { action: "newMap", label: "New map here", icon: "map" },

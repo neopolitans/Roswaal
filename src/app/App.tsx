@@ -1928,7 +1928,7 @@ export function App() {
 
 	const {
 		createGraphIn,
-		createChildOf,
+		createGraphNear,
 		createMapIn,
 		importLuauFile,
 		importLuauFiles,
@@ -2311,7 +2311,7 @@ export function App() {
 									onImportMany={importLuauFiles}
 									onTargetDir={setTargetDir}
 									onNewGraph={createGraphIn}
-									onNewChild={(graph) => void createChildOf(graph)}
+									onNewGraphNear={(graph) => void createGraphNear(graph)}
 									onNewMap={createMapIn}
 									onNewFolder={onTreeNewFolder}
 									onRename={onTreeRename}

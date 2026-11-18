@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.4",
+		date: "2026-11-18",
+		headline: "New graph asks where on a graph's menu; graphs are coloured by the script they become.",
+		changed: [
+			"**New graph** on a graph's menu, or a script with children's, asks where the new graph goes: inside it, as its child, which is the default, or beside it in its folder. It also asks what it starts as, a ModuleScript unless you choose otherwise. New child script is part of it now.",
+			"**Graphs in Graph Content** are coloured by the script they compile to, as their Luau is: a Script white or slate, a LocalScript green, a ModuleScript blue.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.3",
 		date: "2026-11-18",
 		headline: "Graphs can have child scripts, as Rojo's scripts do.",
