@@ -41,14 +41,17 @@ export function projectPanelPage(): DocPage {
 						"**Node maps**",
 						"Where your files land in Studio. A map's row shows the project file it writes, green when written as the map has it, and **serve** on the one `rojo serve` reads. Unfold a map for what it syncs; a row opens the map there. **clash** marks two maps writing one file, and neither writes it. **New map** makes one at the top",
 					],
-					["**Packages**", "What `wally.toml` depends on. **Add** puts a package in"],
+					[
+						"**Packages**",
+						"What `wally.toml` depends on, by realm. Each realm is its folder: Shared is `Packages/`, Server `ServerPackages/`, Dev `DevPackages/`, with where a map lands it, as `Packages/ → ReplicatedStorage › Packages`. An installed realm no map syncs is yellow, with **add to map**, which maps it into the served map; Dev is usually left so. **Add** puts a package in",
+					],
 					[
 						"**Place**",
 						"The place in use, marked in use, and the others waiting in `.roswaal/places`. **Open** shows the place in use in the Place Editor; **Use** swaps a waiting one in, and is refused while Studio has either open. **Add** keeps a copy of the place, a place file or a baseplate there. A Roblox project with no place has **Add Place** here",
 					],
 					[
 						"**Output**",
-						"What Roswaal writes, and code it did not, from inside `src` as Graphs is from inside its folder, then `place/`, `Packages/` and `.luaurc`. A folder of generated Luau folds to a count. What needs a look is marked: **stale** (its graph is gone; Remove on its menu), **hand-written**, **imported** and **place**, and the heading counts those. Luau there opens read-only",
+						"What Roswaal writes, and code it did not, from inside `src` as Graphs is from inside its folder, then `place/` and `.luaurc`. A folder of generated Luau folds to a count. What needs a look is marked: **stale** (its graph is gone; Remove on its menu), **hand-written**, **imported** and **place**, and the heading counts those. Luau there opens read-only",
 					],
 					[
 						"**Node packs**",

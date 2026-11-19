@@ -74,6 +74,8 @@ export interface ProjectTreeProps {
 	onServeMap?: (path: string) => void;
 	/** Generated Luau whose graph is gone, which Output marks stale. */
 	stale?: readonly string[];
+	/** Maps a Wally realm's folder into the served map, where its realm puts it. */
+	onMapRealm?: (realm: "shared" | "server") => void;
 	onNewFolder: (parentDir: string) => void;
 	onRename: (path: string) => void;
 	onDelete: (paths: string[]) => void;
@@ -127,6 +129,7 @@ export const ProjectTree = memo(function ProjectTree({
 	outDir = "",
 	onServeMap,
 	stale,
+	onMapRealm,
 	onNewFolder,
 	onRename,
 	onDelete,
@@ -229,7 +232,9 @@ export const ProjectTree = memo(function ProjectTree({
 			// each other row for row. What is outside it follows.
 			output: [
 				...((outDir ? findEntry(rest, outDir) : undefined)?.children ?? []),
-				...rest.filter((e) => !isPlace(e) && e.kind !== "wally" && e.path !== outDir),
+				...rest.filter(
+					(e) => !isPlace(e) && e.kind !== "wally" && e.path !== outDir && e.role !== "packages",
+				),
 			],
 			packs,
 			isGraph,
@@ -341,6 +346,26 @@ export const ProjectTree = memo(function ProjectTree({
 			if (entries.length === 0) {
 				const note = EMPTY_NOTE[section.id];
 				if (note) out.push({ entry: SECTION_ENTRY, depth: 1, note });
+				continue;
+			}
+			if (section.id === "packages") {
+				for (const realm of REALMS) {
+					const mine = entries.filter((e) => e.path.split("/")[1] === realm.id);
+					if (mine.length === 0) continue;
+					const landing = landingOfFolder(groups.maps, realm.folder);
+					const key = `::realm:${realm.id}`;
+					out.push({
+						entry: { path: key, name: realm.label, kind: "directory" },
+						depth: 1,
+						realm: {
+							...realm,
+							...(landing ? { landing } : {}),
+							mapped: landing !== undefined,
+							installed: findEntry(tree, realm.folder) !== undefined,
+						},
+					});
+					if (!collapsed.has(key)) out.push(...flatten(mine, shut, 2, fnsOf, expanded));
+				}
 				continue;
 			}
 			const listed = flatten(entries, shut, 1, fnsOf, expanded);
@@ -593,7 +618,56 @@ export const ProjectTree = memo(function ProjectTree({
 
 	return (
 		<div className="tree">
-			{rows.map(({ entry, depth, section, fn, note, sync }) => {
+			{rows.map(({ entry, depth, section, fn, note, sync, realm }) => {
+				if (realm) {
+					const open = !collapsed.has(entry.path);
+					const writes = groups.maps.some((m) => m.mapFacts?.output);
+					return (
+						<div
+							key={entry.path}
+							className={cx(
+								"tree-row realm-row",
+								writes && realm.installed && !realm.mapped && realm.id !== "dev" && "unsynced",
+							)}
+							style={depthStyle(depth, 1)}
+							title={
+								realm.landing
+									? `${realm.folder}/, which Wally installs ${realm.label.toLowerCase()} packages into, lands in ${realm.landing}.`
+									: `${realm.folder}/: no node map syncs it, so Studio never sees these packages.`
+							}
+							onClick={() => toggle(entry.path)}
+						>
+							<Icon name="chevron" size={14} className="twist" rotate={open ? 0 : -90} />
+							<Icon
+								name={open ? "folderOpenFilled" : "folderFilled"}
+								size={15}
+								className="kind tree-folder-packages"
+							/>
+							<span className="label">{realm.label}</span>
+							<span className="tree-map-path">
+								{realm.folder}/
+								{realm.landing
+									? ` → ${realm.landing}`
+									: realm.installed
+										? " · no map syncs it"
+										: " · not installed yet"}
+							</span>
+							{!realm.mapped && realm.installed && writes && realm.id !== "dev" && onMapRealm && (
+								<button
+									type="button"
+									className="tb tree-open"
+									title={`Map ${realm.folder}/ into ${realm.id === "shared" ? "ReplicatedStorage" : "ServerScriptService"} › ${realm.folder}, in the served map`}
+									onClick={(e) => {
+										e.stopPropagation();
+										onMapRealm(realm.id as "shared" | "server");
+									}}
+								>
+									add to map
+								</button>
+							)}
+						</div>
+					);
+				}
 				if (sync) {
 					return (
 						<div
@@ -1088,6 +1162,8 @@ interface Row {
 	fn?: FunctionInfo;
 	/** A line under an empty heading, saying what goes there. */
 	note?: string;
+	/** A Wally realm under Packages: its folder, and where a map lands it. */
+	realm?: RealmRow;
 	/** Something a map syncs, listed under the map, which `entry` is. */
 	sync?: NonNullable<TreeEntry["mapFacts"]>["syncs"][number];
 }
@@ -1235,6 +1311,33 @@ function MapRowFacts({ facts }: { facts: NonNullable<TreeEntry["mapFacts"]> }) {
 			)}
 		</>
 	);
+}
+
+/** Wally's realms, each a folder Wally installs into. */
+interface RealmRow {
+	id: "shared" | "server" | "dev";
+	label: string;
+	folder: string;
+	/** Where a map lands the folder in Studio: "ReplicatedStorage › Packages". */
+	landing?: string;
+	mapped: boolean;
+	/** Its folder is on disk: wally install has run for it. */
+	installed: boolean;
+}
+
+const REALMS: readonly Omit<RealmRow, "landing" | "mapped" | "installed">[] = [
+	{ id: "shared", label: "Shared", folder: "Packages" },
+	{ id: "server", label: "Server", folder: "ServerPackages" },
+	{ id: "dev", label: "Dev", folder: "DevPackages" },
+];
+
+/** Where the maps land a folder, from what each syncs: the first map's that does. */
+function landingOfFolder(maps: readonly TreeEntry[], folder: string): string | undefined {
+	for (const map of maps) {
+		const found = map.mapFacts?.syncs.find((one) => one.path === folder);
+		if (found) return found.trail;
+	}
+	return undefined;
 }
 
 /** What each of Output's marks means, on hover. */

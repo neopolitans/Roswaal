@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.31",
+		date: "2026-11-20",
+		headline: "Packages are listed by Wally realm, each its folder.",
+		added: [
+			"**Realms under Packages:** Shared, Server and Dev, each its folder, Packages/, ServerPackages/ or DevPackages/, with where a map lands it, and its packages under it.",
+			"**Add to map** on an installed Shared or Server realm no map syncs, which is yellow: it maps the folder into the served map, in ReplicatedStorage or ServerScriptService.",
+		],
+		changed: ["**Wally's folders** are listed under Packages, not Output."],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.30",
 		date: "2026-11-20",
 		headline: "Output lists what needs a look, and folds the rest.",
