@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.24",
+		date: "2026-11-20",
+		headline: "Every graph and folder has New graph and New folder; what will not sync is marked.",
+		added: [
+			"**A yellow border** marks a graph or folder under Graphs that no node map syncs: its Luau is written, and Rojo never sees it. A folder holding a synced one, as ReplicatedStorage holds Tank, is not marked.",
+			"**New folder and New graph warn** in yellow when the folder they make in is not synced.",
+		],
+		changed: [
+			"**New folder** replaces New node map among a row's buttons under Graphs, and both buttons are on every graph and folder. On a graph, New graph asks inside or beside, and New folder goes beside it. New map stays on the Node maps heading.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.23",
 		date: "2026-11-20",
 		headline: "A page open across an update says so, rather than crashing.",

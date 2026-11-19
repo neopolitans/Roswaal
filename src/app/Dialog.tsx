@@ -30,6 +30,8 @@ export type DialogRequest =
 			label?: string;
 			/** A line under the field: where the thing will be made. */
 			hint?: string;
+			/** Said under the field in the warning colour, which outlines it: it will not sync. */
+			warn?: string;
 			value?: string;
 			placeholder?: string;
 			confirmLabel?: string;
@@ -238,7 +240,7 @@ export function Dialog({ request, resolve }: PendingDialog) {
 
 				<div className="dialog-body">
 					{request.kind === "prompt" ? (
-						<label className="field wide">
+						<label className={cx("field wide", request.warn && "warn")}>
 							{request.label && <span>{request.label}</span>}
 							<input
 								ref={input}
@@ -251,6 +253,12 @@ export function Dialog({ request, resolve }: PendingDialog) {
 								<small>
 									<Icon name="folder" size={12} />
 									{request.hint}
+								</small>
+							)}
+							{request.warn && (
+								<small className="field-warn">
+									<Icon name="warning" size={12} />
+									{request.warn}
 								</small>
 							)}
 						</label>

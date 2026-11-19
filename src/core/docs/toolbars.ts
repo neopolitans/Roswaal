@@ -319,7 +319,7 @@ export type ToolbarItem = Documented &
 				readonly?: boolean;
 				/** Drawn as the pointer is over it: the hover colour, and its buttons showing. */
 				hover?: boolean;
-				/** A folder's buttons at its right, as icons: New graph and New node map. */
+				/** A row's buttons at its right, as icons: New graph and New folder. */
 				actions?: string[];
 				/** A folder named for a Roblox class, drawn with that class's icon. */
 				classIcon?: string;
@@ -2920,7 +2920,14 @@ export const PROJECT_TREE_WALLY: ToolbarSpec = {
 					tone: "tree-folder-special",
 					classIcon: "ReplicatedStorage",
 				},
-				{ t: "treeSection", text: "Node maps", count: 1, add: "New map" },
+				{
+					t: "treeSection",
+					text: "Node maps",
+					count: 1,
+					add: "New map",
+					name: "New map",
+					what: "On the Node maps heading: a new node map at the top of the graphs.",
+				},
 				{ t: "treeRow", label: "Game", depth: 0, icon: "map", tone: "nodemap" },
 				{
 					t: "treeSection",
@@ -2974,7 +2981,7 @@ export const PROJECT_TREE_WALLY: ToolbarSpec = {
 	],
 };
 
-/** The Project panel with a graph folder pointed at: its New graph and New node map. */
+/** The Project panel with a graph folder pointed at: its New graph and New folder. */
 export const PROJECT_TREE_NEW: ToolbarSpec = {
 	id: "project-tree-new",
 	title: "A folder's New buttons",
@@ -3001,9 +3008,9 @@ export const PROJECT_TREE_NEW: ToolbarSpec = {
 					icon: "folderOpen",
 					tone: "tree-folder-plain",
 					hover: true,
-					actions: ["newFile", "map"],
-					name: "New graph and New node map",
-					what: "On the folder you point at: a new graph or node map in that folder. The folder stays open or shut as it was.",
+					actions: ["newFile", "newFolder"],
+					name: "New graph and New folder",
+					what: "On the graph or folder you point at: a new graph, or a new folder, in that folder. The folder stays open or shut as it was.",
 				},
 				{ t: "treeRow", label: "Main", depth: 2, icon: "document", tone: "nodescript" },
 				{

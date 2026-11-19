@@ -294,6 +294,32 @@ export const ProjectTree = memo(function ProjectTree({
 	// Only under `sourceDir`. The tree also shows the compiled output, and
 	// offering "New graph" inside a folder Roswaal regenerates would be offering
 	// to write a file the next compile deletes.
+	/**
+	 * Graphs and folders under Graphs whose Luau no node map syncs: written,
+	 * and never seen by Rojo. A folder only passing through to a synced one
+	 * inside it, as ReplicatedStorage does to Tank, reaches Studio that way and
+	 * is not counted. Only once the project has a map writing a project file:
+	 * before that, nothing syncs, and saying so on every row says nothing.
+	 */
+	const unsynced = useMemo(() => {
+		const out = new Set<string>();
+		if (!groups.maps.some((m) => m.mapFacts?.output)) return out;
+		const visit = (e: TreeEntry, covered: boolean): boolean => {
+			const here = covered || e.syncedBy !== undefined;
+			if (e.kind === "nodescript") {
+				if (!here) out.add(e.path);
+				return here;
+			}
+			if (e.kind !== "directory") return true;
+			let reaches = here;
+			for (const child of e.children ?? []) if (visit(child, here)) reaches = true;
+			if (!reaches) out.add(e.path);
+			return reaches;
+		};
+		for (const e of groups.graphs) visit(e, false);
+		return out;
+	}, [groups]);
+
 	function holdsGraphs(dir: string): boolean {
 		return dir === sourceDir || dir.startsWith(sourceDir + "/");
 	}
@@ -592,6 +618,7 @@ export const ProjectTree = memo(function ProjectTree({
 							readonly && "readonly",
 							isDir && !entry.script && (entry.children?.length ?? 0) === 0 && "tree-empty",
 							dropTarget === entry.path && "drop-target",
+							unsynced.has(entry.path) && "unsynced",
 						)}
 						style={depthStyle(depth, 1)}
 						data-entry={entry.path}
@@ -630,15 +657,17 @@ export const ProjectTree = memo(function ProjectTree({
 							setMenu({ x: e.clientX, y: e.clientY, entry });
 						}}
 						title={
-							entry.kind === "package"
-								? entry.missing
-									? `${entry.name} is in wally.toml, and not installed: run wally install.`
-									: `${entry.name} ${shownVersion(entry)}. Double-click to open ${entry.target}.`
-								: entry.script
-									? `${entry.name}, a script with children. Double-click to open its graph.`
-									: isDir && !groups.isGraph(entry) && entry.role
-										? `${entry.path}: ${FOLDER_TITLE[entry.role]}`
-										: entry.path
+							unsynced.has(entry.path)
+								? `${entry.path}: no node map syncs this, so Rojo never sees its Luau. Map it, or move it into a synced folder.`
+								: entry.kind === "package"
+									? entry.missing
+										? `${entry.name} is in wally.toml, and not installed: run wally install.`
+										: `${entry.name} ${shownVersion(entry)}. Double-click to open ${entry.target}.`
+									: entry.script
+										? `${entry.name}, a script with children. Double-click to open its graph.`
+										: isDir && !groups.isGraph(entry) && entry.role
+											? `${entry.path}: ${FOLDER_TITLE[entry.role]}`
+											: entry.path
 						}
 					>
 						{entry.kind === "wally" ? (
@@ -778,29 +807,43 @@ export const ProjectTree = memo(function ProjectTree({
 						{entry.missing && <span className="badge">not installed</span>}
 						{/* New graph and New node map, in this folder. Their clicks stop
 						    here, so pressing one never folds or opens the folder. */}
-						{isDir && holdsGraphs(entry.path) && (
+						{(isDir || entry.kind === "nodescript") && holdsGraphs(entry.path) && (
 							<span
 								className="tree-row-actions"
 								onClick={(e) => e.stopPropagation()}
 								onDoubleClick={(e) => e.stopPropagation()}
 							>
+								{/* A graph's New graph asks inside or beside, as its menu does;
+								    its New folder goes beside it. A folder's are inside it. */}
 								<button
 									type="button"
 									className="tb icon-only"
-									title={`New graph in ${entry.name}`}
-									aria-label={`New graph in ${entry.name}`}
-									onClick={() => onNewGraph(entry.path)}
+									title={
+										isDir && !entry.script
+											? `New graph in ${entry.name}`
+											: `New graph by ${shownName(entry)}`
+									}
+									aria-label={
+										isDir && !entry.script
+											? `New graph in ${entry.name}`
+											: `New graph by ${shownName(entry)}`
+									}
+									onClick={() => runTreeAction("newGraph", entry)}
 								>
 									<Icon name="newFile" size={14} />
 								</button>
 								<button
 									type="button"
 									className="tb icon-only"
-									title={`New node map in ${entry.name}`}
-									aria-label={`New node map in ${entry.name}`}
-									onClick={() => onNewMap(entry.path)}
+									title={
+										isDir ? `New folder in ${entry.name}` : `New folder beside ${shownName(entry)}`
+									}
+									aria-label={
+										isDir ? `New folder in ${entry.name}` : `New folder beside ${shownName(entry)}`
+									}
+									onClick={() => runTreeAction("newFolder", entry)}
 								>
-									<Icon name="map" size={14} />
+									<Icon name="newFolder" size={14} />
 								</button>
 							</span>
 						)}

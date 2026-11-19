@@ -35,6 +35,7 @@ import { importableLuau } from "./importable.js";
 import { setBeforeLeaving } from "./pages.js";
 import type { SaveQueue } from "./saveQueue.js";
 import { store } from "./store.js";
+import { unsyncedWarning } from "./synced.js";
 import { findTreeEntry } from "./treeEntry.js";
 import type { Dialogs } from "./useDialogs.js";
 
@@ -940,6 +941,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 				title: "New graph",
 				label: "Name",
 				hint: `Created in ${dir}`,
+				warn: project ? unsyncedWarning(project.tree, dir) : undefined,
 				value: "Untitled",
 				icon: "newFile",
 			});
@@ -952,7 +954,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 				notify("Could not create that graph", errorMessage(err));
 			}
 		},
-		[ask, notify, refreshTree],
+		[ask, notify, refreshTree, project],
 	);
 
 	/**
@@ -1296,6 +1298,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 				title: "New folder",
 				label: "Name",
 				hint: `Created in ${parentDir || "the project root"}`,
+				warn: project ? unsyncedWarning(project.tree, parentDir) : undefined,
 				value: "NewFolder",
 				icon: "newFolder",
 			});
@@ -1307,7 +1310,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 				notify("Something went wrong", errorMessage(err));
 			}
 		},
-		[ask, notify, refreshTree],
+		[ask, notify, refreshTree, project],
 	);
 
 	const onTreeRename = useCallback(

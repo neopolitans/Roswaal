@@ -140,3 +140,44 @@ describe("the Project panel", () => {
 		expect(html).toContain("No packages yet.");
 	});
 });
+
+describe("rows under Graphs", () => {
+	/** The fixture with Tank's map writing a project file, as the daemon reports it. */
+	const mapped = (entries: readonly TreeEntry[]): TreeEntry[] =>
+		entries.map((e) => ({
+			...e,
+			...(e.kind === "nodemap"
+				? { mapFacts: { output: "default.project.json", state: "same" as const, syncs: [] } }
+				: {}),
+			...(e.children ? { children: mapped(e.children) } : {}),
+		}));
+	const rowClass = (html: string, path: string) =>
+		html.match(
+			new RegExp(`<div class="([^"]*)"[^>]*data-entry="${path.replace(/[.]/g, "\\.")}"`),
+		)?.[1] ?? "";
+
+	it("offer New graph and New folder on a graph and on a folder, and no New node map", () => {
+		const html = render();
+		expect(html).toContain('aria-label="New folder beside Remotes"');
+		expect(html).toContain('aria-label="New graph by Remotes"');
+		expect(html).toContain('aria-label="New folder in Tank"');
+		expect(html).not.toContain('aria-label="New node map in');
+	});
+
+	it("are yellow where no map syncs them, and not where a folder only passes through", () => {
+		const html = render({ tree: mapped(TREE) });
+		expect(rowClass(html, ".roswaal/scripts/StarterPlayer/StarterPlayerScripts")).toContain(
+			"unsynced",
+		);
+		expect(rowClass(html, ".roswaal/scripts/StarterPlayer")).toContain("unsynced");
+		expect(rowClass(html, ".roswaal/scripts/ReplicatedStorage")).not.toContain("unsynced");
+		expect(rowClass(html, ".roswaal/scripts/ReplicatedStorage/Tank")).not.toContain("unsynced");
+		expect(
+			rowClass(html, ".roswaal/scripts/ReplicatedStorage/Tank/Remotes.nodescript"),
+		).not.toContain("unsynced");
+	});
+
+	it("are not yellow before any map writes a project file", () => {
+		expect(render()).not.toContain("unsynced");
+	});
+});

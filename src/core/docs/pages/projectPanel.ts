@@ -88,13 +88,22 @@ export function projectPanelPage(): DocPage {
 				],
 			},
 
-			{ t: "h", level: 2, text: "New graphs and node maps" },
+			{ t: "h", level: 2, text: "New graphs and folders" },
 			{
 				t: "p",
 				text:
-					"Point at a folder under Graphs and two buttons appear at its right: **New graph** " +
-					"and **New node map**, made in that folder. Pressing one leaves the folder open or " +
-					"shut as it was. On a touch screen they show on the folder you tap.",
+					"Point at a graph or a folder under Graphs and two buttons appear at its right: " +
+					"**New graph** and **New folder**. On a folder they make one inside it. On a graph, " +
+					"New graph asks whether inside it, as its child, or beside it, and New folder goes " +
+					"beside it. Pressing one leaves the folder open or shut as it was. On a touch screen " +
+					"they show on the row you tap.",
+			},
+			{
+				t: "p",
+				text:
+					"**A yellow border** marks a graph or folder no node map syncs: its Luau is written, " +
+					"and Rojo never sees it. A folder holding a synced one, as ReplicatedStorage holds " +
+					"Tank, is not marked.",
 			},
 
 			{ t: "h", level: 2, text: "Menus" },
