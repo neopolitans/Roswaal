@@ -2163,6 +2163,7 @@ export function App() {
 						busy={busy}
 						place={placeDoc !== null}
 						panels={panelChoices}
+						panelButtons={prefs.barPanelButtons}
 						document={
 							<>
 								{/* The open documents: the active one's name, the others

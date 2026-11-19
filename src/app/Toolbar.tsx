@@ -42,7 +42,7 @@ import type { MenuEntry } from "./menuModel.js";
 import { useNarrowBar, usePhone } from "./Popout.jsx";
 import { PANEL_EMPTY, PANEL_ICONS, PANEL_TITLES, type PanelId } from "./panels.js";
 import { WindowMark } from "./WindowMark.jsx";
-import { useWorkspaceControls } from "./Workspace.jsx";
+import { useCompact, useWorkspaceControls } from "./Workspace.jsx";
 
 export interface ProjectBarProps {
 	config: RoswaalConfig;
@@ -57,6 +57,8 @@ export interface ProjectBarProps {
 	place?: boolean;
 	/** The panels the Panels menu offers: `panelsFor` what is open. */
 	panels: PanelId[];
+	/** The left and right column buttons in the bar, as well as in the Panels menu. */
+	panelButtons: boolean;
 	/** The open document's primary action, at the end of the compile group. */
 	action?: ReactNode;
 	/** The document's tools as entries of the More menu, on a phone: `graphMenuEntries`. */
@@ -99,9 +101,62 @@ export function ProjectBar(props: ProjectBarProps) {
 		: scripting
 			? "Inspector — the selected node, or the graph's own settings"
 			: "Properties — the picked instance, or the place";
+	// On a touch screen the columns are drawers, and these buttons slide them
+	// out; at a desk the Panels menu holds them unless they are asked for.
+	const compact = useCompact();
+	const columnButtons = props.panelButtons || compact;
+	const leftTitle = "Project — the files, the DataModel and Variables";
+	const columnEntries: MenuEntry[] = [
+		{
+			label: "Left column",
+			icon: "panelLeft",
+			hint: "Project",
+			title: leftTitle,
+			checked: cards.isOpen("left"),
+			disabled: !cards.has("left"),
+			run: () => cards.toggle("left"),
+		},
+		{
+			label: "Right column",
+			icon: "panelRight",
+			hint: props.panels.includes("mapItem") ? "Instance" : scripting ? "Inspector" : "Properties",
+			title: rightTitle,
+			checked: cards.isOpen("right"),
+			disabled: !cards.has("right"),
+			run: () => cards.toggle("right"),
+		},
+	];
 
-	// The axis, named. Two buttons reading "Manual | Dynamic" say nothing about
-	// what they are manual and dynamic *about*; the group's title says it.
+	const compileMode = props.config.compileMode;
+	// One button saying which, with the other in its menu: the two side by
+	// side took a third of the room the tabs need.
+	const modeMenu = (
+		<MenuButton
+			label={compileMode === "manual" ? "Manual" : "Dynamic"}
+			title="How generated Luau reaches disk"
+			sections={[
+				{
+					label: "Generated Luau reaches disk",
+					entries: [
+						{
+							label: "Dynamic",
+							hint: "on every edit",
+							checked: compileMode === "hot",
+							run: () => props.onCompileMode("hot"),
+						},
+						{
+							label: "Manual",
+							hint: "when you compile",
+							checked: compileMode === "manual",
+							run: () => props.onCompileMode("manual"),
+						},
+					],
+				},
+			]}
+		/>
+	);
+
+	// In the More menu, where a menu has the room, the two side by side.
 	const mode = (
 		<span className="segmented" title="How generated Luau reaches disk">
 			<button
@@ -133,25 +188,30 @@ export function ProjectBar(props: ProjectBarProps) {
 
 			{!phone && (
 				<ToolGroup>
-					<button
-						className={cx("tb icon-only", cards.isOpen("left") && "on")}
-						title="Project — the files, the DataModel and Variables"
-						aria-label="Show or hide the Project card"
-						aria-pressed={cards.isOpen("left")}
-						disabled={!cards.has("left")}
-						onClick={() => cards.toggle("left")}
-					>
-						<Icon name="panelLeft" size={16} />
-					</button>
-					{/* The panels for what is open, to bring back one that was
-					    closed or hide one. Always here, however narrow the bar: it is
-					    the way back to a panel. New graph and New node map are on
-					    each folder in the Project panel, where they say where they
-					    make it. */}
+					{columnButtons && (
+						<button
+							className={cx("tb icon-only", cards.isOpen("left") && "on")}
+							title={leftTitle}
+							aria-label="Show or hide the Project card"
+							aria-pressed={cards.isOpen("left")}
+							disabled={!cards.has("left")}
+							onClick={() => cards.toggle("left")}
+						>
+							<Icon name="panelLeft" size={16} />
+						</button>
+					)}
+					{/* The columns and the panels for what is open, to bring back
+					    one that was closed or hide one. Always here, however narrow
+					    the bar: it is the way back to a panel. New graph and New node
+					    map are on each folder in the Project panel, where they say
+					    where they make it. */}
 					<MenuButton
 						label={<Icon name="layout" size={16} />}
-						title="Panels — show or hide each one"
-						sections={[{ label: "Panels", entries: panelEntries }]}
+						title="Panels — show or hide each one, or a whole column"
+						sections={[
+							{ label: "Columns", entries: columnEntries },
+							{ label: "Panels", entries: panelEntries },
+						]}
 					/>
 					{!narrow && (
 						<>
@@ -176,7 +236,7 @@ export function ProjectBar(props: ProjectBarProps) {
 				<>
 					{props.action && <ToolGroup>{props.action}</ToolGroup>}
 					<ToolGroup>
-						{!phone && (
+						{!phone && columnButtons && (
 							<button
 								className={cx("tb icon-only", cards.isOpen("right") && "on")}
 								title={rightTitle}
@@ -246,7 +306,7 @@ export function ProjectBar(props: ProjectBarProps) {
 				<>
 					{scripting && (
 						<ToolGroup title="How generated Luau reaches disk">
-							{mode}
+							{modeMenu}
 							<span className="divider" />
 							<button
 								className="tb with-icon tb-collapsible"
@@ -264,17 +324,21 @@ export function ProjectBar(props: ProjectBarProps) {
 					{/* The place's Save, alone: there is nothing to compile while it is in front. */}
 					{!scripting && props.action && <ToolGroup>{props.action}</ToolGroup>}
 					<ToolGroup>
-						<button
-							className={cx("tb icon-only", cards.isOpen("right") && "on")}
-							title={rightTitle}
-							aria-label="Show or hide the Inspector"
-							aria-pressed={cards.isOpen("right")}
-							disabled={!cards.has("right")}
-							onClick={() => cards.toggle("right")}
-						>
-							<Icon name="panelRight" size={16} />
-						</button>
-						<span className="divider" />
+						{columnButtons && (
+							<>
+								<button
+									className={cx("tb icon-only", cards.isOpen("right") && "on")}
+									title={rightTitle}
+									aria-label="Show or hide the Inspector"
+									aria-pressed={cards.isOpen("right")}
+									disabled={!cards.has("right")}
+									onClick={() => cards.toggle("right")}
+								>
+									<Icon name="panelRight" size={16} />
+								</button>
+								<span className="divider" />
+							</>
+						)}
 						<button
 							className="tb icon-only"
 							title="Export — the project as a zip, or its place as .rbxl or Legacy .rbxlx (Ctrl+Shift+E)"
@@ -353,14 +417,9 @@ export function graphMenuEntries(
 export function DocumentBar(props: DocumentBarProps) {
 	// On a phone the graph's tools are rows of the More menu instead.
 	const phone = usePhone();
-	if (props.kind === "map") {
-		return (
-			<ToolGroup className="doc-group">
-				<span className={cx("doc-name", props.dirty && "dirty")}>{props.name}</span>
-				<span className="doc-kind">Node map</span>
-			</ToolGroup>
-		);
-	}
+	// A node map's tab already names it, and its project's name is This map's;
+	// a group saying both again took the room the tabs need.
+	if (props.kind === "map") return null;
 
 	const previewTitle =
 		props.selected > 0

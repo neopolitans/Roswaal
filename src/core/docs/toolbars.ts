@@ -1394,21 +1394,14 @@ export const EDITOR_BAR: ToolbarSpec = {
 		{
 			items: [
 				{
-					t: "icon",
-					icon: "panelLeft",
-					name: "Project",
-					where: "after the mark",
-					what:
-						"Shows or hides the cards on the left: Project and Variables. See " +
-						"[The Project panel](project-panel).",
-				},
-				{
 					t: "popout",
 					icon: "layout",
 					name: "Panels",
+					where: "after the modes",
 					what:
-						"Every panel, each with its icon: choose one to show or hide it, and bring back " +
-						"one you closed. A panel with nothing to show yet is greyed out.",
+						"The left and right columns, then every panel: choose one to show or hide it, " +
+						"and bring back one you closed. A panel with nothing to show yet is greyed out. " +
+						"**Column buttons** in [Settings](settings) put the columns' own buttons in the bar.",
 				},
 				{
 					t: "icon",
@@ -1420,19 +1413,18 @@ export const EDITOR_BAR: ToolbarSpec = {
 		},
 		...openGraph({
 			name: "The open graph",
-			what: "Its tab, then its tools, both drawn below. A node map shows its name here instead.",
+			what: "Its tab, then its tools, both drawn below. A node map has its tab alone.",
 		}),
 		{
 			apart: true,
 			items: [
 				{
-					t: "segmented",
-					options: ["Manual", "Dynamic"],
-					on: 0,
-					name: "Manual | Dynamic",
+					t: "popout",
+					text: "Dynamic",
+					name: "Dynamic or Manual",
 					what:
-						"How generated Luau reaches disk. **Manual** writes when you ask; " +
-						"**Dynamic** writes on every edit. Also in [Settings](settings).",
+						"How generated Luau reaches disk: **Dynamic** writes on every edit, **Manual** " +
+						"when you compile. The other is in its menu, and in [Settings](settings).",
 				},
 				{ t: "divider" },
 				{
@@ -1458,15 +1450,6 @@ export const EDITOR_BAR: ToolbarSpec = {
 		},
 		{
 			items: [
-				{
-					t: "icon",
-					icon: "panelRight",
-					name: "Inspector",
-					what:
-						"Shows or hides the cards on the right: the selected node's settings, or the " +
-						"graph's own with nothing selected.",
-				},
-				{ t: "divider" },
 				{
 					t: "icon",
 					icon: "export",
@@ -1626,33 +1609,29 @@ export const MAP_BAR: ToolbarSpec = {
 	id: "map-bar",
 	title: "With a node map open",
 	summary:
-		"The map's name where a graph's tools would be, and Write project file where Compile " +
-		"script would be.",
+		"The map's tab and nothing after it, and Write project file where Compile script would be.",
 	chrome: "float",
 	groups: [
 		{
 			wrap: "graph-tabs",
 			items: [
 				{ t: "tab", text: "Occupancy" },
-				{ t: "tab", text: "Tank", kind: "nodemap", on: true },
-			],
-		},
-		{
-			wrap: "doc-group",
-			items: [
 				{
-					t: "name",
+					t: "tab",
 					text: "Tank",
-					kind: "Node map",
+					kind: "nodemap",
+					on: true,
 					name: "The map",
-					what: "Its name. A map is a tree rather than a graph, so it has no graph tools.",
+					what:
+						"Its tab names it. Its Rojo project's name is in This map. A map has no graph " +
+						"tools, so nothing follows.",
 				},
 			],
 		},
 		{
 			apart: true,
 			items: [
-				{ t: "segmented", options: ["Manual", "Dynamic"], on: 0 },
+				{ t: "popout", text: "Manual" },
 				{ t: "divider" },
 				{ t: "button", text: "Compile project" },
 				{
@@ -1907,7 +1886,6 @@ export const EDITOR_BAR_BROWSER: ToolbarSpec = {
 		{ wrap: "mode-strip", items: [modes("editor")] },
 		{
 			items: [
-				{ t: "icon", icon: "panelLeft", ...as(EDITOR_BAR, "Project") },
 				{ t: "popout", icon: "layout", ...as(EDITOR_BAR, "Panels") },
 				{
 					t: "icon",
@@ -1922,13 +1900,12 @@ export const EDITOR_BAR_BROWSER: ToolbarSpec = {
 			apart: true,
 			items: [
 				{
-					t: "segmented",
-					options: ["Manual", "Dynamic"],
-					on: 0,
-					name: "Manual | Dynamic",
+					t: "popout",
+					text: "Dynamic",
+					name: "Dynamic or Manual",
 					what:
-						"How generated Luau reaches the project. **Manual** writes when you ask; " +
-						"**Dynamic** writes on every edit. Also in [Settings](settings).",
+						"How generated Luau reaches the project: **Dynamic** writes on every edit, " +
+						"**Manual** when you compile. The other is in its menu, and in [Settings](settings).",
 				},
 				{ t: "divider" },
 				{
@@ -1953,8 +1930,6 @@ export const EDITOR_BAR_BROWSER: ToolbarSpec = {
 		},
 		{
 			items: [
-				{ t: "icon", icon: "panelRight", ...as(EDITOR_BAR, "Inspector") },
-				{ t: "divider" },
 				{ t: "icon", icon: "export", ...as(EDITOR_BAR, "Export") },
 				{ t: "icon", icon: "settings", ...as(EDITOR_BAR, "Settings") },
 			],
@@ -2332,7 +2307,11 @@ export const EDITOR_BAR_TABLET: ToolbarSpec = {
 				{
 					t: "icon",
 					icon: "panelLeft",
-					...as(EDITOR_BAR_BROWSER, "Project", "On a touch screen they slide out over the graph."),
+					name: "Project",
+					where: "after the modes",
+					what:
+						"Slides out the left column over the graph: Project and Variables. Always here " +
+						"on a touch screen. See [The Project panel](project-panel).",
 				},
 				{ t: "popout", icon: "layout", ...as(EDITOR_BAR, "Panels") },
 			],
@@ -2354,11 +2333,10 @@ export const EDITOR_BAR_TABLET: ToolbarSpec = {
 				{
 					t: "icon",
 					icon: "panelRight",
-					...as(
-						EDITOR_BAR_BROWSER,
-						"Inspector",
-						"On a touch screen they slide out over the graph.",
-					),
+					name: "Inspector",
+					what:
+						"Slides out the right column over the graph: the selected node's settings, or " +
+						"the graph's own with nothing selected.",
 				},
 				{
 					t: "popout",
@@ -2454,7 +2432,10 @@ export const MORE_MENU_PHONE: ToolbarSpec = {
 					t: "segmented",
 					options: ["Manual", "Dynamic"],
 					on: 1,
-					...as(EDITOR_BAR_BROWSER, "Manual | Dynamic"),
+					name: "Manual | Dynamic",
+					what:
+						"How generated Luau reaches the project: **Manual** when you compile, " +
+						"**Dynamic** on every edit.",
 				},
 				{
 					t: "button",

@@ -917,27 +917,31 @@ function modesCluster(on: "editor" | "designer" | "docs", what: string) {
 const MODES_WHAT =
 	"Editor, Design and Docs, with a box behind the one you are in. A click switches this tab and keeps the editor as you left it; `Ctrl`-click or right-click opens a new tab.";
 const PROJECT_CLUSTER: ToolbarItem[] = [
-	{ t: "icon", icon: "panelLeft", on: true },
 	{ t: "popout", icon: "layout" },
 	{ t: "icon", icon: "refresh" },
 ];
+/** A touch screen keeps the column buttons: there they slide the columns out. */
+const TOUCH_PROJECT_CLUSTER: ToolbarItem[] = [{ t: "icon", icon: "panelLeft" }, ...PROJECT_CLUSTER];
 const TOOLS_CLUSTER: ToolbarItem[] = [
 	{ t: "icon", icon: "search" },
 	{ t: "icon", icon: "layout" },
 	{ t: "icon", icon: "terminal" },
 ];
 const COMPILE_CLUSTER: ToolbarItem[] = [
-	{ t: "segmented", options: ["Manual", "Dynamic"], on: 0 },
+	{ t: "popout", text: "Manual" },
 	{ t: "divider" },
 	// Their words fold to glyphs where the row is short, as on a tablet.
 	{ t: "button", text: "Compile project", narrowIcon: "build", collapsible: true },
 	{ t: "button", text: "Compile script", icon: "build", primary: true, collapsible: true },
 ];
 const WINDOWS_CLUSTER: ToolbarItem[] = [
-	{ t: "icon", icon: "panelRight", on: true },
-	{ t: "divider" },
 	{ t: "icon", icon: "export" },
 	{ t: "icon", icon: "settings" },
+];
+const TOUCH_WINDOWS_CLUSTER: ToolbarItem[] = [
+	{ t: "icon", icon: "panelRight", on: true },
+	{ t: "divider" },
+	...WINDOWS_CLUSTER,
 ];
 const PALETTE: ToolbarItem[] = [
 	{ t: "pinChip", text: "Execution" },
@@ -1028,7 +1032,7 @@ export const EDITOR_LAYOUT: LayoutSpec = {
 				{
 					items: PROJECT_CLUSTER,
 					name: "The project",
-					what: "The button for the Project and Variables cards, then Panels, to show or hide any panel, and Refresh.",
+					what: "Panels, to show or hide either column or any panel, and Refresh.",
 				},
 				{
 					wrap: "graph-tabs",
@@ -1049,8 +1053,8 @@ export const EDITOR_LAYOUT: LayoutSpec = {
 				},
 				{
 					items: WINDOWS_CLUSTER,
-					name: "Inspector, Export and Settings",
-					what: "The button for the Inspector's card, then Export and Settings. Every button is on [Toolbars](toolbars).",
+					name: "Export and Settings",
+					what: "Every button is on [Toolbars](toolbars).",
 				},
 			],
 		},
@@ -1129,11 +1133,9 @@ export const EDITOR_LAYOUT_TOUCH: LayoutSpec = {
 				{ wrap: "mark-group", items: [MARK], name: "The mark", what: "As on a computer." },
 				modesCluster("editor", "As on a computer."),
 				{
-					items: PROJECT_CLUSTER.map((item) =>
-						item.t === "icon" && item.on ? { ...item, on: false } : item,
-					),
+					items: TOUCH_PROJECT_CLUSTER,
 					name: "The project",
-					what: "As on a computer; Project and Variables slide out over the graph. Held upright, Refresh and the New buttons are in **More**.",
+					what: "The Project button slides Project and Variables out over the graph, then Panels and Refresh. Held upright, Refresh and the New buttons are in **More**.",
 				},
 				{
 					wrap: "graph-tabs",
@@ -1149,7 +1151,7 @@ export const EDITOR_LAYOUT_TOUCH: LayoutSpec = {
 					what: "As on a computer, the two compile buttons as their glyphs. Held upright, only Compile script stays.",
 				},
 				{
-					items: WINDOWS_CLUSTER,
+					items: TOUCH_WINDOWS_CLUSTER,
 					name: "Inspector, Export and Settings",
 					what: "The Inspector slides out from the right. Held upright, Export stays beside it and Settings is in **More**.",
 				},

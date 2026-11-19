@@ -292,7 +292,7 @@ export function controlsPage(): DocPage {
 				head: ["Gesture", "What it does"],
 				rows: [
 					[
-						"The Project and Inspector buttons on the top row",
+						"**Left column** or **Right column** in Panels, or their buttons where Settings shows them",
 						"Show or hide the cards on that side",
 					],
 					["The Panels button on the top row", "Show or hide the panels for what is open"],

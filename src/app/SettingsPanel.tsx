@@ -870,6 +870,17 @@ function WorkspaceSettings({ prefs, onPrefs }: SettingsPanelProps) {
 				</Row>
 
 				<Row
+					label="Column buttons"
+					help="Project and Inspector buttons in the top bar. The Panels menu has both either way."
+				>
+					<Toggle
+						on={prefs.barPanelButtons}
+						onChange={(on) => onPrefs({ barPanelButtons: on })}
+						label={prefs.barPanelButtons ? "Shown" : "Hidden"}
+					/>
+				</Row>
+
+				<Row
 					label="Shorten function tabs"
 					help="Tabs read ƒ hide (Occupancy). The tooltip keeps both names."
 				>

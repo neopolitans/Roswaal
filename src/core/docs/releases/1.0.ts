@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.17",
+		date: "2026-11-20",
+		headline: "The top bar gives its room to the tabs.",
+		changed: [
+			"**Manual or Dynamic** is one button saying which, with the other in its menu.",
+			"**The Project and Inspector buttons** moved into the Panels menu, as Left column and Right column. **Column buttons** in Settings puts them back in the bar. A touch screen keeps them.",
+			"**A node map** shows its tab and nothing after it. Its Rojo project's name is in This map.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.16",
 		date: "2026-11-20",
 		headline: "A node map's graph is drawn as graph nodes, each saying whether it syncs.",

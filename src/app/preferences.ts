@@ -190,6 +190,12 @@ export interface Preferences {
 	nodeClassIcons: boolean;
 	/** A class picker on a node shows its class's icon before the name. */
 	pickerClassIcons: boolean;
+	/**
+	 * The left and right column buttons in the top bar. Off, the Panels menu
+	 * holds both, which leaves the bar's room to the tabs. A touch screen shows
+	 * them whatever this says: there, they slide the columns out.
+	 */
+	barPanelButtons: boolean;
 	/** The Refactor panel realigns what it changed after each change. */
 	realignAfterRefactor: boolean;
 	/**
@@ -454,6 +460,7 @@ export const DEFAULTS: Preferences = {
 	wideNodes: false,
 	nodeClassIcons: true,
 	pickerClassIcons: false,
+	barPanelButtons: false,
 	realignAfterRefactor: true,
 	logicParens: false,
 	castNames: false,
@@ -590,6 +597,10 @@ export function readPreferences(): Preferences {
 			typeof stored.pickerClassIcons === "boolean"
 				? stored.pickerClassIcons
 				: DEFAULTS.pickerClassIcons,
+		barPanelButtons:
+			typeof stored.barPanelButtons === "boolean"
+				? stored.barPanelButtons
+				: DEFAULTS.barPanelButtons,
 		realignAfterRefactor:
 			typeof stored.realignAfterRefactor === "boolean"
 				? stored.realignAfterRefactor

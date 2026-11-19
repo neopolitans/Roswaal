@@ -220,6 +220,10 @@ export function settingsPage(): DocPage {
 						"Whether a new **And**, **Or**, **Not**, comparison or arithmetic pill starts out bracketing its expression. Only the starting point: whether a node brackets is stored **on the node**, so it travels with the graph and reads the same on everybody's machine. Precedence is handled either way — this is about how the line reads, never about what it means. The casts are pills too and are not offered it: `(value :: T)` brackets itself already.",
 					],
 					[
+						"Column buttons",
+						"The Project and Inspector buttons in the top bar. **Hidden** by default: **Left column** and **Right column** are in the Panels menu either way. A touch screen shows them regardless.",
+					],
+					[
 						"Shorten function tabs",
 						"What a function's tab says. **None** keeps `ƒ hide (Occupancy)`; **Function name** and **Script name** keep one of the two. The tooltip has both.",
 					],
