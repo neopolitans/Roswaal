@@ -118,7 +118,14 @@ export function parseConfig(value: unknown): RoswaalConfig {
 		throw new UserError("roswaal.json must be an object of settings.");
 	}
 	const given: Record<string, unknown> = { ...value };
-	for (const key of ["place", "rojoProject", "castsByHierarchy", "conditionalBindings", "export"]) {
+	for (const key of [
+		"place",
+		"rojoProject",
+		"castsByHierarchy",
+		"conditionalBindings",
+		"flattenEmptyScripts",
+		"export",
+	]) {
 		if (given[key] === null) delete given[key];
 	}
 	const config = { ...defaultConfig(), ...given } as Record<string, unknown>;
@@ -141,7 +148,7 @@ export function parseConfig(value: unknown): RoswaalConfig {
 	for (const key of ["format", "comments"]) {
 		if (typeof config[key] !== "boolean") throw wrong(key, "true or false");
 	}
-	for (const key of ["castsByHierarchy", "conditionalBindings"]) {
+	for (const key of ["castsByHierarchy", "conditionalBindings", "flattenEmptyScripts"]) {
 		if (config[key] !== undefined && typeof config[key] !== "boolean") {
 			throw wrong(key, "true or false");
 		}

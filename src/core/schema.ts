@@ -759,6 +759,13 @@ export interface RoswaalConfig {
 	 */
 	conditionalBindings?: boolean;
 	/**
+	 * When a script's last child is deleted or moved away, its graph moves back
+	 * out of its folder: `Config/init.nodescript` becomes `Config.nodescript`.
+	 * Off by default, so nothing moves that the developer did not touch; a
+	 * folder holding only an init graph is valid Rojo either way.
+	 */
+	flattenEmptyScripts?: boolean;
+	/**
 	 * No longer read, and no longer written by default; accepted so a
 	 * `roswaal.json` that carries it still loads.
 	 *

@@ -484,6 +484,19 @@ function CompilingSettings({
 				)}
 			</Group>
 
+			<Group title="Scripts with children">
+				<Row
+					label="When the last child goes"
+					help="Moves the script's graph back out of its folder: Config/init.nodescript becomes Config.nodescript. Off, it stays a script with no children, which Rojo reads the same."
+				>
+					<Toggle
+						on={config.flattenEmptyScripts === true}
+						onChange={(on) => onConfig({ flattenEmptyScripts: on })}
+						label={config.flattenEmptyScripts ? "Moved back out" : "Left in its folder"}
+					/>
+				</Row>
+			</Group>
+
 			<Group title="Studio betas">
 				{STUDIO_BETAS.map((beta) => {
 					const on = config[beta.key] === true;

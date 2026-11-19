@@ -9,6 +9,23 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.6",
+		date: "2026-11-19",
+		headline:
+			"Scripts with children move, rename and delete as one; a child's module offers its functions.",
+		added: [
+			"**Moving a script with children.** Drag it in the tree to move it with its children. Its init.nodescript does not move alone.",
+			"**When the last child goes**, in Settings › Compiling, moves a script's graph back out of its folder once it has no children. It is off by default.",
+			"**Requires from script.** A Require Module that starts at script, such as script.Child or script.Parent.Sibling, offers that module's Script Functions and types.",
+		],
+		changed: [
+			"**Deleting a graph** deletes the Luau Roswaal wrote for it. Deleting a script with children names them first.",
+			"**Moving or renaming graphs** in Dynamic mode compiles them where they are now, and removes the Luau they wrote before, on the website too. A Rojo meta file beside a graph's Luau moves with it.",
+			"**A move that would put a graph beside a folder of its name** is refused, as creating and renaming already were.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.5",
 		date: "2026-11-18",
 		headline: "Script icons say the script in their corner.",
@@ -20,7 +37,8 @@ export const RELEASES_1_0: Release[] = [
 	{
 		version: "1.0.0-canary.4",
 		date: "2026-11-18",
-		headline: "New graph asks where on a graph's menu; graphs are coloured by the script they become.",
+		headline:
+			"New graph asks where on a graph's menu; graphs are coloured by the script they become.",
 		changed: [
 			"**New graph** on a graph's menu, or a script with children's, asks where the new graph goes: inside it, as its child, which is the default, or beside it in its folder. It also asks what it starts as, a ModuleScript unless you choose otherwise. New child script is part of it now.",
 			"**Graphs in Graph Content** are coloured by the script they compile to, as their Luau is: a Script white or slate, a LocalScript green, a ModuleScript blue.",

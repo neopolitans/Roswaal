@@ -561,8 +561,9 @@ export function useProjectActions(context: ProjectActionsContext) {
 			try {
 				for (const path of from) {
 					await flushUnder(path);
-					const { path: moved } = await api.moveScript(path, toDir);
+					const { path: moved, flattened } = await api.moveScript(path, toDir);
 					await followMove(path, moved);
+					if (flattened) await followMove(flattened.from, flattened.to);
 				}
 			} catch (err) {
 				notify("Could not move that", errorMessage(err));
@@ -1337,11 +1338,21 @@ export function useProjectActions(context: ProjectActionsContext) {
 	const onTreeDelete = useCallback(
 		async (paths: string[]) => {
 			const label = paths.length === 1 ? "this" : `these ${paths.length}`;
+			// A script with children takes them with it: say which.
+			const children = paths.flatMap((p) => childScriptsOf(projectTreeRef.current, p));
 			const ok = await ask({
 				kind: "confirm",
 				title: "Delete",
 				message: `Delete ${label}? This cannot be undone from Roswaal.`,
 				items: paths,
+				...(children.length > 0
+					? {
+							points: [
+								`Its children go too: ${children.join(", ")}.`,
+								"The Luau Roswaal wrote for them is deleted with them.",
+							],
+						}
+					: {}),
 				confirmLabel: "Delete",
 				danger: true,
 			});
@@ -1352,18 +1363,19 @@ export function useProjectActions(context: ProjectActionsContext) {
 					// it back; one already under way is let finish first.
 					saves.drop(target);
 					await saves.flushUnder(target);
-					await api.deleteScript(target);
+					const { flattened } = await api.deleteScript(target);
 					// Every tab of every file it took: function tabs, and everything
 					// inside a folder. A deleted file elsewhere in the tree is no
 					// reason to close the graph somebody is looking at.
 					store.closePath(target);
+					if (flattened) await followMove(flattened.from, flattened.to);
 				}
 				await refreshTree();
 			} catch (err) {
 				notify("Something went wrong", errorMessage(err));
 			}
 		},
-		[ask, notify, refreshTree, saves],
+		[ask, notify, refreshTree, saves, followMove],
 	);
 
 	return {
@@ -1396,4 +1408,32 @@ export function useProjectActions(context: ProjectActionsContext) {
 		setExportOpen,
 		followMove,
 	};
+}
+
+/**
+ * The graphs a script with children holds, by name, when `path` is one: what
+ * deleting it takes with it. Nothing for anything else.
+ */
+function childScriptsOf(tree: readonly TreeEntry[], path: string): string[] {
+	const find = (entries: readonly TreeEntry[]): TreeEntry | undefined => {
+		for (const entry of entries) {
+			if (entry.path === path) return entry;
+			const inside = entry.children && find(entry.children);
+			if (inside) return inside;
+		}
+		return undefined;
+	};
+	const folder = find(tree);
+	if (!folder?.script) return [];
+	const names: string[] = [];
+	const walk = (entries: readonly TreeEntry[]) => {
+		for (const entry of entries) {
+			if (entry.kind === "nodescript" && entry.path !== folder.script)
+				names.push(entry.name.replace(/\.nodescript$/, ""));
+			else if (entry.script) names.push(entry.name);
+			if (entry.children) walk(entry.children);
+		}
+	};
+	walk(folder.children ?? []);
+	return names;
 }

@@ -51,6 +51,48 @@ function normalise(path: string): string {
 		.join(".");
 }
 
+let graphPaths: ReadonlyMap<string, string> = new Map();
+
+/**
+ * Each open graph's file, by its id: where `script` is for a require written
+ * from it. The store sets it as graphs open, move and close.
+ */
+export function setGraphPaths(next: ReadonlyMap<string, string>): void {
+	graphPaths = next;
+}
+
+/**
+ * The graphs a require that starts at `script` can mean, from the requiring
+ * graph's own file, as Rojo lays files out: `script` is a script with
+ * children's folder, or where a plain graph's folder would be; `Parent` goes
+ * up one; a name is a graph, or a script with children, of that name.
+ */
+export function relativeGraphs(self: string, path: string): string[] {
+	let at = self.endsWith("/init.nodescript")
+		? self.slice(0, -"/init.nodescript".length)
+		: self.replace(/\.nodescript$/, "");
+	for (const step of normalise(path).split(".").filter(Boolean)) {
+		at = step === "Parent" ? at.slice(0, Math.max(0, at.lastIndexOf("/"))) : `${at}/${step}`;
+	}
+	return [`${at}.nodescript`, `${at}/init.nodescript`];
+}
+
+/**
+ * Whether a require lands on a module: by where a node map puts it, or, for
+ * one that starts at `script`, by the requiring graph's own file.
+ */
+function lands(
+	self: string | undefined,
+	root: string,
+	path: string,
+	module: { graph: string; location: { root: string; path: string } | null },
+): boolean {
+	if (root === "script")
+		return self !== undefined && relativeGraphs(self, path).includes(module.graph);
+	const at = module.location;
+	return at !== null && at.root === root && normalise(at.path) === path;
+}
+
 /** A pin's text, typed or defaulted. */
 function textOf(node: Pick<GraphNode, "def" | "literals">, pin: string): string {
 	const literal =
@@ -70,7 +112,7 @@ function textOf(node: Pick<GraphNode, "def" | "literals">, pin: string): string 
  * types would need the require first.
  */
 export function requiredTypes(
-	script: Pick<NodeScript, "nodes" | "modules">,
+	script: Pick<NodeScript, "nodes" | "modules"> & { id?: string },
 	types: ExportedType[],
 ): { type: string; graph: string; fields?: TypeField[] }[] {
 	const out: { type: string; graph: string; fields?: TypeField[] }[] = [];
@@ -92,10 +134,10 @@ export function requiredTypes(
 	}
 	requires.push(...declaredByPlace(script));
 
+	const self = script.id === undefined ? undefined : graphPaths.get(script.id);
 	for (const { root, path, local } of requires) {
 		for (const exported of types) {
-			const at = exported.location;
-			if (!at || at.root !== root || normalise(at.path) !== path) continue;
+			if (!lands(self, root, path, exported)) continue;
 			const type = `${local}.${exported.name}`;
 			if (seen.has(type)) continue;
 			seen.add(type);
@@ -143,15 +185,13 @@ export interface RequiredModule {
  * it is required, and only under the name it is required as.
  */
 export function requiredModules(
-	script: Pick<NodeScript, "nodes" | "modules">,
+	script: Pick<NodeScript, "nodes" | "modules"> & { id?: string },
 	exported: readonly ExportedModuleFunction[] = functions,
 ): RequiredModule[] {
 	const out: RequiredModule[] = [];
+	const self = script.id === undefined ? undefined : graphPaths.get(script.id);
 	const offer = (id: string, root: string, path: string, local: string) => {
-		const found = exported.filter((fn) => {
-			const at = fn.location;
-			return at !== null && at.root === root && normalise(at.path) === path;
-		});
+		const found = exported.filter((fn) => lands(self, root, path, fn));
 		if (found.length > 0) out.push({ node: id, local, functions: found });
 	};
 	for (const node of script.nodes) {

@@ -40,6 +40,15 @@ import type { TypeField } from "../core/typeFields.js";
 import { keyedEventStream } from "./keyedEvents.js";
 import { notePlaceSave } from "./placeSave.js";
 
+/**
+ * A script with children that became a plain graph again when its last child
+ * went: where its graph was and is. See `flattenEmptyScripts`.
+ */
+export interface Flattened {
+	from: string;
+	to: string;
+}
+
 export interface TreeEntry {
 	path: string;
 	name: string;
@@ -600,8 +609,9 @@ export const api = {
 			...settings,
 		}),
 	moveScript: (from: string, toDir: string) =>
-		post<{ path: string }>("/api/script/move", { from, toDir }),
-	deleteScript: (path: string) => post<{ ok: true }>("/api/script/delete", { path }),
+		post<{ path: string; flattened?: Flattened }>("/api/script/move", { from, toDir }),
+	deleteScript: (path: string) =>
+		post<{ ok: true; flattened?: Flattened }>("/api/script/delete", { path }),
 
 	readMap: (path: string) => request<{ map: NodeMap }>(`/api/map?path=${encodeURIComponent(path)}`),
 	writeMap: (path: string, map: NodeMap) =>

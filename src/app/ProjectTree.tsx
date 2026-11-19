@@ -411,7 +411,8 @@ export const ProjectTree = memo(function ProjectTree({
 							dropTarget === entry.path && "drop-target",
 						)}
 						style={depthStyle(depth, 1)}
-						draggable={!isDir && !isListed(entry)}
+						// A script with children moves as one, its folder and all.
+						draggable={(!isDir || Boolean(entry.script)) && !isListed(entry)}
 						onDragStart={(e) => onDragStart(e, entry)}
 						onDragOver={(e) => {
 							if (!isDir) return;

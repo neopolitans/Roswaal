@@ -111,7 +111,6 @@ import {
 	copyPackBetween,
 	createFolder,
 	createPack,
-	deleteEntry,
 	deletePack,
 	deletePackNode,
 	duplicatePack,
@@ -163,6 +162,15 @@ import {
 } from "./project.js";
 import { fields, need, optionalQuery, query, type RouteRequest, realmOf, text } from "./request.js";
 import { instancePathOf, modulesRequiredBy, projectInstances } from "./requires.js";
+import {
+	afterMove,
+	assertNotLoneInit,
+	deleteGraphs,
+	flattenIfEmpty,
+	graphsUnder,
+	moveMetaFile,
+	outputsOf,
+} from "./reshape.js";
 import { addFromWally, installGithub, installZip, packageUses, removePackage } from "./wally.js";
 
 export { type ErrorBody, errorResponse, HttpError, UserError } from "./errors.js";
@@ -1411,6 +1419,7 @@ export class ApiSession {
 				const before = await graphOutputPath(project, graph);
 				const nested = await nestScript(project, graph);
 				if (nested.moved) {
+					// The graph, now its folder's init, writes its Luau there.
 					const after = await graphOutputPath(project, nested.graph);
 					if (before && after) await moveMetaFile(project, before, after);
 					if (project.config.compileMode === "hot")
@@ -1497,14 +1506,28 @@ export class ApiSession {
 				return { path: relPath, script, report: result.report };
 			},
 
+			/**
+			 * Moves a graph, or a folder with every graph in it. Their meta files
+			 * follow their Luau, Dynamic mode compiles them where they are now,
+			 * and a script left with no children may flatten: see `reshape.ts`.
+			 */
 			"POST /script/move": async (req) => {
+				const project = this.project();
 				const { from, toDir } = fields<{ from: string; toDir: string }>(req);
-				return { path: await moveEntry(this.project(), need(from, "from"), need(toDir, "toDir")) };
+				const source = need(from, "from");
+				assertNotLoneInit(source, "move");
+				const before = await outputsOf(project, await graphsUnder(project, source));
+				const moved = await moveEntry(project, source, need(toDir, "toDir"));
+				await afterMove(project, source, moved, before);
+				const flattened = await flattenIfEmpty(project, path.posix.dirname(toPosix(source)));
+				return { path: moved, ...(flattened ? { flattened } : {}) };
 			},
 
+			/** Deletes a graph or a folder, and the Luau Roswaal wrote for it. */
 			"POST /script/delete": async (req) => {
-				await deleteEntry(this.project(), String(fields<{ path: string }>(req).path ?? ""));
-				return { ok: true };
+				const target = String(fields<{ path: string }>(req).path ?? "");
+				const flattened = await deleteGraphs(this.project(), target);
+				return { ok: true, ...(flattened ? { flattened } : {}) };
 			},
 
 			"GET /map": async (req) => ({ map: await readMap(this.project(), query(req, "path")) }),
@@ -1563,10 +1586,14 @@ export class ApiSession {
 			},
 
 			"POST /entry/rename": async (req) => {
+				const project = this.project();
 				const { path: relPath, name } = fields<{ path: string; name: string }>(req);
-				return {
-					path: await renameEntry(this.project(), need(relPath, "path"), need(name, "name")),
-				};
+				const source = need(relPath, "path");
+				assertNotLoneInit(source, "rename");
+				const before = await outputsOf(project, await graphsUnder(project, source));
+				const renamed = await renameEntry(project, source, need(name, "name"));
+				await afterMove(project, source, renamed, before);
+				return { path: renamed };
 			},
 
 			"GET /source": async (req) => ({
@@ -2028,18 +2055,4 @@ async function createGraph(
 
 	await writeScript(project, relPath, script);
 	return { path: relPath, script };
-}
-
-/**
- * Moves the Rojo meta file beside a graph's Luau to follow it:
- * `Foo.meta.json` beside `Foo.server.luau` becomes `Foo/init.meta.json`
- * when the graph becomes its folder's init. Leaves one already there alone.
- */
-async function moveMetaFile(project: OpenProject, from: string, to: string): Promise<void> {
-	const meta = (luau: string) => luau.replace(/(\.server|\.client)?\.luau$/, ".meta.json");
-	const source = safeJoin(project.root, meta(from));
-	const dest = safeJoin(project.root, meta(to));
-	if (source === dest || !(await exists(source)) || (await exists(dest))) return;
-	await fs.mkdir(path.dirname(dest), { recursive: true });
-	await fs.rename(source, dest);
 }

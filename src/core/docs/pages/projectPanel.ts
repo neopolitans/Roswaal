@@ -108,11 +108,26 @@ export function projectPanelPage(): DocPage {
 					"double-click it to open its graph. In Dynamic mode its Luau moves at once.",
 			},
 			{
+				t: "p",
+				text:
+					"Drag the script to move it, children and all, or rename it. Its own " +
+					"`init.nodescript` does not move alone. A child's module is " +
+					"`require(script.Child)` from the script, and its Script Functions and types " +
+					"are offered as any module's are.",
+			},
+			{
+				t: "p",
+				text:
+					"Deleting a graph deletes the Luau Roswaal wrote for it. A script whose last child " +
+					"goes stays in its folder, unless **Settings › Compiling › When the last child goes** " +
+					"moves it back out.",
+			},
+			{
 				t: "note",
 				kind: "info",
 				text:
 					"A graph and a folder of the same name side by side would be two instances Studio " +
-					"calls by one name, so Roswaal refuses to make one beside the other.",
+					"calls by one name, so Roswaal refuses to make or move one beside the other.",
 			},
 
 			{ t: "h", level: 2, text: "Opening everything inside" },

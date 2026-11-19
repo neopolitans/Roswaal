@@ -67,7 +67,7 @@ import { adoptWiredSignatures, syncScriptCalls } from "../core/scriptCalls.js";
 import { type MapDocument, type SideDocument, sideName, sidePath } from "./centreDocument.js";
 import type { View } from "./geometry.js";
 import { functionNameOf } from "./nodeConfig.js";
-import { syncModuleCallsFor } from "./projectTypes.js";
+import { setGraphPaths, syncModuleCallsFor } from "./projectTypes.js";
 import { realmOfLuau, realmOfScript, type ScriptRealm } from "./ScriptIcon.jsx";
 
 const HISTORY_LIMIT = 100;
@@ -294,6 +294,9 @@ class Store {
 				...(t.graph === null ? realmField(open.script) : {}),
 			};
 		});
+
+		// Where each open graph is, for a require that starts at `script`.
+		setGraphPaths(new Map([...this.docs].map(([path, doc]) => [doc.script.id, path])));
 
 		let outlineChanged = this.outline.size !== this.docs.size;
 		const outline = new Map<string, FunctionInfo[]>();

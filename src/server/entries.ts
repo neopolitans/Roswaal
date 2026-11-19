@@ -157,6 +157,7 @@ export async function moveEntry(
 	if (source === dest) return destRel;
 	if (isInside(dest, source)) throw new UserError(`${toPosix(from)} cannot be moved into itself.`);
 	if (await exists(dest)) throw new UserError(`${destRel} already exists.`);
+	await assertNoNameClash(project, destRel);
 	await fs.mkdir(path.dirname(dest), { recursive: true });
 	await fs.rename(source, dest);
 	return destRel;

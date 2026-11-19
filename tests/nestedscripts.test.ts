@@ -195,3 +195,84 @@ describe("what the editor calls a script with children", () => {
 		expect(graphLabel(`${SHARED}/Greeter/Phrases.nodescript`)).toBe("Phrases");
 	});
 });
+
+describe("moving, renaming and deleting scripts with children", () => {
+	const put = (path: string, body: unknown) => session.handle("PUT", path, { body });
+	const RS = ".roswaal/scripts/ReplicatedStorage";
+
+	it("refuses to move or rename a script's own graph apart from its folder", async () => {
+		expect(
+			await refusal(
+				post("/script/move", { from: `${SHARED}/Greeter/init.nodescript`, toDir: SHARED }),
+			),
+		).toMatch(/move its folder/);
+		expect(
+			await refusal(
+				post("/entry/rename", { path: `${SHARED}/Greeter/init.nodescript`, name: "Other" }),
+			),
+		).toMatch(/rename its folder/);
+	});
+
+	it("moves a script with its children, its Luau and its meta file following", async () => {
+		const moved = (await post("/script/move", { from: `${SHARED}/Greeter`, toDir: RS })) as {
+			path: string;
+		};
+		expect(moved.path).toBe(`${RS}/Greeter`);
+		expect(await read(`${RS}/Greeter/init.nodescript`)).not.toBeNull();
+		expect(await read(`${RS}/Greeter/Phrases.nodescript`)).not.toBeNull();
+		// Dynamic mode compiled each where it is now, and took the old Luau away.
+		expect(await read("src/ReplicatedStorage/Greeter/init.luau")).toContain(
+			"-- edit Greeter/init.nodescript",
+		);
+		expect(await read(`${OUT}/Greeter/init.luau`)).toBeNull();
+		expect(await read("src/ReplicatedStorage/Greeter/init.meta.json")).toBe('{ "properties": {} }');
+		expect(await read(`${OUT}/Greeter/init.meta.json`)).toBeNull();
+	});
+
+	it("refuses a move that would put a graph beside a folder of its name", async () => {
+		await post("/script/create", { dir: SHARED, name: "Greeter" });
+		expect(
+			await refusal(post("/script/move", { from: `${SHARED}/Greeter.nodescript`, toDir: RS })),
+		).toMatch(/two instances of that name/);
+		await post("/script/delete", { path: `${SHARED}/Greeter.nodescript` });
+	});
+
+	it("deletes a graph's Luau with it, and leaves a script with no children as it is by default", async () => {
+		// A Script compiles as it is made; an empty ModuleScript has nothing to export yet.
+		await post("/script/create", { dir: `${RS}/Greeter`, name: "Ticker", scriptClass: "Script" });
+		await post("/compile", { path: `${RS}/Greeter/Ticker.nodescript`, write: true });
+		expect(await read("src/ReplicatedStorage/Greeter/Ticker.server.luau")).not.toBeNull();
+		await post("/script/delete", { path: `${RS}/Greeter/Ticker.nodescript` });
+		expect(await read(`${RS}/Greeter/Ticker.nodescript`)).toBeNull();
+		expect(await read("src/ReplicatedStorage/Greeter/Ticker.server.luau")).toBeNull();
+
+		await post("/script/delete", { path: `${RS}/Greeter/Moods.nodescript` });
+
+		const gone = (await post("/script/delete", { path: `${RS}/Greeter/Phrases.nodescript` })) as {
+			flattened?: unknown;
+		};
+		expect(gone.flattened).toBeUndefined();
+		expect(await read(`${RS}/Greeter/init.nodescript`)).not.toBeNull();
+	});
+
+	it("flattens a script whose last child goes, when the project asks", async () => {
+		const { config } = (await get("/project")) as { config: Record<string, unknown> };
+		await put("/project/config", { ...config, flattenEmptyScripts: true });
+		await post("/script/create", { dir: `${RS}/Greeter`, name: "Last" });
+
+		const gone = (await post("/script/delete", { path: `${RS}/Greeter/Last.nodescript` })) as {
+			flattened?: { from: string; to: string };
+		};
+		expect(gone.flattened).toEqual({
+			from: `${RS}/Greeter/init.nodescript`,
+			to: `${RS}/Greeter.nodescript`,
+		});
+		expect(await read(`${RS}/Greeter.nodescript`)).not.toBeNull();
+		expect(await read(`${RS}/Greeter/init.nodescript`)).toBeNull();
+		expect(await read("src/ReplicatedStorage/Greeter.luau")).toContain(
+			"-- edit Greeter.nodescript",
+		);
+		expect(await read("src/ReplicatedStorage/Greeter/init.luau")).toBeNull();
+		expect(await read("src/ReplicatedStorage/Greeter.meta.json")).toBe('{ "properties": {} }');
+	});
+});
