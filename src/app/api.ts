@@ -632,6 +632,8 @@ export const api = {
 	readMap: (path: string) => request<{ map: NodeMap }>(`/api/map?path=${encodeURIComponent(path)}`),
 	writeMap: (path: string, map: NodeMap) =>
 		request<{ ok: true }>("/api/map", { method: "PUT", body: JSON.stringify({ path, map }) }),
+	/** Makes a map the served one, writing default.project.json; answers the maps changed. */
+	serveMap: (path: string) => post<{ changed: string[] }>("/api/map/serve", { path }),
 	createMap: (dir: string, name: string) =>
 		post<{ path: string; map: NodeMap }>("/api/map/create", { dir, name }),
 	compileMap: (opts: {

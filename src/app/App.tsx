@@ -2001,6 +2001,30 @@ export function App() {
 	followMoveRef.current = followMove;
 	offerRojo.current = importRojo;
 
+	/**
+	 * Serve this map: it writes default.project.json, and the one that did
+	 * writes its own under .roswaal. Open maps are saved first, so the daemon
+	 * starts from what is on screen, and read back after.
+	 */
+	const serveMap = async (at: string) => {
+		try {
+			for (const one of store.unsavedMaps()) {
+				await api.writeMap(one.path, one.map);
+				store.markMapSaved(one.path, one.map);
+			}
+			const { changed } = await api.serveMap(at);
+			for (const one of changed) {
+				const { map } = await api.readMap(one);
+				store.updateSide(`map:${one}`, (side) =>
+					side.kind === "map" ? { kind: "map", doc: { ...side.doc, map, dirty: false } } : side,
+				);
+			}
+			await refreshTree();
+		} catch (err) {
+			notify("The map was not served", errorMessage(err));
+		}
+	};
+
 	// The open node map, shared by the tree in the centre and its three panels.
 	const mapEd = useMapEditor(
 		mapDoc && project
@@ -2014,6 +2038,7 @@ export function App() {
 					onChange: (next) => store.editMap(mapDoc.path, next),
 					onNewFolder: onTreeNewFolder,
 					onRefreshTree: refreshTree,
+					onServe: () => void serveMap(mapDoc.path),
 					onMoveFolder: async (next, from, toDir) => {
 						const at = mapDoc.path;
 						store.editMap(at, next);
@@ -2380,6 +2405,7 @@ export function App() {
 									onNewGraph={createGraphIn}
 									onNewGraphNear={(graph) => void createGraphNear(graph)}
 									onNewMap={createMapIn}
+									onServeMap={(at) => void serveMap(at)}
 									onNewFolder={onTreeNewFolder}
 									onRename={onTreeRename}
 									onDelete={onTreeDelete}

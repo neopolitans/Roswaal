@@ -387,6 +387,15 @@ export function buildingAndRojoPage(): DocPage {
 					"instances with one name, is listed under the tree, and in Graph under its node.",
 			},
 			{
+				t: "p",
+				text:
+					"**One map is served.** It writes `default.project.json`, which `rojo serve` reads. " +
+					"Every other map writes its own file under `.roswaal/projects`, with its paths " +
+					"written from there, so `rojo serve .roswaal/projects/Lobby.project.json` still " +
+					"serves it. **Serve this map**, on a map's menu or in This map, swaps them. A new " +
+					"map starts unserved while another serves.",
+			},
+			{
 				t: "note",
 				kind: "info",
 				text:

@@ -23,6 +23,7 @@ export type TreeAction =
 	| "reveal"
 	| "openLuau"
 	| "revealLuau"
+	| "serveMap"
 	| "rename"
 	| "delete";
 
@@ -54,6 +55,8 @@ export interface TreeMenuContext {
 	notHere: string;
 	/** On a graph, the Luau it compiles to: Open Luau and Show Luau in file manager. */
 	luau?: string;
+	/** On a map that is not served: Serve this map. */
+	canServe?: boolean;
 }
 
 const present = <T>(entries: (T | false | undefined)[]): T[] =>
@@ -131,6 +134,7 @@ export function fileMenu(
 			{ action: "newFolder", label: "New folder", icon: "newFolder" },
 		]),
 		present([
+			ctx.canServe === true && { action: "serveMap", label: "Serve this map", icon: "map" },
 			ctx.luau !== undefined && {
 				action: "openLuau",
 				label: "Open Luau",

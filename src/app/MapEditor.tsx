@@ -119,6 +119,8 @@ export interface MapEditorInput {
 	onMoveFolder?: (next: NodeMap, from: string, toDir: string) => Promise<void>;
 	/** Reads the project's files again, once something was written outside the map. */
 	onRefreshTree?: () => Promise<void>;
+	/** Makes this the served map: it writes default.project.json, which rojo serve reads. */
+	onServe?: () => void;
 }
 
 /** What is picked: a node of the map, or a folder on disk the map does not name. */
@@ -1869,6 +1871,23 @@ export function MapSettingsPanel({ ed }: { ed: MapEditing }) {
 								value={map.output}
 								onChange={(e) => commit({ ...map, output: e.target.value })}
 							/>
+						</Field>
+						<Field
+							label="Served"
+							part="served"
+							help={
+								map.output === "default.project.json"
+									? "rojo serve reads this map. Serve another to swap."
+									: "The served map writes default.project.json; this one writes its own under .roswaal."
+							}
+						>
+							{map.output === "default.project.json" ? (
+								<span className="map-count">This map</span>
+							) : (
+								<button type="button" className="tb" disabled={!ed.onServe} onClick={ed.onServe}>
+									Serve this map
+								</button>
+							)}
 						</Field>
 						<Field label="Place IDs" help="servePlaceIds: the places rojo serve may sync into.">
 							<DraftInput

@@ -70,6 +70,8 @@ export interface ProjectTreeProps {
 	onNewMap: (parentDir: string) => void;
 	/** Where compiled Luau goes, mirroring `sourceDir`: a graph's hover names its file. */
 	outDir?: string;
+	/** Makes a map the served one. */
+	onServeMap?: (path: string) => void;
 	onNewFolder: (parentDir: string) => void;
 	onRename: (path: string) => void;
 	onDelete: (paths: string[]) => void;
@@ -121,6 +123,7 @@ export const ProjectTree = memo(function ProjectTree({
 	onNewGraphNear,
 	onNewMap,
 	outDir = "",
+	onServeMap,
 	onNewFolder,
 	onRename,
 	onDelete,
@@ -477,6 +480,8 @@ export const ProjectTree = memo(function ProjectTree({
 				const found = file ? findEntry(tree, file) : undefined;
 				return found ? onOpen(found) : undefined;
 			}
+			case "serveMap":
+				return onServeMap?.(entry.path);
 			case "revealLuau": {
 				const file = luauOf(entry)?.luau;
 				return file ? onReveal(file) : undefined;
@@ -951,6 +956,11 @@ export const ProjectTree = memo(function ProjectTree({
 								canGithub,
 								canReveal,
 								notHere: NOT_HERE,
+								...(onServeMap &&
+								menu.entry.mapFacts?.output !== undefined &&
+								!menu.entry.mapFacts.serves
+									? { canServe: true }
+									: {}),
 								...(luauOf(menu.entry) && findEntry(tree, luauOf(menu.entry)?.luau ?? "")
 									? { luau: luauOf(menu.entry)?.luau }
 									: {}),

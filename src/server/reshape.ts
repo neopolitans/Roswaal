@@ -87,9 +87,27 @@ export async function deleteGraphs(
 	relPath: string,
 ): Promise<Flattened | undefined> {
 	const outputs = await outputsOf(project, await graphsUnder(project, relPath));
+	const parked = await parkedFilesUnder(project, relPath);
 	await deleteEntry(project, relPath);
 	await removeOutputs(project, [...outputs.values()]);
+	// A map that was not served wrote its own project file under .roswaal,
+	// which nothing reads once the map is gone.
+	for (const file of parked)
+		await fs.rm(safeJoin(project.root, file), { force: true }).catch(() => undefined);
 	return flattenIfEmpty(project, path.posix.dirname(toPosix(relPath)));
+}
+
+/** The project files under .roswaal that the maps at or under `relPath` write. */
+async function parkedFilesUnder(project: OpenProject, relPath: string): Promise<string[]> {
+	const at = toPosix(relPath);
+	const out: string[] = [];
+	for (const found of await collectMaps(project)) {
+		if (found !== at && !found.startsWith(`${at}/`)) continue;
+		const map = await readMap(project, found).catch(() => null);
+		const output = map && !isFilesystemMap(map) ? toPosix(map.output) : "";
+		if (output.startsWith(".roswaal/projects/")) out.push(output);
+	}
+	return out;
 }
 
 /**

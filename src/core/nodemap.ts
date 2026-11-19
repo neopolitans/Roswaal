@@ -412,11 +412,13 @@ export function compileNodeMap(map: NodeMap): MapCompileResult {
 	}
 	validateNode(map.root, diagnostics, true);
 
-	const globs = collectGlobs(map);
+	// Paths in the map are the project's; in the file, they are the file's folder's.
+	const rel = (p: string) => fromOutput(map.output, p);
+	const globs = collectGlobs(map).map(rel);
 	const project = {
 		name: map.name,
 		...(map.rojo ?? {}),
-		tree: buildTree(map.root, true),
+		tree: buildTree(map.root, true, rel),
 		...(globs.length > 0 ? { globIgnorePaths: globs } : {}),
 	};
 
@@ -517,12 +519,58 @@ function joinGlob(base: string | undefined, glob: string): string {
 
 type RojoNode = Record<string, unknown>;
 
+/** The project file `rojo serve` reads, which the served map writes. */
+export const SERVED_OUTPUT = "default.project.json";
+
+/** Where a map that is not served writes its project file: its own, under .roswaal. */
+export function parkedOutput(mapPath: string): string {
+	const name = (mapPath.split("/").pop() ?? "map").replace(/\.nodemap$/i, "");
+	return `.roswaal/projects/${name}.project.json`;
+}
+
+/**
+ * `path`, a project-relative path as a map holds it, as a project file at
+ * `output` must write it: Rojo reads every path relative to the file's own
+ * folder. Unchanged for a file at the root.
+ */
+export function fromOutput(output: string, path: string): string {
+	const dir = output
+		.replace(/\\/g, "/")
+		.split("/")
+		.filter((s) => s && s !== ".")
+		.slice(0, -1);
+	if (dir.length === 0) return path;
+	const parts = path
+		.replace(/\\/g, "/")
+		.split("/")
+		.filter((s) => s && s !== ".");
+	let same = 0;
+	while (same < dir.length && same < parts.length && dir[same] === parts[same]) same++;
+	return [...dir.slice(same).map(() => ".."), ...parts.slice(same)].join("/") || ".";
+}
+
+/** The other way: a path written in a project file at `output`, as the project sees it. */
+export function intoProject(output: string, path: string): string {
+	const dir = output
+		.replace(/\\/g, "/")
+		.split("/")
+		.filter((s) => s && s !== ".")
+		.slice(0, -1);
+	const out: string[] = [...dir];
+	for (const part of path.replace(/\\/g, "/").split("/")) {
+		if (part === "" || part === ".") continue;
+		if (part === "..") out.pop();
+		else out.push(part);
+	}
+	return out.join("/");
+}
+
 /** A file Rojo builds an instance from whole: a binary or XML model, or a JSON model. */
 export function isModelFile(path: string): boolean {
 	return /\.(rbxmx?|model\.json)$/i.test(path);
 }
 
-function buildTree(node: MapNode, isRoot: boolean): RojoNode {
+function buildTree(node: MapNode, isRoot: boolean, rel: (path: string) => string): RojoNode {
 	const out: RojoNode = {};
 
 	// Services are named by their key alone; restating $className makes Rojo
@@ -543,7 +591,7 @@ function buildTree(node: MapNode, isRoot: boolean): RojoNode {
 		// A service's class is its key, written out because the file did.
 		out.$className = node.name;
 	}
-	if (node.path) out.$path = node.optional ? { optional: node.path } : node.path;
+	if (node.path) out.$path = node.optional ? { optional: rel(node.path) } : rel(node.path);
 	if (node.properties && Object.keys(node.properties).length > 0) {
 		out.$properties = node.properties;
 	}
@@ -551,7 +599,7 @@ function buildTree(node: MapNode, isRoot: boolean): RojoNode {
 	Object.assign(out, node.rojo ?? {});
 
 	for (const child of node.children) {
-		out[child.name] = buildTree(child, false);
+		out[child.name] = buildTree(child, false, rel);
 	}
 	return out;
 }

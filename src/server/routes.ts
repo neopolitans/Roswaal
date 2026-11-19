@@ -27,7 +27,14 @@ import { fromBase64, toBase64 } from "../core/base64.js";
 import { graphNameOf, importLuau, LARGEST_IMPORT } from "../core/import/fromLuau.js";
 import type { ImportMode, TopLevelLocals } from "../core/import/modes.js";
 import { NEW_PLACE_FILE } from "../core/newProject.js";
-import { emptyFilesystemMap, emptyMap, type NodeMap } from "../core/nodemap.js";
+import {
+	emptyFilesystemMap,
+	emptyMap,
+	isFilesystemMap,
+	type NodeMap,
+	parkedOutput,
+	SERVED_OUTPUT,
+} from "../core/nodemap.js";
 import {
 	type AttributeEntry,
 	attributeEntries,
@@ -96,7 +103,7 @@ import { fs, path } from "./host.js";
 import { makeGraphFolders } from "./mapFolders.js";
 import { createProject } from "./newProject.js";
 import { importGraphPath } from "./outputs.js";
-import { toPosix } from "./paths.js";
+import { tidyPath, toPosix } from "./paths.js";
 import {
 	assertNoNameClash,
 	assertNotInit,
@@ -1587,6 +1594,39 @@ export class ApiSession {
 				return { ok: true };
 			},
 
+			/**
+			 * Makes a map the served one: it writes default.project.json, which
+			 * `rojo serve` reads, and the map that did writes its own under
+			 * .roswaal. Both are written and compiled. Answers the maps changed.
+			 */
+			"POST /map/serve": async (req) => {
+				const project = this.project();
+				const target = need(fields<{ path: string }>(req).path, "path");
+				const map = await readMap(project, target);
+				if (isFilesystemMap(map))
+					throw new HttpError(400, "A filesystem map writes no project file to serve.");
+				const changed: string[] = [];
+				const was = await servedMap(project);
+				if (was !== null && was !== target) {
+					const other = await readMap(project, was);
+					other.output = parkedOutput(was);
+					await writeMap(project, was, other);
+					await compileMap(project, was, { write: true, sync: false });
+					changed.push(was);
+				}
+				if (tidyPath(map.output) !== SERVED_OUTPUT) {
+					const parked = tidyPath(map.output);
+					map.output = SERVED_OUTPUT;
+					await writeMap(project, target, map);
+					// Its own file under .roswaal is nobody's now.
+					if (parked.startsWith(".roswaal/"))
+						await fs.rm(safeJoin(project.root, parked), { force: true }).catch(() => undefined);
+				}
+				await compileMap(project, target, { write: true, sync: false });
+				changed.push(target);
+				return { changed };
+			},
+
 			"POST /map/create": async (req) => {
 				const project = this.project();
 				const { dir, name } = fields<{ dir: string; name: string }>(req);
@@ -1600,6 +1640,10 @@ export class ApiSession {
 					project.config.target === "lune"
 						? emptyFilesystemMap(safeName, newId(), newId)
 						: emptyMap(safeName, newId(), newId, project.config.outDir);
+				// One map is served. With one already writing default.project.json,
+				// a new map writes its own, under .roswaal, until it is served.
+				if (!isFilesystemMap(map) && (await servedMap(project)) !== null)
+					map.output = parkedOutput(relPath);
 				await writeMap(project, relPath, map);
 				return { path: relPath, map };
 			},
@@ -1924,6 +1968,15 @@ export class ApiSession {
 		if (!handler) throw new HttpError(404, `No such route: ${method} ${routePath}`);
 		return handler(req);
 	}
+}
+
+/** The map writing default.project.json, or null. */
+async function servedMap(project: OpenProject): Promise<string | null> {
+	for (const found of await collectMaps(project)) {
+		const map = await readMap(project, found).catch(() => null);
+		if (map && !isFilesystemMap(map) && tidyPath(map.output) === SERVED_OUTPUT) return found;
+	}
+	return null;
 }
 
 export interface LoadedPlace {

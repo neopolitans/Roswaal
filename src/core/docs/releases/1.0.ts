@@ -9,6 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.28",
+		date: "2026-11-20",
+		headline: "A project can have several node maps, one of them served.",
+		added: [
+			"**Serve this map**, on a map's menu and in This map. The served map writes default.project.json, which rojo serve reads; the one that did writes its own file under .roswaal/projects.",
+			"**Maps that are not served** write their own project file under .roswaal/projects, with paths written from there, so rojo serve can still be pointed at one. A new map starts unserved while another serves.",
+		],
+		fixed: [
+			"**A project file in a folder** was written with paths from the project's root, where Rojo reads them from the file's own folder. Paths are now written, and read on import, from the file's folder.",
+			"**Deleting a map** that was not served leaves no project file of its own behind.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.27",
 		date: "2026-11-20",
 		headline: "Graph or List is one button, as Dynamic or Manual is.",

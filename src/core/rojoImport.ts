@@ -16,7 +16,7 @@
  */
 
 import { parseJsonc } from "./jsonc.js";
-import type { MapNode, NodeMap } from "./nodemap.js";
+import { intoProject, type MapNode, type NodeMap } from "./nodemap.js";
 import { SCHEMA_VERSION } from "./schema.js";
 
 export interface RojoImport {
@@ -152,6 +152,12 @@ export function projectToMap(
 
 	const tree = json.tree as Record<string, unknown>;
 	const root = read(tree, "DataModel", "tree", true, false);
+	// A file in a folder writes its paths from there; the map holds them from the root.
+	const rebase = (node: MapNode) => {
+		if (node.path !== undefined) node.path = intoProject(opts.output, node.path);
+		node.children.forEach(rebase);
+	};
+	rebase(root);
 	// A model project's root is not a DataModel; the map names it after the project.
 	if (root.className !== "DataModel")
 		root.name = typeof json.name === "string" ? json.name : opts.fallbackName;
@@ -164,7 +170,11 @@ export function projectToMap(
 		output: opts.output,
 		root,
 		...(Array.isArray(json.globIgnorePaths)
-			? { globIgnorePaths: json.globIgnorePaths as string[] }
+			? {
+					globIgnorePaths: (json.globIgnorePaths as string[]).map((glob) =>
+						intoProject(opts.output, glob),
+					),
+				}
 			: {}),
 		...(Object.keys(rojo).length > 0 ? { rojo } : {}),
 	};
