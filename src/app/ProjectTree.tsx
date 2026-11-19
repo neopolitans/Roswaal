@@ -20,6 +20,7 @@ import { Menu } from "./Menu.jsx";
 import { AddButton, depthStyle, SectionHead } from "./PanelParts.jsx";
 import { useNarrowBar, usePhone } from "./Popout.jsx";
 import { realmClass, realmOfLuau, ScriptIcon } from "./ScriptIcon.jsx";
+import { SHOW_ENTRY } from "./showEntry.js";
 import { fileMenu, packageMenu, type TreeAction } from "./treeMenus.js";
 
 const KIND_ICONS: Record<Exclude<TreeEntry["kind"], "directory">, IconName> = {
@@ -211,6 +212,36 @@ export const ProjectTree = memo(function ProjectTree({
 			isGraph,
 		};
 	}, [tree, sourceDir, nodePaths]);
+
+	// Asked from elsewhere -- a map's path chip -- to show a file or folder:
+	// unfold its heading and the folders above it, select it, scroll to it.
+	useEffect(() => {
+		const onShow = (e: Event) => {
+			const path = (e as CustomEvent<string>).detail;
+			const section = SECTIONS.find((one) => {
+				const entries: readonly TreeEntry[] = groups[one.id];
+				return entries.some(
+					(entry) => entry.path === path || findEntry([entry], path) !== undefined,
+				);
+			});
+			if (!section) return;
+			setCollapsed((was) => {
+				const next = new Set(was);
+				next.delete(sectionKey(section.id));
+				const parts = path.split("/");
+				for (let i = 1; i < parts.length; i++) next.delete(parts.slice(0, i).join("/"));
+				return next;
+			});
+			setSelected(new Set([path]));
+			setAnchor(path);
+			requestAnimationFrame(() => {
+				const row = document.querySelector(`.tree-row[data-entry="${CSS.escape(path)}"]`);
+				row?.scrollIntoView({ block: "nearest" });
+			});
+		};
+		window.addEventListener(SHOW_ENTRY, onShow);
+		return () => window.removeEventListener(SHOW_ENTRY, onShow);
+	}, [groups]);
 
 	// Visible rows in display order, which is what shift-range needs.
 	const rows = useMemo(() => {
@@ -525,6 +556,7 @@ export const ProjectTree = memo(function ProjectTree({
 							dropTarget === entry.path && "drop-target",
 						)}
 						style={depthStyle(depth, 1)}
+						data-entry={entry.path}
 						draggable={(!isDir || movableFolder(entry)) && !isListed(entry)}
 						onDragStart={(e) => onDragStart(e, entry)}
 						onDragOver={(e) => {

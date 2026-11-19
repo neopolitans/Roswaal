@@ -49,8 +49,10 @@
  * rather than merely ignored, so it says so before they try.
  */
 
+import { ruleExceptions } from "../mapRule.js";
 import { isFilesystemMap, type MapNode, type NodeMap } from "../nodemap.js";
 import { escapeXml } from "./preview.js";
+import { explorerIconHtml, type ToolbarArt, uiIconHtml } from "./toolbars.js";
 
 /** One row of the tree, and everything the Inspector shows when it is picked. */
 export interface MapFigureRow {
@@ -93,6 +95,8 @@ export interface MapFigure {
 	rows: MapFigureRow[];
 	lines: MapFigureLine[];
 	globIgnorePaths: string[];
+	/** Mappings whose folder the reading rule would not give, the docs reading `src` as the output folder. */
+	exceptions: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -332,6 +336,7 @@ export function mapFigure(map: NodeMap): MapFigure {
 		rows: rowsOf(map),
 		lines: filesystem ? diskLines(map) : projectLines(map),
 		globIgnorePaths: map.globIgnorePaths ?? [],
+		exceptions: filesystem ? 0 : ruleExceptions(map, "src").length,
 	};
 }
 
@@ -353,128 +358,126 @@ export interface MapPart {
 }
 
 /**
- * What the panel is made of, named.
+ * What the editor is made of, named.
  *
  * The same device the toolbar figures use, and for the same reason: chrome is
  * unreadable on the first day, and a reader matching the fourth control in a
  * column to the seventh line of a paragraph is counting rather than reading.
  * Hovering an entry lights the part; hovering the part lights the entry.
- *
- * The prose underneath still explains each field properly. This is the map of
- * where they are, which is the thing prose is worst at.
  */
 export function mapParts(figure: MapFigure): MapPart[] {
+	const lune = figure.target === "lune";
 	const tree: MapPart = {
 		part: "tree",
 		name: "The tree",
-		what:
-			figure.target === "lune"
-				? "Every directory and file the project has. Pick one and the Inspector follows."
-				: "Every instance the map describes. Pick one and the Inspector follows.",
-	};
-	const describes: MapPart = {
-		part: "describes",
-		name: "Describes",
-		what:
-			"Whether this is a DataModel for Roblox or a filesystem for Lune. It decides " +
-			"what the rest of the panel is.",
+		what: lune
+			? "Every directory and file the project has. Pick one and Instance follows."
+			: "Every instance the map describes, with the folder that fills it. Pick one and Instance follows.",
 	};
 	const name: MapPart = {
 		part: "name",
 		name: "Name",
-		what:
-			figure.target === "lune"
-				? "What it is called on disk — with no extension, which the row on the right adds."
-				: "The instance's name in the DataModel.",
+		what: lune
+			? "What it is called on disk, with no extension: the row adds it."
+			: "The instance's name in the DataModel. A folder the rule gave it follows the name.",
 	};
-
-	if (figure.target === "lune") {
+	const describes: MapPart = {
+		part: "describes",
+		name: "Describes",
+		what: "A DataModel for Roblox, or a filesystem for Lune. It decides the rest.",
+	};
+	if (lune) {
 		return [
 			tree,
-			describes,
-			name,
-			{
-				part: "kind",
-				name: "Kind",
-				what:
-					"A directory, or a file Roswaal writes a .luau for. Absent on the project " +
-					"root, which is neither.",
-			},
 			{
 				part: "actions",
-				name: "Add directory, Add file, Delete",
+				name: "Directory, File, Undo",
 				what: "Build the tree. A file takes no children.",
 			},
+			name,
+			{ part: "kind", name: "Kind", what: "A directory, or a file Roswaal writes a .luau for." },
+			describes,
 			{
 				part: "preview",
-				name: "The layout",
-				what:
-					"The directories and files as they land, and the require that reaches each " +
-					"one. Nothing is written — compiling a filesystem map checks it.",
+				name: "Project file",
+				what: "The layout: where each file lands, and the require that reaches it. Nothing is written.",
 			},
 		];
 	}
-
 	return [
 		tree,
-		describes,
+		{
+			part: "view",
+			name: "DataModel or src",
+			what: "Read the tree from either end: instances with their folders, or folders with where they land.",
+		},
+		{
+			part: "actions",
+			name: "Service, Folder, Undo",
+			what: "Add a service, or a folder in the picked row. Its path comes from the reading rule.",
+		},
+		{
+			part: "rule",
+			name: "The reading rule",
+			what: "Whether every folder is where the rule puts it, and which are not.",
+		},
 		name,
 		{
 			part: "class",
 			name: "Class",
-			what:
-				"Blank on a service, because Rojo infers it from the key and rejects it being " +
-				"said twice.",
+			what: "A service, or what Rojo makes. Rojo knows a service by its name.",
 		},
 		{
 			part: "path",
 			name: "Path",
-			what: "The folder or file on disk whose contents fill this instance.",
+			what: "The folder on disk that fills it. Choose… picks one from the project.",
 		},
 		{
 			part: "ignoreUnknown",
 			name: "Ignore unknown",
-			what: "Rojo leaves alone anything in Studio that it did not put there.",
+			what: "Rojo leaves alone what it did not put there.",
 		},
-		{
-			part: "ignorePaths",
-			name: "Ignore paths",
-			what: "Globs under this instance's path that Rojo should skip.",
-		},
-		{
-			part: "actions",
-			name: "Add folder, Add service, Delete",
-			what: "Build the tree. Services can only be added to the root.",
-		},
+		{ part: "ignorePaths", name: "Ignore paths", what: "Globs under this path for Rojo to skip." },
+		describes,
 		{
 			part: "output",
-			name: "Output",
-			what: "Where the project file is written, relative to the project root.",
+			name: "Writes",
+			what: "The project file. Rojo serves default.project.json by default.",
 		},
 		{
-			part: "globs",
-			name: "Project-wide ignores",
-			what: "Passed to Rojo as globIgnorePaths, unanchored.",
+			part: "rojo",
+			name: "Place IDs, Port",
+			what: "Rojo's place settings: where rojo serve may sync, and its port.",
 		},
+		{ part: "globs", name: "Project-wide ignores", what: "Passed to Rojo as globIgnorePaths." },
 		{
 			part: "preview",
-			name: "The project file",
-			what: "What the map compiles to. Selecting a row lights the lines that row writes.",
+			name: "Project file",
+			what: "What the map writes. Picking a row lights its lines.",
 		},
 	];
 }
 
+// ---------------------------------------------------------------------------
+// The panel, as markup
+// ---------------------------------------------------------------------------
+
 /**
- * One `<label class="field">`, as the editor writes it.
- *
- * `data-map-field` is what the script fills on selection. The editor has no
- * such attribute because the editor has React; this is the same information
- * arriving by the only route a bundled script has.
+ * One Settings row, as `Field` in `MapEditor.tsx` writes it. `data-map-nonroot`
+ * marks a row the DataModel itself has not, which the script hides for it.
  */
-function field(label: string, control: string, part: string): string {
+function field(
+	label: string,
+	control: string,
+	part?: string,
+	opts: { wide?: boolean; nonroot?: boolean; help?: string } = {},
+): string {
 	return (
-		`<label class="field" data-part="${escapeXml(part)}">` +
-		`<span>${escapeXml(label)}</span>${control}</label>`
+		`<div class="setting${opts.wide ? " wide" : ""}"${part ? ` data-part="${escapeXml(part)}"` : ""}` +
+		`${opts.nonroot ? " data-map-nonroot" : ""}>` +
+		`<div class="setting-label"><b>${escapeXml(label)}</b>` +
+		`${opts.help ? `<span>${escapeXml(opts.help)}</span>` : ""}</div>` +
+		`<div class="setting-control">${control}</div></div>`
 	);
 }
 
@@ -485,33 +488,64 @@ function input(name: string, value: string, placeholder = ""): string {
 	);
 }
 
-/** A select showing one fixed answer. It is a demonstrator, so it does not open. */
-function select(name: string, value: string): string {
+/** A segmented control showing one answer. A demonstrator: it does not switch. */
+function segmented(options: string[], on: string, name?: string): string {
 	return (
-		`<select class="tb" disabled data-map-field="${name}">` +
-		`<option>${escapeXml(value)}</option></select>`
+		`<div class="segmented"${name ? ` data-map-field="${name}"` : ""}>` +
+		options
+			.map(
+				(one) =>
+					`<button type="button" disabled${one === on ? ` class="on"` : ""}>${escapeXml(one)}</button>`,
+			)
+			.join("") +
+		`</div>`
 	);
 }
 
-function listField(label: string, hint: string, values: string[], name: string): string {
+function listRows(
+	label: string,
+	help: string,
+	values: string[],
+	name: string,
+	art: ToolbarArt | undefined,
+	nonroot = false,
+): string {
 	const rows = values
 		.map(
 			(value) =>
 				`<div class="map-list-row"><input class="tb" readonly value="${escapeXml(value)}">` +
-				`<button class="tb" disabled>&times;</button></div>`,
+				`<button class="tb icon-only" disabled>${uiIconHtml("close", 13, art) || "&times;"}</button></div>`,
 		)
 		.join("");
 	return (
-		`<div class="map-list" data-map-list="${name}" data-part="${escapeXml(name)}">` +
-		`<div class="map-list-head"><span>${escapeXml(label)}</span>` +
-		`<button class="tb" disabled>Add</button></div>` +
-		`<p class="summary">${escapeXml(hint)}</p>${rows}</div>`
+		`<div class="setting map-list" data-map-list="${name}" data-part="${escapeXml(name)}"${nonroot ? " data-map-nonroot" : ""}>` +
+		`<div class="setting-label"><b>${escapeXml(label)}</b><span>${escapeXml(help)}</span></div>` +
+		`<div class="setting-control map-list-control">${rows}` +
+		`<button class="tb with-icon" disabled>${uiIconHtml("plus", 13, art)}Add</button></div></div>`
 	);
 }
 
-const IGNORE_HINT =
-	"Globs under this instance's path that Rojo should skip, e.g. shared/** — " +
-	"how you stop a nested mapping syncing twice.";
+/** A row's icon, as `NodeIcon` draws it, with the map's mark where it syncs a folder. */
+function rowIcon(row: MapFigureRow, lune: boolean, art: ToolbarArt | undefined): string {
+	if (lune) return uiIconHtml(row.file ? "luauScript" : "folder", 15, art, "kind");
+	const service = !row.root && !row.className;
+	const icon = explorerIconHtml(row.root ? "DataModel" : (row.className ?? row.name), service, art);
+	return row.path
+		? `<span class="tree-badged">${icon}<span class="tree-map-badge">${uiIconHtml("map", 10, art)}</span></span>`
+		: icon;
+}
+
+/** A row's class, as the Class field says it. */
+const classLabel = (row: MapFigureRow): string =>
+	!row.root && !row.className ? "Service" : (row.className ?? "Folder");
+
+/** A card's head, as the dock draws a panel's: its title, and what it shows. */
+function head(title: string, sub: string, grip?: string, subField = false): string {
+	return (
+		`<header class="map-head"${grip ? ` data-grip="${grip}"` : ""}><b>${escapeXml(title)}</b>` +
+		`<span class="map-sub"${subField ? " data-map-heading" : ""}>${escapeXml(sub)}</span></header>`
+	);
+}
 
 /**
  * The whole figure's insides: the panel, and the legend beside it.
@@ -520,8 +554,11 @@ const IGNORE_HINT =
  * different nesting — which they would, because React needs an element to
  * hang `dangerouslySetInnerHTML` on and the template does not.
  */
-export function mapFigureHtml(figure: MapFigure): string {
-	return `<div class="docs-map-frame">${mapPanelHtml(figure)}</div>` + mapLegendHtml(figure);
+export function mapFigureHtml(figure: MapFigure, art?: ToolbarArt): string {
+	return (
+		`<div class="docs-map-frame">${mapPanelHtml(figure, undefined, art)}</div>` +
+		mapLegendHtml(figure)
+	);
 }
 
 /**
@@ -529,10 +566,10 @@ export function mapFigureHtml(figure: MapFigure): string {
  * step, with no legend. Not `.docs-map`, so the static site's script leaves it
  * a picture rather than wiring its rows.
  */
-export function walkMapHtml(step: { map: NodeMap; select?: string }): string {
+export function walkMapHtml(step: { map: NodeMap; select?: string }, art?: ToolbarArt): string {
 	return (
 		`<div class="docs-walk-map docs-map-frame">` +
-		`${mapPanelHtml(mapFigure(step.map), step.select)}</div>`
+		`${mapPanelHtml(mapFigure(step.map), step.select, art)}</div>`
 	);
 }
 
@@ -540,8 +577,7 @@ export function walkMapHtml(step: { map: NodeMap; select?: string }): string {
  * The legend, as markup.
  *
  * Beside the panel rather than under it: the panel is tall, and a list of
- * eleven names below a tall picture is a list nobody reads next to the thing
- * it names.
+ * names below a tall picture is a list nobody reads next to the thing it names.
  */
 export function mapLegendHtml(figure: MapFigure): string {
 	const items = mapParts(figure)
@@ -556,34 +592,44 @@ export function mapLegendHtml(figure: MapFigure): string {
 }
 
 /**
- * The editor as markup, ready for `attachMapPanel` to wire up.
+ * The editor as markup, ready for `attachMapPanel` to wire up: the tree in its
+ * card, Instance and This map beside it as the right dock holds them, and the
+ * Project file along the foot.
  *
  * Every class name here is one the editor itself uses, so there is no second
  * set of styles to keep level with it. The only additions are the `data-`
  * hooks the script needs, which the editor does not need because it has React
  * to hand it the same values.
  *
- * `picked` is the row the Inspector shows, by its key, and lights the lines
- * it writes: a walkthrough step drawn partway through building a map. The
- * first row otherwise.
+ * `picked` is the row Instance shows, by its key, and lights the lines it
+ * writes: a walkthrough step drawn partway through building a map. The first
+ * row otherwise.
  */
-export function mapPanelHtml(figure: MapFigure, picked?: string): string {
+export function mapPanelHtml(figure: MapFigure, picked?: string, art?: ToolbarArt): string {
+	const lune = figure.target === "lune";
 	const first = figure.rows.find((row) => row.key === picked) ?? figure.rows[0];
+	const chevron = (open: boolean) =>
+		uiIconHtml("chevron", 12, art, `map-chev${open ? " open" : ""}`);
 
 	const rows = figure.rows
 		.map((row) => {
-			const bits = [`<span class="name">${escapeXml(row.name)}</span>`];
-			if (row.file) bits.push(`<span class="class">.luau</span>`);
-			if (row.className) bits.push(`<span class="class">${escapeXml(row.className)}</span>`);
-			if (row.path) bits.push(`<span class="path">${escapeXml(row.path)}</span>`);
-			// The Inspector's values ride on the row. The editor hands React the
+			const icon = rowIcon(row, lune, art);
+			const chip = row.file
+				? `<span class="pathchip faint">.luau</span>`
+				: row.path && !lune
+					? `<span class="pathchip ok">${escapeXml(row.path)}</span>`
+					: "";
+			// What Instance shows rides on the row. The editor hands React the
 			// node itself; a bundled script has no such thing, and re-deriving
-			// them from the drawn row would mean parsing the picture back into
+			// it from the drawn row would mean parsing the picture back into
 			// the model it was drawn from.
 			const inspect = JSON.stringify({
-				heading: row.heading,
+				heading: `${row.name} · ${row.kind}`,
 				name: row.name,
-				class: row.className ?? "(service — Rojo infers it)",
+				class: classLabel(row),
+				icon: lune
+					? ""
+					: explorerIconHtml(row.className ?? row.name, !row.root && !row.className, art),
 				kind: row.file ? "File" : "Directory",
 				path: row.path ?? "",
 				ignoreUnknown: row.ignoreUnknown === true,
@@ -594,10 +640,9 @@ export function mapPanelHtml(figure: MapFigure, picked?: string): string {
 				`<div class="map-row${row.key === first.key ? " selected" : ""}"` +
 				` data-control="${escapeXml(row.key)}"` +
 				` data-map-node="${escapeXml(inspect)}"` +
-				` style="padding-left:${8 + row.depth * 14}px">` +
-				`<span class="glyph"${row.parent ? "" : ` style="visibility:hidden"`}>&#9656;</span>` +
-				bits.join("") +
-				`</div>`
+				` style="padding-left:${8 + row.depth * 16}px">` +
+				`<span class="glyph"${row.parent ? "" : ` style="visibility:hidden"`}>${chevron(true)}</span>` +
+				`${icon}<span class="name">${escapeXml(row.name)}</span>${chip}</div>`
 			);
 		})
 		.join("");
@@ -614,70 +659,108 @@ export function mapPanelHtml(figure: MapFigure, picked?: string): string {
 		})
 		.join("");
 
-	const lune = figure.target === "lune";
+	const button = (icon: string, text: string) =>
+		`<button class="tb with-icon" disabled>${uiIconHtml(icon, 13, art)}${escapeXml(text)}</button>`;
+	const actions = lune
+		? button("newFolder", "Directory") + button("newFile", "File")
+		: button("plus", "Service") + button("newFolder", "Folder");
+	const view = lune
+		? ""
+		: `<span data-part="view">${segmented(["DataModel", "src"], "DataModel")}</span>`;
+	const rule = lune
+		? ""
+		: `<footer class="map-rule" data-part="rule">` +
+			(figure.exceptions === 0
+				? `<span class="map-rule-ok"><span class="map-check">&#10003;</span>Follows the reading rule</span>`
+				: `<span class="map-rule-odd">${figure.exceptions} exception${figure.exceptions === 1 ? "" : "s"} to the reading rule</span>`) +
+			`</footer>`;
 
-	const inspector = lune
+	const tree =
+		`<section class="map-card map-tree" data-part="tree" data-quiet>` +
+		`<header class="map-head" data-grip="tree"><span class="map-title"><b>${escapeXml(figure.name)}</b>` +
+		`<span class="map-sub">node map</span></span><span class="sp"></span>${view}` +
+		`<span class="map-docs-actions" data-part="actions">${actions}` +
+		`<button class="tb icon-only" disabled>${uiIconHtml("undo", 14, art)}</button></span></header>` +
+		`<div class="map-rows">${rows}</div>${rule}</section>`;
+
+	const fields = lune
 		? field("Name", input("name", first.name), "name") +
-			(first.root ? "" : field("Kind", select("kind", first.file ? "File" : "Directory"), "kind"))
+			field(
+				"Kind",
+				segmented(["Directory", "File"], first.file ? "File" : "Directory", "kind"),
+				"kind",
+				{
+					nonroot: true,
+				},
+			)
 		: field("Name", input("name", first.name), "name") +
-			field("Class", select("class", first.className ?? "(service — Rojo infers it)"), "class") +
-			field("Path", input("path", first.path ?? "", "src/systems"), "path") +
+			field(
+				"Class",
+				`<span class="pickbox" data-map-field="class"><span data-map-icon>` +
+					`${explorerIconHtml(first.className ?? first.name, !first.root && !first.className, art)}</span>` +
+					`<span class="clip">${escapeXml(classLabel(first))}</span>${uiIconHtml("chevron", 12, art, "pickbox-chev")}</span>`,
+				"class",
+				{ nonroot: true },
+			) +
+			field(
+				"Path",
+				`<span class="path-pick">${input("path", first.path ?? "", "Not synced")}` +
+					`<button class="tb" disabled>Choose…</button></span>`,
+				"path",
+				{ wide: true, nonroot: true },
+			) +
 			field(
 				"Ignore unknown",
-				`<input type="checkbox" disabled data-map-field="ignoreUnknown"` +
-					`${first.ignoreUnknown ? " checked" : ""}>`,
+				`<label class="settings-toggle"><input type="checkbox" disabled data-map-field="ignoreUnknown"` +
+					`${first.ignoreUnknown ? " checked" : ""}><span data-map-field="ignoreUnknownText">` +
+					`${first.ignoreUnknown ? "Left alone" : "Removed"}</span></label>`,
 				"ignoreUnknown",
+				{ nonroot: true },
+			) +
+			listRows(
+				"Ignore paths",
+				"Globs under this path for Rojo to skip, such as shared/**.",
+				first.ignorePaths,
+				"ignorePaths",
+				art,
+				true,
 			);
 
-	const tail = lune
-		? `<h2 data-part="preview">The layout</h2>` +
-			`<p class="summary">Directories and files, as they sit on disk. Nothing is written ` +
-			`when this is compiled — a Lune program has no project file, so what compiling does ` +
-			`is check the layout holds together.</p>` +
-			`<pre class="map-preview layout" data-part="preview" data-quiet>${preview}</pre>`
-		: `<h2 data-part="preview">Project file</h2>` +
-			`<p class="summary">Written to <code>${escapeXml(figure.output)}</code> when this ` +
-			`map is compiled.</p>` +
-			field("Output", input("output", figure.output), "output") +
-			listField(
-				"Project-wide ignores",
-				"Passed to Rojo as globIgnorePaths, unanchored.",
-				figure.globIgnorePaths,
-				"globs",
-			) +
-			`<pre class="map-preview" data-part="preview" data-quiet>${preview}</pre>`;
-
-	const ignorePaths = lune
-		? ""
-		: listField("Ignore paths", IGNORE_HINT, first.ignorePaths, "ignorePaths");
-
-	const actions = lune
-		? `<button class="tb" disabled>Add directory</button>` +
-			`<button class="tb" disabled>Add file</button>` +
-			`<button class="tb" disabled>Delete</button>`
-		: `<button class="tb" disabled>Add folder</button>` +
-			`<select class="tb" disabled><option>Add service&hellip;</option></select>` +
-			`<button class="tb" disabled>Delete</button>`;
-
-	return (
-		`<div class="map-editor">` +
-		`<div class="map-tree" data-part="tree" data-quiet>` +
-		`<div class="map-bar" data-grip="tree"><span>${escapeXml(figure.name)}</span>` +
-		`<span style="flex:1"></span><button class="tb" disabled>Undo</button></div>` +
-		rows +
-		`</div>` +
-		`<div class="map-side">` +
-		`<h2>This map</h2>` +
+	const settings =
 		field(
 			"Describes",
-			select("describes", lune ? "A filesystem — Lune" : "A DataModel — Roblox"),
+			segmented(["DataModel", "Filesystem"], lune ? "Filesystem" : "DataModel"),
 			"describes",
 		) +
-		`<h2 data-map-heading>${escapeXml(first.heading)}</h2>` +
-		`<div class="map-fields">${inspector}</div>` +
-		ignorePaths +
-		`<div class="map-actions" data-part="actions">${actions}</div>` +
-		tail +
-		`</div></div>`
-	);
+		(lune
+			? ""
+			: field("Project name", input("project", figure.name)) +
+				field("Writes", input("output", figure.output), "output") +
+				`<div data-part="rojo">` +
+				field("Place IDs", input("placeIds", "", "Any place")) +
+				field("Port", input("port", "", "34872")) +
+				`</div>` +
+				listRows(
+					"Project-wide ignores",
+					"Passed to Rojo as globIgnorePaths.",
+					figure.globIgnorePaths,
+					"globs",
+					art,
+				));
+
+	const side =
+		`<div class="map-docs-side">` +
+		`<section class="map-card">${head("Instance", `${first.name} · ${first.kind}`, undefined, true)}` +
+		`<div class="map-panel modal-shell"><div class="settings-box">${first.root ? fields.replaceAll(" data-map-nonroot", " data-map-nonroot hidden") : fields}</div></div></section>` +
+		`<section class="map-card">${head("This map", figure.name)}` +
+		`<div class="map-panel modal-shell"><div class="settings-box">${settings}</div></div></section>` +
+		`</div>`;
+
+	const foot =
+		`<section class="map-card map-docs-foot" data-part="preview" data-quiet>` +
+		`${head("Project file", lune ? "the layout" : figure.output, "preview")}` +
+		`<div class="map-panel map-file-panel"><pre class="map-preview${lune ? " layout" : ""}">${preview}</pre></div>` +
+		`</section>`;
+
+	return `<div class="map-editor map-docs modal-shell">${tree}${side}${foot}</div>`;
 }

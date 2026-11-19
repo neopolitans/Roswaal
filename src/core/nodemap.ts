@@ -134,7 +134,34 @@ export interface NodeMap {
 	root: MapNode;
 }
 
-export function emptyMap(name: string, id: string, makeId: () => string): NodeMap {
+/**
+ * A new map. Given the output folder, it starts as the reading rule reads it
+ * (`mapRule.ts`): ServerScriptService synced from its own folder there.
+ * Without one, from the whole output folder, as maps were first made.
+ */
+export function emptyMap(name: string, id: string, makeId: () => string, outDir?: string): NodeMap {
+	if (outDir !== undefined) {
+		return {
+			schemaVersion: SCHEMA_VERSION,
+			kind: "map",
+			id,
+			name,
+			output: "default.project.json",
+			root: {
+				id: makeId(),
+				name: "DataModel",
+				className: "DataModel",
+				children: [
+					{
+						id: makeId(),
+						name: "ServerScriptService",
+						path: `${outDir.replace(/\/+$/, "")}/ServerScriptService`,
+						children: [],
+					},
+				],
+			},
+		};
+	}
 	return {
 		schemaVersion: SCHEMA_VERSION,
 		kind: "map",
@@ -534,7 +561,36 @@ export function mapNodeParent(root: MapNode, id: string): MapNode | null {
 	return null;
 }
 
-/** Canonical on-disk form, for diffs that read as changes rather than churn. */
+/**
+ * Moves `id` before or after `target`, or into it as its last child. The map
+ * is returned unchanged for a move into itself, or of the root.
+ */
+export function mapNodeMove(
+	root: MapNode,
+	id: string,
+	target: string,
+	where: "before" | "after" | "inside",
+): MapNode {
+	if (id === target || id === root.id) return root;
+	const moving = findMapNode(root, id);
+	if (!moving || findMapNode(moving, target)) return root;
+	const without = mapNodeRemove(root, id);
+	if (where === "inside") {
+		return mapNodeUpdate(without, target, (node) => ({
+			...node,
+			children: [...node.children, moving],
+		}));
+	}
+	const parent = mapNodeParent(without, target);
+	if (!parent) return root;
+	return mapNodeUpdate(without, parent.id, (node) => {
+		const children = [...node.children];
+		const at = children.findIndex((one) => one.id === target);
+		children.splice(where === "before" ? at : at + 1, 0, moving);
+		return { ...node, children };
+	});
+}
+
 /**
  * A map as its file holds it. Every field a map has is named here, so one
  * that is left out is lost on the next save: `target` and a node's `file`

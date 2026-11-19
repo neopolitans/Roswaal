@@ -32,6 +32,7 @@ import {
 	framePanel,
 	gridTemplate,
 	type Layout,
+	MAP_PANELS,
 	MIN_DOCK,
 	MIN_FLOAT,
 	maxDockSize,
@@ -50,7 +51,16 @@ import {
 } from "../src/app/panels.js";
 
 /** A copy, so a test that moves a panel cannot move it for the next one. */
-const base = (): Layout => JSON.parse(JSON.stringify(DEFAULT_LAYOUT)) as Layout;
+/**
+ * The default as the graph editor lays it out. A node map's panels are open in
+ * the stored default, but with no map in front they have nothing to show, and
+ * `Workspace` closes a panel with no contents before it lays out the docks.
+ */
+const base = (): Layout => {
+	const layout = JSON.parse(JSON.stringify(DEFAULT_LAYOUT)) as Layout;
+	for (const id of MAP_PANELS) layout.panels[id].open = false;
+	return layout;
+};
 
 const WIDE = { w: 1920, h: 1080 };
 
@@ -158,7 +168,7 @@ describe("resizing", () => {
 	it("changes only the dock that was dragged", () => {
 		const layout = resizeDock(base(), "left", 400, WIDE.w, WIDE.h);
 		expect(layout.docks.right).toEqual(DEFAULT_LAYOUT.docks.right);
-		expect(layout.panels).toEqual(DEFAULT_LAYOUT.panels);
+		expect(layout.panels).toEqual(base().panels);
 	});
 });
 
@@ -601,6 +611,37 @@ describe("the Panels menu", () => {
 			"performance",
 			"meshes",
 		]);
+	});
+
+	it("offers a node map's own panels with a map in front, and nothing of a graph's", () => {
+		expect(panelsFor("map", false)).toEqual([
+			"tree",
+			"analysis",
+			"mapItem",
+			"mapSettings",
+			"mapFile",
+		]);
+		for (const context of ["graph", "place", "document", "none"] as const) {
+			for (const id of MAP_PANELS) expect(panelsFor(context, true)).not.toContain(id);
+		}
+	});
+
+	it("docks a map's fields on the right and its project file along the foot", () => {
+		expect(DEFAULT_LAYOUT.panels.mapItem).toMatchObject({
+			dock: "right",
+			open: true,
+			floating: false,
+		});
+		expect(DEFAULT_LAYOUT.panels.mapSettings).toMatchObject({
+			dock: "right",
+			open: true,
+			floating: false,
+		});
+		expect(DEFAULT_LAYOUT.panels.mapFile).toMatchObject({
+			dock: "bottom",
+			open: true,
+			floating: false,
+		});
 	});
 
 	it("offers Rendering, Performance and Mesh Debug with the place in front only", () => {

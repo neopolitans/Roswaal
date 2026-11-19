@@ -9,17 +9,21 @@ import { MAP_BAR, PROJECT_TREE_NEW } from "../toolbars.js";
 
 /**
  * A map partway through being built, for the walkthrough: a new map's
- * ServerScriptService, then whatever ReplicatedStorage holds by that step.
+ * ServerScriptService, then ReplicatedStorage once it is added. Both synced
+ * from their own folders in `src`, as the reading rule gives them.
  */
-function buildingMap(replicated: MapNode[] | null): NodeMap {
+function buildingMap(replicated: boolean): NodeMap {
 	const children: MapNode[] = [
-		{
-			id: "sss",
-			name: "ServerScriptService",
-			children: [{ id: "source", name: "Source", className: "Folder", path: "src", children: [] }],
-		},
+		{ id: "sss", name: "ServerScriptService", path: "src/ServerScriptService", children: [] },
 	];
-	if (replicated) children.push({ id: "rs", name: "ReplicatedStorage", children: replicated });
+	if (replicated) {
+		children.push({
+			id: "rs",
+			name: "ReplicatedStorage",
+			path: "src/ReplicatedStorage",
+			children: [],
+		});
+	}
 	return {
 		schemaVersion: 1,
 		kind: "map",
@@ -29,14 +33,6 @@ function buildingMap(replicated: MapNode[] | null): NodeMap {
 		root: { id: "dm", name: "DataModel", className: "DataModel", children },
 	};
 }
-
-const folder = (name: string, path?: string): MapNode => ({
-	id: "shared",
-	name,
-	className: "Folder",
-	...(path ? { path } : {}),
-	children: [],
-});
 
 /**
  * The map drawn on the Roblox page.
@@ -64,14 +60,26 @@ const ROBLOX_MAP: NodeMap = {
 				id: "rs",
 				name: "ReplicatedStorage",
 				children: [
-					{ id: "shared", name: "Shared", className: "Folder", path: "src/Shared", children: [] },
+					{
+						id: "shared",
+						name: "Shared",
+						className: "Folder",
+						path: "src/ReplicatedStorage/Shared",
+						children: [],
+					},
 				],
 			},
 			{
 				id: "sss",
 				name: "ServerScriptService",
 				children: [
-					{ id: "server", name: "Server", className: "Folder", path: "src/Server", children: [] },
+					{
+						id: "server",
+						name: "Server",
+						className: "Folder",
+						path: "src/ServerScriptService/Server",
+						children: [],
+					},
 				],
 			},
 		],
@@ -129,39 +137,30 @@ export function buildingAndRojoPage(): DocPage {
 					},
 					{
 						text:
-							"It opens in a tab of its own: the tree on the left, the Inspector on the right. " +
-							"A new map starts with ServerScriptService, filled from `src`.",
-						map: { map: buildingMap(null), select: "dm" },
+							"It opens as its own mode: the tree in the middle, **Instance** and **This map** " +
+							"on the right, the **Project file** along the foot. A new map starts with " +
+							"ServerScriptService, synced from `src/ServerScriptService`.",
+						map: { map: buildingMap(false), select: "dm" },
 						point: "tree",
 					},
 					{
 						text:
-							"With **DataModel** selected, **Add service…** adds a service under it. Pick " +
-							"ReplicatedStorage.",
-						map: { map: buildingMap(null), select: "dm" },
+							"**Service** adds a service, synced from its own folder in `src`. Pick " +
+							"ReplicatedStorage. A folder not there yet is made when the map is written.",
+						map: { map: buildingMap(true), select: "rs" },
 						point: "actions",
 					},
 					{
-						text: "Select ReplicatedStorage and press **Add folder**.",
-						map: { map: buildingMap([]), select: "rs" },
+						text:
+							"With ReplicatedStorage picked, **Folder** makes a folder in " +
+							"`src/ReplicatedStorage`. Rojo brings it in through ReplicatedStorage, so the map " +
+							"needs no row of its own for it.",
+						map: { map: buildingMap(true), select: "rs" },
 						point: "actions",
 					},
 					{
-						text: "Name the folder in **Name**.",
-						map: { map: buildingMap([folder("Folder")]), select: "shared" },
-						point: "name",
-					},
-					{
-						text:
-							"Set **Path** to the folder on disk that fills it. A folder under `src` that is " +
-							"not there yet is made when the map is written.",
-						map: { map: buildingMap([folder("Shared")]), select: "shared" },
-						point: "path",
-					},
-					{
-						text:
-							"The project file shows what the map writes, with the selected row's lines " + "lit.",
-						map: { map: buildingMap([folder("Shared", "src/Shared")]), select: "shared" },
+						text: "The project file shows what the map writes, with the picked row's lines lit.",
+						map: { map: buildingMap(true), select: "rs" },
 						point: "preview",
 					},
 					{
@@ -267,11 +266,9 @@ export function buildingAndRojoPage(): DocPage {
 				t: "nodemap",
 				map: ROBLOX_MAP,
 				caption:
-					"The real panel. **Select a row** and the Inspector fills with that instance's " +
-					"fields, while the project file scrolls to the lines the row writes. A row lights " +
-					"its own lines and not its children's — they are rows too. The fields are filled " +
-					"rather than editable: this is the editor demonstrating itself, not a scratch " +
-					"project.",
+					"The real editor. **Select a row** and **Instance** fills with its fields, while the " +
+					"project file scrolls to the lines the row writes. A row lights its own lines and " +
+					"not its children's: they are rows too. The fields are filled rather than editable.",
 			},
 			{
 				t: "p",
@@ -285,8 +282,26 @@ export function buildingAndRojoPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"Select an instance to edit it. Drag the line between the tree and the Inspector to " +
-					"resize them.",
+					"Select an instance to edit it in **Instance**. The panels around the tree dock, " +
+					"resize, fold and close like any other, and the Panels menu brings one back.",
+			},
+			{ t: "h", level: 3, text: "The reading rule" },
+			{
+				t: "p",
+				text:
+					"Where a folder lands follows from where it sits, so a map is built from one side. " +
+					"A folder named for a service lands in that service; Rojo's `src/shared`, " +
+					"`src/server` and `src/client` land where its template puts them; anything else " +
+					"lands inside its parent, as a Folder.",
+			},
+			{
+				t: "p",
+				text:
+					"**Service** and **Folder** fill in paths by it, and renaming a row moves the folder " +
+					"the rule gave it. The switch over the tree reads it from either end: **DataModel** " +
+					"lists instances with the folder that fills each, **src** lists folders with where " +
+					"each lands. A mapping the rule would not have given is an exception, counted under " +
+					"the tree.",
 			},
 			{
 				t: "table",
@@ -299,7 +314,7 @@ export function buildingAndRojoPage(): DocPage {
 					],
 					[
 						"Path",
-						"The folder or file on disk that fills the instance, inside the project. A folder under `src` is made when the map is written, with its mirror under `.roswaal/scripts` for the graphs; anything else is marked when Roswaal cannot find it",
+						"The folder or file on disk that fills the instance, inside the project. **Choose…** picks one. A folder under `src` is made when the map is written, with its mirror under `.roswaal/scripts` for the graphs; anything else is marked when Roswaal cannot find it",
 					],
 					["Ignore unknown", "Rojo leaves alone anything in Studio that it did not put there"],
 					[
@@ -311,10 +326,11 @@ export function buildingAndRojoPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"**Add folder** and **Add service** build the tree. Under **Project file**, " +
-					"**Output** is where the file is written and **Project-wide ignores** go to Rojo as " +
-					"written. The JSON it will write is shown underneath, with anything wrong — an " +
-					"instance with no name, or two with the same one.",
+					"**Service** and **Folder** build the tree. Drag a row to move it, or a folder from " +
+					"the Project panel to map it. In **This map**, **Writes** is the file it writes, " +
+					"**Place IDs**, **Game ID** and **Port** are Rojo's place settings, and " +
+					"**Project-wide ignores** go to Rojo as written. Anything wrong, such as two " +
+					"instances with one name, is listed under the tree.",
 			},
 			{
 				t: "note",

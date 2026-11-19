@@ -1556,7 +1556,7 @@ export class ApiSession {
 				const map =
 					project.config.target === "lune"
 						? emptyFilesystemMap(safeName, newId(), newId)
-						: emptyMap(safeName, newId(), newId);
+						: emptyMap(safeName, newId(), newId, project.config.outDir);
 				await writeMap(project, relPath, map);
 				return { path: relPath, map };
 			},

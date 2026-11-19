@@ -598,6 +598,32 @@ function treeGlyph(item: ToolbarItem & { t: "treeRow" }, art: ToolbarArt): strin
 		: glyph;
 }
 
+/**
+ * A class as `ExplorerIcon.tsx` draws it: its own icon where it has one, else
+ * the Explorer's glyph for a service, a folder or a model. "" with no art.
+ */
+export function explorerIconHtml(
+	className: string,
+	service: boolean,
+	art: ToolbarArt | undefined,
+	size = 15,
+): string {
+	if (wearsClassIcon(className)) return classIconHtml(className, size, "kind");
+	if (!art) return "";
+	const { icon, tone } = classGlyph(className, service, false);
+	return iconSvg(icon, size, art, `kind${tone ? ` ${tone}` : ""}`);
+}
+
+/** One of the editor's icons, by name; "" with no art. */
+export function uiIconHtml(
+	name: string,
+	size: number,
+	art: ToolbarArt | undefined,
+	cls?: string,
+): string {
+	return art ? iconSvg(name, size, art, cls) : "";
+}
+
 export function paneHeadHtml(
 	title: string,
 	art: ToolbarArt,

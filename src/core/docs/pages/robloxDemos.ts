@@ -104,7 +104,7 @@ export function robloxDemosPage({ registry }: PageContext): DocPage {
 			t: "nodemap",
 			map: ROBLOX_DEMO_MAP,
 			caption:
-				"The demo's map. **Select a row** and the Inspector fills with that instance's " +
+				"The demo's map. **Select a row** and **Instance** fills with that instance's " +
 				"fields, while the project file scrolls to the lines the row writes.",
 		},
 		{

@@ -18,7 +18,7 @@ import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
 import { LAYER } from "./layers.js";
 import { ModalHead } from "./ModalParts.jsx";
-import { ScriptIcon, type ScriptRealm } from "./ScriptIcon.jsx";
+import { realmClass, ScriptIcon, type ScriptRealm } from "./ScriptIcon.jsx";
 import { Row, Toggle } from "./settingsParts.jsx";
 
 export type DialogRequest =
@@ -316,7 +316,12 @@ export function Dialog({ request, resolve }: PendingDialog) {
 																onClick={() => set(option.value)}
 															>
 																{option.script && (
-																	<ScriptIcon kind="nodescript" realm={option.script} size={14} />
+																	<ScriptIcon
+																		kind="nodescript"
+																		realm={option.script}
+																		size={15}
+																		className={realmClass(option.script)}
+																	/>
 																)}
 																{option.label}
 															</button>
@@ -345,7 +350,12 @@ export function Dialog({ request, resolve }: PendingDialog) {
 															onChange={() => set(option.value)}
 														/>
 														{option.script && (
-															<ScriptIcon kind="nodescript" realm={option.script} size={14} />
+															<ScriptIcon
+																kind="nodescript"
+																realm={option.script}
+																size={15}
+																className={realmClass(option.script)}
+															/>
 														)}
 														{option.label}
 													</label>

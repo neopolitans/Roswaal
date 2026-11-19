@@ -9,6 +9,26 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.14",
+		date: "2026-11-19",
+		headline: "Node maps are a mode of their own, read from either end.",
+		added: [
+			"**The reading rule.** A folder named for a service lands in that service, Rojo's template folders land where its template puts them, and anything else lands inside its parent. **Service** and **Folder** fill in paths by it, renaming a row moves the folder it gave, and a mapping it would not give is counted as an exception.",
+			"**The tree reads from either end:** DataModel lists instances with the folder that fills each, src lists folders with where each lands. Folders on disk under a synced instance are listed too, and **Map it** maps one where the rule puts it.",
+			"**Choose…** beside a path picks a folder from the project as Save As does, with New folder.",
+			"**Rojo's place settings** are fields in This map: Place IDs, Blocked place IDs, Place ID, Game ID and Port.",
+		],
+		changed: [
+			"**The node map editor** is a mode, as the Place Editor is: the tree in the middle, Instance and This map on the right, and the Project file along the foot. Each is a panel that docks, resizes, folds and closes.",
+			"**Rows** carry the Explorer's icons, the map's mark on each synced folder, and a chip saying what is at the path: files, empty, made when written, or not found. A chip shows its folder in the Project panel.",
+			"**Rows drag** to move or nest, and a folder dragged in from the Project panel is mapped. Delete is on a row's menu and the Delete key.",
+			"**The Project file** says whether the file on disk matches what the map writes.",
+			"**A new map** starts with ServerScriptService synced from its own folder in src, rather than from the whole of src.",
+		],
+		fixed: ["**Starts as** in New graph drew its script icons without their colours."],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.13",
 		date: "2026-11-19",
 		headline: "The Project panel is headed by what you do with each part.",

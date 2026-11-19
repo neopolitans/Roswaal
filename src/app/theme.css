@@ -5799,84 +5799,116 @@ button.start-tile:disabled {
 }
 
 /* ------------------------------------------------------------- map editor */
-
+/* Its own mode, as the Place Editor is: the tree in a card over the grid,
+   and the picked row's fields, the map's own and its project file in panels
+   around it, which dock, fold, float and close as any panel does. */
 .map-editor {
-	display: grid;
-	grid-template-columns: 1fr 380px;
+	display: flex;
+	flex-direction: column;
 	min-height: 0;
+}
+
+/* The centre draws the grid behind the card, so the editor is no sheet. */
+.centre-body > .map-editor.map-cards {
+	background: none;
+	border: 0;
+	box-shadow: none;
+	overflow: visible;
+}
+
+.map-card {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+	background: var(--bg-panel);
+	border: 1px solid var(--border-strong);
+	border-radius: 12px;
+	box-shadow: var(--shadow-raised);
 	overflow: hidden;
 }
 
-/* The editor's own panel has a handle between the tree and the Inspector, in
-   a track of its own with no width. The docs draw the panel without one. Each
-   side keeps at least 180px however the window shrinks. */
-.map-editor.map-editor-resizable {
-	grid-template-columns: minmax(180px, 1fr) 0 min(var(--map-side-w, 380px), calc(100% - 180px));
+.map-editor > .map-tree {
+	flex: 1;
 }
 
-.map-splitter {
-	position: relative;
-	z-index: 2;
-	cursor: col-resize;
-	touch-action: none;
-}
-
-/* Wider to hit than to see, and drawn only when found. */
-.map-splitter::before {
-	content: "";
-	position: absolute;
-	inset: 0 -6px;
-}
-
-.map-splitter::after {
-	content: "";
-	position: absolute;
-	top: 0;
-	bottom: 0;
-	left: -1px;
-	width: 2px;
-	background: transparent;
-	transition: background 120ms ease;
-}
-
-.map-splitter:hover::after,
-.map-splitter:active::after {
-	background: var(--accent);
-}
-
-.map-tree {
-	overflow: auto;
-	background: var(--bg-canvas);
-	padding-bottom: 16px;
-}
-
-.map-bar {
+.map-head {
+	flex: none;
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
-	gap: 8px;
-	padding: 6px 10px;
+	gap: 6px 8px;
+	padding: 7px 10px;
 	border-bottom: 1px solid var(--border);
-	background: var(--bg-panel);
-	position: sticky;
-	top: 0;
-	z-index: 1;
-	font-weight: 600;
 }
 
-.map-bar .dirty::after {
+.map-head .sp {
+	flex: 1;
+}
+
+.map-head > svg,
+.map-head > .tree-badged {
+	flex: none;
+}
+
+.map-head .tb.with-icon,
+.map-view.segmented button {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+}
+
+.map-title {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	min-width: 0;
+}
+
+.map-title b {
+	font-weight: 650;
+	white-space: nowrap;
+}
+
+.map-title b.dirty::after {
 	content: "•";
 	color: var(--warning);
 	margin-left: 5px;
 }
 
+.map-sub {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--text-sm);
+	color: var(--fg-faint);
+}
+
+/* The tree. */
+.map-rows {
+	flex: 1;
+	min-height: 0;
+	overflow: auto;
+	padding: 4px 0 8px;
+	outline: none;
+}
+
+.map-rows:focus-visible {
+	box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
 .map-row {
+	position: relative;
 	display: flex;
 	align-items: center;
 	gap: 7px;
-	padding: 4px 10px;
+	min-height: 26px;
+	padding: 3px 10px;
+	white-space: nowrap;
 	cursor: default;
 	user-select: none;
-	white-space: nowrap;
+	-webkit-user-select: none;
 }
 
 .map-row:hover {
@@ -5888,134 +5920,563 @@ button.start-tile:disabled {
 	box-shadow: inset 2px 0 0 var(--accent);
 }
 
-.map-row .glyph {
-	width: 12px;
-	color: var(--fg-faint);
-	cursor: pointer;
+.map-row > svg,
+.map-row > .tree-badged {
 	flex: none;
 }
 
+.map-row .glyph {
+	display: inline-flex;
+	flex: none;
+	width: 12px;
+	color: var(--fg-faint);
+	cursor: pointer;
+}
+
+.map-chev,
+.map-rule-chev {
+	transition: transform 120ms ease;
+}
+
+.map-chev:not(.open),
+.map-rule-chev:not(.open) {
+	transform: rotate(-90deg);
+}
+
 .map-row .name {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
 	font-weight: 500;
 }
 
-.map-row .class,
-.map-row .path {
-	font-size: var(--text-sm);
-	font-family: "Cascadia Mono", Consolas, monospace;
-	color: var(--fg-faint);
+.map-row.disk .name,
+.map-row.unsynced .name {
+	color: var(--fg-muted);
+	font-weight: 400;
 }
 
-.map-row .path {
+/* Where a dragged row would go. */
+.map-row.drop-inside {
+	box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.map-row.drop-before::before,
+.map-row.drop-after::after {
+	content: "";
+	position: absolute;
+	left: 8px;
+	right: 8px;
+	height: 2px;
+	border-radius: 1px;
+	background: var(--accent);
+}
+
+.map-row.drop-before::before {
+	top: -1px;
+}
+
+.map-row.drop-after::after {
+	bottom: -1px;
+}
+
+/* A row's folder, and what is there. */
+.pathchip {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	flex: 0 1 auto;
+	min-width: 0;
+	max-width: 62%;
 	margin-left: auto;
-	color: var(--accent);
+	padding: 1px 7px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font: 10.5px/1.6 "Cascadia Mono", Consolas, monospace;
+	color: var(--fg-muted);
+	background: var(--bg-input);
+	border: 1px solid var(--border-strong);
+	border-radius: 6px;
 }
 
-.map-side {
-	border-left: 1px solid var(--border);
-	background: var(--bg-panel);
-	overflow: auto;
-	display: flex;
-	flex-direction: column;
-	min-height: 0;
+button.pathchip {
+	display: block;
+	cursor: pointer;
 }
 
-/* The column scrolls; nothing in it gives way. A flex item shrinks when the
-   column is shorter than its contents, and the project file -- a scroller of
-   its own, so free to shrink to nothing -- took all of it: on an iPad it was
-   one line high under a column that scrolled past it. */
-.map-side > * {
-	flex-shrink: 0;
+button.pathchip:hover {
+	color: var(--fg);
+	border-color: var(--accent);
 }
 
-.map-side h2 {
-	font-size: var(--text-sm);
-	text-transform: uppercase;
-	letter-spacing: 0.08em;
+.pathchip.ok {
+	border-color: color-mix(in srgb, var(--ok) 50%, var(--border));
+}
+
+.pathchip.warn {
+	color: var(--warning);
+	border-color: var(--warning);
+}
+
+.pathchip.bad {
+	color: var(--danger);
+	border-color: var(--danger);
+}
+
+.pathchip.faint {
 	color: var(--fg-faint);
-	margin: 0;
-	padding: 10px 12px 6px;
+	background: transparent;
+	border-style: dashed;
 }
 
-.map-side .summary {
-	margin: 0;
-	padding: 0 12px 6px;
+/* Not where the reading rule puts it. */
+.pathchip.odd {
+	border-style: dashed;
+}
+
+.map-drop {
+	margin: 8px 10px 4px;
+	padding: 8px;
+	border: 1px dashed var(--border-strong);
+	border-radius: 8px;
+	text-align: center;
 	font-size: var(--text-sm);
+	color: var(--fg-faint);
+}
+
+.map-drop.on {
+	color: var(--accent);
+	border-color: var(--accent);
+}
+
+/* The reading rule, and the mappings that break it. */
+.map-rule {
+	flex: none;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 8px;
+	padding: 6px 10px;
+	border-top: 1px solid var(--border);
+	font-size: var(--text-sm);
+}
+
+.map-rule-ok {
+	display: inline-flex;
+	gap: 6px;
 	color: var(--fg-muted);
 }
 
-.map-fields,
-.map-side > .field {
+.map-check {
+	color: var(--ok);
+	font-weight: 700;
+}
+
+.map-rule-odd {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 0;
+	font: inherit;
+	color: var(--warning);
+	background: none;
+	border: 0;
+	cursor: pointer;
+}
+
+.map-rule-help {
+	display: grid;
+	place-items: center;
+	width: 16px;
+	height: 16px;
+	margin-left: auto;
+	border: 1px solid var(--border-strong);
+	border-radius: 50%;
+	font-size: 10px;
+	color: var(--fg-faint);
+	cursor: help;
+}
+
+.map-rule-row {
+	flex-basis: 100%;
 	display: flex;
 	flex-direction: column;
-	gap: 7px;
-	padding: 0 12px 8px;
+	gap: 1px;
+	padding: 4px 6px;
+	text-align: left;
+	font: inherit;
+	color: var(--fg);
+	background: none;
+	border: 0;
+	border-radius: 6px;
+	cursor: pointer;
 }
 
-.map-fields .field,
-.map-side > .field {
-	display: grid;
-	grid-template-columns: 100px 1fr;
-	align-items: center;
-	gap: 6px;
+.map-rule-row:hover {
+	background: var(--bg-hover);
 }
 
-.map-fields .field > span,
-.map-side > .field > span {
-	font-size: var(--text-sm);
-	color: var(--fg-faint);
+.map-rule-row span {
+	font: 10.5px "Cascadia Mono", Consolas, monospace;
+	color: var(--fg-muted);
 }
 
-.map-fields input,
-.map-fields select,
-.map-side > .field input {
-	cursor: text;
-	min-width: 0;
-	width: 100%;
-}
-
-.map-actions {
-	display: flex;
-	gap: 6px;
-	padding: 0 12px 10px;
-	flex-wrap: wrap;
-}
-
-.map-preview {
-	margin: 0 12px 12px;
-	padding: 10px 12px;
-	background: var(--bg-canvas);
-	border: 1px solid var(--border);
-	border-radius: var(--radius-sm);
-	font: 11px/1.55 "Cascadia Mono", Consolas, monospace;
-	overflow: auto;
-	max-height: 340px;
-	white-space: pre;
+.map-rule-row i {
+	font-style: normal;
+	color: var(--warning);
 }
 
 .map-diagnostics {
-	padding: 0 12px 16px;
+	flex: none;
+	display: grid;
+	gap: 2px;
+	max-height: 120px;
+	overflow: auto;
+	padding: 6px 10px;
+	border-top: 1px solid var(--border);
 }
 
 .map-diagnostics .entry {
 	display: flex;
-	gap: 8px;
-	font-size: var(--text-sm);
+	align-items: flex-start;
+	gap: 6px;
 	padding: 2px 0;
+	text-align: left;
+	font: inherit;
+	font-size: var(--text-sm);
+	color: var(--fg);
+	background: none;
+	border: 0;
+	cursor: pointer;
 }
 
-.map-diagnostics .entry .sev {
-	width: 56px;
+.map-diagnostics .entry svg {
 	flex: none;
-	font-weight: 600;
+	margin-top: 2px;
 }
 
-.map-diagnostics .entry.error .sev {
+.map-diagnostics .entry.error svg {
 	color: var(--danger);
 }
 
-.map-diagnostics .entry.warning .sev {
+.map-diagnostics .entry.warning svg {
 	color: var(--warning);
+}
+
+/* The panels around it: fields as Settings rows. */
+.map-panel {
+	padding: 8px 8px 10px;
+}
+
+.map-panel .settings-box > .setting {
+	grid-template-columns: minmax(0, 1fr) minmax(0, 190px);
+	align-items: center;
+	gap: 10px;
+	padding: 9px 12px;
+}
+
+.map-panel .settings-box > .setting.wide,
+.map-panel .settings-box > .setting.map-list {
+	grid-template-columns: minmax(0, 1fr);
+	gap: 6px;
+}
+
+.map-panel .setting-label b {
+	font-weight: 600;
+}
+
+.map-panel .setting-label span {
+	font-size: var(--text-sm);
+}
+
+.map-panel .setting-control input.tb {
+	width: 100%;
+	min-width: 0;
+}
+
+.path-pick {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	width: 100%;
+}
+
+.path-pick input,
+.path-pick .map-code {
+	flex: 1;
+	min-width: 0;
+}
+
+.pickbox {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	width: 100%;
+	min-width: 0;
+	padding: 3px 7px;
+	font: inherit;
+	color: var(--fg);
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	cursor: pointer;
+}
+
+.pickbox:hover {
+	border-color: var(--border-strong);
+}
+
+.pickbox .clip {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	text-align: left;
+}
+
+.pickbox-chev {
+	flex: none;
+	color: var(--fg-faint);
+}
+
+.linkish {
+	padding: 0;
+	font: inherit;
+	color: var(--accent);
+	background: none;
+	border: 0;
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+.map-list .map-list-control {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 6px;
+}
+
+.map-list-row {
+	display: flex;
+	gap: 6px;
+}
+
+.map-list-row input {
+	flex: 1;
+	min-width: 0;
+	font: var(--text-sm) "Cascadia Mono", Consolas, monospace;
+}
+
+.map-list-control > .tb.with-icon {
+	align-self: flex-end;
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+}
+
+.map-code {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font: 11px "Cascadia Mono", Consolas, monospace;
+}
+
+.map-landing {
+	font-size: var(--text-sm);
+}
+
+.map-count {
+	font-variant-numeric: tabular-nums;
+	color: var(--fg-muted);
+}
+
+/* The project file, the picked row's lines lit. */
+.map-file-panel {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+}
+
+.map-file-panel .map-preview {
+	flex: 1;
+	min-height: 0;
+	margin: 0;
+	padding: 8px 12px;
+	overflow: auto;
+	font: 11px/1.55 "Cascadia Mono", Consolas, monospace;
+	white-space: pre;
+	background: var(--bg-canvas);
+	border: 0;
+	border-radius: 0;
+}
+
+.map-file-panel .map-preview-line {
+	margin: 0 -12px;
+	padding: 0 12px;
+	border-radius: 0;
+	cursor: default;
+}
+
+.map-file-panel .map-preview-line.lit {
+	background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.map-tag {
+	padding: 1px 8px;
+	font-size: 11px;
+	color: var(--fg-muted);
+	border: 1px solid var(--border-strong);
+	border-radius: 999px;
+	white-space: nowrap;
+}
+
+.map-tag.ok {
+	color: var(--ok);
+	border-color: color-mix(in srgb, var(--ok) 55%, transparent);
+}
+
+.map-tag.warn {
+	color: var(--warning);
+	border-color: color-mix(in srgb, var(--warning) 55%, transparent);
+}
+
+/* Choosing a folder, as Save As does: also New graph's and New map's. */
+.folder-pick {
+	overflow: hidden;
+	background: var(--bg-input);
+	border: 1px solid var(--border);
+	border-radius: 10px;
+}
+
+.map-choose {
+	width: min(380px, calc(100vw - 24px));
+	padding: 0;
+}
+
+.map-choose .folder-pick {
+	background: transparent;
+	border: 0;
+	border-radius: 0;
+}
+
+.fp-crumbs {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px;
+	padding: 6px 8px;
+	border-bottom: 1px solid var(--border);
+	font-size: 12px;
+	color: var(--fg-muted);
+}
+
+.fp-crumbs .sp {
+	flex: 1;
+}
+
+.fp-crumbs .tb.with-icon {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	font-size: 11px;
+}
+
+.fp-step-wrap {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.fp-sep {
+	color: var(--fg-faint);
+}
+
+.fp-step {
+	padding: 1px 4px;
+	font: inherit;
+	color: inherit;
+	background: none;
+	border: 0;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.fp-step:hover {
+	background: var(--bg-hover);
+}
+
+.fp-step.here {
+	color: var(--fg);
+	font-weight: 650;
+}
+
+.fp-list {
+	display: grid;
+	max-height: 240px;
+	overflow: auto;
+	padding: 4px;
+	font-size: 12px;
+}
+
+.fp-item {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	padding: 4px 8px;
+	border-radius: 6px;
+	cursor: default;
+}
+
+.fp-item > svg,
+.fp-item > .tree-badged {
+	flex: none;
+}
+
+.fp-item:hover {
+	background: var(--bg-hover);
+}
+
+.fp-item.on {
+	background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.fp-item:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: -2px;
+}
+
+.fp-name {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.fp-in {
+	display: inline-flex;
+	padding: 2px;
+	color: var(--fg-faint);
+	background: none;
+	border: 0;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.fp-in:hover {
+	color: var(--fg);
+	background: var(--bg-active);
+}
+
+.fp-in svg {
+	transform: rotate(-90deg);
+}
+
+.fp-none {
+	padding: 8px;
+	color: var(--fg-faint);
 }
 
 /* ------------------------------------------------------------ code editor */
@@ -7916,88 +8377,6 @@ button.tb.icon-only.on {
 	background: var(--bg-active);
 	color: var(--fg);
 	border-color: var(--border-strong);
-}
-
-/* Path field with a resolution hint: Rojo builds an empty instance for a path
-   that is not there, so an unresolved one has to be loud here. */
-.map-fields .path-field {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	min-width: 0;
-}
-
-.map-fields .path-field input {
-	flex: 1;
-	min-width: 0;
-}
-
-.path-pending {
-	display: inline-flex;
-	align-items: center;
-	gap: 3px;
-	flex: none;
-	font-size: var(--text-xs);
-	color: var(--fg-muted);
-	white-space: nowrap;
-}
-
-.path-missing {
-	display: inline-flex;
-	align-items: center;
-	gap: 3px;
-	flex: none;
-	font-size: var(--text-xs);
-	color: var(--danger);
-	white-space: nowrap;
-}
-
-.map-list {
-	border-top: 1px solid var(--border);
-	margin: 0 12px;
-	padding: 8px 0;
-	display: flex;
-	flex-direction: column;
-	gap: 5px;
-}
-
-.map-list-head {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	font-size: var(--text-sm);
-	text-transform: uppercase;
-	letter-spacing: 0.06em;
-	color: var(--fg-faint);
-}
-
-.map-list-head button {
-	padding: 1px 8px;
-	font-size: var(--text-sm);
-	text-transform: none;
-	letter-spacing: 0;
-}
-
-.map-list .summary {
-	padding: 0;
-}
-
-.map-list-row {
-	display: grid;
-	grid-template-columns: 1fr 24px;
-	gap: 4px;
-}
-
-.map-list-row input {
-	cursor: text;
-	min-width: 0;
-	font-family: "Cascadia Mono", Consolas, monospace;
-	font-size: var(--text-sm);
-}
-
-.map-list-row button {
-	padding: 0;
-	text-align: center;
 }
 
 /* The menu shown when a file is dragged from the tree onto the canvas. */
@@ -14823,42 +15202,6 @@ p.licence-meta,
 	max-width: none;
 }
 
-/* The article's typography does not reach inside the panel.
-
-   `.docs-page .docs-content h2` is two classes and an element; `.map-side h2`
-   is one and an element, so the article won and the Inspector's section
-   headings came out at body size in the article's colour -- and the hints
-   under them came out as paragraphs, which between them ate most of the
-   height the figure had to show a project file in.
-
-   The same fix, and the same reason, as `.docs-bar-frame.panel h2` above:
-   qualified enough to match, and restated rather than inherited, because
-   inheriting is exactly what did not happen. */
-.docs-page .docs-content .docs-map-frame h2:where(:not(.docs-layout-screen *)) {
-	margin: 0;
-	padding: 10px 12px 6px;
-	border: 0;
-	font-size: 11px;
-	font-weight: 600;
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-	color: var(--fg-faint);
-}
-
-.docs-page .docs-content .docs-map-frame p.summary:where(:not(.docs-layout-screen *)) {
-	margin: 0;
-	padding: 0 12px 6px;
-	max-width: none;
-	font-size: 11px;
-	line-height: 1.45;
-	color: var(--fg-muted);
-}
-
-.docs-page .docs-content .docs-map-frame p.summary code:where(:not(.docs-layout-screen *)) {
-	font-size: 10.5px;
-	padding: 0 3px;
-}
-
 /* Panel and legend side by side. The panel is tall, and a column of eleven
    names underneath a tall picture is a column nobody reads beside the thing it
    names. */
@@ -14909,6 +15252,58 @@ p.licence-meta,
 	min-height: 380px;
 }
 
+/* The mode as the app lays it out: the tree, Instance and This map as the
+   right dock holds them, the project file along the foot, over the canvas. */
+.map-docs {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 320px);
+	grid-template-rows: minmax(0, 1fr) auto;
+	gap: 10px;
+	padding: 10px;
+	background-color: var(--bg-canvas);
+}
+
+.map-docs > .map-tree {
+	grid-column: 1;
+	grid-row: 1;
+	min-height: 240px;
+}
+
+.map-docs-side {
+	grid-column: 2;
+	grid-row: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	min-height: 0;
+	overflow: auto;
+}
+
+.map-docs-side > .map-card {
+	flex: none;
+	overflow: visible;
+}
+
+.map-docs > .map-docs-foot {
+	grid-column: 1 / -1;
+	grid-row: 2;
+}
+
+.map-docs-foot .map-file-panel {
+	height: auto;
+	padding: 0;
+}
+
+.map-docs .map-docs-actions {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.map-docs .map-head > b {
+	font-weight: 650;
+}
+
 /* The project file keeps a scroller of its own rather than growing until the
    whole Inspector scrolls. Selecting a row then moves the file to the lines
    that row writes and leaves Name, Class and Path where the reader is looking. */
@@ -14938,8 +15333,14 @@ p.licence-meta,
    class doing its own job. */
 /* A walkthrough's map sits in the page's narrow column, so its Inspector
    gives the tree half the room rather than taking 380px of it. */
-.docs-walk-map .map-editor {
+.docs-walk-map .map-docs {
 	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+/* Half the narrow column is no room for a name beside its field. */
+.docs-walk-map .map-panel .settings-box > .setting {
+	grid-template-columns: minmax(0, 1fr);
+	gap: 6px;
 }
 
 .docs-map .map-preview-line.lit,
@@ -14947,6 +15348,11 @@ p.licence-meta,
 .docs-walk-map .map-preview-line.lit {
 	background: color-mix(in srgb, var(--accent) 14%, transparent);
 	box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* A field the picked row has not: the DataModel has no class or path. */
+.map-docs [data-map-nonroot][hidden] {
+	display: none;
 }
 
 .docs-map .map-row[data-control] {
@@ -14959,10 +15365,15 @@ p.licence-meta,
    to add a folder to -- so they are dimmed to say so before anybody presses
    one. The fields are not: they are filled from whichever row is selected and
    change as you go, so dimming them would be calling live output dead. */
-.docs-map-frame .map-editor button[disabled],
-.docs-map-frame .map-editor .map-actions select[disabled] {
+.docs-map-frame .map-editor button[disabled] {
 	opacity: 0.38;
 	cursor: default;
+}
+
+/* A segmented control and a switch show an answer, which is not dead. */
+.docs-map-frame .map-editor .segmented button[disabled],
+.docs-map-frame .map-editor .settings-toggle input[disabled] {
+	opacity: 1;
 }
 
 .docs-map-frame .map-editor input[readonly],
@@ -15068,14 +15479,15 @@ p.licence-meta,
 /* One under the other once there is no room for two: an Inspector squeezed
    beside a tree on a phone is two unreadable columns instead of one. */
 @media (max-width: 860px) {
-	.docs-map-frame .map-editor {
+	.docs-map-frame .map-docs {
 		grid-template-columns: minmax(0, 1fr);
-		height: auto;
+		grid-template-rows: auto;
 	}
 
-	.docs-map-frame .map-side {
-		border-left: none;
-		border-top: 1px solid var(--border);
+	.map-docs > .map-docs-side,
+	.map-docs > .map-docs-foot {
+		grid-column: 1;
+		grid-row: auto;
 	}
 }
 
@@ -19647,39 +20059,8 @@ html {
 			calc(var(--hit) + var(--edge) * 3 + 46px + env(safe-area-inset-bottom, 0px)) 6px;
 	}
 
-	.map-editor,
-	.map-editor.map-editor-resizable {
+	.map-panel .settings-box > .setting {
 		grid-template-columns: minmax(0, 1fr);
-		grid-template-rows: minmax(0, 36%) minmax(0, 1fr);
-	}
-
-	/* Stacked, the handle moves the line between tree and Inspector up and down. */
-	.map-editor.map-editor-resizable {
-		grid-template-rows:
-			min(var(--map-tree-h, 36%), calc(100% - 180px))
-			0 minmax(0, 1fr);
-	}
-
-	.map-splitter {
-		cursor: row-resize;
-	}
-
-	.map-splitter::before {
-		inset: -10px 0;
-	}
-
-	.map-splitter::after {
-		top: -1px;
-		bottom: auto;
-		left: 0;
-		right: 0;
-		width: auto;
-		height: 2px;
-	}
-
-	.map-side {
-		border-left: none;
-		border-top: 1px solid var(--border);
 	}
 
 	/* Headers wrap whole buttons onto a second line, never a word at a time. */
@@ -20833,6 +21214,19 @@ textarea.tb:where(:disabled) {
    a control side by side, as Settings does. */
 .dialog.dialog-panel:has(.dialog-fields) {
 	width: min(540px, 100%);
+}
+
+/* A script kind's icon in a form, coloured as the tree colours it. */
+.dialog-fields .script-icon.tree-script-server {
+	color: var(--tree-script-server);
+}
+
+.dialog-fields .script-icon.tree-script-local {
+	color: var(--tree-script-local);
+}
+
+.dialog-fields .script-icon.tree-script-module {
+	color: var(--tree-script-module);
 }
 
 .dialog-fields .segmented button {

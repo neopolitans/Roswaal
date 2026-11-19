@@ -1088,7 +1088,7 @@ function WalkthroughFigure({ block }: { block: Block & { t: "walkthrough" } }) {
 		() =>
 			block.steps.map((step) => ({
 				__html: step.map
-					? walkMapHtml(step.map)
+					? walkMapHtml(step.map, TOOLBAR_ART)
 					: step.window
 						? layoutHtml(step.window, TOOLBAR_ART, { preview, numbered: false })
 						: (step.picture ?? []).map((bar) => toolbarHtml(bar, TOOLBAR_ART)).join(""),
@@ -1244,7 +1244,7 @@ function AttributionsView() {
 }
 
 function MapFigureView({ map, caption }: { map: NodeMap; caption?: string }) {
-	const html = useMemo(() => ({ __html: mapFigureHtml(mapFigure(map)) }), [map]);
+	const html = useMemo(() => ({ __html: mapFigureHtml(mapFigure(map), TOOLBAR_ART) }), [map]);
 	const host = useRef<HTMLElement>(null);
 
 	useEffect(() => {

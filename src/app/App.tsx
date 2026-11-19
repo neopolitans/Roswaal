@@ -85,7 +85,13 @@ import {
 } from "./host.js";
 import { Inspector } from "./Inspector.jsx";
 import { IntroPanel } from "./IntroPanel.jsx";
-import { MapEditor } from "./MapEditor.jsx";
+import {
+	MapFilePanel,
+	MapInstancePanel,
+	MapSettingsPanel,
+	MapTreeView,
+	useMapEditor,
+} from "./MapEditor.jsx";
 import { MenuButton } from "./Menu.jsx";
 import { ModeStrip } from "./ModeStrip.jsx";
 import type { WireFrom } from "./menuSearch.js";
@@ -1984,6 +1990,22 @@ export function App() {
 	followMoveRef.current = followMove;
 	offerRojo.current = importRojo;
 
+	// The open node map, shared by the tree in the centre and its three panels.
+	const mapEd = useMapEditor(
+		mapDoc && project
+			? {
+					path: mapDoc.path,
+					map: mapDoc.map,
+					dirty: mapDoc.dirty,
+					tree: project.tree,
+					outDir: project.config.outDir,
+					sourceDir: project.config.sourceDir,
+					onChange: (next) => store.editMap(mapDoc.path, next),
+					onNewFolder: onTreeNewFolder,
+				}
+			: null,
+	);
+
 	// -- render ------------------------------------------------------------
 
 	if (!ready) return <StartingFrame />;
@@ -1994,7 +2016,15 @@ export function App() {
 	const showInspector = graphOpen && editor.selection.size === 1;
 	// What the Panels menu offers: the panels for what is in front.
 	const panelChoices = panelsFor(
-		placeDoc ? "place" : graphOpen ? "graph" : source || mapDoc || aliasDoc ? "document" : "none",
+		placeDoc
+			? "place"
+			: graphOpen
+				? "graph"
+				: mapDoc
+					? "map"
+					: source || aliasDoc
+						? "document"
+						: "none",
 		Boolean(project.place),
 	);
 	// Add node, from the graph's tools: the palette, at the middle of the view.
@@ -2537,6 +2567,9 @@ export function App() {
 						placeDoc && viewer && viewport ? (
 							<viewer.MeshesPanel controller={viewport} />
 						) : undefined,
+					mapItem: mapEd && !placeDoc ? <MapInstancePanel ed={mapEd} /> : undefined,
+					mapSettings: mapEd && !placeDoc ? <MapSettingsPanel ed={mapEd} /> : undefined,
+					mapFile: mapEd && !placeDoc ? <MapFilePanel ed={mapEd} /> : undefined,
 					// Script analysis is a graph's: the place in front has the bottom to itself.
 					analysis: placeDoc ? undefined : (
 						<StatusPanel
@@ -2631,15 +2664,8 @@ export function App() {
 										);
 									}}
 								/>
-							) : mapDoc ? (
-								<MapEditor
-									key={mapDoc.path}
-									map={mapDoc.map}
-									dirty={mapDoc.dirty}
-									tree={project.tree}
-									outDir={project.config.outDir}
-									onChange={(next) => store.editMap(mapDoc.path, next)}
-								/>
+							) : mapEd ? (
+								<MapTreeView ed={mapEd} />
 							) : source ? (
 								<SourceView
 									key={source.path}

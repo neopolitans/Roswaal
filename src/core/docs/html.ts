@@ -477,7 +477,7 @@ function renderBlock(
 			// panel is chrome, and two hand-written copies of chrome drift.
 			return (
 				`<figure class="docs-map">` +
-				`<div class="docs-map-body">${mapFigureHtml(mapFigure(block.map))}</div>` +
+				`<div class="docs-map-body">${mapFigureHtml(mapFigure(block.map), options.toolbars && { ...options.toolbars, version: options.version })}</div>` +
 				`${caption}</figure>`
 			);
 		}
@@ -535,7 +535,7 @@ function renderBlock(
 						`${step.point ? ` data-point="${escapeHtml(controlKey(step.point))}"` : ""}` +
 						`${i > 0 ? " hidden" : ""}>` +
 						(step.map
-							? walkMapHtml(step.map)
+							? walkMapHtml(step.map, art && { ...art, version: options.version })
 							: art
 								? step.window
 									? layoutHtml(

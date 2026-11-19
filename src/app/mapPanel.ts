@@ -1,12 +1,12 @@
 /**
  * Making the drawn map editor answer when you click it.
  *
- * The map pages draw the real panel — the tree, the Inspector, the project
+ * The map pages draw the real panel — the tree, Instance beside it, the project
  * file underneath. Drawn and left alone it is a screenshot, and a screenshot
  * of an editor answers "what does it look like" rather than the question the
  * page is for, which is **what does this row of my tree turn into**.
  *
- * So: select a row, and the Inspector fills with that node's values while the
+ * So: select a row, and Instance fills with that node's values while the
  * lines it writes light up in the file. That is the correspondence the page
  * exists to explain, and it is something you point at rather than something
  * you describe.
@@ -21,7 +21,7 @@
  * ## It is an enhancement, never a requirement
  *
  * Without it the panel is still fully drawn, with the first row selected, its
- * values in the Inspector and the whole project file below — which is a
+ * values in Instance and the whole project file below — which is a
  * correct and complete figure, just a fixed one. The clicking makes the
  * correspondence explorable; it is not what carries it.
  */
@@ -31,6 +31,8 @@ interface Inspected {
 	heading: string;
 	name: string;
 	class: string;
+	/** The class's icon, as markup core drew. */
+	icon?: string;
 	kind: string;
 	path: string;
 	ignoreUnknown: boolean;
@@ -42,7 +44,7 @@ interface Inspected {
  * Wire one figure. Returns the undo, for a panel that unmounts.
  *
  * Scoped to the figure rather than the document, so two maps on one page do
- * not drive each other's Inspector.
+ * not drive each other's Instance panel.
  */
 export function attachMapPanel(figure: HTMLElement): () => void {
 	const rows = Array.from(figure.querySelectorAll<HTMLElement>(".map-row[data-control]"));
@@ -55,7 +57,7 @@ export function attachMapPanel(figure: HTMLElement): () => void {
 	// each use narrows to the one it wants.
 	const fieldOf = (name: string) => figure.querySelector<HTMLElement>(`[data-map-field="${name}"]`);
 
-	// The row the Inspector is showing. Core marks the first one.
+	// The row Instance is showing. Core marks the first one.
 	let picked: string =
 		rows.find((r) => r.classList.contains("selected"))?.dataset.control ??
 		rows[0].dataset.control ??
@@ -68,7 +70,7 @@ export function attachMapPanel(figure: HTMLElement): () => void {
 			return JSON.parse(raw) as Inspected;
 		} catch {
 			// A row that cannot say what it is simply does not drive the
-			// Inspector. The figure stays on whatever it was showing.
+			// Instance panel. The figure stays on whatever it was showing.
 			return null;
 		}
 	};
@@ -96,22 +98,26 @@ export function attachMapPanel(figure: HTMLElement): () => void {
 		const name = fieldOf("name");
 		if (name instanceof HTMLInputElement) name.value = one.name;
 
-		// A `<select>` showing one fixed answer needs its option rewritten.
-		// Setting `value` alone would look for a matching option, find none,
-		// and blank the control.
+		// The rows the DataModel, or a filesystem map's project folder, has not:
+		// the editor leaves them out rather than showing answers that are not true.
+		for (const row of Array.from(figure.querySelectorAll<HTMLElement>("[data-map-nonroot]"))) {
+			row.hidden = one.root;
+		}
+
+		// The class picker: its words, and the class's icon beside them.
 		const cls = fieldOf("class");
-		if (cls instanceof HTMLSelectElement && cls.options.length > 0) {
-			cls.options[0].textContent = one.class;
+		if (cls) {
+			const words = cls.querySelector(".clip");
+			if (words) words.textContent = one.class;
+			const icon = cls.querySelector("[data-map-icon]");
+			if (icon) icon.innerHTML = one.icon ?? "";
 		}
 
 		const kind = fieldOf("kind");
-		if (kind instanceof HTMLSelectElement && kind.options.length > 0) {
-			kind.options[0].textContent = one.kind;
-			// The root of a filesystem map is the project directory, which is
-			// neither a file nor a directory you chose -- the editor hides the
-			// field rather than showing an answer that is not true.
-			const label = kind.closest<HTMLElement>(".field");
-			if (label) label.hidden = one.root;
+		if (kind) {
+			for (const button of Array.from(kind.querySelectorAll("button"))) {
+				button.classList.toggle("on", button.textContent === one.kind);
+			}
 		}
 
 		const path = fieldOf("path");
@@ -119,10 +125,14 @@ export function attachMapPanel(figure: HTMLElement): () => void {
 
 		const ignore = fieldOf("ignoreUnknown");
 		if (ignore instanceof HTMLInputElement) ignore.checked = one.ignoreUnknown;
+		const ignoreText = fieldOf("ignoreUnknownText");
+		if (ignoreText) ignoreText.textContent = one.ignoreUnknown ? "Left alone" : "Removed";
 
 		const list = figure.querySelector<HTMLElement>('[data-map-list="ignorePaths"]');
-		if (list) {
+		const control = list?.querySelector<HTMLElement>(".map-list-control");
+		if (list && control) {
 			for (const old of Array.from(list.querySelectorAll(".map-list-row"))) old.remove();
+			const add = control.lastElementChild;
 			for (const value of one.ignorePaths) {
 				const div = document.createElement("div");
 				div.className = "map-list-row";
@@ -131,25 +141,25 @@ export function attachMapPanel(figure: HTMLElement): () => void {
 				input.readOnly = true;
 				input.value = value;
 				const remove = document.createElement("button");
-				remove.className = "tb";
+				remove.className = "tb icon-only";
 				remove.disabled = true;
 				remove.textContent = "×";
 				div.append(input, remove);
-				list.append(div);
+				control.insertBefore(div, add);
 			}
 		}
 	};
 
 	// Bring the lines a row writes into view.
 	//
-	// The project file sits at the foot of the Inspector, as it does in the
+	// The project file sits along the foot, as it does in the
 	// editor, which on a figure this size puts it below the fold and inside a
 	// box with its own scrollbar. Lighting lines the reader cannot see is worse
 	// than not lighting them.
 	//
 	// Every scroller between the line and the figure is moved, innermost first,
-	// because there are two: the project file scrolls inside the Inspector, and
-	// the Inspector scrolls inside the panel. Centring rather than nudging to
+	// because there are two: the project file scrolls inside its card, and
+	// the card inside the figure. Centring rather than nudging to
 	// the edge -- a stanza is several lines and the reader wants the ones around
 	// it too.
 	//
@@ -182,7 +192,7 @@ export function attachMapPanel(figure: HTMLElement): () => void {
 		fill(row);
 		paint(key);
 		// Not on the opening selection: the figure should start at the top of
-		// the Inspector, where its first field is, rather than scrolled to the
+		// Instance, where its first field is, rather than scrolled to the
 		// project file before anybody has asked anything.
 		if (!first) reveal(key);
 	};
@@ -243,7 +253,7 @@ export function attachMapPanel(figure: HTMLElement): () => void {
 				const key = row.dataset.control ?? "";
 				if (folded.has(key)) folded.delete(key);
 				else folded.add(key);
-				glyph.style.transform = folded.has(key) ? "none" : "rotate(90deg)";
+				glyph.querySelector(".map-chev")?.classList.toggle("open", !folded.has(key));
 				refold();
 				return;
 			}
@@ -300,12 +310,7 @@ export function attachMapPanel(figure: HTMLElement): () => void {
 	figure.addEventListener("click", onClick);
 	figure.classList.add("linked");
 
-	// The arrows point down to start with, because nothing is folded. The
-	// editor turns them the same way round.
-	for (const row of rows) {
-		const glyph = row.querySelector<HTMLElement>(".glyph");
-		if (glyph && glyph.style.visibility !== "hidden") glyph.style.transform = "rotate(90deg)";
-	}
+	// The arrows are drawn open by core, because nothing is folded yet.
 	if (picked) pick(picked);
 
 	return () => {

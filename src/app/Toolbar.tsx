@@ -94,9 +94,11 @@ export function ProjectBar(props: ProjectBarProps) {
 		run: () => cards.toggleCard(id),
 	}));
 	const scripting = !props.place;
-	const rightTitle = scripting
-		? "Inspector — the selected node, or the graph's own settings"
-		: "Properties — the picked instance, or the place";
+	const rightTitle = props.panels.includes("mapItem")
+		? "Instance and This map — the picked row's fields, and the map's own"
+		: scripting
+			? "Inspector — the selected node, or the graph's own settings"
+			: "Properties — the picked instance, or the place";
 
 	// The axis, named. Two buttons reading "Manual | Dynamic" say nothing about
 	// what they are manual and dynamic *about*; the group's title says it.

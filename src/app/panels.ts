@@ -48,7 +48,10 @@ export type PanelId =
 	| "code"
 	| "render"
 	| "performance"
-	| "meshes";
+	| "meshes"
+	| "mapItem"
+	| "mapSettings"
+	| "mapFile";
 
 export const PANEL_IDS: PanelId[] = [
 	"tree",
@@ -61,6 +64,9 @@ export const PANEL_IDS: PanelId[] = [
 	"render",
 	"performance",
 	"meshes",
+	"mapItem",
+	"mapSettings",
+	"mapFile",
 ];
 
 export interface PanelState {
@@ -238,6 +244,32 @@ export const DEFAULT_LAYOUT: Layout = {
 			frame: { x: 340, y: 466, w: 300, h: 320 },
 			weight: 2,
 		},
+		// A node map's: the picked row's fields, and the map's own under them,
+		// on the right; the project file it writes along the foot.
+		mapItem: {
+			dock: "right",
+			open: true,
+			order: 6,
+			floating: false,
+			frame: { x: 28, y: 64, w: 340, h: 420 },
+			weight: 3,
+		},
+		mapSettings: {
+			dock: "right",
+			open: true,
+			order: 7,
+			floating: false,
+			frame: { x: 28, y: 496, w: 340, h: 420 },
+			weight: 2,
+		},
+		mapFile: {
+			dock: "bottom",
+			open: true,
+			order: 2,
+			floating: false,
+			frame: { x: 28, y: 64, w: 560, h: 360 },
+			weight: 3,
+		},
 	},
 	docks: {
 		left: { size: 260, open: true },
@@ -265,6 +297,9 @@ export const PANEL_TITLES: Record<PanelId, string> = {
 	render: "Rendering",
 	performance: "Performance",
 	meshes: "Mesh Debug",
+	mapItem: "Instance",
+	mapSettings: "This map",
+	mapFile: "Project file",
 };
 
 /** Each panel's icon, in the toolbar's Panels menu. */
@@ -279,6 +314,9 @@ export const PANEL_ICONS: Record<PanelId, IconName> = {
 	render: "vpRender",
 	performance: "vpPerformance",
 	meshes: "vpMeshes",
+	mapItem: "instance",
+	mapSettings: "map",
+	mapFile: "codeFile",
 };
 
 /** Why a panel cannot be shown yet, in the Panels menu: it has nothing to show. */
@@ -293,17 +331,27 @@ export const PANEL_EMPTY: Record<PanelId, string> = {
 	render: "Open the place first.",
 	performance: "Open the place first.",
 	meshes: "Open the place first.",
+	mapItem: "Open a node map first.",
+	mapSettings: "Open a node map first.",
+	mapFile: "Open a node map first.",
 };
 
 /**
  * What the editor's centre is showing, as far as the panels care: a graph,
- * the place in the 3D viewer, another document -- a node map, a Luau file or a
+ * the place in the 3D viewer, a node map, another document -- a Luau file or a
  * `.luaurc` -- or nothing at all.
  *
  * Node Design is not one of them. It is a window of its own, with its own
  * layout and no Panels menu.
  */
-export type PanelContext = "graph" | "place" | "document" | "none";
+export type PanelContext = "graph" | "place" | "map" | "document" | "none";
+
+/** The node map editor's own panels: offered only with a map in front. */
+export const MAP_PANELS: ReadonlySet<PanelId> = new Set<PanelId>([
+	"mapItem",
+	"mapSettings",
+	"mapFile",
+]);
 
 /** The place editor's own panels: offered only with the place in front. */
 export const PLACE_PANELS: ReadonlySet<PanelId> = new Set<PanelId>([
@@ -328,6 +376,7 @@ export const PLACE_PANELS: ReadonlySet<PanelId> = new Set<PanelId>([
  *   they act on its nodes.
  * - **Rendering**, **Performance** and **Mesh Debug** with the place in front:
  *   they change how the viewer draws it, and say what drawing it costs.
+ * - **Instance**, **This map** and **Project file** with a node map in front.
  */
 export function panelsFor(context: PanelContext, hasPlace: boolean): PanelId[] {
 	return PANEL_IDS.filter((id) => {
@@ -335,6 +384,7 @@ export function panelsFor(context: PanelContext, hasPlace: boolean): PanelId[] {
 		if (id === "properties") return hasPlace;
 		if (id === "analysis") return context !== "place";
 		if (PLACE_PANELS.has(id)) return context === "place";
+		if (MAP_PANELS.has(id)) return context === "map";
 		return context === "graph";
 	});
 }

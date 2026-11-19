@@ -75,15 +75,15 @@ export function compilingForLunePage(): DocPage {
 				t: "p",
 				text:
 					"Here is the whole of it. A `.nodemap` is edited in Roswaal rather than by hand, and " +
-					"this is that editor with *Describes* set to **A filesystem** — the tree on the left, " +
-					"the Inspector on the right, and the layout it describes underneath. Every part is " +
+					"this is that editor with *Describes* set to **Filesystem**: the tree in the middle, " +
+					"**Instance** and **This map** beside it, and the layout along the foot. Every part is " +
 					"named beside it; the rest of this page explains them in order.",
 			},
 			{
 				t: "nodemap",
 				map: LUNE_MAP,
 				caption:
-					"The same panel, describing a filesystem. **Select a row** to fill the Inspector. " +
+					"The same editor, describing a filesystem. **Select a row** to fill **Instance**. " +
 					"A name carries no extension — `main` in the map, `main.luau` on disk, and the " +
 					"require that reaches it beside.",
 			},
@@ -143,7 +143,7 @@ export function compilingForLunePage(): DocPage {
 				text:
 					"A map still has a job, and it is the one Rojo was doing incidentally: **saying " +
 					"the layout out loud, and checking it holds together**. Set a map's *Describes* to " +
-					"**A filesystem** and it becomes directories and files rather than services and " +
+					"**Filesystem** and it becomes directories and files rather than services and " +
 					"instances. A new map is already the right kind — it follows the project's target.",
 			},
 			{
