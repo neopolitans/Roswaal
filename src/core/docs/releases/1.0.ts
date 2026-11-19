@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.27",
+		date: "2026-11-20",
+		headline: "Graph or List is one button, as Dynamic or Manual is.",
+		changed: [
+			"**Graph or List**, after a node map's tab, is one button naming how the map is drawn, with the other in its menu.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.26",
 		date: "2026-11-20",
 		headline: "A graph's dot means unsaved edits, and its hover names both files.",

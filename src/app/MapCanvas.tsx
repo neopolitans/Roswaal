@@ -74,7 +74,7 @@ import {
 	stateWords,
 	TREE_DRAG,
 } from "./MapEditor.jsx";
-import { Menu, MenuSurface } from "./Menu.jsx";
+import { Menu, MenuButton, MenuSurface } from "./Menu.jsx";
 import { entryAt, folderState, foldersUnder, graphFolderOf, outputFolderOf } from "./mapDisk.js";
 import type { MenuSection } from "./menuModel.js";
 import type { MenuAnchor } from "./menuPlace.js";
@@ -2256,28 +2256,37 @@ export function MapTools({ ed }: { ed: MapEditing }) {
 					</button>
 				</>
 			)}
-			<div className="segmented icon-seg" role="group" aria-label="Draw the map as">
-				<button
-					type="button"
-					className={cx(graph && "on")}
-					title="Graph — the map on the canvas"
-					aria-label="Graph"
-					aria-pressed={graph}
-					onClick={() => ed.setLayout("graph")}
-				>
-					<Icon name="graph" size={15} />
-				</button>
-				<button
-					type="button"
-					className={cx(!graph && "on")}
-					title="List — the map as rows, from the DataModel or from the output folder"
-					aria-label="List"
-					aria-pressed={!graph}
-					onClick={() => ed.setLayout("list")}
-				>
-					<Icon name="vpExplorer" size={15} />
-				</button>
-			</div>
+			{/* Graph or List, as one button naming which, as Dynamic or Manual is. */}
+			<MenuButton
+				label={
+					<>
+						<Icon name={graph ? "graph" : "vpExplorer"} size={15} />
+						{graph ? "Graph" : "List"}
+					</>
+				}
+				title="Draw the map as"
+				sections={[
+					{
+						label: "Draw the map as",
+						entries: [
+							{
+								label: "Graph",
+								icon: "graph",
+								hint: "on the canvas",
+								checked: graph,
+								run: () => ed.setLayout("graph"),
+							},
+							{
+								label: "List",
+								icon: "vpExplorer",
+								hint: "as rows",
+								checked: !graph,
+								run: () => ed.setLayout("list"),
+							},
+						],
+					},
+				]}
+			/>
 		</ToolGroup>
 	);
 }
