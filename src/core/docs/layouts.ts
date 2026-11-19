@@ -906,7 +906,7 @@ const DEMO_TREE: ToolbarItem[] = [
 	{ t: "treeSection", text: "Node maps", count: 1, add: "New map" },
 	{ t: "treeRow", label: "Game", depth: 0, icon: "map", tone: "nodemap" },
 	{ t: "treeSection", text: "Output", count: 2, shut: true },
-	{ t: "treeFoot", text: "Node packs", icon: "graph" },
+	{ t: "treeSection", text: "Node packs", count: 1, shut: true },
 ];
 
 const MARK: ToolbarItem = { t: "mark", window: true };

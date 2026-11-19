@@ -37,15 +37,19 @@ export function projectPanelPage(): DocPage {
 						"**Graphs**",
 						"Your graphs, from the services down. The folder they live in is a setting, Settings › Compiling › Graphs live in, so it is not a row. **New graph** makes one at the top",
 					],
+					["**Node maps**", "Where your files land in Studio. **New map** makes one at the top"],
+					["**Packages**", "What `wally.toml` depends on. **Add** puts a package in"],
 					[
 						"**Place**",
 						"The place file and models. **Open** shows the place in the Place Editor. A Roblox project with no place has **Add Place** here",
 					],
-					["**Node maps**", "Where your files land in Studio. **New map** makes one at the top"],
-					["**Packages**", "What `wally.toml` depends on. **Add** puts a package in"],
 					[
 						"**Output**",
 						"What Roswaal writes, and code it did not: `src/`, `place/`, `Packages/` and `.luaurc`. Luau there opens read-only. It starts folded",
+					],
+					[
+						"**Node packs**",
+						"The nodes the project adds. Double-click a pack to open Node Design. It starts folded",
 					],
 				],
 			},
@@ -53,7 +57,7 @@ export function projectPanelPage(): DocPage {
 				t: "p",
 				text:
 					"Each heading folds from the chevron by its name. Drop a file on **Graphs** to move it " +
-					"to the top. **Node packs**, at the foot, opens Node Design.",
+					"to the top.",
 			},
 
 			{ t: "h", level: 2, text: "Colours and icons" },

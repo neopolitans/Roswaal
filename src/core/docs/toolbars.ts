@@ -2920,8 +2920,6 @@ export const PROJECT_TREE_WALLY: ToolbarSpec = {
 					tone: "tree-folder-special",
 					classIcon: "ReplicatedStorage",
 				},
-				{ t: "treeSection", text: "Place", count: 1 },
-				{ t: "treeRow", label: "place.rbxl", depth: 0, icon: "build", tone: "place", open: true },
 				{ t: "treeSection", text: "Node maps", count: 1, add: "New map" },
 				{ t: "treeRow", label: "Game", depth: 0, icon: "map", tone: "nodemap" },
 				{
@@ -2953,6 +2951,8 @@ export const PROJECT_TREE_WALLY: ToolbarSpec = {
 					name: "Not installed",
 					what: "In wally.toml with nothing in Packages/ yet. Right-click it to insert its zip.",
 				},
+				{ t: "treeSection", text: "Place", count: 1 },
+				{ t: "treeRow", label: "place.rbxl", depth: 0, icon: "build", tone: "place", open: true },
 				{
 					t: "treeSection",
 					text: "Output",
@@ -2961,7 +2961,14 @@ export const PROJECT_TREE_WALLY: ToolbarSpec = {
 					name: "Output",
 					what: "What Roswaal writes, and Wally's own Packages/ folder. It starts folded.",
 				},
-				{ t: "treeFoot", text: "Node packs", icon: "graph" },
+				{
+					t: "treeSection",
+					text: "Node packs",
+					count: 1,
+					shut: true,
+					name: "Node packs",
+					what: "The nodes the project adds, folded. Double-click a pack to open Node Design.",
+				},
 			],
 		},
 	],

@@ -85,7 +85,7 @@ export interface ProjectTreeProps {
 	 * imported from a file or started from Studio's baseplate.
 	 */
 	onAddPlace?: (how: "import" | "new") => void;
-	/** Node packs, from the panel's foot: opens Node Design. */
+	/** A node pack, double-clicked under Node packs: opens Node Design. */
 	onNodePacks?: () => void;
 }
 
@@ -134,7 +134,7 @@ export const ProjectTree = memo(function ProjectTree({
 	const [placeMenu, setPlaceMenu] = useState<Element | null>(null);
 	// Output starts folded: what Roswaal writes is looked at when something is wrong.
 	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(
-		() => new Set([sectionKey("output")]),
+		() => new Set([sectionKey("output"), sectionKey("packs")]),
 	);
 	// Wally's folders start shut: `_Index` holds every file of every package,
 	// and opened it is most of the tree. Once each, so shutting is not undone
@@ -198,9 +198,11 @@ export const ProjectTree = memo(function ProjectTree({
 		const graphs = withoutMaps(root?.children ?? ours);
 		const rest = tree.filter((e) => !isOurs(e.path));
 		const isPlace = (e: TreeEntry) => e.kind === "place" || e.kind === "model";
+		// Each pack folder's contents, as Graphs lists the graphs' folder's.
 		const packs = nodePaths
 			.map((dir) => findEntry(ours, dir))
-			.filter((e): e is TreeEntry => e !== undefined);
+			.filter((e): e is TreeEntry => e !== undefined)
+			.flatMap((e) => e.children ?? []);
 		return {
 			graphs,
 			place: rest.filter(isPlace),
@@ -210,6 +212,7 @@ export const ProjectTree = memo(function ProjectTree({
 			output: rest.filter((e) => !isPlace(e) && e.kind !== "wally"),
 			packs,
 			isGraph,
+			isPack,
 		};
 	}, [tree, sourceDir, nodePaths]);
 
@@ -251,7 +254,7 @@ export const ProjectTree = memo(function ProjectTree({
 			const entries = groups[section.id];
 			// Output only when there is something in it; Packages only where
 			// packages can be added or some are listed.
-			if (section.id === "output" && entries.length === 0) continue;
+			if ((section.id === "output" || section.id === "packs") && entries.length === 0) continue;
 			if (section.id === "packages" && entries.length === 0 && !onPackage && !groups.wally)
 				continue;
 			out.push({ section, entry: SECTION_ENTRY, depth: 0 });
@@ -569,6 +572,11 @@ export const ProjectTree = memo(function ProjectTree({
 						onDrop={(e) => isDir && onDrop(e, entry.path)}
 						onClick={(e) => click(e, entry)}
 						onDoubleClick={() => {
+							// A node pack opens in Node Design, where packs are edited.
+							if (onNodePacks && groups.isPack(entry.path)) {
+								onNodePacks();
+								return;
+							}
 							// A script with children opens as its graph, as a graph does.
 							const opens = isDir ? entry.children?.find((c) => c.path === entry.script) : entry;
 							if (opens && opens.kind !== "wally" && !opens.missing) onOpen(opens);
@@ -759,20 +767,6 @@ export const ProjectTree = memo(function ProjectTree({
 					<span className="label">Nothing to show yet.</span>
 				</div>
 			)}
-			{onNodePacks && groups.packs.length > 0 && (
-				<div className="tree-foot">
-					<button
-						type="button"
-						className="tb"
-						title={`Node packs, in ${groups.packs.map((p) => p.path).join(", ")}: opens Node Design`}
-						onClick={onNodePacks}
-					>
-						<Icon name="graph" size={14} />
-						Node packs
-					</button>
-				</div>
-			)}
-
 			{placeMenu && onAddPlace && (
 				<Menu
 					at={{ element: placeMenu, align: "end" }}
@@ -845,26 +839,22 @@ interface Row {
 }
 
 interface Section {
-	id: "graphs" | "place" | "maps" | "packages" | "output";
+	id: "graphs" | "place" | "maps" | "packages" | "output" | "packs";
 	label: string;
 	hint: string;
 }
 
 /**
  * Graphs first, because the top of a list is where the thing you touch every
- * minute belongs; then the place you open, where files land, what the project
- * depends on, and last what Roswaal writes.
+ * minute belongs; then where files land and what the project depends on; then
+ * the place, beside what Roswaal writes into it; then what Roswaal writes; and
+ * last the node packs, which a project touches least, folded.
  */
 const SECTIONS: readonly Section[] = [
 	{
 		id: "graphs",
 		label: "Graphs",
 		hint: "Your graphs, from the services down. Roswaal compiles each to Luau.",
-	},
-	{
-		id: "place",
-		label: "Place",
-		hint: "The place file and models. Open a place to see it in the Place Editor.",
 	},
 	{
 		id: "maps",
@@ -877,9 +867,19 @@ const SECTIONS: readonly Section[] = [
 		hint: "What wally.toml depends on, installed by Wally.",
 	},
 	{
+		id: "place",
+		label: "Place",
+		hint: "The place file and models. Open a place to see it in the Place Editor.",
+	},
+	{
 		id: "output",
 		label: "Output",
 		hint: "What Roswaal writes, and code it did not: the compiled Luau, hand-written Luau, Wally's folders.",
+	},
+	{
+		id: "packs",
+		label: "Node packs",
+		hint: "The nodes this project adds. Double-click a pack to open Node Design.",
 	},
 ];
 
@@ -901,7 +901,9 @@ function countOf(id: Section["id"], groups: Record<Section["id"], TreeEntry[]>):
 				(id === "graphs" ? Number(e.kind === "nodescript") : Number(e.kind !== "directory")),
 			0,
 		);
-	return id === "output" || id === "graphs" ? files(groups[id]) : groups[id].length;
+	return id === "output" || id === "graphs" || id === "packs"
+		? files(groups[id])
+		: groups[id].length;
 }
 
 /** The entry at a path, wherever it is in the tree. */

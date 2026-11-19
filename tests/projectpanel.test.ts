@@ -26,7 +26,7 @@ const file = (path: string, kind: TreeEntry["kind"], more: Partial<TreeEntry> = 
 
 const TREE: TreeEntry[] = [
 	dir(".roswaal", [
-		dir(".roswaal/nodes", []),
+		dir(".roswaal/nodes", [dir(".roswaal/nodes/Combat", [])]),
 		dir(".roswaal/scripts", [
 			dir(
 				".roswaal/scripts/ReplicatedStorage",
@@ -89,13 +89,13 @@ const titles = (html: string) =>
 	[...html.matchAll(/<span class="pane-title">([^<]+)<\/span>/g)].map((m) => m[1]);
 
 describe("the Project panel", () => {
-	it("is headed Graphs, Place, Node maps and Output, in that order", () => {
-		expect(titles(render())).toEqual(["Graphs", "Place", "Node maps", "Output"]);
+	it("is headed Graphs, Node maps, Place, Output and Node packs, in that order", () => {
+		expect(titles(render())).toEqual(["Graphs", "Node maps", "Place", "Output", "Node packs"]);
 	});
 
 	it("starts Graphs at the services, without the folders they live in or the maps", () => {
 		const html = render();
-		const graphs = html.slice(html.indexOf(">Graphs<"), html.indexOf(">Place<"));
+		const graphs = html.slice(html.indexOf(">Graphs<"), html.indexOf(">Node maps<"));
 		expect(graphs).toContain(">ReplicatedStorage<");
 		expect(graphs).not.toContain(">scripts<");
 		expect(graphs).not.toContain(">.roswaal<");
@@ -119,15 +119,24 @@ describe("the Project panel", () => {
 		expect(html.match(/<span class="badge">empty<\/span>/g)).toHaveLength(1);
 	});
 
-	it("folds Output at first, and puts node packs in the foot", () => {
+	it("folds Output and Node packs at first", () => {
 		const html = render();
 		expect(html).not.toContain(">Remotes.luau<");
-		expect(html).toContain(">Node packs</button>");
+		expect(titles(html)).toContain("Node packs");
+		expect(html).not.toContain('<span class="label">Combat</span>');
+		expect(html).not.toContain(">Node packs</button>");
 	});
 
 	it("shows Packages where packages can be added, saying when there are none", () => {
 		const html = render({ onPackage: noop });
-		expect(titles(html)).toEqual(["Graphs", "Place", "Node maps", "Packages", "Output"]);
+		expect(titles(html)).toEqual([
+			"Graphs",
+			"Node maps",
+			"Packages",
+			"Place",
+			"Output",
+			"Node packs",
+		]);
 		expect(html).toContain("No packages yet.");
 	});
 });

@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.21",
+		date: "2026-11-20",
+		headline: "The Project panel lists the place after Packages, and node packs under a heading.",
+		changed: [
+			"**The Project panel's headings** run Graphs, Node maps, Packages, Place, Output.",
+			"**Node packs** is a heading of its own, last and folded, listing the project's packs. Double-click one to open Node Design. The button at the foot is gone.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.20",
 		date: "2026-11-20",
 		headline: "Syncs from reaches into the place, and a map's problems are in Script analysis.",
