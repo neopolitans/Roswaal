@@ -61,6 +61,8 @@ export interface MapFacts {
 export interface TreeEntry {
 	/** On a node map: the project file it writes, what it syncs, and clashes. */
 	mapFacts?: MapFacts;
+	/** On a place: the one in use. Others wait in .roswaal/places. */
+	inUse?: boolean;
 	/** A folder a node map gives a path to: the map's path. */
 	syncedBy?: string;
 	path: string;
@@ -509,6 +511,10 @@ export const api = {
 		),
 	/** Adds the place a new project starts with to a project that has none. */
 	newPlace: () => post<{ file: string }>("/api/place/new", {}),
+	/** A copy of the place in use, into .roswaal/places. */
+	copyPlace: () => post<{ file: string }>("/api/place/copy", {}),
+	/** Puts a place waiting in .roswaal/places in use, and the one in use there. */
+	usePlace: (path: string) => post<{ file: string }>("/api/place/use", { path }),
 	/** Copies an instance of the place, `index` in its outline, out to a .rbxm model file. */
 	extractModel: (stamp: string, index: number, to: string) =>
 		post<{ path: string; leftOut: string[] }>("/api/place/extract", { stamp, index, to }),

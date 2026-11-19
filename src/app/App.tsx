@@ -1477,6 +1477,10 @@ export function App() {
 		try {
 			const { file } = await api.newPlace();
 			await refreshTree();
+			if (file.startsWith(".roswaal/places/")) {
+				notify("Place added", `${file} waits there. Use it from its row to work in it.`);
+				return;
+			}
 			setProjectView("datamodel");
 			setPlaceSeen(true);
 			notify(
@@ -1485,6 +1489,17 @@ export function App() {
 			);
 		} catch (err) {
 			notify("No place was added", errorMessage(err));
+		}
+	}, [notify, refreshTree]);
+
+	/** A copy of the place in use, waiting in .roswaal/places. */
+	const copyPlace = useCallback(async () => {
+		try {
+			const { file } = await api.copyPlace();
+			await refreshTree();
+			notify("Place copied", `${file} waits there, as the file was. Use it from its row.`);
+		} catch (err) {
+			notify("The place was not copied", errorMessage(err));
 		}
 	}, [notify, refreshTree]);
 
@@ -1517,6 +1532,29 @@ export function App() {
 				setProjectView("datamodel");
 				setPlaceSeen(true);
 				store.openSide({ kind: "place", doc: { path: entry.path } });
+				return;
+			}
+			if (entry.path.startsWith(".roswaal/places/")) {
+				const yes = await ask({
+					kind: "confirm",
+					title: `Use ${entry.name}?`,
+					message: place
+						? `${place} moves to .roswaal/places, and ${entry.name} takes its place. DataModel, Properties, the Place Editor and Export read it from then on.`
+						: `${entry.name} becomes the project's place.`,
+					confirmLabel: "Use It",
+				});
+				if (yes !== true || !(await settle())) return;
+				try {
+					const { file } = await api.usePlace(entry.path);
+					if (place) store.closePath(place);
+					await saveConfig({ place: file });
+					await refreshTree();
+					setProjectView("datamodel");
+					setPlaceSeen(true);
+					store.openSide({ kind: "place", doc: { path: file } });
+				} catch (err) {
+					notify("The place was not changed", errorMessage(err));
+				}
 				return;
 			}
 			const yes = await ask({
@@ -2412,9 +2450,10 @@ export function App() {
 									onPackage={onTreePackage}
 									onNodePacks={openNodePacks}
 									onAddPlace={
-										project.config.target === "roblox" && !project.place
+										project.config.target === "roblox"
 											? (how) => {
-													if (how === "new") void addPlace();
+													if (how === "copy") void copyPlace();
+													else if (how === "new") void addPlace();
 													else addPlaceInput.current?.click();
 												}
 											: undefined

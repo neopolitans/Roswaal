@@ -127,6 +127,7 @@ import {
 	findOrphanOutputs,
 	findPlaceFile,
 	findRojoProjects,
+	freePlaceName,
 	graphName,
 	graphOutputPath,
 	importRojoProject,
@@ -138,6 +139,7 @@ import {
 	nestScript,
 	type OpenProject,
 	openProject,
+	PLACES_DIR,
 	packUsage,
 	placeEntries,
 	placeReport,
@@ -773,6 +775,62 @@ export class ApiSession {
 			 * `place` names, in that file's format, when it is not there yet.
 			 * A 409 when the project has a place already, or is for Lune.
 			 */
+			/**
+			 * A copy of the place in use, into .roswaal/places: as the file has
+			 * it, without edits not saved yet.
+			 */
+			"POST /place/copy": async () => {
+				const project = this.project();
+				const inUse = await findPlaceFile(project.root, project.config);
+				if (!inUse) throw new HttpError(404, "The project has no place to copy.");
+				const base = path.posix.basename(inUse);
+				const dot = base.lastIndexOf(".");
+				const file = await freePlaceName(
+					project.root,
+					`${base.slice(0, dot)} copy${base.slice(dot)}`,
+				);
+				const abs = safeJoin(project.root, file);
+				await fs.mkdir(path.dirname(abs), { recursive: true });
+				await fs.copyFile(safeJoin(project.root, inUse), abs);
+				return { file };
+			},
+
+			/**
+			 * Puts a waiting place in use: the one in use goes to .roswaal/places,
+			 * this one takes its place, and roswaal.json names it. Refused while
+			 * Studio has either open, or while the place in use has edits not saved.
+			 */
+			"POST /place/use": async (req) => {
+				const project = this.project();
+				const target = toPosix(need(fields<{ path: string }>(req).path, "path"));
+				if (!target.startsWith(`${PLACES_DIR}/`) || !/\.rbxlx?$/i.test(target))
+					throw new HttpError(400, "Only a place waiting in .roswaal/places can be put in use.");
+				if (!(await exists(safeJoin(project.root, target))))
+					throw new HttpError(404, `${target} is not there.`);
+				const inUse = await findPlaceFile(project.root, project.config);
+				for (const one of [inUse, target]) {
+					if (one && (await exists(safeJoin(project.root, `${one}.lock`))))
+						throw new HttpError(409, `${one} is open in Studio. Close it there first.`);
+				}
+				if (inUse && this.unsaved.has(path.join(project.root, inUse)))
+					throw new HttpError(409, `${inUse} has edits not saved. Save or discard them first.`);
+				const name = path.posix.basename(target);
+				const dir = inUse ? path.posix.dirname(inUse) : ".";
+				const dest = dir === "." ? name : `${dir}/${name}`;
+				if (inUse) {
+					const waiting = await freePlaceName(project.root, path.posix.basename(inUse));
+					await fs.mkdir(path.dirname(safeJoin(project.root, waiting)), { recursive: true });
+					await fs.rename(safeJoin(project.root, inUse), safeJoin(project.root, waiting));
+				}
+				if (await exists(safeJoin(project.root, dest)))
+					throw new HttpError(409, `${dest} is there already.`);
+				await fs.rename(safeJoin(project.root, target), safeJoin(project.root, dest));
+				await writeConfig(project.root, { ...project.config, place: dest });
+				this.place = null;
+				await this.reload();
+				return { file: dest };
+			},
+
 			"POST /place/new": async () => {
 				const project = this.project();
 				if (project.config.target !== "roblox")
@@ -780,9 +838,9 @@ export class ApiSession {
 						409,
 						"A Lune project has no place: there is no DataModel to put one in.",
 					);
-				if (await findPlaceFile(project.root, project.config))
-					throw new HttpError(409, "The project has a place file already.");
-				const file = project.config.place ?? NEW_PLACE_FILE;
+				const file = (await findPlaceFile(project.root, project.config))
+					? await freePlaceName(project.root, "Baseplate.rbxl")
+					: (project.config.place ?? NEW_PLACE_FILE);
 				const abs = safeJoin(project.root, file);
 				await fs.mkdir(path.dirname(abs), { recursive: true });
 				await fs.writeFile(
@@ -806,8 +864,7 @@ export class ApiSession {
 						409,
 						"A Lune project has no place: there is no DataModel to put one in.",
 					);
-				if (await findPlaceFile(project.root, project.config))
-					throw new HttpError(409, "The project has a place file already.");
+				const inUse = await findPlaceFile(project.root, project.config);
 				const { data, fileName } = fields<{ data: string; fileName: string }>(req);
 				const name = path.basename(need(fileName, "fileName", "Pass the file's name.")).trim();
 				if (!/\.rbxlx?$/i.test(name))
@@ -820,11 +877,14 @@ export class ApiSession {
 						throw new UserError(`${name} could not be read: ${error.message}.`);
 					throw error;
 				}
-				const file = project.config.place ?? name;
+				// With a place in use, another waits in .roswaal/places until it is used.
+				const file = inUse
+					? await freePlaceName(project.root, name)
+					: (project.config.place ?? name);
 				const abs = safeJoin(project.root, file);
 				await fs.mkdir(path.dirname(abs), { recursive: true });
 				await fs.writeFile(abs, convertPlace(bytes, placeFormatOf(file)).bytes);
-				return { file };
+				return { file, ...(inUse ? { waiting: true } : {}) };
 			},
 
 			/**

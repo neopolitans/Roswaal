@@ -102,6 +102,24 @@ export async function readPlaceBytes(project: OpenProject, file: string): Promis
 export const PLACE_BACKUPS = ".roswaal/backups";
 
 /**
+ * Where a project keeps the places it is not using: one place is in use, at
+ * the root or where roswaal.json's `place` says, and the rest wait here.
+ */
+export const PLACES_DIR = ".roswaal/places";
+
+/** A name for `base` in .roswaal/places that nothing has yet: "place copy 2.rbxl". */
+export async function freePlaceName(root: string, base: string): Promise<string> {
+	const dot = base.lastIndexOf(".");
+	const stem = dot > 0 ? base.slice(0, dot) : base;
+	const ext = dot > 0 ? base.slice(dot) : ".rbxl";
+	for (let n = 1; ; n++) {
+		const name = n === 1 ? `${stem}${ext}` : `${stem} ${n}${ext}`;
+		const at = `${PLACES_DIR}/${name}`;
+		if (!(await exists(safeJoin(root, at)))) return at;
+	}
+}
+
+/**
  * Writes a changed place over the project's place file, and when `backUp`,
  * first keeps `before` -- the file as it was -- under `PLACE_BACKUPS`, named
  * after the place and the time, and never over an earlier one. Returns the backup's project-relative path.

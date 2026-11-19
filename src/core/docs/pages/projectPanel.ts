@@ -44,7 +44,7 @@ export function projectPanelPage(): DocPage {
 					["**Packages**", "What `wally.toml` depends on. **Add** puts a package in"],
 					[
 						"**Place**",
-						"The place file and models. **Open** shows the place in the Place Editor. A Roblox project with no place has **Add Place** here",
+						"The place in use, marked in use, and the others waiting in `.roswaal/places`. **Open** shows the place in use in the Place Editor; **Use** swaps a waiting one in, and is refused while Studio has either open. **Add** keeps a copy of the place, a place file or a baseplate there. A Roblox project with no place has **Add Place** here",
 					],
 					[
 						"**Output**",

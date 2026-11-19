@@ -57,7 +57,7 @@ describe("places and models in the tree", () => {
 });
 
 describe("adding a place", () => {
-	it("writes the place a new project starts with, and only once", async () => {
+	it("writes the place a new project starts with, and another waits in .roswaal/places", async () => {
 		const { root, session } = await made(false);
 		expect(((await session.handle("GET", "/tree")) as { place: string | null }).place).toBeNull();
 		expect(await session.handle("POST", "/place/new", {})).toEqual({ file: "place.rbxl" });
@@ -66,7 +66,12 @@ describe("adding a place", () => {
 		expect(((await session.handle("GET", "/tree")) as { place: string | null }).place).toBe(
 			"place.rbxl",
 		);
-		await expect(session.handle("POST", "/place/new", {})).rejects.toMatchObject({ status: 409 });
+		expect(await session.handle("POST", "/place/new", {})).toEqual({
+			file: ".roswaal/places/Baseplate.rbxl",
+		});
+		expect(((await session.handle("GET", "/tree")) as { place: string | null }).place).toBe(
+			"place.rbxl",
+		);
 	});
 });
 
@@ -109,9 +114,10 @@ describe("importing a place file", () => {
 		expect(((await session.handle("GET", "/tree")) as { place: string | null }).place).toBe(
 			"Lobby.rbxl",
 		);
-		await expect(
-			session.handle("POST", "/place/import", { body: { fileName: "Lobby.rbxl", data } }),
-		).rejects.toMatchObject({ status: 409 });
+		// With a place in use, another imported waits in .roswaal/places.
+		expect(
+			await session.handle("POST", "/place/import", { body: { fileName: "Lobby.rbxl", data } }),
+		).toEqual({ file: ".roswaal/places/Lobby.rbxl", waiting: true });
 	});
 
 	it("is written at the place roswaal.json names, in that format", async () => {

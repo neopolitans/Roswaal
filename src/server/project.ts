@@ -93,8 +93,10 @@ export { entryPath, safeJoin } from "./paths.js";
 export {
 	exportPlace,
 	findPlaceFile,
+	freePlaceName,
 	linkedFiles,
 	PLACE_BACKUPS,
+	PLACES_DIR,
 	type PlaceExport,
 	placeEntries,
 	placeReport,

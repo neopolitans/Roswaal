@@ -20,7 +20,7 @@ import { fs, path } from "./host.js";
 import { mappedOutputFolders } from "./mapFolders.js";
 import { generatedIndex, importGraphPath } from "./outputs.js";
 import { safeJoin, tidyPath, toPosix } from "./paths.js";
-import { PLACE_BACKUPS } from "./place.js";
+import { findPlaceFile, PLACE_BACKUPS } from "./place.js";
 
 /**
  * Folders the project tree leaves out. Wally's are shown -- a project's
@@ -81,6 +81,8 @@ export interface TreeEntry {
 	missing?: boolean;
 	/** On a node map: see `MapFacts`. */
 	mapFacts?: MapFacts;
+	/** On a place: the one in use, which Roswaal reads and the Place Editor opens. */
+	inUse?: boolean;
 }
 
 /**
@@ -137,6 +139,8 @@ export async function buildTree(project: OpenProject): Promise<TreeEntry[]> {
 	);
 	await markImported(project, tree);
 	markMaps(tree, facts.maps);
+	const inUse = await findPlaceFile(project.root, project.config);
+	if (inUse) markPlace(tree, inUse);
 	const wally = await wallyEntry(project);
 	if (!wally) return tree;
 	// It opens like a folder, so it is listed with the folders: after them and
@@ -329,6 +333,14 @@ async function factsOf(project: OpenProject, map: NodeMap): Promise<MapFacts> {
 		...(output === "default.project.json" ? { serves: true } : {}),
 		syncs,
 	};
+}
+
+/** Marks the place in use on its row. */
+function markPlace(entries: TreeEntry[], file: string): void {
+	for (const entry of entries) {
+		if (entry.kind === "place" && entry.path === file) entry.inUse = true;
+		if (entry.children) markPlace(entry.children, file);
+	}
 }
 
 /** Puts each map's facts on its row. */

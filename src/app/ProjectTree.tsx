@@ -90,7 +90,7 @@ export interface ProjectTreeProps {
 	 * A Roblox project with no place: the Place heading offers one,
 	 * imported from a file or started from Studio's baseplate.
 	 */
-	onAddPlace?: (how: "import" | "new") => void;
+	onAddPlace?: (how: "import" | "new" | "copy") => void;
 	/** A node pack, double-clicked under Node packs: opens Node Design. */
 	onNodePacks?: () => void;
 }
@@ -206,6 +206,10 @@ export const ProjectTree = memo(function ProjectTree({
 		const graphs = withoutMaps(root?.children ?? ours);
 		const rest = tree.filter((e) => !isOurs(e.path));
 		const isPlace = (e: TreeEntry) => e.kind === "place" || e.kind === "model";
+		// Places not in use wait in .roswaal/places, and are listed with the one that is.
+		const waiting = (findEntry(ours, ".roswaal/places")?.children ?? []).filter(
+			(e) => e.kind === "place",
+		);
 		// Each pack folder's contents, as Graphs lists the graphs' folder's.
 		const packs = nodePaths
 			.map((dir) => findEntry(ours, dir))
@@ -213,7 +217,7 @@ export const ProjectTree = memo(function ProjectTree({
 			.flatMap((e) => e.children ?? []);
 		return {
 			graphs,
-			place: rest.filter(isPlace),
+			place: [...rest.filter(isPlace), ...waiting],
 			maps,
 			packages: rest.find((e) => e.kind === "wally")?.children ?? [],
 			wally: rest.find((e) => e.kind === "wally"),
@@ -223,6 +227,9 @@ export const ProjectTree = memo(function ProjectTree({
 			isPack,
 		};
 	}, [tree, sourceDir, nodePaths]);
+
+	/** The place in use: its row says so, and Add offers a copy of it. */
+	const inUsePlace = groups.place.find((e) => e.kind === "place" && e.inUse);
 
 	// Asked from elsewhere -- a map's path chip -- to show a file or folder:
 	// unfold its heading and the folders above it, select it, scroll to it.
@@ -629,8 +636,12 @@ export const ProjectTree = memo(function ProjectTree({
 								)}
 								{id === "place" && onAddPlace && (
 									<AddButton
-										label="Add Place"
-										title="This project has no place. Import a .rbxl or .rbxlx, or start from a baseplate."
+										label={inUsePlace ? "Add" : "Add Place"}
+										title={
+											inUsePlace
+												? "Another place, kept in .roswaal/places: a copy of this one, a place file, or a baseplate."
+												: "This project has no place. Import a .rbxl or .rbxlx, or start from a baseplate."
+										}
 										onClick={(e) => setPlaceMenu(e.currentTarget)}
 									/>
 								)}
@@ -838,18 +849,23 @@ export const ProjectTree = memo(function ProjectTree({
 						{isDir && !entry.script && (entry.children?.length ?? 0) === 0 && (
 							<span className="badge">empty</span>
 						)}
+						{entry.kind === "place" && entry.inUse && <span className="badge">in use</span>}
 						{entry.kind === "place" && (
 							<button
 								type="button"
 								className="tb tree-open"
-								title={`Open ${entry.name}`}
+								title={
+									entry.inUse || !entry.path.startsWith(".roswaal/places/")
+										? `Open ${entry.name}`
+										: `Use ${entry.name}: it takes the place of the one in use`
+								}
 								onClick={(e) => {
 									e.stopPropagation();
 									onOpen(entry);
 								}}
 								onDoubleClick={(e) => e.stopPropagation()}
 							>
-								Open
+								{entry.inUse || !entry.path.startsWith(".roswaal/places/") ? "Open" : "Use"}
 							</button>
 						)}
 						{entry.generatedFrom && <span className="badge">generated</span>}
@@ -916,7 +932,14 @@ export const ProjectTree = memo(function ProjectTree({
 					onClose={() => setPlaceMenu(null)}
 					sections={[
 						{
+							label: inUsePlace ? "Kept in .roswaal/places" : undefined,
 							entries: [
+								inUsePlace && {
+									label: `Copy of ${inUsePlace.name}`,
+									icon: "copy",
+									hint: "as the file is",
+									run: () => onAddPlace("copy"),
+								},
 								{
 									label: "Import a place file\u2026",
 									icon: "folderOpen",

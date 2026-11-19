@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.29",
+		date: "2026-11-20",
+		headline: "A project can keep several places, one of them in use.",
+		added: [
+			"**Places waiting in .roswaal/places**, listed under Place with the one in use, which is marked in use. Use on a waiting place swaps it in: the one in use moves to .roswaal/places, and roswaal.json names the new one. It is refused while Studio has either open, or while the place has edits not saved.",
+			"**Copy of place**, on the Place heading's Add, keeps a copy of the place in use, as its file is, in .roswaal/places.",
+		],
+		changed: [
+			"**Importing a place or starting from a baseplate** while a place is in use keeps the new one in .roswaal/places, where it was refused before.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.28",
 		date: "2026-11-20",
 		headline: "A project can have several node maps, one of them served.",
