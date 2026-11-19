@@ -9,7 +9,7 @@
 
 import { type FunctionInfo, functionOutline } from "../core/functionGraph.js";
 import { FOLDER_PROJECT_FILES } from "../core/jsonc.js";
-import { isFilesystemMap, type MapNode } from "../core/nodemap.js";
+import { compileNodeMap, isFilesystemMap, type MapNode, type NodeMap } from "../core/nodemap.js";
 import { PLACE_DIR } from "../core/rbx/placeImport.js";
 import { parseProject } from "../core/rojoImport.js";
 import type { NodeScript } from "../core/schema.js";
@@ -79,6 +79,27 @@ export interface TreeEntry {
 	target?: string;
 	/** A package `wally.toml` lists that `wally install` has not put on disk. */
 	missing?: boolean;
+	/** On a node map: see `MapFacts`. */
+	mapFacts?: MapFacts;
+}
+
+/**
+ * What the Project panel says about a node map on its row: the project file it
+ * writes and whether that file is written as the map has it, whether
+ * `rojo serve` picks it up, another map writing the same file, and what it
+ * syncs, which the row opens onto.
+ */
+export interface MapFacts {
+	/** The project file it writes; absent for a filesystem map, which writes none. */
+	output?: string;
+	/** The file on disk: as the map writes it, different, or not there. */
+	state?: "same" | "differs" | "missing";
+	/** It writes default.project.json at the root: the file `rojo serve` reads. */
+	serves?: boolean;
+	/** Another map writing the same file: neither writes until one is changed. */
+	clash?: string;
+	/** Each instance it syncs, with the folder or file that fills it. */
+	syncs: { id: string; trail: string; className?: string; service: boolean; path: string }[];
 }
 
 /**
@@ -115,6 +136,7 @@ export async function buildTree(project: OpenProject): Promise<TreeEntry[]> {
 		facts.syncedBy,
 	);
 	await markImported(project, tree);
+	markMaps(tree, facts.maps);
 	const wally = await wallyEntry(project);
 	if (!wally) return tree;
 	// It opens like a folder, so it is listed with the folders: after them and
@@ -220,11 +242,14 @@ export async function resolveWallyPackage(
  * Folders a node map points at, project-relative: what each is in Studio,
  * and the map that gives it a path.
  */
-async function mapFolderFacts(
-	project: OpenProject,
-): Promise<{ roles: Map<string, "service" | "synced">; syncedBy: Map<string, string> }> {
+async function mapFolderFacts(project: OpenProject): Promise<{
+	roles: Map<string, "service" | "synced">;
+	syncedBy: Map<string, string>;
+	maps: Map<string, MapFacts>;
+}> {
 	const out = new Map<string, "service" | "synced">();
 	const syncedBy = new Map<string, string>();
+	const maps = new Map<string, MapFacts>();
 	let mapPath = "";
 	const visit = (node: MapNode, parent: MapNode | null) => {
 		if (node.path) {
@@ -244,7 +269,21 @@ async function mapFolderFacts(
 	for (const found of await collectMaps(project)) {
 		mapPath = found;
 		const map = await readMap(project, found).catch(() => null);
-		if (map && !isFilesystemMap(map)) map.root.children.forEach((child) => visit(child, null));
+		if (!map) continue;
+		if (!isFilesystemMap(map)) map.root.children.forEach((child) => visit(child, null));
+		maps.set(found, await factsOf(project, map));
+	}
+	// Two maps writing one file: each is told the other's name.
+	const byOutput = new Map<string, string[]>();
+	for (const [at, one] of maps) {
+		if (one.output) byOutput.set(one.output, [...(byOutput.get(one.output) ?? []), at]);
+	}
+	for (const same of byOutput.values()) {
+		if (same.length < 2) continue;
+		for (const at of same) {
+			const one = maps.get(at);
+			if (one) one.clash = same.find((other) => other !== at);
+		}
 	}
 	// The graphs directory mirrors the output directory, so the folder a
 	// service's graphs sit in is that service's too.
@@ -258,7 +297,47 @@ async function mapFolderFacts(
 		if (at.startsWith(`${outDir}/`))
 			syncedBy.set(path.posix.join(sourceDir, at.slice(outDir.length + 1)), map);
 	}
-	return { roles: out, syncedBy };
+	return { roles: out, syncedBy, maps };
+}
+
+/** One map's facts for its row. */
+async function factsOf(project: OpenProject, map: NodeMap): Promise<MapFacts> {
+	const syncs: MapFacts["syncs"] = [];
+	const visit = (node: MapNode, trail: string[]) => {
+		const here = [...trail, node.name];
+		if (node.path) {
+			syncs.push({
+				id: node.id,
+				trail: here.join(" › "),
+				...(node.className ? { className: node.className } : {}),
+				service: !node.className && trail.length === 0,
+				path: tidyPath(node.path),
+			});
+		}
+		for (const child of node.children) visit(child, here);
+	};
+	for (const child of map.root.children) visit(child, []);
+	if (isFilesystemMap(map)) return { syncs };
+	const output = tidyPath(map.output);
+	const text = await fs
+		.readFile(safeJoin(project.root, output), "utf8")
+		.then((t) => String(t))
+		.catch(() => null);
+	return {
+		output,
+		state: text === null ? "missing" : text === compileNodeMap(map).json ? "same" : "differs",
+		...(output === "default.project.json" ? { serves: true } : {}),
+		syncs,
+	};
+}
+
+/** Puts each map's facts on its row. */
+function markMaps(entries: TreeEntry[], maps: ReadonlyMap<string, MapFacts>): void {
+	for (const entry of entries) {
+		if (entry.children) markMaps(entry.children, maps);
+		const facts = entry.kind === "nodemap" ? maps.get(entry.path) : undefined;
+		if (facts) entry.mapFacts = facts;
+	}
 }
 
 /** A script's own file in its folder: Rojo's `init.server.luau` and the rest, or a graph's `init.nodescript`. */

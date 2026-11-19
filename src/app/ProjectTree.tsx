@@ -16,6 +16,7 @@ import { ExplorerIcon } from "./ExplorerIcon.jsx";
 import { NOT_HERE, useHostCan } from "./host.js";
 import { Icon, type IconName } from "./icons.jsx";
 import { importableLuau } from "./importable.js";
+import { requestMapPick } from "./MapEditor.jsx";
 import { Menu } from "./Menu.jsx";
 import { AddButton, depthStyle, SectionHead } from "./PanelParts.jsx";
 import { useNarrowBar, usePhone } from "./Popout.jsx";
@@ -264,7 +265,18 @@ export const ProjectTree = memo(function ProjectTree({
 				if (note) out.push({ entry: SECTION_ENTRY, depth: 1, note });
 				continue;
 			}
-			out.push(...flatten(entries, collapsed, 1, fnsOf, expanded));
+			const listed = flatten(entries, collapsed, 1, fnsOf, expanded);
+			if (section.id !== "maps") {
+				out.push(...listed);
+				continue;
+			}
+			// A map opened shows what it syncs, each a row that opens the map there.
+			for (const row of listed) {
+				out.push(row);
+				const facts = row.entry.mapFacts;
+				if (row.entry.kind !== "nodemap" || !facts || !expanded.has(row.entry.path)) continue;
+				for (const sync of facts.syncs) out.push({ entry: row.entry, depth: row.depth + 1, sync });
+			}
 		}
 		return out;
 	}, [groups, collapsed, outline, expanded, onPackage]);
@@ -438,7 +450,30 @@ export const ProjectTree = memo(function ProjectTree({
 
 	return (
 		<div className="tree">
-			{rows.map(({ entry, depth, section, fn, note }) => {
+			{rows.map(({ entry, depth, section, fn, note, sync }) => {
+				if (sync) {
+					return (
+						<div
+							key={`${entry.path}@${sync.id}`}
+							className="tree-row map-sync-row"
+							data-entry={`${entry.path}@${sync.id}`}
+							style={depthStyle(depth, 1)}
+							title={`${sync.trail}, synced from ${sync.path}. Click to open the map there.`}
+							onClick={() => {
+								requestMapPick(entry.path, sync.id);
+								onOpen(entry);
+							}}
+						>
+							<ExplorerIcon
+								className={sync.className ?? sync.trail.split(" › ").pop() ?? "Folder"}
+								service={sync.service}
+								open={false}
+							/>
+							<span className="label">{sync.trail}</span>
+							<span className="tree-map-path">{sync.path}</span>
+						</div>
+					);
+				}
 				if (note) {
 					return (
 						<div key={`note:${note}`} className="tree-row tree-note" style={depthStyle(depth, 1)}>
@@ -655,11 +690,20 @@ export const ProjectTree = memo(function ProjectTree({
 							</>
 						) : (
 							<>
-								{/* A graph with functions opens like a folder, onto them. */}
-								{(outline.get(entry.path) ?? entry.functions ?? []).length > 0 && (
+								{/* A graph with functions opens like a folder, onto them; a map, onto what it syncs. */}
+								{((outline.get(entry.path) ?? entry.functions ?? []).length > 0 ||
+									(entry.mapFacts?.syncs.length ?? 0) > 0) && (
 									<span
 										className="function-twist"
-										title={expanded.has(entry.path) ? "Hide its functions" : "Show its functions"}
+										title={
+											entry.kind === "nodemap"
+												? expanded.has(entry.path)
+													? "Hide what it syncs"
+													: "Show what it syncs"
+												: expanded.has(entry.path)
+													? "Hide its functions"
+													: "Show its functions"
+										}
 										onClick={(e) => {
 											e.stopPropagation();
 											const next = new Set(expanded);
@@ -707,6 +751,7 @@ export const ProjectTree = memo(function ProjectTree({
 							</>
 						)}
 						<span className="label">{shownName(entry)}</span>
+						{entry.mapFacts && <MapRowFacts facts={entry.mapFacts} />}
 						{isDir && !entry.script && (entry.children?.length ?? 0) === 0 && (
 							<span className="badge">empty</span>
 						)}
@@ -836,6 +881,8 @@ interface Row {
 	fn?: FunctionInfo;
 	/** A line under an empty heading, saying what goes there. */
 	note?: string;
+	/** Something a map syncs, listed under the map, which `entry` is. */
+	sync?: NonNullable<TreeEntry["mapFacts"]>["syncs"][number];
 }
 
 interface Section {
@@ -939,6 +986,48 @@ function namedClass(entry: TreeEntry): string | undefined {
 	return isInstanceClass(entry.name) && wearsClassIcon(entry.name) && entry.name !== "Folder"
 		? entry.name
 		: undefined;
+}
+
+/**
+ * What a map's row says after its name: the project file it writes, with a
+ * dot for whether that file is written as the map has it; serve on the one
+ * `rojo serve` reads; and a clash with another map writing the same file.
+ */
+function MapRowFacts({ facts }: { facts: NonNullable<TreeEntry["mapFacts"]> }) {
+	if (!facts.output) return null;
+	const file = facts.output.split("/").pop() ?? facts.output;
+	const dot =
+		facts.clash !== undefined
+			? { tone: "bad", title: `Not written: ${facts.clash} writes ${facts.output} too.` }
+			: facts.state === "same"
+				? { tone: "ok", title: `${facts.output} is written as the map has it.` }
+				: facts.state === "differs"
+					? {
+							tone: "warn",
+							title: `${facts.output} differs from the map. Write project file brings it up to date.`,
+						}
+					: { tone: "warn", title: `${facts.output} is not written yet.` };
+	return (
+		<>
+			<span className="tree-map-output" title={dot.title}>
+				<span className={cx("tree-dot", dot.tone)} aria-hidden="true" />
+				{file}
+			</span>
+			{facts.serves && (
+				<span className="badge" title="rojo serve reads default.project.json: this map's.">
+					serve
+				</span>
+			)}
+			{facts.clash !== undefined && (
+				<span
+					className="badge warn"
+					title={`${facts.clash} writes ${facts.output} too. Neither writes until one writes another file.`}
+				>
+					clash
+				</span>
+			)}
+		</>
+	);
 }
 
 /** The node map's mark in an icon's corner, for a folder a map syncs. */

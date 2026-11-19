@@ -49,7 +49,18 @@ export interface Flattened {
 	to: string;
 }
 
+/** What a node map's row says: see the daemon's copy in `src/server/tree.ts`. */
+export interface MapFacts {
+	output?: string;
+	state?: "same" | "differs" | "missing";
+	serves?: boolean;
+	clash?: string;
+	syncs: { id: string; trail: string; className?: string; service: boolean; path: string }[];
+}
+
 export interface TreeEntry {
+	/** On a node map: the project file it writes, what it syncs, and clashes. */
+	mapFacts?: MapFacts;
 	/** A folder a node map gives a path to: the map's path. */
 	syncedBy?: string;
 	path: string;

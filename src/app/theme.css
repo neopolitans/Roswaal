@@ -1960,6 +1960,64 @@ button.tb.primary:hover:not(:disabled) {
 	padding: 0 6px;
 }
 
+.tree-row .badge.warn {
+	color: var(--warning);
+	border-color: color-mix(in srgb, var(--warning) 60%, transparent);
+}
+
+/* A node map's row: the project file it writes, its dot saying whether that
+   file is written as the map has it, then serve or clash. */
+.tree-row .tree-map-output {
+	margin-left: auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	font-size: var(--text-xs);
+	color: var(--fg-faint);
+}
+
+.tree-row .tree-map-output ~ .badge {
+	margin-left: 4px;
+}
+
+.tree-dot {
+	flex: none;
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--fg-faint);
+}
+
+.tree-dot.ok {
+	background: var(--ok);
+}
+
+.tree-dot.warn {
+	background: var(--warning);
+}
+
+.tree-dot.bad {
+	background: var(--danger);
+}
+
+/* What a map syncs, under it: the instance, and the folder that fills it. */
+.tree-row.map-sync-row {
+	cursor: pointer;
+}
+
+.tree-row .tree-map-path {
+	margin-left: auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	font-family: var(--mono, ui-monospace, monospace);
+	font-size: var(--text-xs);
+	color: var(--fg-faint);
+}
+
 /* ----------------------------------------------------------------- canvas */
 
 .canvas {

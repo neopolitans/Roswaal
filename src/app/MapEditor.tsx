@@ -210,6 +210,19 @@ function writeLayoutChoice(layout: "list" | "graph"): void {
 	}
 }
 
+/** A node to pick in a map, asked for before the map is open, or while it is. */
+let pendingPick: { path: string; id: string } | null = null;
+const MAP_PICK = "roswaal:map-pick";
+
+/**
+ * Picks a node in a map: the Project panel's rows under a map open it at that
+ * node. Kept until the map opens, and sent at once for one already open.
+ */
+export function requestMapPick(path: string, id: string): void {
+	pendingPick = { path, id };
+	window.dispatchEvent(new CustomEvent(MAP_PICK, { detail: { path, id } }));
+}
+
 /** Stands in while no map is open, so the hooks run in the same order. */
 const NO_MAP = emptyMap("", "none", () => "none");
 
@@ -283,10 +296,24 @@ export function useMapEditor(input: MapEditorInput | null): MapEditing | null {
 	// Another map opened: start it afresh, rather than with this one's picks.
 	if (opened !== path) {
 		setOpened(path);
-		setPick(rootPick);
+		const asked = pendingPick && pendingPick.path === path ? pendingPick.id : null;
+		pendingPick = null;
+		setPick(asked && findMapNode(map.root, asked) ? { kind: "node", id: asked } : rootPick);
 		setCollapsed(new Set());
 		setHistory([]);
 	}
+
+	// Asked for while this map is open: picked now.
+	useEffect(() => {
+		const onPick = (e: Event) => {
+			const { path: at, id } = (e as CustomEvent<{ path: string; id: string }>).detail;
+			if (at !== path) return;
+			pendingPick = null;
+			setPick({ kind: "node", id });
+		};
+		window.addEventListener(MAP_PICK, onPick);
+		return () => window.removeEventListener(MAP_PICK, onPick);
+	}, [path]);
 
 	const compiled = useMemo(() => compileNodeMap(map), [map]);
 	const lines = useMemo(() => mapFigure(map).lines, [map]);

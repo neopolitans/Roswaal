@@ -37,7 +37,10 @@ export function projectPanelPage(): DocPage {
 						"**Graphs**",
 						"Your graphs, from the services down. The folder they live in is a setting, Settings › Compiling › Graphs live in, so it is not a row. **New graph** makes one at the top",
 					],
-					["**Node maps**", "Where your files land in Studio. **New map** makes one at the top"],
+					[
+						"**Node maps**",
+						"Where your files land in Studio. A map's row shows the project file it writes, green when written as the map has it, and **serve** on the one `rojo serve` reads. Unfold a map for what it syncs; a row opens the map there. **clash** marks two maps writing one file, and neither writes it. **New map** makes one at the top",
+					],
 					["**Packages**", "What `wally.toml` depends on. **Add** puts a package in"],
 					[
 						"**Place**",

@@ -11,18 +11,24 @@
 
 import { type CompileResult, compile, hashString } from "../core/compiler/index.js";
 import type { LuaurcSource } from "../core/luaurc.js";
-import { compileNodeMap, type MapDiagnostic, type MapNode, type NodeMap } from "../core/nodemap.js";
+import {
+	compileNodeMap,
+	isFilesystemMap,
+	type MapDiagnostic,
+	type MapNode,
+	type NodeMap,
+} from "../core/nodemap.js";
 import { formatLike, parseProject, sameProject } from "../core/rojoImport.js";
 import { indentUnit } from "../core/schema.js";
 import type { OpenProject } from "./config.js";
-import { collectScripts, readMap, readScript } from "./documents.js";
+import { collectMaps, collectScripts, readMap, readScript } from "./documents.js";
 import { errorMessage } from "./errors.js";
 import { formatLuau, fs, path } from "./host.js";
 import { readLuaurcFiles, specifierContext } from "./luaurc.js";
 import { isGenerated, recordGenerated, recordSynced } from "./manifest.js";
 import { makeSyncedFolders, moveSyncedFolders } from "./mapFolders.js";
 import { generatedIndex, outputPathFor, removeEmptyFolders } from "./outputs.js";
-import { safeJoin, staysInside } from "./paths.js";
+import { safeJoin, staysInside, tidyPath } from "./paths.js";
 
 /**
  * Ownership key written into project files by an earlier build. Rojo refuses
@@ -512,6 +518,31 @@ export interface MapOutcome {
  * silently would be worse, so an existing file that Roswaal did not write is
  * refused outright rather than hashed.
  */
+/**
+ * One project file, one map: two maps writing the same file would each undo
+ * the other, so both are refused until one writes somewhere else.
+ */
+async function checkOutputClash(
+	project: OpenProject,
+	relPath: string,
+	map: NodeMap,
+): Promise<MapDiagnostic[]> {
+	if (isFilesystemMap(map)) return [];
+	const own = tidyPath(map.output);
+	const out: MapDiagnostic[] = [];
+	for (const other of await collectMaps(project)) {
+		if (other === relPath) continue;
+		const theirs = await readMap(project, other).catch(() => null);
+		if (theirs && !isFilesystemMap(theirs) && tidyPath(theirs.output) === own) {
+			out.push({
+				severity: "error",
+				message: `${other} writes ${own} too. Neither map writes it until one of them writes another file.`,
+			});
+		}
+	}
+	return out;
+}
+
 export async function compileMap(
 	project: OpenProject,
 	relPath: string,
@@ -543,6 +574,7 @@ export async function compileMap(
 	for (const move of shift?.moves ?? [])
 		for (const graph of move.graphs) await compileScript(project, graph, { write: true });
 	result.diagnostics.push(...(await checkMapPaths(project, map)));
+	result.diagnostics.push(...(await checkOutputClash(project, relPath, map)));
 	// Worked out after the path check, not before. `result.ok` is the map's own
 	// verdict, and a `$path` that is not on disk is an error the map cannot see —
 	// counting it only in the list let the file be written anyway.

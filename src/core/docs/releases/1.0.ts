@@ -9,6 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.22",
+		date: "2026-11-20",
+		headline: "A node map's row says what it writes and what it syncs.",
+		added: [
+			"**A node map's row** in the Project panel shows the project file it writes, with a dot: green when the file is written as the map has it, amber when it differs or is not written yet.",
+			"**serve** marks the map writing default.project.json, the one rojo serve reads.",
+			"**Unfold a map** for what it syncs, each instance with the folder that fills it. Click one to open the map with that node picked.",
+		],
+		changed: [
+			"**Two maps writing one project file** are marked clash on both rows, and neither writes it until one writes another file.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.21",
 		date: "2026-11-20",
 		headline: "The Project panel lists the place after Packages, and node packs under a heading.",
