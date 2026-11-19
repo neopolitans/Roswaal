@@ -5814,6 +5814,8 @@ button.start-tile:disabled {
 	border: 0;
 	box-shadow: none;
 	overflow: visible;
+	/* Above the Project file along the foot, where it is docked. */
+	margin-bottom: max(calc(var(--pill-h, var(--hit)) + var(--edge) * 2), var(--foot-clear, 0px));
 }
 
 .map-card {
@@ -5852,6 +5854,7 @@ button.start-tile:disabled {
 }
 
 .map-head .tb.with-icon,
+.map-layout.segmented button,
 .map-view.segmented button {
 	display: inline-flex;
 	align-items: center;
@@ -6048,6 +6051,276 @@ button.pathchip:hover {
 .map-drop.on {
 	color: var(--accent);
 	border-color: var(--accent);
+}
+
+/* The tree as a graph: a column a level, left to right, wired from parent to
+   child, over the canvas's grid. The + on a node's right edge adds inside it. */
+.mapg {
+	position: relative;
+	flex: 1;
+	min-height: 0;
+	display: flex;
+}
+
+.mapg-scroll {
+	flex: 1;
+	min-width: 0;
+	min-height: 0;
+	overflow: auto;
+	outline: none;
+	background-color: var(--bg-canvas);
+	cursor: grab;
+}
+
+.mapg-scroll:active {
+	cursor: grabbing;
+}
+
+.mapg-scroll:focus-visible {
+	box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.mapg-plane {
+	position: relative;
+}
+
+.mapg-wires {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+}
+
+.mapg-wire {
+	fill: none;
+	stroke: color-mix(in srgb, var(--fg) 38%, transparent);
+	stroke-width: 2;
+}
+
+.mapg-wire.disk {
+	stroke-dasharray: 4 4;
+	opacity: 0.7;
+}
+
+.mapg-node {
+	position: absolute;
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: 4px;
+	padding: 6px 12px 6px 10px;
+	background: var(--bg-panel);
+	border: 1px solid var(--border-strong);
+	border-radius: 12px;
+	box-shadow: var(--shadow-raised);
+	cursor: default;
+	user-select: none;
+	-webkit-user-select: none;
+}
+
+.mapg-node:hover {
+	border-color: color-mix(in srgb, var(--accent) 45%, var(--border-strong));
+}
+
+.mapg-node.root {
+	background: color-mix(in srgb, var(--accent) 10%, var(--bg-panel));
+	border-color: var(--accent);
+}
+
+.mapg-node.selected {
+	box-shadow: 0 0 0 2px var(--accent), var(--shadow-raised);
+}
+
+.mapg-node.disk {
+	background: color-mix(in srgb, var(--bg-panel) 70%, transparent);
+	border-style: dashed;
+	box-shadow: none;
+}
+
+.mapg-node.unsynced {
+	border-style: dashed;
+}
+
+.mapg-node.odd {
+	border-color: var(--warning);
+	border-style: dashed;
+}
+
+.mapg-node.drop {
+	box-shadow: 0 0 0 2px var(--accent), var(--shadow-raised);
+	background: color-mix(in srgb, var(--accent) 12%, var(--bg-panel));
+}
+
+.mapg-name {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	min-width: 0;
+	font-size: 12px;
+	white-space: nowrap;
+}
+
+.mapg-name > svg,
+.mapg-name > .tree-badged {
+	flex: none;
+}
+
+.mapg-name b {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	font-weight: 650;
+}
+
+.mapg-badge {
+	flex: none;
+	margin-left: auto;
+	padding: 0 6px;
+	font-size: 9.5px;
+	font-weight: 600;
+	color: var(--ok);
+	border: 1px solid color-mix(in srgb, var(--ok) 60%, transparent);
+	border-radius: 999px;
+}
+
+.mapg-fold {
+	flex: none;
+	display: inline-flex;
+	margin-left: auto;
+	padding: 1px;
+	color: var(--fg-faint);
+	background: none;
+	border: 0;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.mapg-badge + .mapg-fold {
+	margin-left: 0;
+}
+
+.mapg-fold:hover {
+	color: var(--fg);
+	background: var(--bg-hover);
+}
+
+.mapg-other {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	min-width: 0;
+	font: 10.5px "Cascadia Mono", Consolas, monospace;
+	color: var(--fg-muted);
+	white-space: nowrap;
+}
+
+.mapg-other > svg {
+	flex: none;
+}
+
+.mapg-other span {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.mapg-other.warn {
+	color: var(--warning);
+}
+
+.mapg-other.bad {
+	color: var(--danger);
+}
+
+.mapg-other.faint {
+	color: var(--fg-faint);
+	font-family: inherit;
+	font-size: 11px;
+}
+
+.mapg-other.link {
+	cursor: pointer;
+}
+
+.mapg-other.link:hover span {
+	text-decoration: underline;
+}
+
+.mapg-plus {
+	position: absolute;
+	right: -10px;
+	top: 50%;
+	transform: translateY(-50%);
+	display: grid;
+	place-items: center;
+	width: 20px;
+	height: 20px;
+	padding: 0;
+	font-size: 14px;
+	font-weight: 700;
+	line-height: 1;
+	color: var(--accent);
+	background: var(--bg-panel);
+	border: 1px solid var(--border-strong);
+	border-radius: 50%;
+	cursor: pointer;
+}
+
+.mapg-plus:hover {
+	color: var(--bg-panel);
+	background: var(--accent);
+	border-color: var(--accent);
+}
+
+/* The reading rule, floating over the graph's corner. */
+.mapg-rule {
+	position: absolute;
+	right: 12px;
+	bottom: 12px;
+	width: min(280px, calc(100% - 24px));
+	display: grid;
+	gap: 4px;
+	padding: 8px 10px;
+	font-size: 11.5px;
+	background: var(--bg-panel);
+	border: 1px solid var(--border-strong);
+	border-radius: 12px;
+	box-shadow: var(--shadow-raised);
+}
+
+.mapg-rule.shut {
+	width: auto;
+}
+
+.mapg-rule p {
+	display: flex;
+	gap: 6px;
+	margin: 0;
+	line-height: 1.4;
+}
+
+.mapg-rule-head {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 0;
+	font: inherit;
+	color: var(--accent);
+	background: none;
+	border: 0;
+	cursor: pointer;
+	text-align: left;
+}
+
+.mapg-rule-count {
+	margin-left: auto;
+	padding-left: 8px;
+	color: var(--fg-muted);
+	font-weight: 500;
+}
+
+.mapg-rule-count.odd {
+	color: var(--warning);
 }
 
 /* The reading rule, and the mappings that break it. */
@@ -20057,6 +20330,10 @@ html {
 	.centre-body > .alias-doc {
 		margin: var(--chrome-top) 6px
 			calc(var(--hit) + var(--edge) * 3 + 46px + env(safe-area-inset-bottom, 0px)) 6px;
+	}
+
+	.centre-body > .map-editor.map-cards {
+		margin-bottom: calc(var(--hit) + var(--edge) * 3 + 46px + env(safe-area-inset-bottom, 0px));
 	}
 
 	.map-panel .settings-box > .setting {

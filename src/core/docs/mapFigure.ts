@@ -386,9 +386,15 @@ export function mapParts(figure: MapFigure): MapPart[] {
 		name: "Describes",
 		what: "A DataModel for Roblox, or a filesystem for Lune. It decides the rest.",
 	};
+	const layout: MapPart = {
+		part: "layout",
+		name: "List or Graph",
+		what: "The tree as rows, or as a graph from left to right with a + on each node to add inside it.",
+	};
 	if (lune) {
 		return [
 			tree,
+			layout,
 			{
 				part: "actions",
 				name: "Directory, File, Undo",
@@ -406,6 +412,7 @@ export function mapParts(figure: MapFigure): MapPart[] {
 	}
 	return [
 		tree,
+		layout,
 		{
 			part: "view",
 			name: "DataModel or src",
@@ -678,7 +685,7 @@ export function mapPanelHtml(figure: MapFigure, picked?: string, art?: ToolbarAr
 	const tree =
 		`<section class="map-card map-tree" data-part="tree" data-quiet>` +
 		`<header class="map-head" data-grip="tree"><span class="map-title"><b>${escapeXml(figure.name)}</b>` +
-		`<span class="map-sub">node map</span></span><span class="sp"></span>${view}` +
+		`<span class="map-sub">node map</span></span><span class="sp"></span><span data-part="layout">${segmented(["List", "Graph"], "List")}</span>${view}` +
 		`<span class="map-docs-actions" data-part="actions">${actions}` +
 		`<button class="tb icon-only" disabled>${uiIconHtml("undo", 14, art)}</button></span></header>` +
 		`<div class="map-rows">${rows}</div>${rule}</section>`;
@@ -736,10 +743,8 @@ export function mapPanelHtml(figure: MapFigure, picked?: string, art?: ToolbarAr
 			? ""
 			: field("Project name", input("project", figure.name)) +
 				field("Writes", input("output", figure.output), "output") +
-				`<div data-part="rojo">` +
-				field("Place IDs", input("placeIds", "", "Any place")) +
-				field("Port", input("port", "", "34872")) +
-				`</div>` +
+				field("Place IDs", input("placeIds", "", "Any place"), "rojo") +
+				field("Port", input("port", "", "34872"), "rojo") +
 				listRows(
 					"Project-wide ignores",
 					"Passed to Rojo as globIgnorePaths.",

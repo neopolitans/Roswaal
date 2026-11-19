@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.15",
+		date: "2026-11-19",
+		headline: "A node map can be drawn as a graph.",
+		added: [
+			"**Graph**, beside List over a node map's tree, draws it left to right with each level a column, wired from parent to child, from the DataModel or from src. The + on a node's right edge adds a service on the DataModel and a folder anywhere else, and the reading rule sits in the corner with its exceptions. Drag the empty canvas to move about it.",
+		],
+		fixed: ["**A node map's tree** ran under the Project file docked along the foot."],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.14",
 		date: "2026-11-19",
 		headline: "Node maps are a mode of their own, read from either end.",

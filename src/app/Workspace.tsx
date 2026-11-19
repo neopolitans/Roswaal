@@ -252,6 +252,18 @@ export function Workspace({
 	};
 
 	const compact = useCompact();
+	// How far a sheet in the centre -- a node map -- stops above the strip
+	// along the foot, where one is drawn: its height, or a header's while every
+	// card in it is folded, and the gap and bottom bar under it.
+	const footCards = dockVisible(effective, "bottom")
+		? cardsIn(effective, "bottom", (id) => contents[id] !== undefined).filter((card) =>
+				isFoot(effective, card.head),
+			)
+		: [];
+	const footClear =
+		compact || footCards.length === 0
+			? "0px"
+			: `calc(${footCards.every((card) => card.folded) ? "var(--hit)" : `${effective.docks.bottom.size}px`} + var(--edge) * 3 + var(--hit) + 6px)`;
 	// Which panel's drawer is out, on a phone or a tablet. Never more than one,
 	// and one panel per drawer: the tree and Variables shared a drawer at
 	// first and each got half of it, which is not enough of either.
@@ -398,6 +410,7 @@ export function Workspace({
 						"--left-w": `${!compact && dockVisible(effective, "left") ? effective.docks.left.size : 0}px`,
 						"--right-w": `${!compact && dockVisible(effective, "right") ? effective.docks.right.size : 0}px`,
 						"--pill-h": `${dockVisible(effective, "bottom") ? pill : 0}px`,
+						"--foot-clear": footClear,
 					} as CSSProperties
 				}
 			>

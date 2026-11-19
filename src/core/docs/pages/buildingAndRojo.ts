@@ -304,6 +304,14 @@ export function buildingAndRojoPage(): DocPage {
 					"the tree.",
 			},
 			{
+				t: "p",
+				text:
+					"**List** and **Graph** draw the same tree two ways: as rows, or left to right with " +
+					"each level a column. In the graph, the **+** on a node's right edge adds inside it: " +
+					"a service on the DataModel, a folder anywhere else. Drag the empty canvas to move " +
+					"about it.",
+			},
+			{
 				t: "table",
 				head: ["Field", "What it does"],
 				rows: [
