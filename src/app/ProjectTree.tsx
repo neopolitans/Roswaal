@@ -296,6 +296,18 @@ export const ProjectTree = memo(function ProjectTree({
 		e.dataTransfer.effectAllowed = "copyMove";
 	}
 
+	/**
+	 * A folder of graphs moves as a file does, and a script with children is
+	 * one: dragged, rather than clicked, which still opens and closes it. Not
+	 * the graphs' own root, a folder a node map syncs -- the map points at it
+	 * by path -- or anything Roswaal writes.
+	 */
+	function movableFolder(entry: TreeEntry): boolean {
+		if (entry.kind !== "directory" || !groups.isGraph(entry)) return false;
+		if (!sourceDir || !entry.path.startsWith(`${sourceDir}/`)) return false;
+		return entry.role !== "service" && entry.role !== "synced";
+	}
+
 	function onDrop(e: DragEvent, dir: string) {
 		e.preventDefault();
 		setDropTarget(null);
@@ -303,7 +315,11 @@ export const ProjectTree = memo(function ProjectTree({
 		if (!raw) return;
 		const paths = JSON.parse(raw) as string[];
 		const movable = paths.filter(
-			(p) => !p.startsWith(dir + "/") || p.slice(dir.length + 1).includes("/"),
+			(p) =>
+				// Already here, or a folder dropped on itself or inside itself.
+				(!p.startsWith(dir + "/") || p.slice(dir.length + 1).includes("/")) &&
+				p !== dir &&
+				!dir.startsWith(p + "/"),
 		);
 		if (movable.length) onMove(movable, dir);
 	}
@@ -411,8 +427,7 @@ export const ProjectTree = memo(function ProjectTree({
 							dropTarget === entry.path && "drop-target",
 						)}
 						style={depthStyle(depth, 1)}
-						// A script with children moves as one, its folder and all.
-						draggable={(!isDir || Boolean(entry.script)) && !isListed(entry)}
+						draggable={(!isDir || movableFolder(entry)) && !isListed(entry)}
 						onDragStart={(e) => onDragStart(e, entry)}
 						onDragOver={(e) => {
 							if (!isDir) return;

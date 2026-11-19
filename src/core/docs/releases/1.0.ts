@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.7",
+		date: "2026-11-19",
+		headline: "Folders of graphs can be dragged.",
+		fixed: [
+			"**Dragging a folder** in Graph Content moves it, a script with children included; a click still opens and closes it. Folders a node map syncs, and the graphs' own folder, stay where they are.",
+		],
+		affects: ["editor"],
+	},
+	{
 		version: "1.0.0-canary.6",
 		date: "2026-11-19",
 		headline:
