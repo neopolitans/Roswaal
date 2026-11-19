@@ -1997,6 +1997,11 @@ button.tb.primary:hover:not(:disabled) {
 	background: var(--fg-faint);
 }
 
+/* A graph's dot, just after its name: its Luau fresh, behind, or not compiling. */
+.tree-row .tree-luau-dot {
+	margin-left: 2px;
+}
+
 .tree-dot.ok {
 	background: var(--ok);
 }

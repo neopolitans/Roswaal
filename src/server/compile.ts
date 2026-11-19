@@ -95,6 +95,40 @@ export async function staleGraphs(project: OpenProject): Promise<string[]> {
 }
 
 /**
+ * Where a graph's Luau stands, for its dot in the Project panel: `fresh` when
+ * the file on disk is what the graph compiles to now, `stale` when the graph
+ * changed since (Manual mode, or a pull), `missing` with no file yet, and
+ * `failing` when the graph does not compile. Output written by hand, with no
+ * hash to compare, counts as fresh: compiling would not change it.
+ */
+export type GraphLuauState = "fresh" | "stale" | "missing" | "failing";
+
+/**
+ * Every graph's Luau file and its state, compiled in memory as Check is, so
+ * nothing is written.
+ */
+export async function graphStates(
+	project: OpenProject,
+): Promise<Record<string, { luau: string; state: GraphLuauState }>> {
+	const out: Record<string, { luau: string; state: GraphLuauState }> = {};
+	for (const outcome of await compileAll(project, { write: false })) {
+		const luau = outcome.outputPath;
+		if (outcome.diagnostics.some((d) => d.severity === "error")) {
+			out[outcome.scriptPath] = { luau, state: "failing" };
+			continue;
+		}
+		const disk = luau
+			? await fs.readFile(safeJoin(project.root, luau), "utf8").catch(() => null)
+			: null;
+		const now = sourceHashOf(outcome.code);
+		const state: GraphLuauState =
+			disk === null ? "missing" : now !== null && sourceHashOf(disk) !== now ? "stale" : "fresh";
+		out[outcome.scriptPath] = { luau, state };
+	}
+	return out;
+}
+
+/**
  * The graph that already wrote this file in the current compile, if any.
  *
  * Two graphs with the same name compile to the same path, and the second used

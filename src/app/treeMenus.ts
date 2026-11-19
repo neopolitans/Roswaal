@@ -21,6 +21,8 @@ export type TreeAction =
 	| "importMany"
 	| "newFolder"
 	| "reveal"
+	| "openLuau"
+	| "revealLuau"
 	| "rename"
 	| "delete";
 
@@ -50,6 +52,8 @@ export interface TreeMenuContext {
 	canReveal: boolean;
 	/** Said on an entry this host cannot do. */
 	notHere: string;
+	/** On a graph, the Luau it compiles to: Open Luau and Show Luau in file manager. */
+	luau?: string;
 }
 
 const present = <T>(entries: (T | false | undefined)[]): T[] =>
@@ -126,14 +130,26 @@ export function fileMenu(
 				},
 			{ action: "newFolder", label: "New folder", icon: "newFolder" },
 		]),
-		[
+		present([
+			ctx.luau !== undefined && {
+				action: "openLuau",
+				label: "Open Luau",
+				icon: "codeFile",
+				title: ctx.luau,
+			},
 			{
 				action: "reveal",
 				label: "Show in file manager",
 				icon: "external",
 				...(ctx.canReveal ? {} : { disabled: true, title: ctx.notHere }),
 			},
-		],
+			ctx.luau !== undefined && {
+				action: "revealLuau",
+				label: "Show Luau in file manager",
+				icon: "external",
+				...(ctx.canReveal ? { title: ctx.luau } : { disabled: true, title: ctx.notHere }),
+			},
+		]),
 		[
 			{ action: "rename", label: "Rename", icon: "rename" },
 			{ action: "delete", label: "Delete", icon: "remove", danger: true },

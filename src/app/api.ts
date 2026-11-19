@@ -49,6 +49,12 @@ export interface Flattened {
 	to: string;
 }
 
+/** A graph's Luau and where it stands: see `graphStates` in `src/server/compile.ts`. */
+export interface GraphLuau {
+	luau: string;
+	state: "fresh" | "stale" | "missing" | "failing";
+}
+
 /** What a node map's row says: see the daemon's copy in `src/server/tree.ts`. */
 export interface MapFacts {
 	output?: string;
@@ -509,6 +515,8 @@ export const api = {
 		),
 	/** Adds the place a new project starts with to a project that has none. */
 	newPlace: () => post<{ file: string }>("/api/place/new", {}),
+	/** Each graph's Luau file and whether it is fresh, stale, missing or failing. */
+	graphStates: () => request<{ graphs: Record<string, GraphLuau> }>("/api/graphs/state"),
 	/** Copies an instance of the place, `index` in its outline, out to a .rbxm model file. */
 	extractModel: (stamp: string, index: number, to: string) =>
 		post<{ path: string; leftOut: string[] }>("/api/place/extract", { stamp, index, to }),

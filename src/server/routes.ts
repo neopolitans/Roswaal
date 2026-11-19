@@ -122,6 +122,7 @@ import {
 	findRojoProjects,
 	graphName,
 	graphOutputPath,
+	graphStates,
 	importRojoProject,
 	initProject,
 	linkedFiles,
@@ -1216,6 +1217,9 @@ export class ApiSession {
 					leftOut: [...loaded.doc.undecoded.keys()].sort(),
 				};
 			},
+
+			/** Each graph's Luau and where it stands: see `graphStates`. Writes nothing. */
+			"GET /graphs/state": async () => ({ graphs: await graphStates(this.project()) }),
 
 			"GET /place/instance": async (req) => {
 				const project = this.project();

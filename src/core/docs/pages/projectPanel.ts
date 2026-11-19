@@ -74,6 +74,10 @@ export function projectPanelPage(): DocPage {
 					],
 					["A node map in the corner", "A folder a node map syncs; hover it for the map"],
 					["A faint folder saying empty", "A folder with nothing in it yet"],
+					[
+						"A dot after a graph",
+						"Its Luau: green when it is what the graph compiles to, amber when the graph changed since or it is not written yet, red when the graph does not compile. Hover a graph to name its Luau",
+					],
 					["A grey outlined folder", "A plain folder"],
 					["A grey filled folder", "A Folder a node map syncs, under Output"],
 					[
@@ -117,7 +121,7 @@ export function projectPanelPage(): DocPage {
 					],
 					[
 						"A graph",
-						"**New graph…**, which asks where: inside it, as its child, or beside it in its folder",
+						"**New graph…**, which asks where: inside it, as its child, or beside it in its folder. **Open Luau** opens the Luau it compiles to, read-only, and **Show Luau in file manager** finds it",
 					],
 					[
 						"A `.luau` you wrote",

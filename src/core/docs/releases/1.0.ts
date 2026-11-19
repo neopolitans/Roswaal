@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.25",
+		date: "2026-11-20",
+		headline: "A graph's dot says where its Luau stands, and its menu opens it.",
+		added: [
+			"**A dot after each graph** in the Project panel: green when its Luau is what the graph compiles to, amber when the graph changed since, as in Manual mode or after a pull, or the Luau is not written yet, and red when the graph does not compile.",
+			"**Open Luau** and **Show Luau in file manager** on a graph's menu. Hovering a graph names the Luau it compiles to.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.24",
 		date: "2026-11-20",
 		headline: "Every graph and folder has New graph and New folder; what will not sync is marked.",

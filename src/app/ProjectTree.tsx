@@ -10,7 +10,7 @@ import { type DragEvent, memo, type ReactNode, useEffect, useMemo, useRef, useSt
 import { wearsClassIcon } from "../core/classIcons.js";
 import type { FunctionInfo } from "../core/functionGraph.js";
 import { isInstanceClass, isService } from "../core/roblox.js";
-import type { TreeEntry } from "./api.js";
+import type { GraphLuau, TreeEntry } from "./api.js";
 import { cx } from "./cx.js";
 import { ExplorerIcon } from "./ExplorerIcon.jsx";
 import { NOT_HERE, useHostCan } from "./host.js";
@@ -67,6 +67,8 @@ export interface ProjectTreeProps {
 	/** New graph from a graph's menu: inside it, as its child, or beside it. */
 	onNewGraphNear?: (graph: string) => void;
 	onNewMap: (parentDir: string) => void;
+	/** Each graph's Luau and where it stands, by graph path: the dots and Open Luau. */
+	luau?: Readonly<Record<string, GraphLuau>>;
 	onNewFolder: (parentDir: string) => void;
 	onRename: (path: string) => void;
 	onDelete: (paths: string[]) => void;
@@ -117,6 +119,7 @@ export const ProjectTree = memo(function ProjectTree({
 	onNewGraph,
 	onNewGraphNear,
 	onNewMap,
+	luau,
 	onNewFolder,
 	onRename,
 	onDelete,
@@ -439,10 +442,27 @@ export const ProjectTree = memo(function ProjectTree({
 		if (movable.length) onMove(movable, dir);
 	}
 
+	/** A graph's Luau, or a script folder's, by its graph. */
+	const luauOf = (entry: TreeEntry): GraphLuau | undefined =>
+		entry.kind === "nodescript"
+			? luau?.[entry.path]
+			: entry.script
+				? luau?.[entry.script]
+				: undefined;
+
 	/** What a menu entry does, by the action `treeMenus.ts` names it with. */
 	const runTreeAction = (action: TreeAction, entry: TreeEntry) => {
 		const dir = parentDirOf(entry);
 		switch (action) {
+			case "openLuau": {
+				const file = luauOf(entry)?.luau;
+				const found = file ? findEntry(tree, file) : undefined;
+				return found ? onOpen(found) : undefined;
+			}
+			case "revealLuau": {
+				const file = luauOf(entry)?.luau;
+				return file ? onReveal(file) : undefined;
+			}
 			case "packageZip":
 				return onPackage?.("zip", entry);
 			case "wally":
@@ -667,7 +687,9 @@ export const ProjectTree = memo(function ProjectTree({
 										? `${entry.name}, a script with children. Double-click to open its graph.`
 										: isDir && !groups.isGraph(entry) && entry.role
 											? `${entry.path}: ${FOLDER_TITLE[entry.role]}`
-											: entry.path
+											: luauOf(entry)
+												? `${entry.path}, compiled to ${luauOf(entry)?.luau}`
+												: entry.path
 						}
 					>
 						{entry.kind === "wally" ? (
@@ -780,6 +802,7 @@ export const ProjectTree = memo(function ProjectTree({
 							</>
 						)}
 						<span className="label">{shownName(entry)}</span>
+						{luauOf(entry) && <LuauDot state={luauOf(entry) as GraphLuau} />}
 						{entry.mapFacts && <MapRowFacts facts={entry.mapFacts} />}
 						{isDir && !entry.script && (entry.children?.length ?? 0) === 0 && (
 							<span className="badge">empty</span>
@@ -902,6 +925,9 @@ export const ProjectTree = memo(function ProjectTree({
 								canGithub,
 								canReveal,
 								notHere: NOT_HERE,
+								...(luauOf(menu.entry) && findEntry(tree, luauOf(menu.entry)?.luau ?? "")
+									? { luau: luauOf(menu.entry)?.luau }
+									: {}),
 							})
 					).map((entries) => ({
 						entries: entries.map(({ action, ...shown }) => ({
@@ -1029,6 +1055,24 @@ function namedClass(entry: TreeEntry): string | undefined {
 	return isInstanceClass(entry.name) && wearsClassIcon(entry.name) && entry.name !== "Folder"
 		? entry.name
 		: undefined;
+}
+
+/** A graph's dot: its Luau fresh, behind the graph, not written, or not compiling. */
+function LuauDot({ state }: { state: GraphLuau }) {
+	const said: Record<GraphLuau["state"], { tone: string; title: string }> = {
+		fresh: { tone: "ok", title: `${state.luau} is what the graph compiles to.` },
+		stale: {
+			tone: "warn",
+			title: `${state.luau} is older than the graph. Compile it to bring it up to date.`,
+		},
+		missing: {
+			tone: "warn",
+			title: `${state.luau} is not written yet. Compile the graph to write it.`,
+		},
+		failing: { tone: "bad", title: "The graph does not compile. Script analysis says why." },
+	};
+	const one = said[state.state];
+	return <span className={cx("tree-dot tree-luau-dot", one.tone)} title={one.title} />;
 }
 
 /**

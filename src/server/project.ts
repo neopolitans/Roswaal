@@ -20,6 +20,7 @@ export {
 	compileMap,
 	compileScript,
 	describeOutcome,
+	graphStates,
 	type MapOutcome,
 	outputCollision,
 	splitGenerated,
