@@ -341,8 +341,8 @@ export type ToolbarItem = Documented &
 		| { t: "prop"; label: string; value: string; color?: string; sub?: boolean; group?: boolean }
 		/** The Tags heading's chips. */
 		| { t: "tags"; tags: string[] }
-		/** A dialog's title. */
-		| { t: "dialogTitle"; text: string }
+		/** A dialog's title, the line under it, and its badge's icon. */
+		| { t: "dialogTitle"; text: string; sub?: string; icon?: string }
 		/** A dialog's message. */
 		| { t: "message"; text: string }
 		/** A dialog's list: the files that still require a package. */
@@ -356,7 +356,8 @@ export type ToolbarItem = Documented &
 		| {
 				t: "formRow";
 				label: string;
-				control: "select" | "field" | "segmented";
+				/** `switch`: a Settings switch, with `value` beside it and `on` 1 for on. */
+				control: "select" | "field" | "segmented" | "switch";
 				value: string;
 				options?: string[];
 				on?: number;
@@ -392,6 +393,8 @@ export interface ToolbarGroup {
 	row?: boolean;
 	/** A dialog's buttons, in its own row at the foot. */
 	actions?: boolean;
+	/** A dialog foot's keys; Enter to confirm and Esc to cancel unless given. */
+	keys?: [string, string][];
 	/**
 	 * In a dialog: a class to wrap the group in, as the Export panel's form is.
 	 * On a floating bar: a class beside the cluster's own, as `graph-tabs` is.
@@ -654,6 +657,35 @@ export function menuHtml(sections: readonly (readonly ToolbarItem[])[], art: Too
 			.map((items) => `<div class="menu-section">${items.map(entry).join("")}</div>`)
 			.join(`<div class="menu-sep"></div>`) +
 		`</div>`
+	);
+}
+
+/** A Settings switch, as `Toggle` in settingsParts.tsx draws it. */
+function switchHtml(label: string, on: boolean): string {
+	return (
+		`<label class="settings-toggle"><input type="checkbox" tabindex="-1" disabled${on ? " checked" : ""}>` +
+		`<span>${escapeXml(label)}</span></label>`
+	);
+}
+
+/** A dialog's field as the Dialog draws it: a Settings row, the note as its help. */
+function settingRowHtml(item: ToolbarItem & { t: "formRow" }): string {
+	const control =
+		item.control === "switch"
+			? switchHtml(item.value, item.on === 1)
+			: item.control === "segmented"
+				? `<span class="segmented">${(item.options ?? [])
+						.map(
+							(option, i) =>
+								`<button type="button" tabindex="-1"${i === item.on ? ` class="on"` : ""}>${escapeXml(option)}</button>`,
+						)
+						.join("")}</span>`
+				: item.control === "select"
+					? `<span class="tb docs-bar-select">${escapeXml(item.value)}</span>`
+					: `<span class="tb docs-bar-field">${escapeXml(item.value)}</span>`;
+	return (
+		`<div class="setting"${tieOf(item)}><div class="setting-label"><strong>${escapeXml(item.label)}</strong>` +
+		`<span>${escapeXml(item.note ?? "")}</span></div><div class="setting-control">${control}</div></div>`
 	);
 }
 
@@ -951,17 +983,19 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 			const control =
 				item.control === "select"
 					? `<span class="tb docs-bar-select">${escapeXml(item.value)}</span>`
-					: item.control === "segmented"
-						? `<span class="segmented">` +
-							(item.options ?? [])
-								.map(
-									(option, i) =>
-										`<button type="button" tabindex="-1"${i === item.on ? ` class="on"` : ""}>${escapeXml(option)}</button>`,
-								)
-								.join("") +
-							`</span>`
-						: `<span class="export-menu-name"><span class="tb docs-bar-field">${escapeXml(item.value)}</span>` +
-							`${item.suffix ? `<span class="export-menu-suffix">${escapeXml(item.suffix)}</span>` : ""}</span>`;
+					: item.control === "switch"
+						? switchHtml(item.value, item.on === 1)
+						: item.control === "segmented"
+							? `<span class="segmented">` +
+								(item.options ?? [])
+									.map(
+										(option, i) =>
+											`<button type="button" tabindex="-1"${i === item.on ? ` class="on"` : ""}>${escapeXml(option)}</button>`,
+									)
+									.join("") +
+								`</span>`
+							: `<span class="export-menu-name"><span class="tb docs-bar-field">${escapeXml(item.value)}</span>` +
+								`${item.suffix ? `<span class="export-menu-suffix">${escapeXml(item.suffix)}</span>` : ""}</span>`;
 			return (
 				`<div class="export-menu-row"${tie}><span class="export-menu-label">${escapeXml(item.label)}</span>` +
 				`<span class="export-menu-control">${control}` +
@@ -1120,49 +1154,68 @@ export function toolbarHtml(spec: ToolbarSpec, art: ToolbarArt): string {
 	// badge in the colour of the question, the body, and a foot naming the
 	// keys. The Export panel, with a class of its own, is laid out on the
 	// plain dialog and keeps it.
-	if (spec.chrome === "modal" && !spec.className) {
+	if (spec.chrome === "modal") {
 		const danger = spec.groups.some((g) =>
 			g.items.some((item) => item.t === "button" && item.danger === true),
 		);
 		const title = spec.groups
 			.flatMap((g) => g.items)
 			.find((item): item is ToolbarItem & { t: "dialogTitle" } => item.t === "dialogTitle");
-		const bodyOf = (g: ToolbarGroup) =>
-			g.items
-				.filter((item) => item.t !== "dialogTitle")
-				.map((item) => itemHtml(item, art))
-				.join("");
+		// The Dialog draws its fields as Settings rows; the Export panel, with a
+		// class of its own, keeps the rows it is laid out on.
+		const settingsRows = !spec.className;
+		const bodyOf = (g: ToolbarGroup) => {
+			const items = g.items.filter((item) => item.t !== "dialogTitle");
+			let html = "";
+			let run = "";
+			for (const item of items) {
+				if (settingsRows && item.t === "formRow") {
+					run += settingRowHtml(item);
+					continue;
+				}
+				if (run) html += `<div class="settings-box dialog-fields">${run}</div>`;
+				run = "";
+				html += itemHtml(item, art);
+			}
+			if (run) html += `<div class="settings-box dialog-fields">${run}</div>`;
+			return g.wrap ? `<div class="${escapeXml(g.wrap)}">${html}</div>` : html;
+		};
+		const icon = danger ? "remove" : (title?.icon ?? "document");
 		const head =
-			`<header class="dialog-head"><span class="dialog-badge">` +
-			`${iconSvg(danger ? "remove" : "document", 17, art)}</span>` +
-			`<h3>${escapeXml(title?.text ?? spec.title)}</h3>` +
-			`<span class="tb icon-only dialog-close">${iconSvg("close", 14, art)}</span></header>`;
+			`<header class="dialog-head"><span class="dialog-badge">${iconSvg(icon, 17, art)}</span>` +
+			`<span class="dialog-title"><h3>${escapeXml(title?.text ?? spec.title)}</h3>` +
+			`${title?.sub ? `<span class="dialog-sub">${escapeXml(title.sub)}</span>` : ""}</span>` +
+			`<span class="dialog-head-end"><span class="tb icon-only dialog-close">${iconSvg("close", 14, art)}</span></span></header>`;
 		const body = `<div class="dialog-body">${spec.groups
 			.filter((g) => !g.actions)
 			.map(bodyOf)
 			.join("")}</div>`;
 		const foot = spec.groups
 			.filter((g) => g.actions)
-			.map(
-				(g) =>
-					`<div class="dialog-actions"><span class="dialog-keys"><kbd>Enter</kbd> to confirm \u00b7 ` +
-					`<kbd>Esc</kbd> to cancel</span>${itemsOf(g)}</div>`,
-			)
+			.map((g) => {
+				const keys = (
+					g.keys ?? [
+						["Enter", "to confirm"],
+						["Esc", "to cancel"],
+					]
+				)
+					.map(([key, does]) => `<kbd>${escapeXml(key)}</kbd> ${escapeXml(does)}`)
+					.join(" \u00b7 ");
+				const wrap = ["dialog-actions", g.wrap ?? ""].filter(Boolean).join(" ");
+				return `<div class="${escapeXml(wrap)}"><span class="dialog-keys">${keys}</span>${itemsOf(g)}</div>`;
+			})
 			.join("");
+		const classes = [
+			CHROME_CLASS.modal,
+			"dialog-panel",
+			spec.className ?? "",
+			`dialog-${danger ? "danger" : "accent"}`,
+		]
+			.filter(Boolean)
+			.join(" ");
 		return (
 			`<div class="docs-bar-frame modal" aria-hidden="true">` +
-			`<div class="${CHROME_CLASS.modal} dialog-panel dialog-${danger ? "danger" : "accent"}">` +
-			`${head}${body}${foot}</div></div>`
-		);
-	}
-	if (spec.chrome === "modal") {
-		return frame(
-			spec.groups
-				.map((g) => {
-					const wrap = [g.actions ? "dialog-actions" : "", g.wrap ?? ""].filter(Boolean).join(" ");
-					return wrap ? `<div class="${escapeXml(wrap)}">${itemsOf(g)}</div>` : itemsOf(g);
-				})
-				.join(""),
+			`<div class="${escapeXml(classes)}">${head}${body}${foot}</div></div>`
 		);
 	}
 
@@ -3384,7 +3437,16 @@ export const EXPORT_PANEL: ToolbarSpec = {
 	chrome: "modal",
 	className: "export-menu",
 	groups: [
-		{ items: [{ t: "dialogTitle", text: "Export" }] },
+		{
+			items: [
+				{
+					t: "dialogTitle",
+					text: "Export",
+					sub: "34 files and place.rbxl · the project is not changed",
+					icon: "export",
+				},
+			],
+		},
 		{
 			wrap: "export-menu-form",
 			items: [
@@ -3445,22 +3507,24 @@ export const EXPORT_PANEL: ToolbarSpec = {
 				{ t: "formSection", text: "Next time" },
 				{
 					t: "formRow",
-					label: "",
-					control: "segmented",
-					value: "",
-					options: ["Start with these choices for this project"],
-					on: 0,
-					note: "Kept in roswaal.json. Settings → Compiling → Exporting has them too.",
+					label: "Remember",
+					control: "switch",
+					value: "Start with these choices for this project",
+					on: 1,
+					note: "Kept in roswaal.json. Settings › Compiling › Exporting has them too.",
 					name: "Start with these choices",
-					what: "Ticked, the menu opens with the same choices next time, for everyone who opens the project.",
+					what: "On, the menu opens with the same choices next time, for everyone who opens the project.",
 				},
 			],
 		},
 		{
 			actions: true,
 			wrap: "export-menu-foot",
+			keys: [
+				["Enter", "exports"],
+				["Esc", "closes"],
+			],
 			items: [
-				{ t: "footNote", text: "34 files and place.rbxl · the project itself is not changed" },
 				{ t: "button", text: "Cancel" },
 				{
 					t: "button",

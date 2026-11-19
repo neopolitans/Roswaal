@@ -37,6 +37,7 @@ import { chooseFolder } from "../folderDialog.js";
 import { NOT_HERE, useHostCan } from "../host.js";
 import { Icon } from "../icons.jsx";
 import { Menu } from "../Menu.jsx";
+import { ModalHead, ModalKeys } from "../ModalParts.jsx";
 import { useMedia } from "../Popout.jsx";
 import { useShowing } from "../pageHost.jsx";
 import { nodeColor } from "../palette.js";
@@ -722,18 +723,31 @@ export function PackBrowser({
 			{confirming && (
 				<div className="docs-backdrop" onPointerDown={() => setConfirming(null)}>
 					<div
-						className="pack-dialog"
+						className="dialog dialog-panel dialog-danger pack-dialog"
 						role="alertdialog"
+						aria-label={`Delete ${confirming.pack.name}`}
 						onPointerDown={(e) => e.stopPropagation()}
+						onKeyDown={(e) => {
+							if (e.key === "Escape") setConfirming(null);
+						}}
 					>
-						<strong>Delete {confirming.pack.name}?</strong>
-						<p>
-							{confirming.usage.length === 0
-								? "No graph uses its nodes."
-								: `${confirming.usage.reduce((n, u) => n + u.count, 0)} of its nodes are placed in ` +
-									`${confirming.usage.map((u) => u.graph.split("/").pop()).join(", ")}, and will show as unknown.`}
-						</p>
-						<div className="pack-dialog-row">
+						<ModalHead
+							icon="remove"
+							title={`Delete ${confirming.pack.name}?`}
+							sub="Roswaal cannot undo this."
+							closeLabel="Keep"
+							onClose={() => setConfirming(null)}
+						/>
+						<div className="dialog-body">
+							<p>
+								{confirming.usage.length === 0
+									? "No graph uses its nodes."
+									: `${confirming.usage.reduce((n, u) => n + u.count, 0)} of its nodes are placed in ` +
+										`${confirming.usage.map((u) => u.graph.split("/").pop()).join(", ")}, and will show as unknown.`}
+							</p>
+						</div>
+						<div className="dialog-actions pack-dialog-row">
+							<ModalKeys keys={[["Esc", "keeps it"]]} />
 							<button type="button" className="tb" autoFocus onClick={() => setConfirming(null)}>
 								Keep
 							</button>
@@ -760,14 +774,21 @@ export function PackBrowser({
 
 			{importing && (
 				<div className="docs-backdrop" onPointerDown={() => setImporting(null)}>
-					<div className="pack-import" onPointerDown={(e) => e.stopPropagation()}>
-						<div className="pack-import-head">
-							<strong>Import from {importing.root}</strong>
-							<span className="spacer" />
-							<button className="tb" onClick={() => setImporting(null)} title="Close">
-								<Icon name="close" size={15} />
-							</button>
-						</div>
+					<div
+						className="pack-import modal-shell"
+						role="dialog"
+						aria-label={`Import from ${importing.root}`}
+						onPointerDown={(e) => e.stopPropagation()}
+						onKeyDown={(e) => {
+							if (e.key === "Escape") setImporting(null);
+						}}
+					>
+						<ModalHead
+							icon="graph"
+							title={`Import from ${importing.root}`}
+							sub={`${importing.packs.length} pack${importing.packs.length === 1 ? "" : "s"}`}
+							onClose={() => setImporting(null)}
+						/>
 						<ul>
 							{importing.packs.map((pack) => {
 								const done = importing.done.has(pack.path);

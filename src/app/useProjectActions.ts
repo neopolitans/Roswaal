@@ -972,15 +972,17 @@ export function useProjectActions(context: ProjectActionsContext) {
 			const answer = await ask({
 				kind: "form",
 				title: "New graph",
-				message: nested
-					? `Inside ${name} makes it one of ${name}'s children. Beside puts it in ${besideDir.split("/").pop()}.`
-					: `Inside makes ${name} a script with children, in a folder of its own. Beside puts it in ${besideDir.split("/").pop()}.`,
+				subtitle: own.split("/").slice(-3).join(" › "),
+				message: "",
 				fields: [
 					{ id: "name", kind: "text", label: "Name", value: "Untitled" },
 					{
 						id: "place",
 						kind: "choice",
 						label: "Place",
+						help: nested
+							? `Inside makes it one of ${name}'s children. Beside puts it in ${besideDir.split("/").pop()}.`
+							: `Inside makes ${name} a script with children. Beside puts it in ${besideDir.split("/").pop()}.`,
 						value: "inside",
 						options: [
 							{ value: "inside", label: `Inside ${name}` },
@@ -993,9 +995,9 @@ export function useProjectActions(context: ProjectActionsContext) {
 						label: "Starts as",
 						value: "ModuleScript",
 						options: [
-							{ value: "ModuleScript", label: "ModuleScript" },
-							{ value: "Script", label: "Script" },
-							{ value: "LocalScript", label: "LocalScript" },
+							{ value: "ModuleScript", label: "ModuleScript", script: "module" },
+							{ value: "Script", label: "Script", script: "server" },
+							{ value: "LocalScript", label: "LocalScript", script: "client" },
 						],
 					},
 				],
@@ -1342,8 +1344,12 @@ export function useProjectActions(context: ProjectActionsContext) {
 			const children = paths.flatMap((p) => childScriptsOf(projectTreeRef.current, p));
 			const ok = await ask({
 				kind: "confirm",
-				title: "Delete",
-				message: `Delete ${label}? This cannot be undone from Roswaal.`,
+				title:
+					paths.length === 1
+						? `Delete ${(paths[0].split("/").pop() ?? paths[0]).replace(/\.(nodescript|nodemap)$/, "")}?`
+						: `Delete ${label}?`,
+				subtitle: "Roswaal cannot undo this.",
+				message: "",
 				items: paths,
 				...(children.length > 0
 					? {

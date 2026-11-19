@@ -339,6 +339,13 @@ export function ValuePicker(props: ValuePickerProps) {
 				onKeyDown={onKeyDown}
 			>
 				<div className="value-search">
+					{/* The modal family's head: a badge and what is being picked. */}
+					<span className="dialog-badge" aria-hidden="true">
+						<Icon name={props.classes || props.iconOf ? "instance" : "search"} size={17} />
+					</span>
+					<strong className="value-title">
+						{props.what.charAt(0).toUpperCase() + props.what.slice(1)}
+					</strong>
 					<span className="value-field">
 						<Icon name="search" size={15} />
 						<input
@@ -353,7 +360,7 @@ export function ValuePicker(props: ValuePickerProps) {
 						/>
 					</span>
 					<button
-						className="tb icon-only"
+						className="tb icon-only dialog-close"
 						title="Close (Esc)"
 						aria-label="Close"
 						onClick={props.onClose}

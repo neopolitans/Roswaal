@@ -19,10 +19,10 @@
 import { EditorState } from "@codemirror/state";
 import { EditorView, lineNumbers } from "@codemirror/view";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-
 import { RELEASES } from "../core/docs/releases.js";
 import { CARRIED_LICENCES, type CarriedLicence } from "../core/licenceData.js";
 import { editorTheme } from "./luauTheme.js";
+import { ModalHead } from "./ModalParts.jsx";
 
 /** The notices file beside this build, named so a new version is a new fetch. */
 export function noticesUrl(): string {
@@ -263,20 +263,12 @@ export function LicenceDialog({
 				if (e.target === e.currentTarget) e.currentTarget.close();
 			}}
 		>
-			<div className="attr-dialog-head">
-				<h2>
-					{licence ? (
-						<>
-							{licence.name} <span className="spdx">{licence.spdx}</span>
-						</>
-					) : (
-						"Third-party notices"
-					)}
-				</h2>
-				<button type="button" className="tb" onClick={() => dialog.current?.close()}>
-					Close
-				</button>
-			</div>
+			<ModalHead
+				icon="help"
+				title={licence ? licence.name : "Third-party notices"}
+				sub={licence?.spdx}
+				onClose={() => dialog.current?.close()}
+			/>
 			{licence ? <LicenceDetail licence={licence} /> : <BundledNotices />}
 		</dialog>
 	);

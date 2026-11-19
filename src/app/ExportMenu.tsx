@@ -23,6 +23,8 @@ import { graphLabel } from "./analysis.js";
 import { api } from "./api.js";
 import { cx } from "./cx.js";
 import { LAYER } from "./layers.js";
+import { ModalHead, ModalKeys } from "./ModalParts.jsx";
+import { Toggle } from "./settingsParts.jsx";
 import { download, zip } from "./zip.js";
 
 type Exported = Awaited<ReturnType<typeof api.exportProject>>;
@@ -229,7 +231,7 @@ export function ExportMenu({
 		>
 			<div
 				ref={panel}
-				className={cx("dialog export-menu", at && "export-menu-anchored")}
+				className={cx("dialog dialog-panel export-menu", at && "export-menu-anchored")}
 				style={at ? { top: at.top, right: at.right } : undefined}
 				role="dialog"
 				aria-label="Export"
@@ -249,138 +251,154 @@ export function ExportMenu({
 					}
 				}}
 			>
-				<h3>Export</h3>
+				<ModalHead
+					icon="export"
+					title="Export"
+					sub={
+						dry
+							? shape === "zip"
+								? `${Object.keys(dry.files).length} files${place ? ` and ${place.file.replace(/\.rbxlx?$/i, extension)}` : ""} · the project is not changed`
+								: "The project is not changed"
+							: undefined
+					}
+					onClose={onClose}
+				/>
 
-				{failure ? (
-					<p className="export-menu-problem">{failure}</p>
-				) : !dry ? (
-					<p>Reading the project…</p>
-				) : (
-					<div className="export-menu-form">
-						<div className="export-menu-row">
-							<span className="export-menu-label">Export</span>
-							<span className="export-menu-control">
-								<span className="segmented" role="group" aria-label="What to export">
-									{choice("zip", shape, setShape, "Project (.zip)")}
-									{place ? choice("place", shape, setShape, `Place only (${extension})`) : null}
-								</span>
-								<span className="export-menu-note">
-									{shape === "zip"
-										? `A zip: graphs, Luau and the Rojo project${place ? `, with ${place.file.replace(/\.rbxlx?$/i, extension)} in its root` : ""}.`
-										: `${place?.file.replace(/\.rbxlx?$/i, extension)} alone, to open in Studio.`}
-								</span>
-							</span>
-						</div>
-
-						<label className="export-menu-row" htmlFor="export-name">
-							<span className="export-menu-label">Name</span>
-							<span className="export-menu-control">
-								<span className="export-menu-name">
-									<input
-										ref={nameInput}
-										id="export-name"
-										className="tb"
-										type="text"
-										value={name}
-										spellCheck={false}
-										onChange={(e) => setName(e.target.value)}
-									/>
-									<span className="export-menu-suffix">{shape === "zip" ? ".zip" : extension}</span>
-								</span>
-							</span>
-						</label>
-
-						<div className="export-menu-row">
-							<span className="export-menu-label">Before</span>
-							<span className="export-menu-control">
-								{stale.length ? (
-									<>
-										<span className="segmented" role="group" aria-label="Before exporting">
-											{choice(true, compileFirst, setCompileFirst, "Compile first")}
-											{choice(false, compileFirst, setCompileFirst, "Export as it is")}
-										</span>
-										<span className="export-menu-note">
-											{compileFirst
-												? `${names(stale)} changed since ${stale.length === 1 ? "it was" : "they were"} compiled; compiled first.`
-												: `${names(stale)} export${stale.length === 1 ? "s" : ""} the Luau last compiled.`}
-										</span>
-									</>
-								) : (
-									<span className="export-menu-note export-menu-note-flush">
-										Every graph's Luau matches its graph.
+				<div className="dialog-body">
+					{failure ? (
+						<p className="export-menu-problem">{failure}</p>
+					) : !dry ? (
+						<p>Reading the project…</p>
+					) : (
+						<div className="export-menu-form">
+							<div className="export-menu-row">
+								<span className="export-menu-label">Export</span>
+								<span className="export-menu-control">
+									<span className="segmented" role="group" aria-label="What to export">
+										{choice("zip", shape, setShape, "Project (.zip)")}
+										{place ? choice("place", shape, setShape, `Place only (${extension})`) : null}
 									</span>
-								)}
-							</span>
-						</div>
-
-						{place && report && (
-							<>
-								<div className="export-menu-section">Place file · {place.file}</div>
-								<div className="export-menu-row">
-									<span className="export-menu-label">Scripts</span>
-									<span className="export-menu-control">
-										<span className="segmented" role="group" aria-label="Scripts">
-											{choice(true, modify, setModify, "Modify RBXL")}
-											{choice(false, modify, setModify, "Don't Modify RBXL")}
-										</span>
-										<span className="export-menu-note">
-											{modify ? summary(place.file, report) : "The place's scripts as they were."}
-										</span>
-										{modify && hasProblems && (
-											<span className="export-menu-problem">{problems}</span>
-										)}
+									<span className="export-menu-note">
+										{shape === "zip"
+											? `A zip: graphs, Luau and the Rojo project${place ? `, with ${place.file.replace(/\.rbxlx?$/i, extension)} in its root` : ""}.`
+											: `${place?.file.replace(/\.rbxlx?$/i, extension)} alone, to open in Studio.`}
 									</span>
-								</div>
-								<div className="export-menu-row">
-									<span className="export-menu-label">Save as</span>
-									<span className="export-menu-control">
-										<span className="segmented" role="group" aria-label="Place format">
-											{choice<Format>("rbxl", chosen, setFormat, ".rbxl")}
-											{choice<Format>(
-												"rbxlx",
-												chosen,
-												setFormat,
-												<>
-													.rbxlx <span className="export-menu-legacy">Legacy</span>
-												</>,
+								</span>
+							</div>
+
+							<label className="export-menu-row" htmlFor="export-name">
+								<span className="export-menu-label">Name</span>
+								<span className="export-menu-control">
+									<span className="export-menu-name">
+										<input
+											ref={nameInput}
+											id="export-name"
+											className="tb"
+											type="text"
+											value={name}
+											spellCheck={false}
+											onChange={(e) => setName(e.target.value)}
+										/>
+										<span className="export-menu-suffix">
+											{shape === "zip" ? ".zip" : extension}
+										</span>
+									</span>
+								</span>
+							</label>
+
+							<div className="export-menu-row">
+								<span className="export-menu-label">Before</span>
+								<span className="export-menu-control">
+									{stale.length ? (
+										<>
+											<span className="segmented" role="group" aria-label="Before exporting">
+												{choice(true, compileFirst, setCompileFirst, "Compile first")}
+												{choice(false, compileFirst, setCompileFirst, "Export as it is")}
+											</span>
+											<span className="export-menu-note">
+												{compileFirst
+													? `${names(stale)} changed since ${stale.length === 1 ? "it was" : "they were"} compiled; compiled first.`
+													: `${names(stale)} export${stale.length === 1 ? "s" : ""} the Luau last compiled.`}
+											</span>
+										</>
+									) : (
+										<span className="export-menu-note export-menu-note-flush">
+											Every graph's Luau matches its graph.
+										</span>
+									)}
+								</span>
+							</div>
+
+							{place && report && (
+								<>
+									<div className="export-menu-section">Place file · {place.file}</div>
+									<div className="export-menu-row">
+										<span className="export-menu-label">Scripts</span>
+										<span className="export-menu-control">
+											<span className="segmented" role="group" aria-label="Scripts">
+												{choice(true, modify, setModify, "Modify RBXL")}
+												{choice(false, modify, setModify, "Don't Modify RBXL")}
+											</span>
+											<span className="export-menu-note">
+												{modify ? summary(place.file, report) : "The place's scripts as they were."}
+											</span>
+											{modify && hasProblems && (
+												<span className="export-menu-problem">{problems}</span>
 											)}
 										</span>
-										<span className="export-menu-note">
-											{chosen === "rbxl"
-												? "Binary, as Studio saves."
-												: "XML: Studio's older format, readable in a diff."}
+									</div>
+									<div className="export-menu-row">
+										<span className="export-menu-label">Save as</span>
+										<span className="export-menu-control">
+											<span className="segmented" role="group" aria-label="Place format">
+												{choice<Format>("rbxl", chosen, setFormat, ".rbxl")}
+												{choice<Format>(
+													"rbxlx",
+													chosen,
+													setFormat,
+													<>
+														.rbxlx <span className="export-menu-legacy">Legacy</span>
+													</>,
+												)}
+											</span>
+											<span className="export-menu-note">
+												{chosen === "rbxl"
+													? "Binary, as Studio saves."
+													: "XML: Studio's older format, readable in a diff."}
+											</span>
+											{loses.length > 0 && (
+												<span className="export-menu-problem">{leftOutLine(chosen, loses)}</span>
+											)}
 										</span>
-										{loses.length > 0 && (
-											<span className="export-menu-problem">{leftOutLine(chosen, loses)}</span>
-										)}
-									</span>
-								</div>
-							</>
-						)}
+									</div>
+								</>
+							)}
 
-						<div className="export-menu-section">Next time</div>
-						<label className="export-menu-remember">
-							<input
-								type="checkbox"
-								checked={remember}
-								onChange={(e) => setRemember(e.target.checked)}
-							/>
-							Start with these choices for this project
-						</label>
-						<span className="export-menu-note">
-							Kept in roswaal.json. Settings → Compiling → Exporting has them too.
-						</span>
-					</div>
-				)}
+							<div className="export-menu-section">Next time</div>
+							<div className="export-menu-row">
+								<span className="export-menu-label">Remember</span>
+								<span className="export-menu-control">
+									<Toggle
+										on={remember}
+										label="Start with these choices for this project"
+										onChange={setRemember}
+									/>
+									<span className="export-menu-note">
+										Kept in roswaal.json. Settings › Compiling › Exporting has them too.
+									</span>
+								</span>
+							</div>
+						</div>
+					)}
+				</div>
 
 				<div className="dialog-actions export-menu-foot">
-					{dry && (
-						<span className="export-menu-note export-menu-contents">
-							{shape === "zip"
-								? `${Object.keys(dry.files).length} files${place ? ` and ${place.file.replace(/\.rbxlx?$/i, extension)}` : ""} · the project itself is not changed`
-								: "The project itself is not changed"}
-						</span>
-					)}
+					<ModalKeys
+						keys={[
+							["Enter", "exports"],
+							["Esc", "closes"],
+						]}
+					/>
 					<button className="tb" type="button" onClick={onClose}>
 						Cancel
 					</button>

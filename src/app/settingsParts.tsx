@@ -89,14 +89,21 @@ export function Toggle({
 	on,
 	label,
 	onChange,
+	disabled,
 }: {
 	on: boolean;
 	label: string;
 	onChange: (on: boolean) => void;
+	disabled?: boolean;
 }) {
 	return (
-		<label className="settings-toggle">
-			<input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} />
+		<label className={disabled ? "settings-toggle is-disabled" : "settings-toggle"}>
+			<input
+				type="checkbox"
+				checked={on}
+				disabled={disabled}
+				onChange={(e) => onChange(e.target.checked)}
+			/>
 			<span>{label}</span>
 		</label>
 	);

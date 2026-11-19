@@ -45,8 +45,9 @@ import type { NodeScript } from "../core/schema.js";
 import { cx } from "./cx.js";
 import { surfacesIn } from "./edits.js";
 import { highlightLuau } from "./highlight.js";
-import { Icon } from "./icons.jsx";
 import { LAYER } from "./layers.js";
+import { ModalHead } from "./ModalParts.jsx";
+import { Toggle } from "./settingsParts.jsx";
 
 /** Unattributed lines longer than this are folded away. */
 const CONTEXT = 2;
@@ -105,7 +106,7 @@ export function SelectionPreview(props: SelectionPreviewProps) {
 	return (
 		<div className="docs-backdrop" style={{ zIndex: LAYER.menu + 1 }} onPointerDown={props.onClose}>
 			<div
-				className="docs preview-luau"
+				className="docs preview-luau modal-shell"
 				onPointerDown={(e) => e.stopPropagation()}
 				onKeyDown={(e) => {
 					if (e.key === "Escape") {
@@ -116,44 +117,32 @@ export function SelectionPreview(props: SelectionPreviewProps) {
 				tabIndex={-1}
 				ref={(el) => el?.focus()}
 			>
-				<div className="docs-head">
-					<Icon name="terminal" size={16} />
-					<strong>
-						{whole
+				<ModalHead
+					icon="terminal"
+					title={
+						whole
 							? "Script preview"
 							: props.functionName
 								? `ƒ ${props.functionName}`
-								: "Selection preview"}
-					</strong>
-					<span className="sub">
-						{whole
+								: "Selection preview"
+					}
+					sub={
+						whole
 							? `${rows.length} line${rows.length === 1 ? "" : "s"}`
 							: props.functionName
 								? `${direct} line${direct === 1 ? "" : "s"}`
-								: selectionWords(props.selection, props.script)}
-						{!whole &&
-							!props.functionName &&
-							direct > 0 &&
-							` · ${direct} line${direct === 1 ? "" : "s"}`}
-					</span>
-					<span className="spacer" />
+								: `${selectionWords(props.selection, props.script)}${
+										direct > 0 ? ` · ${direct} line${direct === 1 ? "" : "s"}` : ""
+									}`
+					}
+					onClose={props.onClose}
+				>
 					{!whole && (
-						<label
-							className="preview-toggle"
-							title="Show the whole generated file, not just what these nodes produced"
-						>
-							<input
-								type="checkbox"
-								checked={showAll}
-								onChange={(e) => setShowAll(e.target.checked)}
-							/>
-							Whole file
-						</label>
+						<span title="Show the whole generated file, not just what these nodes produced">
+							<Toggle on={showAll} label="Whole file" onChange={setShowAll} />
+						</span>
 					)}
-					<button className="tb" onClick={props.onClose} title="Close (Esc)">
-						<Icon name="close" size={15} />
-					</button>
-				</div>
+				</ModalHead>
 
 				<div className="preview-body">
 					{entries.length > 0 && (

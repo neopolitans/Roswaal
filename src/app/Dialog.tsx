@@ -17,11 +17,16 @@ import type { ShownLine } from "../core/lineDiff.js";
 import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
 import { LAYER } from "./layers.js";
+import { ModalHead } from "./ModalParts.jsx";
+import { ScriptIcon, type ScriptRealm } from "./ScriptIcon.jsx";
+import { Row, Toggle } from "./settingsParts.jsx";
 
 export type DialogRequest =
 	| {
 			kind: "prompt";
 			title: string;
+			/** One line under the title: where the thing is, or what it holds. */
+			subtitle?: string;
 			label?: string;
 			/** A line under the field: where the thing will be made. */
 			hint?: string;
@@ -33,6 +38,8 @@ export type DialogRequest =
 	| {
 			kind: "confirm";
 			title: string;
+			/** One line under the title: where the thing is, or what it holds. */
+			subtitle?: string;
 			message: string;
 			/** Listed under the message: what the confirmation is about, by name. */
 			items?: string[];
@@ -44,11 +51,13 @@ export type DialogRequest =
 			danger?: boolean;
 			icon?: IconName;
 	  }
-	| { kind: "notice"; title: string; message: string }
+	| { kind: "notice"; title: string; subtitle?: string; message: string }
 	| {
 			/** One of several answers, each its own button. Resolves to its value, or null. */
 			kind: "choice";
 			title: string;
+			/** One line under the title: where the thing is, or what it holds. */
+			subtitle?: string;
 			message: string;
 			/** Listed under the message: what the choice is about, by name. */
 			items?: string[];
@@ -58,6 +67,8 @@ export type DialogRequest =
 			/** Several answers at once. Resolves to `FormAnswers` as JSON, or null. */
 			kind: "form";
 			title: string;
+			/** One line under the title: where the thing is, or what it holds. */
+			subtitle?: string;
 			message: string;
 			/** Sentences under the message and above the fields, as plain bullets. */
 			points?: string[];
@@ -66,14 +77,15 @@ export type DialogRequest =
 			icon?: IconName;
 	  };
 
-export type FormField =
+export type FormField = (
 	| { id: string; kind: "text"; label: string; value: string }
 	| {
 			id: string;
 			kind: "choice";
 			label: string;
 			value: string;
-			options: { value: string; label: string }[];
+			/** Two or three short ones are a segmented control; more are rows. */
+			options: { value: string; label: string; script?: ScriptRealm }[];
 	  }
 	/** One of however many, as a dropdown: a list that could be long. */
 	| {
@@ -90,7 +102,28 @@ export type FormField =
 			value: boolean;
 			/** Only offered while another field has this answer, or one of these. */
 			when?: { id: string; value: string | string[] };
-	  };
+	  }
+) & {
+	/** A line under the label, as a Settings row has. */
+	help?: string;
+};
+
+/** Choices few and short enough to sit side by side. */
+function segmentable(options: readonly { label: string }[]): boolean {
+	return options.length <= 3 && options.every((o) => o.label.length <= 18);
+}
+
+/** A path as a name in front and where it is behind, faint. */
+function splitPath(path: string): { name: string; dir: string } {
+	const at = path.lastIndexOf("/");
+	return at < 0 ? { name: path, dir: "" } : { name: path.slice(at + 1), dir: path.slice(0, at) };
+}
+
+function itemIcon(path: string): IconName {
+	if (/\.(luau|lua)$/.test(path)) return "luauScript";
+	if (/\.[A-Za-z]+$/.test(path)) return "document";
+	return "folder";
+}
 
 export type FormAnswers = Record<string, string | boolean>;
 
@@ -195,21 +228,13 @@ export function Dialog({ request, resolve }: PendingDialog) {
 					}
 				}}
 			>
-				<header className="dialog-head">
-					<span className="dialog-badge">
-						<Icon name={icon} size={17} />
-					</span>
-					<h3>{request.title}</h3>
-					<button
-						type="button"
-						className="tb icon-only dialog-close"
-						aria-label={request.kind === "notice" ? "Close" : "Cancel"}
-						title={request.kind === "notice" ? "Close (Esc)" : "Cancel (Esc)"}
-						onClick={request.kind === "notice" ? accept : cancel}
-					>
-						<Icon name="close" size={14} />
-					</button>
-				</header>
+				<ModalHead
+					icon={icon}
+					title={request.title}
+					sub={request.subtitle}
+					closeLabel={request.kind === "notice" ? "Close" : "Cancel"}
+					onClose={request.kind === "notice" ? accept : cancel}
+				/>
 
 				<div className="dialog-body">
 					{request.kind === "prompt" ? (
@@ -231,7 +256,7 @@ export function Dialog({ request, resolve }: PendingDialog) {
 						</label>
 					) : request.kind === "form" ? (
 						<>
-							<p>{request.message}</p>
+							{request.message && <p>{request.message}</p>}
 							{request.points && request.points.length > 0 && (
 								<ul className="dialog-points">
 									{request.points.map((point) => (
@@ -239,84 +264,116 @@ export function Dialog({ request, resolve }: PendingDialog) {
 									))}
 								</ul>
 							)}
-							{request.fields.map((field) => {
-								if (field.kind === "text") {
-									return (
-										<label key={field.id} className="field">
-											<span>{field.label}</span>
-											<input
-												ref={input}
-												className="tb"
-												value={String(answers[field.id])}
-												onChange={(e) => setAnswers({ ...answers, [field.id]: e.target.value })}
-											/>
-										</label>
-									);
-								}
-								if (field.kind === "select") {
-									return (
-										<label key={field.id} className="field">
-											<span>{field.label}</span>
-											<select
-												className="tb"
-												value={String(answers[field.id])}
-												onChange={(e) => setAnswers({ ...answers, [field.id]: e.target.value })}
-											>
-												{field.options.map((option) => (
-													<option key={option.value} value={option.value}>
-														{option.label}
-													</option>
-												))}
-											</select>
-										</label>
-									);
-								}
-								if (field.kind === "choice") {
-									return (
-										<fieldset key={field.id} className="dialog-choices">
-											<legend>{field.label}</legend>
-											{field.options.map((option) => (
-												<label
-													key={option.value}
-													className={cx(
-														"dialog-option",
-														answers[field.id] === option.value && "on",
-													)}
+							<div className="settings-box dialog-fields">
+								{request.fields.map((field) => {
+									const help = field.help ?? "";
+									const set = (value: string | boolean) =>
+										setAnswers({ ...answers, [field.id]: value });
+									if (field.kind === "text") {
+										return (
+											<Row key={field.id} label={field.label} help={help}>
+												<input
+													ref={input}
+													className="tb"
+													aria-label={field.label}
+													value={String(answers[field.id])}
+													onChange={(e) => set(e.target.value)}
+												/>
+											</Row>
+										);
+									}
+									if (field.kind === "select") {
+										return (
+											<Row key={field.id} label={field.label} help={help}>
+												<select
+													className="tb"
+													aria-label={field.label}
+													value={String(answers[field.id])}
+													onChange={(e) => set(e.target.value)}
 												>
-													<input
-														type="radio"
-														name={field.id}
-														checked={answers[field.id] === option.value}
-														onChange={() => setAnswers({ ...answers, [field.id]: option.value })}
-													/>
-													{option.label}
-												</label>
-											))}
-										</fieldset>
+													{field.options.map((option) => (
+														<option key={option.value} value={option.value}>
+															{option.label}
+														</option>
+													))}
+												</select>
+											</Row>
+										);
+									}
+									if (field.kind === "choice" && segmentable(field.options)) {
+										return (
+											<Row key={field.id} label={field.label} help={help}>
+												<span className="segmented" role="radiogroup" aria-label={field.label}>
+													{field.options.map((option) => {
+														const on = answers[field.id] === option.value;
+														return (
+															<button
+																key={option.value}
+																type="button"
+																role="radio"
+																aria-checked={on}
+																className={on ? "on" : undefined}
+																onClick={() => set(option.value)}
+															>
+																{option.script && (
+																	<ScriptIcon kind="nodescript" realm={option.script} size={14} />
+																)}
+																{option.label}
+															</button>
+														);
+													})}
+												</span>
+											</Row>
+										);
+									}
+									if (field.kind === "choice") {
+										return (
+											<fieldset key={field.id} className="setting dialog-choices">
+												<legend>{field.label}</legend>
+												{field.options.map((option) => (
+													<label
+														key={option.value}
+														className={cx(
+															"dialog-option",
+															answers[field.id] === option.value && "on",
+														)}
+													>
+														<input
+															type="radio"
+															name={field.id}
+															checked={answers[field.id] === option.value}
+															onChange={() => set(option.value)}
+														/>
+														{option.script && (
+															<ScriptIcon kind="nodescript" realm={option.script} size={14} />
+														)}
+														{option.label}
+													</label>
+												))}
+											</fieldset>
+										);
+									}
+									const on = offered(field) && answers[field.id] === true;
+									return (
+										<Row
+											key={field.id}
+											label={field.label}
+											help={offered(field) ? help : "Not offered with what is chosen above."}
+										>
+											<Toggle
+												on={on}
+												label={on ? "On" : "Off"}
+												disabled={!offered(field)}
+												onChange={set}
+											/>
+										</Row>
 									);
-								}
-								return (
-									<label
-										key={field.id}
-										className={cx(
-											"dialog-option dialog-check",
-											!offered(field) && "dialog-option-off",
-										)}
-									>
-										<input
-											type="checkbox"
-											disabled={!offered(field)}
-											checked={offered(field) && answers[field.id] === true}
-											onChange={(e) => setAnswers({ ...answers, [field.id]: e.target.checked })}
-										/>
-										{field.label}
-									</label>
-								);
-							})}
+								})}
+							</div>
 						</>
-					) : (
+					) : request.message ? (
 						<p>{request.message}</p>
-					)}
+					) : null}
 					{request.kind === "confirm" && request.diff && request.diff.length > 0 && (
 						<pre className="dialog-diff">
 							{request.diff.map((line, i) =>
@@ -341,12 +398,16 @@ export function Dialog({ request, resolve }: PendingDialog) {
 					)}
 					{items && items.length > 0 && (
 						<ul className="dialog-list">
-							{items.map((item) => (
-								<li key={item}>
-									<Icon name="document" size={13} />
-									<span>{item}</span>
-								</li>
-							))}
+							{items.map((item) => {
+								const { name, dir } = splitPath(item);
+								return (
+									<li key={item} title={item}>
+										<Icon name={itemIcon(item)} size={13} />
+										<span className="dialog-item-name">{name}</span>
+										{dir && <span className="dialog-item-dir">{dir}</span>}
+									</li>
+								);
+							})}
 						</ul>
 					)}
 				</div>

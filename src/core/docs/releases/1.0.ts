@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.11",
+		date: "2026-11-19",
+		headline: "Every modal window shares one look.",
+		changed: [
+			"**Modal windows** share one shell: rounder corners, one shadow, and one backdrop with a light blur. They open with a short fade, and not at all when the system asks for less motion.",
+			"**Every head** has a badge, the title and a line saying where or what, with × at the right. The pickers, Export, Selection preview and the pack and licence windows have it too.",
+			"**A form's fields** are drawn as Settings rows: two or three choices side by side, more as a list, and switches for every checkbox, in Export and Selection preview included.",
+			"**New graph** shows where it is and each script kind's icon. **Delete** names what goes in its title.",
+			"**On a narrow screen**, a dialog rises from the bottom as a sheet.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.10",
 		date: "2026-11-19",
 		headline: "The Place Viewer is the Place Editor; service pickers show their services.",
