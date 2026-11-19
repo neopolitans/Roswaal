@@ -350,7 +350,7 @@ export async function installZip(
 	}
 
 	// Not a Wally package: find its module and vendor it.
-	const projectFile = text("default.project.json");
+	const projectFile = text("default.project.json") ?? text("default.project.jsonc");
 	const treePath = projectFile
 		? (parseProject(projectFile) as { tree?: { $path?: unknown } } | undefined)?.tree?.$path
 		: undefined;

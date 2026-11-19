@@ -145,8 +145,8 @@ export function useProjectActions(context: ProjectActionsContext) {
 		async (projects: RojoProject[], offered?: "zip" | "folder", besides: RojoProject[] = []) => {
 			const sorted = [...projects].sort(
 				(a, b) =>
-					Number(b.file === "default.project.json") - Number(a.file === "default.project.json") ||
-					a.file.localeCompare(b.file),
+					Number(/^default\.project\.jsonc?$/.test(b.file)) -
+						Number(/^default\.project\.jsonc?$/.test(a.file)) || a.file.localeCompare(b.file),
 			);
 			const where = offered ? `The ${offered}` : "This project";
 			const mapName = (p: RojoProject) => p.mappedBy?.split("/").pop() ?? "";
@@ -225,7 +225,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 				if (projects.length === 0) {
 					notify(
 						"No Rojo project to import",
-						"There is no *.project.json in the project's root folder.",
+						"There is no *.project.json or *.project.jsonc in the project's root folder.",
 					);
 					return;
 				}

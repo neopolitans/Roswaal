@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.12",
+		date: "2026-11-19",
+		headline: "Rojo project files with comments, and .project.jsonc, are read.",
+		fixed: [
+			"**Rojo project files** with comments or trailing commas, which Rojo 7.6.1 and later accept, were read as not JSON. **.project.jsonc** files, which Rojo 7.7 added, were not found. Both are read now, by Import Rojo project, by requires that follow a folder's own project file, and by Wally's packages.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.11",
 		date: "2026-11-19",
 		headline: "Every modal window shares one look.",

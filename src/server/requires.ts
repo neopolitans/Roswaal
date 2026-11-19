@@ -9,6 +9,7 @@
  * not resolved, and hover says nothing rather than something wrong.
  */
 
+import { FOLDER_PROJECT_FILES } from "../core/jsonc.js";
 import { type DocComment, mergeDocs } from "../core/luau/docComment.js";
 import type { TableMember } from "../core/luau/infer.js";
 import { FROM_PROJECT, type InstanceOutline } from "../core/luau/instances.js";
@@ -74,12 +75,16 @@ class Resolver {
 			() => false,
 		);
 
-	/** Where a folder's own `default.project.json` points its tree, if it has one. */
+	/** Where a folder's own `default.project.json` (or `.jsonc`) points its tree, if it has one. */
 	private async projectPath(dir: string): Promise<string | null> {
 		if (this.projectPaths.has(dir)) return this.projectPaths.get(dir)!;
-		const text = await fs
-			.readFile(safeJoin(this.project.root, `${dir}/default.project.json`), "utf8")
-			.catch(() => null);
+		let text: string | null = null;
+		for (const name of FOLDER_PROJECT_FILES) {
+			text = await fs
+				.readFile(safeJoin(this.project.root, `${dir}/${name}`), "utf8")
+				.catch(() => null);
+			if (text !== null) break;
+		}
 		const tree =
 			text === null
 				? undefined

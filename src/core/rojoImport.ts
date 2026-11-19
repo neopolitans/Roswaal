@@ -15,6 +15,7 @@
  * before the file is taken over.
  */
 
+import { parseJsonc } from "./jsonc.js";
 import type { MapNode, NodeMap } from "./nodemap.js";
 import { SCHEMA_VERSION } from "./schema.js";
 
@@ -211,10 +212,10 @@ export function formatLike(json: string, existing: string | null): string {
 	return existing.includes("\r\n") ? out.replace(/\n/g, "\r\n") : out;
 }
 
-/** The parsed project file, or undefined when it is not JSON. */
+/** The parsed project file, or undefined when it is not JSON. Comments and trailing commas are allowed, as Rojo allows them. */
 export function parseProject(text: string): unknown {
 	try {
-		return JSON.parse(text);
+		return parseJsonc(text);
 	} catch {
 		return undefined;
 	}

@@ -186,6 +186,30 @@ describe("importing into a project", () => {
 		expect(compiled.written).toBe(false);
 	});
 
+	it("reads a .project.jsonc with comments, takes it over, and leaves it as written", async () => {
+		await project(GAME);
+		const commented = `{
+	// The lobby's own project, as Rojo 7.7 allows it.
+	"name": "Lobby",
+	"tree": {
+		"$className": "DataModel",
+		"ReplicatedStorage": { "$path": "src/shared", }, /* trailing comma */
+	},
+}
+`;
+		await writeFile(path.join(root, "lobby.project.jsonc"), commented);
+		const opened = await openProject(root);
+		expect((await findRojoProjects(opened)).map((p) => p.file)).toEqual([
+			"default.project.json",
+			"lobby.project.jsonc",
+		]);
+		const out = await importRojoProject(opened, "lobby.project.jsonc");
+		expect(out).toMatchObject({ file: "lobby.project.jsonc", takenOver: true, problems: [] });
+		const compiled = await compileMap(await openProject(root), out.mapPath, { write: true });
+		expect(compiled).toMatchObject({ written: true, unchanged: true });
+		expect(await readFile(path.join(root, "lobby.project.jsonc"), "utf8")).toBe(commented);
+	});
+
 	it("lists the project files, and which a map already writes", async () => {
 		await project(GAME);
 		const opened = await openProject(root);

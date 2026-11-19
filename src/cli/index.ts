@@ -277,7 +277,8 @@ async function commandImport(args: Args): Promise<number> {
 		);
 		return 2;
 	}
-	if (/\.project\.json$/i.test(given)) return commandImportRojo(path.resolve(launchedFrom, given));
+	if (/\.project\.jsonc?$/i.test(given))
+		return commandImportRojo(path.resolve(launchedFrom, given));
 	const placePath = path.resolve(launchedFrom, given);
 	const ext = path.extname(placePath).toLowerCase();
 	const stem = path.basename(placePath, path.extname(placePath));

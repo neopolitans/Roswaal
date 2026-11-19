@@ -6,6 +6,7 @@
  */
 
 import { serialiseScript } from "../core/compiler/index.js";
+import { isProjectFile } from "../core/jsonc.js";
 import { migrateScript } from "../core/migrate.js";
 import { compileNodeMap, isFilesystemMap, type NodeMap, serialiseMap } from "../core/nodemap.js";
 import { parseProject, projectPaths, projectToMap, sameProject } from "../core/rojoImport.js";
@@ -120,10 +121,10 @@ export interface RojoProjectFile {
 	paths: string[];
 }
 
-/** The `*.project.json` files in the project's root, for Import Rojo project. */
+/** The `*.project.json` and `*.project.jsonc` files in the project's root, for Import Rojo project. */
 export async function findRojoProjects(project: OpenProject): Promise<RojoProjectFile[]> {
 	const names = (await fs.readdir(project.root).catch(() => [] as string[]))
-		.filter((n) => n.endsWith(".project.json"))
+		.filter((n) => isProjectFile(n))
 		.sort((a, b) => a.localeCompare(b));
 	const owners = new Map<string, string>();
 	for (const mapPath of await collectMaps(project)) {

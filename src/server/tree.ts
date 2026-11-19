@@ -8,6 +8,7 @@
  */
 
 import { type FunctionInfo, functionOutline } from "../core/functionGraph.js";
+import { FOLDER_PROJECT_FILES } from "../core/jsonc.js";
 import { isFilesystemMap, type MapNode } from "../core/nodemap.js";
 import { PLACE_DIR } from "../core/rbx/placeImport.js";
 import { parseProject } from "../core/rojoImport.js";
@@ -173,9 +174,11 @@ async function moduleAt(project: OpenProject, base: string, depth = 0): Promise<
 		if (await isFile(candidate)) return candidate;
 	}
 	if (depth > 4) return null;
-	const text = await fs
-		.readFile(safeJoin(project.root, `${base}/default.project.json`), "utf8")
-		.catch(() => null);
+	let text: string | null = null;
+	for (const name of FOLDER_PROJECT_FILES) {
+		text = await fs.readFile(safeJoin(project.root, `${base}/${name}`), "utf8").catch(() => null);
+		if (text !== null) break;
+	}
 	const tree =
 		text === null
 			? undefined
