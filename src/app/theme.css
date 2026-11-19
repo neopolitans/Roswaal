@@ -5854,7 +5854,6 @@ button.start-tile:disabled {
 }
 
 .map-head .tb.with-icon,
-.map-layout.segmented button,
 .map-view.segmented button {
 	display: inline-flex;
 	align-items: center;
@@ -6053,235 +6052,306 @@ button.pathchip:hover {
 	border-color: var(--accent);
 }
 
-/* The tree as a graph: a column a level, left to right, wired from parent to
-   child, over the canvas's grid. The + on a node's right edge adds inside it. */
-.mapg {
-	position: relative;
-	flex: 1;
-	min-height: 0;
-	display: flex;
-}
-
-.mapg-scroll {
-	flex: 1;
-	min-width: 0;
-	min-height: 0;
-	overflow: auto;
-	outline: none;
-	background-color: var(--bg-canvas);
+/* A node map on the canvas: the canvas's own nodes, wires and comments, with
+   Syncs from as a pin on each node and its folder's state under it. */
+.node.map-node .head {
 	cursor: grab;
 }
 
-.mapg-scroll:active {
-	cursor: grabbing;
-}
-
-.mapg-scroll:focus-visible {
-	box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent);
-}
-
-.mapg-plane {
-	position: relative;
-}
-
-.mapg-wires {
-	position: absolute;
-	inset: 0;
-	pointer-events: none;
-}
-
-/* The tree's wires: the canvas's flow wires, header to header. */
-.mapg-wire {
-	fill: none;
-	stroke: var(--wire-exec);
-	stroke-width: 2.4;
-	stroke-linecap: round;
-}
-
-.mapg-wire.disk {
-	stroke-dasharray: 5 5;
-	opacity: 0.7;
-}
-
-/* A map node is the canvas's `.node`; these are only where it differs. It
-   is picked rather than dragged about, so no grab hand. */
-.mapg-node.node,
-.mapg-node.node .head {
-	cursor: default;
-}
-
-.mapg-node .head .lines {
+.node.map-node .head .lines {
 	flex: 1;
-}
-
-.mapg-head-end {
-	display: flex;
-	flex: none;
-	align-items: center;
-	gap: 4px;
-}
-
-.mapg-rows {
-	display: grid;
-	gap: 2px;
-	padding: 4px 9px 6px;
-}
-
-.mapg-row {
-	display: flex;
-	align-items: center;
 	min-width: 0;
-	height: 24px;
-	font-size: 11px;
 }
 
-.mapg-seg.segmented {
-	display: flex;
-	width: 100%;
-}
-
-.mapg-seg.segmented button {
-	flex: 1;
-	padding: 2px 6px;
-	font-size: 11px;
-	white-space: nowrap;
-}
-
-.mapg-say {
+.node.map-node .head .title {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	color: var(--fg-muted);
 }
 
-/* A folder on disk the map does not name, faint and dashed; one not synced
-   at all, dashed; one where the rule would not put it, in the warning colour. */
-.mapg-node.node.mapg-disk {
-	background: color-mix(in srgb, var(--node-body) 75%, transparent);
-	border-style: dashed;
-	box-shadow: none;
+.node.map-node .head-pin {
+	cursor: crosshair;
 }
 
-.mapg-node.node.mapg-unsynced {
-	border-style: dashed;
-}
-
-.mapg-node.node.mapg-odd {
-	border-color: var(--warning);
-}
-
-.mapg-node.node.mapg-drop {
-	box-shadow: 0 0 0 2px var(--select), var(--node-shadow);
-}
-
-.mapg-fold {
-	flex: none;
-	display: inline-flex;
-	margin-left: auto;
-	padding: 1px;
-	color: var(--fg-faint);
-	background: none;
-	border: 0;
-	border-radius: 4px;
+.node.map-node .literal.map-path {
+	flex: 1;
+	width: auto;
+	min-width: 0;
+	display: flex;
+	align-items: center;
+	gap: 3px;
+	text-align: left;
 	cursor: pointer;
 }
 
-.mapg-fold:hover {
+.node.map-node .literal.picker.map-path {
+	font-family: var(--mono, ui-monospace, monospace);
+	font-size: var(--text-xs);
 	color: var(--fg);
-	background: var(--bg-hover);
 }
 
-.mapg-other {
-	display: flex;
-	align-items: center;
-	gap: 5px;
-	min-width: 0;
-	font: 10.5px "Cascadia Mono", Consolas, monospace;
-	color: var(--fg-muted);
-	white-space: nowrap;
-}
-
-.mapg-other > svg {
-	flex: none;
-}
-
-.mapg-other span {
+.node.map-node .literal.map-path .preview {
+	flex: 1;
 	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
-.mapg-other.warn {
+.node.map-node .literal.picker.map-path:hover {
+	border-color: var(--accent);
+}
+
+.node.map-node .literal.picker.map-path.odd {
+	border-color: var(--warning);
 	color: var(--warning);
 }
 
-.mapg-other.bad {
+.node.map-node.map-odd {
+	border-color: color-mix(in srgb, var(--warning) 70%, var(--node-border));
+}
+
+.node.map-node.map-target {
+	border-color: var(--accent);
+	box-shadow:
+		0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent),
+		var(--node-shadow);
+}
+
+.node.map-node .map-status {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--text-xs);
+	color: var(--fg-faint);
+}
+
+.node.map-node .map-status.warn {
+	color: var(--warning);
+}
+
+.node.map-node .map-status.bad {
 	color: var(--danger);
 }
 
-.mapg-other.faint {
-	color: var(--fg-faint);
-	font-family: inherit;
-	font-size: 11px;
+.map-seg.segmented {
+	display: flex;
+	flex: 1;
+	min-width: 0;
 }
 
-.mapg-other.link {
-	cursor: pointer;
+.map-seg.segmented button {
+	flex: 1;
+	padding: 1px 6px;
+	font-size: var(--text-xs);
+	white-space: nowrap;
 }
 
-.mapg-other.link:hover span {
-	text-decoration: underline;
+/* What dropping off a pin places: the picker's first suggestion. */
+.node.map-node.map-ghost {
+	opacity: 0.72;
+	border-style: dashed;
+	box-shadow: none;
+	pointer-events: none;
 }
 
-/* The reading rule, floating over the graph's corner. */
-.mapg-rule {
+/* Where a picked-up wire would go, beside the pointer. */
+.map-tip {
 	position: absolute;
-	right: 12px;
-	bottom: 12px;
-	width: min(280px, calc(100% - 24px));
+	z-index: 40;
 	display: grid;
-	gap: 4px;
-	padding: 8px 10px;
-	font-size: 11.5px;
+	gap: 2px;
+	max-width: 280px;
+	padding: 7px 10px;
+	border: 1px solid var(--accent);
+	border-radius: var(--radius-md);
 	background: var(--bg-panel);
-	border: 1px solid var(--border-strong);
-	border-radius: 12px;
 	box-shadow: var(--shadow-raised);
+	font-size: var(--text-sm);
+	pointer-events: none;
 }
 
-.mapg-rule.shut {
-	width: auto;
-}
-
-.mapg-rule p {
-	display: flex;
-	gap: 6px;
-	margin: 0;
-	line-height: 1.4;
-}
-
-.mapg-rule-head {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	padding: 0;
-	font: inherit;
-	color: var(--accent);
-	background: none;
-	border: 0;
-	cursor: pointer;
-	text-align: left;
-}
-
-.mapg-rule-count {
-	margin-left: auto;
-	padding-left: 8px;
+.map-tip span {
 	color: var(--fg-muted);
-	font-weight: 500;
 }
 
-.mapg-rule-count.odd {
-	color: var(--warning);
+/* A comment's note, under its title: what a project file has no place for. */
+/* Opaque while edited, so a node under it does not show through its tools. */
+.comment.map-comment.map-editing {
+	background: color-mix(in srgb, var(--comment-color) 18%, var(--bg-panel));
+}
+
+.comment.map-comment .map-comment-text {
+	padding: 6px 9px;
+	overflow: hidden;
+	font-size: var(--text-sm);
+	line-height: 1.4;
+	color: var(--fg-muted);
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.comment.map-comment .map-comment-title {
+	width: 100%;
+	padding: 1px 4px;
+	border: 0;
+	border-radius: var(--radius-xs);
+	background: rgba(0, 0, 0, 0.28);
+	color: #fff;
+	font: inherit;
+}
+
+.comment.map-comment .map-comment-note {
+	display: block;
+	box-sizing: border-box;
+	width: calc(100% - 12px);
+	min-height: 56px;
+	margin: 6px;
+	padding: 4px 6px;
+	resize: vertical;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-xs);
+	background: var(--bg-input);
+	color: var(--fg);
+	font: inherit;
+	font-size: var(--text-sm);
+}
+
+.comment.map-comment .map-comment-tools {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px;
+	padding: 0 6px 6px;
+}
+
+.comment.map-comment .map-comment-tools .sp {
+	flex: 1;
+}
+
+.map-swatch {
+	width: 14px;
+	height: 14px;
+	padding: 0;
+	border: 1px solid rgba(0, 0, 0, 0.3);
+	border-radius: var(--radius-xs);
+	cursor: pointer;
+}
+
+.map-swatch.on {
+	outline: 2px solid var(--select);
+	outline-offset: 1px;
+}
+
+.comment.map-comment .map-comment-resize {
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	width: 16px;
+	height: 16px;
+	cursor: nwse-resize;
+}
+
+.comment.map-comment .map-comment-resize::after {
+	content: "";
+	position: absolute;
+	right: 4px;
+	bottom: 4px;
+	width: 6px;
+	height: 6px;
+	border-right: 2px solid color-mix(in srgb, var(--comment-color) 85%, transparent);
+	border-bottom: 2px solid color-mix(in srgb, var(--comment-color) 85%, transparent);
+}
+
+/* The picker off a node's out pin: the node picker's look, one column. */
+.menu.node-picker.map-add {
+	width: min(310px, calc(100vw - 24px));
+	max-height: min(480px, 70vh);
+}
+
+.node-picker.map-add .node-picker-field input {
+	font-size: var(--text-md);
+}
+
+.node-picker.map-add .node-picker-list {
+	flex: 1;
+	min-height: 0;
+	border-right: 0;
+}
+
+.node-picker.map-add .node-picker-hit {
+	align-items: center;
+}
+
+.node-picker.map-add .node-picker-hit > svg,
+.node-picker.map-add .node-picker-hit > .class-icon {
+	flex: none;
+}
+
+/* Comment comes last here, so its rule is above it. */
+.node-picker.map-add .node-picker-comments {
+	margin: 6px 0 0;
+	padding: 6px 0 0;
+	border-top: 1px solid var(--border);
+	border-bottom: 0;
+}
+
+.node-picker-hit.map-dim {
+	opacity: 0.5;
+	cursor: default;
+}
+
+/* Syncs from: the project's folders, the choice, Optional, and the two answers. */
+.menu.map-sync {
+	width: min(340px, calc(100vw - 24px));
+	max-height: min(520px, 80vh);
+	gap: 8px;
+	padding: 10px;
+}
+
+.map-sync .folder-pick {
+	flex: 1;
+	min-height: 0;
+}
+
+.map-sync-head {
+	display: grid;
+	gap: 2px;
+}
+
+.map-sync-head .linkish {
+	justify-self: start;
+	font-size: var(--text-xs);
+}
+
+.map-sync-choice {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-family: var(--mono, ui-monospace, monospace);
+	font-size: var(--text-xs);
+	color: var(--fg-muted);
+}
+
+.map-sync-optional {
+	display: grid;
+	gap: 2px;
+	font-size: var(--text-xs);
+	color: var(--fg-faint);
+}
+
+.map-sync-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 6px;
+}
+
+/* The map's tools after its tab: Graph and List as icons. */
+.segmented.icon-seg button {
+	display: inline-flex;
+	align-items: center;
+	padding: 3px 7px;
 }
 
 /* The reading rule, and the mappings that break it. */

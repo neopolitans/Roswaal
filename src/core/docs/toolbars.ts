@@ -1608,8 +1608,7 @@ export const GRAPH_SETTINGS: ToolbarSpec = {
 export const MAP_BAR: ToolbarSpec = {
 	id: "map-bar",
 	title: "With a node map open",
-	summary:
-		"The map's tab and nothing after it, and Write project file where Compile script would be.",
+	summary: "The map's tab, its tools, and Write project file where Compile script would be.",
 	chrome: "float",
 	groups: [
 		{
@@ -1622,9 +1621,40 @@ export const MAP_BAR: ToolbarSpec = {
 					kind: "nodemap",
 					on: true,
 					name: "The map",
+					what: "Its tab names it. Its Rojo project's name is in This map.",
+				},
+			],
+		},
+		{
+			items: [
+				{
+					t: "icon",
+					icon: "plus",
+					name: "Add",
+					where: "In Graph",
 					what:
-						"Its tab names it. Its Rojo project's name is in This map. A map has no graph " +
-						"tools, so nothing follows.",
+						"Opens the picker beside the picked node: the folders the reading rule puts in it, " +
+						"classes, and Comment. Dragging off a node's out pin does the same, where you let go.",
+				},
+				{
+					t: "icon",
+					icon: "straighten",
+					name: "Realign",
+					where: "In Graph",
+					what: "Lays the map out again, a column a level.",
+				},
+				{
+					t: "icon",
+					icon: "graph",
+					on: true,
+					name: "Graph",
+					what: "The map on the canvas, as a graph.",
+				},
+				{
+					t: "icon",
+					icon: "vpExplorer",
+					name: "List",
+					what: "The map as rows, read from the DataModel or from the output folder.",
 				},
 			],
 		},

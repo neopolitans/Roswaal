@@ -26,6 +26,13 @@ export interface RojoImport {
 }
 
 /** Keys of a project node a map models; anything else starting `$` rides along. */
+/** Rojo's optional path, `{ "optional": "…" }` and nothing else; undefined for any other form. */
+function optionalPath(value: unknown): string | undefined {
+	if (!isObject(value)) return undefined;
+	const keys = Object.keys(value);
+	return keys.length === 1 && typeof value.optional === "string" ? value.optional : undefined;
+}
+
 const MODELLED = new Set(["$className", "$path", "$properties", "$ignoreUnknownInstances"]);
 
 /** Top-level keys a map models. */
@@ -104,13 +111,21 @@ export function projectToMap(
 				node.statedClass = true;
 			} else {
 				node.className = className;
-				if (className === "Folder" && typeof raw.$path === "string") node.statedClass = true;
+				if (
+					className === "Folder" &&
+					(typeof raw.$path === "string" || optionalPath(raw.$path) !== undefined)
+				)
+					node.statedClass = true;
 			}
 		} else if (className !== undefined) {
 			extra.$className = className;
 		}
+		const optional = optionalPath(raw.$path);
 		if (typeof raw.$path === "string") node.path = raw.$path;
-		else if (raw.$path !== undefined) extra.$path = raw.$path;
+		else if (optional !== undefined) {
+			node.path = optional;
+			node.optional = true;
+		} else if (raw.$path !== undefined) extra.$path = raw.$path;
 		if (isObject(raw.$properties)) node.properties = raw.$properties;
 		else if (raw.$properties !== undefined) extra.$properties = raw.$properties;
 		if (raw.$ignoreUnknownInstances === true) node.ignoreUnknown = true;

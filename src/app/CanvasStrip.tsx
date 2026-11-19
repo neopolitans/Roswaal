@@ -130,7 +130,7 @@ function zoomTo(zoom: number) {
  * clusters. Fitting the graph to the whole canvas would put its ends behind
  * the Project card and the Inspector.
  */
-function freeBox(box: DOMRect): { x: number; y: number; w: number; h: number } {
+export function freeBox(box: DOMRect): { x: number; y: number; w: number; h: number } {
 	const left = document
 		.querySelector(".workspace > .dock.left:not(.drawer)")
 		?.getBoundingClientRect();

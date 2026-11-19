@@ -9,6 +9,23 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.18",
+		date: "2026-11-20",
+		headline: "A node map opens on the canvas, as a graph does.",
+		added: [
+			"**A node map on the canvas.** The DataModel is on the left, and a wire runs from each node to what it holds. Pan, zoom and move nodes as on a graph. Their places are kept in the `.nodemap`, and **Realign** lays the map out again.",
+			"**Syncs from** on each node picks the folder Rojo fills it from, or **Pass through**. **Optional** writes Rojo's optional path, so a missing folder passes through instead of failing. Instance has it too, and importing a Rojo project reads it.",
+			"**Drag a wire off a node's out pin** for a picker of the folders the reading rule puts there, classes and Comment, placed where you let go. Drop the wire on a node instead to move that node here.",
+			"**Pick up a node's incoming wire** and drop it on another node to move it there. Its folder moves too, with its graphs. Moved into a node that syncs its folder, a plain folder is folded in.",
+			"**Comments on a map**, with a title and a note. They are kept in the `.nodemap`, and the project file never sees them.",
+		],
+		changed: [
+			"**Add, Realign, and Graph or List** follow the map's tab. A map opens in Graph; List keeps the rows.",
+			"**A mapping the reading rule would not give** shows its warning under its node.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.17",
 		date: "2026-11-20",
 		headline: "The top bar gives its room to the tabs.",

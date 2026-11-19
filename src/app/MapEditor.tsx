@@ -24,11 +24,9 @@
  */
 
 import {
-	type CSSProperties,
 	type DragEvent,
 	type KeyboardEvent,
 	type ReactNode,
-	type PointerEvent as ReactPointerEvent,
 	useEffect,
 	useMemo,
 	useRef,
@@ -39,6 +37,7 @@ import { type MapFigureLine, mapFigure } from "../core/docs/mapFigure.js";
 import {
 	landingOf,
 	mapAt,
+	moveByRule,
 	newFolderFor,
 	passThrough,
 	type RuleException,
@@ -57,6 +56,7 @@ import {
 	emptyMap,
 	findMapNode,
 	isFilesystemMap,
+	type MapComment,
 	type MapCompileResult,
 	type MapNode,
 	mapNodeMove,
@@ -72,7 +72,7 @@ import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import { ExplorerIcon } from "./ExplorerIcon.jsx";
 import { FolderPicker } from "./FolderPicker.jsx";
-import { Icon, type IconName } from "./icons.jsx";
+import { Icon } from "./icons.jsx";
 import { Menu, MenuSurface } from "./Menu.jsx";
 import {
 	entryAt,
@@ -85,7 +85,6 @@ import {
 } from "./mapDisk.js";
 import type { MenuSection } from "./menuModel.js";
 import type { MenuAnchor } from "./menuPlace.js";
-import { trackPointer } from "./pointer.js";
 import { Toggle } from "./settingsParts.jsx";
 import { showEntry } from "./showEntry.js";
 import { newId } from "./store.js";
@@ -95,7 +94,7 @@ const HISTORY_LIMIT = 50;
 /** A row of a map dragged within the tree. */
 const MAP_DRAG = "application/x-roswaal-map";
 /** Files and folders dragged from the Project panel. */
-const TREE_DRAG = "application/x-roswaal";
+export const TREE_DRAG = "application/x-roswaal";
 
 /** What the editor is handed: the open map, and what it needs of the project. */
 export interface MapEditorInput {
@@ -112,6 +111,12 @@ export interface MapEditorInput {
 	onChange: (next: NodeMap) => void;
 	/** Makes a folder inside `parent`, asking its name; the Project panel's New folder. */
 	onNewFolder?: (parent: string) => void;
+	/**
+	 * Writes `next`, then moves the graph folder `from` into `toDir` as the
+	 * Project panel does, and reads the map back: a node moved on the canvas
+	 * takes its graphs with it, so Rojo still finds their Luau.
+	 */
+	onMoveFolder?: (next: NodeMap, from: string, toDir: string) => Promise<void>;
 }
 
 /** What is picked: a node of the map, or a folder on disk the map does not name. */
@@ -167,6 +172,17 @@ export interface MapEditing extends MapEditorInput {
 	/** Files directly in a pass-through node's rule folder, which nothing syncs. */
 	looseFiles: (id: string) => number;
 	isFolderPath: (path: string) => boolean;
+	/** List or Graph, as this browser last chose. */
+	layout: "list" | "graph";
+	setLayout: (layout: "list" | "graph") => void;
+	/** Gives nodes their places on the map's graph, as one change. */
+	place: (at: ReadonlyMap<string, { x: number; y: number }>) => void;
+	/** Moves a node under another; on a DataModel map its rule folder follows. */
+	reparent: (id: string, parent: string) => void;
+	/** Syncs a node from `path`, optional or not, or makes it pass through with none. */
+	setSyncFrom: (id: string, path: string | undefined, optional: boolean) => void;
+	/** Replaces the map's comments, as one change. */
+	setComments: (next: MapComment[]) => void;
 }
 
 const LAYOUT_KEY = "roswaal.mapLayout";
@@ -174,9 +190,9 @@ const LAYOUT_KEY = "roswaal.mapLayout";
 /** List or Graph, as this browser last chose. */
 function readLayoutChoice(): "list" | "graph" {
 	try {
-		return localStorage.getItem(LAYOUT_KEY) === "graph" ? "graph" : "list";
+		return localStorage.getItem(LAYOUT_KEY) === "list" ? "list" : "graph";
 	} catch {
-		return "list";
+		return "graph";
 	}
 }
 
@@ -194,10 +210,10 @@ const NO_MAP = emptyMap("", "none", () => "none");
 const looksLikeFolder = (path: string): boolean =>
 	!/\.[A-Za-z]+$/.test(path.split("/").pop() ?? "");
 
-const filesText = (count: number): string => `${count} file${count === 1 ? "" : "s"}`;
+export const filesText = (count: number): string => `${count} file${count === 1 ? "" : "s"}`;
 
 /** What a folder's chip says after its path, and how it is drawn. */
-function stateWords(state: FolderState): { text: string; tone: string; title: string } {
+export function stateWords(state: FolderState): { text: string; tone: string; title: string } {
 	switch (state.kind) {
 		case "files":
 			return { text: filesText(state.count), tone: "ok", title: "Rojo syncs this folder." };
@@ -231,7 +247,7 @@ function nodeWithPath(root: MapNode, at: string): MapNode | undefined {
 }
 
 /** A name not yet used under `parent`. */
-function freeName(parent: MapNode, base: string): string {
+export function freeName(parent: MapNode, base: string): string {
 	const taken = new Set(parent.children.map((one) => one.name));
 	if (!taken.has(base)) return base;
 	let n = 2;
@@ -257,6 +273,7 @@ export function useMapEditor(input: MapEditorInput | null): MapEditing | null {
 	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
 	const [history, setHistory] = useState<NodeMap[]>([]);
 	const [view, setView] = useState<"dm" | "src">("dm");
+	const [layout, setLayoutState] = useState<"list" | "graph">(readLayoutChoice);
 	// Another map opened: start it afresh, rather than with this one's picks.
 	if (opened !== path) {
 		setOpened(path);
@@ -550,6 +567,77 @@ export function useMapEditor(input: MapEditorInput | null): MapEditing | null {
 		return stems.size;
 	};
 
+	const place = (at: ReadonlyMap<string, { x: number; y: number }>) => {
+		if (at.size === 0) return;
+		const visit = (node: MapNode): MapNode => {
+			const pos = at.get(node.id);
+			return {
+				...node,
+				...(pos ? { pos: { x: Math.round(pos.x), y: Math.round(pos.y) } } : {}),
+				children: node.children.map(visit),
+			};
+		};
+		commit({ ...map, root: visit(map.root) });
+	};
+
+	/**
+	 * Moves a node under another. On a DataModel map the folders the rule gave
+	 * it follow it, and where its graphs are already on disk they move too, as
+	 * a drag in the Project panel moves them: a map pointing at a folder its
+	 * Luau had left would sync an empty one. A move on disk is not undone by
+	 * Undo, so the history before it is let go.
+	 */
+	const reparent = (id: string, parent: string) => {
+		const root = filesystem
+			? mapNodeMove(map.root, id, parent, "inside")
+			: moveByRule(map, outDir, id, parent);
+		if (root === map.root) return;
+		const next = { ...map, root };
+		const move = filesystem ? undefined : diskMove(id, parent);
+		if (move && input.onMoveFolder) {
+			setHistory([]);
+			void input.onMoveFolder(next, move.from, move.toDir);
+			return;
+		}
+		commit(next);
+	};
+
+	/** The graph folder a move of `id` under `parent` takes with it, if it has one on disk. */
+	const diskMove = (id: string, parent: string): { from: string; toDir: string } | undefined => {
+		const node = findMapNode(map.root, id);
+		const from = rulePath(outDir, trailOf(map, id));
+		if (!node || (node.path && normalisePath(node.path) !== from)) return undefined;
+		const graphs = graphFolderOf(from, outDir, sourceDir);
+		const toDir = graphFolderOf(rulePath(outDir, trailOf(map, parent)), outDir, sourceDir);
+		if (!graphs || !toDir || entryAt(tree, graphs)?.kind !== "directory") return undefined;
+		return { from: graphs, toDir };
+	};
+
+	const setSyncFrom = (id: string, at: string | undefined, optional: boolean) => {
+		if (at === undefined) {
+			setSync(id, false);
+			return;
+		}
+		// The rule's own folder folds plain mappings inside it, as Syncs does.
+		const own = normalisePath(at) === rulePath(outDir, trailOf(map, id));
+		const base = own ? syncHere(map, outDir, id) : map.root;
+		commit({
+			...map,
+			root: mapNodeUpdate(base, id, (node) => {
+				const { optional: _was, ...rest } = node;
+				return { ...rest, path: at, ...(optional ? { optional: true } : {}) };
+			}),
+		});
+	};
+
+	const setComments = (next: MapComment[]) =>
+		commit({ ...map, ...(next.length ? { comments: next } : { comments: undefined }) });
+
+	const setLayout = (next: "list" | "graph") => {
+		setLayoutState(next);
+		writeLayoutChoice(next);
+	};
+
 	const toggle = (key: string) =>
 		setCollapsed((was) => {
 			const next = new Set(was);
@@ -590,6 +678,12 @@ export function useMapEditor(input: MapEditorInput | null): MapEditing | null {
 		showFolder,
 		addDiskFolder,
 		isFolderPath,
+		layout,
+		setLayout,
+		place,
+		reparent,
+		setSyncFrom,
+		setComments,
 	};
 }
 
@@ -597,13 +691,13 @@ export function useMapEditor(input: MapEditorInput | null): MapEditing | null {
 // The tree, in the centre
 // ---------------------------------------------------------------------------
 
-const RULE_HELP =
+export const RULE_HELP =
 	"The reading rule: a folder named for a service lands in that service; src/shared, " +
 	"src/server and src/client land where Rojo's template puts them; anything else lands " +
 	"inside its parent, as a Folder. A mapping whose folder the rule would not give it is an exception.";
 
 /** The Explorer's icon for a node, with the map's mark where it syncs a folder. */
-function NodeIcon({
+export function NodeIcon({
 	node,
 	root,
 	filesystem,
@@ -646,7 +740,6 @@ export function MapTreeView({ ed }: { ed: MapEditing }) {
 	} | null>(null);
 	const [dropAt, setDropAt] = useState<{ key: string; where: Where } | null>(null);
 	const [showExceptions, setShowExceptions] = useState(false);
-	const [layout, setLayout] = useState<"list" | "graph">(readLayoutChoice);
 	const rowsBox = useRef<HTMLDivElement>(null);
 	const fileName = ed.path.split("/").pop() ?? ed.path;
 
@@ -787,26 +880,6 @@ export function MapTreeView({ ed }: { ed: MapEditing }) {
 	const current = ed.current;
 	const folderParent = current && current !== map.root && !current.file ? current : null;
 
-	/** A node's + in the graph: a service at the root, a folder anywhere else. */
-	function addAt(row: Row, at: Element) {
-		const node = row.node;
-		ed.setPick(row.pick);
-		if (filesystem) {
-			if (node && !node.file) ed.addChild(node.id, { id: newId(), name: "folder", children: [] });
-		} else if (view === "src" || !node) {
-			if (row.folder) ed.addDiskFolder(row.folder);
-		} else if (node === map.root) {
-			serviceMenu(at);
-		} else {
-			ed.addFolder(node.id);
-		}
-	}
-
-	const chooseLayout = (next: "list" | "graph") => {
-		setLayout(next);
-		writeLayoutChoice(next);
-	};
-
 	return (
 		<div className="map-editor map-cards modal-shell">
 			<section className="map-card map-tree" aria-label="The map">
@@ -818,24 +891,6 @@ export function MapTreeView({ ed }: { ed: MapEditing }) {
 						</span>
 					</span>
 					<span className="sp" />
-					<div className="segmented map-layout" role="tablist" aria-label="Draw the map as">
-						<button
-							type="button"
-							className={cx(layout === "list" && "on")}
-							title="The tree as rows, one under another"
-							onClick={() => chooseLayout("list")}
-						>
-							List
-						</button>
-						<button
-							type="button"
-							className={cx(layout === "graph" && "on")}
-							title="The tree as a graph, left to right, with a + on each node to add inside it"
-							onClick={() => chooseLayout("graph")}
-						>
-							Graph
-						</button>
-					</div>
 					{!filesystem && (
 						<div className="segmented map-view" role="tablist" aria-label="Read the map from">
 							<button
@@ -923,79 +978,60 @@ export function MapTreeView({ ed }: { ed: MapEditing }) {
 					</button>
 				</header>
 
-				{layout === "graph" ? (
-					<MapGraphView
-						ed={ed}
-						isPicked={isPicked}
-						dropKey={dropAt?.key ?? null}
-						onMenu={rowMenu}
-						onAdd={addAt}
-						onKey={onRowsKey}
-						onDragOver={onRowDragOver}
-						onDrop={onRowDrop}
-						onDropAway={(e) => {
-							e.preventDefault();
-							setDropAt(null);
-							const raw = e.dataTransfer.getData(TREE_DRAG);
-							if (raw) ed.mapDropped(JSON.parse(raw) as string[]);
-						}}
-					/>
-				) : (
-					<div
-						className="map-rows"
-						ref={rowsBox}
-						role="tree"
-						aria-label={fileName}
-						tabIndex={0}
-						onKeyDown={onRowsKey}
-						onDragLeave={(e) => {
-							if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropAt(null);
-						}}
-					>
-						{rows.map((row) => (
-							<MapRowView
-								key={row.key}
-								ed={ed}
-								row={row}
-								picked={isPicked(row)}
-								drop={dropAt?.key === row.key ? dropAt.where : null}
-								onPick={() => {
-									ed.setPick(row.pick);
-									rowsBox.current?.focus({ preventScroll: true });
-								}}
-								onMenu={(at) => rowMenu(row, at)}
-								onDragStart={(e) => {
-									if (!row.node || row.node === map.root) return;
-									e.dataTransfer.setData(MAP_DRAG, row.node.id);
-									e.dataTransfer.effectAllowed = "move";
-								}}
-								onDragOver={(e) => onRowDragOver(e, row)}
-								onDrop={(e) => onRowDrop(e, row)}
-							/>
-						))}
-						{!filesystem && (
-							<div
-								className={cx("map-drop", dropAt?.key === "end" && "on")}
-								onDragOver={(e) => {
-									if (!e.dataTransfer.types.includes(TREE_DRAG)) return;
-									e.preventDefault();
-									e.dataTransfer.dropEffect = "copy";
-									setDropAt({ key: "end", where: "inside" });
-								}}
-								onDrop={(e) => {
-									e.preventDefault();
-									setDropAt(null);
-									const raw = e.dataTransfer.getData(TREE_DRAG);
-									if (raw) ed.mapDropped(JSON.parse(raw) as string[]);
-								}}
-							>
-								Drop a folder from Graphs or Output here to map it.
-							</div>
-						)}
-					</div>
-				)}
+				<div
+					className="map-rows"
+					ref={rowsBox}
+					role="tree"
+					aria-label={fileName}
+					tabIndex={0}
+					onKeyDown={onRowsKey}
+					onDragLeave={(e) => {
+						if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropAt(null);
+					}}
+				>
+					{rows.map((row) => (
+						<MapRowView
+							key={row.key}
+							ed={ed}
+							row={row}
+							picked={isPicked(row)}
+							drop={dropAt?.key === row.key ? dropAt.where : null}
+							onPick={() => {
+								ed.setPick(row.pick);
+								rowsBox.current?.focus({ preventScroll: true });
+							}}
+							onMenu={(at) => rowMenu(row, at)}
+							onDragStart={(e) => {
+								if (!row.node || row.node === map.root) return;
+								e.dataTransfer.setData(MAP_DRAG, row.node.id);
+								e.dataTransfer.effectAllowed = "move";
+							}}
+							onDragOver={(e) => onRowDragOver(e, row)}
+							onDrop={(e) => onRowDrop(e, row)}
+						/>
+					))}
+					{!filesystem && (
+						<div
+							className={cx("map-drop", dropAt?.key === "end" && "on")}
+							onDragOver={(e) => {
+								if (!e.dataTransfer.types.includes(TREE_DRAG)) return;
+								e.preventDefault();
+								e.dataTransfer.dropEffect = "copy";
+								setDropAt({ key: "end", where: "inside" });
+							}}
+							onDrop={(e) => {
+								e.preventDefault();
+								setDropAt(null);
+								const raw = e.dataTransfer.getData(TREE_DRAG);
+								if (raw) ed.mapDropped(JSON.parse(raw) as string[]);
+							}}
+						>
+							Drop a folder from Graphs or Output here to map it.
+						</div>
+					)}
+				</div>
 
-				{!filesystem && layout === "list" && (
+				{!filesystem && (
 					<footer className="map-rule">
 						{exceptions.length === 0 ? (
 							<span className="map-rule-ok" title="Every folder is where the reading rule puts it">
@@ -1305,495 +1341,6 @@ function MapRowView(props: MapRowViewProps) {
 }
 
 // ---------------------------------------------------------------------------
-// The tree as a graph
-// ---------------------------------------------------------------------------
-
-/**
- * A map node is drawn as a graph node: the canvas's own `.node`, header and
- * tab, so it reads as one and follows every theme the canvas does. Its rows
- * are its settings -- whether it syncs a folder or passes through -- and its
- * flow pins are where the tree's wires join, header to header.
- */
-const CARD_W = 252;
-const HEAD_H = 30;
-const CARD_H = HEAD_H + 2 * 26 + 10;
-/** Room under a node for its "+ Add" strip, which hangs below it. */
-const COLUMN = CARD_W + 72;
-const ROW_STEP = CARD_H + 40;
-const PAD = 32;
-
-/** A node's category colour: what it is in the tree, as the canvas colours a node's kind. */
-const MAP_COLOURS = {
-	root: "#5a6474",
-	service: "#2c7676",
-	instance: "#2f6f8f",
-	disk: "#6d7480",
-	directory: "#5b5fa6",
-	file: "#6f4f9b",
-} as const;
-
-export interface Placed {
-	row: Row;
-	x: number;
-	y: number;
-	children: Placed[];
-}
-
-/**
- * The rows laid out left to right: a column a level, each parent level with
- * the middle of its children, leaves one under another.
- */
-export function placeRows(rows: Row[]): { roots: Placed[]; width: number; height: number } {
-	const roots: Placed[] = [];
-	const stack: Placed[] = [];
-	for (const row of rows) {
-		const one: Placed = { row, x: PAD + row.depth * COLUMN, y: 0, children: [] };
-		while (stack.length > row.depth) stack.pop();
-		const parent = stack[stack.length - 1];
-		if (parent) parent.children.push(one);
-		else roots.push(one);
-		stack.push(one);
-	}
-	let next = 0;
-	let deepest = 0;
-	const place = (one: Placed) => {
-		deepest = Math.max(deepest, one.row.depth);
-		if (one.children.length === 0) {
-			one.y = PAD + next * ROW_STEP;
-			next++;
-			return;
-		}
-		for (const child of one.children) place(child);
-		one.y = (one.children[0].y + one.children[one.children.length - 1].y) / 2;
-	};
-	for (const root of roots) place(root);
-	return {
-		roots,
-		width: PAD * 2 + deepest * COLUMN + CARD_W + 24,
-		height: PAD * 2 + Math.max(1, next) * ROW_STEP,
-	};
-}
-
-interface MapGraphViewProps {
-	ed: MapEditing;
-	isPicked: (row: Row) => boolean;
-	dropKey: string | null;
-	onMenu: (row: Row, at: MenuAnchor) => void;
-	onAdd: (row: Row, at: Element) => void;
-	onKey: (e: KeyboardEvent<HTMLDivElement>) => void;
-	onDragOver: (e: DragEvent, row: Row) => void;
-	onDrop: (e: DragEvent, row: Row) => void;
-	onDropAway: (e: DragEvent) => void;
-}
-
-function MapGraphView(props: MapGraphViewProps) {
-	const { ed } = props;
-	const [ruleOpen, setRuleOpen] = useState(true);
-	const box = useRef<HTMLDivElement>(null);
-	const laid = useMemo(() => placeRows(ed.rows), [ed.rows]);
-	const all: Placed[] = [];
-	const visit = (one: Placed) => {
-		all.push(one);
-		for (const child of one.children) visit(child);
-	};
-	for (const root of laid.roots) visit(root);
-
-	// Drag the empty canvas to move about it.
-	function onPanDown(e: ReactPointerEvent<HTMLDivElement>) {
-		const target = e.target as Element;
-		if (e.button !== 0 || target.closest(".mapg-node, .mapg-rule")) return;
-		const el = box.current;
-		if (!el) return;
-		el.focus({ preventScroll: true });
-		const start = { x: e.clientX, y: e.clientY, left: el.scrollLeft, top: el.scrollTop };
-		trackPointer(e, {
-			move: (ev) => {
-				el.scrollLeft = start.left - (ev.clientX - start.x);
-				el.scrollTop = start.top - (ev.clientY - start.y);
-			},
-		});
-	}
-
-	// From the flow out at a node's header to the flow in at its child's, as
-	// the canvas wires a run of steps.
-	const wire = (from: Placed, to: Placed) => {
-		const x1 = from.x + CARD_W + 12;
-		const y1 = from.y + HEAD_H / 2;
-		const x2 = to.x - 12;
-		const y2 = to.y + HEAD_H / 2;
-		const bend = Math.max(24, (x2 - x1) / 2);
-		return `M${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`;
-	};
-
-	return (
-		<div className="mapg">
-			<div
-				className="mapg-scroll grid-surface"
-				ref={box}
-				role="tree"
-				aria-label="The map as a graph"
-				tabIndex={0}
-				onKeyDown={props.onKey}
-				onPointerDown={onPanDown}
-				onDragOver={(e) => {
-					if (!e.dataTransfer.types.includes(TREE_DRAG) || ed.filesystem) return;
-					e.preventDefault();
-					e.dataTransfer.dropEffect = "copy";
-				}}
-				onDrop={props.onDropAway}
-			>
-				<div className="mapg-plane" style={{ width: laid.width, height: laid.height }}>
-					<svg className="mapg-wires" width={laid.width} height={laid.height} aria-hidden="true">
-						{all.flatMap((one) =>
-							one.children.map((child) => (
-								<path
-									key={`${one.row.key}>${child.row.key}`}
-									d={wire(one, child)}
-									className={cx("mapg-wire", !child.row.node && "disk")}
-								/>
-							)),
-						)}
-					</svg>
-					{all.map((one) => (
-						<GraphNode
-							key={one.row.key}
-							ed={ed}
-							placed={one}
-							picked={props.isPicked(one.row)}
-							drop={props.dropKey === one.row.key}
-							onMenu={(at) => props.onMenu(one.row, at)}
-							onAdd={(at) => props.onAdd(one.row, at)}
-							onDragOver={(e) => props.onDragOver(e, one.row)}
-							onDrop={(e) => {
-								e.stopPropagation();
-								props.onDrop(e, one.row);
-							}}
-							onPick={() => {
-								ed.setPick(one.row.pick);
-								box.current?.focus({ preventScroll: true });
-							}}
-						/>
-					))}
-				</div>
-			</div>
-			{!ed.filesystem && (
-				<aside className={cx("mapg-rule", !ruleOpen && "shut")}>
-					<button type="button" className="mapg-rule-head" onClick={() => setRuleOpen(!ruleOpen)}>
-						<Icon name="chevron" size={12} className={cx("map-rule-chev", ruleOpen && "open")} />
-						<b>Reading rule</b>
-						<span className={cx("mapg-rule-count", ed.exceptions.length > 0 && "odd")}>
-							{ed.exceptions.length === 0
-								? "followed"
-								: ed.exceptions.length === 1
-									? "1 exception"
-									: `${ed.exceptions.length} exceptions`}
-						</span>
-					</button>
-					{ruleOpen && (
-						<>
-							<p>
-								<span className="map-check">✓</span>A folder named for a service lands in that
-								service
-							</p>
-							<p>
-								<span className="map-check">✓</span>shared, server and client land where Rojo's
-								template puts them
-							</p>
-							<p>
-								<span className="map-check">✓</span>Anything else lands inside its parent, as a
-								Folder
-							</p>
-							{ed.exceptions.map((one) => (
-								<button
-									type="button"
-									key={one.node}
-									className="map-rule-row"
-									onClick={() => ed.setPick({ kind: "node", id: one.node })}
-								>
-									<b>{one.trail.join(" › ")}</b>
-									<span>
-										{one.path} <i>rule: {one.expected}</i>
-									</span>
-								</button>
-							))}
-						</>
-					)}
-				</aside>
-			)}
-		</div>
-	);
-}
-
-interface GraphNodeProps {
-	ed: MapEditing;
-	placed: Placed;
-	picked: boolean;
-	drop: boolean;
-	onPick: () => void;
-	onMenu: (at: MenuAnchor) => void;
-	onAdd: (at: Element) => void;
-	onDragOver: (e: DragEvent) => void;
-	onDrop: (e: DragEvent) => void;
-}
-
-/** What a node is, in a word, and its category: the header's subtitle and tab. */
-function nodeKind(ed: MapEditing, row: Row): { word: string; colour: string; tab: IconName } {
-	const node = row.node;
-	if (ed.filesystem) {
-		if (node === ed.map.root)
-			return { word: "Project folder", colour: MAP_COLOURS.root, tab: "folder" };
-		return node?.file
-			? { word: "File", colour: MAP_COLOURS.file, tab: "luauScript" }
-			: { word: "Directory", colour: MAP_COLOURS.directory, tab: "folder" };
-	}
-	if (ed.view === "src") {
-		return node
-			? { word: "Folder · mapped", colour: MAP_COLOURS.instance, tab: "map" }
-			: { word: "Folder on disk", colour: MAP_COLOURS.disk, tab: "folder" };
-	}
-	if (!node) return { word: "Folder on disk", colour: MAP_COLOURS.disk, tab: "folder" };
-	if (node === ed.map.root) return { word: "DataModel", colour: MAP_COLOURS.root, tab: "map" };
-	if (!node.className) return { word: "Service", colour: MAP_COLOURS.service, tab: "instance" };
-	return { word: node.className, colour: MAP_COLOURS.instance, tab: "instance" };
-}
-
-/** A node's first row: whether it syncs a folder, or how it comes to be in Studio. */
-function SyncRow({ ed, row }: { ed: MapEditing; row: Row }) {
-	const node = row.node;
-	if (ed.filesystem) {
-		if (!node || node === ed.map.root)
-			return <span className="mapg-say">the project's own folder</span>;
-		return (
-			<div className="segmented mapg-seg" role="group" aria-label="Kind">
-				<button
-					type="button"
-					className={cx(!node.file && "on")}
-					onClick={() => ed.updateNode(node.id, { file: undefined })}
-				>
-					Directory
-				</button>
-				<button
-					type="button"
-					className={cx(node.file && "on")}
-					onClick={() => ed.updateNode(node.id, { file: true })}
-				>
-					File
-				</button>
-			</div>
-		);
-	}
-	if (ed.view === "src" && row.folder) {
-		const folder = row.folder;
-		const at = normalisePath(folder);
-		const landing = landingOf(ed.map, folder);
-		const through =
-			!landing && mappedPaths(ed.map.root).some((one) => one.base.startsWith(`${at}/`));
-		if (through) return <span className="mapg-say">passes through to what is mapped inside</span>;
-		if (landing && !node) return <span className="mapg-say">synced by the folder above</span>;
-		const rule = ruleLanding(ed.outDir, folder);
-		return (
-			<div className="segmented mapg-seg" role="group" aria-label="Synced">
-				<button
-					type="button"
-					className={cx(node && "on")}
-					disabled={!node && !rule}
-					title={
-						node || rule
-							? "Map this folder where the reading rule puts it"
-							: "Named for no service: drag it onto an instance to map it there"
-					}
-					onClick={() => !node && ed.setFolderSync(folder, true)}
-				>
-					Synced
-				</button>
-				<button
-					type="button"
-					className={cx(!node && "on")}
-					onClick={() => node && ed.setFolderSync(folder, false)}
-				>
-					Not synced
-				</button>
-			</div>
-		);
-	}
-	if (!node) return <span className="mapg-say">synced by the folder above</span>;
-	if (node === ed.map.root) return <span className="mapg-say">writes {ed.map.output}</span>;
-	const syncs = node.path !== undefined;
-	return (
-		<div className="segmented mapg-seg" role="group" aria-label="Sync">
-			<button
-				type="button"
-				className={cx(syncs && "on")}
-				title="Rojo fills it from its own folder, the one the reading rule gives it"
-				onClick={() => !syncs && ed.setSync(node.id, true)}
-			>
-				Syncs
-			</button>
-			<button
-				type="button"
-				className={cx(!syncs && "on")}
-				title="It syncs nothing itself: it holds what is mapped under it"
-				onClick={() => syncs && ed.setSync(node.id, false)}
-			>
-				Passes through
-			</button>
-		</div>
-	);
-}
-
-function GraphNode(props: GraphNodeProps) {
-	const { ed, placed } = props;
-	const row = placed.row;
-	const node = row.node;
-	const root = node === ed.map.root;
-	const facts = describeRow(ed, row);
-	const kind = nodeKind(ed, row);
-	const shut = ed.collapsed.has(row.key);
-	const canAdd = !(node?.file ?? false);
-	const detail = facts.detail;
-	return (
-		<div
-			className={cx(
-				"node",
-				"mapg-node",
-				props.picked && "node--selected",
-				!node && "mapg-disk",
-				facts.unsynced && "mapg-unsynced",
-				detail?.odd && "mapg-odd",
-				props.drop && "mapg-drop",
-			)}
-			style={
-				{ left: placed.x, top: placed.y, width: CARD_W, "--cat": kind.colour } as CSSProperties
-			}
-			role="treeitem"
-			aria-selected={props.picked}
-			aria-expanded={row.parent ? !shut : undefined}
-			data-control={node?.id}
-			draggable={!!node && !root}
-			onClick={props.onPick}
-			onDoubleClick={(e) => {
-				if ((e.target as Element).closest("button")) return;
-				if (row.parent) ed.toggle(row.key);
-			}}
-			onContextMenu={(e) => {
-				e.preventDefault();
-				props.onMenu({ x: e.clientX, y: e.clientY });
-			}}
-			onDragStart={(e) => {
-				if (!node || root) return;
-				e.dataTransfer.setData(MAP_DRAG, node.id);
-				e.dataTransfer.effectAllowed = "move";
-			}}
-			onDragOver={props.onDragOver}
-			onDrop={props.onDrop}
-		>
-			<div className="head two-line">
-				<span className="tab">
-					<Icon name={kind.tab} size={16} />
-				</span>
-				<span className="lines">
-					<span className="title">{facts.name}</span>
-					<span className="subtitle">{kind.word}</span>
-				</span>
-				<span className="mapg-head-end">
-					{facts.icon}
-					{row.parent && (
-						<button
-							type="button"
-							className="mapg-fold"
-							title={shut ? "Show what is inside" : "Fold what is inside"}
-							aria-label={shut ? "Unfold" : "Fold"}
-							onClick={(e) => {
-								e.stopPropagation();
-								ed.toggle(row.key);
-							}}
-						>
-							<Icon name="chevron" size={12} className={cx("map-chev", !shut && "open")} />
-						</button>
-					)}
-				</span>
-			</div>
-			<div className="mapg-rows">
-				<div className="mapg-row">
-					<SyncRow ed={ed} row={row} />
-				</div>
-				<div
-					className={cx(
-						"mapg-row",
-						"mapg-other",
-						detail ? detail.tone : "faint",
-						detail?.folder && "link",
-					)}
-					title={detail?.title}
-					onClick={(e) => {
-						const folder = detail?.folder;
-						if (!folder) return;
-						e.stopPropagation();
-						ed.showFolder(folder);
-					}}
-				>
-					{detail ? (
-						<>
-							{detail.icon ?? (detail.folder ? <Icon name="folder" size={11} /> : null)}
-							<span>{detail.text}</span>
-						</>
-					) : (
-						<span>{facts.quiet}</span>
-					)}
-				</div>
-			</div>
-			{!root && (
-				<span className="head-pin in" style={{ top: HEAD_H / 2 }}>
-					<span className="pin exec connected" style={{ color: "var(--wire-exec)" }}>
-						<span className="dot" />
-					</span>
-				</span>
-			)}
-			{canAdd && (
-				<span className="head-pin out" style={{ top: HEAD_H / 2 }}>
-					<span
-						className={cx("pin exec", placed.children.length > 0 && "connected")}
-						style={{ color: "var(--wire-exec)" }}
-					>
-						<span className="dot" />
-					</span>
-				</span>
-			)}
-			{canAdd && (
-				<button
-					type="button"
-					className="add-row"
-					title={addTitle(ed, row)}
-					onClick={(e) => {
-						e.stopPropagation();
-						props.onAdd(e.currentTarget);
-					}}
-				>
-					+ {addLabel(ed, row)}
-				</button>
-			)}
-		</div>
-	);
-}
-
-/** What a node's "+ Add" strip adds, in its words and in full. */
-function addLabel(ed: MapEditing, row: Row): string {
-	if (ed.filesystem) return "Add directory";
-	if (ed.view !== "src" && row.node === ed.map.root) return "Add service";
-	return "Add folder";
-}
-
-function addTitle(ed: MapEditing, row: Row): string {
-	if (ed.filesystem) return "A directory inside it";
-	if (ed.view === "src") return "A folder inside it, on disk";
-	if (row.node === ed.map.root) return "A service, synced from its folder in the output folder";
-	if (!row.node) return "A folder inside it, on disk";
-	return row.node.path
-		? "A folder inside it, on disk: Rojo brings it in"
-		: "A folder inside it, its path from the reading rule";
-}
-
-// ---------------------------------------------------------------------------
 // The panels around it
 // ---------------------------------------------------------------------------
 
@@ -2033,6 +1580,19 @@ function NodeFields({ ed, node }: { ed: MapEditing; node: MapNode }) {
 						</span>
 					</Field>
 				)}
+				{!filesystem && !root && node.path !== undefined && (
+					<Field
+						label="Optional"
+						part="optional"
+						help="A missing folder passes through instead of failing."
+					>
+						<Toggle
+							on={node.optional ?? false}
+							label={node.optional ? "Optional" : "Required"}
+							onChange={(on) => patch({ optional: on || undefined })}
+						/>
+					</Field>
+				)}
 				{!filesystem && !root && (
 					<Field
 						label="Ignore unknown"
@@ -2112,7 +1672,7 @@ function NodeFields({ ed, node }: { ed: MapEditing; node: MapNode }) {
 }
 
 /** The folders Choose… starts from: the output folder, then the rest of the project's. */
-function folderRoots(tree: readonly TreeEntry[], outDir: string): string[] {
+export function folderRoots(tree: readonly TreeEntry[], outDir: string): string[] {
 	const out = normalisePath(outDir);
 	const tops = tree.filter((one) => one.kind === "directory" && !one.name.startsWith("."));
 	return [out, ...tops.map((one) => one.path).filter((one) => one !== out)];
@@ -2329,7 +1889,7 @@ export function MapFilePanel({ ed }: { ed: MapEditing }) {
 		return () => {
 			live = false;
 		};
-	}, [filesystem, dirty, map.output, compiled.json]);
+	}, [filesystem, dirty, map.output, compiled.json, ed.tree]);
 
 	// Bring the lit lines into view in the file, never the page.
 	useEffect(() => {

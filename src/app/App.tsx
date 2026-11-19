@@ -85,6 +85,7 @@ import {
 } from "./host.js";
 import { Inspector } from "./Inspector.jsx";
 import { IntroPanel } from "./IntroPanel.jsx";
+import { MapCanvas, MapStrip, MapTools } from "./MapCanvas.jsx";
 import {
 	MapFilePanel,
 	MapInstancePanel,
@@ -2002,6 +2003,22 @@ export function App() {
 					sourceDir: project.config.sourceDir,
 					onChange: (next) => store.editMap(mapDoc.path, next),
 					onNewFolder: onTreeNewFolder,
+					onMoveFolder: async (next, from, toDir) => {
+						const at = mapDoc.path;
+						store.editMap(at, next);
+						await onTreeMove([from], toDir);
+						// The server follows a move in every map it finds, as the Project
+						// panel needs. This one already says where its node went, so it is
+						// written again over that, project file and all, as the move wrote it.
+						try {
+							await api.writeMap(at, next);
+							store.markMapSaved(at, next);
+							await api.compileMap({ path: at, write: true, sync: true });
+							await refreshTree();
+						} catch (err) {
+							notify("The map was not written", errorMessage(err));
+						}
+					},
 				}
 			: null,
 	);
@@ -2178,7 +2195,9 @@ export function App() {
 									onReorder={(key, before) => store.reorder(key, before)}
 								/>
 								{mapDoc ? (
-									<DocumentBar kind="map" name={mapDoc.map.name} dirty={mapDoc.dirty} />
+									mapEd ? (
+										<MapTools ed={mapEd} />
+									) : null
 								) : graphOpen ? (
 									<DocumentBar
 										kind="graph"
@@ -2247,6 +2266,8 @@ export function App() {
 						viewer && viewport ? (
 							<viewer.ViewportBar controller={viewport} />
 						) : null
+					) : mapEd && mapEd.layout === "graph" ? (
+						<MapStrip ed={mapEd} />
 					) : graphOpen && editor.script ? (
 						<CanvasStrip
 							script={editor.script}
@@ -2666,7 +2687,15 @@ export function App() {
 									}}
 								/>
 							) : mapEd ? (
-								<MapTreeView ed={mapEd} />
+								mapEd.layout === "graph" ? (
+									<MapCanvas
+										ed={mapEd}
+										wireStyle={prefs.wireStyle}
+										wheel={wheelAction(prefs.wheel)}
+									/>
+								) : (
+									<MapTreeView ed={mapEd} />
+								)
 							) : source ? (
 								<SourceView
 									key={source.path}

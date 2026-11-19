@@ -88,7 +88,31 @@ export interface MapNode {
 	 * imported project file and written back as they were.
 	 */
 	rojo?: Record<string, unknown>;
+	/**
+	 * Rojo's optional path: a folder that is not there is skipped rather than
+	 * failing the build, and the instance passes through. Written as
+	 * `"$path": { "optional": "…" }`.
+	 */
+	optional?: boolean;
+	/** Where it sits in the map's graph, in world units. Absent, it is laid out. */
+	pos?: { x: number; y: number };
 	children: MapNode[];
+}
+
+/**
+ * A comment on the map's graph: a frame with a title and a note. Kept in the
+ * `.nodemap` and nowhere else -- a Rojo project file has no place for one.
+ */
+export interface MapComment {
+	id: string;
+	x: number;
+	y: number;
+	w: number;
+	h: number;
+	/** Its colour, `#rrggbb`. */
+	color: string;
+	title: string;
+	note?: string;
 }
 
 export interface NodeMap {
@@ -130,6 +154,8 @@ export interface NodeMap {
 	 * imported file and written back as they were.
 	 */
 	rojo?: Record<string, unknown>;
+	/** Comments on the map's graph, which the project file never sees. */
+	comments?: MapComment[];
 	/** The DataModel. Its children are services. */
 	root: MapNode;
 }
@@ -505,7 +531,7 @@ function buildTree(node: MapNode, isRoot: boolean): RojoNode {
 		// A service's class is its key, written out because the file did.
 		out.$className = node.name;
 	}
-	if (node.path) out.$path = node.path;
+	if (node.path) out.$path = node.optional ? { optional: node.path } : node.path;
 	if (node.properties && Object.keys(node.properties).length > 0) {
 		out.$properties = node.properties;
 	}
@@ -610,6 +636,7 @@ export function serialiseMap(map: NodeMap): string {
 					? { globIgnorePaths: map.globIgnorePaths }
 					: {}),
 				...(map.rojo && Object.keys(map.rojo).length ? { rojo: map.rojo } : {}),
+				...(map.comments && map.comments.length ? { comments: map.comments } : {}),
 				root: cleanNode(map.root),
 			},
 			null,
@@ -626,12 +653,14 @@ function cleanNode(node: MapNode): Record<string, unknown> {
 		...(node.className ? { className: node.className } : {}),
 		...(node.statedClass ? { statedClass: true } : {}),
 		...(node.path ? { path: node.path } : {}),
+		...(node.path && node.optional ? { optional: true } : {}),
 		...(node.properties && Object.keys(node.properties).length
 			? { properties: node.properties }
 			: {}),
 		...(node.ignoreUnknown ? { ignoreUnknown: true } : {}),
 		...(node.ignorePaths && node.ignorePaths.length ? { ignorePaths: node.ignorePaths } : {}),
 		...(node.rojo && Object.keys(node.rojo).length ? { rojo: node.rojo } : {}),
+		...(node.pos ? { pos: { x: Math.round(node.pos.x), y: Math.round(node.pos.y) } } : {}),
 		children: node.children.map(cleanNode),
 	};
 }

@@ -204,6 +204,73 @@ export function renameByRule(map: NodeMap, outDir: string, id: string, name: str
 }
 
 /**
+ * Moves a node under another, and the folders the rule gave it and everything
+ * under it with it: Tank moved into ServerScriptService goes from
+ * `src/ReplicatedStorage/Tank` to `src/ServerScriptService/Tank`. A folder that
+ * is an exception stays where it is. Unchanged for a move into itself, or of
+ * the root, or into what it is already under.
+ *
+ * Moved into a node that syncs its folder, a plain folder goes from the map,
+ * as Sync folds it: Rojo brings it in through that folder, and an entry of its
+ * own would sync it twice. `movedIn` says whether it would.
+ */
+export function moveByRule(map: NodeMap, outDir: string, id: string, parent: string): MapNode {
+	const moved = movedNode(map, outDir, id, parent);
+	if (!moved) return map.root;
+	const without = (one: MapNode): MapNode => ({
+		...one,
+		children: one.children.filter((child) => child.id !== id).map(without),
+	});
+	if (moved.folded) return without(map.root);
+	return mapNodeUpdate(without(map.root), parent, (one) => ({
+		...one,
+		children: [...one.children, moved.node],
+	}));
+}
+
+/**
+ * Where a move of `id` under `parent` leaves it: `folded` when the parent's
+ * folder brings it in, and null for a move that changes nothing.
+ */
+export function movedIn(
+	map: NodeMap,
+	outDir: string,
+	id: string,
+	parent: string,
+): { folded: boolean; path?: string } | null {
+	const moved = movedNode(map, outDir, id, parent);
+	return moved
+		? { folded: moved.folded, ...(moved.node.path ? { path: moved.node.path } : {}) }
+		: null;
+}
+
+function movedNode(
+	map: NodeMap,
+	outDir: string,
+	id: string,
+	parent: string,
+): { node: MapNode; folded: boolean } | null {
+	const node = findMapNode(map.root, id);
+	const target = findMapNode(map.root, parent);
+	if (!node || !target || node === map.root || findMapNode(node, parent)) return null;
+	if (mapNodeParent(map.root, id)?.id === parent) return null;
+	const from = rulePath(outDir, trailOf(map, id));
+	const to = rulePath(outDir, [...trailOf(map, parent), node.name]);
+	const follows = !node.path || normalisePath(node.path) === from;
+	const move = (one: MapNode): MapNode => {
+		const at = one.path === undefined ? undefined : normalisePath(one.path);
+		const path =
+			follows && at !== undefined && (at === from || at.startsWith(`${from}/`))
+				? to + at.slice(from.length)
+				: one.path;
+		return { ...one, ...(path === undefined ? {} : { path }), children: one.children.map(move) };
+	};
+	const moved = move(node);
+	const base = target.path === undefined ? undefined : normalisePath(target.path);
+	return { node: moved, folded: base !== undefined && absorbable(moved, base) };
+}
+
+/**
  * Makes the mappings down to `segments`, the last one syncing `path`, and
  * returns the tree with the last one's id: what "Map it" and a dropped folder
  * do. A service the map lacks is added as one; anything else between is a

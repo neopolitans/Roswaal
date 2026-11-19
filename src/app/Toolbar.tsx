@@ -374,28 +374,22 @@ export function ProjectBar(props: ProjectBarProps) {
  * The graph's name is its tab, drawn by `GraphTabs` beside this; its settings
  * are the Inspector's while nothing is selected. What is left here acts.
  */
-export type DocumentBarProps =
-	| {
-			kind: "map";
-			name: string;
-			dirty: boolean;
-	  }
-	| {
-			kind: "graph";
-			/** The graph is being compiled and must not be edited. */
-			locked: boolean;
-			/** How many nodes are selected; none previews the graph on screen. */
-			selected: number;
-			/** A function's graph is on screen, so an empty selection previews it. */
-			inFunction: boolean;
-			onAddNode: () => void;
-			onRealign: () => void;
-			/** Shows the Refactor panel, or hides it when it is showing. */
-			onRefactor: () => void;
-			/** The Refactor panel is showing. */
-			refactorOpen: boolean;
-			onPreview: () => void;
-	  };
+export type DocumentBarProps = {
+	kind: "graph";
+	/** The graph is being compiled and must not be edited. */
+	locked: boolean;
+	/** How many nodes are selected; none previews the graph on screen. */
+	selected: number;
+	/** A function's graph is on screen, so an empty selection previews it. */
+	inFunction: boolean;
+	onAddNode: () => void;
+	onRealign: () => void;
+	/** Shows the Refactor panel, or hides it when it is showing. */
+	onRefactor: () => void;
+	/** The Refactor panel is showing. */
+	refactorOpen: boolean;
+	onPreview: () => void;
+};
 
 /**
  * The graph's tools as entries of the More menu, on a phone, where the row has
@@ -417,10 +411,6 @@ export function graphMenuEntries(
 export function DocumentBar(props: DocumentBarProps) {
 	// On a phone the graph's tools are rows of the More menu instead.
 	const phone = usePhone();
-	// A node map's tab already names it, and its project's name is This map's;
-	// a group saying both again took the room the tabs need.
-	if (props.kind === "map") return null;
-
 	const previewTitle =
 		props.selected > 0
 			? "Preview — the Luau these nodes produced, in the generated file (P)"

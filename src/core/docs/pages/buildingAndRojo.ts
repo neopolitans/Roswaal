@@ -306,19 +306,36 @@ export function buildingAndRojoPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"**List** and **Graph** draw the same tree two ways: as rows, or left to right as " +
-					"graph nodes, each level a column. In the graph, **+ Add** under a node adds inside it: " +
-					"a service on the DataModel, a folder anywhere else. Drag the empty canvas to move " +
-					"about it.",
+					"**Graph** and **List**, after the map's tab, draw the same tree two ways. **Graph** " +
+					"opens the map on the canvas: the DataModel on the left, and a wire from each node to " +
+					"what it holds. Pan, zoom and move nodes as on a graph. Their places are kept in the " +
+					"`.nodemap`, and **Realign** lays them out again. **List** draws rows, with the " +
+					"switch that reads them from either end.",
 			},
 			{
 				t: "p",
 				text:
-					"**Sync** on each node says whether Rojo fills it from its own folder, or it only " +
-					"passes through to what is mapped under it. Switching to **Syncs** folds plain " +
-					"folders mapped inside it into that folder; switching to **Passes through** maps each " +
-					"folder inside it on its own. A node passing through says when files directly in its " +
-					"folder would not sync.",
+					"**Syncs from** on each node is the folder Rojo fills it from. Choose another, or " +
+					"**Pass through**: the node syncs nothing and holds what is wired under it, each " +
+					"folder inside mapped on its own. Choosing the rule's folder folds plain folders " +
+					"mapped inside it into that one. **Optional** writes Rojo's optional path, so a " +
+					"missing folder passes through instead of failing. A node passing through says when " +
+					"files directly in its folder would not sync.",
+			},
+			{
+				t: "p",
+				text:
+					"**Drag a wire off a node's out pin** into empty space for the picker: the folders the " +
+					"reading rule puts there, classes, and Comment. Drop it on another node instead to " +
+					"move that node here. **Pick up a node's incoming wire** and drop it on another node " +
+					"to move it there. The folder the rule gave it moves too, with its graphs. Moved into " +
+					"a node that syncs its folder, a plain folder is folded into it.",
+			},
+			{
+				t: "p",
+				text:
+					"**Comments** frame nodes with a title and a note. They are kept in the `.nodemap` " +
+					"and never reach the project file. Press `C`, or pick Comment, to add one.",
 			},
 			{
 				t: "table",
@@ -332,6 +349,10 @@ export function buildingAndRojoPage(): DocPage {
 					[
 						"Path",
 						"The folder or file on disk that fills the instance, inside the project. **Choose…** picks one. A folder under `src` is made when the map is written, with its mirror under `.roswaal/scripts` for the graphs; anything else is marked when Roswaal cannot find it",
+					],
+					[
+						"Optional",
+						"A missing folder passes through instead of failing, as Rojo's optional path",
 					],
 					["Ignore unknown", "Rojo leaves alone anything in Studio that it did not put there"],
 					[
@@ -347,7 +368,7 @@ export function buildingAndRojoPage(): DocPage {
 					"the Project panel to map it. In **This map**, **Writes** is the file it writes, " +
 					"**Place IDs**, **Game ID** and **Port** are Rojo's place settings, and " +
 					"**Project-wide ignores** go to Rojo as written. Anything wrong, such as two " +
-					"instances with one name, is listed under the tree.",
+					"instances with one name, is listed under the tree, and in Graph under its node.",
 			},
 			{
 				t: "note",
