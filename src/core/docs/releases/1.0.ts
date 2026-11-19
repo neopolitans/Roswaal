@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.10",
+		date: "2026-11-19",
+		headline: "The Place Viewer is the Place Editor; service pickers show their services.",
+		changed: [
+			"**The Place Viewer is now the Place Editor.** Its switch and settings carry over.",
+			"**Service pickers** on Get Service and the Instance node group services by purpose with their icons, as Add Service does; game, script, workspace and shared come first. A class picker shows its classes' icons.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.9",
 		date: "2026-11-19",
 		headline: "Nodes show the class they name.",

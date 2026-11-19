@@ -1,6 +1,6 @@
 /**
  * Sign in with Roblox as the editor knows it: asked of the daemon once, and
- * kept current by its `roblox` event, which the Place Viewer's manifest
+ * kept current by its `roblox` event, which the Place Editor's manifest
  * passes on here. Never a
  * token: the daemon holds those and the editor never sees one.
  */

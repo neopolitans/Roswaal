@@ -3,8 +3,8 @@
  * them up. Only the daemon imports this: it may need Node.
  */
 
-import { placeViewerDaemon } from "./placeViewer/server/daemon.js";
-import type { RobloxSignIn } from "./placeViewer/server/roblox/signin.js";
+import { placeEditorDaemon } from "./placeEditor/server/daemon.js";
+import type { RobloxSignIn } from "./placeEditor/server/roblox/signin.js";
 import type { ExtensionCapabilities } from "./server.js";
 
 export interface DaemonExtensionOptions {
@@ -22,10 +22,10 @@ export interface DaemonExtensions {
 }
 
 export function daemonExtensions(options: DaemonExtensionOptions): DaemonExtensions {
-	const placeViewer = placeViewerDaemon(options);
+	const placeEditor = placeEditorDaemon(options);
 	return {
-		capabilities: { placeViewer: placeViewer.capabilities },
-		afterStart: () => placeViewer.afterStart(),
-		close: () => placeViewer.close(),
+		capabilities: { placeEditor: placeEditor.capabilities },
+		afterStart: () => placeEditor.afterStart(),
+		close: () => placeEditor.close(),
 	};
 }

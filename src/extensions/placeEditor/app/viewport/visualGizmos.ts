@@ -1,5 +1,5 @@
 /**
- * The place viewer's gizmos, as Studio's visualization options draw them:
+ * The place editor's gizmos, as Studio's visualization options draw them:
  * Attachments, welds and mechanical constraints as wire lines over the view,
  * through whatever is in front, each kind switched on its own. What is picked
  * shows its own whichever are off, as Studio shows a picked Attachment or

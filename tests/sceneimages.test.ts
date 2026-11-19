@@ -11,7 +11,7 @@ import { describe, expect, it } from "vitest";
 import { outlinePlace } from "../src/core/rbx/browse.js";
 import type { Prop, PropType, RbxInstance } from "../src/core/rbx/dom.js";
 import { readRbx } from "../src/core/rbx/index.js";
-import { buildPlaceScene } from "../src/extensions/placeViewer/core/scene.js";
+import { buildPlaceScene } from "../src/extensions/placeEditor/core/scene.js";
 
 function inst(
 	className: string,
@@ -137,7 +137,7 @@ describe("M103", () => {
 describe("the images' triangles", () => {
 	it("are six vertices a quad in the scene's order, each position, normal, uv and tint", async () => {
 		const { imageQuads, IMAGE_VERTEX } = await import(
-			"../src/extensions/placeViewer/app/viewport/view.js"
+			"../src/extensions/placeEditor/app/viewport/view.js"
 		);
 		const quad = (asset: string, z: number, layer?: "solid" | "seeThrough") => ({
 			asset,
@@ -167,7 +167,7 @@ describe("the images' triangles", () => {
 	});
 
 	it("are drawn farthest first within their layer, only once their image is here", async () => {
-		const { imageOrder } = await import("../src/extensions/placeViewer/app/viewport/view.js");
+		const { imageOrder } = await import("../src/extensions/placeEditor/app/viewport/view.js");
 		const at = (asset: string, z: number, layer: "solid" | "seeThrough" = "solid") => ({
 			asset,
 			layer,
@@ -183,7 +183,7 @@ describe("the images' triangles", () => {
 describe("each image's triangles", () => {
 	it("turn anticlockwise seen from in front of the face, so they are not culled", async () => {
 		const { imageQuads, IMAGE_VERTEX } = await import(
-			"../src/extensions/placeViewer/app/viewport/view.js"
+			"../src/extensions/placeEditor/app/viewport/view.js"
 		);
 		for (const face of [0, 1, 2, 3, 4, 5]) {
 			const [image] = imagesOf(
@@ -212,7 +212,7 @@ describe("each image's triangles", () => {
 
 describe("a Decal asset", () => {
 	it("is followed to the image its model names", async () => {
-		const { decalImageOf } = await import("../src/extensions/placeViewer/app/viewport/images.js");
+		const { decalImageOf } = await import("../src/extensions/placeEditor/app/viewport/images.js");
 		const xml = new TextEncoder().encode(
 			'<roblox><Item class="Decal"><Properties><Content name="Texture"><url>http://www.roblox.com/asset/?id=987654</url></Content></Properties></Item></roblox>',
 		);

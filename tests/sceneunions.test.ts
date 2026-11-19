@@ -10,13 +10,13 @@ import { describe, expect, it } from "vitest";
 import { assetIdOf } from "../src/core/rbx/browse.js";
 import type { Prop, PropType, RbxInstance } from "../src/core/rbx/dom.js";
 import { writeBinaryPlace } from "../src/core/rbx/serialize.js";
-import { materialIndex } from "../src/extensions/placeViewer/core/materials.js";
+import { materialIndex } from "../src/extensions/placeEditor/core/materials.js";
 import {
 	buildPlaceScene,
 	type PlaceScene,
 	SCENE_KINDS,
 	SCENE_STRIDE,
-} from "../src/extensions/placeViewer/core/scene.js";
+} from "../src/extensions/placeEditor/core/scene.js";
 import {
 	addUnions,
 	childDataOf,
@@ -24,7 +24,7 @@ import {
 	unionOutline,
 	unionsWaiting,
 	withUnions,
-} from "../src/extensions/placeViewer/core/unions.js";
+} from "../src/extensions/placeEditor/core/unions.js";
 
 const utf8 = new TextEncoder();
 const IDENTITY = [1, 0, 0, 0, 1, 0, 0, 0, 1];

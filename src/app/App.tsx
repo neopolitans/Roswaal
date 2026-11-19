@@ -34,9 +34,9 @@ import { unformattedGroups, unformattedMessage, unformattedWhat } from "../core/
 import {
 	EXTENSIONS,
 	OUTLINE_WIDTHS,
-	PLACE_VIEWER,
-	type PlaceViewerModule,
-	type PlaceViewerSettings,
+	PLACE_EDITOR,
+	type PlaceEditorModule,
+	type PlaceEditorSettings,
 } from "../extensions/index.js";
 import { AliasDocument } from "./AliasDocument.jsx";
 import { analyseProject, graphLabel, mergeOutcomes } from "./analysis.js";
@@ -103,7 +103,7 @@ import {
 	rememberViewerChange,
 	targetAtPath,
 } from "./PlaceBrowser.jsx";
-import { PlaceViewerOff } from "./PlaceViewerOff.jsx";
+import { PlaceEditorOff } from "./PlaceEditorOff.jsx";
 import { ProjectPicker } from "./ProjectPicker.jsx";
 import { ProjectTree } from "./ProjectTree.jsx";
 import { setEditorOpener, setPageReady, switchMode, useOnShown, useShowing } from "./pageHost.jsx";
@@ -393,14 +393,14 @@ export function App() {
 	// An extension: loaded the first time a place's tab opens with it
 	// on, and never while it is off, so a browser that does not want it pays
 	// for none of it.
-	const placeViewer = useExtension(PLACE_VIEWER);
-	const sceneView = placeViewer.values as unknown as PlaceViewerSettings;
-	const [viewer, setViewer] = useState<PlaceViewerModule | null>(null);
-	const wantsViewer = placeViewer.on && placeDoc !== null;
+	const placeEditor = useExtension(PLACE_EDITOR);
+	const sceneView = placeEditor.values as unknown as PlaceEditorSettings;
+	const [viewer, setViewer] = useState<PlaceEditorModule | null>(null);
+	const wantsViewer = placeEditor.on && placeDoc !== null;
 	useEffect(() => {
 		if (!wantsViewer || viewer) return;
 		let live = true;
-		void PLACE_VIEWER.load().then((loaded) => {
+		void PLACE_EDITOR.load().then((loaded) => {
 			if (live) setViewer(loaded);
 		});
 		return () => {
@@ -410,7 +410,7 @@ export function App() {
 	// biome-ignore lint/correctness/useExhaustiveDependencies: a new project is a new view.
 	const viewport = useMemo(
 		() =>
-			viewer && placeViewer.on
+			viewer && placeEditor.on
 				? new viewer.ViewportController((indices) =>
 						setPlaceReveal((prev) => ({
 							index: indices.at(-1) ?? -1,
@@ -420,7 +420,7 @@ export function App() {
 						})),
 					)
 				: null,
-		[viewer, placeViewer.on, project?.root],
+		[viewer, placeEditor.on, project?.root],
 	);
 	const onPlaceSelect = useCallback(
 		(indices: readonly number[]) => viewport?.select(indices),
@@ -647,7 +647,7 @@ export function App() {
 		setPlaceWritten(stamp);
 	}, []);
 
-	// A drag in the place viewer, written into the place as Properties' changes
+	// A drag in the place editor, written into the place as Properties' changes
 	// are: the first asks, and Ctrl+Z takes it back.
 	useEffect(() => {
 		if (!viewport) return;
@@ -2467,9 +2467,9 @@ export function App() {
 								controller={viewport}
 								file={project.place}
 								renderer={sceneView.renderer}
-								onRenderer={(renderer) => placeViewer.set("renderer", renderer)}
+								onRenderer={(renderer) => placeEditor.set("renderer", renderer)}
 								frameRate={sceneView.frameRate}
-								onFrameRate={(frameRate) => placeViewer.set("frameRate", frameRate)}
+								onFrameRate={(frameRate) => placeEditor.set("frameRate", frameRate)}
 							/>
 						) : undefined,
 					),
@@ -2603,9 +2603,9 @@ export function App() {
 										written={placeWritten}
 									/>
 								) : (
-									<PlaceViewerOff
-										loading={placeViewer.on}
-										onTurnOn={() => placeViewer.setOn(true)}
+									<PlaceEditorOff
+										loading={placeEditor.on}
+										onTurnOn={() => placeEditor.setOn(true)}
 									/>
 								)
 							) : aliasDoc ? (

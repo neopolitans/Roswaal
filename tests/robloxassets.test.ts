@@ -17,7 +17,7 @@ import {
 	downloadRegistry,
 	isRobloxCdn,
 	LARGEST_ASSET,
-} from "../src/extensions/placeViewer/server/roblox/assets.js";
+} from "../src/extensions/placeEditor/server/roblox/assets.js";
 
 let base: string;
 beforeEach(async () => {

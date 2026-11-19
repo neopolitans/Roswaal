@@ -11,13 +11,13 @@ import {
 	lightGizmoLines,
 	lightLines,
 	nearLights,
-} from "../src/extensions/placeViewer/app/viewport/gizmos.js";
+} from "../src/extensions/placeEditor/app/viewport/gizmos.js";
 import {
 	LIGHT_POINT,
 	LIGHT_SPOT,
 	LIGHT_STRIDE,
 	LIGHT_SURFACE,
-} from "../src/extensions/placeViewer/core/scene.js";
+} from "../src/extensions/placeEditor/core/scene.js";
 
 /** One light as `sceneLights` lays it out. */
 function light(

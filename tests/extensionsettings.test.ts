@@ -15,7 +15,7 @@ import {
 } from "../src/app/extensionSettings.js";
 import { PREFERENCES_KEY } from "../src/app/preferences.js";
 import { parseVersion } from "../src/core/version.js";
-import { EXTENSIONS, PLACE_VIEWER } from "../src/extensions/index.js";
+import { EXTENSIONS, PLACE_EDITOR } from "../src/extensions/index.js";
 
 function memory(entries: Record<string, unknown> = {}) {
 	const kept = new Map(Object.entries(entries).map(([k, v]) => [k, JSON.stringify(v)]));
@@ -28,7 +28,7 @@ function memory(entries: Record<string, unknown> = {}) {
 
 describe("an extension's settings", () => {
 	it("start at its defaults, on as it says", () => {
-		const state = readExtension(PLACE_VIEWER, memory());
+		const state = readExtension(PLACE_EDITOR, memory());
 		expect(state.on).toBe(true);
 		expect(state.values).toEqual({
 			renderer: "auto",
@@ -43,7 +43,7 @@ describe("an extension's settings", () => {
 
 	it("carry over what Preferences held before the extension had a key", () => {
 		const state = readExtension(
-			PLACE_VIEWER,
+			PLACE_EDITOR,
 			memory({
 				[PREFERENCES_KEY]: {
 					placeViewer: false,
@@ -68,18 +68,31 @@ describe("an extension's settings", () => {
 	it("read the extension's own key over Preferences, once it has one", () => {
 		const storage = memory({
 			[PREFERENCES_KEY]: { placeViewer: false, outlineWidth: "thick" },
-			"roswaal.ext.placeViewer": { on: true, values: { outlineWidth: "thin" } },
+			"roswaal.ext.placeEditor": { on: true, values: { outlineWidth: "thin" } },
 		});
-		const state = readExtension(PLACE_VIEWER, storage);
+		const state = readExtension(PLACE_EDITOR, storage);
 		expect(state.on).toBe(true);
 		expect(state.values.outlineWidth).toBe("thin");
 	});
 
+	it("read the key it kept under a former id, until its own has one", () => {
+		// The Place Editor was the Place Viewer until 1.0.0-canary.10.
+		const storage = memory({
+			"roswaal.ext.placeViewer": { on: false, values: { outlineWidth: "thin" } },
+		});
+		expect(readExtension(PLACE_EDITOR, storage)).toMatchObject({
+			on: false,
+			values: { outlineWidth: "thin" },
+		});
+		storage.setItem("roswaal.ext.placeEditor", JSON.stringify({ on: true, values: {} }));
+		expect(readExtension(PLACE_EDITOR, storage).on).toBe(true);
+	});
+
 	it("put anything it does not offer back to the default", () => {
 		const state = readExtension(
-			PLACE_VIEWER,
+			PLACE_EDITOR,
 			memory({
-				"roswaal.ext.placeViewer": {
+				"roswaal.ext.placeEditor": {
 					on: "yes",
 					values: { renderer: "vulkan", glassHides: "no", unknown: 1 },
 				},
@@ -95,15 +108,15 @@ describe("an extension's settings", () => {
 		const storage = memory();
 		const next = {
 			on: false,
-			values: { ...readExtension(PLACE_VIEWER, storage).values, postEffects: false },
+			values: { ...readExtension(PLACE_EDITOR, storage).values, postEffects: false },
 		};
-		writeExtension(PLACE_VIEWER, next, storage);
-		expect(JSON.parse(storage.kept.get("roswaal.ext.placeViewer") ?? "{}")).toEqual(next);
-		expect(readExtension(PLACE_VIEWER, storage)).toEqual(next);
+		writeExtension(PLACE_EDITOR, next, storage);
+		expect(JSON.parse(storage.kept.get("roswaal.ext.placeEditor") ?? "{}")).toEqual(next);
+		expect(readExtension(PLACE_EDITOR, storage)).toEqual(next);
 	});
 
 	it("are marked only when not at their default", () => {
-		const outline = declaredSettings(PLACE_VIEWER).find((d) => d.key === "outlineWidth")!;
+		const outline = declaredSettings(PLACE_EDITOR).find((d) => d.key === "outlineWidth")!;
 		expect(isChanged(outline, "medium")).toBe(false);
 		expect(isChanged(outline, "thick")).toBe(true);
 	});

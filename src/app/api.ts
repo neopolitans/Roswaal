@@ -264,7 +264,7 @@ export type PlaceInstanceChange =
 			links?: { file: string; instances: { path: string[]; id?: string }[] }[];
 	  }
 	| {
-			/** Parts and Models moved whole by `by`, as the place viewer's drag moves them. */
+			/** Parts and Models moved whole by `by`, as the place editor's drag moves them. */
 			kind: "transform";
 			index: number;
 			items: number[];

@@ -1,5 +1,5 @@
 /**
- * A place's Attachments, welds and constraints, for the place viewer's
+ * A place's Attachments, welds and constraints, for the place editor's
  * gizmos: where each one is, read once from the DataModel and sent with the
  * scene, as plain numbers the viewer draws wire lines from (see
  * `../app/viewport/visualGizmos.ts`).

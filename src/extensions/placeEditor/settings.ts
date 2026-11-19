@@ -1,5 +1,5 @@
 /**
- * The Place Viewer's settings, declared for Settings to draw, and typed for the
+ * The Place Editor's settings, declared for Settings to draw, and typed for the
  * code that reads them.
  *
  * Each was a field of the editor's `Preferences` before the viewer was an
@@ -40,7 +40,7 @@ export const VIEWPORT_FRAME_RATES = [
 export type ViewportFrameRate = (typeof VIEWPORT_FRAME_RATES)[number]["value"];
 
 /** The settings as the viewer reads them. */
-export interface PlaceViewerSettings {
+export interface PlaceEditorSettings {
 	renderer: ViewportRenderer;
 	frameRate: ViewportFrameRate;
 	outlineWidth: OutlineWidth;

@@ -1,5 +1,5 @@
 /**
- * A place's Beams and ParticleEmitters as the place viewer draws them: what
+ * A place's Beams and ParticleEmitters as the place editor draws them: what
  * each one is, read once from the DataModel and sent with the scene, as plain
  * numbers the viewer animates every frame (see `../app/viewport/effects.ts`).
  *

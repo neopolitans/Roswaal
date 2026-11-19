@@ -210,7 +210,7 @@ export const DEFAULT_LAYOUT: Layout = {
 			// An even share of a side column, if it is moved to one.
 			weight: 3,
 		},
-		// The place viewer's view modes and switches: a window over the place,
+		// The place editor's view modes and switches: a window over the place,
 		// opened from the Panels menu.
 		render: {
 			dock: "right",
@@ -305,7 +305,7 @@ export const PANEL_EMPTY: Record<PanelId, string> = {
  */
 export type PanelContext = "graph" | "place" | "document" | "none";
 
-/** The place viewer's own panels: offered only with the place in front. */
+/** The place editor's own panels: offered only with the place in front. */
 export const PLACE_PANELS: ReadonlySet<PanelId> = new Set<PanelId>([
 	"render",
 	"performance",

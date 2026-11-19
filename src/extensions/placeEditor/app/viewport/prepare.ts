@@ -38,7 +38,7 @@ function sceneWorker(): Worker | null {
 	try {
 		worker = new Worker(new URL("./sceneWorker.js", import.meta.url), {
 			type: "module",
-			name: "roswaal-place-viewer",
+			name: "roswaal-place-editor",
 		});
 		worker.onmessage = (e: MessageEvent<SceneAnswer>) => {
 			waiting.get(e.data.id)?.(e.data);

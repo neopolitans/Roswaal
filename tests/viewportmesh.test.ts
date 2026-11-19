@@ -4,8 +4,8 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { meshFor } from "../src/extensions/placeViewer/app/viewport/geometry.js";
-import type { SCENE_KINDS } from "../src/extensions/placeViewer/core/scene.js";
+import { meshFor } from "../src/extensions/placeEditor/app/viewport/geometry.js";
+import type { SCENE_KINDS } from "../src/extensions/placeEditor/core/scene.js";
 
 /** Each triangle's winding normal and the corners' normals, by triangle. */
 function triangles(kind: (typeof SCENE_KINDS)[number]) {

@@ -84,7 +84,7 @@ type PageId = (typeof PAGES)[number]["id"];
 
 /**
  * A page in the list: one of the editor's own, an extension's own page
- * (`ext:placeViewer`), or a page an extension adds (`ext:placeViewer:scene`).
+ * (`ext:placeEditor`), or a page an extension adds (`ext:placeEditor:scene`).
  */
 type TabId = PageId | `ext:${string}`;
 

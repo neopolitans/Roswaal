@@ -8,7 +8,7 @@
  */
 
 import type { ExtensionManifest } from "./manifest.js";
-import { PLACE_VIEWER } from "./placeViewer/manifest.js";
+import { PLACE_EDITOR } from "./placeEditor/manifest.js";
 
 export type {
 	ExtensionAddition,
@@ -19,14 +19,14 @@ export type {
 	SettingDecl,
 	SettingGroup,
 } from "./manifest.js";
-export { PLACE_VIEWER, type PlaceViewerModule } from "./placeViewer/manifest.js";
+export { PLACE_EDITOR, type PlaceEditorModule } from "./placeEditor/manifest.js";
 export {
 	OUTLINE_WIDTHS,
 	type OutlineWidth,
-	type PlaceViewerSettings,
+	type PlaceEditorSettings,
 	type ViewportFrameRate,
 	type ViewportRenderer,
-} from "./placeViewer/settings.js";
+} from "./placeEditor/settings.js";
 
 /** Every extension, in the order Settings lists them. */
-export const EXTENSIONS: readonly ExtensionManifest[] = [PLACE_VIEWER];
+export const EXTENSIONS: readonly ExtensionManifest[] = [PLACE_EDITOR];

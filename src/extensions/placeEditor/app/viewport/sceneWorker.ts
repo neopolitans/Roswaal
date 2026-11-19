@@ -1,5 +1,5 @@
 /**
- * The place viewer's worker: work on a place that needs nothing but numbers,
+ * The place editor's worker: work on a place that needs nothing but numbers,
  * done off the page so the editor keeps answering while a place loads. Today
  * that is the lights' grid, the slowest of it by far. See `prepare.ts`.
  *

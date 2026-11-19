@@ -21944,7 +21944,7 @@ textarea.tb:where(:disabled) {
 	}
 }
 
-/* Rendering: the place viewer's switches, steps, views and frame stats. */
+/* Rendering: the place editor's switches, steps, views and frame stats. */
 .render-switch {
 	display: flex;
 	align-items: center;

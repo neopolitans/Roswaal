@@ -274,8 +274,8 @@ export function placesAndRojoPage(): DocPage {
 					"move as they do in Studio; a particle whose image is not downloaded is a soft dot. Its PointLights, " +
 					"SpotLights and SurfaceLights light it, Ambient lights where the sky cannot reach, " +
 					"and the sun casts shadows; the lights cast none yet, and the handles do " +
-					"not drag yet. To save memory, turn the place viewer " +
-					"off in **Settings › Place Viewer**; the place's tab then says so, and the " +
+					"not drag yet. To save memory, turn the place editor " +
+					"off in **Settings › Place Editor**; the place's tab then says so, and the " +
 					"DataModel tree and Properties still work.",
 			},
 

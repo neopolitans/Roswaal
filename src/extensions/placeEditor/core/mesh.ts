@@ -1,6 +1,6 @@
 /**
  * Roblox's mesh files (FileMesh), as a MeshPart or a SpecialMesh names them,
- * read into the triangles the place viewer draws: positions, normals,
+ * read into the triangles the place editor draws: positions, normals,
  * texture coordinates and faces, the full-detail level only.
  *
  * Written for Roswaal from the community's unofficial specification of the

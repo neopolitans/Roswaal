@@ -1,5 +1,5 @@
 /**
- * The place viewer's tools: 1 to 4 choose them, 1 with Select chosen puts it
+ * The place editor's tools: 1 to 4 choose them, 1 with Select chosen puts it
  * down, and with no tool the pointer moves the camera and picks nothing.
  */
 
@@ -11,7 +11,7 @@ import {
 	TOOLS,
 	toolAfter,
 	toolForKey,
-} from "../src/extensions/placeViewer/app/viewport/tools.js";
+} from "../src/extensions/placeEditor/app/viewport/tools.js";
 
 const mouse = (button: number, keys: { shift?: boolean; alt?: boolean } = {}) => ({
 	button,

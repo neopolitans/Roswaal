@@ -1,5 +1,5 @@
 /**
- * The Place Viewer's routes: the scene it draws, and Sign in with Roblox,
+ * The Place Editor's routes: the scene it draws, and Sign in with Roblox,
  * which fetches the meshes and images a place names.
  *
  * They join the session's route table through `src/extensions/server.ts`, so
@@ -31,10 +31,10 @@ export interface RobloxAssets {
 }
 
 /**
- * What a host gives the Place Viewer. The daemon passes both; the website
+ * What a host gives the Place Editor. The daemon passes both; the website
  * passes neither, and the Roblox routes answer 501 or `available: false`.
  */
-export interface PlaceViewerCapabilities {
+export interface PlaceEditorCapabilities {
 	/**
 	 * Sign in with Roblox. The sign-in and its tokens stay on this computer
 	 * (`roblox/signin.ts`).
@@ -46,19 +46,19 @@ export interface PlaceViewerCapabilities {
 
 type RouteHandler = (req: RouteRequest) => Promise<unknown>;
 
-/** The Place Viewer's routes for one session. */
-export function placeViewerRoutes(
+/** The Place Editor's routes for one session. */
+export function placeEditorRoutes(
 	ctx: ExtensionContext,
-	capabilities: PlaceViewerCapabilities = {},
+	capabilities: PlaceEditorCapabilities = {},
 ): Record<string, RouteHandler> {
 	/** Scenes built lately, by project and stamp, for `GET /place/scene`'s `since`. */
 	const scenes = new Map<string, { scene: PlaceScene; outline: PlaceOutline }>();
 	/** Each parsed place's scene, built the first time it is asked for. */
 	const built = new WeakMap<object, PlaceScene>();
 
-	function ability<K extends keyof PlaceViewerCapabilities>(
+	function ability<K extends keyof PlaceEditorCapabilities>(
 		name: K,
-	): NonNullable<PlaceViewerCapabilities[K]> {
+	): NonNullable<PlaceEditorCapabilities[K]> {
 		const able = capabilities[name];
 		if (!able) {
 			throw new HttpError(
@@ -66,7 +66,7 @@ export function placeViewerRoutes(
 				`This copy of Roswaal cannot do that: no ${name} is available here.`,
 			);
 		}
-		return able as NonNullable<PlaceViewerCapabilities[K]>;
+		return able as NonNullable<PlaceEditorCapabilities[K]>;
 	}
 
 	return {
@@ -175,7 +175,7 @@ export function placeViewerRoutes(
 		},
 
 		/**
-		 * One downloaded asset's bytes, for the place viewer to draw: base64,
+		 * One downloaded asset's bytes, for the place editor to draw: base64,
 		 * as every answer is JSON. Reads only, and asks Roblox nothing; an
 		 * asset not downloaded yet is `found: false`.
 		 */

@@ -951,7 +951,7 @@ export class ApiSession {
 			 * front of that child rather than last.
 			 *
 			 * A `transform` moves `items` (parts and Models) by `by`, a CFrame
-			 * the world is turned and moved by, as a drag in the place viewer
+			 * the world is turned and moved by, as a drag in the place editor
 			 * does: each part's CFrame and each Model's WorldPivot. Its undo, and
 			 * a `frames`'s, is a `frames` putting each back exactly: `sets` of
 			 * an index, a property and a position and rotation.

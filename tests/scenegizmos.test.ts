@@ -5,13 +5,13 @@
 
 import { describe, expect, it } from "vitest";
 import type { Prop, PropType, RbxInstance } from "../src/core/rbx/dom.js";
-import { brickColorRgb } from "../src/extensions/placeViewer/core/brickColors.js";
+import { brickColorRgb } from "../src/extensions/placeEditor/core/brickColors.js";
 import {
 	JOINT_COLOURS,
 	MOTOR_COLOUR,
 	sceneGizmos,
-} from "../src/extensions/placeViewer/core/gizmos.js";
-import { buildPlaceScene } from "../src/extensions/placeViewer/core/scene.js";
+} from "../src/extensions/placeEditor/core/gizmos.js";
+import { buildPlaceScene } from "../src/extensions/placeEditor/core/scene.js";
 
 function inst(
 	className: string,

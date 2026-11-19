@@ -1,5 +1,5 @@
 /**
- * Unions in the place viewer, drawn as the parts they were made from.
+ * Unions in the place editor, drawn as the parts they were made from.
  *
  * A UnionOperation keeps its shape in two forms. `MeshData` is the solved
  * shape, which is obfuscated, and which Roswaal does not read. `ChildData` is

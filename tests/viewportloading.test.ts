@@ -6,16 +6,16 @@
 
 import { describe, expect, it } from "vitest";
 import { fromBase64, fromBase64ByHand, toBase64 } from "../src/core/base64.js";
-import { lightGridFor } from "../src/extensions/placeViewer/app/viewport/prepare.js";
-import { trickle } from "../src/extensions/placeViewer/app/viewport/trickle.js";
+import { lightGridFor } from "../src/extensions/placeEditor/app/viewport/prepare.js";
+import { trickle } from "../src/extensions/placeEditor/app/viewport/trickle.js";
 import {
 	LIGHT_CELL,
 	LIGHT_TABLE,
 	lightGrid,
 	lightHash,
 	surfaceBox,
-} from "../src/extensions/placeViewer/app/viewport/view.js";
-import { LIGHT_STRIDE, LIGHT_SURFACE } from "../src/extensions/placeViewer/core/scene.js";
+} from "../src/extensions/placeEditor/app/viewport/view.js";
+import { LIGHT_STRIDE, LIGHT_SURFACE } from "../src/extensions/placeEditor/core/scene.js";
 
 /** Whether a cell's cube meets a SurfaceLight's box, worked out plainly. */
 function cellMeetsBox(

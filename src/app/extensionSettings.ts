@@ -1,7 +1,7 @@
 /**
  * Each extension's switch and settings, kept in this browser.
  *
- * One localStorage key per extension (`roswaal.ext.placeViewer`), apart from
+ * One localStorage key per extension (`roswaal.ext.placeEditor`), apart from
  * the editor's own `Preferences`, so turning an extension off or removing one
  * never touches anything else, and its settings stay for when it is back.
  *
@@ -59,7 +59,9 @@ function stored(
 	manifest: ExtensionManifest,
 	storage: Pick<Storage, "getItem">,
 ): { on?: unknown; values: Record<string, unknown> } {
-	const own = parse(storage.getItem(keyOf(manifest.id)));
+	const own = [manifest.id, ...(manifest.formerIds ?? [])]
+		.map((id) => parse(storage.getItem(keyOf(id))))
+		.find((found) => found !== null);
 	if (own) {
 		const values = own.values;
 		return {

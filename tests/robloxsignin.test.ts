@@ -16,8 +16,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
 	AccessLostError,
 	RobloxSignIn,
-} from "../src/extensions/placeViewer/server/roblox/signin.js";
-import { fileVault, memoryVault } from "../src/extensions/placeViewer/server/roblox/vault.js";
+} from "../src/extensions/placeEditor/server/roblox/signin.js";
+import { fileVault, memoryVault } from "../src/extensions/placeEditor/server/roblox/vault.js";
 
 /** A port nothing is using, for this test's callback. */
 async function freePort(): Promise<number> {

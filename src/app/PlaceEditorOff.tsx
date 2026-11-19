@@ -1,21 +1,21 @@
 /**
- * What a place's tab shows when the place viewer is not drawing it: a moment
- * while it loads, or, with Settings › Place Viewer off,
+ * What a place's tab shows when the place editor is not drawing it: a moment
+ * while it loads, or, with Settings › Place Editor off,
  * that it is off and how to turn it on. The place itself is still in the
  * DataModel tree and Properties either way.
  */
 
-export function PlaceViewerOff({ loading, onTurnOn }: { loading: boolean; onTurnOn: () => void }) {
+export function PlaceEditorOff({ loading, onTurnOn }: { loading: boolean; onTurnOn: () => void }) {
 	if (loading) {
 		return (
 			<div className="placeholder">
-				<p>Loading the place viewer…</p>
+				<p>Loading the place editor…</p>
 			</div>
 		);
 	}
 	return (
 		<div className="placeholder">
-			<h1>The place viewer is off</h1>
+			<h1>The place editor is off</h1>
 			<p>
 				Its 3D view is not loaded, to save memory. The place's instances are still in the DataModel
 				tree, and you can edit them in Properties.

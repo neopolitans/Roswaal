@@ -1,5 +1,5 @@
 /**
- * Dragging parts in the place viewer: where a dragged part comes to rest on
+ * Dragging parts in the place editor: where a dragged part comes to rest on
  * the surface under the pointer, by its nearest side or by its pivot; R and
  * T's quarter turns; the grid it keeps to; the ray's face normals; and the
  * change that writes the move into the place, every part of a Model at once,
@@ -29,14 +29,14 @@ import {
 	snapTo,
 	tiltAxis,
 	turnedBy,
-} from "../src/extensions/placeViewer/app/viewport/drag.js";
-import { rayHit } from "../src/extensions/placeViewer/app/viewport/geometry.js";
+} from "../src/extensions/placeEditor/app/viewport/drag.js";
+import { rayHit } from "../src/extensions/placeEditor/app/viewport/geometry.js";
 import {
 	type PlaceScene,
 	SCENE_KINDS,
 	SCENE_STRIDE,
 	type SceneKind,
-} from "../src/extensions/placeViewer/core/scene.js";
+} from "../src/extensions/placeEditor/core/scene.js";
 import { ApiSession } from "../src/server/routes.js";
 
 const close = (a: ArrayLike<number>, b: ArrayLike<number>) =>

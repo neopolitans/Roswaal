@@ -1,5 +1,5 @@
 /**
- * The Place Viewer's side of the API: the scene it draws, from
+ * The Place Editor's side of the API: the scene it draws, from
  * `GET /place/scene` (`../server/routes.ts`).
  */
 

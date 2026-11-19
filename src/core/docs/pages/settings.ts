@@ -66,19 +66,19 @@ export function settingsPage(): DocPage {
 					["**Themes**", "This browser", "The colour scheme"],
 					["**Docs**", "This browser", "The docs' font and the size of their pictures"],
 					[
-						"**Place Viewer**",
+						"**Place Editor**",
 						"This browser",
 						"An extension: its version, its switch, what it adds and its release notes. Its pages are listed under it while it is on",
 					],
 					[
 						"**Scene view**",
 						"This browser",
-						"Under Place Viewer. How a place is drawn in 3D: the renderer, the selection outline, Alt-click, Glass and post effects",
+						"Under Place Editor. How a place is drawn in 3D: the renderer, the selection outline, Alt-click, Glass and post effects",
 					],
 					[
 						"**Roblox account**",
 						"This computer",
-						"Under Place Viewer. Sign in with Roblox and what it downloaded, through `roswaal serve`",
+						"Under Place Editor. Sign in with Roblox and what it downloaded, through `roswaal serve`",
 					],
 				],
 			},

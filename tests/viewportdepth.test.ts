@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { perspective } from "../src/extensions/placeViewer/app/viewport/math.js";
+import { perspective } from "../src/extensions/placeEditor/app/viewport/math.js";
 
 /** Depth after the divide, for a point this far in front of the camera. */
 const depthAt = (m: Float32Array, distance: number) => {

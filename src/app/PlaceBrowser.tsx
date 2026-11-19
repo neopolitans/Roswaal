@@ -32,6 +32,7 @@ import { api, type PlaceInstanceChange, type PlaceTree, type PlaceWritten } from
 import { PanelHead } from "./Cards.jsx";
 import { ClassIcon as EngineIcon } from "./ClassIcon.jsx";
 import { cx } from "./cx.js";
+import { ExplorerIcon } from "./ExplorerIcon.jsx";
 import { Icon, type IconName } from "./icons.jsx";
 import { isTextEntry } from "./keys.js";
 import { Menu } from "./Menu.jsx";
@@ -129,7 +130,7 @@ function remember(step: PlaceStep | null, stamp: string): void {
 }
 
 /**
- * A drag the place viewer wrote, at `stamp`: on this history, so Ctrl+Z here
+ * A drag the place editor wrote, at `stamp`: on this history, so Ctrl+Z here
  * takes it back, and a version of the place this keeps the tree open and
  * picked through, as it does its own.
  */
@@ -1427,19 +1428,7 @@ function PropValue({ value }: { value: string }) {
 }
 
 /** The class's own icon, or for a script or a Folder the glyph the project tree uses. */
-function ClassIcon({
-	className,
-	service,
-	open,
-}: {
-	className: string;
-	service: boolean;
-	open: boolean;
-}) {
-	if (wearsClassIcon(className)) return <EngineIcon name={className} size={15} />;
-	const { icon, tone } = classGlyph(className, service, open);
-	return <Icon name={icon as IconName} size={15} className={cx("kind", tone)} />;
-}
+const ClassIcon = ExplorerIcon;
 
 /**
  * Add Service to Explorer: the services DataModel holds and does not list, in

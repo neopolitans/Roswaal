@@ -1,14 +1,14 @@
 /**
  * Roblox's mesh files, read: each version Roswaal reads, from small files
  * built here byte by byte (no Roblox asset is in the repository), and the
- * triangles the place viewer makes of them.
+ * triangles the place editor makes of them.
  */
 
 import { describe, expect, it } from "vitest";
 import type { RbxInstance } from "../src/core/rbx/dom.js";
-import { meshGeometry, splitByMesh } from "../src/extensions/placeViewer/app/viewport/view.js";
-import { MeshError, readMesh } from "../src/extensions/placeViewer/core/mesh.js";
-import { buildPlaceScene, SCENE_STRIDE } from "../src/extensions/placeViewer/core/scene.js";
+import { meshGeometry, splitByMesh } from "../src/extensions/placeEditor/app/viewport/view.js";
+import { MeshError, readMesh } from "../src/extensions/placeEditor/core/mesh.js";
+import { buildPlaceScene, SCENE_STRIDE } from "../src/extensions/placeEditor/core/scene.js";
 
 /** Little-endian bytes, written in order. */
 class Bytes {

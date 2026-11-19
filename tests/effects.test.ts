@@ -1,5 +1,5 @@
 /**
- * Beams and ParticleEmitters in the place viewer: what is read from a place,
+ * Beams and ParticleEmitters in the place editor: what is read from a place,
  * the sequences and curves they follow, where particles are born, and how the
  * simulation steps and lays them out.
  */
@@ -22,7 +22,7 @@ import {
 	quadIndices,
 	seeded,
 	spreadDirection,
-} from "../src/extensions/placeViewer/app/viewport/effects.js";
+} from "../src/extensions/placeEditor/app/viewport/effects.js";
 import {
 	beamControls,
 	bezier,
@@ -31,8 +31,8 @@ import {
 	numberAt,
 	type SceneBeam,
 	type SceneEmitter,
-} from "../src/extensions/placeViewer/core/effects.js";
-import { buildPlaceScene } from "../src/extensions/placeViewer/core/scene.js";
+} from "../src/extensions/placeEditor/core/effects.js";
+import { buildPlaceScene } from "../src/extensions/placeEditor/core/scene.js";
 
 const utf8 = new TextEncoder();
 const IDENTITY = [1, 0, 0, 0, 1, 0, 0, 0, 1];

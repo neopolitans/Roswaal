@@ -23,12 +23,12 @@ import {
 	type PlaceScene,
 	SCENE_KINDS,
 	SCENE_STRIDE,
-} from "../src/extensions/placeViewer/core/scene.js";
+} from "../src/extensions/placeEditor/core/scene.js";
 import {
 	applyScenePatch,
 	diffScene,
 	type ScenePatch,
-} from "../src/extensions/placeViewer/core/sceneDiff.js";
+} from "../src/extensions/placeEditor/core/sceneDiff.js";
 import { ApiSession } from "../src/server/routes.js";
 
 const utf8 = new TextEncoder();

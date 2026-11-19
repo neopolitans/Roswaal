@@ -18,7 +18,7 @@ import { bias, mixer } from "../scripts/find-hash.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const source = (file: string) =>
-	readFileSync(join(ROOT, "src/extensions/placeViewer/app/viewport", file), "utf8");
+	readFileSync(join(ROOT, "src/extensions/placeEditor/app/viewport", file), "utf8");
 
 /** What `node scripts/find-hash.mjs` prints with its default search. */
 const FOUND = [18, 0xe71d6283, 15, 0x1f04730d, 18] as const;

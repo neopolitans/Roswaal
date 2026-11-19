@@ -1,5 +1,5 @@
 /**
- * What a click on a part in the place viewer picks: the highest Model in
+ * What a click on a part in the place editor picks: the highest Model in
  * Workspace that holds it, and, with Alt-click set to step, one Model further
  * in than what is picked each time, down to the part.
  */
@@ -10,7 +10,7 @@ import {
 	modelSteps,
 	outermostModel,
 	stepDown,
-} from "../src/extensions/placeViewer/app/viewport/marquee.js";
+} from "../src/extensions/placeEditor/app/viewport/marquee.js";
 
 const classes = ["Workspace", "Model", "Folder", "UnionOperation", "Part"];
 const [WORKSPACE, MODEL, FOLDER, UNION, PART] = [0, 1, 2, 3, 4];

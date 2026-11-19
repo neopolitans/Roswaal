@@ -12,7 +12,7 @@ import {
 	SPEED_NOTCH,
 	SPEED_STEP,
 	speedText,
-} from "../src/extensions/placeViewer/app/viewport/speed.js";
+} from "../src/extensions/placeEditor/app/viewport/speed.js";
 
 describe("camera speed", () => {
 	it("keeps to a twentieth up to fifty times", () => {

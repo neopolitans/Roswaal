@@ -13,9 +13,9 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { Prop, PropType, RbxInstance } from "../src/core/rbx/dom.js";
-import { HandleBuilder } from "../src/extensions/placeViewer/app/viewport/handles.js";
-import { SELECT, tintedOutline } from "../src/extensions/placeViewer/app/viewport/view.js";
-import { buildPlaceScene, SCENE_STRIDE } from "../src/extensions/placeViewer/core/scene.js";
+import { HandleBuilder } from "../src/extensions/placeEditor/app/viewport/handles.js";
+import { SELECT, tintedOutline } from "../src/extensions/placeEditor/app/viewport/view.js";
+import { buildPlaceScene, SCENE_STRIDE } from "../src/extensions/placeEditor/core/scene.js";
 
 // Hoisted over the imports: handles.ts made its float as it loaded.
 const { Real } = vi.hoisted(() => {

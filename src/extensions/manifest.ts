@@ -87,9 +87,14 @@ export interface ExtensionRelease {
 }
 
 export interface ExtensionManifest<Module = unknown> {
-	/** `placeViewer`: names its settings, its storage and its routes' owner. */
+	/** `placeEditor`: names its settings, its storage and its routes' owner. */
 	id: string;
-	/** `Place Viewer`. */
+	/**
+	 * Ids it went by before: its switch and settings are read from the first
+	 * of these that holds any, the first time its own key is empty.
+	 */
+	formerIds?: readonly string[];
+	/** `Place Editor`. */
 	name: string;
 	/** Its own semver, apart from Roswaal's. */
 	version: string;

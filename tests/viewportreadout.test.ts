@@ -1,10 +1,10 @@
 /**
- * The place viewer's corner readout while its renderer starts: the renderer,
+ * The place editor's corner readout while its renderer starts: the renderer,
  * and how much of its shaders has compiled.
  */
 
 import { describe, expect, it } from "vitest";
-import { startingText } from "../src/extensions/placeViewer/app/viewport/readout.js";
+import { startingText } from "../src/extensions/placeEditor/app/viewport/readout.js";
 
 describe("startingText", () => {
 	it("names the renderer and the share of its shaders compiled", () => {

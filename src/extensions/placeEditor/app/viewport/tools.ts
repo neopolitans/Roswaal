@@ -1,5 +1,5 @@
 /**
- * The place viewer's tools, by the bar's order and Studio's keys, and what
+ * The place editor's tools, by the bar's order and Studio's keys, and what
  * each leaves the pointer to do. Select can be put down, as in Studio: with
  * no tool the view only moves the camera.
  */

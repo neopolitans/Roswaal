@@ -1,5 +1,5 @@
 /**
- * The place viewer's asset count: what a place needs, what arrived, what is
+ * The place editor's asset count: what a place needs, what arrived, what is
  * on the GPU, and what will not come, and the card's words for each.
  */
 
@@ -9,7 +9,7 @@ import {
 	assetsMissing,
 	assetsPending,
 	assetWords,
-} from "../src/extensions/placeViewer/app/viewport/assetProgress.js";
+} from "../src/extensions/placeEditor/app/viewport/assetProgress.js";
 
 describe("AssetTally", () => {
 	it("counts needed, then arrived, then uploaded", () => {

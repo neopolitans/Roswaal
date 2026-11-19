@@ -20,8 +20,8 @@ import {
 	STUDIO_FEATURES,
 	stepOf,
 	upToStep,
-} from "../src/extensions/placeViewer/app/viewport/renderFeatures.js";
-import type { LightingParams } from "../src/extensions/placeViewer/core/lighting.js";
+} from "../src/extensions/placeEditor/app/viewport/renderFeatures.js";
+import type { LightingParams } from "../src/extensions/placeEditor/core/lighting.js";
 
 const lighting = {
 	sun: [0, 1, 0],

@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { RbxInstance } from "../src/core/rbx/dom.js";
-import { ownSun, SKY_FACES, skyboxOf } from "../src/extensions/placeViewer/core/lighting.js";
+import { ownSun, SKY_FACES, skyboxOf } from "../src/extensions/placeEditor/core/lighting.js";
 
 function sky(faces: Record<string, string>): RbxInstance {
 	const props = new Map(
@@ -43,7 +43,7 @@ describe("a Sky's images", () => {
 
 describe("where a direction meets the Sky", () => {
 	it("lays the faces round the view as Studio does", async () => {
-		const { skyLookup } = await import("../src/extensions/placeViewer/app/viewport/view.js");
+		const { skyLookup } = await import("../src/extensions/placeEditor/app/viewport/view.js");
 		const face = (d: number[]) => SKY_FACES[skyLookup(d).face];
 		expect(
 			[

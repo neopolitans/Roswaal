@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { EFFECT_COST } from "../src/extensions/placeViewer/app/viewport/effects.js";
+import { EFFECT_COST } from "../src/extensions/placeEditor/app/viewport/effects.js";
 import {
 	FEATURE_BIT,
 	featureBits,
 	upToStep,
-} from "../src/extensions/placeViewer/app/viewport/renderFeatures.js";
+} from "../src/extensions/placeEditor/app/viewport/renderFeatures.js";
 import {
 	DENSITY_GLSL,
 	effectShare,
@@ -13,7 +13,7 @@ import {
 	OVERDRAW_WGSL,
 	VIEWS_GLSL,
 	VIEWS_WGSL,
-} from "../src/extensions/placeViewer/app/viewport/renderViews.js";
+} from "../src/extensions/placeEditor/app/viewport/renderViews.js";
 import {
 	COST_FULL,
 	DEFAULT_RENDER,
@@ -35,7 +35,7 @@ import {
 	sharesComposite,
 	sharesView,
 	triangleDensity,
-} from "../src/extensions/placeViewer/app/viewport/view.js";
+} from "../src/extensions/placeEditor/app/viewport/view.js";
 
 const settings = (mode: RenderMode) => ({ ...DEFAULT_RENDER, mode });
 

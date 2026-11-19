@@ -15,7 +15,7 @@ import {
 	MATERIALS,
 	materialBlock,
 	materialIndex,
-} from "../src/extensions/placeViewer/core/materials.js";
+} from "../src/extensions/placeEditor/core/materials.js";
 
 const rowOf = (name: string) => MATERIALS.findIndex((m) => m.name === name) * MATERIAL_ROW;
 
@@ -59,14 +59,14 @@ describe("The material table", () => {
 	});
 
 	it("has a map in the viewport's textures for every textured material", () => {
-		const dir = path.join(__dirname, "../src/extensions/placeViewer/app/viewport/textures");
+		const dir = path.join(__dirname, "../src/extensions/placeEditor/app/viewport/textures");
 		const files = new Set(fs.readdirSync(dir));
 		for (const t of MATERIAL_TEXTURES) {
 			const file = t.glows ? `${t.material}.png` : `${t.material}.jpg`;
 			expect(files.has(file), file).toBe(true);
 		}
 		const source = fs.readFileSync(
-			path.join(__dirname, "../src/extensions/placeViewer/app/viewport/textures.ts"),
+			path.join(__dirname, "../src/extensions/placeEditor/app/viewport/textures.ts"),
 			"utf8",
 		);
 		for (const t of MATERIAL_TEXTURES)

@@ -24,6 +24,8 @@ import {
 	CLASS_OPTIONS,
 	classGroup,
 	isInstanceClass,
+	isService,
+	PATH_GLOBALS,
 	TYPE_OPTIONS,
 	typeGroup,
 } from "../core/roblox.js";
@@ -33,6 +35,7 @@ import { typeChip, typeFamily } from "../core/typeFamily.js";
 import { ClassIcon } from "./ClassIcon.jsx";
 import { requestCodeEdit } from "./codeEditRequests.js";
 import { cx } from "./cx.js";
+import { ExplorerIcon } from "./ExplorerIcon.jsx";
 import {
 	compactLabel,
 	compactWidth,
@@ -49,6 +52,7 @@ import { Icon } from "./icons.jsx";
 import { LAYER, NODE } from "./layers.js";
 import { PropertyField } from "./PropertyField.jsx";
 import { nodeColor, pinColor } from "./palette.js";
+import { SERVICE_GROUPS_FIRST, serviceGroup } from "./servicePicker.js";
 import { useTypeChoices } from "./TypePicker.jsx";
 import { typeCardHandlers } from "./typeCard.js";
 import { classDetail, ValuePicker } from "./ValuePicker.jsx";
@@ -1049,6 +1053,41 @@ const TOO_MANY_TO_SCROLL = 24;
  * wrote is theirs to show as they gave it.
  */
 /**
+ * A list of services, perhaps with the path roots before them: what Get
+ * Service and the Instance node start from. Drawn as Add Service draws them,
+ * under their purposes with the Explorer's icons, the roots first.
+ */
+const SERVICE_LISTS = new WeakMap<readonly string[], boolean>();
+function isServiceList(list: readonly string[]): boolean {
+	let known = SERVICE_LISTS.get(list);
+	if (known === undefined) {
+		known =
+			list.some(isService) &&
+			list.every((name) => isService(name) || (PATH_GLOBALS as readonly string[]).includes(name));
+		SERVICE_LISTS.set(list, known);
+	}
+	return known;
+}
+
+const GLOBALS = "Globals";
+const SERVICE_PICKER_GROUPS = [GLOBALS, ...SERVICE_GROUPS_FIRST];
+const GLOBAL_CLASS: Record<string, string> = {
+	game: "DataModel",
+	workspace: "Workspace",
+	script: "Script",
+	shared: "Folder",
+};
+const serviceOrGlobal = (name: string) =>
+	GLOBAL_CLASS[name] !== undefined ? GLOBALS : serviceGroup(name);
+const serviceIcon = (name: string) => (
+	<ExplorerIcon
+		className={GLOBAL_CLASS[name] ?? name}
+		service={GLOBAL_CLASS[name] === undefined}
+		open={false}
+	/>
+);
+
+/**
  * A list of classes -- every class, the creatable ones, the services -- which
  * is what a picker shows a class icon for. Asked once per list.
  */
@@ -1137,10 +1176,15 @@ function OptionEditor({
 						what={pin.name || pin.id}
 						options={known}
 						value={value}
-						groupOf={isType ? types.groupOf : groupingFor(pin)}
-						groupsFirst={isType ? types.groupsFirst : undefined}
+						groupOf={
+							isType ? types.groupOf : isServiceList(known) ? serviceOrGlobal : groupingFor(pin)
+						}
+						groupsFirst={
+							isType ? types.groupsFirst : isServiceList(known) ? SERVICE_PICKER_GROUPS : undefined
+						}
+						iconOf={isServiceList(known) ? serviceIcon : undefined}
 						detailOf={groupingFor(pin) ? classDetail : undefined}
-						classes={isType || groupingFor(pin) !== undefined}
+						classes={isType || groupingFor(pin) !== undefined || isClassList(known)}
 						onPick={onChange}
 						onClose={() => setPicking(false)}
 					/>

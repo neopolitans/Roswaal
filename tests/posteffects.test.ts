@@ -14,8 +14,8 @@ import {
 	glowShape,
 	gradeBlock,
 	postActive,
-} from "../src/extensions/placeViewer/app/viewport/view.js";
-import { readPostEffects } from "../src/extensions/placeViewer/core/lighting.js";
+} from "../src/extensions/placeEditor/app/viewport/view.js";
+import { readPostEffects } from "../src/extensions/placeEditor/core/lighting.js";
 
 function inst(
 	className: string,

@@ -8,7 +8,7 @@ import {
 	FADE_AFTER,
 	type FadeTimers,
 	fader,
-} from "../src/extensions/placeViewer/app/viewport/fade.js";
+} from "../src/extensions/placeEditor/app/viewport/fade.js";
 
 /** A clock moved by hand, with the one wait a fader keeps. */
 function clock() {

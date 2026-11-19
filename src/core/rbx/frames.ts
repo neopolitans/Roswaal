@@ -1,5 +1,5 @@
 /**
- * Moving parts and Models whole, as a drag in the place viewer does: one
+ * Moving parts and Models whole, as a drag in the place editor does: one
  * rigid turn and shift, applied to each part's CFrame and each Model's
  * WorldPivot, and the values they held before, which put them back exactly.
  */

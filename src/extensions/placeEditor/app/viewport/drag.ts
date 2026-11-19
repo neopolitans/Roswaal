@@ -1,5 +1,5 @@
 /**
- * Dragging parts in the place viewer, as Studio's free drag does: what is
+ * Dragging parts in the place editor, as Studio's free drag does: what is
  * dragged keeps its turn and rests on the surface under the pointer, its side
  * nearest that surface against it, the point grabbed staying under the
  * pointer. Dragged by its pivot, the pivot goes on the surface instead,

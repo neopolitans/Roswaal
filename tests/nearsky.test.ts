@@ -8,7 +8,7 @@ import {
 	SKY_NEAR_LAYER,
 	SKY_NEAR_STEP,
 	skyBlock,
-} from "../src/extensions/placeViewer/app/viewport/view.js";
+} from "../src/extensions/placeEditor/app/viewport/view.js";
 
 const box = { min: [-5000, -50, -2000], max: [2000, 1800, 2000] };
 

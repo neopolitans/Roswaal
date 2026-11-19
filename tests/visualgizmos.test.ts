@@ -19,9 +19,9 @@ import {
 	SECONDARY_COLOUR,
 	VISUAL_REACH,
 	visualGizmoLines,
-} from "../src/extensions/placeViewer/app/viewport/visualGizmos.js";
-import type { EffectFrame } from "../src/extensions/placeViewer/core/effects.js";
-import type { SceneGizmos, SceneJoint } from "../src/extensions/placeViewer/core/gizmos.js";
+} from "../src/extensions/placeEditor/app/viewport/visualGizmos.js";
+import type { EffectFrame } from "../src/extensions/placeEditor/core/effects.js";
+import type { SceneGizmos, SceneJoint } from "../src/extensions/placeEditor/core/gizmos.js";
 
 const IDENTITY = [1, 0, 0, 0, 1, 0, 0, 0, 1];
 const at = (position: number[], rotation = IDENTITY): EffectFrame => ({ position, rotation });

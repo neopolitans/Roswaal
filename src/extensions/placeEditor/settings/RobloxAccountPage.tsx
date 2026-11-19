@@ -1,6 +1,6 @@
 /**
  * Settings › Roblox account: Sign in with Roblox and what it downloaded. A
- * page of the Place Viewer's own, because signing in and clearing downloads
+ * page of the Place Editor's own, because signing in and clearing downloads
  * are actions rather than settings.
  *
  * Before Roblox's own page, what is asked for, where it is kept, how to

@@ -11,13 +11,13 @@ import type { Prop, PropType, RbxInstance } from "../src/core/rbx/dom.js";
 import { storedValue, writeProperty } from "../src/core/rbx/edit.js";
 import { readRbx } from "../src/core/rbx/index.js";
 import { writeBinaryPlace, writeXmlPlace } from "../src/core/rbx/serialize.js";
-import { boxAround } from "../src/extensions/placeViewer/app/viewport/box.js";
+import { boxAround } from "../src/extensions/placeEditor/app/viewport/box.js";
 import {
 	buildPlaceScene,
 	modelPivot,
 	partPivot,
 	SCENE_STRIDE,
-} from "../src/extensions/placeViewer/core/scene.js";
+} from "../src/extensions/placeEditor/core/scene.js";
 
 function inst(
 	className: string,

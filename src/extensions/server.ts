@@ -8,7 +8,7 @@
 
 import type { OpenProject } from "../server/project.js";
 import type { LoadedPlace, RouteHandler } from "../server/routes.js";
-import { type PlaceViewerCapabilities, placeViewerRoutes } from "./placeViewer/server/routes.js";
+import { type PlaceEditorCapabilities, placeEditorRoutes } from "./placeEditor/server/routes.js";
 
 /** What a session lends an extension's routes. */
 export interface ExtensionContext {
@@ -22,7 +22,7 @@ export interface ExtensionContext {
 
 /** What a host gives each extension. */
 export interface ExtensionCapabilities {
-	placeViewer?: PlaceViewerCapabilities;
+	placeEditor?: PlaceEditorCapabilities;
 }
 
 /** Every extension's routes, for one session. */
@@ -30,7 +30,7 @@ export function extensionRoutes(
 	ctx: ExtensionContext,
 	capabilities: ExtensionCapabilities = {},
 ): Record<string, RouteHandler> {
-	return { ...placeViewerRoutes(ctx, capabilities.placeViewer) };
+	return { ...placeEditorRoutes(ctx, capabilities.placeEditor) };
 }
 
 /** The names of what a host gave the extensions, for `/health`'s capability list. */
