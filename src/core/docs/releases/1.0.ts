@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.19",
+		date: "2026-11-20",
+		headline: "A node map selects as a graph does.",
+		added: [
+			"**Selecting on a map's canvas.** Drag on empty canvas for a marquee, or hold a finger still and then drag. Shift or Ctrl adds to the selection, `Ctrl` + `A` selects everything, and Escape clears it.",
+			"**The selection moves and deletes together.** Dragging any node or comment in it moves the rest, and Delete removes all of it. `C` draws a comment around it, and `Ctrl` + `Shift` + `L` realigns the map.",
+		],
+		changed: [
+			"**Dragging empty canvas** on a map draws a marquee with a mouse, as on a graph. The middle button or Alt pans, and a finger still pans.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.18",
 		date: "2026-11-20",
 		headline: "A node map opens on the canvas, as a graph does.",

@@ -309,7 +309,9 @@ export function buildingAndRojoPage(): DocPage {
 					"**Graph** and **List**, after the map's tab, draw the same tree two ways. **Graph** " +
 					"opens the map on the canvas: the DataModel on the left, and a wire from each node to " +
 					"what it holds. Pan, zoom and move nodes as on a graph. Their places are kept in the " +
-					"`.nodemap`, and **Realign** lays them out again. **List** draws rows, with the " +
+					"`.nodemap`, and **Realign** lays them out again. Selecting works as on a graph: " +
+					"drag on empty canvas for a marquee, Shift or Ctrl to add, `Ctrl` + `A` for " +
+					"everything, and Delete for the selection. **List** draws rows, with the " +
 					"switch that reads them from either end.",
 			},
 			{

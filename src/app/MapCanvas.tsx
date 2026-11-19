@@ -50,6 +50,7 @@ import {
 	type MapComment,
 	type MapNode,
 	mapNodeParent,
+	mapNodeRemove,
 	mapNodeUpdate,
 } from "../core/nodemap.js";
 import { normalisePath } from "../core/rojoPaths.js";
@@ -392,7 +393,12 @@ export function MapCanvas({
 	const [resizing, setResizing] = useState<{ id: string; w: number; h: number } | null>(null);
 	const [adding, setAdding] = useState<Adding | null>(null);
 	const [syncing, setSyncing] = useState<{ id: string; at: Element } | null>(null);
-	const [comment, setComment] = useState<string | null>(null);
+	const [selected, setSelected] = useState<ReadonlySet<string>>(
+		() => new Set(ed.pick.kind === "node" ? [ed.pick.id] : []),
+	);
+	const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(
+		null,
+	);
 	const [editing, setEditing] = useState<string | null>(null);
 	const [menu, setMenu] = useState<{
 		at: MenuAnchor;
@@ -406,6 +412,90 @@ export function MapCanvas({
 	const nodes = useMemo(() => flatten(map.root), [map]);
 	const comments = map.comments ?? [];
 	const pickedId = ed.pick.kind === "node" ? ed.pick.id : null;
+
+	// A node picked from outside the canvas -- the list, Instance, an exception
+	// -- becomes the selection, as the graph's reveal does.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: only when the pick changes.
+	useEffect(() => {
+		if (pickedId && !selected.has(pickedId)) setSelected(new Set([pickedId]));
+	}, [pickedId]);
+
+	/** Selects `ids`, and gives Instance the last node among them. */
+	const select = (ids: Iterable<string>, mode: "replace" | "add" | "toggle" = "replace") => {
+		const next = new Set(mode === "replace" ? [] : selected);
+		let last: string | null = null;
+		for (const id of ids) {
+			if (mode === "toggle" && next.has(id)) next.delete(id);
+			else {
+				next.add(id);
+				if (findMapNode(map.root, id)) last = id;
+			}
+		}
+		setSelected(next);
+		if (last) ed.setPick({ kind: "node", id: last });
+	};
+
+	/** What a drag of the selection carries: its nodes and comments, and the nodes inside its comments. */
+	const carried = (from: ReadonlySet<string>): Moving => {
+		const nodeIds = new Set<string>();
+		const commentIds = new Set<string>();
+		for (const id of from) {
+			if (comments.some((c) => c.id === id)) commentIds.add(id);
+			else if (findMapNode(map.root, id)) nodeIds.add(id);
+		}
+		for (const c of comments) {
+			if (!commentIds.has(c.id)) continue;
+			for (const id of nodesInside(c)) nodeIds.add(id);
+		}
+		return { nodes: nodeIds, comments: commentIds, dx: 0, dy: 0 };
+	};
+
+	/** The nodes wholly inside a comment, which go where it goes. */
+	const nodesInside = (c: MapComment): string[] =>
+		nodes
+			.filter(({ node }) => {
+				const at = placed.get(node.id);
+				if (!at) return false;
+				const h = mapNodeHeight(node === map.root);
+				return (
+					at.x >= c.x && at.y >= c.y && at.x + MAP_NODE.width <= c.x + c.w && at.y + h <= c.y + c.h
+				);
+			})
+			.map(({ node }) => node.id);
+
+	/** Deletes what is selected, the DataModel apart, as one change. */
+	const removeSelected = () => {
+		let root = map.root;
+		for (const id of selected) if (id !== map.root.id) root = mapNodeRemove(root, id);
+		const kept = comments.filter((c) => !selected.has(c.id));
+		if (root === map.root && kept.length === comments.length) return;
+		ed.commit({ ...map, root, comments: kept.length ? kept : undefined });
+		setSelected(new Set());
+		ed.setPick({ kind: "node", id: map.root.id });
+	};
+
+	/** A box around the selection, or none. */
+	const selectionBounds = (): { x: number; y: number; w: number; h: number } | null => {
+		let x0 = Number.POSITIVE_INFINITY;
+		let y0 = Number.POSITIVE_INFINITY;
+		let x1 = Number.NEGATIVE_INFINITY;
+		let y1 = Number.NEGATIVE_INFINITY;
+		for (const id of selected) {
+			const c = comments.find((one) => one.id === id);
+			const at = c ? null : placed.get(id);
+			const rect = c
+				? { x: c.x, y: c.y, w: c.w, h: c.h }
+				: at
+					? { x: at.x, y: at.y, w: MAP_NODE.width, h: mapNodeHeight(id === map.root.id) }
+					: null;
+			if (!rect) continue;
+			x0 = Math.min(x0, rect.x);
+			y0 = Math.min(y0, rect.y);
+			x1 = Math.max(x1, rect.x + rect.w);
+			y1 = Math.max(y1, rect.y + rect.h);
+		}
+		return Number.isFinite(x0) ? { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } : null;
+	};
 
 	const posOf = (id: string): Point => {
 		const at = placed.get(id) ?? { x: 0, y: 0 };
@@ -535,24 +625,24 @@ export function MapCanvas({
 		ed.setPick({ kind: "node", id: child.id });
 	};
 
-	const addComment = (at: Point) => {
+	const addComment = (at: Point, size = { w: 340, h: 150 }) => {
 		const made: MapComment = {
 			id: newId(),
 			x: Math.round(at.x),
 			y: Math.round(at.y),
-			w: 340,
-			h: 150,
+			w: Math.round(size.w),
+			h: Math.round(size.h),
 			color: `#${COMMENT_DEFAULT_COLOR}`,
 			title: "Comment",
 		};
 		ed.setComments([...comments, made]);
-		setComment(made.id);
+		setSelected(new Set([made.id]));
 		setEditing(made.id);
 	};
 
 	const removeComment = (id: string) => {
 		ed.setComments(comments.filter((c) => c.id !== id));
-		setComment(null);
+		setSelected((was) => new Set([...was].filter((one) => one !== id)));
 	};
 
 	const realign = () => ed.commit({ ...map, root: realignMap(map) });
@@ -592,7 +682,7 @@ export function MapCanvas({
 	}
 
 	function nodeMenu(node: MapNode, clientX: number, clientY: number) {
-		ed.setPick({ kind: "node", id: node.id });
+		if (!selected.has(node.id)) select([node.id]);
 		const exception = ed.odd.get(node.id);
 		const folder = node.path && ed.isFolderPath(node.path) ? normalisePath(node.path) : undefined;
 		setMenu({
@@ -620,13 +710,22 @@ export function MapCanvas({
 				},
 				{
 					entries: [
-						node !== map.root && {
-							label: "Delete",
-							icon: "remove",
-							danger: true,
-							hint: "Del",
-							run: () => ed.remove(node.id),
-						},
+						node !== map.root &&
+							(selected.has(node.id) && selected.size > 1
+								? {
+										label: `Delete ${selected.size}`,
+										icon: "remove",
+										danger: true,
+										hint: "Del",
+										run: removeSelected,
+									}
+								: {
+										label: "Delete",
+										icon: "remove",
+										danger: true,
+										hint: "Del",
+										run: () => ed.remove(node.id),
+									}),
 					],
 				},
 			],
@@ -640,41 +739,113 @@ export function MapCanvas({
 		setAdding({ parent: node.id, at: world, screen });
 	}
 
-	/** A press on the empty canvas: pan, or with two fingers pinch, or held, the menu. */
+	/**
+	 * A press on the empty canvas, as on a graph: a mouse draws a marquee (Shift
+	 * or Ctrl adds to the selection), the middle button or Alt pans. A finger
+	 * pans and two pinch; a finger held still then dragged draws a marquee, and
+	 * held and lifted opens the menu.
+	 */
 	function onCanvasDown(e: ReactPointerEvent<HTMLDivElement>) {
 		const target = e.target as Element;
 		if (target.closest(".node, .comment, button, input, textarea")) return;
 		box.current?.focus({ preventScroll: true });
-		setComment(null);
-		if (e.pointerType === "mouse" && e.button !== 0 && e.button !== 1) return;
+		const finger = e.pointerType !== "mouse";
+		if (!finger && e.button !== 0 && e.button !== 1) return;
 		const sx = e.clientX;
 		const sy = e.clientY;
+		const additive = e.shiftKey || e.ctrlKey || e.metaKey;
+		if (!finger && e.button === 0 && !e.altKey) {
+			startMarquee(e, toWorld(sx, sy), additive);
+			return;
+		}
 		const start = viewOf(path);
 		touches.current.set(e.pointerId, { x: sx, y: sy });
+		let held = false;
+		let marqueeFrom: Point | null = null;
 		let timer: number | undefined;
 		if (touches.current.size === 2) {
 			gesture.current = "pinch";
 		} else {
 			gesture.current = "pan";
-			if (e.pointerType === "touch") timer = window.setTimeout(() => canvasMenu(sx, sy), 500);
+			if (finger)
+				timer = window.setTimeout(() => {
+					held = true;
+				}, 500);
 		}
 		const pinchFrom = gesture.current === "pinch" ? pinchStart() : null;
+		let moved = false;
 		trackPointer(e, {
 			move: (ev) => {
 				touches.current.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
-				if (Math.hypot(ev.clientX - sx, ev.clientY - sy) > 6) window.clearTimeout(timer);
+				const far = Math.hypot(ev.clientX - sx, ev.clientY - sy) > 6;
+				if (far) moved = true;
 				if (gesture.current === "pinch") {
+					window.clearTimeout(timer);
 					if (pinchFrom) pinchTo(pinchFrom);
 					return;
 				}
+				if (held && far) {
+					// Held, then dragged: a marquee from where the finger was held.
+					marqueeFrom ??= toWorld(sx, sy);
+					setMarquee(rectOf(marqueeFrom, toWorld(ev.clientX, ev.clientY)));
+					return;
+				}
+				if (far) window.clearTimeout(timer);
 				setMapView(path, { ...start, x: start.x + ev.clientX - sx, y: start.y + ev.clientY - sy });
 			},
-			end: () => {
+			end: (release) => {
 				window.clearTimeout(timer);
 				touches.current.delete(e.pointerId);
 				if (touches.current.size === 0) gesture.current = null;
+				if (!release) {
+					setMarquee(null);
+					return;
+				}
+				if (marqueeFrom) {
+					commitMarquee(rectOf(marqueeFrom, toWorld(release.clientX, release.clientY)), false);
+					return;
+				}
+				if (held && !moved) canvasMenu(sx, sy);
+				else if (!moved && gesture.current === null) setSelected(new Set());
 			},
 		});
+	}
+
+	const rectOf = (a: Point, b: Point) => ({
+		x: Math.min(a.x, b.x),
+		y: Math.min(a.y, b.y),
+		w: Math.abs(a.x - b.x),
+		h: Math.abs(a.y - b.y),
+	});
+
+	function startMarquee(e: ReactPointerEvent, from: Point, additive: boolean) {
+		if (!additive) setSelected(new Set());
+		trackPointer(e, {
+			move: (ev) => setMarquee(rectOf(from, toWorld(ev.clientX, ev.clientY))),
+			end: (release) => {
+				if (!release) {
+					setMarquee(null);
+					return;
+				}
+				commitMarquee(rectOf(from, toWorld(release.clientX, release.clientY)), additive);
+			},
+		});
+	}
+
+	/** Everything the box touches, nodes and comments, as on a graph. */
+	function commitMarquee(rect: { x: number; y: number; w: number; h: number }, additive: boolean) {
+		setMarquee(null);
+		if (rect.w < 3 && rect.h < 3) return;
+		const meets = (x: number, y: number, w: number, h: number) =>
+			x < rect.x + rect.w && x + w > rect.x && y < rect.y + rect.h && y + h > rect.y;
+		const hits: string[] = [];
+		for (const c of comments) if (meets(c.x, c.y, c.w, c.h)) hits.push(c.id);
+		for (const { node } of nodes) {
+			const at = placed.get(node.id);
+			if (at && meets(at.x, at.y, MAP_NODE.width, mapNodeHeight(node === map.root)))
+				hits.push(node.id);
+		}
+		select(hits, additive ? "add" : "replace");
 	}
 
 	function pinchStart(): { d: number; mx: number; my: number; view: View } | null {
@@ -717,10 +888,16 @@ export function MapCanvas({
 		}
 		if (target.closest("button, input, textarea")) return;
 		e.stopPropagation();
-		ed.setPick({ kind: "node", id: node.id });
-		setComment(null);
 		box.current?.focus({ preventScroll: true });
-		startMove(e, new Set([node.id]), new Set(), () => nodeMenu(node, e.clientX, e.clientY));
+		if (e.shiftKey || e.ctrlKey || e.metaKey) {
+			select([node.id], "toggle");
+			return;
+		}
+		const group = selected.has(node.id) ? selected : new Set([node.id]);
+		if (!selected.has(node.id)) select([node.id]);
+		else ed.setPick({ kind: "node", id: node.id });
+		const carry = carried(group);
+		startMove(e, carry.nodes, carry.comments, () => nodeMenu(node, e.clientX, e.clientY));
 	}
 
 	function startMove(
@@ -837,23 +1014,20 @@ export function MapCanvas({
 		if (e.pointerType === "mouse" && e.button !== 0) return;
 		if (target.closest("input, textarea, button")) return;
 		e.stopPropagation();
-		setComment(c.id);
 		box.current?.focus({ preventScroll: true });
+		if (e.shiftKey || e.ctrlKey || e.metaKey) {
+			select([c.id], "toggle");
+			return;
+		}
+		if (!selected.has(c.id)) select([c.id]);
 		if (target.closest(".map-comment-resize")) {
 			startResize(e, c);
 			return;
 		}
 		if (!target.closest(".bar")) return;
 		// A comment takes the nodes inside it along, as on a graph.
-		const inside = new Set<string>();
-		for (const { node } of nodes) {
-			const at = placed.get(node.id);
-			if (!at) continue;
-			const h = mapNodeHeight(node === map.root);
-			if (at.x >= c.x && at.y >= c.y && at.x + MAP_NODE.width <= c.x + c.w && at.y + h <= c.y + c.h)
-				inside.add(node.id);
-		}
-		startMove(e, inside, new Set([c.id]));
+		const carry = carried(selected.has(c.id) ? selected : new Set([c.id]));
+		startMove(e, carry.nodes, carry.comments);
 	}
 
 	function startResize(e: ReactPointerEvent, c: MapComment) {
@@ -882,16 +1056,29 @@ export function MapCanvas({
 
 	function onKey(e: KeyboardEvent<HTMLDivElement>) {
 		if (e.target !== e.currentTarget) return;
+		const mod = e.ctrlKey || e.metaKey;
+		const key = e.key.toLowerCase();
 		if (e.key === "Delete" || e.key === "Backspace") {
 			e.preventDefault();
-			if (comment) removeComment(comment);
-			else if (pickedId && pickedId !== map.root.id) ed.remove(pickedId);
-		} else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && ed.canUndo) {
+			removeSelected();
+		} else if (mod && key === "z" && ed.canUndo) {
 			e.preventDefault();
 			ed.undo();
-		} else if (e.key.toLowerCase() === "c" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+		} else if (mod && key === "a") {
 			e.preventDefault();
-			// In the middle of what no card covers, not behind one.
+			select([...nodes.map(({ node }) => node.id), ...comments.map((c) => c.id)]);
+		} else if (mod && e.shiftKey && key === "l") {
+			e.preventDefault();
+			realign();
+		} else if (key === "c" && !mod && !e.altKey) {
+			e.preventDefault();
+			// Around the selection, as on a graph; with none, in the middle of
+			// what no card covers.
+			const around = selectionBounds();
+			if (around) {
+				addComment({ x: around.x - 24, y: around.y - 50 }, { w: around.w + 48, h: around.h + 74 });
+				return;
+			}
 			const r = box.current?.getBoundingClientRect();
 			if (r) {
 				const free = freeBox(r);
@@ -899,7 +1086,7 @@ export function MapCanvas({
 				addComment({ x: at.x - 170, y: at.y - 75 });
 			}
 		} else if (e.key === "Escape") {
-			setComment(null);
+			setSelected(new Set());
 		}
 	}
 
@@ -1019,6 +1206,19 @@ export function MapCanvas({
 				{fileName}
 			</div>
 
+			{marquee && (
+				<div
+					className="marquee"
+					style={{
+						left: marquee.x * view.zoom + view.x,
+						top: marquee.y * view.zoom + view.y,
+						width: marquee.w * view.zoom,
+						height: marquee.h * view.zoom,
+						zIndex: 30,
+					}}
+				/>
+			)}
+
 			<div
 				className="world"
 				style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` }}
@@ -1027,7 +1227,7 @@ export function MapCanvas({
 					<MapCommentView
 						key={one.id}
 						comment={commentAt(one)}
-						selected={comment === one.id}
+						selected={selected.has(one.id)}
 						editing={editing === one.id}
 						onDown={(e) => onCommentDown(e, one)}
 						onEdit={() => setEditing(one.id)}
@@ -1088,7 +1288,7 @@ export function MapCanvas({
 						ed={ed}
 						node={node}
 						at={posOf(node.id)}
-						picked={pickedId === node.id}
+						picked={selected.has(node.id)}
 						target={wire?.over === node.id}
 						onDown={(e) => onNodeDown(e, node)}
 						onSyncs={(at) => setSyncing({ id: node.id, at })}
