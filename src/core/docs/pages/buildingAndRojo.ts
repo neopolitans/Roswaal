@@ -327,6 +327,14 @@ export function buildingAndRojoPage(): DocPage {
 			{
 				t: "p",
 				text:
+					"A node marked **autosync** holds a Wally realm's folder that roswaal.json keeps " +
+					"synced. Moving or renaming it changes where autosync keeps it; deleting it asks to " +
+					"turn autosync off, since the mapping would otherwise come back. Its Syncs from is " +
+					"the realm's folder and cannot be changed while autosync is on.",
+			},
+			{
+				t: "p",
+				text:
 					"Its **DataModel** tab lists the place's instances, starting at the node's own. " +
 					"**Keep from the place** syncs nothing there and has Rojo leave the instance as the " +
 					"place has it. **Save as a model file** copies the picked instance to a `.rbxm` at the " +

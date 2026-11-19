@@ -6197,6 +6197,13 @@ button.pathchip:hover {
 	border-color: var(--accent);
 }
 
+/* Kept by autosync: its folder is the setting's, not this picker's. */
+.node.map-node .literal.picker.map-path.map-autosync {
+	cursor: default;
+	border-style: dashed;
+	color: var(--accent);
+}
+
 .node.map-node .literal.picker.map-path.odd {
 	border-color: var(--warning);
 	color: var(--warning);

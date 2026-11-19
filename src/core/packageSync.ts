@@ -91,3 +91,23 @@ function moveAway(root: MapNode, folder: string, keep?: string): MapNode {
 	}
 	return next;
 }
+
+/**
+ * The nodes of a map that autosync keeps, by id, with their realm: the node at
+ * each realm's path that syncs the realm's folder. Only the served map's are
+ * kept; another map's mapping of the folder is its own.
+ */
+export function managedNodes(
+	root: MapNode,
+	sync: PackageSync | undefined,
+): Map<string, WallyRealm> {
+	const out = new Map<string, WallyRealm>();
+	for (const realm of Object.keys(REALM_DIRS) as WallyRealm[]) {
+		const at = sync?.[realm];
+		if (!at) continue;
+		const there = nodeAt(root, syncTrail(at));
+		if (there?.path !== undefined && normalisePath(there.path) === REALM_DIRS[realm])
+			out.set(there.id, realm);
+	}
+	return out;
+}

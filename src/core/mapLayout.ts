@@ -74,14 +74,26 @@ export function mapPositions(map: NodeMap): Map<string, Point> {
 			const own = laid.get(node.id) ?? { x: 0, y: 0 };
 			const placed = parent ? out.get(parent.id) : undefined;
 			const parentLaid = parent ? laid.get(parent.id) : undefined;
-			out.set(
-				node.id,
+			let at =
 				placed && parentLaid
 					? { x: placed.x + own.x - parentLaid.x, y: placed.y + own.y - parentLaid.y }
-					: own,
-			);
+					: own;
+			// Beside a sibling that has a place of its own, the layout's guess can land
+			// on it: a mapping added since, such as one autosync made. Then it goes
+			// under the lowest of them in its column.
+			const height = mapNodeHeight(false);
+			const column = (parent?.children ?? [])
+				.filter((one) => one !== node)
+				.map((one) => out.get(one.id))
+				.filter((p): p is Point => p !== undefined && Math.abs(p.x - at.x) < MAP_NODE.width);
+			if (column.some((p) => Math.abs(p.y - at.y) < height + MAP_NODE.rowGap / 2)) {
+				at = { x: at.x, y: Math.max(...column.map((p) => p.y)) + height + MAP_NODE.rowGap };
+			}
+			out.set(node.id, at);
 		}
-		for (const child of node.children) visit(child, node);
+		// Children with places first, so one without is put clear of them.
+		const kids = [...node.children.filter((c) => c.pos), ...node.children.filter((c) => !c.pos)];
+		for (const child of kids) visit(child, node);
 	};
 	visit(map.root, null);
 	return out;

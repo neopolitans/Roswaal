@@ -9,6 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.34",
+		date: "2026-11-20",
+		headline: "The served map shows what autosync keeps.",
+		added: [
+			"**Autosync on the map.** The node autosync keeps is marked autosync, on the canvas, in the list and in Instance, and its Syncs from is fixed to the realm's folder.",
+			"**Edits go through the setting.** Moving or renaming the node changes where autosync keeps the folder. Deleting it asks to turn autosync off first, and Instance has Turn off.",
+		],
+		fixed: [
+			"A mapping added beside nodes with places of their own no longer lands on top of one.",
+			"A realm row says where its folder lands as soon as the map is saved.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.33",
 		date: "2026-11-20",
 		headline: "Wally's packages can keep themselves synced.",

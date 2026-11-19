@@ -11,7 +11,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { emptyMap, type MapNode, serialiseMap } from "../src/core/nodemap.js";
-import { syncPackageFolders } from "../src/core/packageSync.js";
+import { managedNodes, syncPackageFolders } from "../src/core/packageSync.js";
 import { parseConfig } from "../src/server/config.js";
 import { ApiSession } from "../src/server/routes.js";
 
@@ -75,6 +75,23 @@ describe("keeping a realm's folder where it goes", () => {
 		expect(
 			syncPackageFolders(root, { shared: "ReplicatedStorage.Packages" }, () => false, makeId),
 		).toBe(root);
+	});
+});
+
+describe("the nodes autosync keeps", () => {
+	it("are the ones at each realm's path that sync its folder", () => {
+		const root = syncPackageFolders(
+			node("DataModel", { className: "DataModel" }),
+			{ shared: "ReplicatedStorage.Packages" },
+			all,
+			makeId,
+		);
+		const kept = find(root, ["ReplicatedStorage", "Packages"]);
+		expect([...managedNodes(root, { shared: "ReplicatedStorage.Packages" })]).toEqual([
+			[kept?.id, "shared"],
+		]);
+		expect(managedNodes(root, { shared: "ServerStorage.Packages" }).size).toBe(0);
+		expect(managedNodes(root, undefined).size).toBe(0);
 	});
 });
 

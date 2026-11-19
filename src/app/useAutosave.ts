@@ -27,6 +27,8 @@ export interface AutosaveContext {
 	hostCompilesOnSave: { readonly current: boolean };
 	/** A map Dynamic mode compiled after saving it: what it said. */
 	onMapCompiled?: (results: MapOutcome[]) => void;
+	/** A map saved and, in Dynamic mode, compiled: what the tree says of it is older now. */
+	onMapSettled?: () => void;
 	/** A graph just written: what was checked of it is older now. */
 	onGraphSaved?: (path: string) => void;
 }
@@ -67,6 +69,7 @@ export function useAutosave(context: AutosaveContext): Autosave {
 		runCompile,
 		hostCompilesOnSave,
 		onMapCompiled,
+		onMapSettled,
 	} = context;
 
 	// Autosave. The graph on disk is the document; there is no separate "saved"
@@ -89,11 +92,15 @@ export function useAutosave(context: AutosaveContext): Autosave {
 	// project file, which the map's errors say.
 	const compileMapAfterSave = useRef<(path: string) => void>(() => undefined);
 	compileMapAfterSave.current = (path) => {
-		if (project?.config.compileMode !== "hot") return;
+		if (project?.config.compileMode !== "hot") {
+			onMapSettled?.();
+			return;
+		}
 		void api
 			.compileMap({ path, write: true, sync: false })
 			.then(({ results }) => onMapCompiled?.(results))
-			.catch(() => undefined);
+			.catch(() => undefined)
+			.finally(() => onMapSettled?.());
 	};
 	/**
 	 * What this tab recently wrote to each graph, newest last, to tell its own

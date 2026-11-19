@@ -474,7 +474,8 @@ export function MapCanvas({
 			.map(({ node }) => node.id);
 
 	/** Deletes what is selected, the DataModel apart, as one change. */
-	const removeSelected = () => {
+	const removeSelected = async () => {
+		if (!(await ed.releaseManaged(selected))) return;
 		let root = map.root;
 		for (const id of selected) if (id !== map.root.id) root = mapNodeRemove(root, id);
 		const kept = comments.filter((c) => !selected.has(c.id));
@@ -1070,7 +1071,7 @@ export function MapCanvas({
 		const key = e.key.toLowerCase();
 		if (e.key === "Delete" || e.key === "Backspace") {
 			e.preventDefault();
-			removeSelected();
+			void removeSelected();
 		} else if (mod && key === "z" && ed.canUndo) {
 			e.preventDefault();
 			ed.undo();
@@ -1440,7 +1441,14 @@ function MapNodeView({
 }) {
 	const root = node === ed.map.root;
 	const kind = kindOf(ed, node);
-	const status = statusOf(ed, node);
+	const kept = ed.managed.get(node.id);
+	const status = kept
+		? {
+				text: `autosync · ${{ shared: "Shared", server: "Server", dev: "Dev" }[kept]} packages`,
+				title:
+					"roswaal.json's packageSync keeps this here. Move or rename it to change where; delete it to turn autosync off.",
+			}
+		: statusOf(ed, node);
 	const odd = ed.odd.get(node.id);
 	const service = !root && !ed.filesystem && !node.className;
 	const rows = root ? 1 : 2;
@@ -1482,9 +1490,13 @@ function MapNodeView({
 				{set ? (
 					<button
 						type="button"
-						className={cx("literal picker map-path", odd && "odd")}
-						title={`${normalisePath(node.path ?? "")}${node.optional ? ", optional" : ""}. Choose another, or pass through.`}
-						onClick={(e) => onSyncs(e.currentTarget)}
+						className={cx("literal picker map-path", odd && "odd", kept && "map-autosync")}
+						title={
+							kept
+								? `${normalisePath(node.path ?? "")}, kept by autosync. Turn it off under Packages to sync from elsewhere.`
+								: `${normalisePath(node.path ?? "")}${node.optional ? ", optional" : ""}. Choose another, or pass through.`
+						}
+						onClick={(e) => !kept && onSyncs(e.currentTarget)}
 					>
 						<span className="preview">{normalisePath(node.path ?? "")}</span>
 						<Icon name="chevron" size={11} />

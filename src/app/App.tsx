@@ -1965,6 +1965,8 @@ export function App() {
 		runCompile,
 		hostCompilesOnSave,
 		onMapCompiled: setMapOutcomes,
+		// A map row says what it writes and syncs, read with the tree.
+		onMapSettled: () => void refreshTree(),
 		onGraphSaved: (path) => setEditedSince((was) => new Set(was).add(path)),
 	});
 
@@ -2078,6 +2080,12 @@ export function App() {
 	 * Set in roswaal.json; the daemon maps the folder as the setting lands.
 	 */
 	const syncRealm = async (realm: "shared" | "server" | "dev", at: string | null) => {
+		// Open maps first: the daemon moves the folder's mapping on disk, and an
+		// older copy saved after it would put the mapping back.
+		for (const one of store.unsavedMaps()) {
+			await api.writeMap(one.path, one.map).catch(() => undefined);
+			store.markMapSaved(one.path, one.map);
+		}
 		const next = { ...(project?.config.packageSync ?? {}) };
 		if (at) next[realm] = at;
 		else delete next[realm];
@@ -2099,6 +2107,16 @@ export function App() {
 					onNewFolder: onTreeNewFolder,
 					onRefreshTree: refreshTree,
 					onServe: () => void serveMap(mapDoc.path),
+					packageSync: project.config.packageSync,
+					onPackageSync: syncRealm,
+					confirmAutosyncOff: async (realm) =>
+						(await ask({
+							kind: "confirm",
+							title: `Turn off autosync for ${{ shared: "Shared", server: "Server", dev: "Dev" }[realm]} packages?`,
+							message:
+								"Autosync keeps this folder here in the served map, so deleting the mapping alone would see it put back. Turning autosync off lets it go; Packages or Settings turns it on again.",
+							confirmLabel: "Turn off",
+						})) === true,
 					onMoveFolder: async (next, from, toDir) => {
 						const at = mapDoc.path;
 						store.editMap(at, next);

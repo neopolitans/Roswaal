@@ -65,8 +65,10 @@ import {
 	mapNodeUpdate,
 	type NodeMap,
 } from "../core/nodemap.js";
+import { managedNodes, type PackageSync } from "../core/packageSync.js";
 import { isService } from "../core/roblox.js";
 import { mappedPaths, normalisePath } from "../core/rojoPaths.js";
+import type { WallyRealm } from "../core/wally.js";
 import { api, type TreeEntry } from "./api.js";
 import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
@@ -121,6 +123,12 @@ export interface MapEditorInput {
 	onRefreshTree?: () => Promise<void>;
 	/** Makes this the served map: it writes default.project.json, which rojo serve reads. */
 	onServe?: () => void;
+	/** roswaal.json's packageSync: where autosync keeps each Wally realm's folder. */
+	packageSync?: PackageSync;
+	/** Changes where autosync keeps a realm's folder, or turns it off with null. */
+	onPackageSync?: (realm: WallyRealm, at: string | null) => Promise<void>;
+	/** Asks before a node autosync keeps is deleted, which turns autosync off. */
+	confirmAutosyncOff?: (realm: WallyRealm) => Promise<boolean>;
 }
 
 /** What is picked: a node of the map, or a folder on disk the map does not name. */
@@ -187,6 +195,13 @@ export interface MapEditing extends MapEditorInput {
 	setSyncFrom: (id: string, path: string | undefined, optional: boolean) => void;
 	/** Replaces the map's comments, as one change. */
 	setComments: (next: MapComment[]) => void;
+	/** Nodes autosync keeps in this map, the served one, by id: their Wally realm. */
+	managed: ReadonlyMap<string, WallyRealm>;
+	/**
+	 * Lets go of the nodes autosync keeps among `ids`, asking first: true when
+	 * there were none, or autosync was turned off for them.
+	 */
+	releaseManaged: (ids: Iterable<string>) => Promise<boolean>;
 	/** Syncs nothing from disk, and has Rojo leave what the place holds there. */
 	keepFromPlace: (id: string) => void;
 	/** Syncs a node from a model file just copied out of the place, taking its class. */
@@ -318,6 +333,14 @@ export function useMapEditor(input: MapEditorInput | null): MapEditing | null {
 	}, [path]);
 
 	const compiled = useMemo(() => compileNodeMap(map), [map]);
+	// Autosync keeps nodes in the served map only.
+	const managed = useMemo(
+		() =>
+			!isFilesystemMap(map) && map.output === "default.project.json"
+				? managedNodes(map.root, input?.packageSync)
+				: new Map<string, WallyRealm>(),
+		[map, input?.packageSync],
+	);
 	const lines = useMemo(() => mapFigure(map).lines, [map]);
 	const exceptions = useMemo(
 		() => (filesystem ? [] : ruleExceptions(map, outDir)),
@@ -434,13 +457,19 @@ export function useMapEditor(input: MapEditorInput | null): MapEditing | null {
 	const updateNode = (id: string, patch: Partial<MapNode>) =>
 		commit({ ...map, root: mapNodeUpdate(map.root, id, (node) => ({ ...node, ...patch })) });
 
-	const rename = (id: string, name: string) =>
+	const rename = (id: string, name: string) => {
+		const realm = managed.get(id);
+		if (realm && input.onPackageSync) {
+			void input.onPackageSync(realm, [...trailOf(map, id).slice(0, -1), name].join("."));
+			return;
+		}
 		commit({
 			...map,
 			root: filesystem
 				? mapNodeUpdate(map.root, id, (node) => ({ ...node, name }))
 				: renameByRule(map, outDir, id, name),
 		});
+	};
 
 	const addChild = (parentId: string, child: MapNode) => {
 		commit({
@@ -485,11 +514,31 @@ export function useMapEditor(input: MapEditorInput | null): MapEditing | null {
 	const addService = (name: string) =>
 		addChild(map.root.id, { id: newId(), name, path: rulePath(outDir, [name]), children: [] });
 
+	const releaseManaged = async (ids: Iterable<string>): Promise<boolean> => {
+		const realms = [
+			...new Set(
+				[...ids].flatMap((id) => (managed.has(id) ? [managed.get(id) as WallyRealm] : [])),
+			),
+		];
+		for (const realm of realms) {
+			if (input.confirmAutosyncOff && !(await input.confirmAutosyncOff(realm))) return false;
+			await input.onPackageSync?.(realm, null);
+		}
+		return true;
+	};
+
 	const remove = (id: string) => {
 		if (id === map.root.id) return;
 		const parent = mapNodeParent(map.root, id);
-		commit({ ...map, root: mapNodeRemove(map.root, id) });
-		setPick({ kind: "node", id: parent?.id ?? map.root.id });
+		const go = () => {
+			commit({ ...map, root: mapNodeRemove(map.root, id) });
+			setPick({ kind: "node", id: parent?.id ?? map.root.id });
+		};
+		if (managed.has(id)) {
+			void releaseManaged([id]).then((ok) => ok && go());
+			return;
+		}
+		go();
 	};
 
 	const mapByRule = (folder: string): boolean => {
@@ -623,6 +672,12 @@ export function useMapEditor(input: MapEditorInput | null): MapEditing | null {
 	 * Undo, so the history before it is let go.
 	 */
 	const reparent = (id: string, parent: string) => {
+		const realm = managed.get(id);
+		const node = findMapNode(map.root, id);
+		if (realm && node && input.onPackageSync) {
+			void input.onPackageSync(realm, [...trailOf(map, parent), node.name].join("."));
+			return;
+		}
 		const root = filesystem
 			? mapNodeMove(map.root, id, parent, "inside")
 			: moveByRule(map, outDir, id, parent);
@@ -738,6 +793,8 @@ export function useMapEditor(input: MapEditorInput | null): MapEditing | null {
 		isFolderPath,
 		layout,
 		setLayout,
+		managed,
+		releaseManaged,
 		place,
 		reparent,
 		setSyncFrom,
@@ -911,6 +968,11 @@ export function MapTreeView({ ed }: { ed: MapEditing }) {
 		const where = dropAt?.where ?? "inside";
 		setDropAt(null);
 		const moving = e.dataTransfer.getData(MAP_DRAG);
+		if (moving && row.node && ed.managed.has(moving) && where === "inside") {
+			ed.reparent(moving, row.node.id);
+			return;
+		}
+		if (moving && row.node && ed.managed.has(moving)) return;
 		if (moving && row.node) {
 			const root = mapNodeMove(map.root, moving, row.node.id, where);
 			if (root !== map.root) ed.commit({ ...map, root });
@@ -1258,7 +1320,7 @@ function describeRow(ed: MapEditing, row: Row): RowFacts {
 				name,
 				icon,
 				detail: {
-					text: `${folder} · ${words.text}`,
+					text: ed.managed.has(node.id) ? `${folder} · autosync` : `${folder} · ${words.text}`,
 					tone: words.tone as "ok" | "warn" | "bad",
 					title:
 						`${folder}: ${words.title}` +
@@ -1634,12 +1696,29 @@ function NodeFields({ ed, node }: { ed: MapEditing; node: MapNode }) {
 								aria-label="Path"
 								placeholder="Not synced"
 								value={node.path ?? ""}
+								readOnly={ed.managed.has(node.id)}
 								onChange={(e) => patch({ path: e.target.value })}
 							/>
-							<button type="button" className="tb" onClick={(e) => setChoosing(e.currentTarget)}>
+							<button
+								type="button"
+								className="tb"
+								disabled={ed.managed.has(node.id)}
+								onClick={(e) => setChoosing(e.currentTarget)}
+							>
 								Choose…
 							</button>
 						</span>
+					</Field>
+				)}
+				{ed.managed.has(node.id) && (
+					<Field
+						label="Autosync"
+						part="autosync"
+						help="roswaal.json's packageSync keeps this folder here in the served map. Moving or renaming it changes where."
+					>
+						<button type="button" className="tb" onClick={() => void ed.releaseManaged([node.id])}>
+							Turn off
+						</button>
 					</Field>
 				)}
 				{!filesystem && !root && node.path !== undefined && (
