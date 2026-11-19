@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.33",
+		date: "2026-11-20",
+		headline: "Wally's packages can keep themselves synced.",
+		added: [
+			"**Autosync for packages.** Each Wally realm's folder can be kept synced in the served map by itself: in ReplicatedStorage, ServerStorage, ServerScriptService, or a DataModel path you give. Roswaal maps it there, or moves its mapping there, when a package is added, when the setting changes, when another map is served and as the project opens.",
+			"**sync…** on each realm under Packages sets it, and **Settings › Compiling › Wally packages** sets all three. It is kept in roswaal.json as packageSync, so the whole team shares it.",
+		],
+		changed: ["**Add to map** on a realm is replaced by autosync."],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.32",
 		date: "2026-11-20",
 		headline: "Trees line up: each level's chevron under its parent's icon.",

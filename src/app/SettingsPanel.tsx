@@ -29,6 +29,7 @@ import {
 	useState,
 } from "react";
 import { CARRIED_LICENCES } from "../core/licenceData.js";
+import { PACKAGE_SYNC_PLACES } from "../core/packageSync.js";
 import { INDENT_WIDTHS, type RoswaalConfig, type Target } from "../core/schema.js";
 import { CODE_ROLES, ROLES, type Theme } from "../core/theme.js";
 import {
@@ -483,6 +484,22 @@ function CompilingSettings({
 						</select>
 					</Row>
 				)}
+			</Group>
+
+			<Group title="Wally packages">
+				{PACKAGE_REALMS.map((realm) => (
+					<PackageSyncRow
+						key={realm.id}
+						realm={realm}
+						value={config.packageSync?.[realm.id]}
+						onChange={(at) => {
+							const next = { ...(config.packageSync ?? {}) };
+							if (at) next[realm.id] = at;
+							else delete next[realm.id];
+							onConfig({ packageSync: next });
+						}}
+					/>
+				))}
 			</Group>
 
 			<Group title="Scripts with children">
@@ -1739,6 +1756,77 @@ function DeclaredSetting({
 					))}
 				</select>
 			)}
+		</Row>
+	);
+}
+
+const PACKAGE_REALMS = [
+	{ id: "shared", label: "Shared", folder: "Packages" },
+	{ id: "server", label: "Server", folder: "ServerPackages" },
+	{ id: "dev", label: "Dev", folder: "DevPackages" },
+] as const;
+
+/**
+ * Where one Wally realm's folder is kept synced in the served map: off, one
+ * of the usual services, or a DataModel path typed in.
+ */
+function PackageSyncRow({
+	realm,
+	value,
+	onChange,
+}: {
+	realm: (typeof PACKAGE_REALMS)[number];
+	value: string | undefined;
+	onChange: (at: string | null) => void;
+}) {
+	const presets = PACKAGE_SYNC_PLACES.map((service) => `${service}.${realm.folder}`);
+	const custom = value !== undefined && !presets.includes(value);
+	const [draft, setDraft] = useState(value ?? "");
+	const [typing, setTyping] = useState(custom);
+	const parts = draft.split(".").map((part) => part.trim());
+	const valid = parts.length >= 2 && parts.every(Boolean);
+	return (
+		<Row
+			label={realm.label}
+			help={`Keeps ${realm.folder}/ synced in the served map, by itself, as packages are added. Off, it is mapped by hand.`}
+		>
+			<span className="package-sync-field">
+				<select
+					className="tb"
+					value={typing || custom ? "custom" : (value ?? "")}
+					onChange={(e) => {
+						const picked = e.target.value;
+						if (picked === "custom") {
+							setTyping(true);
+							setDraft(value ?? `ReplicatedStorage.${realm.folder}`);
+							return;
+						}
+						setTyping(false);
+						onChange(picked === "" ? null : picked);
+					}}
+				>
+					<option value="">Off</option>
+					{presets.map((at) => (
+						<option key={at} value={at}>
+							{at.replace(/\./g, " › ")}
+						</option>
+					))}
+					<option value="custom">Somewhere else…</option>
+				</select>
+				{(typing || custom) && (
+					<input
+						className={valid ? "tb" : "tb invalid"}
+						aria-label={`Where ${realm.folder}/ is kept`}
+						placeholder="ReplicatedStorage.Shared.Packages"
+						value={draft}
+						onChange={(e) => setDraft(e.target.value)}
+						onBlur={() => valid && draft !== value && onChange(parts.join("."))}
+						onKeyDown={(e) => {
+							if (e.key === "Enter" && valid) onChange(parts.join("."));
+						}}
+					/>
+				)}
+			</span>
 		</Row>
 	);
 }

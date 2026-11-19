@@ -632,6 +632,11 @@ class Store {
 		);
 	}
 
+	/** Every open document that is not a graph: maps, Luau, places. */
+	sideDocuments(): readonly SideDocument[] {
+		return this.sides;
+	}
+
 	/** Every open node map with edits not on disk. */
 	unsavedMaps(): MapDocument[] {
 		return this.sides.flatMap((s) => (s.kind === "map" && s.doc.dirty ? [s.doc] : []));

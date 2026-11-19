@@ -103,6 +103,7 @@ import { fs, path } from "./host.js";
 import { makeGraphFolders } from "./mapFolders.js";
 import { createProject } from "./newProject.js";
 import { importGraphPath } from "./outputs.js";
+import { servedMap, syncPackages } from "./packageSync.js";
 import { tidyPath, toPosix } from "./paths.js";
 import {
 	assertNoNameClash,
@@ -342,6 +343,8 @@ export class ApiSession {
 		// made elsewhere -- gets the graph folders its synced folders want, as a
 		// new project starts with. A folder that cannot be written opens anyway.
 		if (switched) await makeGraphFolders(this.current).catch(() => []);
+		// Wally's folders where roswaal.json's packageSync keeps them.
+		await syncPackages(this.current).catch(() => []);
 		this.hooks.projectChanged?.(this.current, { switched });
 		return this.current;
 	}
@@ -1427,9 +1430,11 @@ export class ApiSession {
 				const wanted = need(spec, "spec", "Which package? Pass its `spec`, scope/name.");
 				// `choose`: with no version given and more than one listed, answer
 				// the versions rather than install the newest.
-				return addFromWally(this.project(), wanted, realmOf(realm), alias, {
+				const added = await addFromWally(this.project(), wanted, realmOf(realm), alias, {
 					choose: choose === true,
 				});
+				await syncPackages(this.project()).catch(() => []);
+				return added;
 			},
 
 			/** A package from a zip: a Wally package where `wally install` puts one, anything else vendored. */
@@ -1441,7 +1446,13 @@ export class ApiSession {
 					fileName: string;
 				}>(req);
 				const bytes = fromBase64(need(data, "data", "Pass the zip as base64 `data`."));
-				return installZip(this.project(), bytes, { alias, realm: realmOf(realm), fileName });
+				const added = await installZip(this.project(), bytes, {
+					alias,
+					realm: realmOf(realm),
+					fileName,
+				});
+				await syncPackages(this.project()).catch(() => []);
+				return added;
 			},
 
 			/** Files that still require a Wally package, before it is removed. */
@@ -1464,7 +1475,14 @@ export class ApiSession {
 			"POST /wally/github": async (req) => {
 				const { repo, alias } = fields<{ repo: string; alias: string }>(req);
 				const named = need(repo, "repo", "Which repository? Pass `repo`, owner/repo.");
-				return installGithub(this.project(), named, this.ability("githubDownload"), alias);
+				const added = await installGithub(
+					this.project(),
+					named,
+					this.ability("githubDownload"),
+					alias,
+				);
+				await syncPackages(this.project()).catch(() => []);
+				return added;
 			},
 
 			/**
@@ -1684,6 +1702,9 @@ export class ApiSession {
 				}
 				await compileMap(project, target, { write: true, sync: false });
 				changed.push(target);
+				for (const one of await syncPackages(project).catch(() => [])) {
+					if (!changed.includes(one)) changed.push(one);
+				}
 				return { changed };
 			},
 
@@ -2028,15 +2049,6 @@ export class ApiSession {
 		if (!handler) throw new HttpError(404, `No such route: ${method} ${routePath}`);
 		return handler(req);
 	}
-}
-
-/** The map writing default.project.json, or null. */
-async function servedMap(project: OpenProject): Promise<string | null> {
-	for (const found of await collectMaps(project)) {
-		const map = await readMap(project, found).catch(() => null);
-		if (map && !isFilesystemMap(map) && tidyPath(map.output) === SERVED_OUTPUT) return found;
-	}
-	return null;
 }
 
 export interface LoadedPlace {

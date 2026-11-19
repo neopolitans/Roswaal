@@ -1965,6 +1965,23 @@ button.tb.primary:hover:not(:disabled) {
 	padding: 0 6px;
 }
 
+/* A Wally realm kept synced by itself: its button reads autosync, lit. */
+.tree-row .tb.tree-open.on {
+	color: var(--accent);
+	border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+/* Settings › Wally packages: the place, and a path typed in for somewhere else. */
+.package-sync-field {
+	display: grid;
+	gap: 6px;
+	min-width: 0;
+}
+
+.package-sync-field .tb.invalid {
+	border-color: var(--warning);
+}
+
 /* Generated Luau, where Output lists it: there, and quieter than what needs a look. */
 .tree-row.tree-generated .label {
 	color: var(--fg-muted);

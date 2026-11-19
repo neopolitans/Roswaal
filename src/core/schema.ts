@@ -766,6 +766,12 @@ export interface RoswaalConfig {
 	 */
 	flattenEmptyScripts?: boolean;
 	/**
+	 * Where each Wally realm's folder is kept synced in the served node map:
+	 * a DataModel path, service first, such as `ReplicatedStorage.Packages`.
+	 * A realm left out is not synced by itself. See `syncPackages`.
+	 */
+	packageSync?: Partial<Record<"shared" | "server" | "dev", string>>;
+	/**
 	 * No longer read, and no longer written by default; accepted so a
 	 * `roswaal.json` that carries it still loads.
 	 *

@@ -43,7 +43,7 @@ export function projectPanelPage(): DocPage {
 					],
 					[
 						"**Packages**",
-						"What `wally.toml` depends on, by realm. Each realm is its folder: Shared is `Packages/`, Server `ServerPackages/`, Dev `DevPackages/`, with where a map lands it, as `Packages/ → ReplicatedStorage › Packages`. An installed realm no map syncs is yellow, with **add to map**, which maps it into the served map; Dev is usually left so. **Add** puts a package in",
+						"What `wally.toml` depends on, by realm. Each realm is its folder: Shared is `Packages/`, Server `ServerPackages/`, Dev `DevPackages/`, with where a map lands it, as `Packages/ → ReplicatedStorage › Packages`. An installed realm no map syncs is yellow. **sync…** on a realm keeps its folder synced by itself in the served map: in ReplicatedStorage, ServerStorage, ServerScriptService or a DataModel path you give, moved there if it is mapped elsewhere, as packages are added. **Settings › Compiling › Wally packages** sets all three. **Add** puts a package in",
 					],
 					[
 						"**Place**",

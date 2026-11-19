@@ -9,6 +9,7 @@
 import { type DragEvent, memo, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { wearsClassIcon } from "../core/classIcons.js";
 import type { FunctionInfo } from "../core/functionGraph.js";
+import { PACKAGE_SYNC_PLACES } from "../core/packageSync.js";
 import { isInstanceClass, isService } from "../core/roblox.js";
 import type { TreeEntry } from "./api.js";
 import { cx } from "./cx.js";
@@ -74,8 +75,10 @@ export interface ProjectTreeProps {
 	onServeMap?: (path: string) => void;
 	/** Generated Luau whose graph is gone, which Output marks stale. */
 	stale?: readonly string[];
-	/** Maps a Wally realm's folder into the served map, where its realm puts it. */
-	onMapRealm?: (realm: "shared" | "server") => void;
+	/** roswaal.json's packageSync: where each Wally realm's folder is kept synced. */
+	packageSync?: Partial<Record<"shared" | "server" | "dev", string>>;
+	/** Keeps a realm's folder synced at a DataModel path, or stops with null. */
+	onPackageSync?: (realm: "shared" | "server" | "dev", at: string | null) => void;
 	onNewFolder: (parentDir: string) => void;
 	onRename: (path: string) => void;
 	onDelete: (paths: string[]) => void;
@@ -129,7 +132,8 @@ export const ProjectTree = memo(function ProjectTree({
 	outDir = "",
 	onServeMap,
 	stale,
-	onMapRealm,
+	packageSync,
+	onPackageSync,
 	onNewFolder,
 	onRename,
 	onDelete,
@@ -146,6 +150,8 @@ export const ProjectTree = memo(function ProjectTree({
 	const [menu, setMenu] = useState<{ x: number; y: number; entry: TreeEntry } | null>(null);
 	// Add Place's two ways, hung from the button.
 	const [placeMenu, setPlaceMenu] = useState<Element | null>(null);
+	const [realmMenu, setRealmMenu] = useState<{ at: Element; realm: RealmRow } | null>(null);
+	const [realmCustom, setRealmCustom] = useState<RealmRow | null>(null);
 	// Output starts folded: what Roswaal writes is looked at when something is wrong.
 	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(
 		() => new Set([sectionKey("packs")]),
@@ -652,17 +658,21 @@ export const ProjectTree = memo(function ProjectTree({
 										? " · no map syncs it"
 										: " · not installed yet"}
 							</span>
-							{!realm.mapped && realm.installed && writes && realm.id !== "dev" && onMapRealm && (
+							{onPackageSync && (
 								<button
 									type="button"
-									className="tb tree-open"
-									title={`Map ${realm.folder}/ into ${realm.id === "shared" ? "ReplicatedStorage" : "ServerScriptService"} › ${realm.folder}, in the served map`}
+									className={cx("tb tree-open", packageSync?.[realm.id] && "on")}
+									title={
+										packageSync?.[realm.id]
+											? `Autosync keeps ${realm.folder}/ at ${packageSync[realm.id]?.replace(/\./g, " › ")} in the served map.`
+											: `Keep ${realm.folder}/ synced somewhere in the served map, by itself.`
+									}
 									onClick={(e) => {
 										e.stopPropagation();
-										onMapRealm(realm.id as "shared" | "server");
+										setRealmMenu({ at: e.currentTarget, realm });
 									}}
 								>
-									add to map
+									{packageSync?.[realm.id] ? "autosync" : "sync…"}
 								</button>
 							)}
 						</div>
@@ -1081,6 +1091,61 @@ export const ProjectTree = memo(function ProjectTree({
 					<span className="label">Nothing to show yet.</span>
 				</div>
 			)}
+			{realmMenu && onPackageSync && (
+				<Menu
+					at={{ element: realmMenu.at, align: "end" }}
+					label={`Keep ${realmMenu.realm.folder}/ synced in`}
+					onClose={() => setRealmMenu(null)}
+					sections={[
+						{
+							label: `Keep ${realmMenu.realm.folder}/ synced in`,
+							entries: [
+								...PACKAGE_SYNC_PLACES.map((service) => {
+									const at = `${service}.${realmMenu.realm.folder}`;
+									return {
+										label: `${service} › ${realmMenu.realm.folder}`,
+										checked: packageSync?.[realmMenu.realm.id] === at,
+										run: () => onPackageSync(realmMenu.realm.id, at),
+									};
+								}),
+								{
+									label: "Somewhere else…",
+									checked:
+										packageSync?.[realmMenu.realm.id] !== undefined &&
+										!PACKAGE_SYNC_PLACES.some(
+											(service) =>
+												packageSync?.[realmMenu.realm.id] ===
+												`${service}.${realmMenu.realm.folder}`,
+										),
+									run: () => setRealmCustom(realmMenu.realm),
+								},
+							],
+						},
+						{
+							entries: [
+								{
+									label: "Off",
+									hint: "map it yourself",
+									checked: packageSync?.[realmMenu.realm.id] === undefined,
+									run: () => onPackageSync(realmMenu.realm.id, null),
+								},
+							],
+						},
+					]}
+				/>
+			)}
+			{realmCustom && onPackageSync && (
+				<RealmPathPrompt
+					realm={realmCustom}
+					value={packageSync?.[realmCustom.id] ?? `ReplicatedStorage.${realmCustom.folder}`}
+					onClose={() => setRealmCustom(null)}
+					onDone={(at) => {
+						setRealmCustom(null);
+						onPackageSync(realmCustom.id, at);
+					}}
+				/>
+			)}
+
 			{placeMenu && onAddPlace && (
 				<Menu
 					at={{ element: placeMenu, align: "end" }}
@@ -1314,6 +1379,64 @@ function MapRowFacts({ facts }: { facts: NonNullable<TreeEntry["mapFacts"]> }) {
 				</span>
 			)}
 		</>
+	);
+}
+
+/** A DataModel path for a realm's folder, typed: service first, dot-separated. */
+function RealmPathPrompt({
+	realm,
+	value,
+	onClose,
+	onDone,
+}: {
+	realm: RealmRow;
+	value: string;
+	onClose: () => void;
+	onDone: (at: string) => void;
+}) {
+	const [text, setText] = useState(value);
+	const parts = text.split(".").map((part) => part.trim());
+	const ok = parts.length >= 2 && parts.every(Boolean);
+	return (
+		<div className="dialog-backdrop" role="presentation" onClick={onClose}>
+			<div
+				className="dialog"
+				role="dialog"
+				aria-label={`Keep ${realm.folder}/ synced at`}
+				onClick={(e) => e.stopPropagation()}
+			>
+				<div className="dialog-body">
+					<label className={cx("field wide", !ok && "warn")}>
+						<span>Keep {realm.folder}/ synced at</span>
+						<input
+							className="tb"
+							// biome-ignore lint/a11y/noAutofocus: the prompt opens to be typed into.
+							autoFocus
+							value={text}
+							onChange={(e) => setText(e.target.value)}
+							onKeyDown={(e) => {
+								if (e.key === "Enter" && ok) onDone(parts.join("."));
+								if (e.key === "Escape") onClose();
+							}}
+						/>
+						<small>A DataModel path, service first: ReplicatedStorage.Shared.Packages</small>
+					</label>
+				</div>
+				<div className="dialog-actions">
+					<button type="button" className="tb" onClick={onClose}>
+						Cancel
+					</button>
+					<button
+						type="button"
+						className="tb primary"
+						disabled={!ok}
+						onClick={() => onDone(parts.join("."))}
+					>
+						Keep it there
+					</button>
+				</div>
+			</div>
+		</div>
 	);
 }
 

@@ -24,7 +24,6 @@ import { readDocText, tidyDoc } from "../core/docComments.js";
 import { buildSearchIndex, buildSite } from "../core/docs/site.js";
 import { errorMessage } from "../core/errorMessage.js";
 import { diffLines, shownLines } from "../core/lineDiff.js";
-import { mapAt } from "../core/mapRule.js";
 import { instanceSpecifier } from "../core/modules.js";
 import type { InstanceLocation } from "../core/nodemap.js";
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
@@ -146,7 +145,7 @@ import { SourceView } from "./SourceView.jsx";
 import { type MapProblem, StatusPanel } from "./StatusPanel.jsx";
 import { SaveQueue } from "./saveQueue.js";
 import { isStaleBuild, STALE_BUILD_MESSAGE } from "./staleBuild.js";
-import { newId, sideKey, store, tabKey, useDocuments, useEditor, useOutline } from "./store.js";
+import { sideKey, store, tabKey, useDocuments, useEditor, useOutline } from "./store.js";
 import { showToast, Toasts } from "./Toast.jsx";
 import { DocumentAction, DocumentBar, graphMenuEntries, ProjectBar } from "./Toolbar.jsx";
 import { liveSelection, TouchBar } from "./TouchBar.jsx";
@@ -1423,6 +1422,16 @@ export function App() {
 	const refreshTree = useCallback(async () => {
 		const { tree, place } = await api.tree();
 		setProject((p) => (p ? { ...p, tree, place } : p));
+		for (const side of store.sideDocuments()) {
+			if (side.kind !== "map" || side.doc.dirty) continue;
+			const fresh = await api.readMap(side.doc.path).catch(() => null);
+			if (!fresh || JSON.stringify(fresh.map) === JSON.stringify(side.doc.map)) continue;
+			store.updateSide(`map:${side.doc.path}`, (was) =>
+				was.kind === "map" && !was.doc.dirty
+					? { kind: "map", doc: { ...was.doc, map: fresh.map } }
+					: was,
+			);
+		}
 		// Asked here rather than only after a compile. Renaming, moving and
 		// deleting all change what is stale, and none of them compiles anything —
 		// so the count went on describing whatever the last compile saw.
@@ -1895,7 +1904,7 @@ export function App() {
 				// Only the settings that decide what is on disk, and where. A
 				// compile-mode toggle changes nothing the tree shows, and it is the
 				// one of these that gets pressed repeatedly.
-				const rereads = ["sourceDir", "outDir", "nodePaths"];
+				const rereads = ["sourceDir", "outDir", "nodePaths", "packageSync"];
 				if (rereads.some((key) => key in patch)) await refreshTree();
 			} catch (err) {
 				if (err instanceof ProjectChangedError) void onProjectChanged(err);
@@ -2065,41 +2074,15 @@ export function App() {
 	};
 
 	/**
-	 * Maps a Wally realm's folder into the served map, where its realm puts
-	 * it: shared into ReplicatedStorage › Packages, server into
-	 * ServerScriptService › ServerPackages. The map is written and compiled.
+	 * Keeps a Wally realm's folder synced at `at` in the served map, or stops.
+	 * Set in roswaal.json; the daemon maps the folder as the setting lands.
 	 */
-	const mapRealm = async (realm: "shared" | "server") => {
-		const folder = realm === "shared" ? "Packages" : "ServerPackages";
-		const into = realm === "shared" ? "ReplicatedStorage" : "ServerScriptService";
-		const maps: TreeEntry[] = [];
-		const gather = (entries: readonly TreeEntry[]) => {
-			for (const e of entries) {
-				if (e.kind === "nodemap") maps.push(e);
-				if (e.children) gather(e.children);
-			}
-		};
-		gather(project?.tree ?? []);
-		const served = maps.find((m) => m.mapFacts?.serves) ?? maps.find((m) => m.mapFacts?.output);
-		if (!served) {
-			notify("No map to add it to", "Make a node map first: it says where folders land in Studio.");
-			return;
-		}
-		try {
-			const open = store.unsavedMaps().find((m) => m.path === served.path);
-			const { map } = open ? open : await api.readMap(served.path);
-			const made = mapAt(map.root, [into, folder], folder, newId);
-			const next = { ...map, root: made.root };
-			await api.writeMap(served.path, next);
-			store.updateSide(`map:${served.path}`, (side) =>
-				side.kind === "map" ? { kind: "map", doc: { ...side.doc, map: next, dirty: false } } : side,
-			);
-			await api.compileMap({ path: served.path, write: true, sync: false });
-			await refreshTree();
-			notify("Added to the map", `${folder}/ lands in ${into} › ${folder}.`);
-		} catch (err) {
-			notify("It was not added to the map", errorMessage(err));
-		}
+	const syncRealm = async (realm: "shared" | "server" | "dev", at: string | null) => {
+		const next = { ...(project?.config.packageSync ?? {}) };
+		if (at) next[realm] = at;
+		else delete next[realm];
+		await setConfig({ packageSync: next });
+		await refreshTree();
 	};
 
 	// The open node map, shared by the tree in the centre and its three panels.
@@ -2467,7 +2450,8 @@ export function App() {
 									tree={project.tree}
 									outDir={project.config.outDir}
 									stale={orphans}
-									onMapRealm={(realm) => void mapRealm(realm)}
+									packageSync={project.config.packageSync}
+									onPackageSync={(realm, at) => void syncRealm(realm, at)}
 									openPath={editor.path ?? source?.path ?? null}
 									openGraph={source || mapDoc ? null : editor.graph}
 									outline={outline}

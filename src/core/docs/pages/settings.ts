@@ -49,7 +49,7 @@ export function settingsPage(): DocPage {
 					[
 						"**Compiling**",
 						"`roswaal.json`",
-						"Where graphs and Luau live, how a graph compiles, indentation, scripts with children, and Studio betas the Luau can use",
+						"Where graphs and Luau live, how a graph compiles, indentation, where Wally's packages are kept synced, scripts with children, and Studio betas the Luau can use",
 					],
 					["**Node packs**", "`roswaal.json`", "The directories scanned for node packs"],
 					["**Canvas**", "This browser", "The grid, wires, node corners, and what scrolling does"],

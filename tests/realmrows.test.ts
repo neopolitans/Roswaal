@@ -79,7 +79,7 @@ const html = renderToStaticMarkup(
 		onReveal: noop,
 		onMove: noop,
 		onPackage: noop,
-		onMapRealm: noop,
+		onPackageSync: noop,
 	} as ProjectTreeProps),
 );
 
@@ -101,5 +101,9 @@ describe("packages by realm", () => {
 	it("leaves Wally's folders out of Output", () => {
 		expect(html).not.toContain('data-entry="Packages"');
 		expect(html).not.toContain('data-entry="DevPackages"');
+	});
+
+	it("offers autosync on each realm", () => {
+		expect(html.match(/>sync…</g)).toHaveLength(2);
 	});
 });

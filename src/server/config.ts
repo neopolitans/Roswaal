@@ -125,6 +125,7 @@ export function parseConfig(value: unknown): RoswaalConfig {
 		"conditionalBindings",
 		"flattenEmptyScripts",
 		"export",
+		"packageSync",
 	]) {
 		if (given[key] === null) delete given[key];
 	}
@@ -173,8 +174,26 @@ export function parseConfig(value: unknown): RoswaalConfig {
 		throw wrong("indentWidth", "a number");
 	}
 	if (config.export !== undefined) checkExport(config.export, wrong);
+	if (config.packageSync !== undefined) checkPackageSync(config.packageSync, wrong);
 	// Every key the interface names has now been checked above.
 	return config as unknown as RoswaalConfig;
+}
+
+/**
+ * `packageSync` in roswaal.json: for each Wally realm, the DataModel path its
+ * folder is kept at, service first and dot-separated.
+ */
+function checkPackageSync(value: unknown, wrong: (key: string, kind: string) => UserError): void {
+	if (typeof value !== "object" || value === null || Array.isArray(value))
+		throw wrong("packageSync", "an object of shared, server and dev");
+	for (const [realm, at] of Object.entries(value as Record<string, unknown>)) {
+		if (!["shared", "server", "dev"].includes(realm))
+			throw wrong(`packageSync.${realm}`, "one of shared, server and dev");
+		if (at === null || at === undefined) continue;
+		const parts = typeof at === "string" ? at.split(".") : [];
+		if (parts.length < 2 || parts.some((part) => part.trim() === ""))
+			throw wrong(`packageSync.${realm}`, "a DataModel path such as ReplicatedStorage.Packages");
+	}
 }
 
 /** `export` in roswaal.json: an object of the Export menu's choices, each optional. */
