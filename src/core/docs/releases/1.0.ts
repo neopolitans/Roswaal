@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.32",
+		date: "2026-11-20",
+		headline: "Trees line up: each level's chevron under its parent's icon.",
+		fixed: [
+			"**Rows in the Project panel and DataModel** stepped in less than a chevron and its gap, so a child's chevron sat between its parent's chevron and icon. A level is now that width, a file keeps a chevron's room so its icon lines up with its folders', and the indent guides follow.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.31",
 		date: "2026-11-20",
 		headline: "Packages are listed by Wally realm, each its folder.",

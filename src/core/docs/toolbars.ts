@@ -955,7 +955,10 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 			const chevron = item.twist
 				? iconSvg("chevron", 14, art, "twist", item.twist === "open" ? 0 : -90)
 				: "";
-			const twist = item.place ? `<span class="place-twist">${chevron}</span>` : chevron;
+			// A row with nothing to open keeps a chevron's room, as the editor's do.
+			const twist = item.place
+				? `<span class="place-twist">${chevron}</span>`
+				: chevron || `<span class="twist-slot"></span>`;
 			const classes = [
 				"tree-row",
 				item.place ? "place-row" : "",
@@ -975,7 +978,7 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 				: "";
 			const hovered = item.hover ? ";background:var(--bg-hover)" : "";
 			return (
-				`<div class="${classes}"${tie} style="padding-left:${6 + item.depth * 13}px;--depth:${item.depth}${hovered}">` +
+				`<div class="${classes}"${tie} style="padding-left:${6 + item.depth * 20}px;--depth:${item.depth}${hovered}">` +
 				twist +
 				treeGlyph(item, art) +
 				`<span class="label">${escapeXml(item.label)}</span>` +

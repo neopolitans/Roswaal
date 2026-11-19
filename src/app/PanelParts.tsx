@@ -117,9 +117,16 @@ export function Ident({ name, kind, color, icon, glyph, children, className }: I
  * Project panel's top folders sit under a section heading rather than a
  * folder, so their level draws no line; a place's services are its top rows.
  */
+/**
+ * One level of a tree's indent: a chevron and the gap after it, so a row's
+ * chevron sits under its parent's icon rather than between its parent's
+ * chevron and icon. The indent guides in theme.css step by the same.
+ */
+export const INDENT = 20;
+
 export function depthStyle(depth: number, from = 0): CSSProperties {
 	return {
-		paddingLeft: 6 + depth * 13,
+		paddingLeft: 6 + depth * INDENT,
 		"--depth": Math.max(0, depth - from),
 		"--guide-from": from,
 	} as CSSProperties;

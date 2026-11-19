@@ -37,7 +37,7 @@ import { Icon, type IconName } from "./icons.jsx";
 import { isTextEntry } from "./keys.js";
 import { Menu } from "./Menu.jsx";
 import type { MenuAnchor } from "./menuPlace.js";
-import { AddButton, depthStyle, Ident, SectionHead } from "./PanelParts.jsx";
+import { AddButton, depthStyle, Ident, INDENT, SectionHead } from "./PanelParts.jsx";
 import { useShowing } from "./pageHost.jsx";
 import {
 	applied,
@@ -828,7 +828,7 @@ export const PlaceBrowser = memo(function PlaceBrowser(props: PlaceBrowserProps)
 							<div
 								key={`more-${n}`}
 								className="tree-row place-more"
-								style={{ ...depthStyle(row.depth), paddingLeft: 6 + row.depth * 13 + 20 }}
+								style={{ ...depthStyle(row.depth), paddingLeft: 6 + row.depth * INDENT + 20 }}
 								onClick={() => {
 									if (row.kind === "addService") setPickingService(true);
 									else if (row.parent !== undefined) setShowAll((s) => new Set(s).add(row.parent!));

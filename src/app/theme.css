@@ -1897,21 +1897,20 @@ button.tb.primary:hover:not(:disabled) {
 /* Indent guides: a hairline under each open folder, one per level of depth,
    through the middle of that level's chevron. A graph with functions puts its
    own chevron in its parent's column, so its row stops a line short of it. */
-.tree-row:has(> .function-twist)::before {
-	width: calc((var(--depth, 0) - 1) * 13px);
-}
-
 .tree-row::before {
 	content: "";
 	position: absolute;
 	top: 0;
 	bottom: 0;
-	left: calc(1px + var(--guide-from, 0) * 13px);
-	width: calc(var(--depth, 0) * 13px);
+	/* A level is 20px (INDENT in PanelParts.tsx): a chevron and its gap. Each
+	   guide runs through the middle of its level's 14px chevron. */
+	left: calc(6px + var(--guide-from, 0) * 20px);
+	width: calc(var(--depth, 0) * 20px);
 	background: repeating-linear-gradient(
 		to right,
-		transparent 0 12px,
-		color-mix(in srgb, var(--fg) 14%, transparent) 12px 13px
+		transparent 0 6.5px,
+		color-mix(in srgb, var(--fg) 14%, transparent) 6.5px 7.5px,
+		transparent 7.5px 20px
 	);
 	pointer-events: none;
 }
@@ -8176,7 +8175,13 @@ button.tb.primary.danger:hover:not(:disabled) {
 
 .tree-row .function-twist {
 	display: inline-flex;
-	margin-left: -14px;
+}
+
+/* A row with nothing to open keeps a chevron's room, so its icon sits in line
+   with its folders' icons. */
+.tree-row .twist-slot {
+	flex: none;
+	width: 14px;
 }
 
 .tree-row .kind.nodemap {

@@ -681,6 +681,7 @@ export const ProjectTree = memo(function ProjectTree({
 								onOpen(entry);
 							}}
 						>
+							<span className="twist-slot" aria-hidden="true" />
 							<ExplorerIcon
 								className={sync.className ?? sync.trail.split(" › ").pop() ?? "Folder"}
 								service={sync.service}
@@ -924,8 +925,8 @@ export const ProjectTree = memo(function ProjectTree({
 						) : (
 							<>
 								{/* A graph with functions opens like a folder, onto them; a map, onto what it syncs. */}
-								{((outline.get(entry.path) ?? entry.functions ?? []).length > 0 ||
-									(entry.mapFacts?.syncs.length ?? 0) > 0) && (
+								{(outline.get(entry.path) ?? entry.functions ?? []).length > 0 ||
+								(entry.mapFacts?.syncs.length ?? 0) > 0 ? (
 									<span
 										className="function-twist"
 										title={
@@ -953,6 +954,9 @@ export const ProjectTree = memo(function ProjectTree({
 											rotate={expanded.has(entry.path) ? 0 : -90}
 										/>
 									</span>
+								) : (
+									// No chevron: its room, so the icon lines up with its folders'.
+									<span className="twist-slot" aria-hidden="true" />
 								)}
 								{(() => {
 									const realm =
