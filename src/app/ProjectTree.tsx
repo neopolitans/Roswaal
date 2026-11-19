@@ -72,6 +72,8 @@ export interface ProjectTreeProps {
 	outDir?: string;
 	/** Makes a map the served one. */
 	onServeMap?: (path: string) => void;
+	/** Generated Luau whose graph is gone, which Output marks stale. */
+	stale?: readonly string[];
 	onNewFolder: (parentDir: string) => void;
 	onRename: (path: string) => void;
 	onDelete: (paths: string[]) => void;
@@ -124,6 +126,7 @@ export const ProjectTree = memo(function ProjectTree({
 	onNewMap,
 	outDir = "",
 	onServeMap,
+	stale,
 	onNewFolder,
 	onRename,
 	onDelete,
@@ -142,7 +145,7 @@ export const ProjectTree = memo(function ProjectTree({
 	const [placeMenu, setPlaceMenu] = useState<Element | null>(null);
 	// Output starts folded: what Roswaal writes is looked at when something is wrong.
 	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(
-		() => new Set([sectionKey("output"), sectionKey("packs")]),
+		() => new Set([sectionKey("packs")]),
 	);
 	// Wally's folders start shut: `_Index` holds every file of every package,
 	// and opened it is most of the tree. Once each, so shutting is not undone
@@ -221,12 +224,73 @@ export const ProjectTree = memo(function ProjectTree({
 			maps,
 			packages: rest.find((e) => e.kind === "wally")?.children ?? [],
 			wally: rest.find((e) => e.kind === "wally"),
-			output: rest.filter((e) => !isPlace(e) && e.kind !== "wally"),
+			// Output starts inside the output folder, as Graphs starts inside the
+			// graphs' folder: both are settings, and the two headings then mirror
+			// each other row for row. What is outside it follows.
+			output: [
+				...((outDir ? findEntry(rest, outDir) : undefined)?.children ?? []),
+				...rest.filter((e) => !isPlace(e) && e.kind !== "wally" && e.path !== outDir),
+			],
 			packs,
 			isGraph,
 			isPack,
 		};
-	}, [tree, sourceDir, nodePaths]);
+	}, [tree, sourceDir, nodePaths, outDir]);
+
+	/**
+	 * Output's marks. A file worth a look carries one: stale (its graph is
+	 * gone), hand-written, imported (hand-written, with a graph now), or place
+	 * (a script only the place holds). A folder holding only generated Luau has
+	 * none, starts folded, and says how many files it holds; Wally's folders
+	 * fold the same way. Output's count is the marked files.
+	 */
+	const output = useMemo(() => {
+		const marks = new Map<string, "stale" | "hand-written" | "imported" | "place">();
+		const folded = new Map<string, string>();
+		const staleSet = new Set(stale ?? []);
+		const visit = (e: TreeEntry): { only: boolean; count: number } => {
+			if (e.kind === "directory") {
+				if (e.role === "packages") {
+					folded.set(e.path, "Wally");
+					return { only: false, count: 0 };
+				}
+				const kids = e.children ?? [];
+				let only = kids.length > 0;
+				let count = 0;
+				for (const child of kids) {
+					const below = visit(child);
+					if (!below.only) only = false;
+					count += below.count;
+				}
+				if (only && count > 0) folded.set(e.path, `${count} generated`);
+				return { only, count };
+			}
+			if (staleSet.has(e.path)) {
+				marks.set(e.path, "stale");
+				return { only: false, count: 0 };
+			}
+			if (e.kind === "luau" && e.generatedFrom) return { only: true, count: 1 };
+			if (e.kind === "luau") {
+				marks.set(
+					e.path,
+					e.path === "place" || e.path.startsWith("place/")
+						? "place"
+						: e.graph
+							? "imported"
+							: "hand-written",
+				);
+			}
+			return { only: false, count: 0 };
+		};
+		for (const e of groups.output) visit(e);
+		return { marks, folded };
+	}, [groups, stale]);
+
+	/**
+	 * Whether a folder is shut. Output's generated-only folders start shut, so
+	 * for them being in `collapsed` means open: one click flips either way.
+	 */
+	const shut = (path: string) => collapsed.has(path) !== output.folded.has(path);
 
 	/** The place in use: its row says so, and Add offers a copy of it. */
 	const inUsePlace = groups.place.find((e) => e.kind === "place" && e.inUse);
@@ -279,7 +343,7 @@ export const ProjectTree = memo(function ProjectTree({
 				if (note) out.push({ entry: SECTION_ENTRY, depth: 1, note });
 				continue;
 			}
-			const listed = flatten(entries, collapsed, 1, fnsOf, expanded);
+			const listed = flatten(entries, shut, 1, fnsOf, expanded);
 			if (section.id !== "maps") {
 				out.push(...listed);
 				continue;
@@ -293,7 +357,7 @@ export const ProjectTree = memo(function ProjectTree({
 			}
 		}
 		return out;
-	}, [groups, collapsed, outline, expanded, onPackage]);
+	}, [groups, collapsed, outline, expanded, onPackage, output]);
 	const [anchor, setAnchor] = useState<string | null>(null);
 
 	// A folder's own path is where a new document goes; a file's parent is.
@@ -357,10 +421,11 @@ export const ProjectTree = memo(function ProjectTree({
 			for (const child of e.children) walk(child);
 		};
 		walk(entry);
-		const opening = collapsed.has(entry.path);
+		const opening = shut(entry.path);
 		const next = new Set(collapsed);
 		for (const path of paths) {
-			if (opening) next.delete(path);
+			// In the set means shut, except for a generated-only folder, where it means open.
+			if (opening !== output.folded.has(path)) next.delete(path);
 			else next.add(path);
 		}
 		setCollapsed(next);
@@ -487,6 +552,8 @@ export const ProjectTree = memo(function ProjectTree({
 				const found = file ? findEntry(tree, file) : undefined;
 				return found ? onOpen(found) : undefined;
 			}
+			case "removeStale":
+				return onDelete([entry.path]);
 			case "serveMap":
 				return onServeMap?.(entry.path);
 			case "revealLuau": {
@@ -603,7 +670,7 @@ export const ProjectTree = memo(function ProjectTree({
 							<SectionHead
 								title={section.label}
 								hint={section.hint}
-								count={countOf(id, groups)}
+								count={id === "output" ? output.marks.size : countOf(id, groups)}
 								open={!shut}
 								onToggle={() => toggle(sectionKey(id))}
 							>
@@ -671,6 +738,7 @@ export const ProjectTree = memo(function ProjectTree({
 								"open-doc",
 							readonly && "readonly",
 							isDir && !entry.script && (entry.children?.length ?? 0) === 0 && "tree-empty",
+							entry.generatedFrom && !output.marks.has(entry.path) && "tree-generated",
 							dropTarget === entry.path && "drop-target",
 							unsynced.has(entry.path) && "unsynced",
 						)}
@@ -738,7 +806,7 @@ export const ProjectTree = memo(function ProjectTree({
 									name="chevron"
 									size={14}
 									className="twist"
-									rotate={collapsed.has(entry.path) ? -90 : 0}
+									rotate={shut(entry.path) ? -90 : 0}
 								/>
 								<Icon name="settings" size={15} className="kind wally" />
 							</>
@@ -748,7 +816,7 @@ export const ProjectTree = memo(function ProjectTree({
 									name="chevron"
 									size={14}
 									className="twist"
-									rotate={collapsed.has(entry.path) ? -90 : 0}
+									rotate={shut(entry.path) ? -90 : 0}
 								/>
 								{entry.script ? (
 									entry.realm ? (
@@ -767,11 +835,11 @@ export const ProjectTree = memo(function ProjectTree({
 											<ExplorerIcon
 												className={namedClass(entry) as string}
 												service={isService(entry.name)}
-												open={!collapsed.has(entry.path)}
+												open={!shut(entry.path)}
 											/>
 										) : (
 											<Icon
-												name={folderIcon(collapsed.has(entry.path), entry.role !== undefined)}
+												name={folderIcon(shut(entry.path), entry.role !== undefined)}
 												size={15}
 												className={folderClass(entry, groups.isGraph(entry))}
 											/>
@@ -868,7 +936,17 @@ export const ProjectTree = memo(function ProjectTree({
 								{entry.inUse || !entry.path.startsWith(".roswaal/places/") ? "Open" : "Use"}
 							</button>
 						)}
-						{entry.generatedFrom && <span className="badge">generated</span>}
+						{output.folded.has(entry.path) && (
+							<span className="badge">{output.folded.get(entry.path)}</span>
+						)}
+						{output.marks.has(entry.path) && (
+							<span
+								className={cx("badge", output.marks.get(entry.path) === "stale" && "warn")}
+								title={MARK_TITLE[output.marks.get(entry.path) as keyof typeof MARK_TITLE]}
+							>
+								{output.marks.get(entry.path)}
+							</span>
+						)}
 						{entry.kind === "package" && !entry.missing ? (
 							<span className="badge">{shownVersion(entry)}</span>
 						) : (
@@ -979,6 +1057,7 @@ export const ProjectTree = memo(function ProjectTree({
 								canGithub,
 								canReveal,
 								notHere: NOT_HERE,
+								...(output.marks.get(menu.entry.path) === "stale" ? { stale: true } : {}),
 								...(onServeMap &&
 								menu.entry.mapFacts?.output !== undefined &&
 								!menu.entry.mapFacts.serves
@@ -1158,6 +1237,14 @@ function MapRowFacts({ facts }: { facts: NonNullable<TreeEntry["mapFacts"]> }) {
 	);
 }
 
+/** What each of Output's marks means, on hover. */
+const MARK_TITLE = {
+	stale: "Its graph is gone, so nothing writes it now. Remove it from its menu.",
+	"hand-written": "Written by hand, not by a graph. Import as graph turns it into one.",
+	imported: "Written by hand, with a graph imported from it.",
+	place: "A script only the place holds, which Modify RBXL writes.",
+} as const;
+
 /** The node map's mark in an icon's corner, for a folder a map syncs. */
 function MapBadge({ map, children }: { map: string | undefined; children: ReactNode }) {
 	if (!map) return <>{children}</>;
@@ -1243,7 +1330,7 @@ const sectionKey = (id: Section["id"]) => `::section:${id}`;
 
 function flatten(
 	entries: TreeEntry[],
-	collapsed: ReadonlySet<string>,
+	isShut: (path: string) => boolean,
 	depth: number,
 	fnsOf: (entry: TreeEntry) => FunctionInfo[],
 	expanded: ReadonlySet<string>,
@@ -1254,8 +1341,8 @@ function flatten(
 	for (const entry of entries) {
 		if (entry.path === hide) continue;
 		out.push({ entry, depth });
-		if (entry.children && !collapsed.has(entry.path)) {
-			out.push(...flatten(entry.children, collapsed, depth + 1, fnsOf, expanded, entry.script));
+		if (entry.children && !isShut(entry.path)) {
+			out.push(...flatten(entry.children, isShut, depth + 1, fnsOf, expanded, entry.script));
 		}
 		if (entry.kind === "nodescript" && expanded.has(entry.path)) {
 			for (const fn of fnsOf(entry)) out.push({ entry, depth: depth + 1, fn });

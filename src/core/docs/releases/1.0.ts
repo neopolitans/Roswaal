@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.30",
+		date: "2026-11-20",
+		headline: "Output lists what needs a look, and folds the rest.",
+		changed: [
+			"**Output starts inside src**, as Graphs starts inside its folder, so the two headings mirror each other row for row. place/, Wally's folders and .luaurc follow.",
+			"**A folder holding only generated Luau** starts folded and says how many files it holds. Generated files are quieter and no longer say generated.",
+			"**What needs a look is marked:** stale, whose graph is gone, with Remove stale Luau on its menu; hand-written; imported; and place, a script only the place holds. Output's count is those, and it starts open.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.29",
 		date: "2026-11-20",
 		headline: "A project can keep several places, one of them in use.",

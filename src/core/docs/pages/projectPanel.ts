@@ -48,7 +48,7 @@ export function projectPanelPage(): DocPage {
 					],
 					[
 						"**Output**",
-						"What Roswaal writes, and code it did not: `src/`, `place/`, `Packages/` and `.luaurc`. Luau there opens read-only. It starts folded",
+						"What Roswaal writes, and code it did not, from inside `src` as Graphs is from inside its folder, then `place/`, `Packages/` and `.luaurc`. A folder of generated Luau folds to a count. What needs a look is marked: **stale** (its graph is gone; Remove on its menu), **hand-written**, **imported** and **place**, and the heading counts those. Luau there opens read-only",
 					],
 					[
 						"**Node packs**",

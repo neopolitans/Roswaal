@@ -1966,6 +1966,11 @@ button.tb.primary:hover:not(:disabled) {
 	padding: 0 6px;
 }
 
+/* Generated Luau, where Output lists it: there, and quieter than what needs a look. */
+.tree-row.tree-generated .label {
+	color: var(--fg-muted);
+}
+
 .tree-row .badge.warn {
 	color: var(--warning);
 	border-color: color-mix(in srgb, var(--warning) 60%, transparent);

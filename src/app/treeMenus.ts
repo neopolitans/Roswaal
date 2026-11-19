@@ -24,6 +24,7 @@ export type TreeAction =
 	| "openLuau"
 	| "revealLuau"
 	| "serveMap"
+	| "removeStale"
 	| "rename"
 	| "delete";
 
@@ -57,6 +58,8 @@ export interface TreeMenuContext {
 	luau?: string;
 	/** On a map that is not served: Serve this map. */
 	canServe?: boolean;
+	/** On generated Luau whose graph is gone: Remove. */
+	stale?: boolean;
 }
 
 const present = <T>(entries: (T | false | undefined)[]): T[] =>
@@ -154,9 +157,11 @@ export function fileMenu(
 				...(ctx.canReveal ? { title: ctx.luau } : { disabled: true, title: ctx.notHere }),
 			},
 		]),
-		[
-			{ action: "rename", label: "Rename", icon: "rename" },
-			{ action: "delete", label: "Delete", icon: "remove", danger: true },
-		],
+		ctx.stale === true
+			? [{ action: "removeStale", label: "Remove stale Luau", icon: "remove", danger: true }]
+			: [
+					{ action: "rename", label: "Rename", icon: "rename" },
+					{ action: "delete", label: "Delete", icon: "remove", danger: true },
+				],
 	];
 }

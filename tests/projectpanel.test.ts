@@ -119,7 +119,7 @@ describe("the Project panel", () => {
 		expect(html.match(/<span class="badge">empty<\/span>/g)).toHaveLength(1);
 	});
 
-	it("folds Output and Node packs at first", () => {
+	it("folds generated-only Output folders and Node packs at first", () => {
 		const html = render();
 		expect(html).not.toContain(">Remotes.luau<");
 		expect(titles(html)).toContain("Node packs");

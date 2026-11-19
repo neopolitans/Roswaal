@@ -2427,6 +2427,7 @@ export function App() {
 								<ProjectTree
 									tree={project.tree}
 									outDir={project.config.outDir}
+									stale={orphans}
 									openPath={editor.path ?? source?.path ?? null}
 									openGraph={source || mapDoc ? null : editor.graph}
 									outline={outline}
