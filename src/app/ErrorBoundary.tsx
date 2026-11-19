@@ -28,6 +28,8 @@
 
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
+import { isStaleBuild, STALE_BUILD_MESSAGE } from "./staleBuild.js";
+
 export interface ErrorBoundaryProps {
 	children: ReactNode;
 	/** Named in the message, so it is clear how much stopped working. */
@@ -56,6 +58,21 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, State> {
 	override render(): ReactNode {
 		const { error, componentStack } = this.state;
 		if (!error) return this.props.children;
+
+		// Not a crash: the page is older than the site. Say so, and offer the reload.
+		if (isStaleBuild(error)) {
+			return (
+				<div className="crash">
+					<h1>Roswaal was updated</h1>
+					<p>{STALE_BUILD_MESSAGE}</p>
+					<div className="crash-actions">
+						<button className="tb primary" onClick={() => window.location.reload()}>
+							Reload
+						</button>
+					</div>
+				</div>
+			);
+		}
 
 		const report = [
 			`${error.name}: ${error.message}`,

@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.23",
+		date: "2026-11-20",
+		headline: "A page open across an update says so, rather than crashing.",
+		fixed: [
+			"**A page left open while Roswaal was updated** crashed when it opened a part loaded on demand, such as Settings › Roblox account, with Failed to fetch dynamically imported module. It now says Roswaal was updated and offers Reload, and only that page stops. The Place Editor says the same if it cannot load.",
+		],
+		affects: ["editor"],
+	},
+	{
 		version: "1.0.0-canary.22",
 		date: "2026-11-20",
 		headline: "A node map's row says what it writes and what it syncs.",

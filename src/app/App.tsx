@@ -144,6 +144,7 @@ import { previewSelection } from "./SelectionPreview.jsx";
 import { SourceView } from "./SourceView.jsx";
 import { type MapProblem, StatusPanel } from "./StatusPanel.jsx";
 import { SaveQueue } from "./saveQueue.js";
+import { isStaleBuild, STALE_BUILD_MESSAGE } from "./staleBuild.js";
 import { sideKey, store, tabKey, useDocuments, useEditor, useOutline } from "./store.js";
 import { showToast, Toasts } from "./Toast.jsx";
 import { DocumentAction, DocumentBar, graphMenuEntries, ProjectBar } from "./Toolbar.jsx";
@@ -410,9 +411,18 @@ export function App() {
 	useEffect(() => {
 		if (!wantsViewer || viewer) return;
 		let live = true;
-		void PLACE_EDITOR.load().then((loaded) => {
-			if (live) setViewer(loaded);
-		});
+		void PLACE_EDITOR.load().then(
+			(loaded) => {
+				if (live) setViewer(loaded);
+			},
+			(err: unknown) => {
+				if (!live) return;
+				notify(
+					isStaleBuild(err) ? "Roswaal was updated" : "The Place Editor did not load",
+					isStaleBuild(err) ? STALE_BUILD_MESSAGE : errorMessage(err),
+				);
+			},
+		);
 		return () => {
 			live = false;
 		};

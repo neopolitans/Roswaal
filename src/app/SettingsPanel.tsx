@@ -38,6 +38,7 @@ import {
 	type SettingDecl,
 } from "../extensions/index.js";
 import { cx } from "./cx.js";
+import { ErrorBoundary } from "./ErrorBoundary.jsx";
 import { isChanged, type SettingValue, useExtension } from "./extensionSettings.js";
 import { Icon } from "./icons.jsx";
 import { BundledNotices, LicenceDetail } from "./LicenceView.jsx";
@@ -1646,9 +1647,12 @@ function ExtensionSubPage({
 				</Group>
 			))}
 			{Own && (
-				<Suspense fallback={null}>
-					<Own />
-				</Suspense>
+				// Its own boundary: a page that will not load stops itself, not Settings.
+				<ErrorBoundary what={page.title}>
+					<Suspense fallback={null}>
+						<Own />
+					</Suspense>
+				</ErrorBoundary>
 			)}
 		</Page>
 	);
