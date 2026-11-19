@@ -6,10 +6,13 @@
  * marked so it is obvious which Luau is Roswaal's to overwrite.
  */
 
-import { type DragEvent, memo, useEffect, useMemo, useRef, useState } from "react";
+import { type DragEvent, memo, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { wearsClassIcon } from "../core/classIcons.js";
 import type { FunctionInfo } from "../core/functionGraph.js";
+import { isInstanceClass, isService } from "../core/roblox.js";
 import type { TreeEntry } from "./api.js";
 import { cx } from "./cx.js";
+import { ExplorerIcon } from "./ExplorerIcon.jsx";
 import { NOT_HERE, useHostCan } from "./host.js";
 import { Icon, type IconName } from "./icons.jsx";
 import { importableLuau } from "./importable.js";
@@ -77,10 +80,12 @@ export interface ProjectTreeProps {
 	 */
 	onPackage?: (how: "wally" | "zip" | "github" | "remove", entry?: TreeEntry) => void;
 	/**
-	 * A Roblox project with no place: Compile Content's heading offers one,
+	 * A Roblox project with no place: the Place heading offers one,
 	 * imported from a file or started from Studio's baseplate.
 	 */
 	onAddPlace?: (how: "import" | "new") => void;
+	/** Node packs, from the panel's foot: opens Node Design. */
+	onNodePacks?: () => void;
 }
 
 /**
@@ -118,6 +123,7 @@ export const ProjectTree = memo(function ProjectTree({
 	onImportMany,
 	onPackage,
 	onAddPlace,
+	onNodePacks,
 }: ProjectTreeProps) {
 	// A file manager to show a file in is something only a machine has.
 	const canReveal = useHostCan("reveal");
@@ -125,7 +131,10 @@ export const ProjectTree = memo(function ProjectTree({
 	const [menu, setMenu] = useState<{ x: number; y: number; entry: TreeEntry } | null>(null);
 	// Add Place's two ways, hung from the button.
 	const [placeMenu, setPlaceMenu] = useState<Element | null>(null);
-	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+	// Output starts folded: what Roswaal writes is looked at when something is wrong.
+	const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(
+		() => new Set([sectionKey("output")]),
+	);
 	// Wally's folders start shut: `_Index` holds every file of every package,
 	// and opened it is most of the tree. Once each, so shutting is not undone
 	// every time the tree is read again.
@@ -154,29 +163,51 @@ export const ProjectTree = memo(function ProjectTree({
 	const importable = (paths: ReadonlySet<string>): TreeEntry[] => importableLuau(tree, paths);
 	const [dropTarget, setDropTarget] = useState<string | null>(null);
 
-	// The two halves of a Roswaal project, shown as two rather than as a flat
-	// repository listing with `.roswaal` and `src` beside each other as though
-	// they were the same kind of thing.
+	// The project by what you do with each part, rather than as a repository
+	// listing. Graphs you edit, from the services down: the "Graphs live in"
+	// folder is the setting, not a row. The place you open. Node maps say where
+	// files land. Packages are what the project depends on. Output is what
+	// Roswaal writes and code it did not write, folded until something is wrong.
 	//
-	// They are not. One half you author and Roswaal reads; the other half
-	// Roswaal writes and you do not edit. Everything about how a file behaves —
-	// whether it can be renamed, whether a new graph can go beside it, whether
-	// the next compile will overwrite it — follows from which half it is in.
+	// Whether a file is ours still decides how it behaves -- whether it can be
+	// renamed, whether a new graph can go beside it -- and isGraph says so.
 	const groups = useMemo(() => {
 		const owned = [sourceDir, ...nodePaths].filter(Boolean);
 		// Overlap in either direction: `.roswaal` contains `sourceDir`, and a
 		// top-level `scripts` folder would be inside it. Either way it is ours.
 		const isOurs = (p: string) =>
 			owned.some((dir) => dir === p || dir.startsWith(p + "/") || p.startsWith(dir + "/"));
-		// A `.luaurc` is graph content wherever it sits. The split is between what
-		// Roswaal *reads* and what it *writes*, and this is read -- it decides
-		// what a require resolves to, exactly as a node pack decides what a node
-		// is. Landing it beside the compiled Luau said the opposite.
-		// So is `wally.toml`: what a project depends on is part of what it reads.
+		const isPack = (p: string) =>
+			nodePaths.some((dir) => dir && (p === dir || p.startsWith(dir + "/")));
 		const isGraph = (e: TreeEntry) => isOurs(e.path) || e.kind === "luaurc" || e.kind === "wally";
+		const ours = tree.filter((e) => isOurs(e.path));
+		const maps: TreeEntry[] = [];
+		const gather = (entries: readonly TreeEntry[]) => {
+			for (const e of entries) {
+				if (e.kind === "nodemap") maps.push(e);
+				if (e.children) gather(e.children);
+			}
+		};
+		gather(ours);
+		const withoutMaps = (entries: readonly TreeEntry[]): TreeEntry[] =>
+			entries
+				.filter((e) => e.kind !== "nodemap" && !isPack(e.path))
+				.map((e) => (e.children ? { ...e, children: withoutMaps(e.children) } : e));
+		const root = findEntry(ours, sourceDir);
+		const graphs = withoutMaps(root?.children ?? ours);
+		const rest = tree.filter((e) => !isOurs(e.path));
+		const isPlace = (e: TreeEntry) => e.kind === "place" || e.kind === "model";
+		const packs = nodePaths
+			.map((dir) => findEntry(ours, dir))
+			.filter((e): e is TreeEntry => e !== undefined);
 		return {
-			graph: tree.filter(isGraph),
-			compiled: tree.filter((e) => !isGraph(e)),
+			graphs,
+			place: rest.filter(isPlace),
+			maps,
+			packages: rest.find((e) => e.kind === "wally")?.children ?? [],
+			wally: rest.find((e) => e.kind === "wally"),
+			output: rest.filter((e) => !isPlace(e) && e.kind !== "wally"),
+			packs,
 			isGraph,
 		};
 	}, [tree, sourceDir, nodePaths]);
@@ -186,12 +217,23 @@ export const ProjectTree = memo(function ProjectTree({
 		const fnsOf = (entry: TreeEntry) => outline.get(entry.path) ?? entry.functions ?? [];
 		const out: Row[] = [];
 		for (const section of SECTIONS) {
+			const entries = groups[section.id];
+			// Output only when there is something in it; Packages only where
+			// packages can be added or some are listed.
+			if (section.id === "output" && entries.length === 0) continue;
+			if (section.id === "packages" && entries.length === 0 && !onPackage && !groups.wally)
+				continue;
 			out.push({ section, entry: SECTION_ENTRY, depth: 0 });
 			if (collapsed.has(sectionKey(section.id))) continue;
-			out.push(...flatten(groups[section.id], collapsed, 1, fnsOf, expanded));
+			if (entries.length === 0) {
+				const note = EMPTY_NOTE[section.id];
+				if (note) out.push({ entry: SECTION_ENTRY, depth: 1, note });
+				continue;
+			}
+			out.push(...flatten(entries, collapsed, 1, fnsOf, expanded));
 		}
 		return out;
-	}, [groups, collapsed, outline, expanded]);
+	}, [groups, collapsed, outline, expanded, onPackage]);
 	const [anchor, setAnchor] = useState<string | null>(null);
 
 	// A folder's own path is where a new document goes; a file's parent is.
@@ -362,7 +404,14 @@ export const ProjectTree = memo(function ProjectTree({
 
 	return (
 		<div className="tree">
-			{rows.map(({ entry, depth, section, fn }) => {
+			{rows.map(({ entry, depth, section, fn, note }) => {
+				if (note) {
+					return (
+						<div key={`note:${note}`} className="tree-row tree-note" style={depthStyle(depth, 1)}>
+							<span className="label">{note}</span>
+						</div>
+					);
+				}
 				if (fn) {
 					const open = openPath === entry.path && openGraph === fn.id;
 					return (
@@ -380,20 +429,67 @@ export const ProjectTree = memo(function ProjectTree({
 				}
 				if (section) {
 					const shut = collapsed.has(sectionKey(section.id));
-					const count = groups[section.id].length;
+					const id = section.id;
+					// Dropping on Graphs moves a file to the graphs' own root, the
+					// folder whose row the heading stands in for.
+					const dropsHere = id === "graphs" && sourceDir !== "";
 					return (
-						<div key={sectionKey(section.id)} className={cx("tree-section", shut && "shut")}>
+						<div
+							key={sectionKey(id)}
+							className={cx(
+								"tree-section",
+								shut && "shut",
+								dropsHere && dropTarget === sourceDir && "drop-target",
+							)}
+							onDragOver={
+								dropsHere
+									? (e) => {
+											e.preventDefault();
+											e.dataTransfer.dropEffect = "move";
+											setDropTarget(sourceDir);
+										}
+									: undefined
+							}
+							onDragLeave={
+								dropsHere ? () => setDropTarget((t) => (t === sourceDir ? null : t)) : undefined
+							}
+							onDrop={dropsHere ? (e) => onDrop(e, sourceDir) : undefined}
+						>
 							<SectionHead
 								title={section.label}
 								hint={section.hint}
+								count={countOf(id, groups)}
 								open={!shut}
-								onToggle={() => toggle(sectionKey(section.id))}
+								onToggle={() => toggle(sectionKey(id))}
 							>
-								{/* Only when there is nothing, because a count beside every
-								    heading is a number nobody reads. Empty is the state
-								    worth explaining -- a compile has not run yet. */}
-								{count === 0 && <span className="empty">empty</span>}
-								{section.id === "compiled" && onAddPlace && (
+								{id === "graphs" && sourceDir !== "" && !menuNews && (
+									<AddButton
+										label="New graph"
+										title="A new graph at the graphs' own root"
+										onClick={() => onNewGraph(sourceDir)}
+									/>
+								)}
+								{id === "maps" && sourceDir !== "" && !menuNews && (
+									<AddButton
+										label="New map"
+										title="A new node map at the graphs' own root"
+										onClick={() => onNewMap(sourceDir)}
+									/>
+								)}
+								{id === "packages" && onPackage && (
+									<AddButton
+										title="Add a package: from Wally, a zip, or a GitHub repository"
+										onClick={(e) => {
+											const at = e.currentTarget.getBoundingClientRect();
+											setMenu({
+												x: at.left,
+												y: at.bottom,
+												entry: groups.wally ?? WALLY_ENTRY,
+											});
+										}}
+									/>
+								)}
+								{id === "place" && onAddPlace && (
 									<AddButton
 										label="Add Place"
 										title="This project has no place. Import a .rbxl or .rbxlx, or start from a baseplate."
@@ -425,6 +521,7 @@ export const ProjectTree = memo(function ProjectTree({
 							(openPath === entry.path || (entry.script && openPath === entry.script)) &&
 								"open-doc",
 							readonly && "readonly",
+							isDir && !entry.script && (entry.children?.length ?? 0) === 0 && "tree-empty",
 							dropTarget === entry.path && "drop-target",
 						)}
 						style={depthStyle(depth, 1)}
@@ -499,11 +596,21 @@ export const ProjectTree = memo(function ProjectTree({
 										<Icon name={KIND_ICONS.nodescript} size={15} className="kind nodescript" />
 									)
 								) : (
-									<Icon
-										name={folderIcon(collapsed.has(entry.path), entry.role !== undefined)}
-										size={15}
-										className={folderClass(entry, groups.isGraph(entry))}
-									/>
+									<MapBadge map={entry.syncedBy}>
+										{namedClass(entry) ? (
+											<ExplorerIcon
+												className={namedClass(entry) as string}
+												service={isService(entry.name)}
+												open={!collapsed.has(entry.path)}
+											/>
+										) : (
+											<Icon
+												name={folderIcon(collapsed.has(entry.path), entry.role !== undefined)}
+												size={15}
+												className={folderClass(entry, groups.isGraph(entry))}
+											/>
+										)}
+									</MapBadge>
 								)}
 							</>
 						) : (
@@ -559,7 +666,24 @@ export const ProjectTree = memo(function ProjectTree({
 								})()}
 							</>
 						)}
-						<span className="label">{entry.name}</span>
+						<span className="label">{shownName(entry)}</span>
+						{isDir && !entry.script && (entry.children?.length ?? 0) === 0 && (
+							<span className="badge">empty</span>
+						)}
+						{entry.kind === "place" && (
+							<button
+								type="button"
+								className="tb tree-open"
+								title={`Open ${entry.name}`}
+								onClick={(e) => {
+									e.stopPropagation();
+									onOpen(entry);
+								}}
+								onDoubleClick={(e) => e.stopPropagation()}
+							>
+								Open
+							</button>
+						)}
 						{entry.generatedFrom && <span className="badge">generated</span>}
 						{entry.kind === "package" && !entry.missing ? (
 							<span className="badge">{shownVersion(entry)}</span>
@@ -601,6 +725,19 @@ export const ProjectTree = memo(function ProjectTree({
 			{rows.length === 0 && (
 				<div className="tree-row readonly">
 					<span className="label">Nothing to show yet.</span>
+				</div>
+			)}
+			{onNodePacks && groups.packs.length > 0 && (
+				<div className="tree-foot">
+					<button
+						type="button"
+						className="tb"
+						title={`Node packs, in ${groups.packs.map((p) => p.path).join(", ")}: opens Node Design`}
+						onClick={onNodePacks}
+					>
+						<Icon name="graph" size={14} />
+						Node packs
+					</button>
 				</div>
 			)}
 
@@ -671,30 +808,120 @@ interface Row {
 	section?: Section;
 	/** Set on a function listed under its graph, which `entry` is. */
 	fn?: FunctionInfo;
+	/** A line under an empty heading, saying what goes there. */
+	note?: string;
 }
 
 interface Section {
-	id: "graph" | "compiled";
+	id: "graphs" | "place" | "maps" | "packages" | "output";
 	label: string;
 	hint: string;
 }
 
 /**
- * Graphs first, output second, because that is the direction the work goes and
- * because the top of a list is where the thing you touch every minute belongs.
+ * Graphs first, because the top of a list is where the thing you touch every
+ * minute belongs; then the place you open, where files land, what the project
+ * depends on, and last what Roswaal writes.
  */
 const SECTIONS: readonly Section[] = [
 	{
-		id: "graph",
-		label: "Graph Content",
-		hint: "Graphs, node maps and node packs. Yours to edit; Roswaal reads these.",
+		id: "graphs",
+		label: "Graphs",
+		hint: "Your graphs, from the services down. Roswaal compiles each to Luau.",
 	},
 	{
-		id: "compiled",
-		label: "Compile Content",
-		hint: "Everything Roswaal does not author, including the Luau it writes out.",
+		id: "place",
+		label: "Place",
+		hint: "The place file and models. Open a place to see it in the Place Editor.",
+	},
+	{
+		id: "maps",
+		label: "Node maps",
+		hint: "Where your files land in Studio. Each map writes a Rojo project file.",
+	},
+	{
+		id: "packages",
+		label: "Packages",
+		hint: "What wally.toml depends on, installed by Wally.",
+	},
+	{
+		id: "output",
+		label: "Output",
+		hint: "What Roswaal writes, and code it did not: the compiled Luau, hand-written Luau, Wally's folders.",
 	},
 ];
+
+/** What an empty heading says. */
+const EMPTY_NOTE: Partial<Record<Section["id"], string>> = {
+	graphs: "No graphs yet. New graph makes one.",
+	place: "No place file.",
+	maps: "No node maps.",
+	packages: "No packages yet. Add one with Add.",
+};
+
+/** How many things a heading holds: graphs, places, maps, packages, files. */
+function countOf(id: Section["id"], groups: Record<Section["id"], TreeEntry[]>): number {
+	const files = (entries: readonly TreeEntry[]): number =>
+		entries.reduce(
+			(n, e) =>
+				n +
+				(e.children ? files(e.children) : 0) +
+				(id === "graphs" ? Number(e.kind === "nodescript") : Number(e.kind !== "directory")),
+			0,
+		);
+	return id === "output" || id === "graphs" ? files(groups[id]) : groups[id].length;
+}
+
+/** The entry at a path, wherever it is in the tree. */
+function findEntry(entries: readonly TreeEntry[], path: string): TreeEntry | undefined {
+	for (const e of entries) {
+		if (e.path === path) return e;
+		if (e.children && path.startsWith(e.path + "/")) {
+			const found = findEntry(e.children, path);
+			if (found) return found;
+		}
+	}
+	return undefined;
+}
+
+/**
+ * A row's name: a graph or a map without its extension, since its heading
+ * already says what it is. Every other file keeps its whole name.
+ */
+function shownName(entry: TreeEntry): string {
+	if (entry.kind === "nodescript") return entry.name.replace(/.nodescript$/, "");
+	if (entry.kind === "nodemap") return entry.name.replace(/.nodemap$/, "");
+	return entry.name;
+}
+
+/**
+ * The Roblox class a folder is named for, when it has an icon of its own: a
+ * service, or a container such as StarterPlayerScripts. Matched by name, so the
+ * folder reads as Studio's Explorer shows the instance it becomes.
+ */
+function namedClass(entry: TreeEntry): string | undefined {
+	if (entry.kind !== "directory" || entry.script) return undefined;
+	if (isService(entry.name)) return entry.name;
+	return isInstanceClass(entry.name) && wearsClassIcon(entry.name) && entry.name !== "Folder"
+		? entry.name
+		: undefined;
+}
+
+/** The node map's mark in an icon's corner, for a folder a map syncs. */
+function MapBadge({ map, children }: { map: string | undefined; children: ReactNode }) {
+	if (!map) return <>{children}</>;
+	return (
+		<span className="tree-badged" title={`Synced by ${map.split("/").pop()}`}>
+			{children}
+			<span className="tree-map-badge" aria-hidden="true">
+				<Icon name="map" size={10} />
+			</span>
+		</span>
+	);
+}
+
+/** Packages are listed under wally.toml; a project without one adds to a new one. */
+const WALLY_ENTRY: TreeEntry = { path: "wally.toml", name: "wally.toml", kind: "wally" };
 
 /**
  * Folders by what they are. Grey for a plain folder or a synced Folder; blue

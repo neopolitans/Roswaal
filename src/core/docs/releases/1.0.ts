@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.13",
+		date: "2026-11-19",
+		headline: "The Project panel is headed by what you do with each part.",
+		changed: [
+			"**The Project panel** has five headings, each folding from its name: Graphs, Place, Node maps, Packages and Output. Graph Content and Compile Content are gone.",
+			"**Graphs** start at the services. The folder graphs live in is a setting, not a row, and graphs and maps are listed without their extensions.",
+			"**Place** lists the place file and models, with Open on a place. **Node maps** and **Packages** have headings of their own, with New map and Add on them.",
+			"**Output** holds what Roswaal writes and code it did not write, and starts folded. **Node packs** moved to the foot, and open Node Design.",
+			"**Folders named for a service or container** show its icon. A folder a node map syncs carries the map's mark in the corner, and an empty folder is faint and says so.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.12",
 		date: "2026-11-19",
 		headline: "Rojo project files with comments, and .project.jsonc, are read.",

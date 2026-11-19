@@ -36,10 +36,10 @@ export function wallyPackagesPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"`wally.toml` is under Graph Content, with each package it lists and the version " +
+					"The **Packages** heading lists each package in `wally.toml`, with the version " +
 					"installed. One with no version of its own, such as code put in its place, shows " +
 					"1.0.0. Double-click one to open its code; one not installed yet says so. " +
-					"`Packages/` is under Compile Content, in purple, and starts closed.",
+					"`Packages/` itself is under **Output**, which starts folded.",
 			},
 			{ t: "toolbar", bar: PROJECT_TREE_WALLY, hint: true },
 
@@ -69,7 +69,7 @@ export function wallyPackagesPage(): DocPage {
 			{ t: "h", level: 2, text: "Adding a package" },
 			{
 				t: "p",
-				text: "Right-click `wally.toml`:",
+				text: "Press **Add** on the Packages heading, or right-click a package:",
 			},
 			{
 				t: "table",
@@ -93,9 +93,9 @@ export function wallyPackagesPage(): DocPage {
 				t: "walkthrough",
 				steps: [
 					{
-						text: "Right-click `wally.toml` in the project tree, or press and hold it on a touch screen.",
+						text: "Press **Add** on the Packages heading in the project tree.",
 						picture: [PROJECT_TREE_WALLY],
-						point: "wally.toml",
+						point: "Packages",
 					},
 					{ text: "Choose **Add from Wally…**.", picture: [WALLY_MENU], point: "Add from Wally…" },
 					{
@@ -115,7 +115,7 @@ export function wallyPackagesPage(): DocPage {
 						point: "Add",
 					},
 					{
-						text: "It is listed under `wally.toml` with the version installed.",
+						text: "It is listed under Packages with the version installed.",
 						picture: [PROJECT_TREE_WALLY_ADDED],
 						point: "The new package",
 					},

@@ -52,6 +52,11 @@ export interface TreeEntry {
 		| "package"
 		| "place"
 		| "model";
+	/**
+	 * Set on a folder a node map gives a path to, in the output and in the
+	 * graphs that mirror it: the map's path, which the tree's badge names.
+	 */
+	syncedBy?: string;
 	/** Set on generated Luau: the graph it came from. */
 	generatedFrom?: string;
 	/**
@@ -100,12 +105,14 @@ export async function buildTree(project: OpenProject): Promise<TreeEntry[]> {
 		...project.config.nodePaths,
 		...(await mappedOutputFolders(project)),
 	];
+	const facts = await mapFolderFacts(project);
 	const tree = await walk(
 		project.root,
 		project.root,
 		generated,
 		keepEmptyUnder,
-		await mappedFolders(project),
+		facts.roles,
+		facts.syncedBy,
 	);
 	await markImported(project, tree);
 	const wally = await wallyEntry(project);
@@ -209,13 +216,21 @@ export async function resolveWallyPackage(
 	return null;
 }
 
-/** Folders a node map points at, project-relative, by what they are in Studio. */
-async function mappedFolders(project: OpenProject): Promise<Map<string, "service" | "synced">> {
+/**
+ * Folders a node map points at, project-relative: what each is in Studio,
+ * and the map that gives it a path.
+ */
+async function mapFolderFacts(
+	project: OpenProject,
+): Promise<{ roles: Map<string, "service" | "synced">; syncedBy: Map<string, string> }> {
 	const out = new Map<string, "service" | "synced">();
+	const syncedBy = new Map<string, string>();
+	let mapPath = "";
 	const visit = (node: MapNode, parent: MapNode | null) => {
 		if (node.path) {
 			const at = tidyPath(node.path);
 			if (!out.has(at)) out.set(at, node.className === "Folder" ? "synced" : "service");
+			if (!syncedBy.has(at)) syncedBy.set(at, mapPath);
 			// Anything mapped inside a service with no path of its own --
 			// StarterPlayerScripts in StarterPlayer, a Folder in
 			// ReplicatedStorage -- makes the folder above it the service's,
@@ -226,8 +241,9 @@ async function mappedFolders(project: OpenProject): Promise<Map<string, "service
 		}
 		node.children.forEach((child) => visit(child, node));
 	};
-	for (const mapPath of await collectMaps(project)) {
-		const map = await readMap(project, mapPath).catch(() => null);
+	for (const found of await collectMaps(project)) {
+		mapPath = found;
+		const map = await readMap(project, found).catch(() => null);
 		if (map && !isFilesystemMap(map)) map.root.children.forEach((child) => visit(child, null));
 	}
 	// The graphs directory mirrors the output directory, so the folder a
@@ -238,7 +254,11 @@ async function mappedFolders(project: OpenProject): Promise<Map<string, "service
 		if (at.startsWith(`${outDir}/`))
 			out.set(path.posix.join(sourceDir, at.slice(outDir.length + 1)), role);
 	}
-	return out;
+	for (const [at, map] of [...syncedBy]) {
+		if (at.startsWith(`${outDir}/`))
+			syncedBy.set(path.posix.join(sourceDir, at.slice(outDir.length + 1)), map);
+	}
+	return { roles: out, syncedBy };
 }
 
 /** A script's own file in its folder: Rojo's `init.server.luau` and the rest, or a graph's `init.nodescript`. */
@@ -263,6 +283,7 @@ async function walk(
 	generated: Map<string, string>,
 	keepEmptyUnder: string[],
 	mapped: ReadonlyMap<string, "service" | "synced"> = new Map(),
+	synced: ReadonlyMap<string, string> = new Map(),
 ): Promise<TreeEntry[]> {
 	const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
 	const out: TreeEntry[] = [];
@@ -275,7 +296,7 @@ async function walk(
 			if (TREE_SKIP.has(entry.name)) continue;
 			// Copies of the place kept before a property change: history, not content.
 			if (rel === PLACE_BACKUPS) continue;
-			const children = await walk(root, abs, generated, keepEmptyUnder, mapped);
+			const children = await walk(root, abs, generated, keepEmptyUnder, mapped, synced);
 			const keep =
 				children.length > 0 ||
 				keepEmptyUnder.some(
@@ -294,6 +315,7 @@ async function walk(
 				kind: "directory",
 				children,
 				...(role ? { role } : {}),
+				...(synced.has(rel) ? { syncedBy: synced.get(rel) } : {}),
 				...(init ? { script: init.path } : {}),
 				...(init?.realm ? { realm: init.realm } : {}),
 			});

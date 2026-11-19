@@ -7,7 +7,7 @@
  *
  * - **A divider goes between two sections that both have something in them.**
  *   An entry that only applies sometimes is written `cond && entry`, so a
- *   section can end up empty -- under Compile Content, nothing in the tree
+ *   section can end up empty -- under Output, nothing in the tree
  *   menu's first section applies but New folder -- and an empty section must
  *   leave no divider behind, at the top, the bottom or doubled in the middle.
  * - **The arrow keys skip what cannot be chosen**, and wrap, as a native menu

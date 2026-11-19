@@ -2,7 +2,7 @@
  * Where a context menu goes, so that all of it is on screen.
  *
  * The project tree's menu opened at the pointer and ran off the bottom of the
- * window from the last rows of Compile Content, taking Delete with it.
+ * window from the last rows of Output, taking Delete with it.
  */
 
 import { describe, expect, it } from "vitest";

@@ -73,7 +73,7 @@ export interface VariablesPanelProps {
 	/** Asks for confirmation; resolves true when the developer agrees. */
 	confirm: (title: string, message: string, confirmLabel: string) => Promise<boolean>;
 	/**
-	 * A file from Graph Content or Compile Content dropped on Modules. Where it
+	 * A file from Graphs or Output dropped on Modules. Where it
 	 * lands in the DataModel is the project's to say, so the caller resolves it.
 	 */
 	onModuleFile?: (path: string) => void;

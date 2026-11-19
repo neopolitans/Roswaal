@@ -50,6 +50,8 @@ export interface Flattened {
 }
 
 export interface TreeEntry {
+	/** A folder a node map gives a path to: the map's path. */
+	syncedBy?: string;
 	path: string;
 	name: string;
 	/** `wally` is `wally.toml` and `package` a dependency under it; see the daemon's copy. */

@@ -150,6 +150,9 @@ import { SpecifierHints, VariablesPanel } from "./VariablesPanel.jsx";
 import { WindowMark } from "./WindowMark.jsx";
 import { Workspace } from "./Workspace.jsx";
 
+/** Node packs, from the Project panel's foot. A module-level function, so ProjectTree's memo holds. */
+const openNodePacks = () => void switchMode("designer");
+
 /** Written as a code unit so the escape survives the JSX attribute. */
 const SEP = String.fromCharCode(92);
 
@@ -2317,6 +2320,7 @@ export function App() {
 									onRename={onTreeRename}
 									onDelete={onTreeDelete}
 									onPackage={onTreePackage}
+									onNodePacks={openNodePacks}
 									onAddPlace={
 										project.config.target === "roblox" && !project.place
 											? (how) => {

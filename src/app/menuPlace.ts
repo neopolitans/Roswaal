@@ -3,7 +3,7 @@
  *
  * A menu opens one of two ways. A context menu opens with its corner at the
  * pointer; near the bottom of the window -- the last rows of the project tree,
- * Compile Content's above all -- that puts its last entries below the edge,
+ * Output's above all -- that puts its last entries below the edge,
  * and Delete is always last. So, as a native menu does, it opens on the other
  * side of the pointer when it does not fit. A dropdown hangs from the button
  * that opened it, below or above, lined up with one of its edges; it goes to

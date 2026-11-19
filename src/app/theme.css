@@ -7204,6 +7204,82 @@ button.tb.primary.danger:hover:not(:disabled) {
 	color: var(--accent);
 }
 
+/* ------------------------------------------------- the project panel's parts */
+/* A folder a node map syncs carries the map's mark in its icon's corner. The
+   gap around the mark is cut out of the icon with a mask, never painted, so a
+   hovered or selected row shows through it. */
+.tree-badged {
+	position: relative;
+	display: inline-flex;
+	flex: none;
+}
+
+.tree-badged > svg {
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 15 15'%3E%3Cmask id='m'%3E%3Crect width='15' height='15' fill='white'/%3E%3Crect x='7' y='7' width='12' height='12' rx='3' fill='black'/%3E%3C/mask%3E%3Crect width='15' height='15' mask='url(%23m)'/%3E%3C/svg%3E")
+		center / 100% 100% no-repeat;
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 15 15'%3E%3Cmask id='m'%3E%3Crect width='15' height='15' fill='white'/%3E%3Crect x='7' y='7' width='12' height='12' rx='3' fill='black'/%3E%3C/mask%3E%3Crect width='15' height='15' mask='url(%23m)'/%3E%3C/svg%3E")
+		center / 100% 100% no-repeat;
+}
+
+.tree-map-badge {
+	position: absolute;
+	right: -3px;
+	bottom: -3px;
+	display: inline-flex;
+	color: var(--ok);
+	pointer-events: none;
+}
+
+/* A folder with nothing in it, faint, saying so. */
+.tree-row.tree-empty {
+	color: var(--fg-faint);
+}
+
+/* What an empty heading says goes there. */
+.tree-row.tree-note {
+	color: var(--fg-faint);
+	cursor: default;
+}
+
+/* A place opens from its row, as well as by double-clicking it. */
+.tree-row .tree-open {
+	min-height: 0;
+	padding: 0 8px;
+	height: 20px;
+	font-size: var(--text-xs);
+	margin-left: auto;
+	color: var(--accent);
+	border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+	background: transparent;
+}
+
+.tree-row .tree-open:hover:not(:disabled) {
+	background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+/* Dropping on the Graphs heading moves a file to the graphs' root. */
+.tree-section.drop-target .pane-head {
+	outline: 1px dashed var(--accent);
+	outline-offset: -1px;
+	border-radius: var(--radius-xs);
+}
+
+/* The panel's foot: node packs, which open Node Design. */
+.tree-foot {
+	display: flex;
+	gap: 6px;
+	padding: 8px 8px 4px;
+	margin-top: 6px;
+	border-top: 1px solid var(--border);
+}
+
+.tree-foot .tb {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: var(--text-sm);
+}
+
 .tree-row .function-twist {
 	display: inline-flex;
 	margin-left: -14px;

@@ -76,7 +76,7 @@ export function modulesPage(): DocPage {
 				t: "p",
 				text:
 					"Or drag a ModuleScript from the **DataModel** browser onto the Modules heading, or " +
-					"its graph from **Graph Content** or its file from **Compile Content**: it is " +
+					"its graph from **Graphs** or its file from **Output**: it is " +
 					"declared under its own name, by where the project's node map puts it. Dropping one " +
 					"that is already declared changes nothing.",
 			},

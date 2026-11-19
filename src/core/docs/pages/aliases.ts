@@ -127,9 +127,9 @@ export function aliasesPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"A `.luaurc` is a file in the **project tree**, under Graph Content beside your " +
-					"graphs — Roswaal reads it rather than writing it, which is the line that section " +
-					"is drawn on. Double-click it to open the alias editor: what this file defines, " +
+					"A `.luaurc` is a file in the **project tree**: under Output at the project's root, " +
+					"or under Graphs beside the graphs it applies to. Roswaal reads it rather than " +
+					"writing it. Double-click it to open the alias editor: what this file defines, " +
 					"where each one lands once the chain is followed, and underneath, what it " +
 					"inherits from above.",
 			},

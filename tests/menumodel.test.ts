@@ -18,7 +18,7 @@ describe("the sections a menu shows", () => {
 	});
 
 	it("drops a section left with nothing, so no divider is drawn for it", () => {
-		// The tree menu under Compile Content: nothing to make but a folder.
+		// The tree menu under Output: nothing to make but a folder.
 		const shown = shownSections([
 			{ entries: [false, false] },
 			{ entries: [entry("Show in file manager")] },

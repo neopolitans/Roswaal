@@ -28,32 +28,50 @@ export function projectPanelPage(): DocPage {
 			},
 			{ t: "toolbar", bar: PROJECT_PANEL_HEAD, hint: true },
 
-			{ t: "h", level: 2, text: "Graph Content and Compile Content" },
+			{ t: "h", level: 2, text: "The headings" },
 			{
-				t: "p",
-				text:
-					"**Graph Content** is what you edit: `.roswaal/` with its graphs and node maps, " +
-					"`.luaurc` and `wally.toml`. **Compile Content** is what they compile to and what " +
-					"sits beside it: `src/`, `place/` and `Packages/`. Luau there opens read-only in the " +
-					"Luau viewer.",
+				t: "table",
+				head: ["Heading", "Holds"],
+				rows: [
+					[
+						"**Graphs**",
+						"Your graphs, from the services down. The folder they live in is a setting, Settings › Compiling › Graphs live in, so it is not a row. **New graph** makes one at the top",
+					],
+					[
+						"**Place**",
+						"The place file and models. **Open** shows the place in the Place Editor. A Roblox project with no place has **Add Place** here",
+					],
+					["**Node maps**", "Where your files land in Studio. **New map** makes one at the top"],
+					["**Packages**", "What `wally.toml` depends on. **Add** puts a package in"],
+					[
+						"**Output**",
+						"What Roswaal writes, and code it did not: `src/`, `place/`, `Packages/` and `.luaurc`. Luau there opens read-only. It starts folded",
+					],
+				],
 			},
 			{
 				t: "p",
 				text:
-					"A Roblox project with no place has **Add Place** on the Compile Content heading: " +
-					"import a `.rbxl` or `.rbxlx`, or start from a baseplate.",
+					"Each heading folds from the chevron by its name. Drop a file on **Graphs** to move it " +
+					"to the top. **Node packs**, at the foot, opens Node Design.",
 			},
 
 			{ t: "h", level: 2, text: "Colours and icons" },
 			{
 				t: "table",
-				head: ["Under Compile Content", "Means"],
+				head: ["Icon", "Means"],
 				rows: [
+					[
+						"A service's or container's own icon",
+						"A folder named for it, as Studio's Explorer shows it",
+					],
+					["A node map in the corner", "A folder a node map syncs; hover it for the map"],
+					["A faint folder saying empty", "A folder with nothing in it yet"],
 					["A grey outlined folder", "A plain folder"],
-					["A grey filled folder", "A Folder a node map syncs"],
+					["A grey filled folder", "A Folder a node map syncs, under Output"],
 					[
 						"A blue filled folder",
-						"A service, a container or a script in Studio. Under Graph Content too, for the folder mirroring one",
+						"A script in Studio, with the rest of the folder as its children",
 					],
 					["A red filled folder", "`place/`: scripts only the place can hold"],
 					["A purple filled folder", "`Packages/`: Wally's packages"],
@@ -67,7 +85,7 @@ export function projectPanelPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"Point at a folder under `.roswaal/` and two buttons appear at its right: **New graph** " +
+					"Point at a folder under Graphs and two buttons appear at its right: **New graph** " +
 					"and **New node map**, made in that folder. Pressing one leaves the folder open or " +
 					"shut as it was. On a touch screen they show on the folder you tap.",
 			},
@@ -79,7 +97,7 @@ export function projectPanelPage(): DocPage {
 				rows: [
 					[
 						"A folder or a file",
-						"**New graph here** and **New map here** under `.roswaal/`, **New folder**, **Show in file manager**, **Rename** and **Delete**",
+						"**New graph here** and **New map here** under Graphs, **New folder**, **Show in file manager**, **Rename** and **Delete**",
 					],
 					[
 						"A graph",
@@ -90,7 +108,7 @@ export function projectPanelPage(): DocPage {
 						'**Import as graph** as well: a new graph that compiles back to that file. Its prompt names the risks and asks what file-level locals become and how the graph reads. It is laid out in rows as the file reads, keeping its blank lines. Names and types stay as the file has them, and a name that hides a global or a service is flagged on its node. A line such as `local Players = game:GetService("Players")` becomes one of the graph\'s services, and a method call becomes its node where the importer knows what it is called on. The file stays as it is until you overwrite it, after seeing what changes',
 					],
 					[
-						"`wally.toml`, or a package under it",
+						"A package, or Add on the Packages heading",
 						"Adding and removing packages. See [Wally packages](wally-packages)",
 					],
 				],

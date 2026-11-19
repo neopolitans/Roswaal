@@ -291,10 +291,13 @@ export type ToolbarItem = Documented &
 		 */
 		| { t: "listTitle"; text: string; action?: string }
 		/**
-		 * The project tree's heading over one of its lists: Graph Content,
-		 * Compile Content.
+		 * The project tree's heading over one of its lists: Graphs, Place, Node
+		 * maps, Packages, Output. `count` beside its name; `add` names the Add
+		 * button at the end of its line.
 		 */
-		| { t: "treeSection"; text: string; shut?: boolean }
+		| { t: "treeSection"; text: string; shut?: boolean; count?: number; add?: string }
+		/** The project tree's foot: Node packs. */
+		| { t: "treeFoot"; text: string; icon: string }
 		/**
 		 * One row of a tree, the project's or the DataModel's, in the editor's
 		 * own `.tree-row` markup. `twist` draws the chevron, open or shut;
@@ -318,6 +321,14 @@ export type ToolbarItem = Documented &
 				hover?: boolean;
 				/** A folder's buttons at its right, as icons: New graph and New node map. */
 				actions?: string[];
+				/** A folder named for a Roblox class, drawn with that class's icon. */
+				classIcon?: string;
+				/** A folder a node map syncs: the map's mark in its icon's corner. */
+				synced?: boolean;
+				/** A folder with nothing in it: faint, saying so. */
+				empty?: boolean;
+				/** A place's Open button. */
+				open?: boolean;
 		  }
 		/** The instance at the top of the Properties panel: glyph, name, class. */
 		| {
@@ -573,6 +584,20 @@ function tabIcon(kind: keyof typeof TAB_ICONS, art: ToolbarArt): string {
  * A section heading as `SectionHead` draws it: the name in the accent colour
  * with a line running on, a fold when it has one, and buttons at the end.
  */
+/**
+ * A tree row's glyph as `ProjectTree.tsx` draws it: a class's own icon where
+ * the row names one, and a node map's mark in the corner of a synced folder.
+ */
+function treeGlyph(item: ToolbarItem & { t: "treeRow" }, art: ToolbarArt): string {
+	const shown = item.place ? item.className : item.classIcon;
+	const glyph =
+		(shown && wearsClassIcon(shown) ? classIconHtml(shown, 15, "kind") : "") ||
+		iconSvg(item.icon, 15, art, `kind${item.tone ? ` ${item.tone}` : ""}`);
+	return item.synced
+		? `<span class="tree-badged">${glyph}<span class="tree-map-badge">${iconSvg("map", 10, art)}</span></span>`
+		: glyph;
+}
+
 export function paneHeadHtml(
 	title: string,
 	art: ToolbarArt,
@@ -884,9 +909,20 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 		case "treeSection":
 			return (
 				`<div class="tree-section${item.shut ? " shut" : ""}">` +
-				paneHeadHtml(item.text, art, tie, !item.shut, "") +
+				paneHeadHtml(
+					item.text,
+					art,
+					tie,
+					!item.shut,
+					item.add
+						? `<span class="tb pane-add">${iconSvg("plus", 13, art)}${escapeXml(item.add)}</span>`
+						: "",
+					item.count,
+				) +
 				`</div>`
 			);
+		case "treeFoot":
+			return `<div class="tree-foot"${tie}><span class="tb">${iconSvg(item.icon, 14, art)}${escapeXml(item.text)}</span></div>`;
 
 		case "treeRow": {
 			// The editor's own markup: `ProjectTree.tsx` and `PlaceBrowser.tsx`.
@@ -900,6 +936,7 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 				item.selected ? "selected" : "",
 				item.current ? "open-doc" : "",
 				item.readonly ? "readonly" : "",
+				item.empty ? "tree-empty" : "",
 			]
 				.filter(Boolean)
 				.join(" ");
@@ -914,11 +951,10 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 			return (
 				`<div class="${classes}"${tie} style="padding-left:${6 + item.depth * 13}px;--depth:${item.depth}${hovered}">` +
 				twist +
-				// The class's own icon wherever the editor draws one: see `wearsClassIcon`.
-				((item.place && item.className && wearsClassIcon(item.className)
-					? classIconHtml(item.className, 15, "kind")
-					: "") || iconSvg(item.icon, 15, art, `kind${item.tone ? ` ${item.tone}` : ""}`)) +
+				treeGlyph(item, art) +
 				`<span class="label">${escapeXml(item.label)}</span>` +
+				`${item.empty ? `<span class="badge">empty</span>` : ""}` +
+				`${item.open ? `<span class="tb tree-open">Open</span>` : ""}` +
 				`${item.badge ? `<span class="badge">${escapeXml(item.badge)}</span>` : ""}` +
 				`${item.className ? `<span class="place-class">${escapeXml(item.className)}</span>` : ""}` +
 				// The picked DataModel row's menu button, as `PlaceBrowser.tsx` draws it.
@@ -2825,17 +2861,9 @@ export const PROJECT_PANEL_HEAD: ToolbarSpec = {
 // headings and its values are the ones the editor would show.
 // ---------------------------------------------------------------------------
 
-const graphFolder = (label: string, depth: number, open: boolean): ToolbarItem => ({
-	t: "treeRow",
-	label,
-	depth,
-	twist: open ? "open" : "shut",
-	icon: open ? "folderOpen" : "folder",
-});
-
 /**
- * Graph Content with `wally.toml` and its packages, as `ProjectTree.tsx` lists
- * them: folders, then `wally.toml`, then files, and Compile Content under it.
+ * The Files view with Wally's packages under their own heading, as
+ * `ProjectTree.tsx` lists them, and Wally's folders folded into Output.
  */
 export const PROJECT_TREE_WALLY: ToolbarSpec = {
 	id: "project-tree-wally",
@@ -2845,23 +2873,32 @@ export const PROJECT_TREE_WALLY: ToolbarSpec = {
 	groups: [
 		{
 			items: [
-				{ t: "treeSection", text: "Graph Content" },
-				graphFolder(".roswaal", 0, true),
-				graphFolder("scripts", 1, false),
+				{ t: "treeSection", text: "Graphs", count: 4, add: "New graph" },
 				{
 					t: "treeRow",
-					label: "wally.toml",
+					label: "ReplicatedStorage",
 					depth: 0,
-					twist: "open",
-					icon: "settings",
-					tone: "wally",
-					name: "wally.toml",
-					what: "What the project depends on. Right-click it to add a package.",
+					twist: "shut",
+					icon: "folderFilled",
+					tone: "tree-folder-special",
+					classIcon: "ReplicatedStorage",
+				},
+				{ t: "treeSection", text: "Place", count: 1 },
+				{ t: "treeRow", label: "place.rbxl", depth: 0, icon: "build", tone: "place", open: true },
+				{ t: "treeSection", text: "Node maps", count: 1, add: "New map" },
+				{ t: "treeRow", label: "Game", depth: 0, icon: "map", tone: "nodemap" },
+				{
+					t: "treeSection",
+					text: "Packages",
+					count: 2,
+					add: "Add",
+					name: "Packages",
+					what: "What wally.toml depends on. Add puts a package in, from Wally, a zip or GitHub.",
 				},
 				{
 					t: "treeRow",
 					label: "Signal",
-					depth: 1,
+					depth: 0,
 					icon: "instance",
 					tone: "package",
 					badge: "1.5.0",
@@ -2871,7 +2908,7 @@ export const PROJECT_TREE_WALLY: ToolbarSpec = {
 				{
 					t: "treeRow",
 					label: "Promise",
-					depth: 1,
+					depth: 0,
 					icon: "instance",
 					tone: "package",
 					badge: "not installed",
@@ -2879,26 +2916,15 @@ export const PROJECT_TREE_WALLY: ToolbarSpec = {
 					name: "Not installed",
 					what: "In wally.toml with nothing in Packages/ yet. Right-click it to insert its zip.",
 				},
-				{ t: "treeRow", label: ".luaurc", depth: 0, icon: "settings", tone: "luaurc" },
-				{ t: "treeSection", text: "Compile Content" },
 				{
-					t: "treeRow",
-					label: "Packages",
-					depth: 0,
-					twist: "shut",
-					icon: "folderFilled",
-					tone: "tree-folder-packages",
-					name: "Packages/",
-					what: "What Wally installs, in purple. It starts closed.",
+					t: "treeSection",
+					text: "Output",
+					count: 9,
+					shut: true,
+					name: "Output",
+					what: "What Roswaal writes, and Wally's own Packages/ folder. It starts folded.",
 				},
-				{
-					t: "treeRow",
-					label: "src",
-					depth: 0,
-					twist: "shut",
-					icon: "folder",
-					tone: "tree-folder-plain",
-				},
+				{ t: "treeFoot", text: "Node packs", icon: "graph" },
 			],
 		},
 	],
@@ -2908,36 +2934,43 @@ export const PROJECT_TREE_WALLY: ToolbarSpec = {
 export const PROJECT_TREE_NEW: ToolbarSpec = {
 	id: "project-tree-new",
 	title: "A folder's New buttons",
-	summary: "Pointing at a folder under `.roswaal/` shows its two buttons.",
+	summary: "Pointing at a folder under Graphs shows its two buttons.",
 	chrome: "filetree",
 	groups: [
 		{
 			items: [
-				{ t: "treeSection", text: "Graph Content" },
-				graphFolder(".roswaal", 0, true),
-				graphFolder("scripts", 1, true),
+				{ t: "treeSection", text: "Graphs", count: 1, add: "New graph" },
 				{
 					t: "treeRow",
 					label: "ServerScriptService",
-					depth: 2,
+					depth: 0,
 					twist: "open",
 					icon: "folderOpenFilled",
 					tone: "tree-folder-special",
+					classIcon: "ServerScriptService",
 				},
 				{
 					t: "treeRow",
 					label: "Server",
-					depth: 3,
+					depth: 1,
 					twist: "open",
 					icon: "folderOpen",
 					tone: "tree-folder-plain",
 					hover: true,
 					actions: ["newFile", "map"],
 					name: "New graph and New node map",
-					what: "On the folder you point at: a new `.nodescript` or `.nodemap` in that folder. The folder stays open or shut as it was.",
+					what: "On the folder you point at: a new graph or node map in that folder. The folder stays open or shut as it was.",
 				},
-				{ t: "treeRow", label: "Main.nodescript", depth: 4, icon: "document", tone: "nodescript" },
-				graphFolder("ReplicatedStorage", 2, false),
+				{ t: "treeRow", label: "Main", depth: 2, icon: "document", tone: "nodescript" },
+				{
+					t: "treeRow",
+					label: "ReplicatedStorage",
+					depth: 0,
+					twist: "shut",
+					icon: "folderFilled",
+					tone: "tree-folder-special",
+					classIcon: "ReplicatedStorage",
+				},
 			],
 		},
 	],
@@ -2947,26 +2980,16 @@ export const PROJECT_TREE_NEW: ToolbarSpec = {
 export const PROJECT_TREE_WALLY_ADDED: ToolbarSpec = {
 	id: "project-tree-wally-added",
 	title: "The project tree, after adding a package",
-	summary: "Flux is listed under wally.toml with the version installed.",
+	summary: "Flux is listed under Packages with the version installed.",
 	chrome: "filetree",
 	groups: [
 		{
 			items: [
-				{ t: "treeSection", text: "Graph Content" },
-				graphFolder(".roswaal", 0, true),
-				graphFolder("scripts", 1, false),
-				{
-					t: "treeRow",
-					label: "wally.toml",
-					depth: 0,
-					twist: "open",
-					icon: "settings",
-					tone: "wally",
-				},
+				{ t: "treeSection", text: "Packages", count: 3, add: "Add" },
 				{
 					t: "treeRow",
 					label: "Signal",
-					depth: 1,
+					depth: 0,
 					icon: "instance",
 					tone: "package",
 					badge: "1.5.0",
@@ -2974,7 +2997,7 @@ export const PROJECT_TREE_WALLY_ADDED: ToolbarSpec = {
 				{
 					t: "treeRow",
 					label: "Promise",
-					depth: 1,
+					depth: 0,
 					icon: "instance",
 					tone: "package",
 					badge: "not installed",
@@ -2983,7 +3006,7 @@ export const PROJECT_TREE_WALLY_ADDED: ToolbarSpec = {
 				{
 					t: "treeRow",
 					label: "Flux",
-					depth: 1,
+					depth: 0,
 					icon: "instance",
 					tone: "package",
 					badge: "0.2.0",
@@ -2991,24 +3014,7 @@ export const PROJECT_TREE_WALLY_ADDED: ToolbarSpec = {
 					name: "The new package",
 					what: "Its line is in wally.toml, and it is installed in Packages/.",
 				},
-				{ t: "treeRow", label: ".luaurc", depth: 0, icon: "settings", tone: "luaurc" },
-				{ t: "treeSection", text: "Compile Content" },
-				{
-					t: "treeRow",
-					label: "Packages",
-					depth: 0,
-					twist: "shut",
-					icon: "folderFilled",
-					tone: "tree-folder-packages",
-				},
-				{
-					t: "treeRow",
-					label: "src",
-					depth: 0,
-					twist: "shut",
-					icon: "folder",
-					tone: "tree-folder-plain",
-				},
+				{ t: "treeSection", text: "Output", count: 10, shut: true },
 			],
 		},
 	],

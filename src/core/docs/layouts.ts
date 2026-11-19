@@ -878,57 +878,35 @@ export function layoutHtml(
 // The demo project, as the cards show it
 // ---------------------------------------------------------------------------
 
-const folder = (label: string, depth: number, tone?: string): ToolbarItem => ({
+const folder = (label: string, depth: number, tone?: string, classIcon?: string): ToolbarItem => ({
 	t: "treeRow",
 	label,
 	depth,
 	twist: "open",
 	icon: tone ? "folderOpenFilled" : "folderOpen",
 	tone,
+	...(classIcon ? { classIcon } : {}),
 });
 
 /** The demo project's tree, as the Project card lists it with Events open. */
 const DEMO_TREE: ToolbarItem[] = [
-	{ t: "treeSection", text: "Graph Content" },
-	folder(".roswaal", 1),
-	folder("nodes", 2),
+	{ t: "treeSection", text: "Graphs", count: 1, add: "New graph" },
+	folder("ReplicatedStorage", 0, "tree-folder-special", "ReplicatedStorage"),
+	folder("ServerScriptService", 0, "tree-folder-special", "ServerScriptService"),
+	folder("StarterPlayer", 0, "tree-folder-special", "StarterPlayer"),
+	folder("StarterPlayerScripts", 1, "tree-folder-special", "StarterPlayerScripts"),
 	{
 		t: "treeRow",
-		label: "example.nodedef.luau",
-		depth: 3,
-		icon: "luauScript",
-		tone: "luau tree-script-module",
-		readonly: true,
-	},
-	folder("scripts", 2),
-	folder("ReplicatedStorage", 3, "tree-folder-special"),
-	folder("ServerScriptService", 3, "tree-folder-special"),
-	folder("StarterPlayer", 3, "tree-folder-special"),
-	folder("StarterPlayerScripts", 4, "tree-folder-special"),
-	{
-		t: "treeRow",
-		label: "Events.nodescript",
-		depth: 3,
+		label: "Events",
+		depth: 0,
 		icon: "document",
 		tone: "nodescript",
 		current: true,
 	},
-	{ t: "treeRow", label: "Game.nodemap", depth: 3, icon: "map", tone: "nodemap" },
-	{ t: "treeSection", text: "Compile Content" },
-	folder("src", 1),
-	folder("ReplicatedStorage", 2, "tree-folder-special"),
-	folder("ServerScriptService", 2, "tree-folder-special"),
-	folder("StarterPlayer", 2, "tree-folder-special"),
-	folder("StarterPlayerScripts", 3, "tree-folder-special"),
-	{
-		t: "treeRow",
-		label: "Events.server.luau",
-		depth: 2,
-		icon: "luauScript",
-		tone: "luau",
-		readonly: true,
-		badge: "generated",
-	},
+	{ t: "treeSection", text: "Node maps", count: 1, add: "New map" },
+	{ t: "treeRow", label: "Game", depth: 0, icon: "map", tone: "nodemap" },
+	{ t: "treeSection", text: "Output", count: 2, shut: true },
+	{ t: "treeFoot", text: "Node packs", icon: "graph" },
 ];
 
 const MARK: ToolbarItem = { t: "mark", window: true };
