@@ -9,6 +9,20 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.16",
+		date: "2026-11-20",
+		headline: "A node map's graph is drawn as graph nodes, each saying whether it syncs.",
+		added: [
+			"**Sync** on each node of a map, in the graph and in Instance: Syncs, where Rojo fills it from its own folder, or Passes through, where it only holds what is mapped under it. Switching to Syncs folds plain folders mapped inside it into that folder; switching to Passes through maps each folder inside it on its own.",
+			"**A node that passes through** says when files directly in its folder would not sync.",
+		],
+		changed: [
+			"**The map's graph** draws its nodes as the canvas does: a header tinted by what the node is, flow pins joined header to header, and + Add under the picked node.",
+			"**Path** in Instance shows only while the node syncs.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.15",
 		date: "2026-11-19",
 		headline: "A node map can be drawn as a graph.",

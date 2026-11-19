@@ -306,10 +306,19 @@ export function buildingAndRojoPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"**List** and **Graph** draw the same tree two ways: as rows, or left to right with " +
-					"each level a column. In the graph, the **+** on a node's right edge adds inside it: " +
+					"**List** and **Graph** draw the same tree two ways: as rows, or left to right as " +
+					"graph nodes, each level a column. In the graph, **+ Add** under a node adds inside it: " +
 					"a service on the DataModel, a folder anywhere else. Drag the empty canvas to move " +
 					"about it.",
+			},
+			{
+				t: "p",
+				text:
+					"**Sync** on each node says whether Rojo fills it from its own folder, or it only " +
+					"passes through to what is mapped under it. Switching to **Syncs** folds plain " +
+					"folders mapped inside it into that folder; switching to **Passes through** maps each " +
+					"folder inside it on its own. A node passing through says when files directly in its " +
+					"folder would not sync.",
 			},
 			{
 				t: "table",

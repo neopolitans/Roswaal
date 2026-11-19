@@ -6090,97 +6090,88 @@ button.pathchip:hover {
 	pointer-events: none;
 }
 
+/* The tree's wires: the canvas's flow wires, header to header. */
 .mapg-wire {
 	fill: none;
-	stroke: color-mix(in srgb, var(--fg) 38%, transparent);
-	stroke-width: 2;
+	stroke: var(--wire-exec);
+	stroke-width: 2.4;
+	stroke-linecap: round;
 }
 
 .mapg-wire.disk {
-	stroke-dasharray: 4 4;
+	stroke-dasharray: 5 5;
 	opacity: 0.7;
 }
 
-.mapg-node {
-	position: absolute;
-	box-sizing: border-box;
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	gap: 4px;
-	padding: 6px 12px 6px 10px;
-	background: var(--bg-panel);
-	border: 1px solid var(--border-strong);
-	border-radius: 12px;
-	box-shadow: var(--shadow-raised);
+/* A map node is the canvas's `.node`; these are only where it differs. It
+   is picked rather than dragged about, so no grab hand. */
+.mapg-node.node,
+.mapg-node.node .head {
 	cursor: default;
-	user-select: none;
-	-webkit-user-select: none;
 }
 
-.mapg-node:hover {
-	border-color: color-mix(in srgb, var(--accent) 45%, var(--border-strong));
+.mapg-node .head .lines {
+	flex: 1;
 }
 
-.mapg-node.root {
-	background: color-mix(in srgb, var(--accent) 10%, var(--bg-panel));
-	border-color: var(--accent);
+.mapg-head-end {
+	display: flex;
+	flex: none;
+	align-items: center;
+	gap: 4px;
 }
 
-.mapg-node.selected {
-	box-shadow: 0 0 0 2px var(--accent), var(--shadow-raised);
+.mapg-rows {
+	display: grid;
+	gap: 2px;
+	padding: 4px 9px 6px;
 }
 
-.mapg-node.disk {
-	background: color-mix(in srgb, var(--bg-panel) 70%, transparent);
+.mapg-row {
+	display: flex;
+	align-items: center;
+	min-width: 0;
+	height: 24px;
+	font-size: 11px;
+}
+
+.mapg-seg.segmented {
+	display: flex;
+	width: 100%;
+}
+
+.mapg-seg.segmented button {
+	flex: 1;
+	padding: 2px 6px;
+	font-size: 11px;
+	white-space: nowrap;
+}
+
+.mapg-say {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--fg-muted);
+}
+
+/* A folder on disk the map does not name, faint and dashed; one not synced
+   at all, dashed; one where the rule would not put it, in the warning colour. */
+.mapg-node.node.mapg-disk {
+	background: color-mix(in srgb, var(--node-body) 75%, transparent);
 	border-style: dashed;
 	box-shadow: none;
 }
 
-.mapg-node.unsynced {
+.mapg-node.node.mapg-unsynced {
 	border-style: dashed;
 }
 
-.mapg-node.odd {
+.mapg-node.node.mapg-odd {
 	border-color: var(--warning);
-	border-style: dashed;
 }
 
-.mapg-node.drop {
-	box-shadow: 0 0 0 2px var(--accent), var(--shadow-raised);
-	background: color-mix(in srgb, var(--accent) 12%, var(--bg-panel));
-}
-
-.mapg-name {
-	display: flex;
-	align-items: center;
-	gap: 7px;
-	min-width: 0;
-	font-size: 12px;
-	white-space: nowrap;
-}
-
-.mapg-name > svg,
-.mapg-name > .tree-badged {
-	flex: none;
-}
-
-.mapg-name b {
-	min-width: 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	font-weight: 650;
-}
-
-.mapg-badge {
-	flex: none;
-	margin-left: auto;
-	padding: 0 6px;
-	font-size: 9.5px;
-	font-weight: 600;
-	color: var(--ok);
-	border: 1px solid color-mix(in srgb, var(--ok) 60%, transparent);
-	border-radius: 999px;
+.mapg-node.node.mapg-drop {
+	box-shadow: 0 0 0 2px var(--select), var(--node-shadow);
 }
 
 .mapg-fold {
@@ -6193,10 +6184,6 @@ button.pathchip:hover {
 	border: 0;
 	border-radius: 4px;
 	cursor: pointer;
-}
-
-.mapg-badge + .mapg-fold {
-	margin-left: 0;
 }
 
 .mapg-fold:hover {
@@ -6244,32 +6231,6 @@ button.pathchip:hover {
 
 .mapg-other.link:hover span {
 	text-decoration: underline;
-}
-
-.mapg-plus {
-	position: absolute;
-	right: -10px;
-	top: 50%;
-	transform: translateY(-50%);
-	display: grid;
-	place-items: center;
-	width: 20px;
-	height: 20px;
-	padding: 0;
-	font-size: 14px;
-	font-weight: 700;
-	line-height: 1;
-	color: var(--accent);
-	background: var(--bg-panel);
-	border: 1px solid var(--border-strong);
-	border-radius: 50%;
-	cursor: pointer;
-}
-
-.mapg-plus:hover {
-	color: var(--bg-panel);
-	background: var(--accent);
-	border-color: var(--accent);
 }
 
 /* The reading rule, floating over the graph's corner. */

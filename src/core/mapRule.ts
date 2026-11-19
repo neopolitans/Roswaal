@@ -19,7 +19,13 @@
  * it is the one place a reader has to look at both sides.
  */
 
-import { findMapNode, type MapNode, mapNodeParent, type NodeMap } from "./nodemap.js";
+import {
+	findMapNode,
+	type MapNode,
+	mapNodeParent,
+	mapNodeUpdate,
+	type NodeMap,
+} from "./nodemap.js";
 import { isService } from "./roblox.js";
 import { locateUnder, mappedPaths, normalisePath } from "./rojoPaths.js";
 
@@ -232,6 +238,85 @@ export function mapAt(
 		};
 	};
 	return { root: walk(root, 0), id };
+}
+
+/**
+ * Whether a node says nothing a folder on disk would not: a Folder, or a
+ * service-less instance with no class, and no Rojo settings of its own.
+ */
+function onlyAFolder(node: MapNode): boolean {
+	return (
+		(node.className === undefined || node.className === "Folder") &&
+		!node.statedClass &&
+		!node.ignoreUnknown &&
+		!(node.ignorePaths && node.ignorePaths.length > 0) &&
+		!(node.properties && Object.keys(node.properties).length > 0) &&
+		!(node.rojo && Object.keys(node.rojo).length > 0)
+	);
+}
+
+/**
+ * Whether a node inside a folder being synced can go, because Rojo would bring
+ * the same thing in through that folder: a plain folder at the path the folder
+ * gives it, or one with no path whose children all can go too.
+ */
+function absorbable(node: MapNode, base: string): boolean {
+	if (!onlyAFolder(node)) return false;
+	const here = `${base}/${node.name}`;
+	if (node.path !== undefined) {
+		if (normalisePath(node.path) !== here) return false;
+	} else if (node.children.length === 0) {
+		return false;
+	}
+	return node.children.every((child) => absorbable(child, here));
+}
+
+/**
+ * Makes a node sync its own folder, the one the reading rule gives it. A
+ * mapping below it that only named a folder inside that one goes: Rojo brings
+ * the folder in through this one, and keeping both would sync it twice.
+ * Anything that says more -- a Model, a property, a folder from elsewhere --
+ * stays.
+ */
+export function syncHere(map: NodeMap, outDir: string, id: string): MapNode {
+	const path = rulePath(outDir, trailOf(map, id));
+	return mapNodeUpdate(map.root, id, (node) => ({
+		...node,
+		path,
+		children: node.children.filter((child) => !absorbable(child, path)),
+	}));
+}
+
+/**
+ * Makes a node pass through: it syncs nothing itself and only holds what is
+ * under it. Each folder inside the one it synced is mapped on its own, so what
+ * was in Studio stays there. Files loose in the folder itself have nowhere to
+ * go and stop syncing, which `looseFiles` lets the editor say.
+ */
+export function passThrough(
+	map: NodeMap,
+	id: string,
+	folders: readonly string[],
+	makeId: () => string,
+): MapNode {
+	return mapNodeUpdate(map.root, id, (node) => {
+		const base = node.path === undefined ? undefined : normalisePath(node.path);
+		const named = new Set(node.children.map((child) => child.name));
+		const added: MapNode[] =
+			base === undefined
+				? []
+				: folders
+						.filter((name) => !named.has(name))
+						.map((name) => ({
+							id: makeId(),
+							name,
+							className: "Folder",
+							path: `${base}/${name}`,
+							children: [],
+						}));
+		const { path: _dropped, ...rest } = node;
+		return { ...rest, children: [...node.children, ...added] };
+	});
 }
 
 /** A path's parts, for a breadcrumb or a chip. */

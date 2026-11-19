@@ -113,6 +113,14 @@ export function attachMapPanel(figure: HTMLElement): () => void {
 			if (icon) icon.innerHTML = one.icon ?? "";
 		}
 
+		// Syncs, or passes through: which the row is follows from whether it has a path.
+		const sync = fieldOf("sync");
+		if (sync) {
+			for (const button of Array.from(sync.querySelectorAll("button"))) {
+				button.classList.toggle("on", (button.textContent === "Syncs") === (one.path !== ""));
+			}
+		}
+
 		const kind = fieldOf("kind");
 		if (kind) {
 			for (const button of Array.from(kind.querySelectorAll("button"))) {

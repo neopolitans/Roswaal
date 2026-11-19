@@ -5,12 +5,14 @@ import {
 	landingOf,
 	mapAt,
 	newFolderFor,
+	passThrough,
 	renameByRule,
 	ruleExceptions,
 	ruleLanding,
 	rulePath,
 	rulePaths,
 	syncedFolderOf,
+	syncHere,
 	trailOf,
 } from "../src/core/mapRule.js";
 import {
@@ -190,6 +192,54 @@ describe("renaming and mapping by the rule", () => {
 		expect(made.id).toBe("rs");
 		expect(made.root.children[0].path).toBe("src/ReplicatedStorage");
 		expect(made.root.children[0].children[0].id).toBe("tank");
+	});
+});
+
+describe("syncing a node, or passing through", () => {
+	it("gives a node its rule folder and folds in what only named a folder inside it", () => {
+		const root = syncHere(tank(), "src", "rs");
+		const rs = root.children[0];
+		expect(rs.path).toBe("src/ReplicatedStorage");
+		expect(rs.children).toEqual([]);
+	});
+
+	it("keeps what says more than a folder would", () => {
+		const map = tank();
+		map.root.children[0].children[0].className = "Model";
+		map.root.children[0].children.push(
+			node("far", "Far", { className: "Folder", path: "assets/Far" }),
+		);
+		const rs = syncHere(map, "src", "rs").children[0];
+		expect(rs.children.map((c) => c.id)).toEqual(["tank", "far"]);
+	});
+
+	it("folds in a folder with no path whose own children can go", () => {
+		const map = tank();
+		map.root.children[2].children = [
+			node("sps", "StarterPlayerScripts", { className: "Folder" }, [
+				node("ui", "UI", {
+					className: "Folder",
+					path: "src/StarterPlayer/StarterPlayerScripts/UI",
+				}),
+			]),
+		];
+		expect(syncHere(map, "src", "sp").children[2].children).toEqual([]);
+	});
+
+	it("maps each folder inside on its own when a node stops syncing", () => {
+		let n = 0;
+		const root = passThrough(tank(), "sss", ["Source", "Combat"], () => `p${n++}`);
+		const sss = root.children[1];
+		expect(sss.path).toBeUndefined();
+		expect(sss.children.map((c) => [c.name, c.path])).toEqual([
+			["Source", "src/ServerScriptService/Source"],
+			["Combat", "src/ServerScriptService/Combat"],
+		]);
+	});
+
+	it("adds nothing for a node that synced nothing", () => {
+		const root = passThrough(tank(), "rs", ["Other"], () => "x");
+		expect(root.children[0].children.map((c) => c.id)).toEqual(["tank"]);
 	});
 });
 

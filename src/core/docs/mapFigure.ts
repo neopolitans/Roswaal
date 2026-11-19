@@ -435,6 +435,11 @@ export function mapParts(figure: MapFigure): MapPart[] {
 			what: "A service, or what Rojo makes. Rojo knows a service by its name.",
 		},
 		{
+			part: "sync",
+			name: "Sync",
+			what: "Whether Rojo fills it from its own folder, or it only holds what is mapped under it.",
+		},
+		{
 			part: "path",
 			name: "Path",
 			what: "The folder on disk that fills it. Choose… picks one from the project.",
@@ -707,6 +712,12 @@ export function mapPanelHtml(figure: MapFigure, picked?: string, art?: ToolbarAr
 					`${explorerIconHtml(first.className ?? first.name, !first.root && !first.className, art)}</span>` +
 					`<span class="clip">${escapeXml(classLabel(first))}</span>${uiIconHtml("chevron", 12, art, "pickbox-chev")}</span>`,
 				"class",
+				{ nonroot: true },
+			) +
+			field(
+				"Sync",
+				segmented(["Syncs", "Passes through"], first.path ? "Syncs" : "Passes through", "sync"),
+				"sync",
 				{ nonroot: true },
 			) +
 			field(

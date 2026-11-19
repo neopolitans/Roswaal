@@ -24,6 +24,7 @@
  */
 
 import {
+	type CSSProperties,
 	type DragEvent,
 	type KeyboardEvent,
 	type ReactNode,
@@ -39,12 +40,14 @@ import {
 	landingOf,
 	mapAt,
 	newFolderFor,
+	passThrough,
 	type RuleException,
 	renameByRule,
 	ruleExceptions,
 	ruleLanding,
 	rulePath,
 	syncedFolderOf,
+	syncHere,
 	trailOf,
 } from "../core/mapRule.js";
 import {
@@ -69,7 +72,7 @@ import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
 import { ExplorerIcon } from "./ExplorerIcon.jsx";
 import { FolderPicker } from "./FolderPicker.jsx";
-import { Icon } from "./icons.jsx";
+import { Icon, type IconName } from "./icons.jsx";
 import { Menu, MenuSurface } from "./Menu.jsx";
 import {
 	entryAt,
@@ -157,6 +160,12 @@ export interface MapEditing extends MapEditorInput {
 	showFolder: (folder: string) => void;
 	/** A folder on disk inside `folder`, asking its name: in its graph folder where it has one. */
 	addDiskFolder: (folder: string) => void;
+	/** Syncs a node's own folder, or makes it pass through to what is under it. */
+	setSync: (id: string, on: boolean) => void;
+	/** From the output folder: maps a folder where the rule puts it, or stops mapping it. */
+	setFolderSync: (folder: string, on: boolean) => void;
+	/** Files directly in a pass-through node's rule folder, which nothing syncs. */
+	looseFiles: (id: string) => number;
 	isFolderPath: (path: string) => boolean;
 }
 
@@ -495,6 +504,52 @@ export function useMapEditor(input: MapEditorInput | null): MapEditing | null {
 	const addDiskFolder = (folder: string) =>
 		input.onNewFolder?.(graphFolderOf(folder, outDir, sourceDir) ?? folder);
 
+	/** Syncs a node's own folder, or makes it pass through to what is under it. */
+	const setSync = (id: string, on: boolean) => {
+		if (on) {
+			commit({ ...map, root: syncHere(map, outDir, id) });
+			return;
+		}
+		const node = findMapNode(map.root, id);
+		const base = node?.path ? normalisePath(node.path) : undefined;
+		const folders = base ? foldersUnder(tree, base, outDir, sourceDir) : [];
+		commit({ ...map, root: passThrough(map, id, folders, newId) });
+	};
+
+	/** From the output folder: maps a folder where the rule puts it, or stops mapping it. */
+	const setFolderSync = (folder: string, on: boolean) => {
+		if (on) {
+			mapByRule(folder);
+			return;
+		}
+		const node = mappedPaths(map.root).some((one) => one.base === normalisePath(folder))
+			? nodeWithPath(map.root, normalisePath(folder))
+			: undefined;
+		if (node) remove(node.id);
+	};
+
+	/**
+	 * Files directly in the folder the rule gives a node that passes through:
+	 * nothing maps them, so they never reach Studio. Graphs count by the file
+	 * they compile to.
+	 */
+	const looseFiles = (id: string): number => {
+		const at = rulePath(outDir, trailOf(map, id));
+		const stems = new Set<string>();
+		const add = (entry: TreeEntry | undefined) => {
+			for (const one of entry?.children ?? []) {
+				if (one.kind === "directory") continue;
+				stems.add(
+					one.name.replace(/(\.(server|client))?\.(luau|lua|nodescript)$/i, "").toLowerCase(),
+				);
+			}
+		};
+		add(entryAt(tree, at));
+		const graphs = graphFolderOf(at, outDir, sourceDir);
+		if (graphs) add(entryAt(tree, graphs));
+		return stems.size;
+	};
+
 	const toggle = (key: string) =>
 		setCollapsed((was) => {
 			const next = new Set(was);
@@ -527,6 +582,9 @@ export function useMapEditor(input: MapEditorInput | null): MapEditing | null {
 		addFolder,
 		addService,
 		remove,
+		setSync,
+		setFolderSync,
+		looseFiles,
 		mapByRule,
 		mapDropped,
 		showFolder,
@@ -1118,11 +1176,24 @@ function describeRow(ed: MapEditing, row: Row): RowFacts {
 				syncs: true,
 			};
 		}
+		const loose = root ? 0 : ed.looseFiles(node.id);
+		const folder = rulePath(outDir, trailOf(map, node.id));
 		return {
 			name,
 			icon,
-			detail: null,
-			quiet: root ? `writes ${map.output}` : "holds only what is under it",
+			detail:
+				loose > 0
+					? {
+							text: `${filesText(loose)} here ${loose === 1 ? "does" : "do"} not sync`,
+							tone: "warn",
+							title:
+								`${folder} has ${filesText(loose)} directly in it, and nothing maps them. ` +
+								"Sync this node, or move them into a folder that is synced.",
+						}
+					: null,
+			quiet: root
+				? `${node.children.length} service${node.children.length === 1 ? "" : "s"}`
+				: "holds only what is under it",
 			unsynced: false,
 			syncs: false,
 		};
@@ -1237,12 +1308,29 @@ function MapRowView(props: MapRowViewProps) {
 // The tree as a graph
 // ---------------------------------------------------------------------------
 
-/** A node's card, and the room between columns and rows. */
-const CARD_W = 236;
-const CARD_H = 54;
-const COLUMN = CARD_W + 56;
-const ROW_STEP = CARD_H + 16;
-const PAD = 24;
+/**
+ * A map node is drawn as a graph node: the canvas's own `.node`, header and
+ * tab, so it reads as one and follows every theme the canvas does. Its rows
+ * are its settings -- whether it syncs a folder or passes through -- and its
+ * flow pins are where the tree's wires join, header to header.
+ */
+const CARD_W = 252;
+const HEAD_H = 30;
+const CARD_H = HEAD_H + 2 * 26 + 10;
+/** Room under a node for its "+ Add" strip, which hangs below it. */
+const COLUMN = CARD_W + 72;
+const ROW_STEP = CARD_H + 40;
+const PAD = 32;
+
+/** A node's category colour: what it is in the tree, as the canvas colours a node's kind. */
+const MAP_COLOURS = {
+	root: "#5a6474",
+	service: "#2c7676",
+	instance: "#2f6f8f",
+	disk: "#6d7480",
+	directory: "#5b5fa6",
+	file: "#6f4f9b",
+} as const;
 
 export interface Placed {
 	row: Row;
@@ -1282,7 +1370,7 @@ export function placeRows(rows: Row[]): { roots: Placed[]; width: number; height
 	return {
 		roots,
 		width: PAD * 2 + deepest * COLUMN + CARD_W + 24,
-		height: PAD * 2 + Math.max(1, next) * ROW_STEP - 16,
+		height: PAD * 2 + Math.max(1, next) * ROW_STEP,
 	};
 }
 
@@ -1326,13 +1414,15 @@ function MapGraphView(props: MapGraphViewProps) {
 		});
 	}
 
+	// From the flow out at a node's header to the flow in at its child's, as
+	// the canvas wires a run of steps.
 	const wire = (from: Placed, to: Placed) => {
-		const x1 = from.x + CARD_W;
-		const y1 = from.y + CARD_H / 2;
-		const x2 = to.x;
-		const y2 = to.y + CARD_H / 2;
-		const mid = (x1 + x2) / 2;
-		return `M${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}`;
+		const x1 = from.x + CARD_W + 12;
+		const y1 = from.y + HEAD_H / 2;
+		const x2 = to.x - 12;
+		const y2 = to.y + HEAD_H / 2;
+		const bend = Math.max(24, (x2 - x1) / 2);
+		return `M${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`;
 	};
 
 	return (
@@ -1446,33 +1536,145 @@ interface GraphNodeProps {
 	onDrop: (e: DragEvent) => void;
 }
 
+/** What a node is, in a word, and its category: the header's subtitle and tab. */
+function nodeKind(ed: MapEditing, row: Row): { word: string; colour: string; tab: IconName } {
+	const node = row.node;
+	if (ed.filesystem) {
+		if (node === ed.map.root)
+			return { word: "Project folder", colour: MAP_COLOURS.root, tab: "folder" };
+		return node?.file
+			? { word: "File", colour: MAP_COLOURS.file, tab: "luauScript" }
+			: { word: "Directory", colour: MAP_COLOURS.directory, tab: "folder" };
+	}
+	if (ed.view === "src") {
+		return node
+			? { word: "Folder · mapped", colour: MAP_COLOURS.instance, tab: "map" }
+			: { word: "Folder on disk", colour: MAP_COLOURS.disk, tab: "folder" };
+	}
+	if (!node) return { word: "Folder on disk", colour: MAP_COLOURS.disk, tab: "folder" };
+	if (node === ed.map.root) return { word: "DataModel", colour: MAP_COLOURS.root, tab: "map" };
+	if (!node.className) return { word: "Service", colour: MAP_COLOURS.service, tab: "instance" };
+	return { word: node.className, colour: MAP_COLOURS.instance, tab: "instance" };
+}
+
+/** A node's first row: whether it syncs a folder, or how it comes to be in Studio. */
+function SyncRow({ ed, row }: { ed: MapEditing; row: Row }) {
+	const node = row.node;
+	if (ed.filesystem) {
+		if (!node || node === ed.map.root)
+			return <span className="mapg-say">the project's own folder</span>;
+		return (
+			<div className="segmented mapg-seg" role="group" aria-label="Kind">
+				<button
+					type="button"
+					className={cx(!node.file && "on")}
+					onClick={() => ed.updateNode(node.id, { file: undefined })}
+				>
+					Directory
+				</button>
+				<button
+					type="button"
+					className={cx(node.file && "on")}
+					onClick={() => ed.updateNode(node.id, { file: true })}
+				>
+					File
+				</button>
+			</div>
+		);
+	}
+	if (ed.view === "src" && row.folder) {
+		const folder = row.folder;
+		const at = normalisePath(folder);
+		const landing = landingOf(ed.map, folder);
+		const through =
+			!landing && mappedPaths(ed.map.root).some((one) => one.base.startsWith(`${at}/`));
+		if (through) return <span className="mapg-say">passes through to what is mapped inside</span>;
+		if (landing && !node) return <span className="mapg-say">synced by the folder above</span>;
+		const rule = ruleLanding(ed.outDir, folder);
+		return (
+			<div className="segmented mapg-seg" role="group" aria-label="Synced">
+				<button
+					type="button"
+					className={cx(node && "on")}
+					disabled={!node && !rule}
+					title={
+						node || rule
+							? "Map this folder where the reading rule puts it"
+							: "Named for no service: drag it onto an instance to map it there"
+					}
+					onClick={() => !node && ed.setFolderSync(folder, true)}
+				>
+					Synced
+				</button>
+				<button
+					type="button"
+					className={cx(!node && "on")}
+					onClick={() => node && ed.setFolderSync(folder, false)}
+				>
+					Not synced
+				</button>
+			</div>
+		);
+	}
+	if (!node) return <span className="mapg-say">synced by the folder above</span>;
+	if (node === ed.map.root) return <span className="mapg-say">writes {ed.map.output}</span>;
+	const syncs = node.path !== undefined;
+	return (
+		<div className="segmented mapg-seg" role="group" aria-label="Sync">
+			<button
+				type="button"
+				className={cx(syncs && "on")}
+				title="Rojo fills it from its own folder, the one the reading rule gives it"
+				onClick={() => !syncs && ed.setSync(node.id, true)}
+			>
+				Syncs
+			</button>
+			<button
+				type="button"
+				className={cx(!syncs && "on")}
+				title="It syncs nothing itself: it holds what is mapped under it"
+				onClick={() => syncs && ed.setSync(node.id, false)}
+			>
+				Passes through
+			</button>
+		</div>
+	);
+}
+
 function GraphNode(props: GraphNodeProps) {
 	const { ed, placed } = props;
 	const row = placed.row;
 	const node = row.node;
 	const root = node === ed.map.root;
 	const facts = describeRow(ed, row);
+	const kind = nodeKind(ed, row);
 	const shut = ed.collapsed.has(row.key);
 	const canAdd = !(node?.file ?? false);
+	const detail = facts.detail;
 	return (
 		<div
 			className={cx(
+				"node",
 				"mapg-node",
-				root && "root",
-				props.picked && "selected",
-				!node && "disk",
-				facts.unsynced && "unsynced",
-				facts.detail?.odd && "odd",
-				props.drop && "drop",
+				props.picked && "node--selected",
+				!node && "mapg-disk",
+				facts.unsynced && "mapg-unsynced",
+				detail?.odd && "mapg-odd",
+				props.drop && "mapg-drop",
 			)}
-			style={{ left: placed.x, top: placed.y, width: CARD_W, height: CARD_H }}
+			style={
+				{ left: placed.x, top: placed.y, width: CARD_W, "--cat": kind.colour } as CSSProperties
+			}
 			role="treeitem"
 			aria-selected={props.picked}
 			aria-expanded={row.parent ? !shut : undefined}
 			data-control={node?.id}
 			draggable={!!node && !root}
 			onClick={props.onPick}
-			onDoubleClick={() => row.parent && ed.toggle(row.key)}
+			onDoubleClick={(e) => {
+				if ((e.target as Element).closest("button")) return;
+				if (row.parent) ed.toggle(row.key);
+			}}
 			onContextMenu={(e) => {
 				e.preventDefault();
 				props.onMenu({ x: e.clientX, y: e.clientY });
@@ -1485,69 +1687,108 @@ function GraphNode(props: GraphNodeProps) {
 			onDragOver={props.onDragOver}
 			onDrop={props.onDrop}
 		>
-			<div className="mapg-name">
-				{facts.icon}
-				<b>{facts.name}</b>
-				{facts.syncs && <span className="mapg-badge">syncs</span>}
-				{row.parent && (
-					<button
-						type="button"
-						className="mapg-fold"
-						title={shut ? "Show what is inside" : "Fold what is inside"}
-						aria-label={shut ? "Unfold" : "Fold"}
-						onClick={(e) => {
-							e.stopPropagation();
-							ed.toggle(row.key);
-						}}
-					>
-						<Icon name="chevron" size={12} className={cx("map-chev", !shut && "open")} />
-					</button>
-				)}
+			<div className="head two-line">
+				<span className="tab">
+					<Icon name={kind.tab} size={16} />
+				</span>
+				<span className="lines">
+					<span className="title">{facts.name}</span>
+					<span className="subtitle">{kind.word}</span>
+				</span>
+				<span className="mapg-head-end">
+					{facts.icon}
+					{row.parent && (
+						<button
+							type="button"
+							className="mapg-fold"
+							title={shut ? "Show what is inside" : "Fold what is inside"}
+							aria-label={shut ? "Unfold" : "Fold"}
+							onClick={(e) => {
+								e.stopPropagation();
+								ed.toggle(row.key);
+							}}
+						>
+							<Icon name="chevron" size={12} className={cx("map-chev", !shut && "open")} />
+						</button>
+					)}
+				</span>
 			</div>
-			{facts.detail ? (
+			<div className="mapg-rows">
+				<div className="mapg-row">
+					<SyncRow ed={ed} row={row} />
+				</div>
 				<div
-					className={cx("mapg-other", facts.detail.tone, facts.detail.folder && "link")}
-					title={facts.detail.title}
+					className={cx(
+						"mapg-row",
+						"mapg-other",
+						detail ? detail.tone : "faint",
+						detail?.folder && "link",
+					)}
+					title={detail?.title}
 					onClick={(e) => {
-						const folder = facts.detail?.folder;
+						const folder = detail?.folder;
 						if (!folder) return;
 						e.stopPropagation();
 						ed.showFolder(folder);
 					}}
 				>
-					{facts.detail.icon ?? (facts.detail.folder ? <Icon name="folder" size={11} /> : null)}
-					<span>{facts.detail.text}</span>
+					{detail ? (
+						<>
+							{detail.icon ?? (detail.folder ? <Icon name="folder" size={11} /> : null)}
+							<span>{detail.text}</span>
+						</>
+					) : (
+						<span>{facts.quiet}</span>
+					)}
 				</div>
-			) : (
-				<div className="mapg-other faint">
-					<span>{facts.quiet}</span>
-				</div>
+			</div>
+			{!root && (
+				<span className="head-pin in" style={{ top: HEAD_H / 2 }}>
+					<span className="pin exec connected" style={{ color: "var(--wire-exec)" }}>
+						<span className="dot" />
+					</span>
+				</span>
+			)}
+			{canAdd && (
+				<span className="head-pin out" style={{ top: HEAD_H / 2 }}>
+					<span
+						className={cx("pin exec", placed.children.length > 0 && "connected")}
+						style={{ color: "var(--wire-exec)" }}
+					>
+						<span className="dot" />
+					</span>
+				</span>
 			)}
 			{canAdd && (
 				<button
 					type="button"
-					className="mapg-plus"
+					className="add-row"
 					title={addTitle(ed, row)}
-					aria-label={addTitle(ed, row)}
 					onClick={(e) => {
 						e.stopPropagation();
 						props.onAdd(e.currentTarget);
 					}}
 				>
-					+
+					+ {addLabel(ed, row)}
 				</button>
 			)}
 		</div>
 	);
 }
 
-/** What a node's + adds. */
+/** What a node's "+ Add" strip adds, in its words and in full. */
+function addLabel(ed: MapEditing, row: Row): string {
+	if (ed.filesystem) return "Add directory";
+	if (ed.view !== "src" && row.node === ed.map.root) return "Add service";
+	return "Add folder";
+}
+
 function addTitle(ed: MapEditing, row: Row): string {
 	if (ed.filesystem) return "A directory inside it";
 	if (ed.view === "src") return "A folder inside it, on disk";
 	if (row.node === ed.map.root) return "A service, synced from its folder in the output folder";
 	if (!row.node) return "A folder inside it, on disk";
-	return ed.isFolderPath(row.node.path ?? "") && row.node.path
+	return row.node.path
 		? "A folder inside it, on disk: Rojo brings it in"
 		: "A folder inside it, its path from the reading rule";
 }
@@ -1728,6 +1969,34 @@ function NodeFields({ ed, node }: { ed: MapEditing; node: MapNode }) {
 				)}
 				{!filesystem && !root && (
 					<Field
+						label="Sync"
+						part="sync"
+						help={
+							node.path !== undefined
+								? "Rojo fills it from its own folder."
+								: "It syncs nothing itself: it holds what is mapped under it."
+						}
+					>
+						<div className="segmented">
+							<button
+								type="button"
+								className={cx(node.path !== undefined && "on")}
+								onClick={() => node.path === undefined && ed.setSync(node.id, true)}
+							>
+								Syncs
+							</button>
+							<button
+								type="button"
+								className={cx(node.path === undefined && "on")}
+								onClick={() => node.path !== undefined && ed.setSync(node.id, false)}
+							>
+								Passes through
+							</button>
+						</div>
+					</Field>
+				)}
+				{!filesystem && !root && node.path !== undefined && (
+					<Field
 						label="Path"
 						part="path"
 						wide
@@ -1756,7 +2025,7 @@ function NodeFields({ ed, node }: { ed: MapEditing; node: MapNode }) {
 								aria-label="Path"
 								placeholder="Not synced"
 								value={node.path ?? ""}
-								onChange={(e) => patch({ path: e.target.value || undefined })}
+								onChange={(e) => patch({ path: e.target.value })}
 							/>
 							<button type="button" className="tb" onClick={(e) => setChoosing(e.currentTarget)}>
 								Choose…
