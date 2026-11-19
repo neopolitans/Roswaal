@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.8",
+		date: "2026-11-19",
+		headline: "Folders a node map syncs can be dragged, and the map follows.",
+		changed: [
+			"**Dragging a folder a node map syncs**, such as M103's Tank, moves it, and the map follows: the entry's path changes, it moves under the service it went to, and Rojo's project file is written again. Where a folder around it already syncs it, its Folder entry goes; a folder that leaves such a place gets an entry of its own. Service folders stay where they are.",
+		],
+		fixed: [
+			"**Moving or renaming a folder** through roswaal serve on Windows failed with EPERM when the folder held folders, as the daemon watches them. Its files now move one at a time.",
+		],
+		affects: ["editor"],
+	},
+	{
 		version: "1.0.0-canary.7",
 		date: "2026-11-19",
 		headline: "Folders of graphs can be dragged.",

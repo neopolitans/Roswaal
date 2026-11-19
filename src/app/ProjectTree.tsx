@@ -298,14 +298,15 @@ export const ProjectTree = memo(function ProjectTree({
 
 	/**
 	 * A folder of graphs moves as a file does, and a script with children is
-	 * one: dragged, rather than clicked, which still opens and closes it. Not
-	 * the graphs' own root, a folder a node map syncs -- the map points at it
-	 * by path -- or anything Roswaal writes.
+	 * one: dragged, rather than clicked, which still opens and closes it. A
+	 * folder a node map syncs moves too, and the map follows it. Not the graphs'
+	 * own root, a service's folder -- the service stays where Studio has it --
+	 * or anything Roswaal writes.
 	 */
 	function movableFolder(entry: TreeEntry): boolean {
 		if (entry.kind !== "directory" || !groups.isGraph(entry)) return false;
 		if (!sourceDir || !entry.path.startsWith(`${sourceDir}/`)) return false;
-		return entry.role !== "service" && entry.role !== "synced";
+		return entry.role !== "service";
 	}
 
 	function onDrop(e: DragEvent, dir: string) {

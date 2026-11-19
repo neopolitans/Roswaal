@@ -167,6 +167,7 @@ import {
 	assertNotLoneInit,
 	deleteGraphs,
 	flattenIfEmpty,
+	followMaps,
 	graphsUnder,
 	moveMetaFile,
 	outputsOf,
@@ -1519,8 +1520,13 @@ export class ApiSession {
 				const before = await outputsOf(project, await graphsUnder(project, source));
 				const moved = await moveEntry(project, source, need(toDir, "toDir"));
 				await afterMove(project, source, moved, before);
+				const maps = await followMaps(project, source, moved);
 				const flattened = await flattenIfEmpty(project, path.posix.dirname(toPosix(source)));
-				return { path: moved, ...(flattened ? { flattened } : {}) };
+				return {
+					path: moved,
+					...(flattened ? { flattened } : {}),
+					...(maps.length > 0 ? { maps } : {}),
+				};
 			},
 
 			/** Deletes a graph or a folder, and the Luau Roswaal wrote for it. */
@@ -1593,7 +1599,8 @@ export class ApiSession {
 				const before = await outputsOf(project, await graphsUnder(project, source));
 				const renamed = await renameEntry(project, source, need(name, "name"));
 				await afterMove(project, source, renamed, before);
-				return { path: renamed };
+				const maps = await followMaps(project, source, renamed);
+				return { path: renamed, ...(maps.length > 0 ? { maps } : {}) };
 			},
 
 			"GET /source": async (req) => ({

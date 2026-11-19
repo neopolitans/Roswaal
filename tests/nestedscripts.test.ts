@@ -276,3 +276,101 @@ describe("moving, renaming and deleting scripts with children", () => {
 		expect(await read("src/ReplicatedStorage/Greeter.meta.json")).toBe('{ "properties": {} }');
 	});
 });
+
+describe("moving a folder a node map syncs", () => {
+	interface MapNodeLike {
+		name: string;
+		path?: string;
+		children: MapNodeLike[];
+	}
+	const parentOf = (node: MapNodeLike, name: string): MapNodeLike | null => {
+		for (const child of node.children) {
+			if (child.name === name) return node;
+			const inside = parentOf(child, name);
+			if (inside) return inside;
+		}
+		return null;
+	};
+
+	it("takes the map with it: the entry's path, and its place under the service it went to", async () => {
+		await post("/compile", { path: `${SHARED}/Lonely.nodescript`, write: true });
+		const moved = (await post("/script/move", {
+			from: SHARED,
+			toDir: ".roswaal/scripts/ServerScriptService",
+		})) as { path: string; maps?: string[] };
+		expect(moved.path).toBe(".roswaal/scripts/ServerScriptService/Shared");
+		expect(moved.maps).toEqual([".roswaal/scripts/Game.nodemap"]);
+
+		const map = JSON.parse((await read(".roswaal/scripts/Game.nodemap")) ?? "{}") as {
+			root: MapNodeLike;
+		};
+		const home = parentOf(map.root, "Shared");
+		expect(home?.name).toBe("ServerScriptService");
+		expect(home?.children.find((c) => c.name === "Shared")?.path).toBe(
+			"src/ServerScriptService/Shared",
+		);
+
+		// Rojo's project says so too, and the Luau is where the map now points.
+		expect(await read("default.project.json")).toContain("src/ServerScriptService/Shared");
+		expect(await read("src/ServerScriptService/Shared/Lonely.server.luau")).not.toBeNull();
+		expect(await read("src/ReplicatedStorage/Shared/Lonely.server.luau")).toBeNull();
+	});
+});
+
+describe("moving a folder Windows will not rename", () => {
+	it("moves its files one at a time instead", async () => {
+		// Windows answers EPERM to renaming a watched folder that holds folders.
+		const rename = volume.rename.bind(volume);
+		const spy = vi.spyOn(volume, "rename").mockImplementation(async (from, to) => {
+			if (String(from).endsWith("/ServerScriptService/Shared")) {
+				throw Object.assign(new Error("EPERM: operation not permitted, rename"), { code: "EPERM" });
+			}
+			return rename(from, to);
+		});
+		try {
+			const moved = (await post("/script/move", {
+				from: ".roswaal/scripts/ServerScriptService/Shared",
+				toDir: ".roswaal/scripts/ReplicatedStorage",
+			})) as { path: string };
+			expect(moved.path).toBe(".roswaal/scripts/ReplicatedStorage/Shared");
+			expect(
+				await read(".roswaal/scripts/ReplicatedStorage/Shared/Lonely.nodescript"),
+			).not.toBeNull();
+			expect(
+				await read(".roswaal/scripts/ServerScriptService/Shared/Lonely.nodescript"),
+			).toBeNull();
+		} finally {
+			spy.mockRestore();
+		}
+	});
+});
+
+describe("moving a folder out of the folder that synced it", () => {
+	it("gives it an entry of its own where it went", async () => {
+		const RS_SHARED = ".roswaal/scripts/ReplicatedStorage/Shared";
+		await post("/folder/create", { path: `${RS_SHARED}/Extras` });
+		await post("/script/create", {
+			dir: `${RS_SHARED}/Extras`,
+			name: "Ping",
+			scriptClass: "Script",
+		});
+		const moved = (await post("/script/move", {
+			from: `${RS_SHARED}/Extras`,
+			toDir: ".roswaal/scripts/ServerScriptService",
+		})) as { maps?: string[] };
+		expect(moved.maps).toEqual([".roswaal/scripts/Game.nodemap"]);
+
+		const map = JSON.parse((await read(".roswaal/scripts/Game.nodemap")) ?? "{}") as {
+			root: {
+				name: string;
+				children: { name: string; path?: string; className?: string; children: unknown[] }[];
+			};
+		};
+		const sss = map.root.children.find((c) => c.name === "ServerScriptService");
+		const extras = (sss?.children as { name: string; path?: string; className?: string }[]).find(
+			(c) => c.name === "Extras",
+		);
+		expect(extras).toMatchObject({ path: "src/ServerScriptService/Extras", className: "Folder" });
+		expect(await read("default.project.json")).toContain("src/ServerScriptService/Extras");
+	});
+});

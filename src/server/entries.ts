@@ -41,6 +41,37 @@ function assertEditable(project: OpenProject, relPath: string, verb: string): vo
  * DataModel without touching the project file.
  */
 /**
+ * Renames a file or a folder. Windows refuses to rename a folder that holds
+ * folders while something watches it -- the daemon's own watcher does, in
+ * every mode -- with EPERM, EACCES or EBUSY. Its files can still move, so a
+ * refused folder moves a file at a time, and the emptied folder goes.
+ */
+export async function moveOnDisk(source: string, dest: string): Promise<void> {
+	try {
+		await fs.rename(source, dest);
+	} catch (err) {
+		const code = (err as { code?: string }).code ?? "";
+		if (!["EPERM", "EACCES", "EBUSY"].includes(code)) throw err;
+		const stat = await fs.stat(source).catch(() => null);
+		if (!stat?.isDirectory()) throw err;
+		await moveTree(source, dest);
+	}
+}
+
+async function moveTree(source: string, dest: string): Promise<void> {
+	await fs.mkdir(dest, { recursive: true });
+	for (const entry of await fs.readdir(source, { withFileTypes: true })) {
+		const from = path.join(source, entry.name);
+		const to = path.join(dest, entry.name);
+		if (entry.isDirectory()) await moveTree(from, to);
+		else await fs.rename(from, to);
+	}
+	// Empty now. If the watcher still holds it, an empty folder left behind is
+	// the lesser harm: nothing compiles from it.
+	await fs.rm(source, { recursive: true, force: true }).catch(() => undefined);
+}
+
+/**
  * Refuses a graph and a folder of one name side by side: `Foo.nodescript`
  * beside `Foo/` compiles to a Script and a Folder that Studio would both
  * call Foo. A script with children is `Foo/init.nodescript` instead.
@@ -117,7 +148,7 @@ export async function renameEntry(
 	if (await exists(dest)) throw new UserError(`${destRel} already exists.`);
 	assertNotInit(destRel, toPosix(relPath));
 	await assertNoNameClash(project, destRel);
-	await fs.rename(source, dest);
+	await moveOnDisk(source, dest);
 
 	// A graph carries its own name, and that name — not the file's — is what the
 	// compiler writes out. Renaming the file alone would leave the two disagreeing
@@ -159,7 +190,7 @@ export async function moveEntry(
 	if (await exists(dest)) throw new UserError(`${destRel} already exists.`);
 	await assertNoNameClash(project, destRel);
 	await fs.mkdir(path.dirname(dest), { recursive: true });
-	await fs.rename(source, dest);
+	await moveOnDisk(source, dest);
 	return destRel;
 }
 
