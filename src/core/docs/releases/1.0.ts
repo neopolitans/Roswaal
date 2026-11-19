@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.9",
+		date: "2026-11-19",
+		headline: "Nodes show the class they name.",
+		added: [
+			"**Class icons on nodes.** Get Service and Service Function show their service's icon in place of their glyph; New Instance and the Find Firsts show their class's after the tab, in the header's text colour. The docs' pictures show them too. Settings › Nodes turns them off.",
+			"**Class icons in class pickers**, in Settings › Nodes, shows the class's icon in a node's class picker. It is off by default.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.8",
 		date: "2026-11-19",
 		headline: "Folders a node map syncs can be dragged, and the map follows.",

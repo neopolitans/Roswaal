@@ -736,6 +736,26 @@ function NodeSettings({ prefs, onPrefs }: SettingsPanelProps) {
 				</Row>
 			</Group>
 
+			<Group title="Class icons">
+				<Row
+					label="On nodes"
+					help="Get Service, New Instance and the Finds show the class they name."
+				>
+					<Toggle
+						on={prefs.nodeClassIcons}
+						onChange={(on) => onPrefs({ nodeClassIcons: on })}
+						label={prefs.nodeClassIcons ? "Shown" : "Hidden"}
+					/>
+				</Row>
+				<Row label="In class pickers" help="A class picker shows its class's icon before the name.">
+					<Toggle
+						on={prefs.pickerClassIcons}
+						onChange={(on) => onPrefs({ pickerClassIcons: on })}
+						label={prefs.pickerClassIcons ? "Shown" : "Hidden"}
+					/>
+				</Row>
+			</Group>
+
 			<Group title="New nodes">
 				<Row
 					label="New logic nodes"

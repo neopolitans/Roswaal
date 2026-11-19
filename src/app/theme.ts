@@ -125,6 +125,8 @@ export const CHROME_PREFERENCES: readonly (keyof Preferences)[] = [
 	"gridPattern",
 	"gridContrast",
 	"classIcons",
+	"nodeClassIcons",
+	"pickerClassIcons",
 ];
 
 export function applyChrome(prefs: Preferences): void {
@@ -142,6 +144,10 @@ export function applyChrome(prefs: Preferences): void {
 	// Filled or outline class icons: every icon holds both, and the stylesheet
 	// shows one by this. See classIcons.ts.
 	document.documentElement.dataset.classIcons = prefs.classIcons;
+	// Class icons on nodes and in their class pickers: drawn either way, so a
+	// node keeps its width, and shown by these. See "Class icons on nodes".
+	document.documentElement.dataset.nodeIcons = prefs.nodeClassIcons ? "on" : "off";
+	document.documentElement.dataset.pickerIcons = prefs.pickerClassIcons ? "on" : "off";
 }
 
 /**

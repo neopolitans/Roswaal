@@ -56,7 +56,7 @@ export function settingsPage(): DocPage {
 					[
 						"**Nodes**",
 						"This browser",
-						"Long names, and what a new logic, cast or concatenate node starts as",
+						"Long names, class icons on nodes, and what a new logic, cast or concatenate node starts as",
 					],
 					[
 						"**Workspace**",
@@ -226,6 +226,14 @@ export function settingsPage(): DocPage {
 					[
 						"Class icons",
 						"Every engine class and Roblox datatype has an icon in the colour of its purpose, in the type picker and the DataModel panel. **Filled**, the default, or **Outline**.",
+					],
+					[
+						"Class icons on nodes",
+						"A node that names a class shows its icon in the header, in the header's text colour: Get Service and Service Function show the service, New Instance and the Find Firsts the class. A class read off a wire shows none. **Shown** by default. A wide node keeps the icon's room either way, so turning it off moves no pin.",
+					],
+					[
+						"Class icons in class pickers",
+						"A node's class picker shows the class's icon before its name, in its purpose's colour. **Hidden** by default, as it shortens the name.",
 					],
 					[
 						"Group classes",

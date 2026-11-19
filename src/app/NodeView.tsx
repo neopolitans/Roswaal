@@ -8,7 +8,9 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { classIconOf } from "../core/classIcons.js";
 import { type CodeFace, codeFaceHeight, codeFaceOf, codeFacePinY } from "../core/codeFace.js";
+import { nodeClassOf } from "../core/nodeClass.js";
 import { CODE_MARKS, GLYPH_STROKE, GLYPH_VIEW_BOX, GLYPHS, nodeGlyph } from "../core/nodeGlyphs.js";
 import { FUNCTION_NODES, signatureOf, signatureTypes } from "../core/nodes/flow.js";
 import { entryIndex, type GrowthRule } from "../core/nodes/growth.js";
@@ -18,10 +20,17 @@ import { castsResult, resultCastOf } from "../core/nodes/resultCast.js";
 import { pinTypeOf, pinTypeText } from "../core/nodes/variables.js";
 import { operatorSymbol } from "../core/operatorLayout.js";
 import { bodyRows, onHeader } from "../core/pinLayout.js";
-import { CLASS_OPTIONS, classGroup, TYPE_OPTIONS, typeGroup } from "../core/roblox.js";
+import {
+	CLASS_OPTIONS,
+	classGroup,
+	isInstanceClass,
+	TYPE_OPTIONS,
+	typeGroup,
+} from "../core/roblox.js";
 import { readOnlyToScripts } from "../core/robloxEngine.js";
 import type { GraphNode, Literal, NodeDef, PinDef } from "../core/schema.js";
 import { typeChip, typeFamily } from "../core/typeFamily.js";
+import { ClassIcon } from "./ClassIcon.jsx";
 import { requestCodeEdit } from "./codeEditRequests.js";
 import { cx } from "./cx.js";
 import {
@@ -200,6 +209,7 @@ function NodeViewInner(props: NodeViewProps) {
 		? removableEntries(props.growth, inputs, outputs)
 		: NO_ENTRIES;
 	const subtitle = def.subtitle?.(node.config ?? {});
+	const nodeClass = nodeClassOf(def, node);
 	const head = headerHeight(def, node.config);
 	const style: CSSProperties = {
 		left: node.x,
@@ -249,7 +259,25 @@ function NodeViewInner(props: NodeViewProps) {
 					</span>
 				) : (
 					<span className="tab" aria-hidden="true">
-						<NodeGlyph def={def} size={def.pure ? 15 : 18} />
+						{/* A value with a class shows the class where its glyph was;
+						    the stylesheet keeps the glyph for when the icons are off. */}
+						{def.pure && nodeClass ? (
+							<>
+								<span className="node-glyph has-class">
+									<NodeGlyph def={def} size={15} />
+								</span>
+								<span className="node-class">
+									<ClassIcon name={nodeClass} size={15} />
+								</span>
+							</>
+						) : (
+							<NodeGlyph def={def} size={def.pure ? 15 : 18} />
+						)}
+					</span>
+				)}
+				{!def.pure && nodeClass && !CODE_MARKS[def.id] && (
+					<span className="node-class" aria-hidden="true">
+						<ClassIcon name={nodeClass} size={14} />
 					</span>
 				)}
 				<span className="lines">
@@ -1020,6 +1048,20 @@ const TOO_MANY_TO_SCROLL = 24;
  * are the two lists long enough to need headings, and a list a pack author
  * wrote is theirs to show as they gave it.
  */
+/**
+ * A list of classes -- every class, the creatable ones, the services -- which
+ * is what a picker shows a class icon for. Asked once per list.
+ */
+const CLASS_LISTS = new WeakMap<readonly string[], boolean>();
+function isClassList(list: readonly string[]): boolean {
+	let known = CLASS_LISTS.get(list);
+	if (known === undefined) {
+		known = list.length > 0 && list.every((name) => isInstanceClass(name));
+		CLASS_LISTS.set(list, known);
+	}
+	return known;
+}
+
 function groupingFor(pin: PinDef): ((value: string) => string) | undefined {
 	if (pin.options === CLASS_OPTIONS) return classGroup;
 	if (pin.options === TYPE_OPTIONS) return typeGroup;
@@ -1080,6 +1122,11 @@ function OptionEditor({
 				>
 					{/* Empty says so. Showing the list's first entry claimed a
 					    value the pin did not hold: a ClassName pin starts empty. */}
+					{isClassList(known) && classIconOf(value) && (
+						<span className="picker-class" aria-hidden="true">
+							<ClassIcon name={value} size={13} />
+						</span>
+					)}
 					<span className={cx("preview", value === "" && "preview-unset")}>
 						{value || "choose"}
 					</span>

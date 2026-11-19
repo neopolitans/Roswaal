@@ -186,6 +186,10 @@ export interface Preferences {
 	 * same width. A node and its picture are never two different sizes.
 	 */
 	wideNodes: boolean;
+	/** A node shows the class it names in its header: Get Service's service, New Instance's class. */
+	nodeClassIcons: boolean;
+	/** A class picker on a node shows its class's icon before the name. */
+	pickerClassIcons: boolean;
 	/** The Refactor panel realigns what it changed after each change. */
 	realignAfterRefactor: boolean;
 	/**
@@ -448,6 +452,8 @@ export const DEFAULTS: Preferences = {
 	// Truncating is what nodes already did, so the default changes nothing for
 	// anybody who does not go looking for it.
 	wideNodes: false,
+	nodeClassIcons: true,
+	pickerClassIcons: false,
 	realignAfterRefactor: true,
 	logicParens: false,
 	castNames: false,
@@ -578,6 +584,12 @@ export function readPreferences(): Preferences {
 			? (stored.wheel as WheelChoice)
 			: DEFAULTS.wheel,
 		wideNodes: typeof stored.wideNodes === "boolean" ? stored.wideNodes : DEFAULTS.wideNodes,
+		nodeClassIcons:
+			typeof stored.nodeClassIcons === "boolean" ? stored.nodeClassIcons : DEFAULTS.nodeClassIcons,
+		pickerClassIcons:
+			typeof stored.pickerClassIcons === "boolean"
+				? stored.pickerClassIcons
+				: DEFAULTS.pickerClassIcons,
 		realignAfterRefactor:
 			typeof stored.realignAfterRefactor === "boolean"
 				? stored.realignAfterRefactor

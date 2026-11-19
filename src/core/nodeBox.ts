@@ -11,6 +11,7 @@
  */
 
 import { type CodeFace, codeFaceHeight, codeFaceOf, codeFaceWidth } from "./codeFace.js";
+import { nodeClassOf } from "./nodeClass.js";
 import { NODE } from "./nodeMetrics.js";
 import type { Registry } from "./nodes/index.js";
 import { nodeTitle, resolveNodePins } from "./nodes/index.js";
@@ -216,7 +217,11 @@ function wideWidth(def: NodeDef | undefined, node: GraphNode, wide: boolean): nu
 	if (!wide || !def) return NODE.width;
 	const subtitle = def.subtitle?.(node.config ?? {}) ?? "";
 	const longest = Math.max(nodeTitle(def, node).length, subtitle.length);
-	return Math.round(Math.max(NODE.width, longest * NODE.titleCharWidth + NODE.headerPadding));
+	// Counted whether the icon is shown or not, so turning it off moves no pin.
+	const icon = !def.pure && nodeClassOf(def, node) ? NODE.classIcon : 0;
+	return Math.round(
+		Math.max(NODE.width, longest * NODE.titleCharWidth + NODE.headerPadding + icon),
+	);
 }
 
 /**

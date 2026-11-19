@@ -52,6 +52,12 @@ export const NODE = {
 	 */
 	headerPadding: 83,
 	/**
+	 * A class icon after the tab, and the gap after it: 14px and 8px. Counted
+	 * only by a wide node, whose header grows to its name; a truncating one
+	 * gives the room from its title. A value's icon takes its glyph's place.
+	 */
+	classIcon: 22,
+	/**
 	 * The corner tab that carries a node's category glyph: `--tab-width` in
 	 * `theme.css`. The title starts 8px past it, which is most of why
 	 * `headerPadding` is what it is.

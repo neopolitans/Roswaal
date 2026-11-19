@@ -41,6 +41,7 @@
 
 import { retypeArrays } from "../arrayTypes.js";
 import { retypeBoundValues } from "../boundValues.js";
+import { classIconMarkup, classIconOf } from "../classIcons.js";
 import {
 	CODE_FACE,
 	type CodeFace,
@@ -52,6 +53,7 @@ import {
 } from "../codeFace.js";
 import { tokenize } from "../luau/lexer.js";
 import { rowsWidth, splitsOutput } from "../nodeBox.js";
+import { nodeClassOf } from "../nodeClass.js";
 import { CODE_MARK_ROLE, CODE_MARKS, GLYPH_STROKE, GLYPHS, nodeGlyph } from "../nodeGlyphs.js";
 import { nodeTitle, type Registry, resolveNodePins } from "../nodes/index.js";
 import {
@@ -144,6 +146,8 @@ export interface NodePreview {
 	face?: CodeFace;
 	/** How wide its pin rows need it, as `rowsWidth` in `nodeBox.ts` has it for the canvas. */
 	rowsWidth?: number;
+	/** The class it names, whose icon its header shows: see `nodeClass.ts`. */
+	classIcon?: string;
 }
 
 /**
@@ -193,6 +197,8 @@ export interface PreviewGeometry {
 	operatorRadius: number;
 	/** One character of a header title, and the space beside it. See `NODE`. */
 	titleCharWidth: number;
+	/** A class icon's room after the tab, as `NODE.classIcon` has it. */
+	classIcon?: number;
 	headerPadding: number;
 	/**
 	 * Draw a node wide enough for its header rather than truncating it.
@@ -290,6 +296,7 @@ export function previewOf(
 		subcategory: def.subcategory,
 		role: def.role,
 		pure: def.pure === true,
+		...classOfPreview(def, { config, literals }),
 		display: shownDisplay(def, { config }),
 		operator: operatorOf(def, inputs, config),
 		latent: def.latent === true,
@@ -409,6 +416,15 @@ export interface PreviewSize {
  * without producing markup — the layout tests read it, and so does a caller
  * that wants to reserve space.
  */
+/** The class a node names, as a preview field to spread. */
+function classOfPreview(
+	def: NodeDef,
+	node: Pick<GraphNode, "config" | "literals">,
+): { classIcon?: string } {
+	const name = nodeClassOf(def, node);
+	return name ? { classIcon: name } : {};
+}
+
 export function previewSize(preview: NodePreview, g: PreviewGeometry): PreviewSize {
 	if (preview.display === "reroute") {
 		return { width: g.rerouteSize, height: g.rerouteSize };
@@ -447,12 +463,31 @@ export function previewSize(preview: NodePreview, g: PreviewGeometry): PreviewSi
  *
  * The header is two lines, so the wider of the title and the subtitle decides.
  */
+/**
+ * A class's icon as the canvas draws it in a header: in one colour, `fill`.
+ * Its mask ids come from its body, so two of one class share one, and the
+ * picture holds no id twice with different content.
+ */
+function classIconSvg(
+	icon: { body: number },
+	x: number,
+	y: number,
+	size: number,
+	fill: string,
+): string {
+	return (
+		`<svg class="node-class" x="${n(x)}" y="${n(y)}" width="${size}" height="${size}" viewBox="0 -960 960 960" ` +
+		`fill="${fill}" style="color:${fill}">${classIconMarkup(icon.body, `nci${icon.body}`)}</svg>`
+	);
+}
+
 function headerWidth(preview: NodePreview, g: PreviewGeometry): number {
 	const rows = preview.rowsWidth ?? 0;
 	if (!g.wideNodes) return Math.max(g.width, rows);
 	const longest = Math.max(preview.title.length, (preview.subtitle ?? "").length);
+	const icon = preview.classIcon && !preview.pure ? (g.classIcon ?? 22) : 0;
 	return Math.max(
-		Math.round(Math.max(g.width, longest * g.titleCharWidth + g.headerPadding)),
+		Math.round(Math.max(g.width, longest * g.titleCharWidth + g.headerPadding + icon)),
 		rows,
 	);
 }
@@ -721,6 +756,7 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 	// The glyph: 18px and white on the tab, or 15px in the category's colour
 	// where a value's header has no tab to sit on.
 	const glyphSize = pure ? 15 : 18;
+	const classIcon = preview.classIcon ? classIconOf(preview.classIcon) : undefined;
 	const glyphX = pure ? 6 : (g.tab - glyphSize) / 2;
 	const ink = pure ? `color-mix(in srgb, ${cat} var(--cat-ink, 85%), var(--fg, #1c1f24))` : "#fff";
 	if (code) {
@@ -742,8 +778,11 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 			}),
 		);
 	} else {
+		// A value with a class shows the class where its glyph was.
+		const hasClass = classIcon && pure;
+		if (hasClass) parts.push(classIconSvg(classIcon, glyphX, (head - 15) / 2, 15, ink));
 		parts.push(
-			`<g transform="translate(${n(glyphX)} ${n((head - glyphSize) / 2)}) scale(${n4(glyphSize / 24)})">` +
+			`<g${hasClass ? ` class="node-glyph has-class" display="none"` : ""} transform="translate(${n(glyphX)} ${n((head - glyphSize) / 2)}) scale(${n4(glyphSize / 24)})">` +
 				`<path d="${GLYPHS[nodeGlyph(preview)]}" fill="none" stroke="${ink}" ` +
 				`stroke-width="${GLYPH_STROKE}" stroke-linecap="round" stroke-linejoin="round"/></g>`,
 		);
@@ -753,7 +792,12 @@ function drawNode(preview: NodePreview, options: PreviewOptions): string {
 
 	// Header text, in the text colour on the tint, or the category's on a value.
 	const titleFill = pure ? ink : "var(--fg, #1c1f24)";
-	const titleX = pure ? glyphX + (code ? codeWidth : glyphSize) + 5 : g.tab + 8;
+	// A node with a tab shows its class after the tab, before the title.
+	const tabIcon = classIcon && !pure && !code;
+	if (tabIcon) parts.push(classIconSvg(classIcon, g.tab + 8, (head - 14) / 2, 14, titleFill));
+	const titleX = pure
+		? glyphX + (code ? codeWidth : glyphSize) + 5
+		: g.tab + 8 + (tabIcon ? 22 : 0);
 	const titleRoom = width - titleX - 9 - (preview.latent ? 14 : 0);
 	if (preview.subtitle) {
 		parts.push(
@@ -1320,6 +1364,7 @@ export function previewOfPlaced(
 		subcategory: def.subcategory,
 		role: def.role,
 		pure: def.pure === true,
+		...classOfPreview(def, node),
 		display: shownDisplay(def, node),
 		operator: operatorOf(def, inputs, config, node.literals),
 		latent: def.latent === true,

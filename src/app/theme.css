@@ -2352,6 +2352,57 @@ button.tb.primary:hover:not(:disabled) {
 	min-width: 15px;
 }
 
+/* Class icons on nodes: the class a node names, in its header's text colour
+   so it never reads as a category. A value shows it where its glyph was; the
+   glyph comes back when Settings › Nodes turns them off. The docs' pictures
+   carry the same classes. See nodeClass.ts. */
+.node .head .node-class {
+	flex: none;
+	display: flex;
+	align-items: center;
+	margin-right: -2px;
+}
+
+.node .head .node-class .class-icon {
+	color: inherit;
+}
+
+.node .head .tab .node-class,
+.node .head .tab .node-glyph {
+	display: flex;
+}
+
+.node .head .node-glyph.has-class,
+:root[data-node-icons="off"] .node .head .node-class {
+	display: none;
+}
+
+:root[data-node-icons="off"] .node .head .node-glyph.has-class {
+	display: flex;
+}
+
+:root[data-node-icons="off"] svg .node-class {
+	display: none;
+}
+
+:root[data-node-icons="off"] svg .node-glyph.has-class {
+	display: inline;
+}
+
+/* A class picker's icon, off unless Settings › Nodes turns it on. */
+.literal.picker .picker-class {
+	display: none;
+	flex: none;
+}
+
+:root[data-picker-icons="on"] .literal.picker .picker-class {
+	display: flex;
+}
+
+.literal.picker .picker-class + .preview {
+	margin-right: auto;
+}
+
 .node .head .title {
 	overflow: hidden;
 	text-overflow: ellipsis;
