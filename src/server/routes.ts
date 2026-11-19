@@ -81,7 +81,7 @@ import {
 	type Raw,
 	type RawProp,
 } from "../core/rbx/rawValue.js";
-import { convertPlace, leftOutOf, placeFormatOf } from "../core/rbx/serialize.js";
+import { convertPlace, leftOutOf, placeFormatOf, writeBinaryPlace } from "../core/rbx/serialize.js";
 import { legacyBinaryUniqueId } from "../core/rbx/uniqueId.js";
 import { emptyScript, type NodeDef, type NodeScript, type Target } from "../core/schema.js";
 import { servicesUsed } from "../core/servicesUsed.js";
@@ -1174,6 +1174,49 @@ export class ApiSession {
 			 * changed since `stamp`, since an index into the old tree names
 			 * something else in the new one.
 			 */
+			/**
+			 * Copies one instance of the place, and everything inside it, out to a
+			 * binary model file a node map can sync from. The place keeps it:
+			 * nothing is taken out of a place. A Ref to something outside the copy
+			 * is written as nil. A 409 where the file is there already.
+			 */
+			"POST /place/extract": async (req) => {
+				const project = this.project();
+				const { stamp, index, to } = fields<{ stamp: string; index: number; to: string }>(req);
+				const file = await findPlaceFile(project.root, project.config);
+				if (!file) throw new HttpError(404, "The project has no place file.");
+				const target = need(to, "to");
+				if (!/\.rbxm$/i.test(target)) throw new HttpError(400, "A model file ends in .rbxm.");
+				const loaded = await this.loadPlace(project, file);
+				if (stamp !== loaded.stamp)
+					throw new HttpError(409, "The place file has changed. Reload it.");
+				const inst = loaded.order[Number(index)];
+				if (!inst) throw new HttpError(404, `No instance ${index} in the place.`);
+				if (inst.service)
+					throw new HttpError(400, `${inst.name} is a service, and a service is not a model.`);
+				const abs = safeJoin(project.root, target);
+				if (
+					await fs.stat(abs).then(
+						() => true,
+						() => false,
+					)
+				)
+					throw new HttpError(409, `${target} is there already.`);
+				const bytes = writeBinaryPlace({
+					format: "binary",
+					roots: [inst],
+					instances: [],
+					undecoded: new Map(),
+				});
+				await fs.mkdir(path.dirname(abs), { recursive: true });
+				await fs.writeFile(abs, bytes);
+				return {
+					path: target,
+					// Properties the reader does not decode are not in the copy.
+					leftOut: [...loaded.doc.undecoded.keys()].sort(),
+				};
+			},
+
 			"GET /place/instance": async (req) => {
 				const project = this.project();
 				const file = await findPlaceFile(project.root, project.config);

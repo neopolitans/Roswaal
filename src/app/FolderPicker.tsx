@@ -26,6 +26,8 @@ export interface FolderPickerProps {
 	onPick: (path: string) => void;
 	/** Makes a folder in the one you are in. Absent, there is no New folder. */
 	onNewFolder?: (parent: string) => void;
+	/** Files that can be picked too, listed after the folders: Syncs from's model files. */
+	files?: (name: string) => boolean;
 }
 
 const parentOf = (path: string): string => {
@@ -56,7 +58,14 @@ export function FolderIcon({ entry, top }: { entry: TreeEntry; top?: boolean }) 
 	);
 }
 
-export function FolderPicker({ tree, roots, value, onPick, onNewFolder }: FolderPickerProps) {
+export function FolderPicker({
+	tree,
+	roots,
+	value,
+	onPick,
+	onNewFolder,
+	files,
+}: FolderPickerProps) {
 	const tops = useMemo(
 		() => roots.map((root) => entryAt(tree, root)).filter((one): one is TreeEntry => !!one),
 		[tree, roots],
@@ -67,7 +76,13 @@ export function FolderPicker({ tree, roots, value, onPick, onNewFolder }: Folder
 		return parent && entryAt(tree, parent) ? parent : null;
 	});
 	const here = at === null ? undefined : entryAt(tree, at);
-	const list = at === null ? tops : subfolders(here);
+	const pickable =
+		at === null || !files
+			? []
+			: (here?.children ?? [])
+					.filter((one) => one.kind !== "directory" && files(one.name))
+					.sort((a, b) => a.name.localeCompare(b.name));
+	const list = at === null ? tops : [...subfolders(here), ...pickable];
 	const steps = at === null ? [] : normalisePath(at).split("/");
 	const picked = normalisePath(value);
 
@@ -109,7 +124,7 @@ export function FolderPicker({ tree, roots, value, onPick, onNewFolder }: Folder
 			<div className="fp-list" role="listbox" aria-label="Folders">
 				{list.length === 0 && <div className="fp-none">No folders in here.</div>}
 				{list.map((entry) => {
-					const inner = subfolders(entry).length > 0;
+					const inner = entry.kind === "directory" && subfolders(entry).length > 0;
 					return (
 						<div
 							key={entry.path}
@@ -126,7 +141,11 @@ export function FolderPicker({ tree, roots, value, onPick, onNewFolder }: Folder
 								else if (e.key === "ArrowLeft" && at !== null) setAt(parentOf(at) || null);
 							}}
 						>
-							<FolderIcon entry={entry} top={at === null} />
+							{entry.kind === "directory" ? (
+								<FolderIcon entry={entry} top={at === null} />
+							) : (
+								<ExplorerIcon className="Model" service={false} open={false} />
+							)}
 							<span className="fp-name">{entry.name}</span>
 							{inner && (
 								<button

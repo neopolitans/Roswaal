@@ -46,7 +46,22 @@ import {
 	analysisLeast,
 } from "./preferences.js";
 
+/** A problem with the open node map: an exception to the reading rule, or a compile problem. */
+export interface MapProblem {
+	severity: "error" | "warning";
+	message: string;
+	/** The map node it is about, picked when the row is clicked. */
+	node?: string;
+	/** One click that puts it right: an exception's "use the rule's folder". */
+	fix?: { label: string; run: () => void };
+}
+
 export interface StatusPanelProps {
+	/**
+	 * The open node map, whose problems the first scope lists as This Map in
+	 * place of a graph's. Absent while a graph or nothing is open.
+	 */
+	map?: { name: string; problems: MapProblem[]; onPick: (node: string) => void } | null;
 	open: boolean;
 	onToggle: () => void;
 	scope: AnalysisScope;
@@ -261,7 +276,8 @@ function Held(props: { outcome: CompileOutcome; onForce: (o: CompileOutcome) => 
 
 export function StatusPanel(props: StatusPanelProps) {
 	const { project, scope } = props;
-	const scriptCounts = countOf(props.diagnostics);
+	const map = props.map ?? null;
+	const scriptCounts = countOf(map ? map.problems : props.diagnostics);
 	const checked = props.checkedAt !== null;
 	const menu = useCardMenu();
 
@@ -276,7 +292,7 @@ export function StatusPanel(props: StatusPanelProps) {
 	const status =
 		props.busy ??
 		(scope === "script"
-			? (props.graph ?? "No graph open")
+			? (map?.name ?? props.graph ?? "No graph open")
 			: (props.checking ??
 				(props.checkedAt !== null
 					? `Checked ${sinceCheck(props.checkedAt, now)}`
@@ -354,7 +370,9 @@ export function StatusPanel(props: StatusPanelProps) {
 				))}
 			<header className="card-head bar">
 				<span className="card-tabs scopes" role="tablist" aria-label="Scope">
-					{tab("script", "This Script", "Script", <Badge counts={scriptCounts} />)}
+					{map
+						? tab("script", "This Map", "Map", <Badge counts={scriptCounts} />)
+						: tab("script", "This Script", "Script", <Badge counts={scriptCounts} />)}
 					{tab(
 						"project",
 						"Project",
@@ -391,7 +409,11 @@ export function StatusPanel(props: StatusPanelProps) {
 			{props.open && (
 				<>
 					<div className="summary">
-						{scope === "script" ? (
+						{scope === "script" && map ? (
+							<>
+								<Split counts={scriptCounts} /> in <b>{map.name}</b>
+							</>
+						) : scope === "script" ? (
 							props.graph === null ? (
 								<>No graph open</>
 							) : (
@@ -433,7 +455,38 @@ export function StatusPanel(props: StatusPanelProps) {
 					</div>
 
 					<div className="list">
-						{scope === "script" ? (
+						{scope === "script" && map ? (
+							map.problems.map((p, i) => (
+								<div
+									key={`m${i}`}
+									className={`entry ${p.severity}`}
+									role={p.node ? "button" : undefined}
+									tabIndex={p.node ? 0 : undefined}
+									onClick={() => p.node && map.onPick(p.node)}
+									onKeyDown={(e) => {
+										if (p.node && (e.key === "Enter" || e.key === " ")) {
+											e.preventDefault();
+											map.onPick(p.node);
+										}
+									}}
+								>
+									<span className="sev">{p.severity}</span>
+									<span className="msg">{p.message}</span>
+									{p.fix && (
+										<button
+											type="button"
+											className="where link"
+											onClick={(e) => {
+												e.stopPropagation();
+												p.fix?.run();
+											}}
+										>
+											{p.fix.label}
+										</button>
+									)}
+								</div>
+							))
+						) : scope === "script" ? (
 							<>
 								{props.diagnostics.map((d, i) => (
 									<Problem

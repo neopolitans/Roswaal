@@ -142,7 +142,7 @@ import { RefactorPanel } from "./RefactorPanel.jsx";
 import { forget, lastProject, remember } from "./recents.js";
 import { previewSelection } from "./SelectionPreview.jsx";
 import { SourceView } from "./SourceView.jsx";
-import { StatusPanel } from "./StatusPanel.jsx";
+import { type MapProblem, StatusPanel } from "./StatusPanel.jsx";
 import { SaveQueue } from "./saveQueue.js";
 import { sideKey, store, tabKey, useDocuments, useEditor, useOutline } from "./store.js";
 import { showToast, Toasts } from "./Toast.jsx";
@@ -2003,6 +2003,7 @@ export function App() {
 					sourceDir: project.config.sourceDir,
 					onChange: (next) => store.editMap(mapDoc.path, next),
 					onNewFolder: onTreeNewFolder,
+					onRefreshTree: refreshTree,
 					onMoveFolder: async (next, from, toDir) => {
 						const at = mapDoc.path;
 						store.editMap(at, next);
@@ -2606,6 +2607,34 @@ export function App() {
 							onSize={(analysisSize, persist) => updatePrefs({ analysisSize }, persist)}
 							busy={busy}
 							graph={editor.path ? graphLabel(editor.path) : null}
+							map={
+								mapEd
+									? {
+											name: graphLabel(mapEd.path).replace(/\.nodemap$/, ""),
+											problems: [
+												...mapEd.exceptions.map(
+													(x): MapProblem => ({
+														severity: "warning",
+														message: `${x.trail.join(" › ")} syncs ${x.path}, where the reading rule gives it ${x.expected}.`,
+														node: x.node,
+														fix: {
+															label: "use the rule's folder",
+															run: () => mapEd.updateNode(x.node, { path: x.expected }),
+														},
+													}),
+												),
+												...mapEd.compiled.diagnostics.map(
+													(d): MapProblem => ({
+														severity: d.severity,
+														message: d.message,
+														...(d.node ? { node: d.node } : {}),
+													}),
+												),
+											],
+											onPick: (node) => mapEd.setPick({ kind: "node", id: node }),
+										}
+									: null
+							}
 							graphPath={editor.path ?? null}
 							diagnostics={diagnostics}
 							outcome={

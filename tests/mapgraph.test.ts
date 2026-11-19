@@ -6,6 +6,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+	alignMap,
 	autoLayout,
 	MAP_NODE,
 	mapNodeHeight,
@@ -17,6 +18,7 @@ import { moveByRule, movedIn } from "../src/core/mapRule.js";
 import {
 	compileNodeMap,
 	findMapNode,
+	isModelFile,
 	type MapNode,
 	type NodeMap,
 	serialiseMap,
@@ -181,5 +183,52 @@ describe("moving a node under another", () => {
 		expect(moveByRule(map, "src", "dm", "rs")).toBe(map.root);
 		expect(moveByRule(map, "src", "sp", "sps")).toBe(map.root);
 		expect(moveByRule(map, "src", "tank", "rs")).toBe(map.root);
+	});
+});
+
+describe("aligning a selection", () => {
+	it("keeps the anchor, levels wired nodes on their neighbour, and moves only height", () => {
+		const map = tank();
+		const at = new Map([
+			["rs", { x: 320, y: 0 }],
+			["tank", { x: 640, y: 90 }],
+			["sss", { x: 320, y: 300 }],
+		]);
+		const out = alignMap(map, at, ["rs", "tank", "sss"]);
+		expect(out.get("rs")).toEqual({ x: 320, y: 0 });
+		expect(out.get("tank")).toEqual({ x: 640, y: 0 });
+		expect(out.get("sss")).toEqual({ x: 320, y: 0 });
+	});
+
+	it("follows wires hop by hop from the anchor", () => {
+		const map = tank();
+		const at = new Map([
+			["tank", { x: 640, y: 50 }],
+			["rs", { x: 320, y: 10 }],
+			["dm", { x: 0, y: 400 }],
+		]);
+		const out = alignMap(map, at, ["tank", "dm", "rs"]);
+		expect(out.get("rs")?.y).toBe(50);
+		expect(out.get("dm")?.y).toBe(50);
+	});
+});
+
+describe("a node synced from a model file", () => {
+	it("knows a model file", () => {
+		expect(isModelFile("src/Tank.rbxm")).toBe(true);
+		expect(isModelFile("src/Tank.rbxmx")).toBe(true);
+		expect(isModelFile("src/Tank.model.json")).toBe(true);
+		expect(isModelFile("src/Tank")).toBe(false);
+		expect(isModelFile("src/Tankxrbxm")).toBe(false);
+	});
+
+	it("leaves the class to the file", () => {
+		const map = tank();
+		map.root.children[0].children[0] = node("tank", "Tank", {
+			className: "Model",
+			path: "src/ReplicatedStorage/Tank.rbxm",
+		});
+		const tree = JSON.parse(compileNodeMap(map).json).tree;
+		expect(tree.ReplicatedStorage.Tank).toEqual({ $path: "src/ReplicatedStorage/Tank.rbxm" });
 	});
 });

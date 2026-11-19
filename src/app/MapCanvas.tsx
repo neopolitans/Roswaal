@@ -35,6 +35,7 @@ import {
 
 import { ZOOM } from "../core/canvasLayers.js";
 import {
+	alignMap,
 	MAP_NODE,
 	mapNodeHeight,
 	mapPins,
@@ -47,13 +48,16 @@ import {
 	COMMON_SERVICES,
 	CONTAINER_CLASSES,
 	findMapNode,
+	isModelFile,
 	type MapComment,
 	type MapNode,
 	mapNodeParent,
 	mapNodeRemove,
 	mapNodeUpdate,
 } from "../core/nodemap.js";
+import { TUCKED } from "../core/rbx/browse.js";
 import { normalisePath } from "../core/rojoPaths.js";
+import { api, type PlaceTree } from "./api.js";
 import { freeBox } from "./CanvasStrip.jsx";
 import { cx } from "./cx.js";
 import { ExplorerIcon } from "./ExplorerIcon.jsx";
@@ -205,6 +209,12 @@ function statusOf(ed: MapEditing, node: MapNode): { text: string; tone?: string;
 		return { text: node.file ? "a file Roswaal writes" : "a directory" };
 	}
 	if (root) return { text: `writes ${ed.map.output}` };
+	if (!node.path && node.ignoreUnknown) {
+		return {
+			text: "kept as the place has it",
+			title: "Rojo syncs nothing here and leaves what the place holds.",
+		};
+	}
 	if (node.path) {
 		const words = stateWords(folderState(ed.tree, node.path, ed.outDir, ed.sourceDir));
 		return {
@@ -1067,6 +1077,21 @@ export function MapCanvas({
 		} else if (mod && key === "a") {
 			e.preventDefault();
 			select([...nodes.map(({ node }) => node.id), ...comments.map((c) => c.id)]);
+		} else if (key === "a" && !mod && !e.altKey) {
+			// Two or more, because one node is already aligned with itself.
+			const ids = [...selected].filter((id) => findMapNode(map.root, id));
+			if (ids.length < 2) return;
+			e.preventDefault();
+			const lined = alignMap(map, placed, ids);
+			const visit = (node: MapNode): MapNode => {
+				const at = lined.get(node.id) ?? placed.get(node.id) ?? { x: 0, y: 0 };
+				return {
+					...node,
+					pos: { x: Math.round(at.x), y: Math.round(at.y) },
+					children: node.children.map(visit),
+				};
+			};
+			ed.commit({ ...map, root: visit(map.root) });
 		} else if (mod && e.shiftKey && key === "l") {
 			e.preventDefault();
 			realign();
@@ -1443,10 +1468,11 @@ function MapNodeView({
 			);
 		}
 		const set = node.path !== undefined;
+		const kept = !set && node.ignoreUnknown === true;
 		return (
 			<>
 				<span
-					className={cx("pin data fam-value", set && "connected")}
+					className={cx("pin data fam-value", (set || kept) && "connected")}
 					style={{ color: FOLDER_PIN }}
 					aria-hidden="true"
 				>
@@ -1461,6 +1487,17 @@ function MapNodeView({
 						onClick={(e) => onSyncs(e.currentTarget)}
 					>
 						<span className="preview">{normalisePath(node.path ?? "")}</span>
+						<Icon name="chevron" size={11} />
+					</button>
+				) : kept ? (
+					<button
+						type="button"
+						className="literal picker map-path map-kept"
+						title="Kept from the place: Rojo leaves it as the place has it. Choose a folder, or pass through."
+						onClick={(e) => onSyncs(e.currentTarget)}
+					>
+						<Icon name="instance" size={11} />
+						<span className="preview">the place</span>
 						<Icon name="chevron" size={11} />
 					</button>
 				) : (
@@ -1803,6 +1840,14 @@ function AddPicker({
 // Syncs from
 // ---------------------------------------------------------------------------
 
+/** A file Syncs from's Files tab offers beside folders: a model Rojo builds an instance from. */
+const pickableModel = (name: string) => isModelFile(name);
+
+/**
+ * Syncs from: Files, the project's folders and model files, with the rule's
+ * folder one click away and Optional; or DataModel, the instances already in
+ * the place, to keep one from the place or copy it out as a model file.
+ */
 function SyncsFromPicker({
 	ed,
 	node,
@@ -1815,6 +1860,8 @@ function SyncsFromPicker({
 	onClose: () => void;
 }) {
 	const rule = rulePath(ed.outDir, trailOf(ed.map, node.id));
+	const kept = node.path === undefined && node.ignoreUnknown === true;
+	const [tab, setTab] = useState<"files" | "place">(kept ? "place" : "files");
 	const [choice, setChoice] = useState(node.path ? normalisePath(node.path) : rule);
 	const [optional, setOptional] = useState(node.optional ?? false);
 	return (
@@ -1826,50 +1873,289 @@ function SyncsFromPicker({
 		>
 			<div className="map-sync-head">
 				<b>{node.name} syncs from</b>
-				{choice !== rule && (
-					<button type="button" className="linkish" onClick={() => setChoice(rule)}>
-						The rule's: {rule}
+				<div className="segmented map-sync-tabs" role="tablist" aria-label="Syncs from">
+					<button
+						type="button"
+						role="tab"
+						aria-selected={tab === "files"}
+						className={cx(tab === "files" && "on")}
+						onClick={() => setTab("files")}
+					>
+						Files
 					</button>
-				)}
+					<button
+						type="button"
+						role="tab"
+						aria-selected={tab === "place"}
+						className={cx(tab === "place" && "on")}
+						onClick={() => setTab("place")}
+					>
+						DataModel
+					</button>
+				</div>
 			</div>
-			<FolderPicker
-				tree={ed.tree}
-				roots={folderRoots(ed.tree, ed.outDir)}
-				value={choice}
-				onPick={(picked) => setChoice(outputFolderOf(picked, ed.outDir, ed.sourceDir))}
-				onNewFolder={ed.onNewFolder}
-			/>
-			<div className="map-sync-choice" title={choice}>
-				{choice}
+			{tab === "files" ? (
+				<>
+					{choice !== rule && (
+						<button type="button" className="linkish map-sync-rule" onClick={() => setChoice(rule)}>
+							The rule's: {rule}
+						</button>
+					)}
+					<FolderPicker
+						tree={ed.tree}
+						roots={folderRoots(ed.tree, ed.outDir)}
+						value={choice}
+						onPick={(picked) => setChoice(outputFolderOf(picked, ed.outDir, ed.sourceDir))}
+						onNewFolder={ed.onNewFolder}
+						files={pickableModel}
+					/>
+					<div className="map-sync-choice" title={choice}>
+						{choice}
+					</div>
+					<div className="map-sync-optional">
+						<Toggle on={optional} label="Optional" onChange={setOptional} />
+						<span>If it is missing, the node passes through instead of failing.</span>
+					</div>
+					<div className="map-sync-actions">
+						<button
+							type="button"
+							className="tb"
+							disabled={node.path === undefined && !kept}
+							onClick={() => {
+								ed.setSyncFrom(node.id, undefined, false);
+								onClose();
+							}}
+						>
+							Pass through
+						</button>
+						<button
+							type="button"
+							className="tb primary"
+							onClick={() => {
+								ed.setSyncFrom(node.id, choice, optional);
+								onClose();
+							}}
+						>
+							Sync
+						</button>
+					</div>
+				</>
+			) : (
+				<PlacePick ed={ed} node={node} rule={rule} onClose={onClose} />
+			)}
+		</MenuSurface>
+	);
+}
+
+/** The place as Syncs from's DataModel tab reads it. */
+type PlaceRead =
+	| { kind: "reading" }
+	| { kind: "none" }
+	| { kind: "unreadable"; why: string }
+	| { kind: "read"; tree: Extract<PlaceTree, { outline: unknown }> };
+
+/**
+ * The DataModel tab: the place's instances, starting at this node's own.
+ *
+ * Rojo fills an instance only from disk, so an instance picked here is kept
+ * or copied. **Keep from the place** syncs nothing and has Rojo leave what the
+ * place holds there. **Save as a model file** copies the picked instance out
+ * to a .rbxm at the node's folder and syncs from it; the place keeps its own.
+ */
+function PlacePick({
+	ed,
+	node,
+	rule,
+	onClose,
+}: {
+	ed: MapEditing;
+	node: MapNode;
+	rule: string;
+	onClose: () => void;
+}) {
+	const [read, setRead] = useState<PlaceRead>({ kind: "reading" });
+	const [busy, setBusy] = useState(false);
+	const [said, setSaid] = useState<string | null>(null);
+	useEffect(() => {
+		let live = true;
+		api.place().then(
+			(tree) => live && setRead(tree.file === null ? { kind: "none" } : { kind: "read", tree }),
+			(err: unknown) =>
+				live &&
+				setRead({ kind: "unreadable", why: err instanceof Error ? err.message : String(err) }),
+		);
+		return () => {
+			live = false;
+		};
+	}, []);
+
+	const outline = read.kind === "read" ? read.tree.outline : null;
+	const kids = useMemo(() => {
+		const out = new Map<number, number[]>();
+		outline?.nodes.forEach(([, , parent], i) => {
+			out.set(parent, [...(out.get(parent) ?? []), i]);
+		});
+		return out;
+	}, [outline]);
+	/** This node's own instance in the place, found by its names from the service down. */
+	const own = useMemo(() => {
+		if (!outline) return undefined;
+		let parent = -1;
+		let found: number | undefined;
+		for (const name of trailOf(ed.map, node.id)) {
+			found = (kids.get(parent) ?? []).find((i) => outline.nodes[i][1] === name);
+			if (found === undefined) return undefined;
+			parent = found;
+		}
+		return found;
+	}, [outline, kids, ed.map, node.id]);
+
+	const [where, setWhere] = useState<number | null>(null);
+	const [picked, setPicked] = useState<number | null>(null);
+	const here = where ?? (own !== undefined && outline ? outline.nodes[own][2] : -1);
+	const chosen = picked ?? own ?? null;
+
+	if (read.kind === "reading") return <div className="map-sync-note">Reading the place…</div>;
+	if (read.kind === "none")
+		return (
+			<div className="map-sync-note">The project has no place file to keep instances from.</div>
+		);
+	if (read.kind === "unreadable" || !outline)
+		return (
+			<div className="map-sync-note">
+				The place could not be read{read.kind === "unreadable" ? `: ${read.why}` : "."}
+			</div>
+		);
+
+	const classOf = (i: number) => outline.classes[outline.nodes[i][0]];
+	const steps: number[] = [];
+	for (let i = here; i !== -1; i = outline.nodes[i][2]) steps.unshift(i);
+	// The services the Explorer keeps out of sight stay out of sight here too.
+	const list = (kids.get(here) ?? []).filter(
+		(i) => i === own || here !== -1 || (outline.nodes[i][3] & TUCKED) === 0,
+	);
+	const service = (i: number) => outline.nodes[i][2] === -1;
+	const target = `${rule}.rbxm`;
+	const taken = entryAt(ed.tree, target) !== undefined;
+	const nodeIsService = node !== ed.map.root && !node.className;
+	const canKeep = chosen !== null && chosen === own;
+	const canSave = chosen !== null && !service(chosen) && !nodeIsService && !taken && !busy;
+
+	return (
+		<>
+			<div className="folder-pick">
+				<div className="fp-crumbs">
+					<button
+						type="button"
+						className={cx("fp-step", here === -1 && "here")}
+						onClick={() => setWhere(-1)}
+					>
+						{read.tree.file.split("/").pop()}
+					</button>
+					{steps.map((i, n) => (
+						<span key={i} className="fp-step-wrap">
+							<span className="fp-sep" aria-hidden="true">
+								›
+							</span>
+							<button
+								type="button"
+								className={cx("fp-step", n === steps.length - 1 && "here")}
+								onClick={() => setWhere(i)}
+							>
+								{outline.nodes[i][1]}
+							</button>
+						</span>
+					))}
+				</div>
+				<div className="fp-list" role="listbox" aria-label="Instances">
+					{list.length === 0 && <div className="fp-none">Nothing in here.</div>}
+					{list.map((i) => {
+						const inner = (kids.get(i) ?? []).length > 0;
+						return (
+							<div
+								key={i}
+								role="option"
+								aria-selected={chosen === i}
+								tabIndex={0}
+								className={cx("fp-item", chosen === i && "on")}
+								onClick={() => setPicked(i)}
+								onDoubleClick={() => inner && setWhere(i)}
+								onKeyDown={(e) => {
+									if (e.key === "Enter") setPicked(i);
+									else if (e.key === "ArrowRight" && inner) setWhere(i);
+								}}
+							>
+								<ExplorerIcon className={classOf(i)} service={service(i)} open={false} />
+								<span className="fp-name">{outline.nodes[i][1]}</span>
+								{i === own && <span className="map-sync-mine">this node</span>}
+								{inner && (
+									<button
+										type="button"
+										className="fp-in"
+										title={`Into ${outline.nodes[i][1]}`}
+										aria-label={`Into ${outline.nodes[i][1]}`}
+										onClick={(e) => {
+											e.stopPropagation();
+											setWhere(i);
+										}}
+									>
+										<Icon name="chevron" size={13} />
+									</button>
+								)}
+							</div>
+						);
+					})}
+				</div>
 			</div>
 			<div className="map-sync-optional">
-				<Toggle on={optional} label="Optional" onChange={setOptional} />
-				<span>If the folder is missing, it passes through instead of failing.</span>
+				{own === undefined
+					? `The place has no ${trailOf(ed.map, node.id).join(".")} to keep.`
+					: "Keep from the place: Rojo leaves this node's instance as the place has it."}{" "}
+				{nodeIsService
+					? "A service cannot be a model file."
+					: taken
+						? `${target} is there already.`
+						: `Save as a model file copies the picked instance to ${target}; the place keeps its own.`}
 			</div>
+			{said && <div className="map-sync-said">{said}</div>}
 			<div className="map-sync-actions">
 				<button
 					type="button"
 					className="tb"
-					disabled={node.path === undefined}
+					disabled={!canKeep}
 					onClick={() => {
-						ed.setSyncFrom(node.id, undefined, false);
+						ed.keepFromPlace(node.id);
 						onClose();
 					}}
 				>
-					Pass through
+					Keep from the place
 				</button>
 				<button
 					type="button"
 					className="tb primary"
-					onClick={() => {
-						ed.setSyncFrom(node.id, choice, optional);
-						onClose();
+					disabled={!canSave}
+					onClick={async () => {
+						if (chosen === null) return;
+						setBusy(true);
+						try {
+							const made = await api.extractModel(read.tree.stamp, chosen, target);
+							ed.syncFromModel(node.id, made.path, classOf(chosen));
+							if (made.leftOut.length > 0) {
+								setSaid(
+									`Saved ${made.path}. The place has properties Roswaal cannot read yet (${made.leftOut.join(", ")}); any this instance had are not in the copy.`,
+								);
+							} else onClose();
+						} catch (err) {
+							setSaid(err instanceof Error ? err.message : String(err));
+						} finally {
+							setBusy(false);
+						}
 					}}
 				>
-					Sync
+					Save as a model file
 				</button>
 			</div>
-		</MenuSurface>
+		</>
 	);
 }
 

@@ -311,18 +311,32 @@ export function buildingAndRojoPage(): DocPage {
 					"what it holds. Pan, zoom and move nodes as on a graph. Their places are kept in the " +
 					"`.nodemap`, and **Realign** lays them out again. Selecting works as on a graph: " +
 					"drag on empty canvas for a marquee, Shift or Ctrl to add, `Ctrl` + `A` for " +
-					"everything, and Delete for the selection. **List** draws rows, with the " +
-					"switch that reads them from either end.",
+					"everything, `A` to line it up, and Delete for the selection. **List** draws rows, " +
+					"with the switch that reads them from either end.",
 			},
 			{
 				t: "p",
 				text:
-					"**Syncs from** on each node is the folder Rojo fills it from. Choose another, or " +
-					"**Pass through**: the node syncs nothing and holds what is wired under it, each " +
-					"folder inside mapped on its own. Choosing the rule's folder folds plain folders " +
-					"mapped inside it into that one. **Optional** writes Rojo's optional path, so a " +
-					"missing folder passes through instead of failing. A node passing through says when " +
+					"**Syncs from** on each node is the folder or model file Rojo fills it from. Choose " +
+					"another, or **Pass through**: the node syncs nothing and holds what is wired under " +
+					"it, each folder inside mapped on its own. Choosing the rule's folder folds plain " +
+					"folders mapped inside it into that one. **Optional** writes Rojo's optional path, so " +
+					"a missing folder passes through instead of failing. A node passing through says when " +
 					"files directly in its folder would not sync.",
+			},
+			{
+				t: "p",
+				text:
+					"Its **DataModel** tab lists the place's instances, starting at the node's own. " +
+					"**Keep from the place** syncs nothing there and has Rojo leave the instance as the " +
+					"place has it. **Save as a model file** copies the picked instance to a `.rbxm` at the " +
+					"node's folder and syncs from that; the place keeps its own.",
+			},
+			{
+				t: "p",
+				text:
+					"While a map is open, Script analysis lists its problems under **This Map**: each " +
+					"mapping the reading rule would not give, with **use the rule's folder** beside it.",
 			},
 			{
 				t: "p",

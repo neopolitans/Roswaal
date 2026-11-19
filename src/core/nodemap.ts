@@ -517,6 +517,11 @@ function joinGlob(base: string | undefined, glob: string): string {
 
 type RojoNode = Record<string, unknown>;
 
+/** A file Rojo builds an instance from whole: a binary or XML model, or a JSON model. */
+export function isModelFile(path: string): boolean {
+	return /\.(rbxmx?|model\.json)$/i.test(path);
+}
+
 function buildTree(node: MapNode, isRoot: boolean): RojoNode {
 	const out: RojoNode = {};
 
@@ -525,7 +530,14 @@ function buildTree(node: MapNode, isRoot: boolean): RojoNode {
 	// directory already implies a Folder, so saying it again is noise that
 	// makes an empty result look intentional.
 	const impliedByPath = node.path !== undefined && node.className === "Folder";
-	if (node.className && (!impliedByPath || node.statedClass) && (isRoot || !isService(node))) {
+	// A model file names its own class, and Rojo takes it from there.
+	const fromModel = node.path !== undefined && isModelFile(node.path);
+	if (
+		node.className &&
+		!fromModel &&
+		(!impliedByPath || node.statedClass) &&
+		(isRoot || !isService(node))
+	) {
 		out.$className = node.className;
 	} else if (node.statedClass && !isRoot && isService(node)) {
 		// A service's class is its key, written out because the file did.

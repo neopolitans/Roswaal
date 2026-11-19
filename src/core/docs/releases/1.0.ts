@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.20",
+		date: "2026-11-20",
+		headline: "Syncs from reaches into the place, and a map's problems are in Script analysis.",
+		added: [
+			"**Syncs from's DataModel tab** lists the place's instances, starting at the node's own. **Keep from the place** has Rojo leave that instance as the place has it. **Save as a model file** copies an instance to a .rbxm at the node's folder and syncs from it; the place keeps its own.",
+			"**Model files in Syncs from.** The Files tab offers .rbxm, .rbxmx and .model.json files beside folders. The project file leaves the class to the file.",
+			"**This Map** in Script analysis, while a map is open: each mapping the reading rule would not give, with use the rule's folder beside it, and the map's other problems. A row picks its node.",
+			"**Align on a map.** `A` lines up the selection as on a graph: the first node picked stays, and the rest follow the wires to it.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.19",
 		date: "2026-11-20",
 		headline: "A node map selects as a graph does.",

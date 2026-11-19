@@ -111,3 +111,48 @@ export function realignMap(map: NodeMap): MapNode {
 	});
 	return visit(map.root);
 }
+
+/**
+ * A selection lined up, as the graph's Align does: the anchor -- the first
+ * node picked -- stays where it is, and the rest line up on it by following
+ * the wires between them, so each wire comes out flat. Every map wire runs
+ * header to header, so a wired node takes its neighbour's height. A node with
+ * no wired path to the anchor takes the anchor's. Only height moves: a node's
+ * column says how deep it is.
+ */
+export function alignMap(
+	map: NodeMap,
+	at: ReadonlyMap<string, Point>,
+	ids: Iterable<string>,
+): Map<string, Point> {
+	const chosen = [...ids].filter((id) => at.has(id));
+	const out = new Map<string, Point>();
+	const anchor = chosen[0];
+	if (anchor === undefined) return out;
+	const picked = new Set(chosen);
+	const links: [string, string][] = [];
+	const visit = (node: MapNode) => {
+		for (const child of node.children) {
+			links.push([node.id, child.id]);
+			visit(child);
+		}
+	};
+	visit(map.root);
+	const anchorAt = at.get(anchor) as Point;
+	out.set(anchor, anchorAt);
+	const queue = [anchor];
+	while (queue.length > 0) {
+		const id = queue.shift() as string;
+		const onto = out.get(id) as Point;
+		for (const [a, b] of links) {
+			const other = a === id ? b : b === id ? a : null;
+			if (other === null || out.has(other) || !picked.has(other)) continue;
+			out.set(other, { x: (at.get(other) as Point).x, y: onto.y });
+			queue.push(other);
+		}
+	}
+	for (const id of chosen) {
+		if (!out.has(id)) out.set(id, { x: (at.get(id) as Point).x, y: anchorAt.y });
+	}
+	return out;
+}

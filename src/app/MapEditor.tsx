@@ -117,6 +117,8 @@ export interface MapEditorInput {
 	 * takes its graphs with it, so Rojo still finds their Luau.
 	 */
 	onMoveFolder?: (next: NodeMap, from: string, toDir: string) => Promise<void>;
+	/** Reads the project's files again, once something was written outside the map. */
+	onRefreshTree?: () => Promise<void>;
 }
 
 /** What is picked: a node of the map, or a folder on disk the map does not name. */
@@ -183,6 +185,10 @@ export interface MapEditing extends MapEditorInput {
 	setSyncFrom: (id: string, path: string | undefined, optional: boolean) => void;
 	/** Replaces the map's comments, as one change. */
 	setComments: (next: MapComment[]) => void;
+	/** Syncs nothing from disk, and has Rojo leave what the place holds there. */
+	keepFromPlace: (id: string) => void;
+	/** Syncs a node from a model file just copied out of the place, taking its class. */
+	syncFromModel: (id: string, path: string, className: string) => void;
 }
 
 const LAYOUT_KEY = "roswaal.mapLayout";
@@ -615,7 +621,10 @@ export function useMapEditor(input: MapEditorInput | null): MapEditing | null {
 
 	const setSyncFrom = (id: string, at: string | undefined, optional: boolean) => {
 		if (at === undefined) {
-			setSync(id, false);
+			const node = findMapNode(map.root, id);
+			// Kept from the place: passing through lets Rojo tidy it again.
+			if (node && node.path === undefined) updateNode(id, { ignoreUnknown: undefined });
+			else setSync(id, false);
 			return;
 		}
 		// The rule's own folder folds plain mappings inside it, as Syncs does.
@@ -628,6 +637,26 @@ export function useMapEditor(input: MapEditorInput | null): MapEditing | null {
 				return { ...rest, path: at, ...(optional ? { optional: true } : {}) };
 			}),
 		});
+	};
+
+	const keepFromPlace = (id: string) =>
+		commit({
+			...map,
+			root: mapNodeUpdate(map.root, id, (node) => {
+				const { path: _path, optional: _optional, ...rest } = node;
+				return { ...rest, ignoreUnknown: true };
+			}),
+		});
+
+	const syncFromModel = (id: string, at: string, className: string) => {
+		commit({
+			...map,
+			root: mapNodeUpdate(map.root, id, (node) => {
+				const { optional: _optional, ignoreUnknown: _ignore, ...rest } = node;
+				return { ...rest, path: at, ...(node.className ? { className } : {}) };
+			}),
+		});
+		void input.onRefreshTree?.();
 	};
 
 	const setComments = (next: MapComment[]) =>
@@ -684,6 +713,8 @@ export function useMapEditor(input: MapEditorInput | null): MapEditing | null {
 		reparent,
 		setSyncFrom,
 		setComments,
+		keepFromPlace,
+		syncFromModel,
 	};
 }
 
@@ -1229,7 +1260,9 @@ function describeRow(ed: MapEditing, row: Row): RowFacts {
 					: null,
 			quiet: root
 				? `${node.children.length} service${node.children.length === 1 ? "" : "s"}`
-				: "holds only what is under it",
+				: node.ignoreUnknown
+					? "kept as the place has it"
+					: "holds only what is under it",
 			unsynced: false,
 			syncs: false,
 		};

@@ -498,6 +498,9 @@ export const api = {
 		),
 	/** Adds the place a new project starts with to a project that has none. */
 	newPlace: () => post<{ file: string }>("/api/place/new", {}),
+	/** Copies an instance of the place, `index` in its outline, out to a .rbxm model file. */
+	extractModel: (stamp: string, index: number, to: string) =>
+		post<{ path: string; leftOut: string[] }>("/api/place/extract", { stamp, index, to }),
 	/** A place file the developer has, as the project's place. */
 	addPlaceFile: (fileName: string, data: string) =>
 		post<{ file: string }>("/api/place/import", { fileName, data }),
