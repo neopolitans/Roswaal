@@ -10,7 +10,7 @@ import { type DragEvent, memo, type ReactNode, useEffect, useMemo, useRef, useSt
 import { wearsClassIcon } from "../core/classIcons.js";
 import type { FunctionInfo } from "../core/functionGraph.js";
 import { isInstanceClass, isService } from "../core/roblox.js";
-import type { GraphLuau, TreeEntry } from "./api.js";
+import type { TreeEntry } from "./api.js";
 import { cx } from "./cx.js";
 import { ExplorerIcon } from "./ExplorerIcon.jsx";
 import { NOT_HERE, useHostCan } from "./host.js";
@@ -22,6 +22,7 @@ import { AddButton, depthStyle, SectionHead } from "./PanelParts.jsx";
 import { useNarrowBar, usePhone } from "./Popout.jsx";
 import { realmClass, realmOfLuau, ScriptIcon } from "./ScriptIcon.jsx";
 import { SHOW_ENTRY } from "./showEntry.js";
+import { useDocuments } from "./store.js";
 import { fileMenu, packageMenu, type TreeAction } from "./treeMenus.js";
 
 const KIND_ICONS: Record<Exclude<TreeEntry["kind"], "directory">, IconName> = {
@@ -67,8 +68,8 @@ export interface ProjectTreeProps {
 	/** New graph from a graph's menu: inside it, as its child, or beside it. */
 	onNewGraphNear?: (graph: string) => void;
 	onNewMap: (parentDir: string) => void;
-	/** Each graph's Luau and where it stands, by graph path: the dots and Open Luau. */
-	luau?: Readonly<Record<string, GraphLuau>>;
+	/** Where compiled Luau goes, mirroring `sourceDir`: a graph's hover names its file. */
+	outDir?: string;
 	onNewFolder: (parentDir: string) => void;
 	onRename: (path: string) => void;
 	onDelete: (paths: string[]) => void;
@@ -119,7 +120,7 @@ export const ProjectTree = memo(function ProjectTree({
 	onNewGraph,
 	onNewGraphNear,
 	onNewMap,
-	luau,
+	outDir = "",
 	onNewFolder,
 	onRename,
 	onDelete,
@@ -442,13 +443,30 @@ export const ProjectTree = memo(function ProjectTree({
 		if (movable.length) onMove(movable, dir);
 	}
 
-	/** A graph's Luau, or a script folder's, by its graph. */
-	const luauOf = (entry: TreeEntry): GraphLuau | undefined =>
-		entry.kind === "nodescript"
-			? luau?.[entry.path]
-			: entry.script
-				? luau?.[entry.script]
-				: undefined;
+	/**
+	 * The Luau a graph compiles to, or a script folder's graph: the same folder
+	 * under the output folder, named by the script it becomes. Worked out from
+	 * the path and the script, as the compiler names it, so nothing compiles.
+	 */
+	const luauOf = (entry: TreeEntry): { graph: string; luau: string } | undefined => {
+		const graph = entry.kind === "nodescript" ? entry.path : entry.script;
+		if (!graph || !outDir || !graph.startsWith(`${sourceDir}/`)) return undefined;
+		const rest = graph.slice(sourceDir.length + 1);
+		const slash = rest.lastIndexOf("/");
+		const name = rest.slice(slash + 1).replace(/\.nodescript$/, "");
+		const suffix =
+			entry.realm === "server"
+				? ".server.luau"
+				: entry.realm === "client"
+					? ".client.luau"
+					: ".luau";
+		const dir = slash === -1 ? "" : rest.slice(0, slash);
+		return { graph, luau: [outDir, dir, name + suffix].filter(Boolean).join("/") };
+	};
+
+	// Graphs and maps with edits not saved yet: the dot their tabs carry.
+	const open = useDocuments();
+	const unsaved = useMemo(() => new Set(open.filter((d) => d.dirty).map((d) => d.path)), [open]);
 
 	/** What a menu entry does, by the action `treeMenus.ts` names it with. */
 	const runTreeAction = (action: TreeAction, entry: TreeEntry) => {
@@ -677,18 +695,24 @@ export const ProjectTree = memo(function ProjectTree({
 							setMenu({ x: e.clientX, y: e.clientY, entry });
 						}}
 						title={
-							unsynced.has(entry.path)
-								? `${entry.path}: no node map syncs this, so Rojo never sees its Luau. Map it, or move it into a synced folder.`
-								: entry.kind === "package"
-									? entry.missing
-										? `${entry.name} is in wally.toml, and not installed: run wally install.`
-										: `${entry.name} ${shownVersion(entry)}. Double-click to open ${entry.target}.`
-									: entry.script
-										? `${entry.name}, a script with children. Double-click to open its graph.`
-										: isDir && !groups.isGraph(entry) && entry.role
-											? `${entry.path}: ${FOLDER_TITLE[entry.role]}`
-											: luauOf(entry)
-												? `${entry.path}, compiled to ${luauOf(entry)?.luau}`
+							luauOf(entry)
+								? [
+										`Graph: ${luauOf(entry)?.graph}`,
+										`Luau: ${luauOf(entry)?.luau}`,
+										...(unsynced.has(entry.path)
+											? ["No node map syncs it, so Rojo never sees its Luau."]
+											: []),
+									].join("\n")
+								: unsynced.has(entry.path)
+									? `${entry.path}: no node map syncs this, so Rojo never sees its Luau. Map it, or move it into a synced folder.`
+									: entry.kind === "package"
+										? entry.missing
+											? `${entry.name} is in wally.toml, and not installed: run wally install.`
+											: `${entry.name} ${shownVersion(entry)}. Double-click to open ${entry.target}.`
+										: entry.script
+											? `${entry.name}, a script with children. Double-click to open its graph.`
+											: isDir && !groups.isGraph(entry) && entry.role
+												? `${entry.path}: ${FOLDER_TITLE[entry.role]}`
 												: entry.path
 						}
 					>
@@ -802,7 +826,9 @@ export const ProjectTree = memo(function ProjectTree({
 							</>
 						)}
 						<span className="label">{shownName(entry)}</span>
-						{luauOf(entry) && <LuauDot state={luauOf(entry) as GraphLuau} />}
+						{(unsaved.has(entry.path) || (entry.script && unsaved.has(entry.script))) && (
+							<span className="tree-dirty" title="Edits not saved yet" />
+						)}
 						{entry.mapFacts && <MapRowFacts facts={entry.mapFacts} />}
 						{isDir && !entry.script && (entry.children?.length ?? 0) === 0 && (
 							<span className="badge">empty</span>
@@ -1055,24 +1081,6 @@ function namedClass(entry: TreeEntry): string | undefined {
 	return isInstanceClass(entry.name) && wearsClassIcon(entry.name) && entry.name !== "Folder"
 		? entry.name
 		: undefined;
-}
-
-/** A graph's dot: its Luau fresh, behind the graph, not written, or not compiling. */
-function LuauDot({ state }: { state: GraphLuau }) {
-	const said: Record<GraphLuau["state"], { tone: string; title: string }> = {
-		fresh: { tone: "ok", title: `${state.luau} is what the graph compiles to.` },
-		stale: {
-			tone: "warn",
-			title: `${state.luau} is older than the graph. Compile it to bring it up to date.`,
-		},
-		missing: {
-			tone: "warn",
-			title: `${state.luau} is not written yet. Compile the graph to write it.`,
-		},
-		failing: { tone: "bad", title: "The graph does not compile. Script analysis says why." },
-	};
-	const one = said[state.state];
-	return <span className={cx("tree-dot tree-luau-dot", one.tone)} title={one.title} />;
 }
 
 /**

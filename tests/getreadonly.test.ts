@@ -70,7 +70,6 @@ const SAMPLES: [
 	["GET /project/inspect", (_, { other }) => ({ root: other })],
 	["GET /tree", () => ({})],
 	["GET /place", () => ({})],
-	["GET /graphs/state", () => ({})],
 	["GET /place/instance", (a) => ({ stamp: stampOf(a), index: "0" })],
 	["GET /place/scene", (a) => ({ stamp: stampOf(a) })],
 	["GET /place/services", () => ({})],

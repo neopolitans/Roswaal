@@ -75,8 +75,8 @@ export function projectPanelPage(): DocPage {
 					["A node map in the corner", "A folder a node map syncs; hover it for the map"],
 					["A faint folder saying empty", "A folder with nothing in it yet"],
 					[
-						"A dot after a graph",
-						"Its Luau: green when it is what the graph compiles to, amber when the graph changed since or it is not written yet, red when the graph does not compile. Hover a graph to name its Luau",
+						"A dot after a graph or map",
+						"Edits not saved yet, as on its tab. Hover a graph for its file and the Luau it compiles to",
 					],
 					["A grey outlined folder", "A plain folder"],
 					["A grey filled folder", "A Folder a node map syncs, under Output"],

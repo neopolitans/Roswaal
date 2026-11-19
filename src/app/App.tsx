@@ -44,7 +44,6 @@ import {
 	api,
 	type CompileOutcome,
 	type CompileStep,
-	type GraphLuau,
 	type MapOutcome,
 	type NewProjectChoice,
 	openEventStream,
@@ -2002,26 +2001,6 @@ export function App() {
 	followMoveRef.current = followMove;
 	offerRojo.current = importRojo;
 
-	// Each graph's Luau and where it stands, for the Project panel's dots and
-	// its Open Luau. Asked again a moment after the files change or a graph is
-	// saved: it compiles every graph in memory, so not on each keystroke.
-	const [graphLuau, setGraphLuau] = useState<Record<string, GraphLuau>>({});
-	// biome-ignore lint/correctness/useExhaustiveDependencies: the tree and a save are the triggers.
-	useEffect(() => {
-		if (!project) return;
-		let live = true;
-		const timer = window.setTimeout(() => {
-			api.graphStates().then(
-				({ graphs }) => live && setGraphLuau(graphs),
-				() => undefined,
-			);
-		}, 700);
-		return () => {
-			live = false;
-			window.clearTimeout(timer);
-		};
-	}, [project?.tree, editor.dirty]);
-
 	// The open node map, shared by the tree in the centre and its three panels.
 	const mapEd = useMapEditor(
 		mapDoc && project
@@ -2384,7 +2363,7 @@ export function App() {
 							>
 								<ProjectTree
 									tree={project.tree}
-									luau={graphLuau}
+									outDir={project.config.outDir}
 									openPath={editor.path ?? source?.path ?? null}
 									openGraph={source || mapDoc ? null : editor.graph}
 									outline={outline}

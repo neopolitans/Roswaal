@@ -1997,9 +1997,14 @@ button.tb.primary:hover:not(:disabled) {
 	background: var(--fg-faint);
 }
 
-/* A graph's dot, just after its name: its Luau fresh, behind, or not compiling. */
-.tree-row .tree-luau-dot {
+/* A graph or map with edits not saved yet: the dot its tab carries. */
+.tree-row .tree-dirty {
+	flex: none;
+	width: 6px;
+	height: 6px;
 	margin-left: 2px;
+	border-radius: 50%;
+	background: var(--warning);
 }
 
 .tree-dot.ok {

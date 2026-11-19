@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.26",
+		date: "2026-11-20",
+		headline: "A graph's dot means unsaved edits, and its hover names both files.",
+		changed: [
+			"**The dot after a graph or map** in the Project panel now means edits not saved yet, as on its tab, rather than where its Luau stands.",
+			"**Hovering a graph** shows its file and the Luau it compiles to, one a line.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.25",
 		date: "2026-11-20",
 		headline: "A graph's dot says where its Luau stands, and its menu opens it.",

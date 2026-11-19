@@ -180,4 +180,14 @@ describe("rows under Graphs", () => {
 	it("are not yellow before any map writes a project file", () => {
 		expect(render()).not.toContain("unsynced");
 	});
+
+	it("name a graph's two files on hover, one a line", () => {
+		const html = render({ outDir: "src" });
+		expect(html).toContain(
+			[
+				'title="Graph: .roswaal/scripts/ReplicatedStorage/Tank/Remotes.nodescript',
+				'Luau: src/ReplicatedStorage/Tank/Remotes.luau"',
+			].join(String.fromCharCode(10)),
+		);
+	});
 });
