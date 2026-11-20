@@ -9,6 +9,21 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.49",
+		date: "2026-11-20",
+		headline: "The Variables panel reads older files in their own order, globals included.",
+		added: [
+			"**In order.** On the top graph, the flow's declarations as one list in the order the file makes them: types, locals, functions and requires, an imported file's Code Blocks included. Chips narrow it to a kind, still in order. By kind keeps the headings.",
+			"**Globals.** The names a file sets at its top level without local, by assignment or function foo(), with where each is first set.",
+		],
+		changed: [
+			"**Script locals and Function locals.** Locals are split by where they live: the top graph's, which a function written above cannot see, and a function's own.",
+			"**A graph imported from an older file** opens on In order.",
+			"**Use counts** include Code Blocks that name the row, so a service an imported file's code reads is not unused.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.48",
 		date: "2026-11-20",
 		headline: "Variables gather into named groups, and the panel's headings rearrange.",

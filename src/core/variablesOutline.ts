@@ -98,6 +98,22 @@ export function moduleTableVariable(script: NodeScript): string | undefined {
 	return undefined;
 }
 
+/**
+ * The Code Blocks whose Luau reads `name`, as a whole word: what an
+ * imported older file's code uses a service, a module or a variable by.
+ */
+export function codeMentions(script: NodeScript, name: string): string[] {
+	if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) return [];
+	const word = new RegExp(`(^|[^A-Za-z0-9_.:])${name}(?![A-Za-z0-9_])`);
+	return script.nodes
+		.filter((node) => {
+			if (node.def !== "code.custom") return false;
+			const code = node.literals?.code;
+			return code?.t === "raw" && word.test(code.v);
+		})
+		.map((node) => node.id);
+}
+
 /** The keys a node refers to something by: a variable, a module, a local, a function. */
 const REFERENCE_KEYS = ["variable", "module", "local", "function"] as const;
 

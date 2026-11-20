@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 import { emptyScript, type GraphNode, type NodeScript } from "../src/core/schema.js";
 import {
+	codeMentions,
 	functionSignature,
 	localTypeOf,
 	moduleTableVariable,
@@ -136,5 +137,20 @@ describe("a function's signature", () => {
 				returns: [{ type: "boolean" }, { type: "string" }],
 			}),
 		).toBe("(any) → (boolean, string)");
+	});
+});
+
+describe("what Code Blocks read", () => {
+	it("counts a block that names it as a whole word, not as a field or part of a name", () => {
+		const code = (id: string, v: string) =>
+			node(id, "code.custom", { literals: { code: { t: "raw", v } } });
+		const s = script({
+			nodes: [
+				code("a", "local n = #Players:GetPlayers()"),
+				code("b", "print(player.Players, MyPlayers)"),
+				code("c", "Players.PlayerAdded:Connect(f)"),
+			],
+		});
+		expect(codeMentions(s, "Players")).toEqual(["a", "c"]);
 	});
 });

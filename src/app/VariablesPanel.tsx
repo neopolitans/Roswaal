@@ -7,7 +7,14 @@
  * one.
  */
 
-import { type DragEvent, Fragment, type ReactNode, useMemo, useState } from "react";
+import {
+	type DragEvent,
+	Fragment,
+	type ReactNode,
+	useDeferredValue,
+	useMemo,
+	useState,
+} from "react";
 import { compile } from "../core/compiler/index.js";
 import {
 	checkMove,
@@ -40,7 +47,9 @@ import type {
 	ScriptVariable,
 } from "../core/schema.js";
 import { SPECIFIER_HINTS } from "../core/schema.js";
+import { type DeclarationKind, scriptOrder } from "../core/scriptOrder.js";
 import {
+	codeMentions,
 	functionSignature,
 	localTypeOf,
 	moduleTableVariable,
@@ -180,6 +189,9 @@ export function VariablesPanel({
 	const variables = script.variables.filter((v) => v.id !== tableId);
 	const groupNames = [...new Set(variables.flatMap((v) => (v.group ? [v.group] : [])))];
 	const [filter, setFilter] = useState("");
+	const deferredScript = useDeferredValue(script);
+	const [view, setView] = useState<PanelView | undefined>(readView);
+	const [chips, setChips] = useState<ReadonlySet<DeclarationKind>>(new Set());
 	const [headingOrder, setHeadingOrder] = useState<SectionId[]>(readHeadingOrder);
 	const [movingHeading, setMovingHeading] = useState<SectionId | null>(null);
 	const moveHeading = (target: SectionId) => {
@@ -267,13 +279,51 @@ export function VariablesPanel({
 				module={module}
 				confirm={confirm}
 				nested={nested}
-				uses={counts.get(module.id) ?? 0}
-				onFind={() => findUses(usesOf(script, module.id))}
+				uses={(counts.get(module.id) ?? 0) + codeMentions(script, module.name).length}
+				onFind={() =>
+					findUses([...usesOf(script, module.id), ...codeMentions(script, module.name)])
+				}
 				expanded={open === module.id}
 				onToggle={() => setOpen((id) => (id === module.id ? null : module.id))}
 			/>,
 		);
 	const servicesShown = script.target === "roblox" || outline.services.length > 0;
+	// Locals by where they live: the top graph's are the script's, visible to
+	// the flow after them; a function's own are its alone.
+	const inFunction = graph !== null;
+	const localScopes = [
+		{
+			title: "Script locals",
+			locals: locals.filter((n) => n.graph === undefined),
+			results: namedResults.filter(({ node }) => node.graph === undefined),
+		},
+		...(inFunction
+			? [
+					{
+						title: "Function locals",
+						locals: locals.filter((n) => n.graph !== undefined),
+						results: namedResults.filter(({ node }) => node.graph !== undefined),
+					},
+				]
+			: []),
+	];
+
+	// What the flow declares in the order the file does, and the globals an
+	// older file sets: read from the compiled Luau, on the top graph.
+	const order = useMemo(() => {
+		if (inFunction) return { flow: [], globals: [] };
+		const result = compile(deferredScript, registry);
+		return scriptOrder(result.code, result.sourceMap);
+	}, [deferredScript, registry, inFunction]);
+	const fromCode = order.flow.some(
+		(d) => script.nodes.find((n) => n.id === d.node)?.def === "code.custom",
+	);
+	const showOrder =
+		!inFunction &&
+		(view === "order" || (view === undefined && (fromCode || order.globals.length > 0)));
+	const shownFlow = order.flow.filter(
+		(d) => (chips.size === 0 || chips.has(d.kind)) && shows(d.name),
+	);
 
 	const sections: Record<SectionId, ReactNode> = {
 		services: (
@@ -340,8 +390,20 @@ export function VariablesPanel({
 												name={group.name}
 												local={script.serviceNames?.[group.name]}
 												declared={group.declared}
-												uses={group.uses}
-												onFind={() => findUses(usesOf(script, group.name, true))}
+												uses={
+													group.uses +
+													codeMentions(script, script.serviceNames?.[group.name] ?? group.name)
+														.length
+												}
+												onFind={() =>
+													findUses([
+														...usesOf(script, group.name, true),
+														...codeMentions(
+															script,
+															script.serviceNames?.[group.name] ?? group.name,
+														),
+													])
+												}
 												onDeclare={() => store.edit((s) => addService(s, group.name))}
 												onDelete={() => store.edit((s) => deleteService(s, group.name))}
 											/>,
@@ -399,8 +461,10 @@ export function VariablesPanel({
 							variable={table}
 							confirm={confirm}
 							exported
-							uses={counts.get(table.id) ?? 0}
-							onFind={() => findUses(usesOf(script, table.id))}
+							uses={(counts.get(table.id) ?? 0) + codeMentions(script, table.name).length}
+							onFind={() =>
+								findUses([...usesOf(script, table.id), ...codeMentions(script, table.name)])
+							}
 							expanded={open === table.id}
 							onToggle={() => setOpen((id) => (id === table.id ? null : table.id))}
 						/>
@@ -408,7 +472,7 @@ export function VariablesPanel({
 				)}
 			</>
 		),
-		types: (
+		types: showOrder ? null : (
 			<>
 				{/* The types this graph declares, and the ones its requires bring
 						    in. Dragged out, a type becomes a local of that type. */}
@@ -472,8 +536,13 @@ export function VariablesPanel({
 									variable={variable}
 									confirm={confirm}
 									groups={groupNames}
-									uses={counts.get(variable.id) ?? 0}
-									onFind={() => findUses(usesOf(script, variable.id))}
+									uses={(counts.get(variable.id) ?? 0) + codeMentions(script, variable.name).length}
+									onFind={() =>
+										findUses([
+											...usesOf(script, variable.id),
+											...codeMentions(script, variable.name),
+										])
+									}
 									expanded={open === variable.id}
 									onToggle={() => setOpen((id) => (id === variable.id ? null : variable.id))}
 								/>,
@@ -498,49 +567,120 @@ export function VariablesPanel({
 						{EMPTY_VARIABLES.text}
 					</p>
 				)}
-			</>
-		),
-		locals: (
-			<>
-				{/* The graph's Declare Locals, so one can be dragged out as a Get
-						    Local instead of wired from where it was made. */}
-				{(locals.length > 0 || namedResults.length > 0) && (
+				{/* Names the file sets at its top level without local: an older
+				    file declares most of its state this way. */}
+				{order.globals.length > 0 && (
 					<>
-						<Heading
-							section="locals"
-							drag={headingDrag}
-							title="Locals"
-							count={locals.length + namedResults.length}
-						/>
-						{locals.map((node) => (
-							<LocalRow
-								key={node.id}
-								node={node}
-								type={localTypeOf(script, registry, node)}
-								hidden={!shows(localRefFor(node).name ?? "")}
-								uses={counts.get(node.id) ?? 0}
-								onFind={() => findUses(usesOf(script, node.id))}
-								onDelete={() => deleteDeclaration(node, "local")}
-								onGoTo={() => goTo(node.id)}
-							/>
-						))}
-						{namedResults.map(
-							({ node, ref }) =>
-								shows(ref.name) && (
-									<NamedResultRow
-										key={node.id}
-										node={node}
-										name={ref.name}
-										type={ref.type}
-										onGoTo={() => goTo(node.id)}
-									/>
+						<Heading title="Globals" count={order.globals.length} />
+						{order.globals.map(
+							(g) =>
+								shows(g.name) && (
+									<div className="variable" key={g.name}>
+										<div
+											className="variable-head flow-row"
+											title={`First set on line ${g.line}${g.how === "function" ? ", as function " + g.name + "()" : ""}. A global: every script in the same environment sees it.`}
+											onClick={() => g.node && store.reveal(g.node)}
+											onDoubleClick={() => g.node && goTo(g.node)}
+										>
+											<span className="flow-kind flow-global">global</span>
+											<span className="name">{g.name}</span>
+											<span className="type">
+												{g.how === "function" ? "function" : "set"} · line {g.line}
+											</span>
+										</div>
+									</div>
 								),
 						)}
 					</>
 				)}
 			</>
 		),
-		functions: (
+		locals: showOrder ? (
+			<>
+				<Heading
+					section="locals"
+					drag={headingDrag}
+					title="In script order"
+					count={order.flow.length}
+				/>
+				<div className="flow-chips" role="group" aria-label="Show only">
+					{FLOW_KINDS.map(([kind, label]) => (
+						<button
+							key={kind}
+							type="button"
+							className={cx("flow-chip", chips.has(kind) && "on")}
+							aria-pressed={chips.has(kind)}
+							onClick={() => {
+								const next = new Set(chips);
+								if (next.has(kind)) next.delete(kind);
+								else next.add(kind);
+								setChips(next);
+							}}
+						>
+							{label}
+						</button>
+					))}
+				</div>
+				{shownFlow.map((d) => (
+					<div className="variable" key={`${d.line}:${d.name}`}>
+						<div
+							className="variable-head flow-row"
+							title={`Line ${d.line}. Click to select what declares it; double-click to go to it.`}
+							onClick={() => store.reveal(d.node)}
+							onDoubleClick={() => goTo(d.node)}
+						>
+							<span className={cx("flow-kind", `flow-${d.kind}`)}>{d.kind}</span>
+							<span className="name">{d.name}</span>
+							<span className="type">line {d.line}</span>
+						</div>
+					</div>
+				))}
+				{order.flow.length === 0 && <p className="hint">The flow declares nothing yet.</p>}
+			</>
+		) : (
+			<>
+				{/* The graph's Declare Locals, so one can be dragged out as a Get
+						    Local instead of wired from where it was made. */}
+				{localScopes.map(
+					(scope) =>
+						(scope.locals.length > 0 || scope.results.length > 0) && (
+							<Fragment key={scope.title}>
+								<Heading
+									section="locals"
+									drag={headingDrag}
+									title={scope.title}
+									count={scope.locals.length + scope.results.length}
+								/>
+								{scope.locals.map((node) => (
+									<LocalRow
+										key={node.id}
+										node={node}
+										type={localTypeOf(script, registry, node)}
+										hidden={!shows(localRefFor(node).name ?? "")}
+										uses={counts.get(node.id) ?? 0}
+										onFind={() => findUses(usesOf(script, node.id))}
+										onDelete={() => deleteDeclaration(node, "local")}
+										onGoTo={() => goTo(node.id)}
+									/>
+								))}
+								{scope.results.map(
+									({ node, ref }) =>
+										shows(ref.name) && (
+											<NamedResultRow
+												key={node.id}
+												node={node}
+												name={ref.name}
+												type={ref.type}
+												onGoTo={() => goTo(node.id)}
+											/>
+										),
+								)}
+							</Fragment>
+						),
+				)}
+			</>
+		),
+		functions: showOrder ? null : (
 			<>
 				{/* The functions this graph declares. In a graph of any size the
 						    declaration is somewhere off screen, and this is the list that
@@ -574,6 +714,35 @@ export function VariablesPanel({
 	return (
 		<div className={cx("variables", locked && "editing-locked")}>
 			<PanelHead>
+				{!inFunction && (
+					<span className="segmented variables-view" role="radiogroup" aria-label="View">
+						{(
+							[
+								["kind", "By kind"],
+								["order", "In order"],
+							] as const
+						).map(([id, label]) => (
+							<button
+								key={id}
+								type="button"
+								role="radio"
+								aria-checked={(showOrder ? "order" : "kind") === id}
+								className={cx((showOrder ? "order" : "kind") === id && "on")}
+								title={
+									id === "order"
+										? "The flow's declarations as one list, in the order the file makes them"
+										: "Types, locals and functions under headings of their own"
+								}
+								onClick={() => {
+									setView(id);
+									saveView(id);
+								}}
+							>
+								{label}
+							</button>
+						))}
+					</span>
+				)}
 				{headingOrder.join() !== SCRIPT_ORDER.join() && (
 					<button
 						className="tb"
@@ -819,6 +988,36 @@ function ReorderSlot({
 
 /** Past this many rows the panel is more than a screen, and offers a filter. */
 const FILTER_FROM = 20;
+
+/** How the panel lists the flow: by kind, or in the order the file makes it. */
+type PanelView = "kind" | "order";
+const VIEW_KEY = "roswaal.variablesPanel.view";
+
+/** The view this browser chose, or none: then the graph decides. */
+function readView(): PanelView | undefined {
+	try {
+		const kept = localStorage.getItem(VIEW_KEY);
+		return kept === "kind" || kept === "order" ? kept : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+function saveView(view: PanelView): void {
+	try {
+		localStorage.setItem(VIEW_KEY, view);
+	} catch {
+		// Kept for this visit only.
+	}
+}
+
+/** The chips that narrow "In script order", in place and still in order. */
+const FLOW_KINDS: readonly [DeclarationKind, string][] = [
+	["type", "Types"],
+	["local", "Locals"],
+	["function", "Functions"],
+	["require", "Requires"],
+];
 
 /** The panel's headings, in the order the file declares them. */
 type SectionId = "services" | "module" | "types" | "variables" | "locals" | "functions";
