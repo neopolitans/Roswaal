@@ -9,6 +9,23 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.46",
+		date: "2026-11-20",
+		headline: "The Variables panel reads in the order the file declares things.",
+		added: [
+			"**Use counts.** Each row says how often it is used. Under the pointer, or after a long press, Find uses selects what uses it, beside Delete.",
+			"**Services the graph uses.** Services and modules lists the services a graph fetches where it uses them, in italics, with Declare.",
+			"**Counts on each heading,** and a filter once the panel holds more than a screen.",
+		],
+		changed: [
+			"**In script order.** Headings follow the file: Services and modules, the module's own table under Module, Types, Variables, Locals and Functions.",
+			"**Modules under their service.** A module sits under the service it is required through, and one required through script under a script row.",
+			"**A local's type** is what its value is, where it declares none: a string, or the type of what is wired in, not any.",
+			"**A function's signature** replaces hoisted and here.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.45",
 		date: "2026-11-20",
 		headline: "Double-clicking a graph or file in the Project panel opens it again.",

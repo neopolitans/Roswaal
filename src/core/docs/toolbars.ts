@@ -2126,14 +2126,31 @@ export const VARIABLES_PANEL: ToolbarSpec = {
 	id: "variables-panel",
 	title: "The Variables panel",
 	summary:
-		"Everything this script declares: its variables, its services, its modules, its locals and its functions.",
+		"Everything this script declares, in the order the file declares it: its services and modules, its variables, its locals and its functions.",
 	chrome: "panel",
 	groups: [
 		{
 			items: [
+				{ t: "heading", level: 2, text: "Variables", action: "Add" },
 				{
 					t: "heading",
-					level: 2,
+					text: "Services and modules",
+					action: "Module",
+					name: "Services and modules",
+					what:
+						"What this script fetches and requires, at the top of the file in this order. A " +
+						"module sits under the service it is required through. A service the graph only " +
+						"fetches where it is used is in italics, with **Declare** under the pointer. Each " +
+						"require is written once, however many places read it.",
+				},
+				// Rows rather than controls: they carry no `name`, so the legend
+				// does not list them. The rows are the demo project's.
+				{ t: "row", label: "ReplicatedStorage", trailing: "1 use", swatch: "Instance" },
+				{ t: "row", label: "    Greeter", trailing: "Shared.Greeter", swatch: "outline" },
+				{ t: "row", label: "Players", trailing: "2 uses", swatch: "Instance" },
+				{ t: "row", label: "Config", trailing: "@self/Config", swatch: "outline" },
+				{
+					t: "heading",
 					text: "Variables",
 					action: "Add",
 					name: "Variables",
@@ -2141,69 +2158,30 @@ export const VARIABLES_PANEL: ToolbarSpec = {
 						"Values the whole script can read and write. **Add** makes one; drag it onto the " +
 						"canvas for a Get, or hold `Ctrl` while you drop for a Set.",
 				},
-				// Rows rather than controls: they carry no `name`, so the legend
-				// does not list them. The panel's parts are what a reader is
-				// matching; the rows are what those parts contain -- and a
-				// section drawn empty reads as one that holds nothing, which is
-				// the wrong thing to say about all four of these.
 				{ t: "row", label: "Accumulator", trailing: "number", swatch: "number" },
 				{ t: "row", label: "MaxTanks", trailing: "number", swatch: "number", badge: "const" },
-				{
-					t: "heading",
-					text: "Services",
-					action: "Add",
-					name: "Services",
-					what:
-						"The services this script fetches at the top of the file, in this order. Roblox " +
-						"graphs only. Drag one onto the canvas for a Get Service, or use it by name in " +
-						"Code Block; one nothing uses is a warning.",
-				},
-				{ t: "row", label: "ReplicatedStorage", trailing: "service", swatch: "Instance" },
-				{ t: "row", label: "Players", trailing: "service", swatch: "Instance" },
-				{
-					t: "heading",
-					text: "Modules",
-					action: "Add",
-					name: "Modules",
-					what:
-						"What this script requires. Each one writes a single `require` at the top of the " +
-						"generated file, however many places read it — so four uses are four pills and " +
-						"one import.",
-				},
-				// `outline` rather than a colour: a variable's swatch is its type's,
-				// and a module has no type.
-				{
-					t: "row",
-					label: "Greeter",
-					trailing: "ReplicatedStorage.Shared.Greeter",
-					swatch: "outline",
-				},
-				{ t: "row", label: "Config", trailing: "@self/Config", swatch: "outline" },
 				{
 					t: "heading",
 					text: "Locals",
 					name: "Locals",
 					what:
-						"The Declare Locals and named results this graph can see. A local exists inside " +
-						"the block that declared it, so the list changes with the graph you are looking " +
-						"at — and there is no **Add**, because a local is declared by a node on the " +
-						"canvas, where it runs. Double-click one, or `Ctrl` + click it, to go to its node.",
+						"The Declare Locals and named results this graph can see, each typed as its value " +
+						"is. A local exists inside the block that declared it, so the list changes with " +
+						"the graph you are looking at. Double-click one, or `Ctrl` + click it, to go to its node.",
 				},
 				{ t: "row", label: "restores", trailing: "{ [Model]: Restore }", swatch: "table" },
-				{ t: "row", label: "tuning", trailing: "Tuning", swatch: "table", badge: "const" },
+				{ t: "row", label: "EXIT", trailing: "string", swatch: "string", badge: "const" },
 				{ t: "row", label: "hullModel", trailing: "Instance", swatch: "Instance", badge: "result" },
 				{
 					t: "heading",
 					text: "Functions",
 					name: "Functions",
 					what:
-						"Every function this script declares. Clicking one opens its graph, which is how " +
-						"you move between them — a declaration in a graph of any size is off screen.",
+						"Every function this script declares, with its signature. Clicking one opens its " +
+						"graph, which is how you move between them.",
 				},
-				// `hoisted` and `here` are the editor's own trailing words, and
-				// they are the difference between the two declaration nodes.
-				{ t: "row", label: "read", trailing: "hoisted", swatch: "function" },
-				{ t: "row", label: "hide", trailing: "here", swatch: "function" },
+				{ t: "row", label: "read", trailing: "(Model) → Instance", swatch: "function" },
+				{ t: "row", label: "hide", trailing: "(Model, BasePart) → boolean", swatch: "function" },
 			],
 		},
 	],
@@ -2245,8 +2223,8 @@ export function pointingElsewhere(
 const POINTERS = {
 	variables:
 		"Values the whole script reads and writes. See [Variables and locals](variables-and-locals).",
-	services: "The services this script fetches at the top. See [Modules](modules).",
-	modules: "What this script requires, one `require` each. See [Modules](modules).",
+	"services-and-modules":
+		"What this script fetches and requires, at the top. See [Modules](modules) and [Services](services).",
 	locals: "Values that exist inside one block. See [Variables and locals](variables-and-locals).",
 	functions: "Every function this script declares. See [Functions](functions).",
 };
@@ -2266,16 +2244,14 @@ export const MODULES_PANEL: ToolbarSpec = pointingElsewhere(VARIABLES_PANEL, {
  * with modules and functions pointing at the pages about them.
  */
 export const VARIABLES_PAGE_PANEL: ToolbarSpec = pointingElsewhere(VARIABLES_PANEL, {
-	services: POINTERS.services,
-	modules: POINTERS.modules,
+	"services-and-modules": POINTERS["services-and-modules"],
 	functions: POINTERS.functions,
 });
 
 /** The Variables panel as the Functions page draws it. */
 export const FUNCTIONS_PANEL: ToolbarSpec = pointingElsewhere(VARIABLES_PANEL, {
 	variables: POINTERS.variables,
-	services: POINTERS.services,
-	modules: POINTERS.modules,
+	"services-and-modules": POINTERS["services-and-modules"],
 	locals: POINTERS.locals,
 });
 

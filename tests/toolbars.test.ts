@@ -564,11 +564,11 @@ describe("drawing a panel", () => {
 	 */
 	it("lists the sections and not the example rows", () => {
 		const listed = legendOf(VARIABLES_PANEL).map((item) => item.name);
-		expect(listed).toEqual(["Variables", "Services", "Modules", "Locals", "Functions"]);
+		expect(listed).toEqual(["Services and modules", "Variables", "Locals", "Functions"]);
 		// The rows are still drawn.
 		const html = toolbarHtml(VARIABLES_PANEL, art);
 		expect(html).toContain("Accumulator");
-		expect(html).toContain("ReplicatedStorage.Shared.Greeter");
+		expect(html).toContain("Shared.Greeter");
 	});
 
 	/** The pointing is the shared part, and needs nothing panel-specific. */
@@ -583,9 +583,10 @@ describe("drawing a panel", () => {
 	it("draws Add on the sections that declare something", () => {
 		const html = toolbarHtml(VARIABLES_PANEL, art);
 		const sections = html.split("variables-sub");
-		expect(sections.find((part) => part.includes("Modules"))).toContain("Add");
-		expect(sections.find((part) => part.includes("Services"))).toContain("Add");
+		expect(sections.find((part) => part.includes("Services and modules"))).toContain("Module");
 		expect(sections.find((part) => part.includes("Locals"))).not.toContain("Add");
+		// The panel's own Add, in its header, makes a variable.
+		expect(sections[0]).toContain("Add");
 	});
 });
 
@@ -604,7 +605,7 @@ describe("pointing a section at its own page", () => {
 
 	/** Each variant, and the sections that page is the page for. */
 	const VARIANTS: [string, ToolbarSpec, string[]][] = [
-		["modules", MODULES_PANEL, ["Services", "Modules"]],
+		["modules", MODULES_PANEL, ["Services and modules"]],
 		["variables-and-locals", VARIABLES_PAGE_PANEL, ["Variables", "Locals"]],
 		["functions", FUNCTIONS_PANEL, ["Functions"]],
 	];
@@ -633,13 +634,17 @@ describe("pointing a section at its own page", () => {
 		for (const [slug, spec, mine] of VARIANTS) {
 			const html = toolbarHtml(spec, art);
 			const sections = [
-				// A section's heading is an `h3`, or the card's header for the first.
+				// A section's heading is an `h3`; the card's own header is not a section of the legend.
 				...html.matchAll(
-					/<div class="panel-section( dim| focus)?">.*?<span(?: class="card-title")?>([^<]+)<\/span>/g,
+					/<div class="panel-section( dim| focus)?">(?:(?!card-title).)*?<span>([^<]+)<\/span>/g,
 				),
 			];
-			expect(sections.length, slug).toBe(legendOf(VARIABLES_PANEL).length);
-			for (const [, state, text] of sections) {
+			// The panel's own header is a section with no legend entry of its own.
+			const named = sections.filter(([, , text]) =>
+				legendOf(VARIABLES_PANEL).some((item) => item.name.toUpperCase() === text.toUpperCase()),
+			);
+			expect(named.length, slug).toBe(legendOf(VARIABLES_PANEL).length);
+			for (const [, state, text] of named) {
 				const owned = mine.some((name) => name.toUpperCase() === text.toUpperCase());
 				expect(state?.trim(), `${slug}: ${text}`).toBe(owned ? "focus" : "dim");
 			}

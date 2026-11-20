@@ -29,9 +29,18 @@ import type {
 	ScriptVariable,
 } from "../core/schema.js";
 import { SPECIFIER_HINTS } from "../core/schema.js";
+import {
+	functionSignature,
+	localTypeOf,
+	moduleTableVariable,
+	servicesAndModules,
+	useCounts,
+	usesOf,
+} from "../core/variablesOutline.js";
 import { frameNode } from "./CanvasStrip.jsx";
 import { PanelHead } from "./Cards.jsx";
 import { cx } from "./cx.js";
+import { ExplorerIcon } from "./ExplorerIcon.jsx";
 import {
 	addModule,
 	addService,
@@ -48,6 +57,7 @@ import {
 	updateVariable,
 	variableUsageCount,
 } from "./edits.js";
+import { Icon } from "./icons.jsx";
 import { configText } from "./nodeConfig.js";
 import { pinColor } from "./palette.js";
 import { specifierSuggestions, useProjectLuaurc } from "./projectAliases.js";
@@ -120,7 +130,6 @@ export function VariablesPanel({
 
 	const [open, setOpen] = useState<string | null>(null);
 	const [addingService, setAddingService] = useState(false);
-	const services = script.services ?? [];
 	// Double-click or Ctrl+click a local: its node, brought into view.
 	const goTo = (id: string) => {
 		store.reveal(id);
@@ -150,6 +159,45 @@ export function VariablesPanel({
 			(n.def === "type.declareTop" || visibleFrom(n, graph, hoisted)),
 	);
 	const required = requiredTypes(script, useProjectTypes());
+	const outline = servicesAndModules(script);
+	const counts = useCounts(script);
+	const tableId = moduleTableVariable(script);
+	const table = script.variables.find((v) => v.id === tableId);
+	const variables = script.variables.filter((v) => v.id !== tableId);
+	const [filter, setFilter] = useState("");
+	const needle = filter.trim().toLowerCase();
+	const shows = (name: string) => needle === "" || name.toLowerCase().includes(needle);
+	const showsModule = (m: ScriptModule) => shows(m.name) || shows(m.specifier);
+	const rowCount =
+		outline.services.length +
+		(script.modules ?? []).length +
+		script.variables.length +
+		declaredTypes.length +
+		required.length +
+		locals.length +
+		namedResults.length +
+		functions.length;
+	// Selects what uses a row, and brings the first into view.
+	const findUses = (ids: string[]) => {
+		if (ids.length === 0) return;
+		store.select(ids);
+		requestAnimationFrame(() => frameNode(ids[0], registry));
+	};
+	const moduleRow = (module: ScriptModule, nested: boolean) =>
+		showsModule(module) && (
+			<ModuleRow
+				key={module.id}
+				script={script}
+				module={module}
+				confirm={confirm}
+				nested={nested}
+				uses={counts.get(module.id) ?? 0}
+				onFind={() => findUses(usesOf(script, module.id))}
+				expanded={open === module.id}
+				onToggle={() => setOpen((id) => (id === module.id ? null : module.id))}
+			/>
+		);
+	const servicesShown = script.target === "roblox" || outline.services.length > 0;
 
 	return (
 		<div className={cx("variables", locked && "editing-locked")}>
@@ -169,87 +217,63 @@ export function VariablesPanel({
 				</button>
 			</PanelHead>
 
-			<div className="variable-list">
-				{script.variables.map((variable) => (
-					<VariableRow
-						key={variable.id}
-						script={script}
-						variable={variable}
-						confirm={confirm}
-						expanded={open === variable.id}
-						onToggle={() => setOpen((id) => (id === variable.id ? null : variable.id))}
+			<div
+				className="variable-list"
+				onContextMenu={(e) => {
+					// A long press on a touch screen: the row's actions, in place of its count.
+					const head = (e.target as Element).closest(".variable-head");
+					if (!head || !head.querySelector(".row-actions")) return;
+					e.preventDefault();
+					for (const other of document.querySelectorAll(".variable-head.show-actions"))
+						if (other !== head) other.classList.remove("show-actions");
+					head.classList.toggle("show-actions");
+				}}
+			>
+				{/* A filter once the panel holds more than a screen of rows. */}
+				{rowCount > FILTER_FROM && (
+					<input
+						className="tb variables-filter"
+						placeholder="Filter"
+						aria-label="Filter the panel"
+						value={filter}
+						onChange={(e) => setFilter(e.target.value)}
 					/>
-				))}
-				{script.variables.length === 0 && (
-					<p className="hint" title={EMPTY_VARIABLES.more}>
-						{EMPTY_VARIABLES.text}
-					</p>
 				)}
 
-				{/* The services this script fetches at the top, in this order.
-				    
-				    Roblox's, so shown on a Roblox graph -- and on a Lune one only
-				    while it still has some, so they can be seen and removed. A
-				    service dragged in from the DataModel browser is declared. */}
-				{(script.target === "roblox" || services.length > 0) && (
-					<DataModelDrop
-						accepts={(drag) => drag.path.length === 1 && isService(drag.path[0] ?? "")}
-						onDrop={(drag) => store.edit((s) => addService(s, drag.path[0] ?? ""))}
+				{/* Services and the modules required through them, as the file
+				    declares them: a require needs its service's local above it.
+				    A service the graph only fetches where it is used is listed
+				    too, fainter, with Declare; a module through script sits
+				    under a script row; the rest after. */}
+				<DataModelDrop
+					accepts={(drag) =>
+						(servicesShown && drag.path.length === 1 && isService(drag.path[0] ?? "")) ||
+						drag.className === "ModuleScript"
+					}
+					onFile={script.target === "roblox" ? onModuleFile : undefined}
+					onDrop={(drag) =>
+						drag.className === "ModuleScript"
+							? store.edit(
+									(s) =>
+										declareModule(s, drag.path.at(-1) ?? "module", instanceSpecifier(drag.path))
+											.script,
+								)
+							: store.edit((s) => addService(s, drag.path[0] ?? ""))
+					}
+				>
+					<Heading
+						title={servicesShown ? "Services and modules" : "Modules"}
+						count={(servicesShown ? outline.services.length : 0) + (script.modules ?? []).length}
 					>
-						<h3 className="variables-sub">
-							<span>Services</span>
+						{servicesShown && (
 							<button
 								className="tb"
 								title="Declare a service"
 								onClick={() => setAddingService(true)}
 							>
-								Add
+								Service
 							</button>
-						</h3>
-						{services.map((name) => (
-							<ServiceRow
-								key={name}
-								name={name}
-								local={script.serviceNames?.[name]}
-								onDelete={() => store.edit((s) => deleteService(s, name))}
-							/>
-						))}
-						{addingService && (
-							<ServicePicker
-								declared={services}
-								onDone={(name) => {
-									setAddingService(false);
-									if (name) store.edit((s) => addService(s, name));
-								}}
-							/>
 						)}
-						{services.length === 0 && !addingService && (
-							<p className="hint" title={EMPTY_SERVICES.more}>
-								{EMPTY_SERVICES.text}
-							</p>
-						)}
-					</DataModelDrop>
-				)}
-
-				{/* What this script requires.
-				    
-				    Here rather than in a panel of its own because it answers the
-				    same question the variables do -- what does this script have
-				    to hand -- and because a require is a dependency, which is
-				    exactly the kind of thing that should be somewhere you can see
-				    it rather than somewhere you have to go looking. */}
-				<DataModelDrop
-					accepts={(drag) => drag.className === "ModuleScript"}
-					onFile={script.target === "roblox" ? onModuleFile : undefined}
-					onDrop={(drag) =>
-						store.edit(
-							(s) =>
-								declareModule(s, drag.path.at(-1) ?? "module", instanceSpecifier(drag.path)).script,
-						)
-					}
-				>
-					<h3 className="variables-sub">
-						<span>Modules</span>
 						<button
 							className="tb"
 							title="Require a module"
@@ -261,48 +285,165 @@ export function VariablesPanel({
 								})
 							}
 						>
-							Add
+							Module
 						</button>
-					</h3>
-					{(script.modules ?? []).map((module) => (
-						<ModuleRow
-							key={module.id}
-							script={script}
-							module={module}
-							confirm={confirm}
-							expanded={open === module.id}
-							onToggle={() => setOpen((id) => (id === module.id ? null : module.id))}
-						/>
-					))}
-					{(script.modules ?? []).length === 0 && (
-						<p className="hint" title={emptyModules(script.target).more}>
-							{emptyModules(script.target).text}
-						</p>
+					</Heading>
+					{servicesShown &&
+						outline.services.map(
+							(group) =>
+								(shows(group.name) || group.modules.some(showsModule)) && (
+									<div key={group.name} className="variable-group">
+										<ServiceRow
+											name={group.name}
+											local={script.serviceNames?.[group.name]}
+											declared={group.declared}
+											uses={group.uses}
+											onFind={() => findUses(usesOf(script, group.name, true))}
+											onDeclare={() => store.edit((s) => addService(s, group.name))}
+											onDelete={() => store.edit((s) => deleteService(s, group.name))}
+										/>
+										{group.modules.map((module) => moduleRow(module, true))}
+									</div>
+								),
+						)}
+					{outline.throughScript.length > 0 && (
+						<div className="variable-group">
+							<div className="variable">
+								<div
+									className="variable-head script-row"
+									title="Required through script: where this graph's script sits."
+								>
+									<ExplorerIcon className="Script" service={false} open={false} />
+									<span className="name">script</span>
+								</div>
+							</div>
+							{outline.throughScript.map((module) => moduleRow(module, true))}
+						</div>
 					)}
+					{outline.others.map((module) => moduleRow(module, false))}
+					{addingService && (
+						<ServicePicker
+							declared={script.services ?? []}
+							onDone={(name) => {
+								setAddingService(false);
+								if (name) store.edit((s) => addService(s, name));
+							}}
+						/>
+					)}
+					{outline.services.length === 0 &&
+						(script.modules ?? []).length === 0 &&
+						!addingService && (
+							<p
+								className="hint"
+								title={servicesShown ? EMPTY_SERVICES.more : emptyModules(script.target).more}
+							>
+								{servicesShown ? EMPTY_SERVICES.text : emptyModules(script.target).text}
+							</p>
+						)}
 				</DataModelDrop>
+
+				{/* The table a ModuleScript returns: what requiring it gives. */}
+				{table && shows(table.name) && (
+					<>
+						<Heading title="Module" count={1} />
+						<VariableRow
+							key={table.id}
+							script={script}
+							variable={table}
+							confirm={confirm}
+							exported
+							uses={counts.get(table.id) ?? 0}
+							onFind={() => findUses(usesOf(script, table.id))}
+							expanded={open === table.id}
+							onToggle={() => setOpen((id) => (id === table.id ? null : table.id))}
+						/>
+					</>
+				)}
+
+				{/* The types this graph declares, and the ones its requires bring
+				    in. Dragged out, a type becomes a local of that type. */}
+				{(declaredTypes.length > 0 || required.length > 0) && (
+					<>
+						<Heading title="Types" count={declaredTypes.length + required.length} />
+						{declaredTypes.map((node) => {
+							const name = (configText(node, "name") ?? "").trim();
+							return (
+								shows(name) && (
+									<TypeRow
+										key={node.id}
+										// Only types with a name are listed; see `declaredTypes`.
+										type={name}
+										detail={node.config?.export === false ? "type" : "export"}
+										onClick={() => store.reveal(node.id)}
+									/>
+								)
+							);
+						})}
+						{required.map(
+							(entry) =>
+								shows(entry.type) && (
+									<TypeRow
+										key={entry.type}
+										type={entry.type}
+										detail="required"
+										title={`Exported by ${entry.graph}`}
+									/>
+								),
+						)}
+					</>
+				)}
+
+				<Heading title="Variables" count={variables.length} />
+				{variables.map(
+					(variable) =>
+						shows(variable.name) && (
+							<VariableRow
+								key={variable.id}
+								script={script}
+								variable={variable}
+								confirm={confirm}
+								uses={counts.get(variable.id) ?? 0}
+								onFind={() => findUses(usesOf(script, variable.id))}
+								expanded={open === variable.id}
+								onToggle={() => setOpen((id) => (id === variable.id ? null : variable.id))}
+							/>
+						),
+				)}
+				{variables.length === 0 && (
+					<p className="hint" title={EMPTY_VARIABLES.more}>
+						{EMPTY_VARIABLES.text}
+					</p>
+				)}
 
 				{/* The graph's Declare Locals, so one can be dragged out as a Get
 				    Local instead of wired from where it was made. */}
 				{(locals.length > 0 || namedResults.length > 0) && (
 					<>
-						<h3 className="variables-sub">Locals</h3>
+						<Heading title="Locals" count={locals.length + namedResults.length} />
 						{locals.map((node) => (
 							<LocalRow
 								key={node.id}
 								node={node}
+								type={localTypeOf(script, registry, node)}
+								hidden={!shows(localRefFor(node).name ?? "")}
+								uses={counts.get(node.id) ?? 0}
+								onFind={() => findUses(usesOf(script, node.id))}
 								onDelete={() => deleteDeclaration(node, "local")}
 								onGoTo={() => goTo(node.id)}
 							/>
 						))}
-						{namedResults.map(({ node, ref }) => (
-							<NamedResultRow
-								key={node.id}
-								node={node}
-								name={ref.name}
-								type={ref.type}
-								onGoTo={() => goTo(node.id)}
-							/>
-						))}
+						{namedResults.map(
+							({ node, ref }) =>
+								shows(ref.name) && (
+									<NamedResultRow
+										key={node.id}
+										node={node}
+										name={ref.name}
+										type={ref.type}
+										onGoTo={() => goTo(node.id)}
+									/>
+								),
+						)}
 					</>
 				)}
 
@@ -311,43 +452,90 @@ export function VariablesPanel({
 				    says what there is and takes you to one. */}
 				{functions.length > 0 && (
 					<>
-						<h3 className="variables-sub">Functions</h3>
-						{functions.map((node) => (
-							<FunctionRow
-								key={node.id}
-								node={node}
-								onDelete={() => deleteDeclaration(node, "function")}
-							/>
-						))}
-					</>
-				)}
-
-				{/* The types this graph declares, and the ones its requires bring
-				    in. Dragged out, a type becomes a local of that type. */}
-				{(declaredTypes.length > 0 || required.length > 0) && (
-					<>
-						<h3 className="variables-sub">Types</h3>
-						{declaredTypes.map((node) => (
-							<TypeRow
-								key={node.id}
-								// Only types with a name are listed; see `declaredTypes`.
-								type={(configText(node, "name") ?? "").trim()}
-								detail={node.config?.export === false ? "type" : "export"}
-								onClick={() => store.reveal(node.id)}
-							/>
-						))}
-						{required.map((entry) => (
-							<TypeRow
-								key={entry.type}
-								type={entry.type}
-								detail="required"
-								title={`Exported by ${entry.graph}`}
-							/>
-						))}
+						<Heading title="Functions" count={functions.length} />
+						{functions.map(
+							(node) =>
+								shows(configText(node, "name") ?? "") && (
+									<FunctionRow
+										key={node.id}
+										node={node}
+										uses={counts.get(node.id) ?? 0}
+										onFind={() => findUses(usesOf(script, node.id))}
+										onDelete={() => deleteDeclaration(node, "function")}
+									/>
+								),
+						)}
 					</>
 				)}
 			</div>
 		</div>
+	);
+}
+
+/** Past this many rows the panel is more than a screen, and offers a filter. */
+const FILTER_FROM = 20;
+
+/** A heading: its name, how many rows are under it, and its buttons. */
+function Heading({
+	title,
+	count,
+	children,
+}: {
+	title: string;
+	count: number;
+	children?: ReactNode;
+}) {
+	return (
+		<h3 className="variables-sub">
+			<span>{title}</span>
+			<span className="variables-count">{count}</span>
+			{children && <span className="variables-sub-actions">{children}</span>}
+		</h3>
+	);
+}
+
+/**
+ * How often a row is used, resting at its right; under the pointer, or after
+ * a long press on a touch screen, Find uses and Delete in its place.
+ */
+function RowEnd({
+	name,
+	uses,
+	onFind,
+	onDelete,
+	extra,
+}: {
+	name: string;
+	uses: number;
+	onFind?: () => void;
+	onDelete?: () => void;
+	/** A button of the row's own, before Find uses: Declare. */
+	extra?: ReactNode;
+}) {
+	return (
+		<>
+			<span className="row-uses">
+				{uses === 0 ? "unused" : `${uses} use${uses === 1 ? "" : "s"}`}
+			</span>
+			<span className="row-actions">
+				{extra}
+				{onFind && uses > 0 && (
+					<button
+						className="tb icon-only"
+						title={`Find what uses "${name}"`}
+						aria-label={`Find what uses "${name}"`}
+						draggable={false}
+						onClick={(e) => {
+							e.stopPropagation();
+							onFind();
+						}}
+					>
+						<Icon name="search" size={12} />
+					</button>
+				)}
+				{onDelete && <RowDelete name={name} onDelete={onDelete} />}
+			</span>
+		</>
 	);
 }
 
@@ -399,14 +587,24 @@ function ModuleRow({
 	expanded,
 	onToggle,
 	confirm,
+	nested,
+	onFind,
 }: {
 	module: ScriptModule;
 	script: NodeScript;
 	expanded: boolean;
 	onToggle: () => void;
 	confirm: VariablesPanelProps["confirm"];
+	/** Under the service, or script, it is required through. */
+	nested?: boolean;
+	uses?: number;
+	onFind?: () => void;
 }) {
 	const uses = moduleUsageCount(script, module.id);
+	// Under its service the path is said from there: Shared.Greeter, not ReplicatedStorage.Shared.Greeter.
+	const shown = nested
+		? module.specifier.replace(/^[A-Za-z_][A-Za-z0-9_]*\./, "")
+		: module.specifier;
 
 	function onDragStart(e: DragEvent) {
 		e.dataTransfer.setData("application/x-roswaal-module", JSON.stringify({ id: module.id }));
@@ -414,7 +612,7 @@ function ModuleRow({
 	}
 
 	return (
-		<div className={cx("variable", expanded && "expanded")}>
+		<div className={cx("variable", expanded && "expanded", nested && "nested")}>
 			<div
 				className="variable-head"
 				draggable
@@ -422,11 +620,12 @@ function ModuleRow({
 				onDragStart={onDragStart}
 				onClick={onToggle}
 			>
-				<span className="swatch module" />
+				<ExplorerIcon className="ModuleScript" service={false} open={false} />
 				<span className="name">{module.name}</span>
 				<span className="type" title={module.specifier || undefined}>
-					{module.specifier || "not set"}
+					{shown || "not set"}
 				</span>
+				<RowEnd name={module.name} uses={uses} onFind={onFind} />
 			</div>
 
 			{expanded && (
@@ -587,11 +786,20 @@ function DataModelDrop({
 function ServiceRow({
 	name,
 	local,
+	declared,
+	uses,
+	onFind,
+	onDeclare,
 	onDelete,
 }: {
 	name: string;
 	/** The local it is bound to, where not its own name. */
 	local?: string;
+	/** Declared up front, rather than only fetched where it is used. */
+	declared: boolean;
+	uses: number;
+	onFind: () => void;
+	onDeclare: () => void;
 	onDelete: () => void;
 }) {
 	function onDragStart(e: DragEvent) {
@@ -600,19 +808,42 @@ function ServiceRow({
 	}
 
 	return (
-		<div className="variable">
+		<div className={cx("variable", !declared && "undeclared")}>
 			<div
 				className="variable-head"
 				draggable
-				title="Drag onto the canvas for a Get Service. It reads the local declared here."
+				title={
+					declared
+						? "Drag onto the canvas for a Get Service. It reads the local declared here."
+						: "Fetched where it is used, after the declared services. Declare it to fetch it at the top."
+				}
 				onDragStart={onDragStart}
 			>
-				<span className="swatch" style={{ background: pinColor(name, "data") }} />
+				<ExplorerIcon className={name} service open={false} />
 				<span className="name">{local ?? name}</span>
-				<span className="type">
-					{local ? name : isService(name) ? "service" : "not a listed service"}
-				</span>
-				<RowDelete name={name} onDelete={onDelete} />
+				{local && <span className="type">{name}</span>}
+				{!isService(name) && <span className="type">not a listed service</span>}
+				<RowEnd
+					name={name}
+					uses={uses}
+					onFind={onFind}
+					{...(declared ? { onDelete } : {})}
+					extra={
+						!declared && (
+							<button
+								className="tb"
+								title={`Declare ${name} at the top of the file`}
+								draggable={false}
+								onClick={(e) => {
+									e.stopPropagation();
+									onDeclare();
+								}}
+							>
+								Declare
+							</button>
+						)
+					}
+				/>
 			</div>
 		</div>
 	);
@@ -677,15 +908,25 @@ function RowDelete({ name, onDelete }: { name: string; onDelete: () => void }) {
 /** One Declare Local: drag it for a Get Local, click it to find the node. */
 function LocalRow({
 	node,
+	type,
+	hidden,
+	uses,
+	onFind,
 	onDelete,
 	onGoTo,
 }: {
 	node: GraphNode;
+	/** Its declared type, or what its value is. */
+	type: string;
+	/** Filtered out. */
+	hidden?: boolean;
+	uses: number;
+	onFind: () => void;
 	onDelete: () => void;
 	onGoTo: () => void;
 }) {
 	const ref = localRefFor(node);
-	const declared = configText(node, "type")?.trim();
+	if (hidden) return null;
 
 	function onDragStart(e: DragEvent) {
 		e.dataTransfer.setData("application/x-roswaal-local", JSON.stringify({ id: node.id }));
@@ -702,14 +943,14 @@ function LocalRow({
 				onClick={(e) => (e.ctrlKey || e.metaKey ? onGoTo() : store.reveal(node.id))}
 				onDoubleClick={onGoTo}
 			>
-				<span className="swatch" style={{ background: pinColor(ref.type, "data") }} />
+				<span className="swatch" style={{ background: pinColor(type, "data") }} />
 				<span className="name">{ref.name}</span>
 				{/* The list is where you look to see what a graph holds, so a promise
 				    one of them has made belongs here rather than only in the
 				    Inspector of the node that made it. */}
 				{isConstLocal(node.config) && <span className="badge const">const</span>}
-				<span className="type">{declared || "any"}</span>
-				<RowDelete name={ref.name || "local"} onDelete={onDelete} />
+				<span className="type">{type}</span>
+				<RowEnd name={ref.name || "local"} uses={uses} onFind={onFind} onDelete={onDelete} />
 			</div>
 		</div>
 	);
@@ -762,7 +1003,17 @@ function NamedResultRow({
  * tell from the name and the thing that decides where its body runs — hoisted
  * to the top of the file, or declared where the node sits.
  */
-function FunctionRow({ node, onDelete }: { node: GraphNode; onDelete: () => void }) {
+function FunctionRow({
+	node,
+	uses,
+	onFind,
+	onDelete,
+}: {
+	node: GraphNode;
+	uses: number;
+	onFind: () => void;
+	onDelete: () => void;
+}) {
 	const name = configText(node, "name") || "function";
 
 	function onDragStart(e: DragEvent) {
@@ -775,7 +1026,7 @@ function FunctionRow({ node, onDelete }: { node: GraphNode; onDelete: () => void
 			<div
 				className="variable-head"
 				draggable
-				title="Drag onto the canvas for a Get Function. Click to open its graph."
+				title={`${node.def === "function.entry" ? "Hoisted to the top of the file. " : ""}Drag onto the canvas for a Get Function. Click to open its graph.`}
 				onDragStart={onDragStart}
 				onClick={() => {
 					const path = store.getSnapshot().path;
@@ -784,8 +1035,8 @@ function FunctionRow({ node, onDelete }: { node: GraphNode; onDelete: () => void
 			>
 				<span className="swatch" style={{ background: pinColor("function", "data") }} />
 				<span className="name">{name}</span>
-				<span className="type">{node.def === "function.entry" ? "hoisted" : "here"}</span>
-				<RowDelete name={name} onDelete={onDelete} />
+				<span className="type">{functionSignature(node.config)}</span>
+				<RowEnd name={name} uses={uses} onFind={onFind} onDelete={onDelete} />
 			</div>
 		</div>
 	);
@@ -797,9 +1048,21 @@ interface VariableRowProps {
 	expanded: boolean;
 	onToggle: () => void;
 	confirm: VariablesPanelProps["confirm"];
+	/** The table a ModuleScript returns. */
+	exported?: boolean;
+	uses: number;
+	onFind: () => void;
 }
 
-function VariableRow({ variable, script, expanded, onToggle, confirm }: VariableRowProps) {
+function VariableRow({
+	variable,
+	script,
+	expanded,
+	onToggle,
+	confirm,
+	exported,
+	onFind,
+}: VariableRowProps) {
 	const uses = variableUsageCount(script, variable.id);
 
 	function onDragStart(e: DragEvent) {
@@ -814,7 +1077,13 @@ function VariableRow({ variable, script, expanded, onToggle, confirm }: Variable
 				<span className="swatch" style={{ background: pinColor(variable.type, "data") }} />
 				<span className="name">{variable.name}</span>
 				{variable.const === true && <span className="badge const">const</span>}
+				{exported && (
+					<span className="badge exported" title="What requiring this module gives">
+						exported
+					</span>
+				)}
 				<span className="type">{variable.type}</span>
+				<RowEnd name={variable.name} uses={uses} onFind={onFind} />
 			</div>
 
 			{expanded && (

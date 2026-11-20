@@ -39,7 +39,8 @@ export function modulesPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"Modules live in the **Variables panel**, under their own heading. It is the same " +
+					"Modules live in the **Variables panel**, under **Services and modules**, each under " +
+					"the service it is required through. It is the same " +
 					"question the variables answer — what does this script have to hand — and a " +
 					"dependency belongs somewhere you can see it rather than somewhere you go looking.",
 			},

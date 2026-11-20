@@ -67,7 +67,7 @@ export function servicesPage({ registry }: PageContext): DocPage {
 			{
 				t: "p",
 				text:
-					"A Roblox graph's Variables panel has a **Services** heading above Modules. A service " +
+					"A Roblox graph's Variables panel lists services under **Services and modules**. A service " +
 					"declared there is fetched at the very top of the file, in the order you list them, " +
 					"whether or not a node asks for it — so Code Block can read `Players` by name, and " +
 					"the top of the file reads the way you would write it.",

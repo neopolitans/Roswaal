@@ -6018,6 +6018,20 @@ button.start-tile:disabled {
 	background: color-mix(in srgb, var(--accent) 35%, var(--border));
 }
 
+/* How many rows a heading holds, beside its name. */
+.variables-count {
+	font-weight: 400;
+	color: var(--fg-faint);
+}
+
+/* A heading's buttons, after the line. */
+.variables-sub-actions {
+	order: 2;
+	display: inline-flex;
+	gap: 4px;
+}
+
+.variables-sub-actions > button.tb,
 .variables-sub > button.tb {
 	order: 2;
 	min-height: 0;
@@ -6086,6 +6100,78 @@ button.start-tile:disabled {
 	font-size: var(--text-xs);
 	color: var(--fg-faint);
 	font-family: "Cascadia Mono", Consolas, monospace;
+}
+
+/* How often a row is used, resting at its right. Under the pointer, or after
+   a long press, Find uses and Delete take its place. */
+.variable-head .row-uses {
+	flex: none;
+	font-size: var(--text-xs);
+	color: var(--fg-faint);
+}
+
+.variable-head .row-actions {
+	display: none;
+	flex: none;
+	align-items: center;
+	gap: 2px;
+}
+
+.variable-head:hover .row-uses,
+.variable-head.show-actions .row-uses,
+.variable-head:focus-within .row-uses {
+	display: none;
+}
+
+.variable-head:hover .row-actions,
+.variable-head.show-actions .row-actions,
+.variable-head:focus-within .row-actions {
+	display: inline-flex;
+}
+
+.variable-head .row-actions > .tb {
+	min-height: 0;
+	height: 18px;
+	padding: 0 5px;
+	font-size: var(--text-xs);
+}
+
+/* The type and the count share the right: the type gives way first. */
+.variable-head .type + .row-uses,
+.variable-head .type + .row-actions {
+	margin-left: 6px;
+}
+
+.variable-head .name + .row-uses {
+	margin-left: auto;
+}
+
+/* A module under the service, or script, it is required through. */
+.variable.nested .variable-head {
+	padding-left: 24px;
+}
+
+/* A service only fetched where it is used, not declared at the top. */
+.variable.undeclared .variable-head .name {
+	color: var(--fg-muted);
+	font-style: italic;
+}
+
+.variable-head.script-row {
+	cursor: default;
+}
+
+.variable-head .badge.exported {
+	font-size: var(--text-xs);
+	color: var(--accent);
+	border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+	border-radius: 999px;
+	padding: 0 5px;
+}
+
+.variables-filter {
+	width: 100%;
+	margin: 4px 0 2px;
 }
 
 /* Faint until pointed at, so a list of locals does not read as a list of

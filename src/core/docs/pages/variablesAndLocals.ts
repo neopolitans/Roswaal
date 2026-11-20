@@ -49,9 +49,13 @@ export function variablesAndLocalsPage(): DocPage {
 						"function, a loop or a handler, where it is a fresh local each time.",
 					"Renaming a variable in the panel renames every Get and Set of it at once. They " +
 						"carry its id, not its name.",
-					"The panel also lists this graph's **Locals**, **Functions** and **Types**. Click a " +
-						"function to open its graph, or drag it out for a **Get Function**. Clicking a " +
-						"local or a type goes to the graph its node is in.",
+					"The panel lists what the script declares in the order the file declares it: " +
+						"**Services and modules**, the module's own table under **Module**, **Types**, " +
+						"**Variables**, **Locals** and **Functions**, each heading with its count. A local " +
+						"is typed as its value is, and a function shows its signature. Click a function to " +
+						"open its graph; clicking a local or a type goes to the graph its node is in.",
+					"Each row says how often it is used. Under the pointer, or after a long press, " +
+						"**Find uses** selects what uses it. Past a screen of rows the panel offers a filter.",
 					"**×** on a local or a function deletes the node that declares it, and a function's " +
 						"graph with it. The nodes that read it stay, and report an error until repointed.",
 				],
