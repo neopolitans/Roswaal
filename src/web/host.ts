@@ -11,6 +11,8 @@
  * be ceremony without a purpose here for the same reason it is there.
  */
 
+import { pathProblem } from "../core/portableNames.js";
+import { UserError } from "../server/errors.js";
 import type { Formatter, ProjectFs, ProjectPath } from "../server/filesystem.js";
 
 import { posixPath } from "./posixPath.js";
@@ -48,6 +50,15 @@ export function usingVolume(): boolean {
 	return backing === volume;
 }
 
+/**
+ * Refuses a name Windows reads as something else (RAS-0013): the project may
+ * be a folder on a Windows disk, and is shared with people on one either way.
+ */
+function portable(target: string): void {
+	const problem = pathProblem(target, false);
+	if (problem) throw new UserError(problem);
+}
+
 export const fs: ProjectFs = {
 	stat: (target) => backing.stat(target),
 	// Passed through as called: with an encoding a file is text, without one bytes.
@@ -56,16 +67,17 @@ export const fs: ProjectFs = {
 			? backing.readFile(target, encoding)
 			: backing.readFile(target)) as ProjectFs["readFile"],
 	writeFile: ((target: string, data: string | Uint8Array, encoding?: "utf8") =>
-		typeof data === "string"
+		portable(target) ??
+		(typeof data === "string"
 			? backing.writeFile(target, data, encoding ?? "utf8")
-			: backing.writeFile(target, data)) as ProjectFs["writeFile"],
-	mkdir: (target, options) => backing.mkdir(target, options),
+			: backing.writeFile(target, data))) as ProjectFs["writeFile"],
+	mkdir: (target, options) => portable(target) ?? backing.mkdir(target, options),
 	readdir: ((target: string, options?: { withFileTypes: true }) =>
 		options ? backing.readdir(target, options) : backing.readdir(target)) as ProjectFs["readdir"],
 	rm: (target, options) => backing.rm(target, options),
 	access: (target) => backing.access(target),
-	rename: (from, to) => backing.rename(from, to),
-	copyFile: (from, to) => backing.copyFile(from, to),
+	rename: (from, to) => portable(to) ?? backing.rename(from, to),
+	copyFile: (from, to) => portable(to) ?? backing.copyFile(from, to),
 	// A getter, so it answers for whichever filesystem is behind it now.
 	get writesWhole() {
 		return backing.writesWhole === true;

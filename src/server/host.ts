@@ -22,6 +22,7 @@ import { constants as fsConstants } from "node:fs";
 import nodeFs from "node:fs/promises";
 import nodePath from "node:path";
 
+import { pathProblem } from "../core/portableNames.js";
 import { confinedRoots } from "./confine.js";
 import { UserError } from "./errors.js";
 import type { Formatter, ProjectFs, ProjectPath } from "./filesystem.js";
@@ -82,6 +83,21 @@ async function confined(target: string, own = false): Promise<void> {
 		if (within(root, at) || at === nodePath.dirname(at)) return;
 		at = nodePath.dirname(at);
 	}
+}
+
+/**
+ * Refuses making `target` when a name in it, below the project it is in, is
+ * one Windows reads as something else: see `core/portableNames.ts` (RAS-0013).
+ * Outside any project -- Roswaal's own settings -- there is nothing to check.
+ */
+function portable(target: string): void {
+	const root = rootOf(target);
+	if (root === undefined) return;
+	const problem = pathProblem(
+		nodePath.relative(root, nodePath.resolve(target)),
+		process.platform === "win32",
+	);
+	if (problem) throw new UserError(problem);
 }
 
 /**
@@ -170,6 +186,7 @@ export const fs: ProjectFs = {
 		}
 	}) as ProjectFs["readFile"],
 	writeFile: (async (target: string, data: string | Uint8Array, encoding?: "utf8") => {
+		portable(target);
 		// Created if it is not there, but not emptied until openConfined has passed it.
 		const handle = await openConfined(target, fsConstants.O_WRONLY | fsConstants.O_CREAT);
 		try {
@@ -180,7 +197,9 @@ export const fs: ProjectFs = {
 			await handle.close();
 		}
 	}) as ProjectFs["writeFile"],
-	mkdir: async (target, options) => (await confined(target), nodeFs.mkdir(target, options)),
+	mkdir: async (target, options) => (
+		portable(target), await confined(target), nodeFs.mkdir(target, options)
+	),
 	readdir: (async (target: string, options?: { withFileTypes: true }) => {
 		await confined(target);
 		return options ? nodeFs.readdir(target, options) : nodeFs.readdir(target);
@@ -188,11 +207,13 @@ export const fs: ProjectFs = {
 	rm: async (target, options) => (await confined(target, true), nodeFs.rm(target, options)),
 	access: async (target) => (await confined(target), nodeFs.access(target)),
 	rename: async (from, to) => {
+		portable(to);
 		await confined(from, true);
 		await confined(to);
 		return nodeFs.rename(from, to);
 	},
 	copyFile: async (from, to) => {
+		portable(to);
 		await confined(from);
 		await confined(to);
 		return nodeFs.copyFile(from, to);

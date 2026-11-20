@@ -34,6 +34,7 @@
  */
 
 import { type MapNode, type NodeMap, serialiseMap } from "../nodemap.js";
+import { nameProblem } from "../portableNames.js";
 import { scriptSuffix } from "../rojoPaths.js";
 import { SCHEMA_VERSION } from "../schema.js";
 import { isScript, pathOf, type RbxDocument, type RbxInstance, stringProp, walk } from "./dom.js";
@@ -119,7 +120,9 @@ function unsafeName(name: string): string | undefined {
 	if (name === "") return "it has no name";
 	if (/[<>:"/\\|?*\x00-\x1f]/.test(name)) return "its name has a character a file name cannot hold";
 	if (/^\s|[\s.]$/.test(name)) return "its name starts with a space or ends with a space or a dot";
-	if (RESERVED.test(name)) return "its name is reserved on Windows";
+	// A device name with any extension: `CON.backup` is still the console (RAS-0013).
+	if (RESERVED.test(name) || nameProblem(name, false)?.includes("device"))
+		return "its name is reserved on Windows";
 	// Dots are fine -- package folders carry versions -- except where Rojo would
 	// read the end of the name as one of its own suffixes.
 	if (/\.(server|client|meta|model|project|luau?|json|txt|csv|rbxmx?|toml)$/i.test(name)) {

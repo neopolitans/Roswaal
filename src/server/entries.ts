@@ -8,6 +8,7 @@
  * Roswaal never writes into and the files it keeps for you.
  */
 
+import { pathKey } from "../core/portableNames.js";
 import type { OpenProject } from "./config.js";
 import { graphName, isInitGraph, readScript, writeScript } from "./documents.js";
 import { UserError } from "./errors.js";
@@ -26,7 +27,11 @@ import { entryPath, isInside, safeJoin, toPosix } from "./paths.js";
 function assertEditable(project: OpenProject, relPath: string, verb: string): void {
 	const out = project.config.outDir.replace(/\/+$/, "");
 	const normalised = toPosix(relPath).replace(/^\.\//, "");
-	if (normalised !== out && !normalised.startsWith(out + "/")) return;
+	// Compared as Windows and macOS see names (RAS-0013): `SRC/x` and `src./x`
+	// are `src/x` there, and refusing one too many on Linux costs nothing.
+	const key = pathKey(normalised);
+	const outKey = pathKey(out);
+	if (key !== outKey && !key.startsWith(outKey + "/")) return;
 
 	throw new UserError(
 		`${out} holds generated files, so there is nothing to ${verb} there. ` +

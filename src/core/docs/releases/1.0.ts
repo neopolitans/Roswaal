@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.42",
+		date: "2026-11-20",
+		headline: "Roswaal makes no file or folder whose name Windows reads as something else.",
+		fixed: [
+			"**Names Windows reads differently.** Roswaal refuses to make a file or folder named for a device, such as con.luau, one with a colon, or one ending in a dot or a space, and on Windows one shaped like a short name. The message says which and asks for another name.",
+			"**The generated files' folder** is recognised however its name is spelled, in any case and with trailing dots or spaces, so nothing is made, moved or renamed inside it.",
+			"**Node packs** in a node path are found on Windows and macOS when its name is spelled in another case.",
+			"**Place import** leaves in the place a script named for a device with an extension, as it already did for one without.",
+		],
+		security: true,
+		affects: ["editor"],
+	},
+	{
 		version: "1.0.0-canary.41",
 		date: "2026-11-20",
 		headline: "Editing a place and Compiling for Roblox open again on the site.",

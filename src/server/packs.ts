@@ -15,6 +15,7 @@ import {
 	packTargets,
 	renamespace,
 } from "../core/packs.js";
+import { pathKey } from "../core/portableNames.js";
 import type { NodeDef, Target } from "../core/schema.js";
 import { isInitialised, type OpenProject, readConfig } from "./config.js";
 import { collectScripts, readScript } from "./documents.js";
@@ -134,7 +135,13 @@ function assertPackPath(project: PackProject, relPath: string): string {
 	const dirs = project.config.nodePaths.map((d) =>
 		path.posix.normalize(toPosix(d)).replace(/\/+$/, ""),
 	);
-	if (!dirs.some((dir) => target.startsWith(dir + "/"))) {
+	// Case-insensitive where the disk is (RAS-0013), so a pack in `.roswaal/Nodes`
+	// is not refused for being spelled differently from its node path there.
+	const insensitive =
+		typeof process !== "undefined" &&
+		(process.platform === "win32" || process.platform === "darwin");
+	const key = (p: string) => (insensitive ? pathKey(p) : p);
+	if (!dirs.some((dir) => key(target).startsWith(key(dir) + "/"))) {
 		throw new UserError(
 			`${target} is not in a node path. This project loads packs from ${dirs.join(", ")}.`,
 		);
