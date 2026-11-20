@@ -321,7 +321,7 @@ export function buildingAndRojoPage(): DocPage {
 					"another, or **Pass through**: the node syncs nothing and holds what is wired under " +
 					"it, each folder inside mapped on its own. Choosing the rule's folder folds plain " +
 					"folders mapped inside it into that one. **Optional** writes Rojo's optional path, so " +
-					"a missing folder passes through instead of failing. A node passing through says when " +
+					"a missing folder passes through instead of failing; it needs Rojo 7.1 or later. A node passing through says when " +
 					"files directly in its folder would not sync.",
 			},
 			{

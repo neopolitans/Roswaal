@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.36",
+		date: "2026-11-20",
+		headline: "The docs say optional paths need Rojo 7.1.",
+		changed: [
+			"**Rojo 7.1 for optional paths.** The docs for Optional and for package autosync say optional paths need Rojo 7.1 or later.",
+		],
+		affects: ["docs"],
+	},
+	{
 		version: "1.0.0-canary.35",
 		date: "2026-11-20",
 		headline: "Autosync maps packages wally.toml lists before they are installed.",
