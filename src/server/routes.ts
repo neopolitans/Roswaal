@@ -25,7 +25,7 @@
 import { VERSION } from "../cli/version.js";
 import { fromBase64, toBase64 } from "../core/base64.js";
 import { graphNameOf, importLuau, LARGEST_IMPORT } from "../core/import/fromLuau.js";
-import type { ImportMode, TopLevelLocals } from "../core/import/modes.js";
+import type { ImportMode, Rewrites, TopLevelLocals } from "../core/import/modes.js";
 import { NEW_PLACE_FILE } from "../core/newProject.js";
 import {
 	emptyFilesystemMap,
@@ -1582,6 +1582,7 @@ export class ApiSession {
 					replace?: boolean;
 					/** Statements kept as code share Code Blocks. */
 					codeRuns?: boolean;
+					rewrites?: Rewrites;
 				}>(req);
 				const luauPath = need(body.path, "path");
 				const fileName = path.posix.basename(luauPath);
@@ -1629,6 +1630,7 @@ export class ApiSession {
 					locals: body.locals,
 					mode: body.mode,
 					...(body.codeRuns !== undefined ? { codeRuns: body.codeRuns } : {}),
+					...(body.rewrites ? { rewrites: body.rewrites } : {}),
 					idPrefix: newId().slice(0, 8),
 				});
 				if (!result.ok)

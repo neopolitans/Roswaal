@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.50",
+		date: "2026-11-20",
+		headline: "An older file's functions import as functions, and Modern's rewrites are choices.",
+		added: [
+			"**Global functions import as functions.** function foo() in an imported file becomes a Declare Function that writes function foo() back unchanged, so its body becomes nodes rather than staying as code.",
+			"**Modern's rewrites, each a choice.** game.Players and its kind become declared services, :connect becomes :Connect, and wait, spawn and delay become task.wait, task.spawn and task.delay. The last is off to start, because their timing differs. A name the file declares itself is never rewritten.",
+		],
+		changed: [
+			"**The Variables panel's head** keeps one small menu for By kind or In script order, and for Script order once the headings are moved, beside Add.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.49",
 		date: "2026-11-20",
 		headline: "The Variables panel reads older files in their own order, globals included.",

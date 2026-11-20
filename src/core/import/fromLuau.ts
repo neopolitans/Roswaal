@@ -58,6 +58,8 @@ import {
 	findLikelyBugs,
 	type ImportMode,
 	modernEdits,
+	type Rewrites,
+	rewriteEdits,
 	type TopLevelLocals,
 } from "./modes.js";
 import { rowsByWidth } from "./rows.js";
@@ -79,6 +81,8 @@ export interface ImportOptions {
 	 * lines its face shows. Tidy and Modern only; on unless asked otherwise.
 	 */
 	codeRuns?: boolean;
+	/** Rewrites asked for on import, each a choice. See `rewriteEdits`. */
+	rewrites?: Rewrites;
 }
 
 export interface ImportReport {
@@ -1918,6 +1922,7 @@ class Importer {
 		if (!sig) return undefined;
 		let name: string;
 		let owner: Value | undefined;
+		let global = false;
 		const at = this.place(graph, row);
 		if (stat.kind === "localFunction") {
 			name = stat.name.name;
@@ -1936,9 +1941,10 @@ class Importer {
 			} else {
 				// `function f()` assigns to `f`: a global, or a local declared
 				// earlier (`local f` above it, so that what comes first can call
-				// it). Declare Function would write `local function f`, a new local
-				// that whatever captured the first never sees; kept as code.
-				return undefined;
+				// it). A Declare Function marked global writes `function f()` as
+				// it was, so whatever captured `f` still sees it, and its body
+				// becomes nodes rather than staying as code.
+				global = true;
 			}
 		}
 		if (!IDENT.test(name)) return undefined;
@@ -1950,6 +1956,7 @@ class Importer {
 				returns: sig.returns,
 				...(sig.returnsWritten === false ? { returnsWritten: false } : {}),
 				...(method ? { method: true } : {}),
+				...(global ? { global: true } : {}),
 			},
 		});
 		if (owner) this.feed(owner, { node: id, pin: "owner" });
@@ -2211,7 +2218,10 @@ function importFrom(file: string, options: ImportOptions): ImportResult {
 	const prefix = options.idPrefix ?? `imp${Math.random().toString(36).slice(2, 8)}`;
 	const mode = options.mode ?? "tidy";
 	const codeRuns = (options.codeRuns ?? true) && (mode === "tidy" || mode === "modern");
-	const edits = mode === "modern" ? modernEdits(parsed.value, src) : [];
+	const asked = rewriteEdits(parsed.value, src, options.rewrites ?? {}, isService);
+	const edits = [...(mode === "modern" ? modernEdits(parsed.value, src) : []), ...asked.edits].sort(
+		(a, b) => a.start - b.start,
+	);
 	const importer: Importer = new Importer(
 		src,
 		prefix,
@@ -2224,6 +2234,10 @@ function importFrom(file: string, options: ImportOptions): ImportResult {
 	);
 	importer.collectComments();
 	const services = options.target === "roblox" ? declaredServices(parsed.value) : undefined;
+	// `game.Players` rewritten to `Players` reads the service's local: declared.
+	if (services)
+		for (const name of asked.services)
+			if (!services.names.includes(name)) services.names.push(name);
 	const top = new Scope();
 	for (const name of services?.names ?? [])
 		top.set(services?.locals[name] ?? name, { kind: "service", name });

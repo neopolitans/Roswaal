@@ -9,6 +9,7 @@ import { LUAU_PRIMITIVES } from "../luneTypes.js";
 import { compoundOf } from "../nodes/compound.js";
 import {
 	boundValueOf,
+	isGlobalFunction,
 	isMethod,
 	loopNamesOf,
 	loopTypes,
@@ -482,7 +483,11 @@ function declareFunction(e: Emitter, r: ResolvedNode, scope: Scope): string | un
 	// its own and cannot collide with one. A method is still reached as a
 	// field when it is read as a value; only its declaration and its calls
 	// write the colon.
-	const ident = owner ? `${owner}.${name}` : e.declareName(name, "fn", id);
+	// `function f()` as an older file wrote it: the file's own name, not
+	// one made unique, since it assigns a global or a local declared above.
+	const global = owner === undefined && isGlobalFunction(r.node.config);
+	if (global) e.names.reserve(name);
+	const ident = owner ? `${owner}.${name}` : global ? name : e.declareName(name, "fn", id);
 	// Set before the body is walked, so the function can call itself and
 	// so a Get Function inside it resolves.
 	e.functionNames.set(id, ident);
@@ -505,7 +510,7 @@ function declareFunction(e: Emitter, r: ResolvedNode, scope: Scope): string | un
 	// `blank` will not double up, so a run of them gets one line each.
 	e.blank();
 	const header = method ? `${owner}:${name}` : ident;
-	e.push(`${owner ? "" : "local "}function ${header}(${params})${returns}`, id);
+	e.push(`${owner || global ? "" : "local "}function ${header}(${params})${returns}`, id);
 	e.indent++;
 	e.walk(bodyOf(e, r), body);
 	e.indent--;

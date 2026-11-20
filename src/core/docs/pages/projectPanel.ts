@@ -130,7 +130,7 @@ export function projectPanelPage(): DocPage {
 					],
 					[
 						"A `.luau` you wrote",
-						'**Import as graph** as well: a new graph that compiles back to that file. Its prompt names the risks and asks what file-level locals become and how the graph reads. It is laid out in rows as the file reads, keeping its blank lines. Names and types stay as the file has them, and a name that hides a global or a service is flagged on its node. A line such as `local Players = game:GetService("Players")` becomes one of the graph\'s services, and a method call becomes its node where the importer knows what it is called on. The file stays as it is until you overwrite it, after seeing what changes',
+						'**Import as graph** as well: a new graph that compiles back to that file. Its prompt names the risks and asks what file-level locals become and how the graph reads. It is laid out in rows as the file reads, keeping its blank lines. Names and types stay as the file has them, and a name that hides a global or a service is flagged on its node. A line such as `local Players = game:GetService("Players")` becomes one of the graph\'s services, and a method call becomes its node where the importer knows what it is called on. `function foo()` becomes a Declare Function that writes `function foo()` back unchanged, so its body is nodes too. **Modern** offers rewrites, each a choice: `game.Players` and its kind to declared services, `:connect` to `:Connect`, and, off to start because their timing differs, `wait`, `spawn` and `delay` to `task.*`. The file stays as it is until you overwrite it, after seeing what changes',
 					],
 					[
 						"A package, or Add on the Packages heading",

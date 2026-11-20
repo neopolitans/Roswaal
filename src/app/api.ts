@@ -31,7 +31,7 @@ export interface RequiredModule {
 import type { Diagnostic } from "../core/compiler/index.js";
 import type { FunctionInfo } from "../core/functionGraph.js";
 import type { ImportReport } from "../core/import/fromLuau.js";
-import type { ImportMode, TopLevelLocals } from "../core/import/modes.js";
+import type { ImportMode, Rewrites, TopLevelLocals } from "../core/import/modes.js";
 import type { LuaurcSource } from "../core/luaurc.js";
 import type { InstanceLocation, MapDiagnostic, NodeMap } from "../core/nodemap.js";
 import type { NodeDef, NodeScript, RoswaalConfig, ScriptClass, Target } from "../core/schema.js";
@@ -631,6 +631,8 @@ export const api = {
 			replace?: boolean;
 			/** Statements kept as code share Code Blocks. */
 			codeRuns?: boolean;
+			/** Rewrites asked for, each a choice. */
+			rewrites?: Rewrites;
 		} = {},
 	) =>
 		post<{ path: string; script: NodeScript; report: ImportReport }>("/api/script/import", {

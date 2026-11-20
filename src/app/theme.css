@@ -6137,15 +6137,6 @@ button.start-tile:disabled {
 	box-shadow: inset 0 2px 0 var(--accent);
 }
 
-/* By kind or In order, in the panel's head. */
-.variables-view {
-	margin-right: auto;
-}
-
-.variables-view > button {
-	font-size: var(--text-xs);
-}
-
 /* In script order: chips that narrow the list, and each row's kind. */
 .flow-chips {
 	display: flex;

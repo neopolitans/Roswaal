@@ -60,6 +60,15 @@ export function isMethod(config: NodeConfig | undefined): boolean {
 	return config?.method === true;
 }
 
+/**
+ * A function written `function f()` rather than `local function f()`: a
+ * global, or a local declared earlier, as an imported older file has it.
+ * Its name is the file's, taken as it is.
+ */
+export function isGlobalFunction(config: NodeConfig | undefined): boolean {
+	return config?.global === true;
+}
+
 /** A method's receiver, read like a parameter by Get Parameter and the pin. */
 export const RECEIVER = "self";
 

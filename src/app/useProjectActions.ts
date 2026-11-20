@@ -1182,6 +1182,30 @@ export function useProjectActions(context: ProjectActionsContext) {
 						],
 					},
 					codeRunsField(before?.codeRuns),
+					// Modern's rewrites, each a choice. Task's is apart and off:
+					// task.wait and its kind resume on a different schedule.
+					{
+						id: "rewriteServices",
+						kind: "check",
+						label: "game.Players and its kind become declared services",
+						value: true,
+						when: { id: "mode", value: "modern" },
+					},
+					{
+						id: "rewriteConnect",
+						kind: "check",
+						label: ":connect becomes :Connect",
+						value: true,
+						when: { id: "mode", value: "modern" },
+					},
+					{
+						id: "rewriteTask",
+						kind: "check",
+						label:
+							"wait, spawn and delay become task.wait, task.spawn and task.delay (their timing differs)",
+						value: false,
+						when: { id: "mode", value: "modern" },
+					},
 					...(conflict
 						? [
 								{
@@ -1213,6 +1237,15 @@ export function useProjectActions(context: ProjectActionsContext) {
 						: (detected ?? undefined),
 					...(again ? { replace: true } : {}),
 					codeRuns: chosen.codeRuns === true,
+					...(chosen.mode === "modern"
+						? {
+								rewrites: {
+									services: chosen.rewriteServices === true,
+									connect: chosen.rewriteConnect === true,
+									task: chosen.rewriteTask === true,
+								},
+							}
+						: {}),
 				});
 				await refreshTree();
 				store.open(out.path, out.script);

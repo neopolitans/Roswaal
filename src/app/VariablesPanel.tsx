@@ -78,6 +78,7 @@ import {
 	variableUsageCount,
 } from "./edits.js";
 import { Icon } from "./icons.jsx";
+import { MenuButton } from "./Menu.jsx";
 import { configText } from "./nodeConfig.js";
 import { pinColor } from "./palette.js";
 import { specifierSuggestions, useProjectLuaurc } from "./projectAliases.js";
@@ -714,46 +715,61 @@ export function VariablesPanel({
 	return (
 		<div className={cx("variables", locked && "editing-locked")}>
 			<PanelHead>
-				{!inFunction && (
-					<span className="segmented variables-view" role="radiogroup" aria-label="View">
-						{(
-							[
-								["kind", "By kind"],
-								["order", "In order"],
-							] as const
-						).map(([id, label]) => (
-							<button
-								key={id}
-								type="button"
-								role="radio"
-								aria-checked={(showOrder ? "order" : "kind") === id}
-								className={cx((showOrder ? "order" : "kind") === id && "on")}
-								title={
-									id === "order"
-										? "The flow's declarations as one list, in the order the file makes them"
-										: "Types, locals and functions under headings of their own"
-								}
-								onClick={() => {
-									setView(id);
-									saveView(id);
-								}}
-							>
-								{label}
-							</button>
-						))}
-					</span>
-				)}
-				{headingOrder.join() !== SCRIPT_ORDER.join() && (
-					<button
-						className="tb"
-						title="Put the headings back in the order the file declares them"
-						onClick={() => {
-							setHeadingOrder([...SCRIPT_ORDER]);
-							saveHeadingOrder([...SCRIPT_ORDER]);
-						}}
-					>
-						Script order
-					</button>
+				{/* How the panel lists things: one small menu rather than a switch
+				    and a button in the head. Empty in a function with the
+				    headings as the file has them, so then there is none. */}
+				{(!inFunction || headingOrder.join() !== SCRIPT_ORDER.join()) && (
+					<MenuButton
+						label={<Icon name="layout" size={14} />}
+						title="How the panel lists things"
+						align="end"
+						sections={[
+							...(!inFunction
+								? [
+										{
+											label: "List the flow",
+											entries: [
+												{
+													label: "By kind",
+													hint: "types, locals, functions",
+													checked: !showOrder,
+													run: () => {
+														setView("kind");
+														saveView("kind");
+													},
+												},
+												{
+													label: "In script order",
+													hint: "as the file makes them",
+													checked: showOrder,
+													run: () => {
+														setView("order");
+														saveView("order");
+													},
+												},
+											],
+										},
+									]
+								: []),
+							...(headingOrder.join() !== SCRIPT_ORDER.join()
+								? [
+										{
+											label: "Headings",
+											entries: [
+												{
+													label: "Script order",
+													hint: "as the file declares them",
+													run: () => {
+														setHeadingOrder([...SCRIPT_ORDER]);
+														saveHeadingOrder([...SCRIPT_ORDER]);
+													},
+												},
+											],
+										},
+									]
+								: []),
+						]}
+					/>
 				)}
 				<button
 					className="tb"

@@ -522,10 +522,13 @@ describe("the library's own nodes", () => {
 		expect(roundTrip(src, "T.server.luau")).toEqual(lines(src));
 	});
 
-	it("keeps `function f()` after `local f` as code: it assigns the local, not a new one", () => {
+	it("writes `function f()` after `local f` as it was: it assigns the local, not a new one", () => {
 		const src = "local f\nlocal function g()\n\tf()\nend\nfunction f()\n\tprint(1)\nend\ng()\n";
 		const script = imported(src, "T.server.luau");
-		expect(script.nodes.filter((n) => n.def === "function.declareHere")).toHaveLength(1);
+		const declared = script.nodes.filter((n) => n.def === "function.declareHere");
+		expect(declared).toHaveLength(2);
+		// f is marked global, so it is written `function f()`, not `local function f()`.
+		expect(declared.find((n) => n.config?.name === "f")?.config?.global).toBe(true);
 		expect(roundTrip(src, "T.server.luau")).toEqual(lines(src));
 	});
 });
@@ -777,3 +780,47 @@ interface TreeLike {
 function flatten(entries: TreeLike[]): TreeLike[] {
 	return entries.flatMap((e) => [e, ...flatten(e.children ?? [])]);
 }
+
+describe("an older file's global functions and Modern's rewrites", () => {
+	it("imports function f() as a function whose body is nodes, written back unchanged", () => {
+		const src =
+			"playersAlive = 0\n\nfunction startRound()\n\tprint(playersAlive)\nend\n\nstartRound()\n";
+		const script = imported(src, "T.server.luau");
+		const fn = script.nodes.find((n) => n.def === "function.declareHere");
+		expect(fn?.config).toMatchObject({ name: "startRound", global: true });
+		expect(roundTrip(src, "T.server.luau")).toEqual(lines(src));
+	});
+});
+
+describe("Modern's rewrites, each a choice", () => {
+	const modern = (
+		src: string,
+		rewrites: { services?: boolean; connect?: boolean; task?: boolean },
+	) => {
+		const { name, scriptClass } = graphNameOf("T.server.luau");
+		const result = importLuau(src, {
+			name,
+			scriptClass,
+			target: "roblox",
+			idPrefix: "t",
+			mode: "modern",
+			rewrites,
+		});
+		if (!result.ok) throw new Error(result.error);
+		return compile(result.script, registry).code;
+	};
+
+	it("turns game.Players into the declared service, and :connect into :Connect", () => {
+		const src = "game.Players.PlayerAdded:connect(function(p)\n\tprint(p)\nend)\n";
+		const out = modern(src, { services: true, connect: true });
+		expect(out).toContain('local Players = game:GetService("Players")');
+		expect(out).not.toContain("game.Players");
+		expect(out).not.toContain(":connect(");
+	});
+
+	it("leaves wait alone unless asked, and a name the file declares always", () => {
+		expect(modern("wait(1)\n", {})).not.toContain("task.wait");
+		expect(modern("wait(1)\n", { task: true })).toContain("task.wait(1)");
+		expect(modern("local wait = print\nwait(1)\n", { task: true })).not.toContain("task.wait");
+	});
+});

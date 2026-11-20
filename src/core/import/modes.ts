@@ -125,6 +125,73 @@ export function modernEdits(block: Block, src: string): Edit[] {
 	return out;
 }
 
+/** The rewrites an import can make on request, each its own choice. */
+export interface Rewrites {
+	/** `game.Players` and its kind to the service's local, declared. */
+	services?: boolean;
+	/** `:connect` to `:Connect`. */
+	connect?: boolean;
+	/** `wait`, `spawn` and `delay` to `task.*`: listed apart, because their timing differs. */
+	task?: boolean;
+}
+
+const TASK_FUNCTIONS = new Set(["wait", "spawn", "delay"]);
+
+/**
+ * The rewrites asked for, as edits, and the services the first one declares.
+ * A name the file declares for itself is never rewritten: `local wait`, or a
+ * local called `game`, means the file's own.
+ */
+export function rewriteEdits(
+	block: Block,
+	src: string,
+	rewrites: Rewrites,
+	isService: (name: string) => boolean,
+): { edits: Edit[]; services: string[] } {
+	const edits: Edit[] = [];
+	const services: string[] = [];
+	if (!rewrites.services && !rewrites.connect && !rewrites.task) return { edits, services };
+	const own = new Set<string>();
+	visitBlock(block, {
+		stat(s) {
+			if (s.kind === "local" || s.kind === "const") for (const n of s.names) own.add(n.name);
+			if (s.kind === "localFunction") own.add(s.name.name);
+		},
+	});
+	visitBlock(block, {
+		expr(e) {
+			if (
+				rewrites.services &&
+				e.kind === "index" &&
+				e.object.kind === "name" &&
+				e.object.name === "game" &&
+				!own.has("game") &&
+				isService(e.name.name) &&
+				!own.has(e.name.name)
+			) {
+				edits.push({ start: e.start, end: e.end, text: e.name.name });
+				if (!services.includes(e.name.name)) services.push(e.name.name);
+				return false;
+			}
+			if (rewrites.connect && e.kind === "methodCall" && e.method.name === "connect") {
+				edits.push({ start: e.method.start, end: e.method.end, text: "Connect" });
+			}
+			if (
+				rewrites.task &&
+				e.kind === "call" &&
+				e.callee.kind === "name" &&
+				TASK_FUNCTIONS.has(e.callee.name) &&
+				!own.has(e.callee.name)
+			) {
+				edits.push({ start: e.callee.start, end: e.callee.end, text: `task.${e.callee.name}` });
+			}
+			return undefined;
+		},
+	});
+	void src;
+	return { edits, services };
+}
+
 /** The text of `span` with the edits inside it made. */
 export function applyEdits(src: string, span: Span, edits: readonly Edit[]): string {
 	const inside = edits
