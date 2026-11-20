@@ -35,7 +35,7 @@ export function extensionsPage(): DocPage {
 					[
 						"**Place Editor**",
 						"0.1.0 · Preview",
-						"Draws your place in 3D in a tab of its own, with the place toolbar and the Rendering, Performance and Meshes panels",
+						"Draws your place in 3D in a tab of its own, with the place toolbar and the Rendering, Performance and Meshes panels. See [The place in 3D](place-in-3d)",
 					],
 				],
 			},

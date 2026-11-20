@@ -303,7 +303,7 @@ export function gettingStartedPage(): DocPage {
 										text:
 											"Or **Open place…** for a `.rbxl` or `.rbxlx`. It shows how many scripts " +
 											"Rojo can sync and how many only the place can hold, and asks which to bring " +
-											"in. [Places and Rojo projects](places-and-rojo) has the rest.",
+											"in. [Editing a place](editing-a-place) has the rest.",
 										window: WALK_PROJECT_MENU_WEB,
 										point: "Open place…",
 									},

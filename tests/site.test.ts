@@ -9,6 +9,7 @@
 import { describe, expect, it } from "vitest";
 import { VERSION } from "../src/cli/version.js";
 import { renderPage } from "../src/core/docs/html.js";
+import { currentSlug } from "../src/core/docs/moved.js";
 import { code } from "../src/core/docs/pages/blocks.js";
 import { RECENT_MINORS } from "../src/core/docs/pages/releaseNotes.js";
 import { RELEASES } from "../src/core/docs/releases.js";
@@ -265,7 +266,12 @@ describe("inline markup in the pages themselves", () => {
 		for (const page of allPages(site)) {
 			for (const text of pageStrings(page, "inline")) {
 				for (const run of parseInline(text)) {
-					if (run.t === "link" && isPageLink(run.href) && !slugs.has(run.href.split("#")[0])) {
+					// An old slug counts: MOVED_PAGES sends it to the page its content is on.
+					if (
+						run.t === "link" &&
+						isPageLink(run.href) &&
+						!slugs.has(currentSlug(run.href).split("#")[0])
+					) {
 						broken.push(`${page.slug} -> ${run.href}`);
 					}
 				}

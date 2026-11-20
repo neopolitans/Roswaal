@@ -57,7 +57,7 @@ export function luneDemosPage({ registry }: PageContext): DocPage {
 			"Compile the graph, then run the file — `lune run count-characters`. Roswaal " +
 			"writes the `.luau` and stops there; what runs it is Lune. Where the file lands, " +
 			"and what checks that the layout holds together, is on " +
-			"[Compiling and nodemaps for Lune](compiling-for-lune).",
+			"[Compiling for Lune](compiling-for-lune).",
 	});
 	blocks.push({
 		t: "note",

@@ -32,17 +32,19 @@ import type { Runtime } from "../nodes/runtimes.js";
 import { ENGINE_TYPES, type NodeScript } from "../schema.js";
 import { minorOf } from "../version.js";
 import type { LayoutSpec } from "./layouts.js";
+import { currentSlug } from "./moved.js";
 import { documentRegistry, type NodeDoc } from "./nodeReference.js";
 import { aliasesPage } from "./pages/aliases.js";
 import { attributionsPage } from "./pages/attributions.js";
-import { buildingAndRojoPage } from "./pages/buildingAndRojo.js";
 import { castingPage } from "./pages/casting.js";
 import { comingFromBlueprintsPage } from "./pages/comingFromBlueprints.js";
 import { commandLinePage } from "./pages/commandLine.js";
 import { compilingForLunePage } from "./pages/compilingForLune.js";
+import { compilingForRobloxPage } from "./pages/compilingForRoblox.js";
 import { contributingPage } from "./pages/contributing.js";
 import { controlsPage } from "./pages/controls.js";
 import { creatingCustomNodesPage } from "./pages/creatingCustomNodes.js";
+import { editingAPlacePage } from "./pages/editingAPlace.js";
 import { extensionsPage } from "./pages/extensions.js";
 import { functionsPage } from "./pages/functions.js";
 import { gettingStartedPage } from "./pages/gettingStarted.js";
@@ -53,11 +55,12 @@ import { luneLibraryPage } from "./pages/luneLibrary.js";
 import { membersAndFieldsPage } from "./pages/membersAndFields.js";
 import { modulesPage } from "./pages/modules.js";
 import { nodePage } from "./pages/node.js";
-import { placesAndRojoPage } from "./pages/placesAndRojo.js";
+import { placeIn3dPage } from "./pages/placeIn3d.js";
 import { projectPanelPage } from "./pages/projectPanel.js";
 import { readingLuauPage } from "./pages/readingLuau.js";
 import { releaseNotesPages } from "./pages/releaseNotes.js";
 import { robloxDemosPage } from "./pages/robloxDemos.js";
+import { rojoProjectsPage } from "./pages/rojoProjects.js";
 import { servicesPage } from "./pages/services.js";
 import { settingsPage } from "./pages/settings.js";
 import { theInterfacePage } from "./pages/theInterface.js";
@@ -82,7 +85,7 @@ export {
 	type StringSlot,
 	stripMarkup,
 } from "./markup.js";
-export { ROJO_SAMPLE } from "./pages/placesAndRojo.js";
+export { ROJO_SAMPLE } from "./pages/rojoProjects.js";
 export { releaseTags, SURFACES, TAG_LABELS } from "./releaseTags.js";
 export { type DocsHit, rankDocs, type SearchEntry, searchDocs } from "./search.js";
 export { buildSearchIndex } from "./searchIndex.js";
@@ -736,8 +739,10 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 	]);
 	const forRoblox = shelf([
 		servicesPage,
-		buildingAndRojoPage,
-		placesAndRojoPage,
+		rojoProjectsPage,
+		compilingForRobloxPage,
+		editingAPlacePage,
+		placeIn3dPage,
 		wallyPackagesPage,
 		readingLuauPage,
 		robloxDemosPage,
@@ -827,7 +832,8 @@ export function allPages(site: DocSite): DocPage[] {
 }
 
 export function findPage(site: DocSite, slug: string): DocPage | undefined {
-	return allPages(site).find((p) => p.slug === slug);
+	const now = currentSlug(slug);
+	return allPages(site).find((p) => p.slug === now);
 }
 
 /** One end of the walk through the site: where it goes, and what is there. */

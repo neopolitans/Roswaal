@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.40",
+		date: "2026-11-20",
+		headline: "Each Roblox docs page covers one feature.",
+		changed: [
+			"**Places and Rojo projects** is split. [Rojo projects and node maps](rojo-projects) has starting a project and building its map, [Editing a place](editing-a-place) has the place's instances and writing scripts into it, and [The place in 3D](place-in-3d) has the Place Editor.",
+			"**Compiling and nodemaps for Roblox** is [Compiling for Roblox](compiling-for-roblox); its node maps are on Rojo projects and node maps.",
+			"**Compiling for Lune** puts its node maps in one section after compiling. Declaring services is on [Services and their methods](services).",
+			"Links to the old pages lead to the new ones.",
+		],
+		affects: ["docs"],
+	},
+	{
 		version: "1.0.0-canary.39",
 		date: "2026-11-20",
 		headline: "The docs have a page on extensions.",

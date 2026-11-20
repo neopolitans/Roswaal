@@ -196,7 +196,7 @@ export function projectPanelPage(): DocPage {
 					"With a place, **Files** and **DataModel** sit at the right of the panel's heading. " +
 					"DataModel lists the place as Studio's Explorer does. Double-click an instance for " +
 					"**Properties**, on the right under the Inspector; on a tablet or a phone, double tap " +
-					"and it slides out. [Places and Rojo projects](places-and-rojo) has the rest.",
+					"and it slides out. [Editing a place](editing-a-place) has the rest.",
 			},
 		],
 	};

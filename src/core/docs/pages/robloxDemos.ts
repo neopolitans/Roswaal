@@ -110,8 +110,9 @@ export function robloxDemosPage({ registry }: PageContext): DocPage {
 		{
 			t: "p",
 			text:
-				"[Compiling and nodemaps for Roblox](building-and-rojo) is the page about that " +
-				"panel — what each field does, and what happens when you compile.",
+				"[Rojo projects and node maps](rojo-projects) is the page about that " +
+				"editor — what each field does — and [Compiling for Roblox](compiling-for-roblox) " +
+				"says what happens when you compile.",
 		},
 
 		{ t: "h", level: 2, text: "Running it" },

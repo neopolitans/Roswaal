@@ -1468,7 +1468,7 @@ export const EDITOR_BAR: ToolbarSpec = {
 					name: "Export",
 					what:
 						"The project as a zip, or its place alone, as `.rbxl` or Legacy `.rbxlx`. " +
-						"`Ctrl` + `Shift` + `E` opens it too. See [Places and Rojo projects](places-and-rojo).",
+						"`Ctrl` + `Shift` + `E` opens it too. See [Editing a place](editing-a-place).",
 				},
 				{
 					t: "icon",
@@ -1678,7 +1678,7 @@ export const MAP_BAR: ToolbarSpec = {
 					name: "Write project file",
 					what:
 						"Writes the map into the Rojo project file — `Ctrl` + `S`. See " +
-						"[Building and Rojo](building-and-rojo).",
+						"[Rojo projects and node maps](rojo-projects).",
 				},
 			],
 		},
@@ -2539,7 +2539,7 @@ export const MORE_MENU_PHONE: ToolbarSpec = {
 					name: "New node map",
 					what:
 						"A new map of where things live in the DataModel, in the folder you last chose. " +
-						"See [Node maps](building-and-rojo).",
+						"See [Rojo projects and node maps](rojo-projects).",
 				},
 			],
 		},
@@ -3653,7 +3653,7 @@ export const EXPORT_PANEL: ToolbarSpec = {
 	],
 };
 
-/** Every picture on Places and Rojo projects and on Wally packages. */
+/** Every picture on Editing a place, Rojo projects and node maps, and Wally packages. */
 export const PLACE_BARS: ToolbarSpec[] = [
 	PROJECT_TREE_WALLY,
 	PROJECT_TREE_WALLY_ADDED,

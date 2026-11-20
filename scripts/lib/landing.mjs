@@ -737,7 +737,7 @@ ${
 				"Places and Rojo projects",
 				"Open a <code>.rbxl</code> as a project with its scripts, and export back into the place. A <code>default.project.json</code> becomes a node map that makes the folders Rojo syncs.",
 				"0.98.0",
-				{ href: "docs/places-and-rojo.html", say: "Places and Rojo" },
+				{ href: "docs/editing-a-place.html", say: "Editing a place" },
 			)}
       ${card(
 				"table.insert",
@@ -761,8 +761,8 @@ ${
   <section class="landing-sec">
     <div class="landing-sec-head"><h2 class="landing-h2">Works with what you have</h2></div>
     <ul class="landing-works">
-      <li><a href="docs/building-and-rojo.html">Rojo <code>default.project.json</code></a></li>
-      <li><a href="docs/places-and-rojo.html">Place files <code>.rbxl .rbxlx</code></a></li>
+      <li><a href="docs/rojo-projects.html">Rojo <code>default.project.json</code></a></li>
+      <li><a href="docs/editing-a-place.html">Place files <code>.rbxl .rbxlx</code></a></li>
       <li><a href="docs/wally-packages.html">Wally packages</a></li>
       <li><a href="docs/compiling-for-lune.html">Lune</a></li>
       <li><a href="docs/hand-written-luau.html">Your own Luau modules</a></li>

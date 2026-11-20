@@ -9,6 +9,7 @@
  */
 
 import { isPageLink, parseInline } from "./markup.js";
+import { currentSlug } from "./moved.js";
 
 export function escapeHtml(text: string): string {
 	// Text from a pack or a graph is typed as a string, not checked as one:
@@ -25,7 +26,7 @@ export function escapeHtml(text: string): string {
  * place on the page after `#`, as a link to one requirement does.
  */
 export function pagePath(slug: string): string {
-	const [bare, hash] = slug.split("#");
+	const [bare, hash] = currentSlug(slug).split("#");
 	return `${bare}.html${hash ? `#${hash}` : ""}`;
 }
 
@@ -49,7 +50,7 @@ export function inlineHtml(text: string, pageHref: (slug: string) => string): st
 					// Another page of these docs is a file beside this one; written
 					// as its bare slug, it resolved to an address that did not exist.
 					return isPageLink(run.href)
-						? `<a href="${escapeHtml(pageHref(run.href))}" data-doc-slug="${escapeHtml(run.href)}">${body}</a>`
+						? `<a href="${escapeHtml(pageHref(run.href))}" data-doc-slug="${escapeHtml(currentSlug(run.href))}">${body}</a>`
 						: `<a href="${escapeHtml(run.href)}" rel="noreferrer noopener">${body}</a>`;
 			}
 		})

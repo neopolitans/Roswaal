@@ -63,6 +63,32 @@ export function servicesPage({ registry }: PageContext): DocPage {
 					`,
 			},
 
+			{ t: "h", level: 2, text: "Declaring services" },
+			{
+				t: "p",
+				text:
+					"A Roblox graph's Variables panel has a **Services** heading above Modules. A service " +
+					"declared there is fetched at the very top of the file, in the order you list them, " +
+					"whether or not a node asks for it — so Code Block can read `Players` by name, and " +
+					"the top of the file reads the way you would write it.",
+			},
+			{
+				t: "p",
+				text:
+					"**Add** takes a service by name, or drag one from the **DataModel** browser onto the " +
+					"heading. Drag a declared service onto the canvas for a **Get Service**, which reads " +
+					"the same local. A Get Service for a service you have not declared still works, and " +
+					"fetches it after the declared ones; right-click it and choose **Promote to " +
+					"Services** to declare it.",
+			},
+			{
+				t: "note",
+				kind: "warn",
+				text:
+					"**A service nothing uses is a warning.** Declare what the script reads, so the top of " +
+					"the file is a true list of what it depends on. On Lune, which has no services, a " +
+					"declared one is an error.",
+			},
 			{ t: "h", level: 2, text: "Asking a service what it can do" },
 			{
 				t: "p",

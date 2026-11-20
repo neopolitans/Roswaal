@@ -1,5 +1,5 @@
 /**
- * The pictures on Places and Rojo projects and on Wally packages: the project
+ * The pictures on Editing a place, Rojo projects and node maps, and Wally packages: the project
  * tree, the DataModel browser, the Properties panel and the dialogs, drawn in
  * the editor's own markup.
  *
@@ -111,12 +111,20 @@ describe("the two pages", () => {
 	const kinds = (blocks: readonly Block[]): string[] =>
 		blocks.flatMap((b) => (b.t === "tabs" ? b.tabs.flatMap((tab) => kinds(tab.blocks)) : [b.t]));
 
-	it("draw the map, the browser, Properties, each drop and Export on Places and Rojo projects", () => {
-		const page = findPage(site, "places-and-rojo")!;
-		const found = kinds(page.blocks);
-		expect(found.filter((k) => k === "nodemap")).toHaveLength(1);
+	it("draw the imported map and the one being built on Rojo projects and node maps", () => {
+		const found = kinds(findPage(site, "rojo-projects")!.blocks);
+		expect(found.filter((k) => k === "nodemap")).toHaveLength(2);
+	});
+
+	it("draw the browser, Properties, each drop and Export on Editing a place", () => {
+		const found = kinds(findPage(site, "editing-a-place")!.blocks);
 		expect(found.filter((k) => k === "toolbar")).toHaveLength(3);
 		expect(found.filter((k) => k === "graph")).toHaveLength(3);
+	});
+
+	it("still finds a moved page by its old slug", () => {
+		expect(findPage(site, "places-and-rojo")?.slug).toBe("editing-a-place");
+		expect(findPage(site, "building-and-rojo")?.slug).toBe("compiling-for-roblox");
 	});
 
 	it("walk through adding and removing on Wally packages", () => {

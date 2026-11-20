@@ -1,11 +1,46 @@
 /**
- * The `building-and-rojo` page of the documentation. `buildSite` places it.
+ * The `rojo-projects` page of the documentation. `buildSite` places it.
  */
 
 import type { MapNode, NodeMap } from "../../nodemap.js";
+import { projectToMap } from "../../rojoImport.js";
 import { FEEDBACK_REPOSITORY } from "../links.js";
 import type { DocPage } from "../site.js";
 import { MAP_BAR, PROJECT_TREE_WALLY } from "../toolbars.js";
+
+/**
+ * A Rojo project as a Wally game usually has one: shared code and packages in
+ * ReplicatedStorage, the server's and the client's own folders. Read into a
+ * map by the importer itself, so the picture is what Import Rojo project makes
+ * of it -- and a test holds that the map writes this file back unchanged.
+ */
+export const ROJO_SAMPLE = {
+	name: "orchard",
+	tree: {
+		$className: "DataModel",
+		ReplicatedStorage: {
+			Shared: { $path: "src/shared" },
+			Packages: { $path: "Packages" },
+		},
+		ServerScriptService: {
+			Server: { $path: "src/server" },
+		},
+		StarterPlayer: {
+			StarterPlayerScripts: {
+				Client: { $path: "src/client" },
+			},
+		},
+	},
+};
+
+const ROJO_IMPORTED: NodeMap = (() => {
+	let n = 0;
+	return projectToMap(ROJO_SAMPLE, {
+		output: "default.project.json",
+		fallbackName: "orchard",
+		makeId: () => `rojo-${n++}`,
+	}).map;
+})();
 
 /**
  * A map partway through being built, for the walkthrough: a new map's
@@ -86,36 +121,82 @@ const ROBLOX_MAP: NodeMap = {
 	},
 };
 
-export function buildingAndRojoPage(): DocPage {
+/**
+ * Rojo projects and the node maps that write them: bringing a project in,
+ * starting one, and saying where files land in Studio. Compiling is on
+ * *Compiling for Roblox*, and the place itself on *Editing a place*.
+ */
+export function rojoProjectsPage(): DocPage {
 	return {
-		// The slug stays. It is in published links and in the editor's own jump
-		// list, and a title is not a URL -- renaming the page should not move it.
-		slug: "building-and-rojo",
+		slug: "rojo-projects",
 		narrow: true,
-		title: "Compiling and nodemaps for Roblox",
-		summary: "How a graph becomes a file, and a file becomes an instance in Studio.",
+		title: "Rojo projects and node maps",
+		summary:
+			"Bringing in a Rojo project or starting one, and the node maps that say where your files land in Studio.",
 		blocks: [
 			{
 				t: "p",
 				text:
-					"This page is about graphs whose **Target** is Roblox. The bar along the top of " +
-					"the canvas says which, and a new graph takes the project's. For Lune, the answer " +
-					"is a different one and it is on " +
-					"[Compiling and nodemaps for Lune](compiling-for-lune).",
+					"A Rojo project's `default.project.json` says where each folder lands in Studio. In " +
+					"Roswaal a node map writes it. This page is how a project comes in, how to start one, " +
+					"and how a map is built. Compiling is on [Compiling for Roblox](compiling-for-roblox), " +
+					"and the place on [Editing a place](editing-a-place).",
+			},
+
+			{ t: "h", level: 2, text: "Starting from a Rojo project" },
+			{
+				t: "p",
+				text:
+					"A project Rojo already manages has its tree in `default.project.json`. **Project → " +
+					"Import Rojo project…**, or `roswaal import default.project.json`, reads it into a node " +
+					"map beside your graphs. The file is not changed, and every field in it is kept, " +
+					"including ones the map editor has no control for. A `.project.jsonc` file, or one with " +
+					"comments and trailing commas, reads as Rojo reads it.",
+			},
+			{
+				t: "nodemap",
+				map: ROJO_IMPORTED,
+				caption:
+					"A project file read into a map. **Select a row** for its fields; the project file " +
+					"beside it is the one the map writes, the same as the one it was read from.",
 			},
 			{
 				t: "p",
 				text:
-					"A graph is a `.nodescript` under `.roswaal/scripts`. Compiling it writes a `.luau` " +
-					"file to the same place under `src`, and [Rojo](https://rojo.space) syncs that into " +
-					"Studio. Roswaal never talks to Studio itself.",
+					"It asks which. **Project File Only** is the map, and your Luau stays hand-written, " +
+					"as the tree already lists it. **Project File + Luau as Graphs** is the map and then " +
+					"every hand-written `.luau` in the folders the file syncs, read into graphs with one " +
+					"set of [Import as graph](project-panel) settings. Wally's packages are left out, and " +
+					"the `.luau` files are not changed.",
 			},
 			{
 				t: "p",
 				text:
-					"Folders carry across: `.roswaal/scripts/ReplicatedStorage/Shared/Greeter.nodescript` " +
-					"writes `src/ReplicatedStorage/Shared/Greeter.luau`. Both directories are project " +
-					"[settings](settings).",
+					"**Browse…**, **Open .zip…** and **Open folder…** offer the same when there is a " +
+					"project file no map writes, with a list to pick from when there are several. A place " +
+					"file in the zip or folder is found too.",
+			},
+			{
+				t: "p",
+				text:
+					"When the map compiles back to the same project, the map writes the file from then on. " +
+					"Compiling leaves it alone until the map changes, and then keeps its indentation and " +
+					"line endings. If the map would write it differently, the file stays yours until you " +
+					"compile with force.",
+			},
+
+			{ t: "h", level: 2, text: "Starting from nothing" },
+			{
+				t: "p",
+				text:
+					"`roswaal new`, **Create** on the start page and **New project…** in the editor make a " +
+					"project with `place.rbxl` unless you say not to: the place Studio starts a new " +
+					"experience with. A 2048-stud `Baseplate` with its top at height 0, a 12-stud " +
+					"`SpawnLocation` standing on it at the centre, and Studio's sky, light and chat. " +
+					"Roswaal writes it itself rather than copying Studio's Baseplate template, and Studio " +
+					"makes the Camera and the Terrain when the file is opened. `roswaal export` writes the " +
+					"project's scripts into it, with the folders they need. In the installed editor, " +
+					"**Choose…** beside New project's folder opens the system's folder dialog.",
 			},
 
 			{ t: "h", level: 2, text: "Nodemap basics" },
@@ -172,88 +253,6 @@ export function buildingAndRojoPage(): DocPage {
 					},
 				],
 			},
-			{ t: "h", level: 2, text: "What a graph compiles to" },
-			{
-				t: "p",
-				text:
-					"The file is named after the graph, and its ending comes from the script kind, " +
-					"chosen in the Inspector with nothing selected. The ending is how Rojo knows " +
-					"which class of instance to make.",
-			},
-			{
-				t: "table",
-				head: ["Kind", "File", "In Studio"],
-				rows: [
-					["Script", "`Greeter.server.luau`", "A `Script`, running on the server"],
-					[
-						"LocalScript",
-						"`Greeter.client.luau`",
-						"A `LocalScript`, running on a player's machine",
-					],
-					["ModuleScript", "`Greeter.luau`", "A `ModuleScript`, run by whatever requires it"],
-				],
-			},
-
-			{ t: "h", level: 2, text: "Compiling" },
-			{
-				t: "table",
-				head: ["", "What it compiles"],
-				rows: [
-					["**Compile script**, or `Ctrl` + `S`", "The open graph"],
-					["**Compile project**", "Every graph, then every node map"],
-					[
-						"**Compile: Dynamic**",
-						"Each graph as you edit it, and any that change on disk — after a `git pull`, say",
-					],
-					["`roswaal compile`", "Everything, or the one graph or map you give it"],
-					["`roswaal watch`", "The same, without the editor"],
-				],
-			},
-			{
-				t: "p",
-				text:
-					"A graph with errors writes nothing; warnings do not stop it. With `format` on and " +
-					"[StyLua](https://github.com/JohnnyMorganz/StyLua) on your PATH, the file is " +
-					"formatted as it is written. If StyLua refuses it, it is written unformatted and the compile says why.",
-			},
-			{
-				t: "p",
-				text:
-					"In either mode, an open graph whose file changes on disk takes the new version. If it " +
-					"has edits that are not saved yet, you are asked which to keep.",
-			},
-
-			{ t: "h", level: 2, text: "Generated files" },
-			{
-				t: "p",
-				text:
-					"A generated file starts with a header naming its graph and a hash of what was " +
-					"written. Roswaal will not overwrite a file whose hash no longer matches — one " +
-					"edited by hand — or a file it did not write.",
-			},
-			{
-				t: "note",
-				kind: "danger",
-				text:
-					"To overwrite one anyway, click **overwrite** in the compile results, or run `roswaal " +
-					"compile --force`. **The hand edit is lost.**",
-			},
-
-			{ t: "h", level: 2, text: "Moving and deleting graphs" },
-			{
-				t: "p",
-				text:
-					"Rename a graph, move it or change its kind, and its next compile removes the file " +
-					"it used to write.",
-			},
-			{
-				t: "p",
-				text:
-					"A generated file whose graph is gone is **stale**, and Rojo goes on syncing it. The " +
-					"compile results list stale files with a **remove** link. From the command line, " +
-					"`roswaal prune` lists them and `roswaal prune --yes` removes them.",
-			},
-
 			{ t: "h", level: 2, text: "Building a node map" },
 			{
 				t: "p",
@@ -437,15 +436,6 @@ export function buildingAndRojoPage(): DocPage {
 					"path filled in — `src/ReplicatedStorage/Shared/Greeter.luau` becomes " +
 					"`ReplicatedStorage.Shared.Greeter` — or **Instance** for a reference to it. If no " +
 					"map covers the file, it says so.",
-			},
-
-			{ t: "h", level: 2, text: "An existing game" },
-			{
-				t: "p",
-				text:
-					"A Rojo project or a place you already have becomes a Roswaal project on " +
-					"[Places and Rojo projects](places-and-rojo), which also covers browsing the place " +
-					"and writing scripts back into it. Packages are on [Wally packages](wally-packages).",
 			},
 		],
 	};

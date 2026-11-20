@@ -26,6 +26,7 @@ import { escapeHtml, inlineHtml, pagePath } from "./inlineHtml.js";
 import { layoutHtml, listedRegions } from "./layouts.js";
 import { FEEDBACK_REPOSITORY, SOURCE_REPOSITORY } from "./links.js";
 import { mapFigure, mapFigureHtml, walkMapHtml } from "./mapFigure.js";
+import { MOVED_PAGES } from "./moved.js";
 import { nodeCodeHtml } from "./nodeCode.js";
 import { noteHeadHtml } from "./notes.js";
 import { graphSvg, type PreviewOptions, previewSvg } from "./preview.js";
@@ -1038,6 +1039,20 @@ export function renderSite(site: DocSite, options: RenderOptions): RenderedFile[
 		path: pagePath(page.slug),
 		contents: renderPage(site, page, options),
 	}));
+
+	// A page at each old address, sending the reader to where its content is now.
+	for (const [old, now] of Object.entries(MOVED_PAGES)) {
+		const target = pagePath(now);
+		files.push({
+			path: pagePath(old),
+			contents:
+				`<!doctype html><meta charset="utf-8"><title>Moved</title>` +
+				`<meta name="robots" content="noindex">` +
+				`<meta http-equiv="refresh" content="0; url=${target}">` +
+				`<link rel="canonical" href="${target}">` +
+				`<p>This page moved to <a href="${target}">${target}</a>.</p>`,
+		});
+	}
 
 	// A copy of the first page as index.html, so opening the folder works.
 	const home = allPages(site)[0];

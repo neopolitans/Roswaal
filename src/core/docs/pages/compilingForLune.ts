@@ -44,7 +44,7 @@ export function compilingForLunePage(): DocPage {
 	return {
 		slug: "compiling-for-lune",
 		narrow: true,
-		title: "Compiling and nodemaps for Lune",
+		title: "Compiling for Lune",
 		summary: "A graph becomes a file, and the file is where it is. No DataModel, no project file.",
 		blocks: [
 			{
@@ -52,7 +52,7 @@ export function compilingForLunePage(): DocPage {
 				text:
 					"This page is about graphs whose **Target** is Lune. The Inspector says which with " +
 					"nothing selected, and a new graph takes the project's. For Roblox, the answer is " +
-					"a different one and it is on [Compiling and nodemaps for Roblox](building-and-rojo).",
+					"a different one and it is on [Compiling for Roblox](compiling-for-roblox).",
 			},
 			{
 				t: "p",
@@ -70,23 +70,6 @@ export function compilingForLunePage(): DocPage {
 					"is — `lune run main` — so the layout on disk is the whole answer.",
 			},
 
-			{ t: "h", level: 2, text: "Nodemap basics" },
-			{
-				t: "p",
-				text:
-					"Here is the whole of it. A `.nodemap` is edited in Roswaal rather than by hand, and " +
-					"this is that editor with *Describes* set to **Filesystem**: the tree in the middle, " +
-					"**Instance** and **This map** beside it, and the layout along the foot. Every part is " +
-					"named beside it; the rest of this page explains them in order.",
-			},
-			{
-				t: "nodemap",
-				map: LUNE_MAP,
-				caption:
-					"The same editor, describing a filesystem. **Select a row** to fill **Instance**. " +
-					"A name carries no extension — `main` in the map, `main.luau` on disk, and the " +
-					"require that reaches it beside.",
-			},
 			{ t: "h", level: 2, text: "What a graph compiles to" },
 			{
 				t: "p",
@@ -137,7 +120,43 @@ export function compilingForLunePage(): DocPage {
 					"left behind by a graph that is gone.",
 			},
 
-			{ t: "h", level: 2, text: "What a nodemap is for here" },
+			{ t: "h", level: 2, text: "Requires, and what the file depends on" },
+			{
+				t: "p",
+				text:
+					"Everything a Lune program reaches for arrives through a `require` you wrote. " +
+					"The standard library is [Lune's standard library](lune-library); a short name " +
+					"for a path is [Aliases and .luaurc](aliases); and the rule behind both is on " +
+					"[Modules](modules) — a generated file does not grow imports nobody chose.",
+			},
+			{
+				t: "note",
+				kind: "warn",
+				text:
+					"**Roblox datatypes need** `@lune/roblox`. `Vector3` and `CFrame` compile once it is " +
+					"required with the datatype as a member; the Inspector has the button. `TweenInfo` is " +
+					"not offered in Lune.",
+			},
+
+			{ t: "h", level: 2, text: "Node maps" },
+			{ t: "h", level: 3, text: "The map editor" },
+			{
+				t: "p",
+				text:
+					"Here is the whole of it. A `.nodemap` is edited in Roswaal rather than by hand, and " +
+					"this is that editor with *Describes* set to **Filesystem**: the tree in the middle, " +
+					"**Instance** and **This map** beside it, and the layout along the foot. Every part is " +
+					"named beside it; the rest of this section explains them in order.",
+			},
+			{
+				t: "nodemap",
+				map: LUNE_MAP,
+				caption:
+					"The same editor, describing a filesystem. **Select a row** to fill **Instance**. " +
+					"A name carries no extension — `main` in the map, `main.luau` on disk, and the " +
+					"require that reaches it beside.",
+			},
+			{ t: "h", level: 3, text: "What a map is for here" },
 			{
 				t: "p",
 				text:
@@ -164,7 +183,7 @@ export function compilingForLunePage(): DocPage {
 				],
 			},
 
-			{ t: "h", level: 2, text: "What it checks" },
+			{ t: "h", level: 3, text: "What it checks" },
 			{
 				t: "p",
 				text:
@@ -190,24 +209,6 @@ export function compilingForLunePage(): DocPage {
 				text:
 					"**A file's name has no extension:** `main` in the map, `main.luau` on disk. Typing " +
 					"one is a warning, so you do not end up with `main.luau.luau`.",
-			},
-
-			{ t: "h", level: 2, text: "Requires, and what the file depends on" },
-			{
-				t: "p",
-				text:
-					"Everything a Lune program reaches for arrives through a `require` you wrote. " +
-					"The standard library is [Lune's standard library](lune-library); a short name " +
-					"for a path is [Aliases and .luaurc](aliases); and the rule behind both is on " +
-					"[Modules](modules) — a generated file does not grow imports nobody chose.",
-			},
-			{
-				t: "note",
-				kind: "warn",
-				text:
-					"**Roblox datatypes need** `@lune/roblox`. `Vector3` and `CFrame` compile once it is " +
-					"required with the datatype as a member; the Inspector has the button. `TweenInfo` is " +
-					"not offered in Lune.",
 			},
 		],
 	};
