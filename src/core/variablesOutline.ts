@@ -10,6 +10,7 @@
 
 import { parseInstancePath } from "./modules.js";
 import { resolvePins } from "./nodeBox.js";
+import { typeDeclarationOf } from "./nodes/flow.js";
 import type { Registry } from "./nodes/index.js";
 import { isService } from "./roblox.js";
 import type { GraphNode, NodeConfig, NodeScript, ScriptModule } from "./schema.js";
@@ -168,6 +169,30 @@ export function localTypeOf(script: NodeScript, registry: Registry, node: GraphN
 }
 
 /** A function's signature as its row shows it: `(Model) → Instance`. */
+/**
+ * What a declaration in the flow is, in a few words, for the right of its
+ * row: a function's signature, a local's type, a type's shape. A Code Block
+ * says no more than its kind, since the graph does not know its parts.
+ */
+export function declarationDetail(
+	script: NodeScript,
+	registry: Registry,
+	nodeId: string,
+	kind: "type" | "local" | "function" | "require",
+): string {
+	if (kind === "require") return "require";
+	const node = script.nodes.find((n) => n.id === nodeId);
+	if (!node) return kind;
+	if (node.def === "function.declareHere") return functionSignature(node.config);
+	if (node.def === "type.declareHere" || node.def === "type.declareTop") {
+		const t = typeDeclarationOf(node.def, node.config);
+		if (t.shape === "fields") return `{ ${t.fields.map((f) => f.name).join(", ")} }`;
+		return t.shape === "written" ? t.definition || "type" : "typeof";
+	}
+	if (node.def === "local.declare") return localTypeOf(script, registry, node);
+	return kind;
+}
+
 export function functionSignature(config: NodeConfig | undefined): string {
 	const list = (value: unknown, key: "type") =>
 		Array.isArray(value)

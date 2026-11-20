@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.51",
+		date: "2026-11-20",
+		headline: "In script order shows each declaration's kind and what it is.",
+		changed: [
+			"**In script order** marks each row's kind with a coloured letter, and its right side gives a function's signature, a type's shape or a local's type in place of the line number. A local kept as code shows the type the file gives it.",
+			"**Globals** rows have the same letters and say global.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.50",
 		date: "2026-11-20",
 		headline: "An older file's functions import as functions, and Modern's rewrites are choices.",

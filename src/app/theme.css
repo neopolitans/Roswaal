@@ -6166,23 +6166,37 @@ button.start-tile:disabled {
 	cursor: pointer;
 }
 
-.flow-kind {
+/* A declaration's kind in the In script order list: a tinted letter in
+   the code view's colours. */
+.flow-badge {
 	flex: none;
-	min-width: 52px;
-	font-size: var(--text-xs);
-	font-family: "Cascadia Mono", Consolas, monospace;
-	color: var(--fg-faint);
+	display: grid;
+	place-items: center;
+	width: 16px;
+	height: 16px;
+	border-radius: var(--radius-xs);
+	font: 700 10px "Cascadia Mono", Consolas, monospace;
+	color: var(--badge);
+	background: color-mix(in srgb, var(--badge) 22%, transparent);
 }
 
-.flow-kind.flow-function {
-	color: var(--code-function, var(--accent));
+.flow-badge-function {
+	--badge: var(--code-function);
 }
 
-.flow-kind.flow-type {
-	color: var(--code-type);
+.flow-badge-type {
+	--badge: var(--code-type);
 }
 
-.flow-kind.flow-global {
+.flow-badge-local {
+	--badge: var(--code-operator);
+}
+
+.flow-badge-require {
+	--badge: var(--code-keyword);
+}
+
+.variable-head .type.flow-global {
 	color: var(--warning);
 }
 

@@ -50,6 +50,7 @@ import { SPECIFIER_HINTS } from "../core/schema.js";
 import { type DeclarationKind, scriptOrder } from "../core/scriptOrder.js";
 import {
 	codeMentions,
+	declarationDetail,
 	functionSignature,
 	localTypeOf,
 	moduleTableVariable,
@@ -583,11 +584,9 @@ export function VariablesPanel({
 											onClick={() => g.node && store.reveal(g.node)}
 											onDoubleClick={() => g.node && goTo(g.node)}
 										>
-											<span className="flow-kind flow-global">global</span>
+											<FlowBadge kind={g.how === "function" ? "function" : "local"} />
 											<span className="name">{g.name}</span>
-											<span className="type">
-												{g.how === "function" ? "function" : "set"} · line {g.line}
-											</span>
+											<span className="type flow-global">global</span>
 										</div>
 									</div>
 								),
@@ -626,13 +625,15 @@ export function VariablesPanel({
 					<div className="variable" key={`${d.line}:${d.name}`}>
 						<div
 							className="variable-head flow-row"
-							title={`Line ${d.line}. Click to select what declares it; double-click to go to it.`}
+							title={`${KIND_WORDS[d.kind]}, line ${d.line}. Click to select what declares it; double-click to go to it.`}
 							onClick={() => store.reveal(d.node)}
 							onDoubleClick={() => goTo(d.node)}
 						>
-							<span className={cx("flow-kind", `flow-${d.kind}`)}>{d.kind}</span>
+							<FlowBadge kind={d.kind} />
 							<span className="name">{d.name}</span>
-							<span className="type">line {d.line}</span>
+							<span className="type">
+								{d.detail ?? declarationDetail(script, registry, d.node, d.kind)}
+							</span>
 						</div>
 					</div>
 				))}
@@ -1915,5 +1916,32 @@ export function SpecifierHints() {
 				<option key={one.value} value={one.value} label={one.what} />
 			))}
 		</datalist>
+	);
+}
+
+const KIND_WORDS = {
+	type: "A type",
+	local: "A local",
+	function: "A function",
+	require: "A require",
+} as const;
+
+/**
+ * A declaration's kind as a small coloured letter, in the code view's
+ * colours: ƒ a function, T a type, x a local, and a require's module icon.
+ */
+function FlowBadge({ kind }: { kind: keyof typeof KIND_WORDS }) {
+	return (
+		<span className={`flow-badge flow-badge-${kind}`} aria-label={kind}>
+			{kind === "function" ? (
+				"ƒ"
+			) : kind === "type" ? (
+				"T"
+			) : kind === "local" ? (
+				"x"
+			) : (
+				<Icon name="instance" size={11} />
+			)}
+		</span>
 	);
 }

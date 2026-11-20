@@ -16,7 +16,7 @@
  * Pure: the compiled Luau and its source map in, the lists out.
  */
 
-import type { Expr, Stat } from "./luau/ast.js";
+import type { Binding, Expr, Stat } from "./luau/ast.js";
 import { luauFile } from "./luau/file.js";
 
 export type DeclarationKind = "type" | "local" | "function" | "require";
@@ -28,6 +28,11 @@ export interface FlowDeclaration {
 	line: number;
 	/** The node that wrote it: a Declare Local, a Code Block. */
 	node: string;
+	/**
+	 * A local's type as the file gives it: its annotation, or a literal's
+	 * kind and value. Read from the Luau, so a Code Block has one too.
+	 */
+	detail?: string;
 }
 
 export interface GlobalName {
@@ -76,10 +81,25 @@ export function scriptOrder(
 	const globals: GlobalName[] = [];
 	const locals = new Set<string>();
 	const seenGlobal = new Set<string>();
-	const add = (kind: DeclarationKind, name: string, at: number) => {
+	const add = (kind: DeclarationKind, name: string, at: number, detail?: string) => {
 		const line = lineOf(at);
 		const node = nodeAt.get(line);
-		if (node) flow.push({ kind, name, line, node });
+		if (node) flow.push({ kind, name, line, node, ...(detail ? { detail } : {}) });
+	};
+	const localDetail = (binding: Binding, value: Expr | undefined): string | undefined => {
+		if (binding.type) return code.slice(binding.type.start, binding.type.end);
+		switch (value?.kind) {
+			case "number":
+				return `number ${value.raw}`;
+			case "boolean":
+				return `boolean ${value.value}`;
+			case "string":
+				return "string";
+			case "table":
+				return "table";
+			default:
+				return undefined;
+		}
 	};
 	const global = (name: string, at: number, how: GlobalName["how"]) => {
 		if (locals.has(name) || seenGlobal.has(name)) return;
@@ -95,7 +115,9 @@ export function scriptOrder(
 			case "const":
 				stat.names.forEach((binding, i) => {
 					locals.add(binding.name);
-					add(isRequire(stat.values[i]) ? "require" : "local", binding.name, stat.start);
+					const value = stat.values[i];
+					if (isRequire(value)) add("require", binding.name, stat.start);
+					else add("local", binding.name, stat.start, localDetail(binding, value));
 				});
 				break;
 			case "localFunction":
