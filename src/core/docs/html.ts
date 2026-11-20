@@ -1043,8 +1043,10 @@ export function renderSite(site: DocSite, options: RenderOptions): RenderedFile[
 	// A page at each old address, sending the reader to where its content is now.
 	for (const [old, now] of Object.entries(MOVED_PAGES)) {
 		const target = pagePath(now);
+		// The old address itself: pagePath would follow the move, and write this
+		// over the page it points at.
 		files.push({
-			path: pagePath(old),
+			path: `${old}.html`,
 			contents:
 				`<!doctype html><meta charset="utf-8"><title>Moved</title>` +
 				`<meta name="robots" content="noindex">` +

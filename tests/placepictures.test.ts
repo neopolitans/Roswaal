@@ -11,7 +11,7 @@
 import { describe, expect, it } from "vitest";
 
 import { EVEN_ODD, ICONS, STROKED, VIEW_BOX } from "../src/app/icons.js";
-import { renderPage } from "../src/core/docs/html.js";
+import { renderPage, renderSite } from "../src/core/docs/html.js";
 import { type Block, buildSite, findPage, ROJO_SAMPLE } from "../src/core/docs/site.js";
 import * as toolbars from "../src/core/docs/toolbars.js";
 import {
@@ -120,6 +120,16 @@ describe("the two pages", () => {
 		const found = kinds(findPage(site, "editing-a-place")!.blocks);
 		expect(found.filter((k) => k === "toolbar")).toHaveLength(3);
 		expect(found.filter((k) => k === "graph")).toHaveLength(3);
+	});
+
+	it("writes a moved page's redirect at its old address, and the new page whole", () => {
+		const files = renderSite(site, { version: "test", toolbars: art });
+		const at = (path: string) => files.find((file) => file.path === path)?.contents ?? "";
+		expect(at("places-and-rojo.html")).toContain('url=editing-a-place.html');
+		expect(at("building-and-rojo.html")).toContain('url=compiling-for-roblox.html');
+		expect(at("editing-a-place.html")).toContain("Editing a place");
+		expect(at("editing-a-place.html")).not.toContain("http-equiv");
+		expect(files.filter((file) => file.path === "editing-a-place.html")).toHaveLength(1);
 	});
 
 	it("still finds a moved page by its old slug", () => {

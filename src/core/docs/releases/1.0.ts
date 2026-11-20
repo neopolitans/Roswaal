@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.41",
+		date: "2026-11-20",
+		headline: "Editing a place and Compiling for Roblox open again on the site.",
+		fixed: [
+			"On the published docs, Editing a place and Compiling for Roblox sent the reader to themselves, and the old addresses were not found. Each page is whole again, and the old addresses lead to them.",
+		],
+		affects: ["docs"],
+	},
+	{
 		version: "1.0.0-canary.40",
 		date: "2026-11-20",
 		headline: "Each Roblox docs page covers one feature.",
