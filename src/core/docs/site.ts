@@ -43,6 +43,7 @@ import { compilingForLunePage } from "./pages/compilingForLune.js";
 import { contributingPage } from "./pages/contributing.js";
 import { controlsPage } from "./pages/controls.js";
 import { creatingCustomNodesPage } from "./pages/creatingCustomNodes.js";
+import { extensionsPage } from "./pages/extensions.js";
 import { functionsPage } from "./pages/functions.js";
 import { gettingStartedPage } from "./pages/gettingStarted.js";
 import { handWrittenLuauPage } from "./pages/handWrittenLuau.js";
@@ -742,7 +743,7 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 		robloxDemosPage,
 	]);
 	const forLune = shelf([luneLibraryPage, aliasesPage, compilingForLunePage, luneDemosPage]);
-	const theTool = shelf([settingsPage, creatingCustomNodesPage, commandLinePage]);
+	const theTool = shelf([settingsPage, extensionsPage, creatingCustomNodesPage, commandLinePage]);
 	const guides = [...writingGraphs, ...forRoblox, ...forLune, ...theTool];
 	const attributions = attributionsPage();
 	const contributing = contributingPage();

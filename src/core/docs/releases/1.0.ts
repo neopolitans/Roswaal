@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.39",
+		date: "2026-11-20",
+		headline: "The docs have a page on extensions.",
+		added: [
+			"**Extensions page.** What an extension is, the Place Editor's version, and turning it off, under The tool.",
+		],
+		affects: ["docs"],
+	},
+	{
 		version: "1.0.0-canary.38",
 		date: "2026-11-20",
 		headline: "New graph, New map and New folder pick where they go.",
