@@ -119,6 +119,8 @@ export interface WorkspaceProps {
 	 * fold: Script analysis's chevron. A window of one is as tall as its bar.
 	 */
 	collapsed?: ReadonlySet<PanelId>;
+	/** Folds or unfolds a panel that `collapsed` covers, as its own chevron does. */
+	onCollapse?: (panel: PanelId) => void;
 	/** A window was moved or resized over the centre. */
 	onFramePanel?: (panel: PanelId, frame: PanelFrame) => void;
 	/** The drag finished. Separate for the reason `onResizeEnd` is. */
@@ -213,6 +215,7 @@ export function Workspace({
 	strip,
 	fullFoot = false,
 	collapsed,
+	onCollapse,
 }: WorkspaceProps) {
 	const surface = useRef<HTMLDivElement>(null);
 	// The centre, which a window's coordinates are measured from.
@@ -347,15 +350,35 @@ export function Workspace({
 		const head = effective.panels[cardOf(effective, id)];
 		return head.floating ? head.open : dockVisible(effective, head.dock);
 	};
+	// Docked along the foot, not on a side: not in either side's drawers.
+	const atFoot = (id: PanelId) =>
+		!drawers.left.includes(id) &&
+		!drawers.right.includes(id) &&
+		layout.panels[cardOf(layout, id)].dock === "bottom" &&
+		!layout.panels[cardOf(layout, id)].floating;
 	const controls: WorkspaceControlsValue = compact
 		? {
 				compact,
 				has: (side) => drawers[side].length > 0,
 				isOpen: (side) => openPanel !== null && drawers[side].includes(openPanel),
 				toggle: toggleDrawer,
-				cardShown: (id) => openPanel === id,
+				// A card at the foot (Script analysis) is no drawer: it is the strip
+				// along the bottom, and showing it unfolds it there. Asked for as a
+				// drawer, it opened a backdrop over nothing.
+				cardShown: (id) =>
+					atFoot(id)
+						? !collapsed?.has(id) && !layout.panels[cardOf(layout, id)].folded
+						: openPanel === id,
 				toggleCard: (id) => {
 					if (contents[id] === undefined) return;
+					if (atFoot(id)) {
+						if (onCollapse) onCollapse(id);
+						else {
+							const head = cardOf(layout, id);
+							onLayout?.((l) => foldCard(l, head, !l.panels[head].folded));
+						}
+						return;
+					}
 					setDrawer(openPanel === id ? null : id);
 				},
 				available: (id) => contents[id] !== undefined,

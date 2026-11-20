@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.55",
+		date: "2026-11-20",
+		headline:
+			"iPad keeps the column buttons hidden when asked, and Script analysis opens on a phone.",
+		fixed: [
+			"**Column buttons on iPad** follow Settings › Column buttons. Hidden hides them on a tablet too; the Panels menu still opens both columns.",
+			"**Script analysis from the ⋯ menu on a phone** folds and unfolds the strip at the foot, as its chevron does, instead of dimming the screen over nothing.",
+		],
+		affects: ["editor"],
+	},
+	{
 		version: "1.0.0-canary.54",
 		date: "2026-11-20",
 		headline: "Tidy declarations reads as a checklist, and constants wired in can move.",

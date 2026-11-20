@@ -2302,6 +2302,9 @@ export function App() {
 			<Workspace
 				layout={layout}
 				collapsed={statusOpen ? undefined : STATUS_FOLDED}
+				onCollapse={(panel) => {
+					if (STATUS_FOLDED.has(panel)) setStatusOpen((open) => !open);
+				}}
 				chrome={
 					<ProjectBar
 						config={project.config}

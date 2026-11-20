@@ -42,7 +42,7 @@ import type { MenuEntry } from "./menuModel.js";
 import { useNarrowBar, usePhone } from "./Popout.jsx";
 import { PANEL_EMPTY, PANEL_ICONS, PANEL_TITLES, type PanelId } from "./panels.js";
 import { WindowMark } from "./WindowMark.jsx";
-import { useCompact, useWorkspaceControls } from "./Workspace.jsx";
+import { useWorkspaceControls } from "./Workspace.jsx";
 
 export interface ProjectBarProps {
 	config: RoswaalConfig;
@@ -101,10 +101,11 @@ export function ProjectBar(props: ProjectBarProps) {
 		: scripting
 			? "Inspector — the selected node, or the graph's own settings"
 			: "Properties — the picked instance, or the place";
-	// On a touch screen the columns are drawers, and these buttons slide them
-	// out; at a desk the Panels menu holds them unless they are asked for.
-	const compact = useCompact();
-	const columnButtons = props.panelButtons || compact;
+	// The Project and Inspector buttons, where Settings › Column buttons says
+	// so. On a tablet the columns are drawers, and the Panels menu's Left and
+	// Right column slide them out as these would, so Hidden holds there too.
+	// A phone has its own at the ends of the bottom bar.
+	const columnButtons = props.panelButtons;
 	const leftTitle = "Project — the files, the DataModel and Variables";
 	const columnEntries: MenuEntry[] = [
 		{

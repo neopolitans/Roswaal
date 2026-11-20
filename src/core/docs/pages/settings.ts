@@ -221,7 +221,7 @@ export function settingsPage(): DocPage {
 					],
 					[
 						"Column buttons",
-						"The Project and Inspector buttons in the top bar. **Hidden** by default: **Left column** and **Right column** are in the Panels menu either way. A touch screen shows them regardless.",
+						"The Project and Inspector buttons in the top bar. **Hidden** by default: **Left column** and **Right column** are in the Panels menu either way. On a tablet they open the columns' drawers, and Hidden holds there too. A phone keeps its own at the ends of the bottom bar.",
 					],
 					[
 						"Shorten function tabs",
