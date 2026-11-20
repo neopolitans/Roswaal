@@ -1,7 +1,8 @@
 /**
  * Wally's folders kept synced where roswaal.json's packageSync says: made
  * where there is no mapping, moved where there is one elsewhere, left alone
- * where it is already right, and only once the folder is installed.
+ * where it is already right, and optional while wally.toml lists a realm not
+ * yet installed.
  */
 
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -78,6 +79,24 @@ describe("keeping a realm's folder where it goes", () => {
 	});
 });
 
+describe("a realm listed but not installed", () => {
+	it("is mapped optional, then plain once installed", () => {
+		const sync = { shared: "ReplicatedStorage.Packages" };
+		const listed = syncPackageFolders(
+			node("DataModel", { className: "DataModel" }),
+			sync,
+			() => "listed",
+			makeId,
+		);
+		const kept = find(listed, ["ReplicatedStorage", "Packages"]);
+		expect(kept?.optional).toBe(true);
+		expect([...managedNodes(listed, sync).keys()]).toEqual([kept?.id]);
+		const installed = syncPackageFolders(listed, sync, all, makeId);
+		expect(find(installed, ["ReplicatedStorage", "Packages"])?.optional).toBeUndefined();
+		expect(find(installed, ["ReplicatedStorage", "Packages"])?.id).toBe(kept?.id);
+	});
+});
+
 describe("the nodes autosync keeps", () => {
 	it("are the ones at each realm's path that sync its folder", () => {
 		const root = syncPackageFolders(
@@ -131,5 +150,25 @@ describe("a project with packageSync", () => {
 		await session.openAt(root);
 		const project = JSON.parse(await readFile(path.join(root, "default.project.json"), "utf8"));
 		expect(project.tree.ReplicatedStorage.Packages.$path).toBe("Packages");
+	});
+
+	it("maps a realm wally.toml lists but has not installed, as optional", async () => {
+		root = await mkdtemp(path.join(os.tmpdir(), "roswaal-pkgsync-"));
+		await writeFile(
+			path.join(root, "roswaal.json"),
+			JSON.stringify({ schemaVersion: 1, packageSync: { shared: "ReplicatedStorage.Packages" } }),
+		);
+		await writeFile(
+			path.join(root, "wally.toml"),
+			'[dependencies]\npromise = "evaera/promise@4.0.0"\n',
+		);
+		await mkdir(path.join(root, ".roswaal/scripts"), { recursive: true });
+		const map = emptyMap("Game", "game", makeId);
+		map.root.children = [];
+		await writeFile(path.join(root, ".roswaal/scripts/Game.nodemap"), serialiseMap(map));
+		const session = new ApiSession({});
+		await session.openAt(root);
+		const project = JSON.parse(await readFile(path.join(root, "default.project.json"), "utf8"));
+		expect(project.tree.ReplicatedStorage.Packages.$path).toEqual({ optional: "Packages" });
 	});
 });

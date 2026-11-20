@@ -680,6 +680,16 @@ export async function checkMapPaths(project: OpenProject, map: NodeMap): Promise
 		if (!staysInside(relPath)) continue;
 		const abs = path.resolve(project.root, relPath);
 		const stat = await fs.stat(abs).catch(() => null);
+		if (!stat && node.optional) {
+			// Optional exists for this: Rojo passes it through. Wally's folders
+			// before `wally install` are the usual case.
+			out.push({
+				severity: "warning",
+				message: `"${node.name}" points at ${relPath}, which is not on disk yet. It is optional, so Rojo passes it through.`,
+				node: node.id,
+			});
+			continue;
+		}
 		if (!stat) {
 			out.push({
 				severity: "error",

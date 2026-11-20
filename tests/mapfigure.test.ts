@@ -17,6 +17,7 @@ import { figureText, mapFigure } from "../src/core/docs/mapFigure.js";
 import { allPages, type Block, buildSite } from "../src/core/docs/site.js";
 import {
 	compileNodeMap,
+	emptyMap,
 	isFilesystemMap,
 	type MapNode,
 	type NodeMap,
@@ -210,5 +211,32 @@ describe("every map drawn in the documentation", () => {
 	it.each(drawn)("%s compiles without an error of its own", (_slug, one) => {
 		const bad = compileNodeMap(one).diagnostics.filter((d) => d.severity === "error");
 		expect(bad.map((d) => d.message)).toEqual([]);
+	});
+});
+
+describe("an optional path", () => {
+	it("prints as Rojo's optional object, as the project file has it", () => {
+		const map: NodeMap = {
+			...emptyMap("Game", "game", () => "root"),
+		};
+		map.root.children = [
+			{
+				id: "rs",
+				name: "ReplicatedStorage",
+				children: [
+					{
+						id: "p",
+						name: "Packages",
+						className: "Folder",
+						path: "Packages",
+						optional: true,
+						children: [],
+					},
+				],
+			},
+		];
+		const json = compileNodeMap(map).json;
+		expect(json).toContain('"optional": "Packages"');
+		expect(figureText(mapFigure(map))).toBe(json);
 	});
 });

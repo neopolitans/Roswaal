@@ -189,7 +189,11 @@ function nodeEntries(node: MapNode, indent: number, isRoot: boolean): MapFigureL
 	if (node.className && !impliedByPath && (isRoot || !isService(node))) {
 		entries.push([{ key, indent, text: `"$className": ${JSON.stringify(node.className)}` }]);
 	}
-	if (node.path) {
+	if (node.path && node.optional) {
+		const printed = valueLines({ optional: node.path }, indent, key);
+		printed[0] = { ...printed[0], text: `"$path": ${printed[0].text}` };
+		entries.push(printed);
+	} else if (node.path) {
 		entries.push([{ key, indent, text: `"$path": ${JSON.stringify(node.path)}` }]);
 	}
 	if (node.properties && Object.keys(node.properties).length > 0) {

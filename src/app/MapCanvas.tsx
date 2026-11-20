@@ -1441,10 +1441,10 @@ function MapNodeView({
 }) {
 	const root = node === ed.map.root;
 	const kind = kindOf(ed, node);
-	const kept = ed.managed.get(node.id);
-	const status = kept
+	const autosynced = ed.managed.get(node.id);
+	const status = autosynced
 		? {
-				text: `autosync · ${{ shared: "Shared", server: "Server", dev: "Dev" }[kept]} packages`,
+				text: `autosync · ${{ shared: "Shared", server: "Server", dev: "Dev" }[autosynced]} packages`,
 				title:
 					"roswaal.json's packageSync keeps this here. Move or rename it to change where; delete it to turn autosync off.",
 			}
@@ -1490,13 +1490,13 @@ function MapNodeView({
 				{set ? (
 					<button
 						type="button"
-						className={cx("literal picker map-path", odd && "odd", kept && "map-autosync")}
+						className={cx("literal picker map-path", odd && "odd", autosynced && "map-autosync")}
 						title={
-							kept
+							autosynced
 								? `${normalisePath(node.path ?? "")}, kept by autosync. Turn it off under Packages to sync from elsewhere.`
 								: `${normalisePath(node.path ?? "")}${node.optional ? ", optional" : ""}. Choose another, or pass through.`
 						}
-						onClick={(e) => !kept && onSyncs(e.currentTarget)}
+						onClick={(e) => !autosynced && onSyncs(e.currentTarget)}
 					>
 						<span className="preview">{normalisePath(node.path ?? "")}</span>
 						<Icon name="chevron" size={11} />

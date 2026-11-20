@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.35",
+		date: "2026-11-20",
+		headline: "Autosync maps packages wally.toml lists before they are installed.",
+		fixed: [
+			"**Autosync and uninstalled packages.** A realm wally.toml lists but that is not installed yet is now mapped, as optional, so its node shows on the map. It becomes a plain mapping once installed.",
+			"A missing optional folder is a warning, not an error, so the project file is still written.",
+			"The node autosync keeps now has its fixed Syncs from, not only its chip.",
+			"The Project file panel shows an optional path as Rojo's optional object, as the file has it.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.34",
 		date: "2026-11-20",
 		headline: "The served map shows what autosync keeps.",

@@ -41,32 +41,49 @@ function nodeAt(root: MapNode, trail: readonly string[]): MapNode | null {
 }
 
 /**
- * The map's tree with each realm whose folder is on disk mapped where
- * `sync` says. A mapping of the folder elsewhere moves there: a plain one
- * goes, one holding more keeps what it holds and only stops syncing the
- * folder. Unchanged, the same object, when nothing needed doing.
+ * Whether a realm's folder is there to sync: `true` installed, `"listed"`
+ * when wally.toml names packages in it that are not installed yet, `false`
+ * when the realm is not used at all.
+ */
+export type RealmState = boolean | "listed";
+
+/**
+ * The map's tree with each realm in use mapped where `sync` says. A realm
+ * only listed is mapped as optional, so Rojo serves the place before
+ * `wally install` has run; installed, it is a plain mapping. A mapping of the
+ * folder elsewhere moves there: a plain one goes, one holding more keeps what
+ * it holds and only stops syncing the folder. Unchanged, the same object,
+ * when nothing needed doing.
  */
 export function syncPackageFolders(
 	root: MapNode,
 	sync: PackageSync,
-	installed: (folder: string) => boolean,
+	state: (folder: string) => RealmState,
 	makeId: () => string,
 ): MapNode {
 	let next = root;
 	for (const realm of Object.keys(REALM_DIRS) as WallyRealm[]) {
 		const at = sync[realm];
 		const folder = REALM_DIRS[realm];
-		if (!at || !installed(folder)) continue;
+		const now = at ? state(folder) : false;
+		if (!at || now === false) continue;
 		const trail = syncTrail(at);
 		if (trail.length < 2) continue;
+		const optional = now === "listed";
+		const withPath = (node: MapNode): MapNode => {
+			const { optional: _was, ...rest } = node;
+			return optional ? { ...rest, path: folder, optional: true } : { ...rest, path: folder };
+		};
 		const there = nodeAt(next, trail);
 		if (there && there.path !== undefined && normalisePath(there.path) === folder) {
 			next = moveAway(next, folder, there.id);
+			if (there.path !== folder || (there.optional === true) !== optional)
+				next = mapNodeUpdate(next, there.id, withPath);
 			continue;
 		}
 		next = moveAway(next, folder, there?.id);
 		const made = mapAt(next, trail, folder, makeId);
-		next = mapNodeUpdate(made.root, made.id, (node) => ({ ...node, path: folder }));
+		next = mapNodeUpdate(made.root, made.id, withPath);
 	}
 	return next;
 }
