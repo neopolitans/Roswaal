@@ -10852,6 +10852,74 @@ button.tb.icon-only.on {
 }
 
 /* Sentences under a confirmation's message, where items would be names. */
+/* What an action does to each named thing: a check for what changes, a
+   dash for what stays, the name in code and the reason muted, in two
+   headed groups. Above the diff, which is the detail. */
+.dialog-checklist {
+	display: grid;
+	grid-template-columns: 14px auto 1fr;
+	column-gap: 10px;
+	row-gap: 5px;
+	align-items: baseline;
+	margin: 0 0 14px;
+	font-size: var(--text-md);
+	line-height: 1.4;
+}
+
+.checklist-head {
+	grid-column: 1 / -1;
+	display: flex;
+	gap: 6px;
+	margin-top: 6px;
+	font-size: var(--text-xs);
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--fg-muted);
+}
+
+.checklist-head:first-child {
+	margin-top: 0;
+}
+
+.checklist-count {
+	font-weight: 400;
+	color: var(--fg-faint);
+}
+
+.checklist-row {
+	display: contents;
+}
+
+.checklist-mark {
+	text-align: center;
+	font-weight: 700;
+}
+
+.checklist-row.ok .checklist-mark {
+	color: var(--ok);
+}
+
+.checklist-row.kept .checklist-mark {
+	color: var(--fg-faint);
+}
+
+.checklist-name {
+	font-family: "Cascadia Mono", Consolas, monospace;
+	font-size: var(--text-sm);
+	color: var(--fg);
+	white-space: nowrap;
+}
+
+.checklist-row.kept .checklist-name {
+	color: var(--fg-muted);
+}
+
+.checklist-note {
+	min-width: 0;
+	color: var(--fg-muted);
+}
+
 .dialog-points {
 	margin: 0 0 14px;
 	padding-left: 18px;

@@ -99,6 +99,45 @@ function describe(value: Literal | undefined): string {
 	}
 }
 
+/** The Values nodes that only hold what is typed into them. */
+const CONSTANTS = new Set(["value.number", "value.string", "value.boolean", "value.nil"]);
+
+const EMPTY: Record<string, Literal> = {
+	"value.number": { t: "number", v: 0 },
+	"value.string": { t: "string", v: "" },
+	"value.boolean": { t: "boolean", v: false },
+	"value.nil": { t: "nil" },
+};
+
+/** A value pin wired from a Number, String, Boolean or Nil node: that node and what it holds. */
+function constantFeed(script: NodeScript, nodeId: string): { source: string; value: Literal } | undefined {
+	const link = script.links.find((l) => l.to.node === nodeId && l.to.pin === "value");
+	const source = link && script.nodes.find((n) => n.id === link.from.node);
+	if (!source || !CONSTANTS.has(source.def) || wired(script, source.id, "value")) return undefined;
+	const value = source.def === "value.nil" ? EMPTY["value.nil"] : (source.literals?.value ?? EMPTY[source.def]);
+	return { source: source.id, value };
+}
+
+/**
+ * The constant typed into the declaration itself instead of wired in. The
+ * constant node goes when nothing else reads it.
+ */
+function inlineConstant(script: NodeScript, nodeId: string): NodeScript {
+	const feed = constantFeed(script, nodeId);
+	if (!feed) return script;
+	const links = script.links.filter((l) => !(l.to.node === nodeId && l.to.pin === "value"));
+	const stillRead = links.some((l) => l.from.node === feed.source);
+	return {
+		...script,
+		links,
+		nodes: script.nodes.flatMap((n) => {
+			if (n.id === feed.source) return stillRead ? [n] : [];
+			if (n.id === nodeId) return [{ ...n, literals: { ...n.literals, value: feed.value } }];
+			return [n];
+		}),
+	};
+}
+
 const wired = (script: NodeScript, node: string, pin: string) =>
 	script.links.some((l) => l.to.node === node && l.to.pin === pin);
 
@@ -148,14 +187,16 @@ export function tidyPlan(script: NodeScript, flow: FlowDeclaration[], code: stri
 
 		if (node.def === "local.declare" || node.def === "variable.init") {
 			if (node.graph) return row(false, "Inside a function: a fresh one each call");
-			if (wired(script, node.id, "value"))
+			const feed = constantFeed(script, node.id);
+			if (wired(script, node.id, "value") && !feed) {
 				return row(false, "Its value is built when the flow reaches it");
+			}
 			if (!onMainFlow(script, node)) return row(false, "Inside a branch, a loop or a handler");
-			const value = node.literals?.value;
+			const value = feed?.value ?? node.literals?.value;
 			if (!plainLiteral(value)) return row(false, "Its value is read when the flow reaches it");
 			if (namedAbove(code, d.line, d.name))
 				return row(false, "Named above it, where it means a global");
-			if (node.def === "local.declare" && !canPromoteLocal(script, node)) {
+			if (node.def === "local.declare" && !canPromoteLocal(inlineConstant(script, node.id), node)) {
 				return row(false, "Runs more than once");
 			}
 			return row(true, `${describe(value)}, set once`);
@@ -227,8 +268,8 @@ function moveType(script: NodeScript, nodeId: string): NodeScript {
 export function moveToTop(script: NodeScript, nodeId: string): NodeScript {
 	const node = script.nodes.find((n) => n.id === nodeId);
 	if (!node) return script;
-	if (node.def === "local.declare") return promoteLocal(script, nodeId);
-	if (node.def === "variable.init") return moveInitialiser(script, nodeId);
+	if (node.def === "local.declare") return promoteLocal(inlineConstant(script, nodeId), nodeId);
+	if (node.def === "variable.init") return moveInitialiser(inlineConstant(script, nodeId), nodeId);
 	if (node.def === "type.declareHere") return moveType(script, nodeId);
 	return script;
 }

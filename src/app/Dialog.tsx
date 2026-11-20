@@ -12,7 +12,7 @@
  * bold labels, one of several as rows to pick, and a foot naming the keys.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import type { ShownLine } from "../core/lineDiff.js";
 import type { TreeEntry } from "./api.js";
 import { cx } from "./cx.js";
@@ -62,6 +62,11 @@ export type DialogRequest =
 			items?: string[];
 			/** Sentences under the message, as plain bullets rather than names. */
 			points?: string[];
+			/**
+			 * What each named thing does under the action, in two groups: what it
+			 * changes (a check) and what it leaves (a dash), each with why.
+			 */
+			checklist?: { done: string; kept: string; rows: { name: string; note: string; ok: boolean }[] };
 			/** What the action changes in a file, line by line. */
 			diff?: ShownLine[];
 			confirmLabel?: string;
@@ -467,6 +472,31 @@ export function Dialog({ request, resolve }: PendingDialog) {
 					) : request.message ? (
 						<p>{request.message}</p>
 					) : null}
+					{request.kind === "confirm" && request.checklist && (
+						<div className="dialog-checklist">
+							{[true, false].map((ok) => {
+								const rows = request.checklist?.rows.filter((r) => r.ok === ok) ?? [];
+								if (rows.length === 0) return null;
+								return (
+									<Fragment key={String(ok)}>
+										<div className="checklist-head">
+											{ok ? request.checklist?.done : request.checklist?.kept}
+											<span className="checklist-count">{rows.length}</span>
+										</div>
+										{rows.map((r) => (
+											<div key={r.name} className={cx("checklist-row", ok ? "ok" : "kept")}>
+												<span className="checklist-mark" aria-hidden>
+													{ok ? "✓" : "–"}
+												</span>
+												<span className="checklist-name">{r.name}</span>
+												<span className="checklist-note">{r.note}</span>
+											</div>
+										))}
+									</Fragment>
+								);
+							})}
+						</div>
+					)}
 					{request.kind === "confirm" && request.diff && request.diff.length > 0 && (
 						<pre className="dialog-diff">
 							{request.diff.map((line, i) =>

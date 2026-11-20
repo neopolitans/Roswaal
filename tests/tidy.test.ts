@@ -135,3 +135,41 @@ describe("Make local", () => {
 		});
 	});
 });
+
+describe("a value wired from a constant node", () => {
+	it("moves a local fed by a String node, and the String node goes with it", () => {
+		const base = imported('local INPUT = "TankInput"\nprint(INPUT)\n', "local");
+		const declare = base.nodes.find((n) => n.def === "local.declare");
+		if (!declare) throw new Error("no Declare Local");
+		const { value: _typed, ...literals } = declare.literals ?? {};
+		const script: NodeScript = {
+			...base,
+			nodes: [
+				...base.nodes.map((n) => (n.id === declare.id ? { ...n, literals } : n)),
+				{
+					id: "str",
+					def: "value.string",
+					x: 0,
+					y: 0,
+					literals: { value: { t: "string", v: "TankInput" } },
+				},
+			],
+			links: [
+				...base.links,
+				{ id: "w", from: { node: "str", pin: "result" }, to: { node: declare.id, pin: "value" } },
+			],
+		};
+		const { plan } = planOf(script);
+		expect(plan.find((r) => r.name === "INPUT")).toMatchObject({
+			can: true,
+			why: "A string, set once",
+		});
+		const moved = tidyAll(script, plan);
+		expect(moved.nodes.some((n) => n.id === "str")).toBe(false);
+		expect(moved.variables.find((v) => v.name === "INPUT")?.default).toEqual({
+			t: "string",
+			v: "TankInput",
+		});
+		expect(compile(moved, registry).code).toContain('local INPUT: string = "TankInput"');
+	});
+});

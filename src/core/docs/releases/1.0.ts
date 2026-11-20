@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.54",
+		date: "2026-11-20",
+		headline: "Tidy declarations reads as a checklist, and constants wired in can move.",
+		changed: [
+			"**Tidy declarations** lists what moves and what stays under their own headings, a check or a dash beside each name and the reason after it, above the Luau's diff.",
+			"**A local fed by a Number, String, Boolean or Nil node** can move to the top. The constant becomes its value, and the node goes when nothing else reads it.",
+		],
+		affects: ["editor"],
+	},
+	{
 		version: "1.0.0-canary.53",
 		date: "2026-11-20",
 		headline: "Declarations tidy to the top on request, and globals can become locals.",

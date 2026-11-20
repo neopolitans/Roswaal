@@ -120,7 +120,7 @@ export interface VariablesPanelProps {
 	confirmChange?: (ask: {
 		title: string;
 		message: string;
-		points?: string[];
+		checklist?: { done: string; kept: string; rows: { name: string; note: string; ok: boolean }[] };
 		diff: ShownLine[];
 		confirmLabel: string;
 	}) => Promise<boolean>;
@@ -356,7 +356,7 @@ export function VariablesPanel({
 		message: string,
 		next: NodeScript,
 		confirmLabel: string,
-		points?: string[],
+		checklist?: { done: string; kept: string; rows: { name: string; note: string; ok: boolean }[] },
 	) => {
 		// Without the header's hashes, which change with any edit.
 		const luau = (s: NodeScript) =>
@@ -366,7 +366,7 @@ export function VariablesPanel({
 				.join("\n");
 		const diff = shownLines(diffLines(luau(script), luau(next)));
 		return confirmChange
-			? confirmChange({ title, message, points, diff, confirmLabel })
+			? confirmChange({ title, message, checklist, diff, confirmLabel })
 			: confirm(title, message, confirmLabel);
 	};
 	const moveRow = async (row: TidyRow) => {
@@ -391,10 +391,11 @@ export function VariablesPanel({
 			`${can.length} of ${rows.length} can move to the top of the file. Nothing else changes.`,
 			tidyAll(script, rows),
 			`Move ${can.length}`,
-			[
-				...can.map((r) => `Moves: ${r.name}. ${r.why}.`),
-				...rows.filter((r) => !r.can).map((r) => `Stays: ${r.name}. ${r.why}.`),
-			],
+			{
+				done: "Moves to the top",
+				kept: "Stays",
+				rows: rows.map((r) => ({ name: r.name, note: r.why, ok: r.can })),
+			},
 		);
 		if (ok) store.edit((s) => tidyAll(s, rows));
 	};
