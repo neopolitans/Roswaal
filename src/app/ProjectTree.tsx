@@ -840,8 +840,7 @@ export const ProjectTree = memo(function ProjectTree({
 							}
 							// A script with children opens as its graph, as a graph does.
 							const opens = isDir ? entry.children?.find((c) => c.path === entry.script) : entry;
-							if (opens && opens.kind !== "wally" && !opens.missing && opens.target !== undefined)
-								onOpen(opens);
+							if (opens && rowOpens(opens)) onOpen(opens);
 						}}
 						onContextMenu={(e) => {
 							e.preventDefault();
@@ -1489,6 +1488,16 @@ function landingOfFolder(maps: readonly TreeEntry[], folder: string): string | u
 		if (found) return found.trail;
 	}
 	return undefined;
+}
+
+/**
+ * Whether double-clicking a row opens it: every file does, wally.toml does
+ * not, and a package opens its module, so one not installed, or a dependency
+ * Wally did not leave a module for, has nothing to open.
+ */
+export function rowOpens(entry: TreeEntry): boolean {
+	if (entry.kind === "wally" || entry.missing) return false;
+	return entry.kind !== "package" || entry.target !== undefined;
 }
 
 /** What each of Output's marks means, on hover. */

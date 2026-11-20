@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.45",
+		date: "2026-11-20",
+		headline: "Double-clicking a graph or file in the Project panel opens it again.",
+		fixed: [
+			"Since 1.0.0-canary.37, double-clicking a graph, a map or a file in the Project panel did nothing. It opens again; a package still opens only when it has a module.",
+		],
+		affects: ["editor"],
+	},
+	{
 		version: "1.0.0-canary.44",
 		date: "2026-11-20",
 		headline: "A new Instance node starts empty, and lights up for a drop.",

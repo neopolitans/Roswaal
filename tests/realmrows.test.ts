@@ -9,7 +9,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import type { TreeEntry } from "../src/app/api.js";
-import { ProjectTree, type ProjectTreeProps } from "../src/app/ProjectTree.jsx";
+import { ProjectTree, type ProjectTreeProps, rowOpens } from "../src/app/ProjectTree.jsx";
 
 const TREE: TreeEntry[] = [
 	{
@@ -105,5 +105,28 @@ describe("packages by realm", () => {
 
 	it("offers autosync on each realm", () => {
 		expect(html.match(/>sync…</g)).toHaveLength(2);
+	});
+});
+
+describe("double-clicking a row", () => {
+	it("opens every graph and file, and a package only by its module", () => {
+		expect(rowOpens({ path: "a.nodescript", name: "a.nodescript", kind: "nodescript" })).toBe(true);
+		expect(rowOpens({ path: "a.luau", name: "a.luau", kind: "luau" })).toBe(true);
+		expect(rowOpens({ path: "Game.nodemap", name: "Game.nodemap", kind: "nodemap" })).toBe(true);
+		expect(rowOpens({ path: "wally.toml", name: "wally.toml", kind: "wally" })).toBe(false);
+		expect(
+			rowOpens({
+				path: "wally.toml/shared/S",
+				name: "S",
+				kind: "package",
+				target: "Packages/S.lua",
+			}),
+		).toBe(true);
+		expect(
+			rowOpens({ path: "wally.toml/shared/S", name: "S", kind: "package", missing: true }),
+		).toBe(false);
+		expect(
+			rowOpens({ path: "wally.toml/shared/S/D", name: "D", kind: "package", dependency: true }),
+		).toBe(false);
 	});
 });
