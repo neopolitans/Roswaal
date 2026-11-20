@@ -764,7 +764,8 @@ function renderNav(site: DocSite, current: DocPage, options: RenderOptions): str
 						)
 						.join("");
 					return (
-						`<details class="docs-section"${isHere ? " open" : ""}>` +
+						`<details class="docs-section"${isHere ? " open" : ""}` +
+						`${section.extension ? ` data-extension="${escapeHtml(section.extension)}"` : ""}>` +
 						`<summary class="docs-section-head">${escapeHtml(section.title)}` +
 						`<span class="count">${shown.length}</span></summary>` +
 						`<div class="docs-pages">${links}</div></details>`

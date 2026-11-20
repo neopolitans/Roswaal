@@ -97,7 +97,7 @@ export function compilingForLunePage(): DocPage {
 					["**Compile project**", "Every graph, then every node map"],
 					[
 						"**Compile: Dynamic**",
-						"Each graph as you edit it, and any that change on disk — after a `git pull`, say",
+						"Each graph as you edit it, and each graph whose file changes on disk, such as after a `git pull`",
 					],
 					["`roswaal compile`", "Everything, or the one graph or map you give it"],
 					["`roswaal watch`", "The same, without the editor"],

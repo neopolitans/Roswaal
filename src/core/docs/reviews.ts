@@ -65,6 +65,14 @@ export const REVIEWS: Record<
 	string,
 	{ status: Exclude<ReviewStatus, "pending">; date: string; verify?: string; reviewers?: string[] }
 > = {
+	// Read by the author for 1.0.0-canary.56. What each Lune library does
+	// was not checked against Lune itself: that needs someone who writes Lune.
+	"lune-library": {
+		status: "reviewed",
+		date: "2026-11-20",
+		verify: "An experienced Lune developer, to check each library's contents against Lune.",
+		reviewers: ["neopolitans"],
+	},
 	// Read by the author for 0.115.1, block by block on a review page that set
 	// every block of the four beside the text it came from: all 77 passed as
 	// drafted.

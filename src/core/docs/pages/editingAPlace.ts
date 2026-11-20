@@ -10,7 +10,7 @@ import { code } from "./blocks.js";
 /**
  * A place file in the project: starting from one, browsing and editing its
  * DataModel, dragging from it, and writing scripts back into it. Drawing it in
- * 3D is the Place Editor's, on *The place in 3D*.
+ * 3D is the Place Editor's, on *The Place Editor*.
  */
 export function editingAPlacePage(): DocPage {
 	return {
@@ -25,7 +25,7 @@ export function editingAPlacePage(): DocPage {
 				text:
 					"A project can keep its place, the `.rbxl` or `.rbxlx` Studio opens. This page is " +
 					"bringing one in, browsing and changing its instances, and writing your scripts into " +
-					"it. Drawing it in 3D is on [The place in 3D](place-in-3d); Rojo projects are on " +
+					"it. Drawing it in 3D is on [The Place Editor](place-in-3d); Rojo projects are on " +
 					"[Rojo projects and node maps](rojo-projects).",
 			},
 

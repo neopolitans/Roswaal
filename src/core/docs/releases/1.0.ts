@@ -9,6 +9,24 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.56",
+		date: "2026-11-20",
+		headline:
+			"The Place Editor has a docs section of its own, and the map figures fit beside the contents.",
+		added: [
+			"**A Place Editor section in the docs**, in place of The place in 3D: what it is, moving and picking, editing, what it draws, and a page for each of the Rendering, Performance and Mesh Debug panels. It leaves the contents while the extension is off.",
+		],
+		changed: [
+			"**Lune's standard library page is Reviewed.** A verified pass needs an experienced Lune developer to check each library against Lune.",
+		],
+		fixed: [
+			"**The node map figures** on Rojo projects and node maps put their notes underneath, and their panels one under another, when the reading column is narrow, instead of crushing the tree.",
+			"**Compile: Dynamic** on Compiling for Roblox and Compiling for Lune says plainly what it compiles.",
+		],
+		reviewed: ["lune-library"],
+		affects: ["docs"],
+	},
+	{
 		version: "1.0.0-canary.55",
 		date: "2026-11-20",
 		headline:

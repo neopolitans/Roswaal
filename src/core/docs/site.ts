@@ -55,7 +55,15 @@ import { luneLibraryPage } from "./pages/luneLibrary.js";
 import { membersAndFieldsPage } from "./pages/membersAndFields.js";
 import { modulesPage } from "./pages/modules.js";
 import { nodePage } from "./pages/node.js";
-import { placeIn3dPage } from "./pages/placeIn3d.js";
+import {
+	placeEditorDrawingPage,
+	placeEditorEditingPage,
+	placeEditorMeshDebugPage,
+	placeEditorMovingPage,
+	placeEditorPerformancePage,
+	placeEditorRenderingPage,
+	placeIn3dPage,
+} from "./pages/placeIn3d.js";
 import { projectPanelPage } from "./pages/projectPanel.js";
 import { readingLuauPage } from "./pages/readingLuau.js";
 import { releaseNotesPages } from "./pages/releaseNotes.js";
@@ -573,6 +581,13 @@ export interface DocSection {
 	 * category is finding out too late.
 	 */
 	group: string;
+	/**
+	 * The extension the section documents, by its id: `placeEditor`. The
+	 * contents leave the section out while that extension is off, in the
+	 * editor's Docs window and on the site alike. Its pages are still built,
+	 * so a link to one still lands.
+	 */
+	extension?: string;
 }
 
 export const GROUPS = {
@@ -742,14 +757,24 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 		rojoProjectsPage,
 		compilingForRobloxPage,
 		editingAPlacePage,
-		placeIn3dPage,
 		wallyPackagesPage,
 		readingLuauPage,
 		robloxDemosPage,
 	]);
+	// The Place Editor extension's pages: a section of their own, which the
+	// contents leave out while the extension is off.
+	const placeEditor = shelf([
+		placeIn3dPage,
+		placeEditorMovingPage,
+		placeEditorEditingPage,
+		placeEditorDrawingPage,
+		placeEditorRenderingPage,
+		placeEditorPerformancePage,
+		placeEditorMeshDebugPage,
+	]);
 	const forLune = shelf([luneLibraryPage, aliasesPage, compilingForLunePage, luneDemosPage]);
 	const theTool = shelf([settingsPage, extensionsPage, creatingCustomNodesPage, commandLinePage]);
-	const guides = [...writingGraphs, ...forRoblox, ...forLune, ...theTool];
+	const guides = [...writingGraphs, ...forRoblox, ...placeEditor, ...forLune, ...theTool];
 	const attributions = attributionsPage();
 	const contributing = contributingPage();
 	const legal = [privacyPage(), termsPage()];
@@ -767,6 +792,13 @@ export function buildSite(registry: Registry, builtinIds: ReadonlySet<string>): 
 			{ title: "Getting started", slug: "start", group: GROUPS.learn, pages: start },
 			{ title: "Writing graphs", slug: "guides", group: GROUPS.learn, pages: writingGraphs },
 			{ title: "For Roblox", slug: "guides-roblox", group: GROUPS.learn, pages: forRoblox },
+			{
+				title: "Place Editor",
+				slug: "guides-place-editor",
+				group: GROUPS.learn,
+				pages: placeEditor,
+				extension: "placeEditor",
+			},
 			{ title: "For Lune", slug: "guides-lune", group: GROUPS.learn, pages: forLune },
 			{ title: "The tool", slug: "guides-tool", group: GROUPS.learn, pages: theTool },
 			{

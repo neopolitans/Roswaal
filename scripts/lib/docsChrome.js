@@ -508,6 +508,26 @@
 	 * Docs window folds them, and remember it under the same keys -- so a
 	 * reader who folded them there finds them folded here.
 	 */
+	/**
+	 * A section documenting an extension leaves the contents while that
+	 * extension is off, as the editor's Docs window leaves it out. The editor
+	 * keeps each extension's switch under `roswaal.ext.<id>`; with nothing
+	 * stored, the extension is on.
+	 */
+	var sections = document.querySelectorAll(".docs-section[data-extension]");
+	for (var i = 0; i < sections.length; i++) {
+		var off = false;
+		try {
+			var stored = JSON.parse(
+				localStorage.getItem("roswaal.ext." + sections[i].dataset.extension) || "{}",
+			);
+			off = stored && stored.on === false;
+		} catch (e) {
+			// Storage refused or unreadable: the section stays.
+		}
+		if (off) sections[i].hidden = true;
+	}
+
 	function foldable(card, key, open, shut) {
 		if (!card) return;
 		var button = card.querySelector(".docs-card-fold");

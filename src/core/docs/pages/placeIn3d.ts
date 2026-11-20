@@ -1,39 +1,91 @@
 /**
- * The `place-in-3d` page of the documentation. `buildSite` places it.
+ * The Place Editor's pages of the documentation: the extension that draws the
+ * place in 3D. `buildSite` gathers them into a section of their own, which
+ * the contents leave out while the extension is off.
+ *
+ * One page per task rather than one page of everything: what it is, moving
+ * round and picking, editing, what it draws, and one page for each of its
+ * three panels. Editing the DataModel is Roswaal's own, on *Editing a place*,
+ * and works with the extension off.
  */
 
 import type { DocPage } from "../site.js";
 
-/**
- * The Place Editor extension: the place drawn in 3D, its Rendering panel and
- * finding what is slow. Editing the DataModel is Roswaal's own, on *Editing a
- * place*, and works with the extension off.
- */
+/** The section's first page: what the Place Editor is, and the way to its other pages. */
 export function placeIn3dPage(): DocPage {
 	return {
 		slug: "place-in-3d",
 		narrow: true,
-		title: "The place in 3D",
-		summary:
-			"The Place Editor: your place drawn in 3D, how it is rendered, and finding what is slow.",
+		title: "The Place Editor",
+		summary: "Your place drawn in 3D, in a tab of its own: an extension you can turn off.",
 		blocks: [
 			{
 				t: "p",
 				text:
 					"The **Place Editor** draws the place in 3D, in a tab of its own. It is an " +
-					"[extension](extensions), with its own version, and can be turned off in Settings; " +
-					"browsing and editing the place's instances, on [Editing a place](editing-a-place), " +
-					"works either way.",
+					"[extension](extensions), with its own version. Browsing and editing the place's " +
+					"instances, on [Editing a place](editing-a-place), works without it.",
 			},
-
+			{ t: "h", level: 2, text: "Opening the place" },
 			{
 				t: "p",
 				text:
-					"Open the place from **Files**, or with its row at the top of **DataModel**, and " +
-					"Workspace opens in a tab of its own, lit by the place's Lighting and Atmosphere, with " +
-					"Studio's saved camera drawn in yellow. While it is in front only DataModel and " +
-					"Properties show, and Properties describes the place until you pick something.",
+					"Open the place from **Files**, or with its row at the top of **DataModel**. Workspace " +
+					"opens in its own tab, lit by the place's Lighting and Atmosphere, with Studio's saved " +
+					"camera drawn in yellow. While it is in front, only DataModel and Properties show, and " +
+					"Properties describes the place until you pick something.",
 			},
+			{ t: "h", level: 2, text: "In this section" },
+			{
+				t: "table",
+				head: ["Page", "Covers"],
+				rows: [
+					[
+						"[Moving and picking](place-editor-moving)",
+						"The camera, picking, and the keys for both",
+					],
+					[
+						"[Editing in 3D](place-editor-editing)",
+						"Moving, turning and setting down parts, snaps, saving",
+					],
+					[
+						"[What it draws](place-editor-drawing)",
+						"Materials, assets, lights, shadows and effects",
+					],
+					[
+						"[The Rendering panel](place-editor-rendering)",
+						"How the view is drawn, and views of what it costs",
+					],
+					[
+						"[The Performance panel](place-editor-performance)",
+						"Frame times and the last frame's counts",
+					],
+					[
+						"[The Mesh Debug panel](place-editor-mesh-debug)",
+						"The meshes that cost the most to draw",
+					],
+				],
+			},
+			{ t: "h", level: 2, text: "Turning it off" },
+			{
+				t: "p",
+				text:
+					"**Settings › Place Editor** turns it off to save memory. The place's tab then says so, " +
+					"and the DataModel tree and Properties still work. While it is off, this section " +
+					"leaves the docs' contents.",
+			},
+		],
+	};
+}
+
+export function placeEditorMovingPage(): DocPage {
+	return {
+		slug: "place-editor-moving",
+		narrow: true,
+		title: "Moving and picking",
+		summary: "The Place Editor's camera, and picking parts and models.",
+		blocks: [
+			{ t: "h", level: 2, text: "Picking" },
 			{
 				t: "table",
 				head: ["To", "Do"],
@@ -49,25 +101,63 @@ export function placeIn3dPage(): DocPage {
 						"`Ctrl` + click, `Cmd` on a Mac, with `Alt` or `Shift` as above",
 					],
 					["Pick every part in a box", "Drag a box: a part is in when its centre is"],
-					["Add a box's parts to what is picked", "`Shift` or `Ctrl` + drag a box"],
+					["Add a box's parts", "`Shift` or `Ctrl` + drag a box"],
 					["Pick nothing", "`Esc`, or **Clear** on a touch screen"],
-					["See what a click would pick", "Rest the mouse over it: it is outlined faintly"],
+					["See what a click would pick", "Rest the pointer over it: it is outlined faintly"],
+					[
+						"Use the camera alone",
+						"`1` with Select chosen, or click **Select**: clicks pick nothing. `1` again picks again",
+					],
+				],
+			},
+			{
+				t: "p",
+				text:
+					"What is picked is outlined square to itself: a part to its own sides, a model to its " +
+					"pivot, as Studio's selection box is. One thing picked shows its pivot as a white dot, " +
+					"over everything in front of it.",
+			},
+			{ t: "h", level: 2, text: "The camera" },
+			{
+				t: "table",
+				head: ["To", "Do"],
+				rows: [
 					["Orbit round what is picked", "`Alt` + drag, or drag a finger"],
 					["Look round", "Right-drag"],
 					["Pan", "Middle-drag, or `Shift` + right-drag"],
 					["Zoom", "Scroll, or pinch"],
 					["Fly", "`W` `A` `S` `D`, `Q` down and `E` up; `Shift` + scroll sets the speed"],
 					[
-						"Fly, on a touch screen",
+						"Fly on a touch screen",
 						"The left stick moves and the right one looks round; the buttons beside it go up and down",
 					],
 					["Frame what is picked, or everything", "`F`, or `Home`"],
 					["Look along an axis", "Click its end on the axes, bottom right"],
+				],
+			},
+		],
+	};
+}
+
+export function placeEditorEditingPage(): DocPage {
+	return {
+		slug: "place-editor-editing",
+		narrow: true,
+		title: "Editing in 3D",
+		summary: "Moving, turning and setting down parts in the Place Editor, and saving the place.",
+		blocks: [
+			{
+				t: "p",
+				text:
+					"The editing tools need **Settings › Workspace › Modify DataModel Instances** on. " +
+					"Importing a place, or a Rojo project with one, asks whether to view it only or to " +
+					"view and edit it.",
+			},
+			{
+				t: "table",
+				head: ["To", "Do"],
+				rows: [
 					["Show a tool's handles", "`1` to `4`: Select, Move, Rotate, Scale"],
-					[
-						"Use the camera alone",
-						"`1` with Select chosen, or click **Select**: clicks pick nothing; `1` again picks it up",
-					],
 					[
 						"Move a part or a model onto a surface",
 						"Drag it, with any tool: it rests on what is under the pointer",
@@ -80,83 +170,120 @@ export function placeIn3dPage(): DocPage {
 						"Turn what is dragged",
 						"`R` turns it, `T` tilts it, a quarter each; `Esc` puts it back",
 					],
+					["Take a drag back", "`Ctrl` + `Z`"],
 					["Put the handles on the pivot", "**Pivot** in the bar: Edit Pivot"],
-					["Save the place", "`Ctrl` + `S`, `Cmd` + `S` on a Mac, or **Save** in the bar"],
 					[
-						"Turn the handles to the world's axes, or back to the object's",
+						"Turn the handles to the world's axes, or back",
 						"`Ctrl` + `L`, `Cmd` + `L` on a Mac, or **Object** in the bar",
+					],
+					["Save the place", "`Ctrl` + `S`, `Cmd` + `S` on a Mac, or **Save** in the bar"],
+				],
+			},
+			{
+				t: "p",
+				text:
+					"The handles stand square to what is picked; they show the tool's axes but do not " +
+					"drag yet, so drag the part itself. With **Pivot** on, the pivot's dot shows its X, Y " +
+					"and Z, and a drag by it keeps the dot ringed, with a **Pivot** tag. A Locked part " +
+					"stays put.",
+			},
+			{ t: "h", level: 2, text: "Snaps" },
+			{
+				t: "p",
+				text:
+					"The bar's snaps set the steps a drag keeps to, in studs and degrees. On a narrower " +
+					"screen they are behind **Snap**.",
+			},
+		],
+	};
+}
+
+export function placeEditorDrawingPage(): DocPage {
+	return {
+		slug: "place-editor-drawing",
+		narrow: true,
+		title: "What it draws",
+		summary: "How the Place Editor draws parts, assets, lights and effects.",
+		blocks: [
+			{
+				t: "table",
+				head: ["What", "How it is drawn"],
+				rows: [
+					[
+						"Parts",
+						"In their colour and material, each material's pattern or texture tinted by the " +
+							"part's Color, with their Transparency and Reflectance",
+					],
+					["Neon", "Glowing; the place's Bloom sets how much"],
+					[
+						"Glass",
+						"See-through Glass hides the see-through parts behind it, as Studio's does. " +
+							"**Settings › Scene view** can let them show",
+					],
+					[
+						"Decals, Textures, meshes and the sky",
+						"Downloaded once, when signed in with Roblox through `roswaal serve`. Until then, " +
+							"and on the website, a face is its part's colour, a MeshPart its box, and the sky " +
+							"Roswaal's own",
+					],
+					[
+						"Lights",
+						"PointLights, SpotLights and SurfaceLights light the place, and cast no shadows yet",
+					],
+					["The sun and sky", "The sun casts shadows; Ambient lights where the sky cannot reach"],
+					["ColorCorrection and Blur", "Drawn; **Settings › Scene view** can turn them off"],
+					[
+						"Beams and ParticleEmitters",
+						"Moving as they do in Studio; a particle whose image is not downloaded is a soft dot",
 					],
 				],
 			},
 			{
 				t: "p",
 				text:
-					"What is picked is outlined square to itself: a part to its own sides, a model to its " +
-					"pivot, as Studio's selection box is. The handles stand the same way. One thing picked " +
-					"shows its pivot over everything in front of it: a white dot, with its X, Y and Z while " +
-					"**Pivot** is on.",
-			},
-			{
-				t: "p",
-				text:
-					"Move, Rotate, Scale, **Pivot** and **Object** are editing tools, offered with " +
-					"**Settings › Workspace › Modify DataModel Instances** on, as is dragging; a Locked " +
-					"part stays put, and `Ctrl` + `Z` takes a drag back. A drag by the pivot keeps its dot " +
-					"ringed, with a **Pivot** tag. Importing a place, or a Rojo " +
-					"project with one, asks whether to view it only or to view and edit it.",
-			},
-			{
-				t: "p",
-				text:
-					"The bar's snaps set the steps a drag keeps to, in studs and degrees; on a narrower " +
-					"screen they are behind **Snap**. Parts are drawn in their colour and material, each " +
-					"material with a pattern or texture of its own tinted by the part's Color, with their " +
-					"Transparency and Reflectance, and Neon glows. See-through Glass hides the see-through " +
-					"parts behind it, as Studio's does. It draws with WebGPU, or WebGL2 where the browser " +
-					"has no WebGPU; **Settings › Scene view** chooses, and can let parts show through " +
-					"Glass. Signed in with Roblox through `roswaal serve`, Decals and Textures, MeshParts' " +
-					"meshes and the Sky's images are downloaded once and drawn; until then, and on the " +
-					"website, a face is its part's colour, a MeshPart its box and the sky Roswaal's own. " +
 					"A card over the bar counts the assets in as they load, and any that failed or need " +
-					"signing in. " +
-					"The place's ColorCorrection and Blur are drawn too, and its Bloom sets how Neon " +
-					"glows; **Settings › Scene view** can turn them off. Beams and ParticleEmitters " +
-					"move as they do in Studio; a particle whose image is not downloaded is a soft dot. Its PointLights, " +
-					"SpotLights and SurfaceLights light it, Ambient lights where the sky cannot reach, " +
-					"and the sun casts shadows; the lights cast none yet, and the handles do " +
-					"not drag yet. To save memory, turn the place editor " +
-					"off in **Settings › Place Editor**; the place's tab then says so, and the " +
-					"DataModel tree and Properties still work.",
+					"signing in.",
 			},
+			{
+				t: "p",
+				text:
+					"It draws with WebGPU, or WebGL2 where the browser has no WebGPU. **Settings › Scene " +
+					"view** chooses.",
+			},
+		],
+	};
+}
 
-			{ t: "h", level: 2, text: "Rendering" },
+export function placeEditorRenderingPage(): DocPage {
+	return {
+		slug: "place-editor-rendering",
+		narrow: true,
+		title: "The Rendering panel",
+		summary: "How the Place Editor's view is drawn, switch by switch, and views of what it costs.",
+		blocks: [
 			{
 				t: "p",
 				text:
 					"The **Rendering** panel, in the **Panels** menu while the place is in front, changes " +
-					"how the viewer draws it, never the place.",
+					"how the view draws the place, never the place.",
 			},
+			{ t: "h", level: 2, text: "Switches" },
 			{
 				t: "p",
 				text:
 					"Every part of the picture has its own switch, in groups: surfaces, light, shadows, " +
-					"lights, glow and effects, sky and air, post effects. A dot marks a switch changed " +
-					"from the preset chosen; **Reset** puts them back. A switch changes only itself, in " +
-					"whatever the view shows.",
+					"lights, glow and effects, sky and air, post effects. A switch changes only itself. A " +
+					"dot marks one changed from the preset; **Reset** puts them back.",
 			},
+			{ t: "h", level: 2, text: "View" },
 			{
 				t: "p",
 				text:
-					"**View** chooses what is shown. Its **Final output** presets set the switches: " +
+					"**View** chooses what is shown. Its **Final output** presets set the switches: the " +
 					"performance ones take away what costs most, down to **Lowest**, and the rest show one " +
-					"feature alone; under them the arrows step through the ten steps a frame is built in. " +
-					"Its inspecting views show the place as the switches leave it, so the wireframe shows " +
-					"what culling left. **Gizmos** draws Attachments, welds and constraints over the " +
-					"view, and those of what is picked. **Performance** holds frustum and occlusion culling: " +
-					"parts out of view, or hidden behind solid parts, are not drawn, and the wireframe shows " +
-					"what is left. **Roswaal fixes** change the picture from Studio's on purpose and start " +
-					"off: **Thin walls block sky** keeps closed rooms dark whatever their walls' thickness, " +
-					"where Studio lets the sky through walls thinner than 4 studs.",
+					"feature alone. Under them, the arrows step through the ten steps a frame is built in. " +
+					"The other views show the place as the switches leave it, so the wireframe shows what " +
+					"culling left.",
 			},
 			{
 				t: "table",
@@ -172,64 +299,158 @@ export function placeIn3dPage(): DocPage {
 					["Lighting heatmap", "How many lights reach each pixel; black for none"],
 					[
 						"Overdraw",
-						"How many surfaces are drawn over each pixel, 1 to 32 or more: every solid part, " +
-							"hidden ones too, then see-through parts, images, beams and particles in front. " +
-							"Look for red and white to find stacked or buried parts",
+						"How many surfaces are drawn over each pixel, 1 to 32 or more. Red and white find " +
+							"stacked or buried parts",
 					],
 					[
 						"Triangle density",
-						"Each part's triangles a square stud of its box, ¼ to 64 or more. Red and white " +
-							"parts are heavy meshes or unions: simplify them",
+						"Each part's triangles for each square stud of its box, ¼ to 64 or more. Red and " +
+							"white parts are heavy meshes or unions to simplify",
 					],
 					[
 						"Shadow maps",
-						"Which of the sun's maps shades each pixel, tinted: three cascades out to 64, 256 " +
-							"and 1,024 studs, then the whole place's map. A white line marks the edge of the " +
-							"sky's near maps",
+						"Which of the sun's maps shades each pixel: three cascades out to 64, 256 and 1,024 " +
+							"studs, then the whole place's map. A white line marks the edge of the sky's near maps",
 					],
 				],
 			},
 			{
 				t: "p",
 				text:
-					"**Heat** draws a heatmap as **Linear heat**, blended and each light weighed by how " +
+					"**Heat** draws a heatmap as **Linear heat**, blended, each light weighed by how " +
 					"strongly it reaches, or as **Cubespots**, the 16-stud cells the lights are sorted into.",
 			},
+			{ t: "h", level: 2, text: "Tools" },
 			{
-				t: "p",
-				text: "What the panel looks at, and the step its switches show, show over the bar's left end.",
+				t: "table",
+				head: ["Switch", "Does"],
+				rows: [
+					[
+						"**Gizmos**",
+						"Draws Attachments, welds and constraints over the view, and those of what is picked",
+					],
+					[
+						"**Performance**",
+						"Frustum and occlusion culling: parts out of view, or behind solid parts, are not drawn",
+					],
+					[
+						"**Light ranges**",
+						"Draws the reach of the lights near the camera as wire shapes, in their colour",
+					],
+					[
+						"**Freeze shadows**",
+						"Stops redrawing the sun's and sky's shadow maps, so their cost can be compared",
+					],
+				],
 			},
-			{ t: "h", level: 2, text: "Finding what is slow" },
+			{ t: "h", level: 2, text: "Roswaal fixes" },
 			{
 				t: "p",
 				text:
-					"Two more panels in the **Panels** menu, beside **Rendering**, show what drawing the " +
-					"place costs.",
+					"These change the picture from Studio's on purpose, and start off. **Thin walls block " +
+					"sky** keeps closed rooms dark whatever their walls' thickness; Studio lets the sky " +
+					"through walls thinner than 4 studs.",
+			},
+			{
+				t: "p",
+				text: "What the panel shows, and the step its switches stop at, show over the bar's left end.",
+			},
+		],
+	};
+}
+
+export function placeEditorPerformancePage(): DocPage {
+	return {
+		slug: "place-editor-performance",
+		narrow: true,
+		title: "The Performance panel",
+		summary: "What drawing the place costs: frame times and the last frame's counts.",
+		blocks: [
+			{
+				t: "p",
+				text:
+					"The **Performance** panel, in the **Panels** menu beside **Rendering**, shows what " +
+					"drawing the place costs. It updates twice a second while it is open.",
+			},
+			{ t: "h", level: 2, text: "The graph" },
+			{
+				t: "p",
+				text:
+					"The last 240 frames' times, with lines at 16.7 ms and 33.3 ms: a frame at 60 and at 30 " +
+					"a second. Where the browser times the GPU, each frame splits into its passes: " +
+					"shadows, the place and effects. Otherwise the graph shows the page's own time.",
+			},
+			{ t: "h", level: 2, text: "The last frame" },
+			{
+				t: "table",
+				head: ["Row", "Counts"],
+				rows: [
+					["Draw calls", "Batches sent to the GPU"],
+					["Instances", "Copies those calls drew"],
+					["Solid parts drawn", "How many of the solid parts culling left; All with culling off"],
+					["Triangles", "Triangles drawn"],
+					["Beams and Particles", "How many were drawn"],
+					["Page", "The page's own time for the frame"],
+					[
+						"GPU, shadows, place and effects",
+						"Each pass's time, where the browser times them. WebGL2 does not",
+					],
+					[
+						"Assets",
+						"How many of the place's assets are loaded, and any that failed or need signing in",
+					],
+				],
+			},
+			{ t: "h", level: 2, text: "Finding a spike" },
+			{
+				t: "p",
+				text:
+					"Fly round and watch the graph for frames over the 33 ms line. Then, in " +
+					"[Rendering](place-editor-rendering), turn switches off one at a time, or freeze the " +
+					"shadows, and see which brings the time down. [Mesh Debug](place-editor-mesh-debug) " +
+					"names the meshes to simplify. To watch the place through a panel, pick " +
+					"**See-through** in its **⋯** menu.",
+			},
+		],
+	};
+}
+
+export function placeEditorMeshDebugPage(): DocPage {
+	return {
+		slug: "place-editor-mesh-debug",
+		narrow: true,
+		title: "The Mesh Debug panel",
+		summary: "The meshes that cost the place the most to draw, and picking every copy.",
+		blocks: [
+			{
+				t: "p",
+				text:
+					"The **Mesh Debug** panel, in the **Panels** menu beside **Rendering**, lists the " +
+					"meshes that cost the most to draw.",
 			},
 			{
 				t: "table",
-				head: ["Panel", "Shows"],
+				head: ["List", "Shows"],
 				rows: [
 					[
-						"**Performance**",
-						"The last 240 frames' times, with the GPU's passes where the browser times them, " +
-							"and the last frame's draw calls, instances, triangles, beams, particles and times",
+						"By triangles",
+						"The ten meshes costing the most triangles: each mesh's own count times the copies " +
+							"drawing it, with ×n for the copies",
 					],
-					[
-						"**Mesh Debug**",
-						"The meshes costing the most triangles, all copies counted, and those drawn most " +
-							"often. Click one to pick its copies",
-					],
+					["By copies", "The ten meshes drawn most often, of those drawn more than once"],
 				],
 			},
 			{
 				t: "p",
 				text:
-					"Fly around and watch **Performance** for spikes over the 33 ms line. In **Rendering**, " +
-					"**Light ranges** draws the reach of the lights near the camera as wire shapes, in " +
-					"their colour, and **Freeze shadows** stops redrawing the sun's and sky's shadow maps, " +
-					"so their cost can be compared. To watch the place through a window, pick " +
-					"**See-through** in its **⋯** menu.",
+					"Copies are one mesh when they share an asset. Click a row to pick every copy and " +
+					"frame them; rest the pointer on it for the class, the copies and each copy's triangles.",
+			},
+			{
+				t: "p",
+				text:
+					"A heavy mesh with many copies is the first to simplify. **Triangle density** in " +
+					"[Rendering](place-editor-rendering) shows the same meshes in place.",
 			},
 		],
 	};

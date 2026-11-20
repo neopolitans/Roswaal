@@ -73,10 +73,12 @@ import type { NodeMap } from "../core/nodemap.js";
 import { BUILTIN_NODES, type Registry } from "../core/nodes/index.js";
 import { RUNTIME_LABEL, RUNTIME_SUMMARY } from "../core/nodes/runtimes.js";
 import type { NodeScript } from "../core/schema.js";
+import { PLACE_EDITOR } from "../extensions/index.js";
 import { attachAttributions } from "./attributionsBrowser.js";
 import { DocsSearch } from "./DocsSearch.jsx";
 import { chosenDevice, pickTab, readerDevice, rememberPick } from "./docsDevice.js";
 import { attachWalkthrough } from "./docsWalk.js";
+import { useExtension } from "./extensionSettings.js";
 import { wirePath } from "./geometry.js";
 import { attachGraphView } from "./graphView.js";
 import { highlightLuau } from "./highlight.js";
@@ -195,7 +197,14 @@ export function DocsView({
 	searchRequest = 0,
 }: DocsViewProps) {
 	const site = useMemo(() => buildSite(registry, BUILTIN_IDS), [registry]);
-	const index = useMemo(() => buildSearchIndex(site), [site]);
+	// A section documenting an extension leaves the contents and the search
+	// while that extension is off. Its pages are still built, so a link lands.
+	const placeEditorOn = useExtension(PLACE_EDITOR).on;
+	const listed = useMemo(
+		() => site.sections.filter((s) => s.extension !== PLACE_EDITOR.id || placeEditorOn),
+		[site, placeEditorOn],
+	);
+	const index = useMemo(() => buildSearchIndex({ ...site, sections: listed }), [site, listed]);
 
 	const preview = useMemo(() => previewFor(prefs), [prefs]);
 
@@ -358,7 +367,7 @@ export function DocsView({
 									))}
 								</div>
 							) : (
-								groupsOf(site.sections).map(([group, sections]) => (
+								groupsOf(listed).map(([group, sections]) => (
 									<div key={group} className="docs-group">
 										<div className="docs-group-head">{group}</div>
 										{sections.map((section) => {

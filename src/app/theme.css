@@ -16366,7 +16366,13 @@ p.licence-meta,
 	align-items: stretch;
 }
 
-@media (max-width: 900px) {
+/* The legend goes under the panel when the reading column is too narrow for
+   both: a *container* query on `.docs-content`, as `.docs-bar-legend` does,
+   because the window can be wide while the nav and the outline leave the
+   column at 550px. A window query kept the two side by side there, and the
+   panel was crushed to a tree two pixels wide. Side by side needs about
+   620px of panel and the legend's 290. */
+@container (max-width: 980px) {
 	.docs-map-body {
 		grid-template-columns: minmax(0, 1fr);
 	}
@@ -16627,8 +16633,15 @@ p.licence-meta,
 }
 
 /* One under the other once there is no room for two: an Inspector squeezed
-   beside a tree on a phone is two unreadable columns instead of one. */
-@media (max-width: 860px) {
+   beside a tree is two unreadable columns instead of one. A *container*
+   query on the reading column, not the window: with the nav and the outline
+   open, a 1150px window left the panel 216px wide, the tree squeezed to two
+   pixels by the 320px side. */
+@container (max-width: 640px) {
+	.docs-map-frame {
+		max-height: none;
+	}
+
 	.docs-map-frame .map-docs {
 		grid-template-columns: minmax(0, 1fr);
 		grid-template-rows: auto;
