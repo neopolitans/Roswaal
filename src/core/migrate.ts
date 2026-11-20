@@ -194,6 +194,17 @@ export function migrateScript(raw: NodeScript, registry?: Registry): MigrationRe
 		);
 	}
 
+	// -- an Instance node that leaned on the old default path --------------
+	//
+	// Until 1.0.0-canary.44 an Instance node started at Modules.Combat, and a
+	// node whose path was never touched stored nothing and compiled to that.
+	// The default is empty now, so it is written in, and the Luau stays as it was.
+	script.nodes = script.nodes.map((node) =>
+		node.def === "roblox.instancePath" && node.literals?.path === undefined
+			? { ...node, literals: { ...node.literals, path: { t: "string", v: "Modules.Combat" } } }
+			: node,
+	);
+
 	const byId = new Map(script.nodes.map((n) => [n.id, n]));
 
 	// -- pin renames -------------------------------------------------------

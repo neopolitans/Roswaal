@@ -3044,6 +3044,24 @@ button.tb.primary:hover:not(:disabled) {
 	cursor: pointer;
 }
 
+/* The path is a button: it says so under the pointer. */
+.node .literal.path-face:hover {
+	border-color: var(--accent);
+}
+
+/* An instance or a file dragged over an Instance node: its In and Path are
+   what the drop sets, so they light up. */
+.node.drop-onto {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
+.node.drop-onto .literal.path-face,
+.node.drop-onto .row:first-of-type .literal {
+	border-color: var(--accent);
+	background: color-mix(in srgb, var(--accent) 16%, var(--bg-input));
+}
+
 .node .path-step-wrap {
 	display: inline-flex;
 	align-items: center;

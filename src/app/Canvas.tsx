@@ -1149,8 +1149,19 @@ export function Canvas({
 				if (!DROPPABLE.some((kind) => kinds.includes(kind))) return;
 				e.preventDefault();
 				e.dataTransfer.dropEffect = "copy";
+				// An Instance node under an instance or a file lights up: the drop
+				// sets its path rather than making another node.
+				const takes =
+					kinds.includes("application/x-roswaal") ||
+					kinds.includes("application/x-roswaal-property");
+				lightDropOnto(takes ? instanceNodeAt(e.target, script) : undefined);
+			}}
+			onDragLeave={(e) => {
+				// Leaving the canvas, not just moving from one node to another.
+				if (!e.currentTarget.contains(e.relatedTarget as Node | null)) lightDropOnto(undefined);
 			}}
 			onDrop={(e) => {
+				lightDropOnto(undefined);
 				// A file from the project tree: the caller works out where it lives
 				// in the DataModel and offers what can be done with it.
 				// Onto an Instance node, a drop sets its In and Path at once.
@@ -1663,7 +1674,7 @@ export function Canvas({
 						<InstanceBrowser
 							at={pathBrowser.at}
 							root={text("root", "ReplicatedStorage")}
-							path={text("path", "Modules.Combat")}
+							path={text("path", "")}
 							{...(pathBrowser.step !== undefined ? { step: pathBrowser.step } : {})}
 							onPick={(root, path) => setInstancePath(node.id, root, path)}
 							onClose={() => setPathBrowser(null)}
@@ -1959,6 +1970,17 @@ const NO_PINS: ReadonlySet<string> = new Set();
 function faultPins(list: readonly Diagnostic[] | undefined): ReadonlySet<string> {
 	if (!list?.some((d) => d.pin)) return NO_PINS;
 	return new Set(list.flatMap((d) => (d.pin ? [d.pin] : [])));
+}
+
+/** Marks the one Instance node a drag over the canvas would set, and no other. */
+function lightDropOnto(nodeId: string | undefined): void {
+	for (const lit of document.querySelectorAll(".node.drop-onto")) {
+		if (lit.getAttribute("data-node-id") !== nodeId) lit.classList.remove("drop-onto");
+	}
+	if (nodeId)
+		document
+			.querySelector(`.node[data-node-id="${CSS.escape(nodeId)}"]`)
+			?.classList.add("drop-onto");
 }
 
 /** The Instance node a drop landed on, if it landed on one. */

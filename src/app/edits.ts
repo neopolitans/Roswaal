@@ -79,6 +79,11 @@ export function addNode(
 	if (def.id === "function.return") node.config = { returns: [] };
 	if (HANDLER_NODES.has(def.id)) node.config = { params: [] };
 
+	// An Instance node starts with no path, and stores that it has none: one
+	// with nothing stored is from before, which migrate.ts gives Modules.Combat.
+	if (def.id === "roblox.instancePath")
+		node.literals = { ...node.literals, path: { t: "string", v: "" } };
+
 	// Reference nodes are useless until they point at something, so default them
 	// to the first candidate rather than spawning an error.
 	if (def.id === "variable.get" || def.id === "variable.set") {

@@ -1093,7 +1093,7 @@ function PathFace({
 		>
 			{steps.length === 0 && (
 				<button type="button" className="path-step empty" onClick={(e) => open(e)}>
-					Pick…
+					Pick an instance…
 				</button>
 			)}
 			{hidden.length > 0 && (

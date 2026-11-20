@@ -6,6 +6,8 @@
 
 import { describe, expect, it } from "vitest";
 
+import { addNode } from "../src/app/edits.js";
+
 import {
 	foldSteps,
 	PATH_ROW_CHARS,
@@ -13,9 +15,10 @@ import {
 	pathRowWidth,
 	pathSteps,
 } from "../src/core/instancePathFace.js";
+import { migrateScript } from "../src/core/migrate.js";
 import { nodeWidth } from "../src/core/nodeBox.js";
 import { BUILTIN_NODES, createRegistry, nodeTitle } from "../src/core/nodes/index.js";
-import type { GraphNode } from "../src/core/schema.js";
+import { emptyScript, type GraphNode } from "../src/core/schema.js";
 
 const fold = (path: string) => foldSteps(pathSteps(path), PATH_ROW_CHARS);
 
@@ -65,5 +68,35 @@ describe("the Instance node", () => {
 		expect(nodeWidth(def, long, false)).toBe(nodeWidth(def, node("A"), false));
 		expect(nodeWidth(def, long, true)).toBe(pathRowWidth("Tanks.Remotes.Exits.Primary.TankExit"));
 		expect(nodeWidth(def, long, true)).toBeGreaterThan(nodeWidth(def, long, false));
+	});
+
+	it("starts with no path, and names nothing until one is picked", () => {
+		const fresh: GraphNode = { id: "f", def: def.id, x: 0, y: 0 };
+		expect(nodeTitle(def, fresh)).toBe("Instance");
+		expect(def.inputs.find((p) => p.id === "path")?.default).toEqual({ t: "string", v: "" });
+	});
+
+	it("is placed storing its empty path, so loading it again leaves it empty", () => {
+		const placed = addNode(emptyScript("New", "new"), def, 0, 0);
+		const node = placed.script.nodes.find((n) => n.id === placed.id)!;
+		expect(node.literals?.path).toEqual({ t: "string", v: "" });
+		expect(migrateScript(placed.script, registry).script.nodes[0].literals?.path).toEqual({
+			t: "string",
+			v: "",
+		});
+	});
+
+	it("keeps an older node that leaned on Modules.Combat compiling as it did", () => {
+		const old = { ...emptyScript("Old", "old"), nodes: [{ id: "i", def: def.id, x: 0, y: 0 }] };
+		const { script } = migrateScript(old, registry);
+		expect(script.nodes[0].literals?.path).toEqual({ t: "string", v: "Modules.Combat" });
+		const set = {
+			...old,
+			nodes: [{ ...old.nodes[0], literals: { path: { t: "string" as const, v: "" } } }],
+		};
+		expect(migrateScript(set, registry).script.nodes[0].literals?.path).toEqual({
+			t: "string",
+			v: "",
+		});
 	});
 });

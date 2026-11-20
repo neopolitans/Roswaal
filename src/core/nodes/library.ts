@@ -722,7 +722,9 @@ const INSTANCE_PATH_INPUTS: PinDef[] = [
 		description: "Where the path starts: a service, or game / script / workspace.",
 	},
 	{
-		...str("path", "Path", "Modules.Combat"),
+		// Empty until picked: a made-up Modules.Combat read as a real path.
+		// migrate.ts pins the old default on nodes placed before this.
+		...str("path", "Path", ""),
 		description: "Dotted path from the root. Names that are not identifiers are bracketed for you.",
 	},
 ];
@@ -3137,7 +3139,7 @@ export const LIBRARY_NODES: NodeDef[] = [
 		// node reads at a glance however much of the path folds.
 		defaultLabel: (_config, node) => {
 			const typed = node?.literals?.path;
-			const path = typed?.t === "string" ? typed.v : "Modules.Combat";
+			const path = typed?.t === "string" ? typed.v : "";
 			const leaf = pathLeaf(path);
 			return leaf ? `Instance (${leaf})` : "Instance";
 		},

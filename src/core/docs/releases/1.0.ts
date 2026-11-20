@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.44",
+		date: "2026-11-20",
+		headline: "A new Instance node starts empty, and lights up for a drop.",
+		changed: [
+			"**A new Instance node** starts with no path and says Pick an instance…, not Modules › Combat. One placed before, whose path was never set, keeps Modules.Combat, so its Luau is unchanged.",
+			"**Dropping onto an Instance node.** An instance or a file dragged over one lights its In and Path, which the drop sets. Its path shows it can be clicked under the pointer.",
+		],
+		affects: ["editor"],
+	},
+	{
 		version: "1.0.0-canary.43",
 		date: "2026-11-20",
 		headline: "An Instance node shows its path as steps, and browses the DataModel.",
