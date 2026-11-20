@@ -165,6 +165,22 @@ describe("what the project's files add", () => {
 		expect(merged.nodes.filter((n) => n[3] & FROM_PROJECT)).toHaveLength(2);
 	});
 
+	it("marks what the place and the project both have, and lets the project's class win", async () => {
+		const opened = await project();
+		// The place has Remotes as a Folder; the project's file makes it a Script.
+		await writeFile(path.join(dir, "src/shared/Remotes.server.luau"), "print(1)\n");
+		const index = indexFromOutline(await projectInstances(opened, OUTLINE));
+		const shared = index.children.get("ReplicatedStorage")!.children.get("Shared")!;
+		expect(shared.inProject).toBe(true);
+		expect(shared.children.get("Util")).toMatchObject({ inProject: true });
+		expect(shared.children.get("Remotes")).toMatchObject({ className: "Script", inProject: true });
+		// Only the place has these.
+		const ping = shared.children.get("Remotes")!.children.get("Ping")!;
+		expect(ping.inProject).toBeUndefined();
+		expect(ping.fromProject).toBeUndefined();
+		expect(index.children.get("Workspace")!.inProject).toBeUndefined();
+	});
+
 	it("answers from the files alone when there is no place", async () => {
 		await project();
 		const session = new ApiSession({});

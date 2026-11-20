@@ -12,7 +12,7 @@
 import { FOLDER_PROJECT_FILES } from "../core/jsonc.js";
 import { type DocComment, mergeDocs } from "../core/luau/docComment.js";
 import type { TableMember } from "../core/luau/infer.js";
-import { FROM_PROJECT, type InstanceOutline } from "../core/luau/instances.js";
+import { FROM_PROJECT, IN_PROJECT, type InstanceOutline } from "../core/luau/instances.js";
 import {
 	type ModuleExports,
 	moduleExports,
@@ -322,6 +322,12 @@ export async function projectInstances(
 				const className = i === segments.length - 1 ? leafClass : i === 0 ? name : "Folder";
 				at = nodes.push([classIndex(className), name, parent, FROM_PROJECT]) - 1;
 				under.set(name, at);
+			} else if (!(nodes[at][3] & FROM_PROJECT)) {
+				// The place has it, and so does the project: marked, and at the leaf
+				// the project's class wins, because Rojo syncs it in over the place's.
+				nodes[at][3] |= IN_PROJECT;
+				if (i === segments.length - 1 && i > 0 && leafClass !== "Folder")
+					nodes[at][0] = classIndex(leafClass);
 			} else if (
 				i === segments.length - 1 &&
 				nodes[at][3] === FROM_PROJECT &&

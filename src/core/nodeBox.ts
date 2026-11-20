@@ -11,6 +11,7 @@
  */
 
 import { type CodeFace, codeFaceHeight, codeFaceOf, codeFaceWidth } from "./codeFace.js";
+import { pathRowWidth } from "./instancePathFace.js";
 import { nodeClassOf } from "./nodeClass.js";
 import { NODE } from "./nodeMetrics.js";
 import type { Registry } from "./nodes/index.js";
@@ -153,7 +154,12 @@ export function compactWidth(def: NodeDef, node: GraphNode): number {
 export function nodeWidth(def: NodeDef | undefined, node: GraphNode, wide = false): number {
 	const face = def ? codeFaceFor(def, node) : undefined;
 	if (face) return Math.max(codeFaceWidth(face), wideWidth(def, node, wide));
-	return Math.max(wideWidth(def, node, wide), def ? rowsWidth(def, node) : 0);
+	// Widen shows an Instance node's whole path, so the node grows to hold it.
+	const path =
+		wide && def?.id === "roblox.instancePath" && node.literals?.path?.t === "string"
+			? pathRowWidth(node.literals.path.v)
+			: 0;
+	return Math.max(wideWidth(def, node, wide), def ? rowsWidth(def, node) : 0, path);
 }
 
 /**

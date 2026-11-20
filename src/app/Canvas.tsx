@@ -80,6 +80,7 @@ import {
 	wireBounds,
 	wirePath,
 } from "./geometry.js";
+import { InstanceBrowser } from "./InstanceBrowser.jsx";
 import { Icon } from "./icons.jsx";
 import { GRID, LAYER, NODE, ZOOM } from "./layers.js";
 import { type Growth, NodeView, type PinDragState } from "./NodeView.jsx";
@@ -176,7 +177,7 @@ export interface CanvasProps {
 	 */
 	onPointerAt?: (world: Vec | null) => void;
 	/** A file dragged in from the project tree, dropped at this point. */
-	onDropFile: (path: string, screen: Vec, world: Vec) => void;
+	onDropFile: (path: string, screen: Vec, world: Vec, ontoInstance?: string) => void;
 	/**
 	 * The graph is being compiled and must not be edited.
 	 *
@@ -944,6 +945,28 @@ export function Canvas({
 		[wireDrag, script, registry, dropTarget],
 	);
 
+	// An Instance node's path browser, open from one of its steps.
+	const [pathBrowser, setPathBrowser] = useState<{
+		nodeId: string;
+		at: Element;
+		step?: number;
+	} | null>(null);
+	const onBrowsePath = useCallback(
+		(nodeId: string, at: Element, step?: number) => setPathBrowser({ nodeId, at, step }),
+		[],
+	);
+	/** Sets an Instance node's In and Path at once, typed as what is found there. */
+	const setInstancePath = useCallback(
+		(nodeId: string, root: string, path: string) => {
+			store.edit((s) => {
+				let next = setLiteral(s, nodeId, "root", { t: "string", v: root });
+				next = setLiteral(next, nodeId, "path", { t: "string", v: path });
+				return withFoundClass(next, nodeId, registry);
+			});
+		},
+		[registry],
+	);
+
 	const onLiteralChange = useCallback(
 		(nodeId: string, pinId: string, value: Literal | undefined) => {
 			store.edit((s) => {
@@ -1130,12 +1153,19 @@ export function Canvas({
 			onDrop={(e) => {
 				// A file from the project tree: the caller works out where it lives
 				// in the DataModel and offers what can be done with it.
+				// Onto an Instance node, a drop sets its In and Path at once.
+				const onto = instanceNodeAt(e.target, script);
 				const files = e.dataTransfer.getData("application/x-roswaal");
 				if (files) {
 					e.preventDefault();
 					const paths = JSON.parse(files) as string[];
 					if (paths[0]) {
-						onDropFile(paths[0], { x: e.clientX, y: e.clientY }, toWorld(e.clientX, e.clientY));
+						onDropFile(
+							paths[0],
+							{ x: e.clientX, y: e.clientY },
+							toWorld(e.clientX, e.clientY),
+							onto,
+						);
 					}
 					return;
 				}
@@ -1154,6 +1184,10 @@ export function Canvas({
 						property?: string;
 						attribute?: string;
 					};
+					if (onto && path.length > 0 && property === undefined && attribute === undefined) {
+						setInstancePath(onto, path[0], path.slice(1).join("."));
+						return;
+					}
 					const pathDef = registry.get("roblox.instancePath");
 					if (!pathDef || path.length === 0) return;
 					// A read-only property is placed as the Get it can only be.
@@ -1538,6 +1572,7 @@ export function Canvas({
 						def={registry.get(node.def)}
 						selected={selection.has(node.id)}
 						wideNodes={wideNodes}
+						onBrowsePath={onBrowsePath}
 						anchor={node.id === anchorId}
 						errorCount={errorsByNode.get(node.id) ?? 0}
 						warningCount={warningsByNode.get(node.id) ?? 0}
@@ -1616,6 +1651,25 @@ export function Canvas({
 					<span>Compiling — the graph is read-only until it finishes</span>
 				</div>
 			)}
+			{pathBrowser &&
+				(() => {
+					const node = script.nodes.find((n) => n.id === pathBrowser.nodeId);
+					if (!node) return null;
+					const text = (pin: string, fallback: string) => {
+						const value = node.literals?.[pin];
+						return value?.t === "string" ? value.v : fallback;
+					};
+					return (
+						<InstanceBrowser
+							at={pathBrowser.at}
+							root={text("root", "ReplicatedStorage")}
+							path={text("path", "Modules.Combat")}
+							{...(pathBrowser.step !== undefined ? { step: pathBrowser.step } : {})}
+							onPick={(root, path) => setInstancePath(node.id, root, path)}
+							onClose={() => setPathBrowser(null)}
+						/>
+					);
+				})()}
 		</div>
 	);
 }
@@ -1905,6 +1959,16 @@ const NO_PINS: ReadonlySet<string> = new Set();
 function faultPins(list: readonly Diagnostic[] | undefined): ReadonlySet<string> {
 	if (!list?.some((d) => d.pin)) return NO_PINS;
 	return new Set(list.flatMap((d) => (d.pin ? [d.pin] : [])));
+}
+
+/** The Instance node a drop landed on, if it landed on one. */
+function instanceNodeAt(target: EventTarget | null, script: NodeScript): string | undefined {
+	const id =
+		target instanceof Element
+			? target.closest("[data-node-id]")?.getAttribute("data-node-id")
+			: undefined;
+	if (!id) return undefined;
+	return script.nodes.find((n) => n.id === id)?.def === "roblox.instancePath" ? id : undefined;
 }
 
 /**

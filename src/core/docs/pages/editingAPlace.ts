@@ -251,6 +251,27 @@ export function editingAPlacePage(): DocPage {
 				],
 			},
 
+			{ t: "h", level: 2, text: "An Instance node's path" },
+			{
+				t: "p",
+				text:
+					"An **Instance** node shows its path as steps, and its title names the instance it " +
+					"reaches: **Instance (TankExit)**. A long path folds its first steps into **…**; " +
+					"hover for the whole path, or set **Long names** to **Widen** to show every step. A " +
+					"step neither the project nor the place has is dashed in amber: it may be made while " +
+					"the game runs.",
+			},
+			{
+				t: "p",
+				text:
+					"Click a step, or **…**, to browse from there. The browser lists the place with what " +
+					"your node maps put in it: a graph as the script it compiles to, and what only the " +
+					"place has marked **place**. Pick to set the path, or type one and press Enter, " +
+					"found or not. The node's output takes the class of what it reaches. Drag a file " +
+					"from the project tree, or an instance from the DataModel, onto the node to set its " +
+					"**In** and **Path** at once.",
+			},
+
 			{ t: "h", level: 2, text: "Dragging into code" },
 			{
 				t: "p",

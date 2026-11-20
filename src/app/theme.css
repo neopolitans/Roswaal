@@ -3022,6 +3022,223 @@ button.tb.primary:hover:not(:disabled) {
 	width: 92px;
 }
 
+/* An Instance node's path as steps across the Path row: the last whole, the
+   start folding into "…", a step not in the project or the place dashed. */
+/* Nothing comes out of the Path row, so its steps take the output lane too. */
+.node .row:has(> .side .path-face) > .side.left {
+	grid-column: 1 / -1;
+}
+
+.node .row:has(> .side .path-face) > .side.right {
+	display: none;
+}
+
+.node .literal.path-face {
+	flex: 1;
+	width: auto;
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	overflow: hidden;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.node .path-step-wrap {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+	min-width: 0;
+}
+
+/* The leaf is the instance the node gives you: it never shrinks. */
+.node .path-step-wrap:last-child {
+	flex: none;
+}
+
+.node .path-step {
+	min-width: 0;
+	padding: 0 1px;
+	font: inherit;
+	color: var(--fg-muted);
+	background: none;
+	border: 0;
+	border-radius: 3px;
+	cursor: pointer;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.node .path-step:hover {
+	color: var(--fg);
+	background: var(--bg-hover);
+}
+
+.node .path-step.leaf {
+	color: var(--fg);
+}
+
+/* An outline, which takes no room, so a missing step is no wider than a found one. */
+.node .path-step.missing {
+	outline: 1px dashed var(--warning);
+	outline-offset: -1px;
+	color: var(--warning);
+}
+
+.node .path-step.empty {
+	color: var(--fg-faint);
+}
+
+.node .path-sep {
+	color: var(--fg-faint);
+	font-size: 0.85em;
+}
+
+/* The browser an Instance node's path opens. */
+.menu.ib {
+	width: min(640px, calc(100vw - 24px));
+	max-width: none;
+	padding: 0;
+}
+
+.ib-head {
+	display: grid;
+	gap: 6px;
+	padding: 8px;
+	border-bottom: 1px solid var(--border);
+}
+
+.ib-path {
+	width: 100%;
+	font-family: var(--font-mono);
+}
+
+.ib-crumbs {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 3px;
+	font-size: 12px;
+	color: var(--fg-muted);
+}
+
+.ib-step-wrap {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+}
+
+.ib-step {
+	padding: 1px 4px;
+	font: inherit;
+	color: inherit;
+	background: none;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.ib-step:hover {
+	background: var(--bg-hover);
+}
+
+.ib-step.here {
+	color: var(--fg);
+	font-weight: 650;
+}
+
+.ib-step.missing {
+	border-style: dashed;
+	border-color: var(--warning);
+	color: var(--warning);
+}
+
+.ib-sep {
+	color: var(--fg-faint);
+}
+
+/* Three columns of the last levels: tall enough to read a folder at a glance. */
+.ib-columns {
+	display: grid;
+	grid-auto-flow: column;
+	grid-auto-columns: minmax(160px, 1fr);
+	height: min(360px, 50vh);
+	overflow-x: auto;
+}
+
+.ib-column {
+	display: grid;
+	align-content: start;
+	gap: 1px;
+	padding: 4px;
+	overflow: auto;
+	border-right: 1px solid var(--border);
+	font-size: 12px;
+}
+
+.ib-column:last-child {
+	border-right: 0;
+}
+
+.ib-item {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 6px;
+	font: inherit;
+	color: var(--fg);
+	text-align: left;
+	background: none;
+	border: 0;
+	border-radius: 6px;
+	cursor: pointer;
+	user-select: none;
+}
+
+.ib-item > svg {
+	flex: none;
+}
+
+.ib-item:hover {
+	background: var(--bg-hover);
+}
+
+.ib-item.on {
+	background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.ib-name {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.ib-tag {
+	font-size: var(--text-xs);
+	color: var(--fg-faint);
+	border: 1px solid var(--border);
+	border-radius: 999px;
+	padding: 0 5px;
+}
+
+.ib-none,
+.ib-note {
+	padding: 8px;
+	color: var(--fg-faint);
+	font-size: 12px;
+}
+
+.ib-foot {
+	margin: 0;
+	padding: 6px 8px;
+	border-top: 1px solid var(--border);
+	color: var(--fg-faint);
+	font-size: 11px;
+}
+
 /* Set Property's Property, once the wired value has a class: the field, and
    the lock it shows when the name in it is read-only. */
 .node .property-field {

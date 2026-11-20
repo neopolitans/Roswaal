@@ -7,6 +7,13 @@
  * background when a project with a place opens, so a lookup never waits.
  */
 
+import { useSyncExternalStore } from "react";
+
+import {
+	type InstanceNode,
+	type InstanceOutline,
+	indexFromOutline,
+} from "../core/luau/instances.js";
 import { classAtPath, type PlaceOutline } from "../core/rbx/browse.js";
 import { api } from "./api.js";
 
@@ -30,7 +37,53 @@ export function currentOutline(): PlaceOutline | null {
 	return outline;
 }
 
-/** The class the place holds at a root and path, from the outline in hand. */
+/**
+ * The class at a root and path: the project's instances first, where the
+ * project and the place are merged and the project wins (it is what Rojo
+ * syncs in), then the place's own outline.
+ */
 export function placeClassAt(root: string, path: string): string | undefined {
+	if (project) {
+		const found = classAtPath(project, root, path);
+		if (found) return found;
+	}
 	return outline ? classAtPath(outline, root, path) : undefined;
+}
+
+// -- The DataModel as the project knows it: the place, and what the node maps
+// put there. What an Instance node's path is checked against and browsed in.
+
+let project: InstanceOutline | null = null;
+let index: InstanceNode | null = null;
+const listeners = new Set<() => void>();
+
+/** Reads the project's instances again: as a project opens, and when its tree changes. */
+export function readInstances(): void {
+	api
+		.instances()
+		.then(({ outline: read }) => {
+			project = read;
+			index = indexFromOutline(read);
+		})
+		.catch(() => {
+			project = null;
+			index = null;
+		})
+		.finally(() => {
+			for (const listener of listeners) listener();
+		});
+}
+
+/** The DataModel as the project knows it, for a component: drawn again when it is read again. */
+export function useInstanceIndex(): InstanceNode | null {
+	return useSyncExternalStore(
+		(listener) => {
+			listeners.add(listener);
+			return () => {
+				listeners.delete(listener);
+			};
+		},
+		() => index,
+		() => null,
+	);
 }

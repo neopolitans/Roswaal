@@ -24,6 +24,8 @@ export interface InstanceNode {
 	children: Map<string, InstanceNode>;
 	/** Put there by the project's files through a node map, not read from the place. */
 	fromProject?: boolean;
+	/** In the place, and the project's files put it there too: not the place's alone. */
+	inProject?: boolean;
 }
 
 /** `[class, name, parent, flags]`, the place outline's node shape. */
@@ -35,6 +37,9 @@ export interface InstanceOutline {
 /** A node from the project's files rather than the place: bit 2 of its flags. */
 export const FROM_PROJECT = 2;
 
+/** A place node the project's files also reach: bit 3 of its flags. */
+export const IN_PROJECT = 4;
+
 /** The DataModel, from an outline: its children are the services. */
 export function indexFromOutline(outline: InstanceOutline): InstanceNode {
 	const root: InstanceNode = { name: "game", className: "DataModel", children: new Map() };
@@ -45,6 +50,7 @@ export function indexFromOutline(outline: InstanceOutline): InstanceNode {
 			className: outline.classes[cls],
 			children: new Map(),
 			...(flags & FROM_PROJECT ? { fromProject: true } : {}),
+			...(flags & IN_PROJECT ? { inProject: true } : {}),
 		};
 		made[i] = node;
 		const holder = parent === -1 ? root : made[parent];

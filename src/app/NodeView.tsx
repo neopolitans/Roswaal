@@ -10,6 +10,7 @@ import {
 } from "react";
 import { classIconOf } from "../core/classIcons.js";
 import { type CodeFace, codeFaceHeight, codeFaceOf, codeFacePinY } from "../core/codeFace.js";
+import { foldSteps, PATH_ROW_CHARS, pathSteps } from "../core/instancePathFace.js";
 import { nodeClassOf } from "../core/nodeClass.js";
 import { CODE_MARKS, GLYPH_STROKE, GLYPH_VIEW_BOX, GLYPHS, nodeGlyph } from "../core/nodeGlyphs.js";
 import { FUNCTION_NODES, signatureOf, signatureTypes } from "../core/nodes/flow.js";
@@ -48,10 +49,12 @@ import {
 	resolvePins,
 } from "./geometry.js";
 import { highlightLuau } from "./highlight.js";
+import { rootNode, walkSteps } from "./InstanceBrowser.jsx";
 import { Icon } from "./icons.jsx";
 import { LAYER, NODE } from "./layers.js";
 import { PropertyField } from "./PropertyField.jsx";
 import { nodeColor, pinColor } from "./palette.js";
+import { useInstanceIndex } from "./placeOutline.js";
 import { SERVICE_GROUPS_FIRST, serviceGroup } from "./servicePicker.js";
 import { useTypeChoices } from "./TypePicker.jsx";
 import { typeCardHandlers } from "./typeCard.js";
@@ -76,6 +79,8 @@ export interface NodeViewProps {
 	 * the wires are drawn to.
 	 */
 	wideNodes?: boolean;
+	/** An Instance node's path was clicked, at a step (or "…", its first hidden one): open the browser there. */
+	onBrowsePath?: (nodeId: string, at: Element, step?: number) => void;
 	/**
 	 * This is the node the rest of the selection lines up on.
 	 *
@@ -1007,6 +1012,18 @@ function renderLiteralEditor(props: NodeViewProps, pin: PinDef) {
 			</button>
 		);
 	}
+	if (current.t === "string" && props.node.def === "roblox.instancePath" && pin.id === "path") {
+		const root = props.node.literals?.root;
+		return (
+			<PathFace
+				nodeId={props.node.id}
+				root={root?.t === "string" ? root.v : "ReplicatedStorage"}
+				path={current.v}
+				wide={props.wideNodes === true}
+				onBrowse={props.onBrowsePath}
+			/>
+		);
+	}
 	if (current.t === "string") {
 		if (pin.options && pin.options.length > 0) {
 			return <OptionEditor pin={pin} value={current.v} onChange={(v) => set({ t: "string", v })} />;
@@ -1034,6 +1051,86 @@ function renderLiteralEditor(props: NodeViewProps, pin: PinDef) {
 		);
 	}
 	return null;
+}
+
+/**
+ * An Instance node's path as steps across the Path row: the last whole, the
+ * earliest folding into "…" when they do not fit, every one under Widen. A
+ * step neither the project nor the place has is dashed in amber -- it may be
+ * made while the game runs -- and never refused. Clicking a step, or "…",
+ * opens the browser there.
+ */
+function PathFace({
+	nodeId,
+	root,
+	path,
+	wide,
+	onBrowse,
+}: {
+	nodeId: string;
+	root: string;
+	path: string;
+	wide: boolean;
+	onBrowse?: (nodeId: string, at: Element, step?: number) => void;
+}) {
+	const index = useInstanceIndex();
+	const steps = pathSteps(path);
+	const { shown, hidden } = wide ? { shown: steps, hidden: [] } : foldSteps(steps, PATH_ROW_CHARS);
+	// How far the trees reach: steps past it are not there yet.
+	const base = rootNode(index, root);
+	const reached = base ? walkSteps(base, steps).length : steps.length;
+	const stop = (e: ReactPointerEvent) => e.stopPropagation();
+	const open = (e: React.MouseEvent, step?: number) => {
+		e.stopPropagation();
+		onBrowse?.(nodeId, e.currentTarget.closest(".path-face") ?? e.currentTarget, step);
+	};
+	const full = [root, ...steps].join(".");
+	return (
+		<span
+			className="literal path-face"
+			title={`${full}${hidden.length ? `${NEWLINE}… is ${hidden.join(" › ")}` : ""}${NEWLINE}Click a step to browse from it.`}
+			onPointerDown={stop}
+		>
+			{steps.length === 0 && (
+				<button type="button" className="path-step empty" onClick={(e) => open(e)}>
+					Pick…
+				</button>
+			)}
+			{hidden.length > 0 && (
+				<>
+					<button
+						type="button"
+						className="path-step fold"
+						title={hidden.join(" › ")}
+						onClick={(e) => open(e, hidden.length - 1)}
+					>
+						…
+					</button>
+					<span className="path-sep">›</span>
+				</>
+			)}
+			{shown.map((name, i) => {
+				const at = hidden.length + i;
+				return (
+					<span key={`${at}:${name}`} className="path-step-wrap">
+						{i > 0 && <span className="path-sep">›</span>}
+						<button
+							type="button"
+							className={cx(
+								"path-step",
+								at >= reached && "missing",
+								at === steps.length - 1 && "leaf",
+							)}
+							title={at >= reached ? `${name} is not in the project or the place yet` : undefined}
+							onClick={(e) => open(e, at)}
+						>
+							{name}
+						</button>
+					</span>
+				);
+			})}
+		</span>
+	);
 }
 
 const CUSTOM = "__roswaal_other__";

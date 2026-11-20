@@ -9,6 +9,21 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.43",
+		date: "2026-11-20",
+		headline: "An Instance node shows its path as steps, and browses the DataModel.",
+		added: [
+			"**Path as steps.** An Instance node's path runs across its Path row as steps. The last is always whole, earlier ones fold into … when they do not fit, and Long names › Widen shows them all. A step neither the project nor the place has is dashed in amber.",
+			"**Named for its instance.** The title names what the path reaches: Instance (TankExit).",
+			"**Instance browser.** Click a step to browse from it: the place with what your node maps put in it, each graph drawn as the script it compiles to, and what only the place has marked place. Pick, or type a path and press Enter, found or not.",
+			"**Drop onto the node.** A file from the project tree, or an instance from the DataModel, dropped onto an Instance node sets its In and Path.",
+		],
+		changed: [
+			"An Instance node's output takes the class of what it reaches from the project as well as the place, the project's where both have it.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.42",
 		date: "2026-11-20",
 		headline: "Roswaal makes no file or folder whose name Windows reads as something else.",

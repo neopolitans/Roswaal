@@ -13,6 +13,7 @@
  */
 
 import { CREATABLE_CLASS_OPTIONS } from "../creatable.js";
+import { pathLeaf } from "../instancePathFace.js";
 import { LUAU_PRIMITIVES } from "../luneTypes.js";
 import {
 	CLASS_OPTIONS,
@@ -3132,6 +3133,14 @@ export const LIBRARY_NODES: NodeDef[] = [
 		inputs: INSTANCE_PATH_INPUTS,
 		outputs: [d("instance", "", "Instance")],
 		compilesTo: { kind: "builtin", handler: "instance.path" },
+		// Named for what it reaches, as Declare Local is for its local, so the
+		// node reads at a glance however much of the path folds.
+		defaultLabel: (_config, node) => {
+			const typed = node?.literals?.path;
+			const path = typed?.t === "string" ? typed.v : "Modules.Combat";
+			const leaf = pathLeaf(path);
+			return leaf ? `Instance (${leaf})` : "Instance";
+		},
 		// The class the place holds at the path, where the editor found one:
 		// dropped from Properties, or a path typed that the place has. Written
 		// as a cast, so the Luau says it as the wire does.

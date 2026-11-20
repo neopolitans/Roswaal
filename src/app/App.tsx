@@ -134,7 +134,7 @@ import {
 	setPlaceInFront,
 	watchPlaceFocus,
 } from "./placeHistory.js";
-import { readOutline, rememberOutline } from "./placeOutline.js";
+import { placeClassAt, readInstances, readOutline, rememberOutline } from "./placeOutline.js";
 import { placeSaveState, saveKey, usePlaceSave } from "./placeSave.js";
 import { readPreferences, wheelAction } from "./preferences.js";
 import { SiteBanner } from "./previewBuild.jsx";
@@ -940,6 +940,14 @@ export function App() {
 		rememberOutline(null);
 		if (project?.place) readOutline();
 	}, [project?.root, project?.place]);
+	// The DataModel as the project knows it, for Instance nodes: read again,
+	// a moment after the tree settles, whenever the tree changes.
+	const robloxProject = project?.config.target === "roblox";
+	useEffect(() => {
+		if (!robloxProject || !project?.tree) return;
+		const later = setTimeout(readInstances, 400);
+		return () => clearTimeout(later);
+	}, [robloxProject, project?.tree]);
 	// Ctrl+Shift+Enter: full view in and out, wherever the focus is.
 	const showing = useShowing();
 	useEffect(() => {
@@ -2905,10 +2913,26 @@ export function App() {
 											setPinMenu({ screen, nodeId, pin, side })
 										}
 										onEditCode={(nodeId, pin) => openCode({ nodeId, pin: pin.id })}
-										onDropFile={async (dropped, screen, world) => {
+										onDropFile={async (dropped, screen, world, ontoInstance) => {
 											const name = dropped.split("/").pop() ?? dropped;
 											try {
 												const { location } = await api.resolve(dropped);
+												// Onto an Instance node: it now reaches that file's instance.
+												if (location && ontoInstance) {
+													store.edit((s) => {
+														let next = setLiteral(s, ontoInstance, "root", {
+															t: "string",
+															v: location.root,
+														});
+														next = setLiteral(next, ontoInstance, "path", {
+															t: "string",
+															v: location.path,
+														});
+														const found = placeClassAt(location.root, location.path);
+														return setNodeConfig(next, ontoInstance, { className: found });
+													});
+													return;
+												}
 												if (!location) {
 													notify(
 														"Nothing to make from that",
