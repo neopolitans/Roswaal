@@ -34,6 +34,7 @@ import {
 } from "../src/core/docs/site.js";
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 import type { NodeDef } from "../src/core/schema.js";
+import { isCanary, releaseOf } from "../src/core/version.js";
 
 const registry = createRegistry();
 const builtinIds = new Set(BUILTIN_NODES.map((d) => d.id));
@@ -316,10 +317,21 @@ describe("release notes", () => {
 		for (const page of releasePages.slice(1)) {
 			const view = minorBlock(page).minor;
 			const own = RELEASES.filter((r) => releasePageSlug(r.version) === page.slug);
+			// A canary build whose stable release is out is listed under that
+			// release, as one of its builds, rather than beside it.
+			const stable = new Set(own.filter((r) => !isCanary(r.version)).map((r) => r.version));
+			const folded = (v: string) => isCanary(v) && stable.has(releaseOf(v));
 			expect(
 				view.releases.map((r) => r.version),
 				page.slug,
-			).toEqual(own.map((r) => r.version));
+			).toEqual(own.filter((r) => !folded(r.version)).map((r) => r.version));
+			for (const r of view.releases) {
+				expect(r.builds?.map((b) => b.version) ?? [], r.version).toEqual(
+					own
+						.filter((b) => folded(b.version) && releaseOf(b.version) === r.version)
+						.map((b) => b.version),
+				);
+			}
 			expect(page.title).toBe(`${view.minor}.x`);
 		}
 		// The newest is marked once, on the newest minor version and its newest release.
@@ -346,9 +358,12 @@ describe("release notes", () => {
 				...view.sections.flatMap((s) => s.entries.map((l) => [s.kind, l] as const)),
 			];
 			for (const [kind, line] of lines) {
-				const release = own.get(line.version);
-				expect(release, `${page.slug}: ${line.version}`).toBeDefined();
-				expect(release?.[kind] ?? [], `${line.version} ${kind}`).toContain(line.text);
+				// A line from a build that has since shipped reads as the release
+				// it shipped in, and names the build it came in.
+				if (line.build) expect(releaseOf(line.build), line.build).toBe(line.version);
+				const release = own.get(line.build ?? line.version);
+				expect(release, `${page.slug}: ${line.build ?? line.version}`).toBeDefined();
+				expect(release?.[kind] ?? [], `${line.build ?? line.version} ${kind}`).toContain(line.text);
 			}
 			const expected = [...own.values()].reduce(
 				(n, r) =>
@@ -429,7 +444,11 @@ describe("release notes", () => {
 			const page = findPage(site, releasePageSlug(release.version))!;
 			const view = minorBlock(page).minor;
 			expect(view.security, release.version).toBe(true);
-			expect(view.releases.find((r) => r.version === release.version)?.tags).toContain("security");
+			const listed = view.releases.find(
+				(r) =>
+					r.version === release.version || r.builds?.some((b) => b.version === release.version),
+			);
+			expect(listed?.tags, release.version).toContain("security");
 			const html = renderPage(site, page, { version: VERSION });
 			expect(html).toContain("Security fixes");
 			expect(html).toContain(`${view.minor}.x · security fixes`);

@@ -8,6 +8,16 @@
 import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
+	// The stable release. The release notes fold its canary builds under it and
+	// read their lines and tags as its own, so it says only what it changed itself.
+	{
+		version: "1.0.0",
+		date: "2026-11-20",
+		headline:
+			"Roswaal 1.0: graphs can have child scripts, node maps are graphs, and packages keep themselves synced.",
+		changed: ["**1.0.0 is the first stable release** of 1.0, after 57 canary builds."],
+		affects: ["editor", "designer", "docs"],
+	},
 	{
 		version: "1.0.0-canary.57",
 		date: "2026-11-20",
