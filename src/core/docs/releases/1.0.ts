@@ -9,6 +9,23 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.37",
+		date: "2026-11-20",
+		headline: "Packages show what they are, and one window adds them.",
+		added: [
+			"**Add a package.** One window for From Wally, Zip and GitHub, from Add on the Packages heading or a package's menu. Under Realm it says where that realm lands in Studio.",
+			"**Dependencies.** A package says how many packages Wally installed with it, as +1 dependency, which opens to list them.",
+			"**Vendored packages.** Code put in Packages/ from a zip or GitHub is listed and tagged vendored, and Remove package deletes it.",
+			"**Install** on a package that is not installed.",
+		],
+		changed: [
+			"A package is drawn as Studio shows it, a ModuleScript, with a package mark in the corner.",
+			"Not installed is amber. A package with no version of its own says vendored, not 1.0.0.",
+		],
+		fixed: ["The prompt for an autosync path opens over the page, not inside the Project panel."],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.36",
 		date: "2026-11-20",
 		headline: "The docs say optional paths need Rojo 7.1.",

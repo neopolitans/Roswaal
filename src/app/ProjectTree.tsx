@@ -7,6 +7,7 @@
  */
 
 import { type DragEvent, memo, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { wearsClassIcon } from "../core/classIcons.js";
 import type { FunctionInfo } from "../core/functionGraph.js";
 import { PACKAGE_SYNC_PLACES } from "../core/packageSync.js";
@@ -92,7 +93,7 @@ export interface ProjectTreeProps {
 	 * Wally registry, from a zip, or from a GitHub repository. `entry` is the
 	 * package the menu was opened on, whose zip is being inserted.
 	 */
-	onPackage?: (how: "wally" | "zip" | "github" | "remove", entry?: TreeEntry) => void;
+	onPackage?: (how: "add" | "zip" | "install" | "remove", entry?: TreeEntry) => void;
 	/**
 	 * A Roblox project with no place: the Place heading offers one,
 	 * imported from a file or started from Studio's baseplate.
@@ -593,12 +594,10 @@ export const ProjectTree = memo(function ProjectTree({
 			}
 			case "packageZip":
 				return onPackage?.("zip", entry);
-			case "wally":
-				return onPackage?.("wally");
-			case "zip":
-				return onPackage?.("zip");
-			case "github":
-				return onPackage?.("github");
+			case "installPackage":
+				return onPackage?.("install", entry);
+			case "addPackage":
+				return onPackage?.("add", entry);
 			case "removePackage":
 				return onPackage?.("remove", entry);
 			case "newGraph":
@@ -776,14 +775,7 @@ export const ProjectTree = memo(function ProjectTree({
 								{id === "packages" && onPackage && (
 									<AddButton
 										title="Add a package: from Wally, a zip, or a GitHub repository"
-										onClick={(e) => {
-											const at = e.currentTarget.getBoundingClientRect();
-											setMenu({
-												x: at.left,
-												y: at.bottom,
-												entry: groups.wally ?? WALLY_ENTRY,
-											});
-										}}
+										onClick={() => onPackage("add")}
 									/>
 								)}
 								{id === "place" && onAddPlace && (
@@ -848,13 +840,14 @@ export const ProjectTree = memo(function ProjectTree({
 							}
 							// A script with children opens as its graph, as a graph does.
 							const opens = isDir ? entry.children?.find((c) => c.path === entry.script) : entry;
-							if (opens && opens.kind !== "wally" && !opens.missing) onOpen(opens);
+							if (opens && opens.kind !== "wally" && !opens.missing && opens.target !== undefined)
+								onOpen(opens);
 						}}
 						onContextMenu={(e) => {
 							e.preventDefault();
 							// wally.toml and its packages: a menu of their own, for adding.
 							if (isListed(entry)) {
-								if (onPackage) setMenu({ x: e.clientX, y: e.clientY, entry });
+								if (onPackage && !entry.dependency) setMenu({ x: e.clientX, y: e.clientY, entry });
 								return;
 							}
 							if (!selected.has(entry.path)) setSelected(new Set([entry.path]));
@@ -875,9 +868,7 @@ export const ProjectTree = memo(function ProjectTree({
 								: unsynced.has(entry.path)
 									? `${entry.path}: no node map syncs this, so Rojo never sees its Luau. Map it, or move it into a synced folder.`
 									: entry.kind === "package"
-										? entry.missing
-											? `${entry.name} is in wally.toml, and not installed: run wally install.`
-											: `${entry.name} ${shownVersion(entry)}. Double-click to open ${entry.target}.`
+										? packageTitle(entry)
 										: entry.script
 											? `${entry.name}, a script with children. Double-click to open its graph.`
 											: isDir && !groups.isGraph(entry) && entry.role
@@ -975,6 +966,18 @@ export const ProjectTree = memo(function ProjectTree({
 											: entry.kind === "nodescript"
 												? entry.realm
 												: undefined;
+									if (entry.kind === "package")
+										return (
+											<span
+												className={cx("tree-badged", entry.dependency && "tree-dependency")}
+												aria-hidden="true"
+											>
+												<ExplorerIcon className="ModuleScript" service={false} open={false} />
+												<span className="tree-package-badge">
+													<Icon name="instance" size={10} />
+												</span>
+											</span>
+										);
 									return realm && (entry.kind === "luau" || entry.kind === "nodescript") ? (
 										<ScriptIcon
 											kind={entry.kind}
@@ -1035,12 +1038,32 @@ export const ProjectTree = memo(function ProjectTree({
 								{output.marks.get(entry.path)}
 							</span>
 						)}
-						{entry.kind === "package" && !entry.missing ? (
-							<span className="badge">{shownVersion(entry)}</span>
-						) : (
-							entry.version && <span className="badge">{entry.version}</span>
+						{entry.kind === "package" && (entry.children?.length ?? 0) > 0 && (
+							<button
+								type="button"
+								className="badge tree-deps"
+								aria-expanded={expanded.has(entry.path)}
+								title={
+									expanded.has(entry.path)
+										? "Hide what Wally installed with it"
+										: "Show what Wally installed with it"
+								}
+								onClick={(e) => {
+									e.stopPropagation();
+									const next = new Set(expanded);
+									if (next.has(entry.path)) next.delete(entry.path);
+									else next.add(entry.path);
+									setExpanded(next);
+								}}
+								onDoubleClick={(e) => e.stopPropagation()}
+							>
+								+{entry.children?.length}{" "}
+								{entry.children?.length === 1 ? "dependency" : "dependencies"}
+							</button>
 						)}
-						{entry.missing && <span className="badge">not installed</span>}
+						{entry.kind === "package" && entry.vendored && <span className="badge">vendored</span>}
+						{entry.version && !entry.vendored && <span className="badge">{entry.version}</span>}
+						{entry.missing && <span className="badge warn">not installed</span>}
 						{/* New graph and New node map, in this folder. Their clicks stop
 						    here, so pressing one never folds or opens the folder. */}
 						{(isDir || entry.kind === "nodescript") && holdsGraphs(entry.path) && (
@@ -1185,7 +1208,7 @@ export const ProjectTree = memo(function ProjectTree({
 					label={menu.entry.name}
 					onClose={() => setMenu(null)}
 					sections={(isListed(menu.entry)
-						? packageMenu(menu.entry, { canGithub, notHere: NOT_HERE })
+						? packageMenu(menu.entry)
 						: fileMenu(menu.entry, {
 								holdsGraphs: holdsGraphs(parentDirOf(menu.entry)),
 								canImport: onImport !== undefined,
@@ -1397,7 +1420,7 @@ function RealmPathPrompt({
 	const [text, setText] = useState(value);
 	const parts = text.split(".").map((part) => part.trim());
 	const ok = parts.length >= 2 && parts.every(Boolean);
-	return (
+	return createPortal(
 		<div className="dialog-backdrop" role="presentation" onClick={onClose}>
 			<div
 				className="dialog"
@@ -1436,7 +1459,8 @@ function RealmPathPrompt({
 					</button>
 				</div>
 			</div>
-		</div>
+		</div>,
+		document.body,
 	);
 }
 
@@ -1488,9 +1512,6 @@ function MapBadge({ map, children }: { map: string | undefined; children: ReactN
 	);
 }
 
-/** Packages are listed under wally.toml; a project without one adds to a new one. */
-const WALLY_ENTRY: TreeEntry = { path: "wally.toml", name: "wally.toml", kind: "wally" };
-
 /**
  * Folders by what they are. Grey for a plain folder or a synced Folder; blue
  * for one that is a service, a container or a script in Studio; red for
@@ -1510,13 +1531,18 @@ const FOLDER_CLASS: Record<NonNullable<TreeEntry["role"]> | "plain", string> = {
  * is drawn filled, and a plain one outlined, so what reaches Studio stands out
  * from what only organises. The colour says what it is there.
  */
-/**
- * The version a package row shows: its own, or 1.0.0 for one with none, such as
- * code put in a package's place. Shown only: wally.toml is never given it, so
- * `wally install` is not sent looking for a 1.0.0 that is not this package.
- */
-export function shownVersion(entry: TreeEntry): string {
-	return entry.version ?? "1.0.0";
+/** What a package row says on hover: what it is, and what opens. */
+function packageTitle(entry: TreeEntry): string {
+	if (entry.missing)
+		return `${entry.name} is in wally.toml and not installed yet. Install it from its menu, or run wally install.`;
+	if (entry.dependency)
+		return `${entry.name} ${entry.version ?? ""}, installed because the package above depends on it.`.replace(
+			"  ",
+			" ",
+		);
+	if (entry.vendored)
+		return `${entry.name}, vendored: code put in the realm's folder from a zip or GitHub, with no version of its own. Double-click to open ${entry.target}.`;
+	return `${entry.name} ${entry.version ?? ""}. Double-click to open ${entry.target}.`;
 }
 
 function folderIcon(collapsed: boolean, filled: boolean): IconName {
@@ -1571,6 +1597,11 @@ function flatten(
 	for (const entry of entries) {
 		if (entry.path === hide) continue;
 		out.push({ entry, depth });
+		if (entry.kind === "package") {
+			if (entry.children && expanded.has(entry.path))
+				out.push(...entry.children.map((child) => ({ entry: child, depth: depth + 1 })));
+			continue;
+		}
 		if (entry.children && !isShut(entry.path)) {
 			out.push(...flatten(entry.children, isShut, depth + 1, fnsOf, expanded, entry.script));
 		}

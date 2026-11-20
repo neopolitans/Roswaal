@@ -11,6 +11,8 @@ import type { IconName } from "./icons.jsx";
 /** What an entry does, which the tree maps to its own handler. */
 export type TreeAction =
 	| "packageZip"
+	| "installPackage"
+	| "addPackage"
 	| "wally"
 	| "zip"
 	| "github"
@@ -66,33 +68,35 @@ const present = <T>(entries: (T | false | undefined)[]): T[] =>
 	entries.filter((e): e is T => e !== false && e !== undefined);
 
 /** `wally.toml`, or a package listed under it. */
-export function packageMenu(
-	entry: { kind: string; missing?: boolean },
-	ctx: Pick<TreeMenuContext, "canGithub" | "notHere">,
-): TreeMenuEntry[][] {
+export function packageMenu(entry: {
+	kind: string;
+	missing?: boolean;
+	spec?: string;
+	dependency?: boolean;
+}): TreeMenuEntry[][] {
 	return [
 		present([
 			entry.kind === "package" &&
+				entry.missing &&
+				entry.spec !== undefined && {
+					action: "installPackage",
+					label: "Install",
+					icon: "build",
+				},
+			entry.kind === "package" &&
 				entry.missing && { action: "packageZip", label: "Insert its zip…", icon: "folderOpen" },
 		]),
-		[
-			{ action: "wally", label: "Add from Wally…", icon: "instance" },
-			{ action: "zip", label: "Insert package zip…", icon: "folderOpen" },
-			{
-				action: "github",
-				label: "Insert GitHub repo…",
-				icon: "external",
-				...(ctx.canGithub ? {} : { disabled: true, title: ctx.notHere }),
-			},
-		],
-		// Last, as every menu's red entry is.
+		[{ action: "addPackage", label: "Add package…", icon: "plus" }],
+		// Last, as every menu's red entry is. What Wally installed for another
+		// package goes when that one does.
 		present([
-			entry.kind === "package" && {
-				action: "removePackage",
-				label: "Remove package…",
-				icon: "remove",
-				danger: true,
-			},
+			entry.kind === "package" &&
+				!entry.dependency && {
+					action: "removePackage",
+					label: "Remove package…",
+					icon: "remove",
+					danger: true,
+				},
 		]),
 	];
 }

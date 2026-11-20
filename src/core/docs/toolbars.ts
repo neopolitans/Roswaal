@@ -325,6 +325,12 @@ export type ToolbarItem = Documented &
 				classIcon?: string;
 				/** A folder a node map syncs: the map's mark in its icon's corner. */
 				synced?: boolean;
+				/** A package: the ModuleScript icon with the package mark in its corner. */
+				pkg?: boolean;
+				/** The tag in amber: a package not installed. */
+				warn?: boolean;
+				/** What Wally installed with a package, counted: "+1 dependency". */
+				deps?: string;
 				/** A folder with nothing in it: faint, saying so. */
 				empty?: boolean;
 				/** A place's Open button. */
@@ -593,6 +599,8 @@ function treeGlyph(item: ToolbarItem & { t: "treeRow" }, art: ToolbarArt): strin
 	const glyph =
 		(shown && wearsClassIcon(shown) ? classIconHtml(shown, 15, "kind") : "") ||
 		iconSvg(item.icon, 15, art, `kind${item.tone ? ` ${item.tone}` : ""}`);
+	if (item.pkg)
+		return `<span class="tree-badged">${glyph}<span class="tree-package-badge">${iconSvg("instance", 10, art)}</span></span>`;
 	return item.synced
 		? `<span class="tree-badged">${glyph}<span class="tree-map-badge">${iconSvg("map", 10, art)}</span></span>`
 		: glyph;
@@ -984,7 +992,8 @@ function itemHtml(item: ToolbarItem, art: ToolbarArt): string {
 				`<span class="label">${escapeXml(item.label)}</span>` +
 				`${item.empty ? `<span class="badge">empty</span>` : ""}` +
 				`${item.open ? `<span class="tb tree-open">Open</span>` : ""}` +
-				`${item.badge ? `<span class="badge">${escapeXml(item.badge)}</span>` : ""}` +
+				`${item.deps ? `<span class="badge tree-deps">${escapeXml(item.deps)}</span>` : ""}` +
+				`${item.badge ? `<span class="badge${item.warn ? " warn" : ""}">${escapeXml(item.badge)}</span>` : ""}` +
 				`${item.className ? `<span class="place-class">${escapeXml(item.className)}</span>` : ""}` +
 				// The picked DataModel row's menu button, as `PlaceBrowser.tsx` draws it.
 				`${item.place && item.selected ? `<span class="tb icon-only place-more-button">${iconSvg("more", 14, art)}</span>` : ""}` +
@@ -2929,31 +2938,61 @@ export const PROJECT_TREE_WALLY: ToolbarSpec = {
 				{
 					t: "treeSection",
 					text: "Packages",
-					count: 2,
+					count: 3,
 					add: "Add",
 					name: "Packages",
-					what: "What wally.toml depends on. Add puts a package in, from Wally, a zip or GitHub.",
+					what: "What wally.toml depends on, by realm. Add puts a package in, from Wally, a zip or GitHub.",
+				},
+				{
+					t: "treeRow",
+					label: "Shared",
+					depth: 0,
+					twist: "open",
+					icon: "folderOpenFilled",
+					tone: "tree-folder-packages",
+					synced: true,
+					badge: "ReplicatedStorage › Packages",
+					name: "A realm",
+					what: "Shared, Server or Dev: the folder Wally installs that realm into, and where a map lands it in Studio.",
 				},
 				{
 					t: "treeRow",
 					label: "Signal",
-					depth: 0,
+					depth: 1,
 					icon: "instance",
 					tone: "package",
-					badge: "1.5.0",
+					classIcon: "ModuleScript",
+					pkg: true,
+					badge: "2.0.1",
+					deps: "+1 dependency",
 					name: "A package",
-					what: "Listed by the name you require it by, with the version installed. Double-click it for its code.",
+					what: "Listed by the name you require it by, with the version installed. +1 dependency opens what Wally installed with it. Double-click it for its code.",
 				},
 				{
 					t: "treeRow",
 					label: "Promise",
-					depth: 0,
+					depth: 1,
 					icon: "instance",
 					tone: "package",
+					classIcon: "ModuleScript",
+					pkg: true,
 					badge: "not installed",
+					warn: true,
 					readonly: true,
 					name: "Not installed",
-					what: "In wally.toml with nothing in Packages/ yet. Right-click it to insert its zip.",
+					what: "In wally.toml with nothing in Packages/ yet. Right-click it to install it, or to insert its zip.",
+				},
+				{
+					t: "treeRow",
+					label: "Flux",
+					depth: 1,
+					icon: "instance",
+					tone: "package",
+					classIcon: "ModuleScript",
+					pkg: true,
+					badge: "vendored",
+					name: "Vendored",
+					what: "Code put in Packages/ from a zip or GitHub, with no version of its own.",
 				},
 				{ t: "treeSection", text: "Place", count: 1 },
 				{ t: "treeRow", label: "place.rbxl", depth: 0, icon: "build", tone: "place", open: true },
@@ -3024,7 +3063,7 @@ export const PROJECT_TREE_NEW: ToolbarSpec = {
 	],
 };
 
-/** The same tree once Add from Wally has installed Flux. */
+/** The same tree once Add a package has installed Flux. */
 export const PROJECT_TREE_WALLY_ADDED: ToolbarSpec = {
 	id: "project-tree-wally-added",
 	title: "The project tree, after adding a package",
@@ -3036,27 +3075,45 @@ export const PROJECT_TREE_WALLY_ADDED: ToolbarSpec = {
 				{ t: "treeSection", text: "Packages", count: 3, add: "Add" },
 				{
 					t: "treeRow",
-					label: "Signal",
+					label: "Shared",
 					depth: 0,
+					twist: "open",
+					icon: "folderOpenFilled",
+					tone: "tree-folder-packages",
+					synced: true,
+					badge: "ReplicatedStorage › Packages",
+				},
+				{
+					t: "treeRow",
+					label: "Signal",
+					depth: 1,
 					icon: "instance",
 					tone: "package",
-					badge: "1.5.0",
+					classIcon: "ModuleScript",
+					pkg: true,
+					badge: "2.0.1",
+					deps: "+1 dependency",
 				},
 				{
 					t: "treeRow",
 					label: "Promise",
-					depth: 0,
+					depth: 1,
 					icon: "instance",
 					tone: "package",
+					classIcon: "ModuleScript",
+					pkg: true,
 					badge: "not installed",
+					warn: true,
 					readonly: true,
 				},
 				{
 					t: "treeRow",
 					label: "Flux",
-					depth: 0,
+					depth: 1,
 					icon: "instance",
 					tone: "package",
+					classIcon: "ModuleScript",
+					pkg: true,
 					badge: "0.2.0",
 					selected: true,
 					name: "The new package",
@@ -3069,17 +3126,25 @@ export const PROJECT_TREE_WALLY_ADDED: ToolbarSpec = {
 };
 
 /**
- * What right-clicking `wally.toml`, or a package listed under it, offers.
- * Written from `ProjectTree.tsx`, in its order.
+ * What right-clicking a package offers. Written from `treeMenus.ts`'s
+ * packageMenu, in its order.
  */
 export const WALLY_MENU: ToolbarSpec = {
 	id: "wally-menu",
-	title: "The wally.toml menu",
-	summary: "Right-click wally.toml, or a package listed under it.",
+	title: "A package's menu",
+	summary: "Right-click a package under Packages.",
 	chrome: "popmenu",
 	groups: [
 		{
 			items: [
+				{
+					t: "button",
+					text: "Install",
+					icon: "build",
+					name: "Install",
+					where: "On a package not installed",
+					what: "Installs it from the Wally registry, as wally.toml lists it.",
+				},
 				{
 					t: "button",
 					text: "Insert its zip…",
@@ -3094,25 +3159,10 @@ export const WALLY_MENU: ToolbarSpec = {
 			items: [
 				{
 					t: "button",
-					text: "Add from Wally…",
-					icon: "instance",
-					name: "Add from Wally…",
-					what: "A package from the Wally registry, with what it depends on.",
-				},
-				{
-					t: "button",
-					text: "Insert package zip…",
-					icon: "folderOpen",
-					name: "Insert package zip…",
-					what: "A package, or any module, from a zip.",
-				},
-				{
-					t: "button",
-					text: "Insert GitHub repo…",
-					icon: "external",
-					name: "Insert GitHub repo…",
-					where: "In the installed editor",
-					what: "A repository's module, copied into Packages/.",
+					text: "Add package…",
+					icon: "plus",
+					name: "Add package…",
+					what: "Opens Add a package, as Add on the heading does.",
 				},
 			],
 		},
@@ -3124,26 +3174,38 @@ export const WALLY_MENU: ToolbarSpec = {
 					icon: "remove",
 					name: "Remove package…",
 					where: "On a package",
-					what: "Takes it out of wally.toml and Packages/, after listing what still requires it.",
+					what: "Takes it out of wally.toml and Packages/, after listing what still requires it. Vendored code is deleted.",
 				},
 			],
 		},
 	],
 };
 
-/** Add from Wally's form, as `App.tsx` asks it. */
-export const ADD_FROM_WALLY: ToolbarSpec = {
-	id: "add-from-wally",
-	title: "Add from Wally",
-	summary: "The form Add from Wally… opens.",
+/** Add a package, as `AddPackageDialog.tsx` draws it, on From Wally. */
+export const ADD_PACKAGE: ToolbarSpec = {
+	id: "add-package",
+	title: "Add a package",
+	summary: "The window Add on the Packages heading opens.",
 	chrome: "modal",
 	groups: [
 		{
 			items: [
-				{ t: "dialogTitle", text: "Add from Wally" },
 				{
-					t: "message",
-					text: "A package from the Wally registry: scope/name, or scope/name@version. It goes into wally.toml, then installs with what it depends on.",
+					t: "dialogTitle",
+					text: "Add a package",
+					sub: "Installs with what it depends on",
+					icon: "instance",
+				},
+			],
+		},
+		{
+			items: [
+				{
+					t: "segmented",
+					options: ["From Wally", "Zip", "GitHub"],
+					on: 0,
+					name: "Source",
+					what: "From the Wally registry, a zip you have, or a GitHub repository. GitHub is in the installed editor.",
 				},
 			],
 		},
@@ -3162,7 +3224,7 @@ export const ADD_FROM_WALLY: ToolbarSpec = {
 			items: [
 				{
 					t: "setting",
-					label: "Required as (optional)",
+					label: "Required as",
 					value: "",
 					name: "Required as",
 					what: "The name in wally.toml and Packages/. Left empty, it is the package's own.",
@@ -3172,12 +3234,11 @@ export const ADD_FROM_WALLY: ToolbarSpec = {
 		{
 			items: [
 				{
-					t: "setting",
-					label: "Realm",
-					value: "Shared (Packages)",
-					control: "select",
+					t: "segmented",
+					options: ["Shared", "Server", "Dev"],
+					on: 0,
 					name: "Realm",
-					what: "Shared, Server or Dev: which table of wally.toml the line goes in, and which folder it installs into.",
+					what: "Which table of wally.toml the line goes in and which folder it installs into. Under it, where that folder lands in Studio.",
 				},
 			],
 		},
@@ -3597,7 +3658,7 @@ export const PLACE_BARS: ToolbarSpec[] = [
 	PROJECT_TREE_WALLY,
 	PROJECT_TREE_WALLY_ADDED,
 	WALLY_MENU,
-	ADD_FROM_WALLY,
+	ADD_PACKAGE,
 	REMOVE_PACKAGE,
 	DATAMODEL_BROWSER,
 	PROPERTIES_PANEL,

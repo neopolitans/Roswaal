@@ -480,12 +480,29 @@ export async function removePackage(
 	project: OpenProject,
 	alias: string,
 	realm: WallyRealm = "shared",
+	options: { vendored?: boolean } = {},
 ): Promise<RemovedPackage> {
 	assertPlainNames({ alias });
 	const folder = REALM_DIRS[realm];
 	const uses = await packageUses(project, alias, realm);
-	const before = await reachable(project, folder);
 	const toml = await fs.readFile(safeJoin(project.root, "wally.toml"), "utf8").catch(() => null);
+	// Vendored code wally.toml never listed: its folder or file is all there
+	// is, and it goes. One wally.toml lists is removed as a Wally package.
+	if (options.vendored) {
+		if (toml !== null && parseWallyToml(toml).some((d) => d.alias === alias && d.realm === realm))
+			throw new UserError(`${alias} is in wally.toml: remove it as a Wally package.`);
+		const removed: string[] = [];
+		for (const rel of [`${folder}/${alias}`, `${folder}/${alias}.lua`, `${folder}/${alias}.luau`]) {
+			const abs = safeJoin(project.root, rel);
+			const stat = await fs.stat(abs).catch(() => null);
+			if (!stat) continue;
+			if (stat.isFile() && thunkTarget(await fs.readFile(abs, "utf8"))) continue;
+			await fs.rm(abs, { recursive: true, force: true });
+			removed.push(rel);
+		}
+		return { removed, uses };
+	}
+	const before = await reachable(project, folder);
 	if (toml !== null)
 		await fs.writeFile(
 			safeJoin(project.root, "wally.toml"),

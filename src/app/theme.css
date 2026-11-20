@@ -1971,6 +1971,29 @@ button.tb.primary:hover:not(:disabled) {
 	border-color: color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
+/* Add a package's Zip row: Choose…, then the zip picked. */
+.add-package-file {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
+.add-package-file .tb {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	white-space: nowrap;
+}
+
+.add-package-name {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--fg-muted);
+}
+
 /* Settings › Wally packages: the place, and a path typed in for somewhere else. */
 .package-sync-field {
 	display: grid;
@@ -8145,6 +8168,39 @@ button.tb.primary.danger:hover:not(:disabled) {
 	display: inline-flex;
 	color: var(--ok);
 	pointer-events: none;
+}
+
+/* A package's mark, in the ModuleScript icon's cut-out corner. Not a chain
+   link: in Studio that is a Roblox cloud package, which this is not. */
+.tree-package-badge {
+	position: absolute;
+	right: -3px;
+	bottom: -3px;
+	display: inline-flex;
+	color: var(--accent);
+	pointer-events: none;
+}
+
+/* What Wally installed for a package: under it, faint. */
+.tree-badged.tree-dependency,
+.tree-row:has(.tree-dependency) .label {
+	opacity: 0.6;
+}
+
+/* +2 dependencies opens what Wally installed with the package. */
+.tree-row .badge.tree-deps {
+	cursor: pointer;
+	font: inherit;
+	font-size: var(--text-xs);
+	line-height: inherit;
+	background: transparent;
+	color: var(--fg-muted);
+}
+
+.tree-row .badge.tree-deps:hover,
+.tree-row .badge.tree-deps[aria-expanded="true"] {
+	color: var(--fg);
+	border-color: var(--fg-faint);
 }
 
 /* A folder with nothing in it, faint, saying so. */

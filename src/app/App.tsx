@@ -38,6 +38,7 @@ import {
 	type PlaceEditorModule,
 	type PlaceEditorSettings,
 } from "../extensions/index.js";
+import { AddPackageDialog, realmLanding } from "./AddPackageDialog.jsx";
 import { AliasDocument } from "./AliasDocument.jsx";
 import { analyseProject, graphLabel, mergeOutcomes } from "./analysis.js";
 import {
@@ -77,6 +78,7 @@ import { chooseFolder } from "./folderDialog.js";
 import { GraphSettings } from "./GraphSettings.jsx";
 import { GraphTabs } from "./GraphTabs.jsx";
 import {
+	NOT_HERE,
 	useCanImportPlace,
 	useCanImportZip,
 	useCanOpenDirectory,
@@ -481,6 +483,7 @@ export function App() {
 	// button with no action behind it to explain.
 	const hostCanBrowse = useHostCan("browse");
 	const hostCanReset = useHostCan("reset");
+	const hostCanGithub = useHostCan("githubDownload");
 	const hostCanOpenFolder = useCanOpenDirectory();
 	const hostCanImportZip = useCanImportZip();
 	const zipInput = useRef<HTMLInputElement>(null);
@@ -2009,6 +2012,9 @@ export function App() {
 		inDir,
 		newProject,
 		onPackageZip,
+		addingPackage,
+		setAddingPackage,
+		addPackage,
 		onPlaceOpenFile,
 		onTreeDelete,
 		onTreeMove,
@@ -2513,6 +2519,18 @@ export function App() {
 										if (file) void addPlaceFile(file);
 									}}
 								/>
+								{addingPackage && (
+									<AddPackageDialog
+										initial={addingPackage}
+										canGithub={hostCanGithub}
+										notHere={NOT_HERE}
+										landing={(realm) =>
+											realmLanding(project.tree, project.config.packageSync, realm)
+										}
+										onClose={() => setAddingPackage(null)}
+										onAdd={(answer) => void addPackage(answer)}
+									/>
+								)}
 								<input
 									ref={packageZipInput}
 									type="file"

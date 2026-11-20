@@ -12,6 +12,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { indexVersion, parseWallyToml, thunkTarget } from "../src/core/wally.js";
 import { buildTree, collectProject, openProject, type TreeEntry } from "../src/server/project.js";
+import { removePackage } from "../src/server/wally.js";
 
 const TOML = [
 	"[package]",
@@ -123,5 +124,50 @@ describe("Wally in the project tree", () => {
 		const exported = Object.keys(await collectProject(opened));
 		expect(exported).toContain("src/main.server.luau");
 		expect(exported.some((file) => file.startsWith("Packages/"))).toBe(false);
+	});
+
+	it("lists what Wally installed with a package, and code vendored into Packages", async () => {
+		const opened = await project();
+		const put = async (rel: string, text: string) => {
+			await mkdir(path.dirname(path.join(root, rel)), { recursive: true });
+			await writeFile(path.join(root, rel), text);
+		};
+		// Signal depends on Promise: Wally puts its thunk beside Signal's folder.
+		await put(
+			"Packages/_Index/sleitnick_signal@2.0.3/Promise.lua",
+			'return require(script.Parent.Parent["evaera_promise@4.0.0"]["promise"])\n',
+		);
+		await put("Packages/_Index/evaera_promise@4.0.0/promise/init.lua", "return {}\n");
+		// A repository vendored from GitHub, which wally.toml does not list.
+		await put("Packages/Flux/init.luau", "return {}\n");
+		const wally = (await buildTree(opened)).find((e) => e.kind === "wally")!;
+		const signal = wally.children!.find((p: TreeEntry) => p.name === "Signal")!;
+		expect(signal.spec).toBe("sleitnick/signal@2.0.0");
+		expect(signal.children).toEqual([
+			{
+				path: "wally.toml/shared/Signal/Promise",
+				name: "Promise",
+				kind: "package",
+				dependency: true,
+				version: "4.0.0",
+				target: "Packages/_Index/evaera_promise@4.0.0/promise/init.lua",
+			},
+		]);
+		const flux = wally.children!.find((p: TreeEntry) => p.name === "Flux")!;
+		expect(flux).toMatchObject({ vendored: true, target: "Packages/Flux/init.luau" });
+		expect(flux.spec).toBeUndefined();
+	});
+
+	it("removes vendored code wally.toml does not list, and refuses one it does", async () => {
+		const opened = await project();
+		await mkdir(path.join(root, "Packages/Flux"), { recursive: true });
+		await writeFile(path.join(root, "Packages/Flux/init.luau"), "return {}");
+		const out = await removePackage(opened, "Flux", "shared", { vendored: true });
+		expect(out.removed).toEqual(["Packages/Flux"]);
+		const wally = (await buildTree(opened)).find((e) => e.kind === "wally")!;
+		expect(wally.children!.some((p: TreeEntry) => p.name === "Flux")).toBe(false);
+		await expect(removePackage(opened, "Signal", "shared", { vendored: true })).rejects.toThrow(
+			/in wally.toml/,
+		);
 	});
 });

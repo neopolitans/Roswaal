@@ -4,7 +4,7 @@
 
 import type { DocPage } from "../site.js";
 import {
-	ADD_FROM_WALLY,
+	ADD_PACKAGE,
 	PROJECT_TREE_WALLY,
 	PROJECT_TREE_WALLY_ADDED,
 	REMOVE_PACKAGE,
@@ -36,10 +36,11 @@ export function wallyPackagesPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"The **Packages** heading lists each package in `wally.toml`, with the version " +
-					"installed. One with no version of its own, such as code put in its place, shows " +
-					"1.0.0. Double-click one to open its code; one not installed yet says so. " +
-					"`Packages/` itself is under **Output**, which starts folded.",
+					"The **Packages** heading lists each package by realm, Shared, Server and Dev, " +
+					"each realm the folder Wally installs it into. A package shows the version installed, " +
+					"and **+1 dependency** opens what Wally installed with it. Code put in `Packages/` " +
+					"from a zip or GitHub is **vendored**, and one in `wally.toml` not installed yet is " +
+					"**not installed**, with **Install** on its menu. Double-click a package to open its code.",
 			},
 			{ t: "toolbar", bar: PROJECT_TREE_WALLY, hint: true },
 
@@ -69,23 +70,25 @@ export function wallyPackagesPage(): DocPage {
 			{ t: "h", level: 2, text: "Adding a package" },
 			{
 				t: "p",
-				text: "Press **Add** on the Packages heading, or right-click a package:",
+				text:
+					"Press **Add** on the Packages heading, or choose **Add package…** on a package's " +
+					"menu. **Add a package** takes it from one of three sources:",
 			},
 			{
 				t: "table",
-				head: ["", "What it does"],
+				head: ["Source", "What it does"],
 				rows: [
 					[
-						"**Add from Wally…**",
+						"**From Wally**",
 						"Puts the line in `wally.toml` and installs the package, with what it depends on",
 					],
 					[
-						"**Insert package zip…**",
-						"Installs a zip. A Wally package goes where `wally install` puts one; any other module is copied into `Packages/`",
+						"**Zip**",
+						"Installs a zip. A Wally package goes where `wally install` puts one; any other module is vendored into `Packages/`",
 					],
 					[
-						"**Insert GitHub repo…**",
-						"Copies a repository's module into `Packages/`, found through its project file. In the installed editor",
+						"**GitHub**",
+						"Vendors a repository's module into `Packages/`, found through its project file. In the installed editor",
 					],
 				],
 			},
@@ -97,13 +100,12 @@ export function wallyPackagesPage(): DocPage {
 						picture: [PROJECT_TREE_WALLY],
 						point: "Packages",
 					},
-					{ text: "Choose **Add from Wally…**.", picture: [WALLY_MENU], point: "Add from Wally…" },
 					{
-						text: "Type the package as `scope/name`. Pick a **Realm** if it is not for both sides.",
-						picture: [ADD_FROM_WALLY],
+						text: "Type the package as `scope/name`. Pick a **Realm** if it is not for both sides; under it, the window says where the realm lands in Studio.",
+						picture: [ADD_PACKAGE],
 						point: "Package",
 					},
-					{ text: "Press **Add**.", picture: [ADD_FROM_WALLY], point: "Add" },
+					{ text: "Press **Add**.", picture: [ADD_PACKAGE], point: "Add" },
 					{
 						text: "If the registry has more than one version, pick one. The newest is picked already; an older one is pinned to exactly that version.",
 						picture: [WHICH_VERSION],
@@ -132,14 +134,15 @@ export function wallyPackagesPage(): DocPage {
 				t: "note",
 				kind: "info",
 				text:
-					"**Add from Wally asks the registry twice a package**, and once more for its " +
+					"**From Wally asks the registry twice a package**, and once more for its " +
 					"versions when it asks which. It stops at 16 requests, and nothing is retried.",
 			},
 			{
 				t: "p",
 				text:
 					"If a download fails, the line stays in `wally.toml` and the package shows as not " +
-					"installed. Download its zip, right-click the package and choose **Insert its zip…**.",
+					"installed. Right-click it and choose **Install** to try again, or download its zip " +
+					"and choose **Insert its zip…**.",
 			},
 
 			{ t: "h", level: 2, text: "Removing a package" },
@@ -149,13 +152,13 @@ export function wallyPackagesPage(): DocPage {
 					"**Remove package…**, on a package's menu, lists the files that still require it and " +
 					"asks first. It takes the line out of `wally.toml`, and the package out of `Packages/` " +
 					"with any package only it needed. Code copied in over the package's file is left " +
-					"where it is.",
+					"where it is. A vendored package that `wally.toml` never listed is deleted.",
 			},
 			{
 				t: "walkthrough",
 				steps: [
 					{
-						text: "Right-click the package under `wally.toml`.",
+						text: "Right-click the package under Packages.",
 						picture: [PROJECT_TREE_WALLY],
 						point: "A package",
 					},

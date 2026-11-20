@@ -43,7 +43,7 @@ export function projectPanelPage(): DocPage {
 					],
 					[
 						"**Packages**",
-						"What `wally.toml` depends on, by realm. Each realm is its folder: Shared is `Packages/`, Server `ServerPackages/`, Dev `DevPackages/`, with where a map lands it, as `Packages/ → ReplicatedStorage › Packages`. An installed realm no map syncs is yellow. **sync…** on a realm keeps its folder synced by itself in the served map: in ReplicatedStorage, ServerStorage, ServerScriptService or a DataModel path you give, moved there if it is mapped elsewhere, as packages are added. A realm wally.toml lists but that is not installed yet is mapped as optional, so Rojo serves before wally install. Optional paths need Rojo 7.1 or later. **Settings › Compiling › Wally packages** sets all three, and the served map shows the node marked **autosync**. **Add** puts a package in",
+						"What `wally.toml` depends on, by realm: Shared is `Packages/`, Server `ServerPackages/`, Dev `DevPackages/`, each with where a map lands it. Each package is a ModuleScript with the package mark and its version; **+1 dependency** opens what Wally installed with it, **vendored** is code from a zip or GitHub, and **not installed** has **Install** on its menu. **Add** opens Add a package: from Wally, a zip or GitHub. **sync…** on a realm turns on autosync, which keeps its folder synced in the served map, in a service or a path you give; a realm listed but not installed is mapped as optional, which needs Rojo 7.1 or later. **Settings › Compiling › Wally packages** sets all three.",
 					],
 					[
 						"**Place**",

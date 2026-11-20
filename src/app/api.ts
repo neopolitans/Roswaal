@@ -96,6 +96,12 @@ export interface TreeEntry {
 	target?: string;
 	/** A package `wally.toml` lists that is not installed. */
 	missing?: boolean;
+	/** A package that is code put in Packages/ itself, from a zip or GitHub: no version of its own. */
+	vendored?: boolean;
+	/** A package's line in `wally.toml`, `scope/name@version`: what Install installs. */
+	spec?: string;
+	/** Under a package: one Wally installed because the package depends on it. */
+	dependency?: boolean;
 }
 
 /** A Rojo project file in the project's root. */
@@ -490,10 +496,11 @@ export const api = {
 			`/api/wally/uses?alias=${encodeURIComponent(alias)}&realm=${encodeURIComponent(realm)}`,
 		),
 	/** Takes a Wally dependency out of wally.toml and Packages/. */
-	wallyRemove: (alias: string, realm: string) =>
+	wallyRemove: (alias: string, realm: string, vendored?: boolean) =>
 		post<{ removed: string[]; uses: string[]; kept?: string }>("/api/wally/remove", {
 			alias,
 			realm,
+			...(vendored ? { vendored } : {}),
 		}),
 	/** A GitHub repository vendored into Packages/. The daemon's alone. */
 	wallyGithub: (repo: string, alias?: string) =>

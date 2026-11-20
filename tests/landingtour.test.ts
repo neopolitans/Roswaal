@@ -89,7 +89,7 @@ describe("the tour", () => {
 		expect(menuOf("graph")).not.toContain("Import as graph");
 		expect(menuOf("luau")).toContain("Import as graph");
 		expect(menuOf("generated")).not.toContain("Import as graph");
-		expect(menuOf("wally")).toContain("Add from Wally…");
+		expect(menuOf("wally")).toContain("Add package…");
 		expect(menuOf("wally")).not.toContain("Delete");
 	});
 });

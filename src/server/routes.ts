@@ -1466,9 +1466,13 @@ export class ApiSession {
 
 			/** Takes a Wally dependency out, with the `_Index` folders only it kept. */
 			"POST /wally/remove": async (req) => {
-				const { alias, realm } = fields<{ alias: string; realm: string }>(req);
+				const { alias, realm, vendored } = fields<{
+					alias: string;
+					realm: string;
+					vendored: boolean;
+				}>(req);
 				const name = need(alias, "alias", "Which package? Pass its `alias`.");
-				return removePackage(this.project(), name, realmOf(realm));
+				return removePackage(this.project(), name, realmOf(realm), { vendored: vendored === true });
 			},
 
 			/** A GitHub repository, vendored into Packages/. The daemon's alone; see `githubDownload`. */

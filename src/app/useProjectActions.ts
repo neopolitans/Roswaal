@@ -12,6 +12,8 @@ import type { ImportMode } from "../core/import/modes.js";
 import { detectTarget } from "../core/import/modes.js";
 import { projectNameProblem } from "../core/newProject.js";
 import type { NodeScript, ScriptClass, Target } from "../core/schema.js";
+import type { WallyRealm } from "../core/wally.js";
+import type { AddPackageAnswer, PackageSource } from "./AddPackageDialog.jsx";
 import {
 	api,
 	type NewProjectChoice,
@@ -317,12 +319,117 @@ export function useProjectActions(context: ProjectActionsContext) {
 		},
 		[notify],
 	);
-	const onTreePackage = useCallback(
-		async (how: "wally" | "zip" | "github" | "remove", entry?: TreeEntry) => {
+	/** The Add package window, when open: what it starts on. */
+	const [addingPackage, setAddingPackage] = useState<{
+		source?: PackageSource;
+		realm?: WallyRealm;
+	} | null>(null);
+
+	/** Adds from Wally, asking which version when none was given and there are several. */
+	const addFromWally = useCallback(
+		async (spec: string, realm: WallyRealm, alias?: string) => {
+			let out = await api.wallyAdd(spec, realm, alias, true);
+			if (out.choose) {
+				const versions = out.choose;
+				const picked = await ask({
+					kind: "form",
+					title: "Which version?",
+					message: `${spec} has ${versions.length} versions on the Wally registry.`,
+					fields: [
+						{
+							id: "version",
+							kind: "select",
+							label: "Version",
+							value: versions[0],
+							options: versions.map((v, i) => ({
+								value: v,
+								label: i === 0 ? `${v} (newest)` : v,
+							})),
+						},
+					],
+					confirmLabel: "Add",
+				});
+				if (typeof picked !== "string") return;
+				const version = String((JSON.parse(picked) as FormAnswers).version);
+				// The newest goes in as ^newest, as adding with no version always
+				// has. An older one is pinned: a bare 1.0.0 means ^1.0.0 to Wally,
+				// and would install the newest 1.x rather than the one picked.
+				const requirement = version === versions[0] ? `^${version}` : `=${version}`;
+				out = await api.wallyAdd(`${spec}@${requirement}`, realm, alias);
+			}
+			await refreshTree();
+			reportPackage(out);
+		},
+		[ask, refreshTree, reportPackage],
+	);
+
+	/** What the Add package window asked for. */
+	const addPackage = useCallback(
+		async (answer: AddPackageAnswer) => {
+			setAddingPackage(null);
 			try {
+				if (answer.source === "wally") {
+					await addFromWally(answer.spec, answer.realm, answer.alias);
+					return;
+				}
+				const out =
+					answer.source === "zip" && answer.file
+						? await api.wallyZip(
+								toBase64(new Uint8Array(await answer.file.arrayBuffer())),
+								answer.file.name,
+								answer.alias,
+								answer.realm,
+							)
+						: await api.wallyGithub(answer.spec, answer.alias);
+				await refreshTree();
+				reportPackage(out);
+			} catch (err) {
+				notify("Could not add the package", errorMessage(err));
+			}
+		},
+		[addFromWally, notify, refreshTree, reportPackage],
+	);
+
+	const onTreePackage = useCallback(
+		async (how: "add" | "zip" | "install" | "remove", entry?: TreeEntry) => {
+			try {
+				if (how === "add") {
+					const realm = entry?.kind === "package" ? entry.path.split("/")[1] : undefined;
+					setAddingPackage(
+						realm === "shared" || realm === "server" || realm === "dev" ? { realm } : {},
+					);
+					return;
+				}
+				if (how === "install" && entry?.kind === "package" && entry.spec) {
+					// `wally.toml/<realm>/<alias>`: the realm is in the entry's path.
+					const realm = (entry.path.split("/")[1] ?? "shared") as WallyRealm;
+					await addFromWally(entry.spec, realm, entry.name);
+					return;
+				}
+				if (how === "remove" && entry?.kind === "package" && entry.vendored && !entry.spec) {
+					// Vendored code wally.toml never listed: its files are all there is.
+					// `wally.toml/<realm>/<alias>`: the realm is in the entry's path.
+					const realm = (entry.path.split("/")[1] ?? "shared") as WallyRealm;
+					const { uses } = await api.wallyUses(entry.name, realm);
+					const ok = await ask({
+						kind: "confirm",
+						title: `Remove ${entry.name}?`,
+						message: uses.length
+							? "Vendored code, not in wally.toml: its files are deleted. These still require it, and will fail to:"
+							: "Vendored code, not in wally.toml: its files are deleted. Nothing in the project requires it.",
+						...(uses.length ? { items: uses } : {}),
+						confirmLabel: "Remove",
+						danger: true,
+					});
+					if (ok !== true) return;
+					const out = await api.wallyRemove(entry.name, realm, true);
+					await refreshTree();
+					notify(`${entry.name} removed`, `Deleted ${out.removed.join(", ")}.`);
+					return;
+				}
 				if (how === "remove" && entry?.kind === "package") {
 					// `wally.toml/<realm>/<alias>`: the realm is in the entry's path.
-					const realm = entry.path.split("/")[1] ?? "shared";
+					const realm = (entry.path.split("/")[1] ?? "shared") as WallyRealm;
 					const { uses } = await api.wallyUses(entry.name, realm);
 					const ok = await ask({
 						kind: "confirm",
@@ -354,91 +461,15 @@ export function useProjectActions(context: ProjectActionsContext) {
 					// A missing package's zip keeps the name wally.toml gives it.
 					packageZipFor.current = entry?.kind === "package" ? entry.name : undefined;
 					packageZipInput.current?.click();
-					return;
 				}
-				if (how === "wally") {
-					const answer = await ask({
-						kind: "form",
-						title: "Add from Wally",
-						message:
-							"A package from the Wally registry: scope/name, or scope/name@version. It goes into wally.toml, then installs with what it depends on.",
-						fields: [
-							{ id: "spec", kind: "text", label: "Package", value: "" },
-							{ id: "alias", kind: "text", label: "Required as (optional)", value: "" },
-							{
-								id: "realm",
-								kind: "select",
-								label: "Realm",
-								value: "shared",
-								options: [
-									{ value: "shared", label: "Shared (Packages)" },
-									{ value: "server", label: "Server (ServerPackages)" },
-									{ value: "dev", label: "Dev (DevPackages)" },
-								],
-							},
-						],
-						confirmLabel: "Add",
-					});
-					if (typeof answer !== "string") return;
-					const chosen = JSON.parse(answer) as FormAnswers;
-					const spec = String(chosen.spec).trim();
-					const realm = chosen.realm as "shared" | "server" | "dev";
-					const alias = String(chosen.alias) || undefined;
-					let out = await api.wallyAdd(spec, realm, alias, true);
-					// More than one version and none asked for: which one.
-					if (out.choose) {
-						const versions = out.choose;
-						const picked = await ask({
-							kind: "form",
-							title: "Which version?",
-							message: `${spec} has ${versions.length} versions on the Wally registry.`,
-							fields: [
-								{
-									id: "version",
-									kind: "select",
-									label: "Version",
-									value: versions[0],
-									options: versions.map((v, i) => ({
-										value: v,
-										label: i === 0 ? `${v} (newest)` : v,
-									})),
-								},
-							],
-							confirmLabel: "Add",
-						});
-						if (typeof picked !== "string") return;
-						const version = String((JSON.parse(picked) as FormAnswers).version);
-						// The newest goes in as ^newest, as adding with no version always
-						// has. An older one is pinned: a bare 1.0.0 means ^1.0.0 to Wally,
-						// and would install the newest 1.x rather than the one picked.
-						const requirement = version === versions[0] ? `^${version}` : `=${version}`;
-						out = await api.wallyAdd(`${spec}@${requirement}`, realm, alias);
-					}
-					await refreshTree();
-					reportPackage(out);
-					return;
-				}
-				const answer = await ask({
-					kind: "form",
-					title: "Insert GitHub repo",
-					message:
-						"A repository to vendor into Packages/: owner/repo, or owner/repo@branch. Not added to wally.toml.",
-					fields: [
-						{ id: "repo", kind: "text", label: "Repository", value: "" },
-						{ id: "alias", kind: "text", label: "Required as (optional)", value: "" },
-					],
-					confirmLabel: "Insert",
-				});
-				if (typeof answer !== "string") return;
-				const chosen = JSON.parse(answer) as FormAnswers;
-				const out = await api.wallyGithub(String(chosen.repo), String(chosen.alias) || undefined);
-				await refreshTree();
-				reportPackage(out);
 			} catch (err) {
-				notify("Could not add the package", errorMessage(err));
+				notify(
+					how === "remove" ? "Could not remove the package" : "Could not add the package",
+					errorMessage(err),
+				);
 			}
 		},
-		[ask, notify, refreshTree, reportPackage],
+		[addFromWally, ask, notify, refreshTree],
 	);
 	const onPackageZip = useCallback(
 		async (file: File) => {
@@ -1400,6 +1431,9 @@ export function useProjectActions(context: ProjectActionsContext) {
 		inDir,
 		newProject,
 		onPackageZip,
+		addingPackage,
+		setAddingPackage,
+		addPackage,
 		onPlaceOpenFile,
 		onTreeDelete,
 		onTreeMove,

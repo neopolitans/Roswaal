@@ -77,8 +77,14 @@ export interface TreeEntry {
 	version?: string;
 	/** The file a package opens: its module in `_Index`. */
 	target?: string;
-	/** A package `wally.toml` lists that `wally install` has not put on disk. */
+	/** A package `wally.toml` lists that is not installed. */
 	missing?: boolean;
+	/** A package that is code put in Packages/ itself, from a zip or GitHub: no version of its own. */
+	vendored?: boolean;
+	/** A package's line in `wally.toml`, `scope/name@version`: what Install installs. */
+	spec?: string;
+	/** Under a package: one Wally installed because the package depends on it. */
+	dependency?: boolean;
 	/** On a node map: see `MapFacts`. */
 	mapFacts?: MapFacts;
 	/** On a place: the one in use, which Roswaal reads and the Place Editor opens. */
@@ -171,20 +177,112 @@ async function markImported(project: OpenProject, entries: TreeEntry[]): Promise
  */
 async function wallyEntry(project: OpenProject): Promise<TreeEntry | null> {
 	const text = await fs.readFile(safeJoin(project.root, "wally.toml"), "utf8").catch(() => null);
-	if (text === null) return null;
 	const children: TreeEntry[] = [];
-	for (const dep of parseWallyToml(text)) {
-		const found = await resolveWallyPackage(project, dep.alias, REALM_DIRS[dep.realm]);
-		children.push({
-			path: `wally.toml/${dep.realm}/${dep.alias}`,
-			name: dep.alias,
+	const listed = new Set<string>();
+	for (const dep of text === null ? [] : parseWallyToml(text)) {
+		const folder = REALM_DIRS[dep.realm];
+		listed.add(`${folder}/${dep.alias}`);
+		const path = `wally.toml/${dep.realm}/${dep.alias}`;
+		const line = { path, name: dep.alias, kind: "package" as const, spec: dep.spec };
+		const found = await resolveWallyPackage(project, dep.alias, folder);
+		// Code put in the package's place: a module where the thunk would be, or
+		// a folder of that name.
+		const putInstead =
+			found?.module === found?.thunk
+				? found?.module
+				: found
+					? null
+					: await moduleAt(project, `${folder}/${dep.alias}`);
+		if (putInstead) children.push({ ...line, target: putInstead, vendored: true });
+		else if (found) {
+			const deps = await dependenciesOf(project, folder, found.module, path);
+			children.push({
+				...line,
+				target: found.module,
+				...(found.version ? { version: found.version } : {}),
+				...(deps.length ? { children: deps } : {}),
+			});
+		} else children.push({ ...line, missing: true });
+	}
+	// Code vendored into a realm's folder that wally.toml does not list: a
+	// GitHub repository, or a zip that is not a Wally package.
+	for (const [realm, folder] of Object.entries(REALM_DIRS)) {
+		const names = await fs.readdir(safeJoin(project.root, folder)).catch(() => [] as string[]);
+		for (const name of [...names].sort()) {
+			const stem = name.replace(/\.luau?$/, "");
+			if (name === "_Index" || name.startsWith(".") || listed.has(`${folder}/${stem}`)) continue;
+			const rel = `${folder}/${name}`;
+			const isFile = stem !== name;
+			if (isFile) {
+				const body = await fs.readFile(safeJoin(project.root, rel), "utf8").catch(() => "");
+				// A thunk is Wally's, for a package wally.toml has dropped.
+				if (thunkTarget(body)) continue;
+			}
+			const module = isFile ? rel : await moduleAt(project, rel);
+			if (!module) continue;
+			children.push({
+				path: `wally.toml/${realm}/${stem}`,
+				name: stem,
+				kind: "package",
+				target: module,
+				vendored: true,
+			});
+		}
+	}
+	if (text === null && children.length === 0) return null;
+	return {
+		path: "wally.toml",
+		name: "wally.toml",
+		kind: "wally",
+		children,
+		...(text === null ? { missing: true } : {}),
+	};
+}
+
+/**
+ * What Wally installed for a package because it depends on it: the thunks
+ * beside the package's own folder in its `_Index` folder, each with the
+ * version it reaches.
+ */
+async function dependenciesOf(
+	project: OpenProject,
+	folder: string,
+	module: string,
+	under: string,
+): Promise<TreeEntry[]> {
+	// `Packages/_Index/scope_name@1.0.0/name/init.lua`: the index folder is the third step.
+	const steps = module.split("/");
+	const at = steps.indexOf("_Index");
+	if (at < 0 || steps.length < at + 3) return [];
+	const index = steps.slice(0, at + 2).join("/");
+	const names = await fs.readdir(safeJoin(project.root, index)).catch(() => [] as string[]);
+	const out: TreeEntry[] = [];
+	for (const name of [...names].sort()) {
+		if (!/\.luau?$/.test(name)) continue;
+		const body = await fs
+			.readFile(safeJoin(project.root, `${index}/${name}`), "utf8")
+			.catch(() => "");
+		const target = thunkTarget(body);
+		if (!target) continue;
+		const alias = name.replace(/\.luau?$/, "");
+		// `script.Parent.Parent["scope_dep@2.0.0"]["dep"]`: the index folder is the step before the last.
+		const version = indexVersion(target[target.length - 2] ?? "");
+		const reached = await moduleAt(
+			project,
+			[`${folder}/_Index`, ...target.filter((step) => step !== "Parent" && step !== "_Index")].join(
+				"/",
+			),
+		);
+		out.push({
+			path: `${under}/${alias}`,
+			name: alias,
 			kind: "package",
-			...(found
-				? { target: found.module, ...(found.version ? { version: found.version } : {}) }
-				: { missing: true }),
+			dependency: true,
+			...(version ? { version } : {}),
+			...(reached ? { target: reached } : {}),
 		});
 	}
-	return { path: "wally.toml", name: "wally.toml", kind: "wally", children };
+	return out;
 }
 
 /**
