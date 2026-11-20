@@ -551,6 +551,12 @@ export interface ScriptVariable {
 	 * initialised where it is declared and nowhere else.
 	 */
 	const?: boolean;
+	/**
+	 * A group of the author's own in the Variables panel -- Remote names,
+	 * Tuning -- written into the Luau as a comment header above its run of
+	 * variables. Its members are kept together in the list.
+	 */
+	group?: string;
 }
 
 /**

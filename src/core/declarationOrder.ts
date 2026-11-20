@@ -141,5 +141,46 @@ export function reorder(
 		return { ...script, services: moveIn(script.services ?? [], (s) => s, id, target, where) };
 	if (kind === "module")
 		return { ...script, modules: moveIn(script.modules ?? [], (m) => m.id, id, target, where) };
-	return { ...script, variables: moveIn(script.variables, (v) => v.id, id, target, where) };
+	const onto = script.variables.find((v) => v.id === target);
+	const moved = moveIn(script.variables, (v) => v.id, id, target, where);
+	return {
+		...script,
+		variables: moved.map((v) => {
+			if (v.id !== id) return v;
+			const { group: _was, ...rest } = v;
+			return onto?.group ? { ...rest, group: onto.group } : rest;
+		}),
+	};
+}
+
+/**
+ * The variables with `id` in `group` -- or in none, for "" -- placed after
+ * the group's last member, so a group stays one run in the list and the file.
+ */
+export function setGroup(script: NodeScript, id: string, group: string): NodeScript {
+	const name = group.trim();
+	const variable = script.variables.find((v) => v.id === id);
+	if (!variable) return script;
+	const { group: _was, ...rest } = variable;
+	const changed: ScriptVariable = name ? { ...rest, group: name } : rest;
+	const others = script.variables.filter((v) => v.id !== id);
+	const last = name ? others.map((v) => v.group).lastIndexOf(name) : -1;
+	if (last < 0) {
+		return { ...script, variables: script.variables.map((v) => (v.id === id ? changed : v)) };
+	}
+	others.splice(last + 1, 0, changed);
+	return { ...script, variables: others };
+}
+
+/** Every member of `from` renamed to `to`, or taken out of any group for "": the variables stay where they are. */
+export function renameGroup(script: NodeScript, from: string, to: string): NodeScript {
+	const name = to.trim();
+	return {
+		...script,
+		variables: script.variables.map((v) => {
+			if (v.group !== from) return v;
+			const { group: _was, ...rest } = v;
+			return name ? { ...rest, group: name } : rest;
+		}),
+	};
 }

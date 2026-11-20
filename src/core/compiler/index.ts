@@ -217,6 +217,8 @@ function semanticJson(script: NodeScript, layout: { headers?: Map<string, Commen
 			default: v.default,
 			description: v.description ?? null,
 			...(v.const === true ? { const: true } : {}),
+			// Only when set, so a graph without groups hashes as it always did.
+			...(v.group ? { group: v.group } : {}),
 		})),
 		// Modules change the generated file, so they have to change the hash
 		// that decides whether it needs rewriting.
@@ -289,6 +291,7 @@ export function serialiseScript(script: NodeScript): string {
 			default: v.default,
 			...(v.description ? { description: v.description } : {}),
 			...(v.const === true ? { const: true } : {}),
+			...(v.group ? { group: v.group } : {}),
 		})),
 		// Declaration order is the author's here too: it is the order the requires
 		// come out in, which a reader of the generated file sees.

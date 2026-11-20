@@ -7,13 +7,15 @@
  * one.
  */
 
-import { type DragEvent, type ReactNode, useMemo, useState } from "react";
+import { type DragEvent, Fragment, type ReactNode, useMemo, useState } from "react";
 import { compile } from "../core/compiler/index.js";
 import {
 	checkMove,
 	type MoveCheck,
 	type ReorderKind,
+	renameGroup,
 	reorder,
+	setGroup,
 	type Where,
 } from "../core/declarationOrder.js";
 import {
@@ -176,7 +178,24 @@ export function VariablesPanel({
 	const tableId = moduleTableVariable(script);
 	const table = script.variables.find((v) => v.id === tableId);
 	const variables = script.variables.filter((v) => v.id !== tableId);
+	const groupNames = [...new Set(variables.flatMap((v) => (v.group ? [v.group] : [])))];
 	const [filter, setFilter] = useState("");
+	const [headingOrder, setHeadingOrder] = useState<SectionId[]>(readHeadingOrder);
+	const [movingHeading, setMovingHeading] = useState<SectionId | null>(null);
+	const moveHeading = (target: SectionId) => {
+		if (!movingHeading || movingHeading === target) return;
+		const next = headingOrder.filter((id) => id !== movingHeading);
+		next.splice(next.indexOf(target), 0, movingHeading);
+		setHeadingOrder(next);
+		saveHeadingOrder(next);
+		setMovingHeading(null);
+	};
+	const headingDrag: HeadingDrag = {
+		moving: movingHeading,
+		onStart: setMovingHeading,
+		onEnd: () => setMovingHeading(null),
+		onDrop: moveHeading,
+	};
 	// A row being dragged to a new place, and where it would go now.
 	const [moving, setMoving] = useState<{ kind: ReorderKind; id: string } | null>(null);
 	const [over, setOver] = useState<{ id: string; where: Where; check: MoveCheck } | null>(null);
@@ -256,52 +275,14 @@ export function VariablesPanel({
 		);
 	const servicesShown = script.target === "roblox" || outline.services.length > 0;
 
-	return (
-		<div className={cx("variables", locked && "editing-locked")}>
-			<PanelHead>
-				<button
-					className="tb"
-					title="Add a variable"
-					onClick={() =>
-						store.edit((s) => {
-							const { script: next, id } = addVariable(s);
-							queueMicrotask(() => setOpen(id));
-							return next;
-						})
-					}
-				>
-					Add
-				</button>
-			</PanelHead>
-
-			<div
-				className="variable-list"
-				onContextMenu={(e) => {
-					// A long press on a touch screen: the row's actions, in place of its count.
-					const head = (e.target as Element).closest(".variable-head");
-					if (!head || !head.querySelector(".row-actions")) return;
-					e.preventDefault();
-					for (const other of document.querySelectorAll(".variable-head.show-actions"))
-						if (other !== head) other.classList.remove("show-actions");
-					head.classList.toggle("show-actions");
-				}}
-			>
-				{/* A filter once the panel holds more than a screen of rows. */}
-				{rowCount > FILTER_FROM && (
-					<input
-						className="tb variables-filter"
-						placeholder="Filter"
-						aria-label="Filter the panel"
-						value={filter}
-						onChange={(e) => setFilter(e.target.value)}
-					/>
-				)}
-
+	const sections: Record<SectionId, ReactNode> = {
+		services: (
+			<>
 				{/* Services and the modules required through them, as the file
-				    declares them: a require needs its service's local above it.
-				    A service the graph only fetches where it is used is listed
-				    too, fainter, with Declare; a module through script sits
-				    under a script row; the rest after. */}
+						    declares them: a require needs its service's local above it.
+						    A service the graph only fetches where it is used is listed
+						    too, fainter, with Declare; a module through script sits
+						    under a script row; the rest after. */}
 				<DataModelDrop
 					accepts={(drag) =>
 						(servicesShown && drag.path.length === 1 && isService(drag.path[0] ?? "")) ||
@@ -319,6 +300,8 @@ export function VariablesPanel({
 					}
 				>
 					<Heading
+						section="services"
+						drag={headingDrag}
 						title={servicesShown ? "Services and modules" : "Modules"}
 						count={(servicesShown ? outline.services.length : 0) + (script.modules ?? []).length}
 					>
@@ -402,11 +385,14 @@ export function VariablesPanel({
 							</p>
 						)}
 				</DataModelDrop>
-
+			</>
+		),
+		module: (
+			<>
 				{/* The table a ModuleScript returns: what requiring it gives. */}
 				{table && shows(table.name) && (
 					<>
-						<Heading title="Module" count={1} />
+						<Heading section="module" drag={headingDrag} title="Module" count={1} />
 						<VariableRow
 							key={table.id}
 							script={script}
@@ -420,12 +406,20 @@ export function VariablesPanel({
 						/>
 					</>
 				)}
-
+			</>
+		),
+		types: (
+			<>
 				{/* The types this graph declares, and the ones its requires bring
-				    in. Dragged out, a type becomes a local of that type. */}
+						    in. Dragged out, a type becomes a local of that type. */}
 				{(declaredTypes.length > 0 || required.length > 0) && (
 					<>
-						<Heading title="Types" count={declaredTypes.length + required.length} />
+						<Heading
+							section="types"
+							drag={headingDrag}
+							title="Types"
+							count={declaredTypes.length + required.length}
+						/>
 						{declaredTypes.map((node) => {
 							const name = (configText(node, "name") ?? "").trim();
 							return (
@@ -453,37 +447,71 @@ export function VariablesPanel({
 						)}
 					</>
 				)}
-
-				<Heading title="Variables" count={variables.length} />
-				{variables.map(
-					(variable) =>
-						shows(variable.name) &&
-						slot(
-							"variable",
-							variable.id,
-							<VariableRow
-								key={variable.id}
-								script={script}
-								variable={variable}
-								confirm={confirm}
-								uses={counts.get(variable.id) ?? 0}
-								onFind={() => findUses(usesOf(script, variable.id))}
-								expanded={open === variable.id}
-								onToggle={() => setOpen((id) => (id === variable.id ? null : variable.id))}
-							/>,
-						),
-				)}
+			</>
+		),
+		variables: (
+			<>
+				<Heading
+					section="variables"
+					drag={headingDrag}
+					title="Variables"
+					count={variables.length}
+				/>
+				{/* Runs of a group of the author's own sit under the group's
+				    header, which is the comment header the Luau carries. */}
+				{groupRuns(variables).map((run) => {
+					const rows = run.items.map(
+						(variable) =>
+							shows(variable.name) &&
+							slot(
+								"variable",
+								variable.id,
+								<VariableRow
+									key={variable.id}
+									script={script}
+									variable={variable}
+									confirm={confirm}
+									groups={groupNames}
+									uses={counts.get(variable.id) ?? 0}
+									onFind={() => findUses(usesOf(script, variable.id))}
+									expanded={open === variable.id}
+									onToggle={() => setOpen((id) => (id === variable.id ? null : variable.id))}
+								/>,
+							),
+					);
+					return run.group ? (
+						<div key={`group:${run.group}`} className="variable-group-run">
+							<GroupHeader
+								name={run.group}
+								count={run.items.length}
+								onRename={(to) => store.edit((s) => renameGroup(s, run.group ?? "", to))}
+								onDissolve={() => store.edit((s) => renameGroup(s, run.group ?? "", ""))}
+							/>
+							{rows}
+						</div>
+					) : (
+						<Fragment key={`run:${run.items[0]?.id}`}>{rows}</Fragment>
+					);
+				})}
 				{variables.length === 0 && (
 					<p className="hint" title={EMPTY_VARIABLES.more}>
 						{EMPTY_VARIABLES.text}
 					</p>
 				)}
-
+			</>
+		),
+		locals: (
+			<>
 				{/* The graph's Declare Locals, so one can be dragged out as a Get
-				    Local instead of wired from where it was made. */}
+						    Local instead of wired from where it was made. */}
 				{(locals.length > 0 || namedResults.length > 0) && (
 					<>
-						<Heading title="Locals" count={locals.length + namedResults.length} />
+						<Heading
+							section="locals"
+							drag={headingDrag}
+							title="Locals"
+							count={locals.length + namedResults.length}
+						/>
 						{locals.map((node) => (
 							<LocalRow
 								key={node.id}
@@ -510,13 +538,21 @@ export function VariablesPanel({
 						)}
 					</>
 				)}
-
+			</>
+		),
+		functions: (
+			<>
 				{/* The functions this graph declares. In a graph of any size the
-				    declaration is somewhere off screen, and this is the list that
-				    says what there is and takes you to one. */}
+						    declaration is somewhere off screen, and this is the list that
+						    says what there is and takes you to one. */}
 				{functions.length > 0 && (
 					<>
-						<Heading title="Functions" count={functions.length} />
+						<Heading
+							section="functions"
+							drag={headingDrag}
+							title="Functions"
+							count={functions.length}
+						/>
 						{functions.map(
 							(node) =>
 								shows(configText(node, "name") ?? "") && (
@@ -531,8 +567,177 @@ export function VariablesPanel({
 						)}
 					</>
 				)}
+			</>
+		),
+	};
+
+	return (
+		<div className={cx("variables", locked && "editing-locked")}>
+			<PanelHead>
+				{headingOrder.join() !== SCRIPT_ORDER.join() && (
+					<button
+						className="tb"
+						title="Put the headings back in the order the file declares them"
+						onClick={() => {
+							setHeadingOrder([...SCRIPT_ORDER]);
+							saveHeadingOrder([...SCRIPT_ORDER]);
+						}}
+					>
+						Script order
+					</button>
+				)}
+				<button
+					className="tb"
+					title="Add a variable"
+					onClick={() =>
+						store.edit((s) => {
+							const { script: next, id } = addVariable(s);
+							queueMicrotask(() => setOpen(id));
+							return next;
+						})
+					}
+				>
+					Add
+				</button>
+			</PanelHead>
+
+			<div
+				className="variable-list"
+				onContextMenu={(e) => {
+					// A long press on a touch screen: the row's actions, in place of its count.
+					const head = (e.target as Element).closest(".variable-head");
+					if (!head || !head.querySelector(".row-actions")) return;
+					e.preventDefault();
+					for (const other of document.querySelectorAll(".variable-head.show-actions"))
+						if (other !== head) other.classList.remove("show-actions");
+					head.classList.toggle("show-actions");
+				}}
+			>
+				{/* A filter once the panel holds more than a screen of rows. */}
+				{rowCount > FILTER_FROM && (
+					<input
+						className="tb variables-filter"
+						placeholder="Filter"
+						aria-label="Filter the panel"
+						value={filter}
+						onChange={(e) => setFilter(e.target.value)}
+					/>
+				)}
+
+				{headingOrder.map((id) => (
+					<Fragment key={id}>{sections[id]}</Fragment>
+				))}
 			</div>
 		</div>
+	);
+}
+
+/** Variables in runs: each group's members together, ungrouped ones between. */
+function groupRuns(
+	variables: readonly ScriptVariable[],
+): { group?: string; items: ScriptVariable[] }[] {
+	const runs: { group?: string; items: ScriptVariable[] }[] = [];
+	for (const variable of variables) {
+		const last = runs[runs.length - 1];
+		if (last && last.group === variable.group) last.items.push(variable);
+		else runs.push({ ...(variable.group ? { group: variable.group } : {}), items: [variable] });
+	}
+	return runs;
+}
+
+/**
+ * A group's header: its name, which is the comment above its run in the
+ * Luau, renamed by clicking it; and × to dissolve it, which leaves the
+ * variables where they are.
+ */
+function GroupHeader({
+	name,
+	count,
+	onRename,
+	onDissolve,
+}: {
+	name: string;
+	count: number;
+	onRename: (to: string) => void;
+	onDissolve: () => void;
+}) {
+	const [editing, setEditing] = useState<string | null>(null);
+	const commit = () => {
+		if (editing !== null && editing.trim() !== "" && editing.trim() !== name) onRename(editing);
+		setEditing(null);
+	};
+	return (
+		<div className="variable-group-head" title="A comment header over these variables in the Luau.">
+			<span className="group-mark" aria-hidden="true">
+				--
+			</span>
+			{editing === null ? (
+				<button type="button" className="group-name" onClick={() => setEditing(name)}>
+					{name}
+				</button>
+			) : (
+				<input
+					className="tb group-name-input"
+					aria-label="Group name"
+					// biome-ignore lint/a11y/noAutofocus: opened to be typed into.
+					autoFocus
+					value={editing}
+					onChange={(e) => setEditing(e.target.value)}
+					onBlur={commit}
+					onKeyDown={(e) => {
+						if (e.key === "Enter") commit();
+						if (e.key === "Escape") setEditing(null);
+					}}
+				/>
+			)}
+			<span className="variables-count">{count}</span>
+			<button
+				type="button"
+				className="tb variable-delete"
+				title={`Dissolve "${name}": the variables stay where they are`}
+				aria-label={`Dissolve "${name}"`}
+				onClick={onDissolve}
+			>
+				×
+			</button>
+		</div>
+	);
+}
+
+/** Choosing a variable's group: one there is, a new name, or none. */
+function GroupField({
+	value,
+	groups,
+	onChange,
+}: {
+	value: string;
+	groups: string[];
+	onChange: (group: string) => void;
+}) {
+	const [text, setText] = useState(value);
+	const commit = () => {
+		if (text.trim() !== value) onChange(text);
+	};
+	return (
+		<>
+			<input
+				className="tb"
+				placeholder="None"
+				list="roswaal-variable-groups"
+				title="A comment header over its group in the Luau. Its members stay together."
+				value={text}
+				onChange={(e) => setText(e.target.value)}
+				onBlur={commit}
+				onKeyDown={(e) => {
+					if (e.key === "Enter") commit();
+				}}
+			/>
+			<datalist id="roswaal-variable-groups">
+				{groups.map((group) => (
+					<option key={group} value={group} />
+				))}
+			</datalist>
+		</>
 	);
 }
 
@@ -615,18 +820,98 @@ function ReorderSlot({
 /** Past this many rows the panel is more than a screen, and offers a filter. */
 const FILTER_FROM = 20;
 
-/** A heading: its name, how many rows are under it, and its buttons. */
+/** The panel's headings, in the order the file declares them. */
+type SectionId = "services" | "module" | "types" | "variables" | "locals" | "functions";
+const SCRIPT_ORDER: readonly SectionId[] = [
+	"services",
+	"module",
+	"types",
+	"variables",
+	"locals",
+	"functions",
+];
+const ORDER_KEY = "roswaal.variablesPanel.headings";
+
+/** The headings in the order this browser keeps, or the file's. */
+function readHeadingOrder(): SectionId[] {
+	try {
+		const kept = JSON.parse(localStorage.getItem(ORDER_KEY) ?? "null") as unknown;
+		if (
+			Array.isArray(kept) &&
+			kept.length === SCRIPT_ORDER.length &&
+			SCRIPT_ORDER.every((id) => kept.includes(id))
+		)
+			return kept as SectionId[];
+	} catch {
+		// No storage, or something else in it: the file's order.
+	}
+	return [...SCRIPT_ORDER];
+}
+
+function saveHeadingOrder(order: readonly SectionId[]): void {
+	try {
+		if (order.join() === SCRIPT_ORDER.join()) localStorage.removeItem(ORDER_KEY);
+		else localStorage.setItem(ORDER_KEY, JSON.stringify(order));
+	} catch {
+		// Kept for this visit only.
+	}
+}
+
+interface HeadingDrag {
+	moving: SectionId | null;
+	onStart: (id: SectionId) => void;
+	onEnd: () => void;
+	onDrop: (target: SectionId) => void;
+}
+
+const HEADING_DRAG = "application/x-roswaal-heading";
+
+/**
+ * A heading: its name, how many rows are under it, and its buttons. Dragged
+ * onto another heading it moves the panel's sections, for you only: the
+ * file keeps Luau's order whatever the panel shows.
+ */
 function Heading({
 	title,
 	count,
+	section,
+	drag,
 	children,
 }: {
 	title: string;
 	count: number;
+	section?: SectionId;
+	drag?: HeadingDrag;
 	children?: ReactNode;
 }) {
+	const target = section !== undefined && drag?.moving != null && drag.moving !== section;
 	return (
-		<h3 className="variables-sub">
+		<h3
+			className={cx("variables-sub", target && "heading-target")}
+			draggable={section !== undefined}
+			title={
+				section !== undefined
+					? "Drag onto another heading to rearrange the panel, for you only."
+					: undefined
+			}
+			onDragStart={(e) => {
+				if (section === undefined || !drag) return;
+				e.dataTransfer.setData(HEADING_DRAG, section);
+				e.dataTransfer.effectAllowed = "move";
+				drag.onStart(section);
+			}}
+			onDragEnd={() => drag?.onEnd()}
+			onDragOver={(e) => {
+				if (!target) return;
+				e.preventDefault();
+				e.dataTransfer.dropEffect = "move";
+			}}
+			onDrop={(e) => {
+				if (!target || section === undefined) return;
+				e.preventDefault();
+				drag?.onDrop(section);
+			}}
+		>
 			<span>{title}</span>
 			<span className="variables-count">{count}</span>
 			{children && <span className="variables-sub-actions">{children}</span>}
@@ -1196,6 +1481,8 @@ interface VariableRowProps {
 	confirm: VariablesPanelProps["confirm"];
 	/** The table a ModuleScript returns. */
 	exported?: boolean;
+	/** The groups the panel has, offered when choosing one. */
+	groups?: string[];
 	uses: number;
 	onFind: () => void;
 }
@@ -1207,6 +1494,7 @@ function VariableRow({
 	onToggle,
 	confirm,
 	exported,
+	groups,
 	onFind,
 }: VariableRowProps) {
 	const uses = variableUsageCount(script, variable.id);
@@ -1282,6 +1570,14 @@ function VariableRow({
 							onChange={(next) =>
 								store.edit((s) => updateVariable(s, variable.id, { default: next }))
 							}
+						/>
+					</label>
+					<label className="field">
+						<span>Group</span>
+						<GroupField
+							value={variable.group ?? ""}
+							groups={groups ?? []}
+							onChange={(group) => store.edit((s) => setGroup(s, variable.id, group))}
 						/>
 					</label>
 					<label className="field">

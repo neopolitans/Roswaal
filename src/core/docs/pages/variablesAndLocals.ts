@@ -60,6 +60,8 @@ export function variablesAndLocalsPage(): DocPage {
 						"follows. A plain value moves at once; one that runs something asks first, with the " +
 						"Luau that changes; a variable above one its value uses is refused, and the rows " +
 						"involved light up. A local moves with its node, so it carries the flow mark instead.",
+					"A variable's **Group** gathers it with others under a header, which the Luau writes as a comment above them: `-- Tuning`. Drag a variable beside a group's member to join it; click the header to rename it, and **×** to dissolve it, which leaves the variables where they are.",
+					"Drag a heading onto another to rearrange the panel, for you only: the file keeps its own order, and **Script order** puts the headings back.",
 					"**×** on a local or a function deletes the node that declares it, and a function's " +
 						"graph with it. The nodes that read it stay, and report an error until repointed.",
 				],

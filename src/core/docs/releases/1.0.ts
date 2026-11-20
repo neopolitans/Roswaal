@@ -9,6 +9,16 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.48",
+		date: "2026-11-20",
+		headline: "Variables gather into named groups, and the panel's headings rearrange.",
+		added: [
+			"**Groups of your own.** A variable's Group gathers it with others under a header, written into the Luau as a comment above them. Drag a variable beside a member to join; click the header to rename it; × dissolves it and leaves the variables where they are.",
+			"**Rearrange the panel.** Drag a heading onto another to change the panel's order, kept in this browser. The file keeps its own order, and Script order puts the headings back.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.47",
 		date: "2026-11-20",
 		headline: "Declarations move by dragging, and requires sit in three bands.",

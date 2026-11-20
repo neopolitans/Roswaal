@@ -6,7 +6,14 @@
 import { describe, expect, it } from "vitest";
 
 import { compile } from "../src/core/compiler/index.js";
-import { checkMove, moduleBand, moveIn, reorder } from "../src/core/declarationOrder.js";
+import {
+	checkMove,
+	moduleBand,
+	moveIn,
+	renameGroup,
+	reorder,
+	setGroup,
+} from "../src/core/declarationOrder.js";
 import { BUILTIN_NODES, createRegistry } from "../src/core/nodes/index.js";
 import { emptyScript, type NodeScript, type ScriptVariable } from "../src/core/schema.js";
 
@@ -102,5 +109,65 @@ describe("variables", () => {
 			ok: true,
 			asks: expect.stringMatching(/runs something/),
 		});
+	});
+});
+
+describe("groups of the author's own", () => {
+	const grouped = (id: string, name: string, group?: string): ScriptVariable => ({
+		...variable(id, name),
+		...(group ? { group } : {}),
+	});
+
+	it("are written as a comment header over their run", () => {
+		const s = script({
+			variables: [
+				grouped("a", "SPEED", "Tuning"),
+				grouped("b", "GRIP", "Tuning"),
+				grouped("c", "Count"),
+			],
+		});
+		const lines = compile(s, registry).code.split("\n");
+		const header = lines.indexOf("-- Tuning");
+		expect(header).toBeGreaterThan(-1);
+		expect(lines[header + 1]).toContain("SPEED");
+		expect(lines[header + 2]).toContain("GRIP");
+		expect(lines[header + 3]).toBe("");
+	});
+
+	it("keep their members together when one joins", () => {
+		const s = script({
+			variables: [grouped("a", "A", "Tuning"), grouped("b", "B"), grouped("c", "C")],
+		});
+		expect(setGroup(s, "c", "Tuning").variables.map((v) => [v.name, v.group])).toEqual([
+			["A", "Tuning"],
+			["C", "Tuning"],
+			["B", undefined],
+		]);
+	});
+
+	it("dissolve leaving the variables where they are", () => {
+		const s = script({ variables: [grouped("a", "A", "Tuning"), grouped("b", "B", "Tuning")] });
+		const out = renameGroup(s, "Tuning", "");
+		expect(out.variables.map((v) => [v.name, v.group])).toEqual([
+			["A", undefined],
+			["B", undefined],
+		]);
+		expect(renameGroup(s, "Tuning", "Feel").variables.every((v) => v.group === "Feel")).toBe(true);
+	});
+
+	it("are joined by dragging a row beside a member", () => {
+		const s = script({ variables: [grouped("a", "A", "Tuning"), grouped("b", "B")] });
+		expect(reorder(s, "variable", "b", "a", "after").variables[1].group).toBe("Tuning");
+	});
+});
+
+describe("a group on disk", () => {
+	it("is written with the graph, and read back", async () => {
+		const { serialiseScript } = await import("../src/core/compiler/index.js");
+		const { migrateScript } = await import("../src/core/migrate.js");
+		const s = script({ variables: [{ ...variable("a", "A"), group: "Tuning" }] });
+		const text = serialiseScript(s);
+		expect(text).toContain('"group": "Tuning"');
+		expect(migrateScript(JSON.parse(text)).script.variables[0].group).toBe("Tuning");
 	});
 });

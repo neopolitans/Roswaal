@@ -546,8 +546,17 @@ export function emitVariables(e: Emitter): void {
 		e.variableNames.set(variable.id, e.declareName(variable.name || "variable", "variable"));
 	}
 	let written = 0;
+	// A group of the author's own is a comment header over its run, set off
+	// by a blank line, as a canvas comment's header is.
+	let group = "";
 	for (const variable of variables) {
 		if (e.initialisedLater.has(variable.id)) continue;
+		const mine = variable.group?.trim() ?? "";
+		if (mine !== group) {
+			if (written > 0) e.blank();
+			if (mine !== "") e.push(commentLines(mine).join("\n"), undefined, true);
+			group = mine;
+		}
 		const ident = e.variableNames.get(variable.id)!;
 		const annotation =
 			(e.annotates || e.asWritten) && variable.type && variable.type !== "any"

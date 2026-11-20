@@ -6083,6 +6083,60 @@ button.start-tile:disabled {
 	color: var(--fg-faint);
 }
 
+/* A group of the author's own: its header is the Luau's comment header. */
+.variable-group-head {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 4px 0 1px;
+	padding: 2px 6px;
+	font-size: var(--text-sm);
+	color: var(--fg-muted);
+}
+
+.variable-group-head .group-mark {
+	font-family: "Cascadia Mono", Consolas, monospace;
+	color: var(--code-comment, var(--fg-faint));
+}
+
+.variable-group-head .group-name {
+	padding: 0 2px;
+	font: inherit;
+	font-weight: 600;
+	color: var(--fg);
+	background: none;
+	border: 0;
+	border-radius: 3px;
+	cursor: text;
+}
+
+.variable-group-head .group-name:hover {
+	background: var(--bg-hover);
+}
+
+.variable-group-head .group-name-input {
+	height: 20px;
+	min-width: 0;
+	flex: 1;
+}
+
+.variable-group-head .variable-delete {
+	margin-left: auto;
+}
+
+.variable-group-run > .reorder-slot > .variable > .variable-head {
+	padding-left: 18px;
+}
+
+/* A heading another is being dragged onto: the panel's order, for you only. */
+.variables-sub[draggable="true"] {
+	cursor: grab;
+}
+
+.variables-sub.heading-target {
+	box-shadow: inset 0 2px 0 var(--accent);
+}
+
 /* How many rows a heading holds, beside its name. */
 .variables-count {
 	font-weight: 400;
