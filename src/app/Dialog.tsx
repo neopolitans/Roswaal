@@ -14,7 +14,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ShownLine } from "../core/lineDiff.js";
+import type { TreeEntry } from "./api.js";
 import { cx } from "./cx.js";
+import { FolderPicker } from "./FolderPicker.jsx";
 import { Icon, type IconName } from "./icons.jsx";
 import { LAYER } from "./layers.js";
 import { ModalHead } from "./ModalParts.jsx";
@@ -36,6 +38,19 @@ export type DialogRequest =
 			placeholder?: string;
 			confirmLabel?: string;
 			icon?: IconName;
+			/**
+			 * A folder list under the name, which picks where the thing is made.
+			 * `hint` and `warn` then follow the folder picked; `onFolder` hears it.
+			 */
+			folder?: {
+				tree: readonly TreeEntry[];
+				base: { path: string; label: string };
+				value: string;
+				hint: (dir: string) => string;
+				warn?: (dir: string) => string | undefined;
+				onFolder: (dir: string) => void;
+				onCreateFolder: (parent: string, name: string) => Promise<void>;
+			};
 	  }
 	| {
 			kind: "confirm";
@@ -80,7 +95,14 @@ export type DialogRequest =
 	  };
 
 export type FormField = (
-	| { id: string; kind: "text"; label: string; value: string }
+	| {
+			id: string;
+			kind: "text";
+			label: string;
+			value: string;
+			/** A Choose… button beside it that fills it: a folder from the system's dialog. */
+			browse?: (current: string) => Promise<string | null>;
+	  }
 	| {
 			id: string;
 			kind: "choice";
@@ -164,6 +186,25 @@ function toneOf(request: DialogRequest): { tone: string; icon: IconName } {
 
 export function Dialog({ request, resolve }: PendingDialog) {
 	const [text, setText] = useState(request.kind === "prompt" ? (request.value ?? "") : "");
+	const [folder, setFolder] = useState(
+		request.kind === "prompt" && request.folder ? request.folder.value : "",
+	);
+	const pickFolder = (dir: string) => {
+		setFolder(dir);
+		if (request.kind === "prompt") request.folder?.onFolder(dir);
+	};
+	const hint =
+		request.kind !== "prompt"
+			? undefined
+			: request.folder
+				? request.folder.hint(folder)
+				: request.hint;
+	const warn =
+		request.kind !== "prompt"
+			? undefined
+			: request.folder
+				? request.folder.warn?.(folder)
+				: request.warn;
 	const [answers, setAnswers] = useState<FormAnswers>(() =>
 		request.kind === "form" ? Object.fromEntries(request.fields.map((f) => [f.id, f.value])) : {},
 	);
@@ -240,28 +281,40 @@ export function Dialog({ request, resolve }: PendingDialog) {
 
 				<div className="dialog-body">
 					{request.kind === "prompt" ? (
-						<label className={cx("field wide", request.warn && "warn")}>
-							{request.label && <span>{request.label}</span>}
-							<input
-								ref={input}
-								className="tb"
-								value={text}
-								placeholder={request.placeholder}
-								onChange={(e) => setText(e.target.value)}
-							/>
-							{request.hint && (
-								<small>
-									<Icon name="folder" size={12} />
-									{request.hint}
-								</small>
+						<>
+							<label className={cx("field wide", warn && "warn")}>
+								{request.label && <span>{request.label}</span>}
+								<input
+									ref={input}
+									className="tb"
+									value={text}
+									placeholder={request.placeholder}
+									onChange={(e) => setText(e.target.value)}
+								/>
+								{hint && (
+									<small>
+										<Icon name="folder" size={12} />
+										{hint}
+									</small>
+								)}
+								{warn && (
+									<small className="field-warn">
+										<Icon name="warning" size={12} />
+										{warn}
+									</small>
+								)}
+							</label>
+							{request.folder && (
+								<FolderPicker
+									tree={request.folder.tree}
+									roots={[]}
+									base={request.folder.base}
+									value={folder}
+									onPick={pickFolder}
+									onCreateFolder={request.folder.onCreateFolder}
+								/>
 							)}
-							{request.warn && (
-								<small className="field-warn">
-									<Icon name="warning" size={12} />
-									{request.warn}
-								</small>
-							)}
-						</label>
+						</>
 					) : request.kind === "form" ? (
 						<>
 							{request.message && <p>{request.message}</p>}
@@ -278,15 +331,37 @@ export function Dialog({ request, resolve }: PendingDialog) {
 									const set = (value: string | boolean) =>
 										setAnswers({ ...answers, [field.id]: value });
 									if (field.kind === "text") {
+										const box = (
+											<input
+												ref={input}
+												className="tb"
+												aria-label={field.label}
+												value={String(answers[field.id])}
+												onChange={(e) => set(e.target.value)}
+											/>
+										);
+										const browse = field.browse;
 										return (
 											<Row key={field.id} label={field.label} help={help}>
-												<input
-													ref={input}
-													className="tb"
-													aria-label={field.label}
-													value={String(answers[field.id])}
-													onChange={(e) => set(e.target.value)}
-												/>
+												{browse ? (
+													<span className="path-pick">
+														{box}
+														<button
+															type="button"
+															className="tb"
+															onClick={() =>
+																void browse(String(answers[field.id])).then(
+																	(picked) => picked && set(picked),
+																	() => undefined,
+																)
+															}
+														>
+															Choose…
+														</button>
+													</span>
+												) : (
+													box
+												)}
 											</Row>
 										);
 									}

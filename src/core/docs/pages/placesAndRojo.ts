@@ -116,7 +116,8 @@ export function placesAndRojoPage(): DocPage {
 					"`SpawnLocation` standing on it at the centre, and Studio's sky, light and chat. " +
 					"Roswaal writes it itself rather than copying Studio's Baseplate template, and Studio " +
 					"makes the Camera and the Terrain when the file is opened. `roswaal export` writes the " +
-					"project's scripts into it, with the folders they need.",
+					"project's scripts into it, with the folders they need. In the installed editor, " +
+					"**Choose…** beside New project's folder opens the system's folder dialog.",
 			},
 
 			{ t: "h", level: 2, text: "Starting from a place" },

@@ -7,7 +7,7 @@
  * becomes, and a folder a node map syncs carries the map's mark.
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { isService } from "../core/roblox.js";
 import { normalisePath } from "../core/rojoPaths.js";
@@ -16,6 +16,7 @@ import { cx } from "./cx.js";
 import { ExplorerIcon } from "./ExplorerIcon.jsx";
 import { Icon } from "./icons.jsx";
 import { entryAt } from "./mapDisk.js";
+import { realmClass, ScriptIcon } from "./ScriptIcon.jsx";
 
 export interface FolderPickerProps {
 	tree: readonly TreeEntry[];
@@ -28,6 +29,17 @@ export interface FolderPickerProps {
 	onNewFolder?: (parent: string) => void;
 	/** Files that can be picked too, listed after the folders: Syncs from's model files. */
 	files?: (name: string) => boolean;
+	/**
+	 * Where the list starts, in place of `roots`: one folder, named in the
+	 * path of steps (Graphs). Going into a folder picks it too, as a Save As
+	 * dialog's folder is the one you are in.
+	 */
+	base?: { path: string; label: string };
+	/**
+	 * Makes a folder where you are, named in the list: the picker shows it at
+	 * once and picks it. Used where a second dialog cannot open over the first.
+	 */
+	onCreateFolder?: (parent: string, name: string) => Promise<void>;
 }
 
 const parentOf = (path: string): string => {
@@ -43,6 +55,16 @@ const subfolders = (entry: TreeEntry | undefined): TreeEntry[] =>
 
 /** A folder's icon: the service it is named for, or a Folder; the map's mark when one syncs it. */
 export function FolderIcon({ entry, top }: { entry: TreeEntry; top?: boolean }) {
+	// A script with children: its script's icon, as the project tree draws it.
+	if (entry.script && entry.realm)
+		return (
+			<ScriptIcon
+				kind="nodescript"
+				realm={entry.realm}
+				size={15}
+				className={cx("kind nodescript", realmClass(entry.realm))}
+			/>
+		);
 	const named = !top && isService(entry.name);
 	const icon = (
 		<ExplorerIcon className={named ? entry.name : "Folder"} service={named} open={false} />
@@ -65,16 +87,37 @@ export function FolderPicker({
 	onPick,
 	onNewFolder,
 	files,
+	base,
+	onCreateFolder,
 }: FolderPickerProps) {
 	const tops = useMemo(
 		() => roots.map((root) => entryAt(tree, root)).filter((one): one is TreeEntry => !!one),
 		[tree, roots],
 	);
-	// Start in the picked folder's parent, so it is in the list and lit.
+	// Folders made here since the tree was read, by where they were made.
+	const [made, setMade] = useState<string[]>([]);
+	const [naming, setNaming] = useState<string | null>(null);
+	const nameBox = useRef<HTMLInputElement>(null);
+	const baseAt = base ? normalisePath(base.path) : null;
+	// Start in the picked folder's parent, so it is in the list and lit. From a
+	// base, in the picked folder itself, which is where you are.
 	const [at, setAt] = useState<string | null>(() => {
+		if (baseAt !== null) {
+			const wanted = normalisePath(value);
+			return wanted === baseAt || wanted.startsWith(`${baseAt}/`) ? wanted : baseAt;
+		}
 		const parent = parentOf(value);
 		return parent && entryAt(tree, parent) ? parent : null;
 	});
+	const go = (path: string | null) => {
+		setAt(path);
+		setNaming(null);
+		if (baseAt !== null && path !== null) onPick(path);
+	};
+	const madeIn = (dir: string): TreeEntry[] =>
+		made
+			.filter((one) => parentOf(one) === dir && !entryAt(tree, one))
+			.map((one) => ({ path: one, name: one.split("/").pop() ?? one, kind: "directory" as const }));
 	const here = at === null ? undefined : entryAt(tree, at);
 	const pickable =
 		at === null || !files
@@ -82,22 +125,44 @@ export function FolderPicker({
 			: (here?.children ?? [])
 					.filter((one) => one.kind !== "directory" && files(one.name))
 					.sort((a, b) => a.name.localeCompare(b.name));
-	const list = at === null ? tops : [...subfolders(here), ...pickable];
-	const steps = at === null ? [] : normalisePath(at).split("/");
+	const list =
+		at === null
+			? tops
+			: [...subfolders(here), ...madeIn(normalisePath(at))]
+					.sort((a, b) => a.name.localeCompare(b.name))
+					.concat(pickable);
+	const below = (path: string) =>
+		baseAt === null ? path : path === baseAt ? "" : path.slice(baseAt.length + 1);
+	const steps =
+		at === null || below(normalisePath(at)) === "" ? [] : below(normalisePath(at)).split("/");
+	const stepPath = (i: number) => {
+		const tail = steps.slice(0, i + 1).join("/");
+		return baseAt === null ? tail : `${baseAt}/${tail}`;
+	};
 	const picked = normalisePath(value);
+	const create = async (name: string) => {
+		const parent = at;
+		const clean = name.trim();
+		setNaming(null);
+		if (parent === null || !clean || !onCreateFolder) return;
+		const path = `${normalisePath(parent)}/${clean}`;
+		await onCreateFolder(parent, clean);
+		setMade((was) => [...was, path]);
+		onPick(path);
+	};
 
 	return (
 		<div className="folder-pick">
 			<div className="fp-crumbs">
 				<button
 					type="button"
-					className={cx("fp-step", at === null && "here")}
-					onClick={() => setAt(null)}
+					className={cx("fp-step", (at === null || at === baseAt) && "here")}
+					onClick={() => go(baseAt)}
 				>
-					Project
+					{base?.label ?? "Project"}
 				</button>
 				{steps.map((step, i) => {
-					const path = steps.slice(0, i + 1).join("/");
+					const path = stepPath(i);
 					return (
 						<span key={path} className="fp-step-wrap">
 							<span className="fp-sep" aria-hidden="true">
@@ -106,7 +171,7 @@ export function FolderPicker({
 							<button
 								type="button"
 								className={cx("fp-step", i === steps.length - 1 && "here")}
-								onClick={() => setAt(path)}
+								onClick={() => go(path)}
 							>
 								{step}
 							</button>
@@ -114,15 +179,43 @@ export function FolderPicker({
 					);
 				})}
 				<span className="sp" />
-				{onNewFolder && at !== null && (
-					<button type="button" className="tb with-icon" onClick={() => onNewFolder(at)}>
+				{(onNewFolder || onCreateFolder) && at !== null && (
+					<button
+						type="button"
+						className="tb with-icon"
+						onClick={() => {
+							if (onCreateFolder) {
+								setNaming("NewFolder");
+								requestAnimationFrame(() => nameBox.current?.select());
+							} else onNewFolder?.(at);
+						}}
+					>
 						<Icon name="newFolder" size={13} />
 						New folder
 					</button>
 				)}
 			</div>
 			<div className="fp-list" role="listbox" aria-label="Folders">
-				{list.length === 0 && <div className="fp-none">No folders in here.</div>}
+				{naming !== null && (
+					<div className="fp-item fp-naming">
+						<ExplorerIcon className="Folder" service={false} open={false} />
+						<input
+							ref={nameBox}
+							className="tb"
+							aria-label="New folder's name"
+							value={naming}
+							onChange={(e) => setNaming(e.target.value)}
+							onKeyDown={(e) => {
+								// Its own Enter and Esc: not the dialog's.
+								e.stopPropagation();
+								if (e.key === "Enter") void create(naming);
+								if (e.key === "Escape") setNaming(null);
+							}}
+							onBlur={() => void create(naming)}
+						/>
+					</div>
+				)}
+				{list.length === 0 && naming === null && <div className="fp-none">No folders in here.</div>}
 				{list.map((entry) => {
 					const inner = entry.kind === "directory" && subfolders(entry).length > 0;
 					return (
@@ -134,11 +227,12 @@ export function FolderPicker({
 							className={cx("fp-item", entry.path === picked && "on")}
 							title={entry.path}
 							onClick={() => onPick(entry.path)}
-							onDoubleClick={() => inner && setAt(entry.path)}
+							onDoubleClick={() => (inner || baseAt !== null) && go(entry.path)}
 							onKeyDown={(e) => {
-								if (e.key === "Enter") onPick(entry.path);
-								else if (e.key === "ArrowRight" && inner) setAt(entry.path);
-								else if (e.key === "ArrowLeft" && at !== null) setAt(parentOf(at) || null);
+								if (e.key === "Enter" && baseAt === null) onPick(entry.path);
+								else if (e.key === "ArrowRight" && inner) go(entry.path);
+								else if (e.key === "ArrowLeft" && at !== null && at !== baseAt)
+									go(parentOf(at) || baseAt);
 							}}
 						>
 							{entry.kind === "directory" ? (
@@ -155,7 +249,7 @@ export function FolderPicker({
 									aria-label={`Into ${entry.name}`}
 									onClick={(e) => {
 										e.stopPropagation();
-										setAt(entry.path);
+										go(entry.path);
 									}}
 								>
 									<Icon name="chevron" size={13} />

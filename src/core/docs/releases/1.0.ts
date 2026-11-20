@@ -9,6 +9,17 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.38",
+		date: "2026-11-20",
+		headline: "New graph, New map and New folder pick where they go.",
+		added: [
+			"**Folder list.** New graph, New map and New folder list the graphs' folders under the name, starting where you were. Go into another to make it there; New folder in the list makes one in place. A script with children can be picked, which makes the new graph its child.",
+			"**Choose… for New project.** In the installed editor, the folder field has Choose…, which opens the system's folder dialog.",
+		],
+		changed: ["Where it will be made, and whether a map syncs it, follow the folder picked."],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.37",
 		date: "2026-11-20",
 		headline: "Packages show what they are, and one window adds them.",

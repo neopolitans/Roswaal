@@ -103,7 +103,9 @@ export function projectPanelPage(): DocPage {
 					"**New graph** and **New folder**. On a folder they make one inside it. On a graph, " +
 					"New graph asks whether inside it, as its child, or beside it, and New folder goes " +
 					"beside it. Pressing one leaves the folder open or shut as it was. On a touch screen " +
-					"they show on the row you tap.",
+					"they show on the row you tap. New graph, New map and New folder list the graphs' " +
+					"folders under the name, starting where you were: go into another to make it there, " +
+					"or press **New folder** in the list to make one first.",
 			},
 			{
 				t: "p",

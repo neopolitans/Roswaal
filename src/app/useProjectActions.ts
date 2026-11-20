@@ -23,6 +23,7 @@ import {
 	type WallyOutcome,
 } from "./api.js";
 import type { FormAnswers, FormField } from "./Dialog.jsx";
+import { chooseFolder } from "./folderDialog.js";
 import {
 	canMakeProject,
 	canOpenDirectory,
@@ -810,7 +811,14 @@ export function useProjectActions(context: ProjectActionsContext) {
 		const fields: FormField[] = [
 			inBrowser
 				? { id: "name", kind: "text", label: "Project name", value: "My Game" }
-				: { id: "folder", kind: "text", label: "Folder, empty or not there yet", value: "" },
+				: {
+						id: "folder",
+						kind: "text",
+						label: "Folder, empty or not there yet",
+						value: "",
+						// The system's folder dialog, through the daemon, as Open uses.
+						browse: async (current: string) => (await chooseFolder(current || undefined)).path,
+					},
 			{
 				id: "target",
 				kind: "choice",
@@ -965,8 +973,36 @@ export function useProjectActions(context: ProjectActionsContext) {
 		[project],
 	);
 
+	/**
+	 * The folder list New graph, New map and New folder show under the name:
+	 * the graphs, from their own folder, starting where you were. `chosen`
+	 * hears where it ends up.
+	 */
+	const folderList = useCallback(
+		(dir: string, chosen: { current: string }, warns: boolean) =>
+			project
+				? {
+						tree: project.tree,
+						base: { path: project.config.sourceDir, label: "Graphs" },
+						value: dir,
+						hint: (at: string) => `Created in ${at}`,
+						...(warns ? { warn: (at: string) => unsyncedWarning(project.tree, at) } : {}),
+						onFolder: (at: string) => {
+							chosen.current = at;
+						},
+						onCreateFolder: async (parent: string, name: string) => {
+							await api.createFolder(`${parent}/${name}`);
+							await refreshTree();
+						},
+					}
+				: undefined,
+		[project, refreshTree],
+	);
+
 	const createGraphIn = useCallback(
 		async (dir: string) => {
+			const chosen = { current: dir };
+			const folder = folderList(dir, chosen, true);
 			const name = await ask({
 				kind: "prompt",
 				title: "New graph",
@@ -975,17 +1011,18 @@ export function useProjectActions(context: ProjectActionsContext) {
 				warn: project ? unsyncedWarning(project.tree, dir) : undefined,
 				value: "Untitled",
 				icon: "newFile",
+				...(folder ? { folder } : {}),
 			});
 			if (typeof name !== "string") return;
 			try {
-				const created = await api.createScript(dir, name, "Script");
+				const created = await api.createScript(chosen.current, name, "Script");
 				await refreshTree();
 				store.open(created.path, created.script);
 			} catch (err) {
 				notify("Could not create that graph", errorMessage(err));
 			}
 		},
-		[ask, notify, refreshTree, project],
+		[ask, notify, refreshTree, project, folderList],
 	);
 
 	/**
@@ -1062,6 +1099,8 @@ export function useProjectActions(context: ProjectActionsContext) {
 
 	const createMapIn = useCallback(
 		async (dir: string) => {
+			const chosen = { current: dir };
+			const folder = folderList(dir, chosen, false);
 			const name = await ask({
 				kind: "prompt",
 				title: "New node map",
@@ -1069,10 +1108,11 @@ export function useProjectActions(context: ProjectActionsContext) {
 				hint: `Created in ${dir}`,
 				value: "Tree",
 				icon: "map",
+				...(folder ? { folder } : {}),
 			});
 			if (typeof name !== "string") return;
 			try {
-				const created = await api.createMap(dir, name);
+				const created = await api.createMap(chosen.current, name);
 				await refreshTree();
 				store.openSide({
 					kind: "map",
@@ -1082,7 +1122,7 @@ export function useProjectActions(context: ProjectActionsContext) {
 				notify("Could not create that map", errorMessage(err));
 			}
 		},
-		[ask, notify, refreshTree],
+		[ask, notify, refreshTree, folderList],
 	);
 
 	const importLuauFile = useCallback(
@@ -1324,6 +1364,12 @@ export function useProjectActions(context: ProjectActionsContext) {
 
 	const onTreeNewFolder = useCallback(
 		async (parentDir: string) => {
+			const chosen = { current: parentDir };
+			// The list only where the folder is among the graphs: New folder is
+			// offered elsewhere too, and the list starts at the graphs' own.
+			const source = project?.config.sourceDir ?? "";
+			const among = parentDir === source || parentDir.startsWith(`${source}/`);
+			const folder = among ? folderList(parentDir, chosen, true) : undefined;
 			const name = await ask({
 				kind: "prompt",
 				title: "New folder",
@@ -1332,16 +1378,17 @@ export function useProjectActions(context: ProjectActionsContext) {
 				warn: project ? unsyncedWarning(project.tree, parentDir) : undefined,
 				value: "NewFolder",
 				icon: "newFolder",
+				...(folder ? { folder } : {}),
 			});
 			if (typeof name !== "string") return;
 			try {
-				await api.createFolder(`${parentDir}/${name}`.replace(/^\//, ""));
+				await api.createFolder(`${chosen.current}/${name}`.replace(/^\//, ""));
 				await refreshTree();
 			} catch (err) {
 				notify("Something went wrong", errorMessage(err));
 			}
 		},
-		[ask, notify, refreshTree, project],
+		[ask, notify, refreshTree, project, folderList],
 	);
 
 	const onTreeRename = useCallback(

@@ -6818,6 +6818,20 @@ button.pathchip:hover {
 	border-radius: 10px;
 }
 
+.dialog-body .folder-pick {
+	margin-top: 12px;
+}
+
+.dialog-body .fp-list {
+	max-height: 220px;
+}
+
+.fp-naming .tb {
+	flex: 1;
+	min-width: 0;
+	height: 24px;
+}
+
 .map-choose {
 	width: min(380px, calc(100vw - 24px));
 	padding: 0;
@@ -6889,6 +6903,7 @@ button.pathchip:hover {
 }
 
 .fp-item {
+	user-select: none;
 	display: flex;
 	align-items: center;
 	gap: 7px;
