@@ -159,7 +159,7 @@ const SAME_LEVEL = /^(then|s\d+)$/;
  * Inside a function, a loop or a handler it is a fresh local each time, and a
  * wired value is computed where it stands, so neither is offered.
  */
-function canPromoteLocal(script: NodeScript, node: GraphNode): boolean {
+export function canPromoteLocal(script: NodeScript, node: GraphNode): boolean {
 	if (node.def !== "local.declare" || node.graph) return false;
 	if (script.links.some((l) => l.to.node === node.id && l.to.pin === "value")) return false;
 	const byId = new Map(script.nodes.map((n) => [n.id, n] as const));
@@ -185,7 +185,7 @@ function canPromoteLocal(script: NodeScript, node: GraphNode): boolean {
  * Set Local wired from it a Set Variable, and anything else reading it reads a
  * Get Variable put where the declaration was.
  */
-function promoteLocal(script: NodeScript, nodeId: string): NodeScript {
+export function promoteLocal(script: NodeScript, nodeId: string): NodeScript {
 	const node = script.nodes.find((n) => n.id === nodeId);
 	if (!node) return script;
 	const name = localNameOf(node);

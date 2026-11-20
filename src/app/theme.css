@@ -2675,7 +2675,7 @@ button.tb.primary:hover:not(:disabled) {
  * circle now straddles the node's border: half of it is over the body and half
  * over the canvas, and a see-through middle would show the seam running through
  * the pin. One fill makes it read as a ring sitting on the edge. */
-.node .pin .dot {
+:is(.node, .pin-icon) .pin .dot {
 	position: absolute;
 	inset: 3px;
 	border-radius: 50%;
@@ -2684,7 +2684,7 @@ button.tb.primary:hover:not(:disabled) {
 	box-shadow: 0 0 0 1px var(--pin-well);
 }
 
-.node .pin.connected .dot {
+:is(.node, .pin-icon) .pin.connected .dot {
 	background: currentColor;
 }
 
@@ -2740,13 +2740,13 @@ button.tb.primary:hover:not(:disabled) {
    10px footprint, so a row's pins line up whatever they carry.
 
    An object -- an Instance, any class -- is a rounded square. */
-.node .pin.fam-object .dot {
+:is(.node, .pin-icon) .pin.fam-object .dot {
 	border-radius: 3px;
 }
 
 /* A table is a diamond: a square turned, a little smaller so its points stay
    inside the slot. The ring of well turns with it. */
-.node .pin.fam-table .dot {
+:is(.node, .pin-icon) .pin.fam-table .dot {
 	inset: 3.5px;
 	border-radius: 2px;
 	transform: rotate(45deg);
@@ -2754,18 +2754,18 @@ button.tb.primary:hover:not(:disabled) {
 
 /* A function is a dot in a ring: something you call. Wired, the dot grows to
    nearly fill the ring, keeping a hair of well so it still reads as two parts. */
-.node .pin.fam-function .dot {
+:is(.node, .pin-icon) .pin.fam-function .dot {
 	background: radial-gradient(closest-side, currentColor 0 1.5px, var(--pin-well) 2px);
 }
 
-.node .pin.fam-function.connected .dot {
+:is(.node, .pin-icon) .pin.fam-function.connected .dot {
 	background: radial-gradient(closest-side, currentColor 0 1.8px, var(--pin-well) 2.3px 2.6px, currentColor 3px);
 }
 
 /* A signal is a hexagon: something to listen to. Cut out by clip-path, which
    cuts away a border and a box-shadow too, so the outline is a second, smaller
    hexagon of well inside it, and the hover and drag halos move to the pin. */
-.node .pin.fam-signal .dot {
+:is(.node, .pin-icon) .pin.fam-signal .dot {
 	inset: 2.5px 2px;
 	border: 0;
 	border-radius: 0;
@@ -2774,7 +2774,7 @@ button.tb.primary:hover:not(:disabled) {
 	clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
 }
 
-.node .pin.fam-signal .dot::after {
+:is(.node, .pin-icon) .pin.fam-signal .dot::after {
 	content: "";
 	position: absolute;
 	inset: 2px 2.3px;
@@ -2782,7 +2782,7 @@ button.tb.primary:hover:not(:disabled) {
 	clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
 }
 
-.node .pin.fam-signal.connected .dot::after {
+:is(.node, .pin-icon) .pin.fam-signal.connected .dot::after {
 	display: none;
 }
 
@@ -6196,39 +6196,54 @@ button.start-tile:disabled {
 	--badge: var(--code-keyword);
 }
 
-/* A value's pin shape, as on a node (see typeFamily.ts), filled: a circle
-   for a plain value, a rounded square for an Instance, a diamond for a
-   table, a dot in a ring for a function, a hexagon for a signal. */
-.pin-shape {
-	width: 8px;
-	height: 8px;
-	border-radius: 50%;
-	background: currentColor;
+/* A value's pin, drawn by the node's own rules (see typeFamily.ts): the
+   same 16px slot, ring and shape, unwired, with no box around it. Its well
+   is the surface it sits on. */
+.pin-icon {
+	--pin-well: var(--bg-panel);
+	flex: none;
+	display: inline-grid;
+	width: 16px;
+	height: 16px;
 }
 
-.pin-shape.fam-object {
-	border-radius: 2px;
+.pin-icon .pin {
+	position: relative;
+	width: 16px;
+	height: 16px;
 }
 
-.pin-shape.fam-table {
-	width: 7px;
-	height: 7px;
-	border-radius: 1px;
-	transform: rotate(45deg);
+/* A canvas comment's name over the declarations inside it: the group the
+   Luau heads with that comment. */
+.flow-group {
+	margin: 6px 0 2px;
+	padding-left: 8px;
+	border-left: 2px solid var(--code-comment);
+	font-size: var(--text-xs);
+	color: var(--fg-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
-.pin-shape.fam-function {
-	width: 9px;
-	height: 9px;
-	background: radial-gradient(closest-side, currentColor 0 1.6px, transparent 2.1px 2.9px, currentColor 3.4px);
+/* The rows inside that comment carry its rule down their side, so where
+   the group ends shows. */
+.variable.flow-grouped {
+	border-left: 2px solid var(--code-comment);
+	padding-left: 6px;
 }
 
-/* Larger than the rest: at 8px a hexagon reads as a circle. */
-.pin-shape.fam-signal {
-	width: 12px;
-	height: 10px;
-	border-radius: 0;
-	clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+/* Under In script order: Tidy declarations…, and how many rows it would move. */
+.flow-foot {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 8px;
+}
+
+.flow-foot-note {
+	font-size: var(--text-xs);
+	color: var(--fg-faint);
 }
 
 .variable-head .type.flow-global {
@@ -22948,7 +22963,7 @@ textarea.tb:where(:disabled) {
    say in every scheme -- circle, square, diamond, ring, hexagon, arrow --
    only stepped. Generated: masks, so the pin keeps its type's colour. */
 
-:root[data-look="four-colours"] .node .pin .dot {
+:root[data-look="four-colours"] :is(.node, .pin-icon) .pin .dot {
 	inset: 3px;
 	border: 0 !important;
 	background: currentColor !important;
@@ -22956,11 +22971,11 @@ textarea.tb:where(:disabled) {
 	clip-path: none;
 }
 
-:root[data-look="four-colours"] .node .pin .dot::after {
+:root[data-look="four-colours"] :is(.node, .pin-icon) .pin .dot::after {
 	display: none;
 }
 
-:root[data-look="four-colours"] .node .pin.fam-signal .dot {
+:root[data-look="four-colours"] :is(.node, .pin-icon) .pin.fam-signal .dot {
 	inset: 3px 1px;
 }
 
@@ -22970,35 +22985,35 @@ textarea.tb:where(:disabled) {
 	height: 16px;
 }
 
-:root[data-look="four-colours"] .node .pin .dot {
+:root[data-look="four-colours"] :is(.node, .pin-icon) .pin .dot {
 	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Crect x='1' y='0' width='1' height='1'/%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='3' y='0' width='1' height='1'/%3E%3Crect x='0' y='1' width='1' height='1'/%3E%3Crect x='4' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='4' y='2' width='1' height='1'/%3E%3Crect x='0' y='3' width='1' height='1'/%3E%3Crect x='4' y='3' width='1' height='1'/%3E%3Crect x='1' y='4' width='1' height='1'/%3E%3Crect x='2' y='4' width='1' height='1'/%3E%3Crect x='3' y='4' width='1' height='1'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
 }
 
-:root[data-look="four-colours"] .node .pin.connected .dot {
+:root[data-look="four-colours"] :is(.node, .pin-icon) .pin.connected .dot {
 	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Crect x='1' y='0' width='1' height='1'/%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='3' y='0' width='1' height='1'/%3E%3Crect x='0' y='1' width='1' height='1'/%3E%3Crect x='1' y='1' width='1' height='1'/%3E%3Crect x='2' y='1' width='1' height='1'/%3E%3Crect x='3' y='1' width='1' height='1'/%3E%3Crect x='4' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='1' y='2' width='1' height='1'/%3E%3Crect x='2' y='2' width='1' height='1'/%3E%3Crect x='3' y='2' width='1' height='1'/%3E%3Crect x='4' y='2' width='1' height='1'/%3E%3Crect x='0' y='3' width='1' height='1'/%3E%3Crect x='1' y='3' width='1' height='1'/%3E%3Crect x='2' y='3' width='1' height='1'/%3E%3Crect x='3' y='3' width='1' height='1'/%3E%3Crect x='4' y='3' width='1' height='1'/%3E%3Crect x='1' y='4' width='1' height='1'/%3E%3Crect x='2' y='4' width='1' height='1'/%3E%3Crect x='3' y='4' width='1' height='1'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
 }
 
-:root[data-look="four-colours"] .node .pin.fam-object .dot {
+:root[data-look="four-colours"] :is(.node, .pin-icon) .pin.fam-object .dot {
 	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Crect x='0' y='0' width='1' height='1'/%3E%3Crect x='1' y='0' width='1' height='1'/%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='3' y='0' width='1' height='1'/%3E%3Crect x='4' y='0' width='1' height='1'/%3E%3Crect x='0' y='1' width='1' height='1'/%3E%3Crect x='4' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='4' y='2' width='1' height='1'/%3E%3Crect x='0' y='3' width='1' height='1'/%3E%3Crect x='4' y='3' width='1' height='1'/%3E%3Crect x='0' y='4' width='1' height='1'/%3E%3Crect x='1' y='4' width='1' height='1'/%3E%3Crect x='2' y='4' width='1' height='1'/%3E%3Crect x='3' y='4' width='1' height='1'/%3E%3Crect x='4' y='4' width='1' height='1'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
 }
 
-:root[data-look="four-colours"] .node .pin.fam-object.connected .dot {
+:root[data-look="four-colours"] :is(.node, .pin-icon) .pin.fam-object.connected .dot {
 	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Crect x='0' y='0' width='1' height='1'/%3E%3Crect x='1' y='0' width='1' height='1'/%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='3' y='0' width='1' height='1'/%3E%3Crect x='4' y='0' width='1' height='1'/%3E%3Crect x='0' y='1' width='1' height='1'/%3E%3Crect x='1' y='1' width='1' height='1'/%3E%3Crect x='2' y='1' width='1' height='1'/%3E%3Crect x='3' y='1' width='1' height='1'/%3E%3Crect x='4' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='1' y='2' width='1' height='1'/%3E%3Crect x='2' y='2' width='1' height='1'/%3E%3Crect x='3' y='2' width='1' height='1'/%3E%3Crect x='4' y='2' width='1' height='1'/%3E%3Crect x='0' y='3' width='1' height='1'/%3E%3Crect x='1' y='3' width='1' height='1'/%3E%3Crect x='2' y='3' width='1' height='1'/%3E%3Crect x='3' y='3' width='1' height='1'/%3E%3Crect x='4' y='3' width='1' height='1'/%3E%3Crect x='0' y='4' width='1' height='1'/%3E%3Crect x='1' y='4' width='1' height='1'/%3E%3Crect x='2' y='4' width='1' height='1'/%3E%3Crect x='3' y='4' width='1' height='1'/%3E%3Crect x='4' y='4' width='1' height='1'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
 }
 
-:root[data-look="four-colours"] .node .pin.fam-table .dot {
+:root[data-look="four-colours"] :is(.node, .pin-icon) .pin.fam-table .dot {
 	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='1' y='1' width='1' height='1'/%3E%3Crect x='3' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='4' y='2' width='1' height='1'/%3E%3Crect x='1' y='3' width='1' height='1'/%3E%3Crect x='3' y='3' width='1' height='1'/%3E%3Crect x='2' y='4' width='1' height='1'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
 }
 
-:root[data-look="four-colours"] .node .pin.fam-table.connected .dot {
+:root[data-look="four-colours"] :is(.node, .pin-icon) .pin.fam-table.connected .dot {
 	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='1' y='1' width='1' height='1'/%3E%3Crect x='2' y='1' width='1' height='1'/%3E%3Crect x='3' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='1' y='2' width='1' height='1'/%3E%3Crect x='2' y='2' width='1' height='1'/%3E%3Crect x='3' y='2' width='1' height='1'/%3E%3Crect x='4' y='2' width='1' height='1'/%3E%3Crect x='1' y='3' width='1' height='1'/%3E%3Crect x='2' y='3' width='1' height='1'/%3E%3Crect x='3' y='3' width='1' height='1'/%3E%3Crect x='2' y='4' width='1' height='1'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
 }
 
-:root[data-look="four-colours"] .node .pin.fam-signal .dot {
+:root[data-look="four-colours"] :is(.node, .pin-icon) .pin.fam-signal .dot {
 	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 5' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='3' y='0' width='1' height='1'/%3E%3Crect x='4' y='0' width='1' height='1'/%3E%3Crect x='1' y='1' width='1' height='1'/%3E%3Crect x='5' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='6' y='2' width='1' height='1'/%3E%3Crect x='1' y='3' width='1' height='1'/%3E%3Crect x='5' y='3' width='1' height='1'/%3E%3Crect x='2' y='4' width='1' height='1'/%3E%3Crect x='3' y='4' width='1' height='1'/%3E%3Crect x='4' y='4' width='1' height='1'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
 }
 
-:root[data-look="four-colours"] .node .pin.fam-signal.connected .dot {
+:root[data-look="four-colours"] :is(.node, .pin-icon) .pin.fam-signal.connected .dot {
 	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 5' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='3' y='0' width='1' height='1'/%3E%3Crect x='4' y='0' width='1' height='1'/%3E%3Crect x='1' y='1' width='1' height='1'/%3E%3Crect x='2' y='1' width='1' height='1'/%3E%3Crect x='3' y='1' width='1' height='1'/%3E%3Crect x='4' y='1' width='1' height='1'/%3E%3Crect x='5' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='1' y='2' width='1' height='1'/%3E%3Crect x='2' y='2' width='1' height='1'/%3E%3Crect x='3' y='2' width='1' height='1'/%3E%3Crect x='4' y='2' width='1' height='1'/%3E%3Crect x='5' y='2' width='1' height='1'/%3E%3Crect x='6' y='2' width='1' height='1'/%3E%3Crect x='1' y='3' width='1' height='1'/%3E%3Crect x='2' y='3' width='1' height='1'/%3E%3Crect x='3' y='3' width='1' height='1'/%3E%3Crect x='4' y='3' width='1' height='1'/%3E%3Crect x='5' y='3' width='1' height='1'/%3E%3Crect x='2' y='4' width='1' height='1'/%3E%3Crect x='3' y='4' width='1' height='1'/%3E%3Crect x='4' y='4' width='1' height='1'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
 }
 
@@ -23010,11 +23025,11 @@ textarea.tb:where(:disabled) {
 	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 8' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Crect x='0' y='0' width='1' height='1'/%3E%3Crect x='0' y='1' width='1' height='1'/%3E%3Crect x='1' y='1' width='1' height='1'/%3E%3Crect x='2' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='1' y='2' width='1' height='1'/%3E%3Crect x='2' y='2' width='1' height='1'/%3E%3Crect x='3' y='2' width='1' height='1'/%3E%3Crect x='4' y='2' width='1' height='1'/%3E%3Crect x='0' y='3' width='1' height='1'/%3E%3Crect x='1' y='3' width='1' height='1'/%3E%3Crect x='2' y='3' width='1' height='1'/%3E%3Crect x='3' y='3' width='1' height='1'/%3E%3Crect x='4' y='3' width='1' height='1'/%3E%3Crect x='5' y='3' width='1' height='1'/%3E%3Crect x='6' y='3' width='1' height='1'/%3E%3Crect x='0' y='4' width='1' height='1'/%3E%3Crect x='1' y='4' width='1' height='1'/%3E%3Crect x='2' y='4' width='1' height='1'/%3E%3Crect x='3' y='4' width='1' height='1'/%3E%3Crect x='4' y='4' width='1' height='1'/%3E%3Crect x='5' y='4' width='1' height='1'/%3E%3Crect x='6' y='4' width='1' height='1'/%3E%3Crect x='0' y='5' width='1' height='1'/%3E%3Crect x='1' y='5' width='1' height='1'/%3E%3Crect x='2' y='5' width='1' height='1'/%3E%3Crect x='3' y='5' width='1' height='1'/%3E%3Crect x='4' y='5' width='1' height='1'/%3E%3Crect x='0' y='6' width='1' height='1'/%3E%3Crect x='1' y='6' width='1' height='1'/%3E%3Crect x='2' y='6' width='1' height='1'/%3E%3Crect x='0' y='7' width='1' height='1'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
 }
 
-:root[data-look="four-colours"] .node .pin.fam-function .dot {
+:root[data-look="four-colours"] :is(.node, .pin-icon) .pin.fam-function .dot {
 	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Crect x='1' y='0' width='1' height='1'/%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='3' y='0' width='1' height='1'/%3E%3Crect x='0' y='1' width='1' height='1'/%3E%3Crect x='4' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='2' y='2' width='1' height='1'/%3E%3Crect x='4' y='2' width='1' height='1'/%3E%3Crect x='0' y='3' width='1' height='1'/%3E%3Crect x='4' y='3' width='1' height='1'/%3E%3Crect x='1' y='4' width='1' height='1'/%3E%3Crect x='2' y='4' width='1' height='1'/%3E%3Crect x='3' y='4' width='1' height='1'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
 }
 
-:root[data-look="four-colours"] .node .pin.fam-function.connected .dot {
+:root[data-look="four-colours"] :is(.node, .pin-icon) .pin.fam-function.connected .dot {
 	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Crect x='1' y='0' width='1' height='1'/%3E%3Crect x='2' y='0' width='1' height='1'/%3E%3Crect x='3' y='0' width='1' height='1'/%3E%3Crect x='0' y='1' width='1' height='1'/%3E%3Crect x='2' y='1' width='1' height='1'/%3E%3Crect x='4' y='1' width='1' height='1'/%3E%3Crect x='0' y='2' width='1' height='1'/%3E%3Crect x='1' y='2' width='1' height='1'/%3E%3Crect x='2' y='2' width='1' height='1'/%3E%3Crect x='3' y='2' width='1' height='1'/%3E%3Crect x='4' y='2' width='1' height='1'/%3E%3Crect x='0' y='3' width='1' height='1'/%3E%3Crect x='2' y='3' width='1' height='1'/%3E%3Crect x='4' y='3' width='1' height='1'/%3E%3Crect x='1' y='4' width='1' height='1'/%3E%3Crect x='2' y='4' width='1' height='1'/%3E%3Crect x='3' y='4' width='1' height='1'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
 }
 

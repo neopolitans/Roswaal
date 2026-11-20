@@ -8,7 +8,6 @@
  */
 
 import {
-	type CSSProperties,
 	type DragEvent,
 	Fragment,
 	type ReactNode,
@@ -16,6 +15,7 @@ import {
 	useMemo,
 	useState,
 } from "react";
+import { headersByNode } from "../core/comments.js";
 import { compile } from "../core/compiler/index.js";
 import {
 	checkMove,
@@ -48,7 +48,7 @@ import type {
 	ScriptVariable,
 } from "../core/schema.js";
 import { SPECIFIER_HINTS } from "../core/schema.js";
-import { type DeclarationKind, scriptOrder } from "../core/scriptOrder.js";
+import { type DeclarationKind, type GlobalName, scriptOrder } from "../core/scriptOrder.js";
 import { typeFamily } from "../core/typeFamily.js";
 import {
 	codeMentions,
@@ -89,6 +89,14 @@ import { requiredTypes, useProjectTypes } from "./projectTypes.js";
 import { PROPERTY_DRAG, type PropertyDrag } from "./propertyDrag.js";
 import { store, useEditor } from "./store.js";
 import { TypePicker } from "./TypePicker.jsx";
+import {
+	type MakeLocal,
+	makeLocalPlan,
+	moveToTop,
+	type TidyRow,
+	tidyAll,
+	tidyPlan,
+} from "./tidy.js";
 import { classDetail, ValuePicker } from "./ValuePicker.jsx";
 
 export interface VariablesPanelProps {
@@ -108,6 +116,14 @@ export interface VariablesPanelProps {
 	confirm: (title: string, message: string, confirmLabel: string) => Promise<boolean>;
 	/** Asks before a move that changes when something runs, showing the Luau's diff. */
 	confirmMove?: (title: string, message: string, diff: ShownLine[]) => Promise<boolean>;
+	/** Asks before a tidy, listing what moves and what stays, with the Luau's diff. */
+	confirmChange?: (ask: {
+		title: string;
+		message: string;
+		points?: string[];
+		diff: ShownLine[];
+		confirmLabel: string;
+	}) => Promise<boolean>;
 	/**
 	 * A file from Graphs or Output dropped on Modules. Where it
 	 * lands in the DataModel is the project's to say, so the caller resolves it.
@@ -123,6 +139,7 @@ export function VariablesPanel({
 	locked,
 	onModuleFile,
 	confirmMove,
+	confirmChange,
 }: VariablesPanelProps) {
 	// Deletes the node that declares a local or a function, as the canvas would.
 	//
@@ -315,10 +332,84 @@ export function VariablesPanel({
 	// What the flow declares in the order the file does, and the globals an
 	// older file sets: read from the compiled Luau, on the top graph.
 	const order = useMemo(() => {
-		if (inFunction) return { flow: [], globals: [] };
+		if (inFunction) return { flow: [], globals: [], code: "" };
 		const result = compile(deferredScript, registry);
-		return scriptOrder(result.code, result.sourceMap);
+		const read = scriptOrder(result.code, result.sourceMap);
+		// A type declared at the top is a node too, but not the flow's.
+		const top = new Set(
+			deferredScript.nodes.filter((n) => n.def === "type.declareTop").map((n) => n.id),
+		);
+		return { ...read, flow: read.flow.filter((d) => !top.has(d.node)), code: result.code };
 	}, [deferredScript, registry, inFunction]);
+	// What can move to the top, and why the rest stays (Tidy, Move to top).
+	const plan = useMemo(
+		() => new Map(tidyPlan(deferredScript, order.flow, order.code).map((r) => [r.node, r])),
+		[deferredScript, order],
+	);
+	const movable = [...plan.values()].filter((r) => r.can).length;
+	// The canvas comment each declaration sits in: its group, as the Luau heads it.
+	const groups = useMemo(() => headersByNode(deferredScript, registry), [deferredScript, registry]);
+
+	// Shows the Luau's diff and asks; true when the developer agrees.
+	const askChange = async (
+		title: string,
+		message: string,
+		next: NodeScript,
+		confirmLabel: string,
+		points?: string[],
+	) => {
+		// Without the header's hashes, which change with any edit.
+		const luau = (s: NodeScript) =>
+			compile(s, registry)
+				.code.split("\n")
+				.filter((l) => !l.startsWith("-- roswaal-"))
+				.join("\n");
+		const diff = shownLines(diffLines(luau(script), luau(next)));
+		return confirmChange
+			? confirmChange({ title, message, points, diff, confirmLabel })
+			: confirm(title, message, confirmLabel);
+	};
+	const moveRow = async (row: TidyRow) => {
+		const next = moveToTop(script, row.node);
+		const ok = await askChange(
+			`Move ${row.name} to the top?`,
+			`${row.why}, so it can be declared at the top of the file, before the flow runs.`,
+			next,
+			"Move",
+		);
+		if (ok) store.edit((s) => moveToTop(s, row.node));
+	};
+	const tidyDeclarations = async () => {
+		const out = compile(script, registry);
+		const top = new Set(script.nodes.filter((n) => n.def === "type.declareTop").map((n) => n.id));
+		const now = scriptOrder(out.code, out.sourceMap).flow.filter((d) => !top.has(d.node));
+		const rows = tidyPlan(script, now, out.code);
+		const can = rows.filter((r) => r.can);
+		if (can.length === 0) return;
+		const ok = await askChange(
+			"Tidy declarations",
+			`${can.length} of ${rows.length} can move to the top of the file. Nothing else changes.`,
+			tidyAll(script, rows),
+			`Move ${can.length}`,
+			[
+				...can.map((r) => `Moves: ${r.name}. ${r.why}.`),
+				...rows.filter((r) => !r.can).map((r) => `Stays: ${r.name}. ${r.why}.`),
+			],
+		);
+		if (ok) store.edit((s) => tidyAll(s, rows));
+	};
+	const makeLocal = async (g: GlobalName) => {
+		const m = makeLocalPlan(script, order.code, g);
+		if (!m.ok || !m.run) return;
+		const run = m.run;
+		const ok = await askChange(
+			`Make ${g.name} local?`,
+			"It becomes local where the file first sets it. Another script that reads it as a global will no longer see it.",
+			run(script),
+			"Make local",
+		);
+		if (ok) store.edit(run);
+	};
 	const fromCode = order.flow.some(
 		(d) => script.nodes.find((n) => n.id === d.node)?.def === "code.custom",
 	);
@@ -593,6 +684,10 @@ export function VariablesPanel({
 											)}
 											<span className="name">{g.name}</span>
 											<span className="type flow-global">global</span>
+											<GlobalActions
+												plan={makeLocalPlan(script, order.code, g)}
+												onMake={() => makeLocal(g)}
+											/>
 										</div>
 									</div>
 								),
@@ -627,29 +722,77 @@ export function VariablesPanel({
 						</button>
 					))}
 				</div>
-				{shownFlow.map((d) => (
-					<div className="variable" key={`${d.line}:${d.name}`}>
-						<div
-							className="variable-head flow-row"
-							title={`${KIND_WORDS[d.kind]}, line ${d.line}. Click to select what declares it; double-click to go to it.`}
-							onClick={() => store.reveal(d.node)}
-							onDoubleClick={() => goTo(d.node)}
-						>
-							{d.kind === "local" ? (
-								<PinSwatch
-									type={valueType(d.detail ?? declarationDetail(script, registry, d.node, d.kind))}
-								/>
-							) : (
-								<FlowBadge kind={d.kind} />
+				{shownFlow.map((d, i) => (
+					<Fragment key={`${d.line}:${d.name}`}>
+						{groups.get(d.node)?.id !== groups.get(shownFlow[i - 1]?.node ?? "")?.id &&
+							groups.get(d.node) && (
+								<div className="flow-group" title="A comment on the canvas around these">
+									{groupTitle(groups.get(d.node)?.text ?? "")}
+								</div>
 							)}
-							<span className="name">{d.name}</span>
-							<span className="type">
-								{d.detail ?? declarationDetail(script, registry, d.node, d.kind)}
-							</span>
+						<div className={cx("variable", groups.get(d.node) && "flow-grouped")}>
+							<div
+								className="variable-head flow-row"
+								title={`${KIND_WORDS[d.kind]}, line ${d.line}. Click to select what declares it; double-click to go to it.`}
+								onClick={() => store.reveal(d.node)}
+								onDoubleClick={() => goTo(d.node)}
+							>
+								{d.kind === "local" ? (
+									<PinSwatch
+										type={valueType(
+											d.detail ?? declarationDetail(script, registry, d.node, d.kind),
+										)}
+									/>
+								) : (
+									<FlowBadge kind={d.kind} />
+								)}
+								<span className="name">{d.name}</span>
+								<span className="type">
+									{d.detail ?? declarationDetail(script, registry, d.node, d.kind)}
+								</span>
+								{plan.get(d.node)?.can && (
+									<span className="row-actions">
+										<button
+											type="button"
+											className="tb"
+											title={`${plan.get(d.node)?.why}: declare it at the top of the file`}
+											draggable={false}
+											onClick={(e) => {
+												e.stopPropagation();
+												const row = plan.get(d.node);
+												if (row) void moveRow(row);
+											}}
+										>
+											To top
+										</button>
+									</span>
+								)}
+							</div>
 						</div>
-					</div>
+					</Fragment>
 				))}
 				{order.flow.length === 0 && <p className="hint">The flow declares nothing yet.</p>}
+				{order.flow.length > 0 && !locked && (
+					<div className="flow-foot">
+						<button
+							type="button"
+							className="tb with-icon"
+							disabled={movable === 0}
+							title={
+								movable === 0
+									? "Nothing in the flow can move to the top without changing what the file does"
+									: "List what can move to the top, why the rest stays, and the Luau's diff, before changing anything"
+							}
+							onClick={() => void tidyDeclarations()}
+						>
+							<Icon name="straighten" size={13} />
+							Tidy declarations…
+						</button>
+						<span className="flow-foot-note">
+							{movable === 0 ? "Nothing can move" : `${movable} can move to the top`}
+						</span>
+					</div>
+				)}
 			</>
 		) : (
 			<>
@@ -1964,18 +2107,45 @@ function valueType(detail: string): string {
 }
 
 /**
- * Something that holds a value, marked as its pin is on a node: the shape
- * of its type's family (a table's diamond, an Instance's rounded square) in
- * the type's colour, in the same tinted square as the kind letters.
+ * Something that holds a value, marked as its pin is on a node: the node's
+ * own pin markup, so its shape, ring and colour are the canvas's, Four
+ * Colours sprites included.
  */
 function PinSwatch({ type }: { type: string }) {
 	return (
-		<span
-			className="flow-badge flow-badge-value"
-			style={{ "--badge": pinColor(type, "data") } as CSSProperties}
-			aria-label={type}
-		>
-			<span className={`pin-shape fam-${typeFamily(type)}`} />
+		<span className="pin-icon" aria-label={type}>
+			<span
+				className={`pin data fam-${typeFamily(type)}`}
+				style={{ color: pinColor(type, "data") }}
+			>
+				<span className="dot" />
+			</span>
+		</span>
+	);
+}
+
+/** A comment's first line, as the group's name. */
+function groupTitle(text: string): string {
+	return text.trim().split("\n")[0] || "Comment";
+}
+
+/** A global's own button: Make local where it is safe, and nothing where it is not. */
+function GlobalActions({ plan, onMake }: { plan: MakeLocal; onMake: () => void }) {
+	if (!plan.ok) return null;
+	return (
+		<span className="row-actions">
+			<button
+				type="button"
+				className="tb"
+				title="Declare it local where the file first sets it"
+				draggable={false}
+				onClick={(e) => {
+					e.stopPropagation();
+					onMake();
+				}}
+			>
+				Make local
+			</button>
 		</span>
 	);
 }

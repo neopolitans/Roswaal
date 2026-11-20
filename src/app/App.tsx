@@ -2569,6 +2569,10 @@ export function App() {
 									(await ask({ kind: "confirm", title, message, diff, confirmLabel: "Move" })) ===
 									true
 								}
+								confirmChange={async ({ title, message, points, diff, confirmLabel }) =>
+									(await ask({ kind: "confirm", title, message, points, diff, confirmLabel })) ===
+									true
+								}
 								onModuleFile={async (dropped) => {
 									// Where the file lands, from the node maps, as a canvas drop asks.
 									const name = dropped.split("/").pop() ?? dropped;

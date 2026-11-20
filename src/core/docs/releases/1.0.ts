@@ -9,6 +9,21 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.53",
+		date: "2026-11-20",
+		headline: "Declarations tidy to the top on request, and globals can become locals.",
+		added: [
+			"**Tidy declarations…** under In script order lists what can move to the top of the file, why the rest stays, and the Luau's diff, then moves them. A plain value set once and a type that names nothing in the flow can move; requires, functions, Code Blocks and computed values stay.",
+			"**To top** on a row moves that one declaration, after showing its diff.",
+			"**Make local** on a global declares it local where the file first sets it. It is offered only when nothing names it above that line and the file never reaches its environment.",
+			"**Comment groups in In script order.** Declarations inside a canvas comment sit under its name, with its rule down their side.",
+		],
+		changed: [
+			"**Pin icons in the Variables panel** are the node's own pins, ring and well included, with no box behind them.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.52",
 		date: "2026-11-20",
 		headline: "The Variables panel marks values with their pin shapes.",
