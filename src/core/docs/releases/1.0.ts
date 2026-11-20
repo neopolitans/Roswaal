@@ -9,6 +9,19 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.47",
+		date: "2026-11-20",
+		headline: "Declarations move by dragging, and requires sit in three bands.",
+		added: [
+			"**Drag to reorder.** Drag a service, a module or a variable in the Variables panel to change where it is declared, and the Luau follows. A plain value moves at once. A move that changes when something runs, such as a require, asks first and shows the Luau that changes. One that would break the file is refused with the reason, and the rows involved light up.",
+			"**Locals follow the flow.** A local carries a flow mark: it is declared where the flow reaches its node, so moving the node moves it.",
+		],
+		changed: [
+			"**Three bands of requires.** The top of a file is requires that need nothing above them, then services, then requires through a service, under it. A require by string, such as @game/ReplicatedStorage/Signal, now comes before the services. A file whose requires all go through services is written as before.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.46",
 		date: "2026-11-20",
 		headline: "The Variables panel reads in the order the file declares things.",

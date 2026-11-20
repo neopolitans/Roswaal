@@ -8,12 +8,21 @@
  */
 
 import { type DragEvent, type ReactNode, useMemo, useState } from "react";
+import { compile } from "../core/compiler/index.js";
+import {
+	checkMove,
+	type MoveCheck,
+	type ReorderKind,
+	reorder,
+	type Where,
+} from "../core/declarationOrder.js";
 import {
 	type GraphId,
 	hoistedFunctions,
 	visibleFrom,
 	withFunctionGraphs,
 } from "../core/functionGraph.js";
+import { diffLines, type ShownLine, shownLines } from "../core/lineDiff.js";
 import { instanceSpecifier } from "../core/modules.js";
 import { namedResultRef } from "../core/namedResults.js";
 import { FUNCTION_NODES } from "../core/nodes/flow.js";
@@ -82,6 +91,8 @@ export interface VariablesPanelProps {
 	registry: Registry;
 	/** Asks for confirmation; resolves true when the developer agrees. */
 	confirm: (title: string, message: string, confirmLabel: string) => Promise<boolean>;
+	/** Asks before a move that changes when something runs, showing the Luau's diff. */
+	confirmMove?: (title: string, message: string, diff: ShownLine[]) => Promise<boolean>;
 	/**
 	 * A file from Graphs or Output dropped on Modules. Where it
 	 * lands in the DataModel is the project's to say, so the caller resolves it.
@@ -96,6 +107,7 @@ export function VariablesPanel({
 	confirm,
 	locked,
 	onModuleFile,
+	confirmMove,
 }: VariablesPanelProps) {
 	// Deletes the node that declares a local or a function, as the canvas would.
 	//
@@ -165,6 +177,48 @@ export function VariablesPanel({
 	const table = script.variables.find((v) => v.id === tableId);
 	const variables = script.variables.filter((v) => v.id !== tableId);
 	const [filter, setFilter] = useState("");
+	// A row being dragged to a new place, and where it would go now.
+	const [moving, setMoving] = useState<{ kind: ReorderKind; id: string } | null>(null);
+	const [over, setOver] = useState<{ id: string; where: Where; check: MoveCheck } | null>(null);
+	const drop = async () => {
+		const move = moving;
+		const at = over;
+		setMoving(null);
+		setOver(null);
+		if (!move || !at || !at.check.ok) return;
+		const next = reorder(script, move.kind, move.id, at.id, at.where);
+		if (at.check.asks) {
+			const before = compile(script, registry).code;
+			const after = compile(next, registry).code;
+			const ok = confirmMove
+				? await confirmMove("Move it?", at.check.asks, shownLines(diffLines(before, after)))
+				: await confirm("Move it?", at.check.asks, "Move");
+			if (!ok) return;
+		}
+		store.edit((s) => reorder(s, move.kind, move.id, at.id, at.where));
+	};
+	const slot = (kind: ReorderKind, id: string, row: ReactNode) => (
+		<ReorderSlot
+			key={`${kind}:${id}`}
+			kind={kind}
+			id={id}
+			moving={moving}
+			over={over?.id === id ? over : null}
+			needed={over?.check.needs?.includes(id) === true}
+			onStart={() => setMoving({ kind, id })}
+			onEnd={() => {
+				setMoving(null);
+				setOver(null);
+			}}
+			onOver={(where) =>
+				moving &&
+				setOver({ id, where, check: checkMove(script, moving.kind, moving.id, id, where) })
+			}
+			onDrop={() => void drop()}
+		>
+			{row}
+		</ReorderSlot>
+	);
 	const needle = filter.trim().toLowerCase();
 	const shows = (name: string) => needle === "" || name.toLowerCase().includes(needle);
 	const showsModule = (m: ScriptModule) => shows(m.name) || shows(m.specifier);
@@ -184,7 +238,10 @@ export function VariablesPanel({
 		requestAnimationFrame(() => frameNode(ids[0], registry));
 	};
 	const moduleRow = (module: ScriptModule, nested: boolean) =>
-		showsModule(module) && (
+		showsModule(module) &&
+		slot(
+			"module",
+			module.id,
 			<ModuleRow
 				key={module.id}
 				script={script}
@@ -195,7 +252,7 @@ export function VariablesPanel({
 				onFind={() => findUses(usesOf(script, module.id))}
 				expanded={open === module.id}
 				onToggle={() => setOpen((id) => (id === module.id ? null : module.id))}
-			/>
+			/>,
 		);
 	const servicesShown = script.target === "roblox" || outline.services.length > 0;
 
@@ -293,15 +350,19 @@ export function VariablesPanel({
 							(group) =>
 								(shows(group.name) || group.modules.some(showsModule)) && (
 									<div key={group.name} className="variable-group">
-										<ServiceRow
-											name={group.name}
-											local={script.serviceNames?.[group.name]}
-											declared={group.declared}
-											uses={group.uses}
-											onFind={() => findUses(usesOf(script, group.name, true))}
-											onDeclare={() => store.edit((s) => addService(s, group.name))}
-											onDelete={() => store.edit((s) => deleteService(s, group.name))}
-										/>
+										{(group.declared
+											? (row: ReactNode) => slot("service", group.name, row)
+											: (row: ReactNode) => row)(
+											<ServiceRow
+												name={group.name}
+												local={script.serviceNames?.[group.name]}
+												declared={group.declared}
+												uses={group.uses}
+												onFind={() => findUses(usesOf(script, group.name, true))}
+												onDeclare={() => store.edit((s) => addService(s, group.name))}
+												onDelete={() => store.edit((s) => deleteService(s, group.name))}
+											/>,
+										)}
 										{group.modules.map((module) => moduleRow(module, true))}
 									</div>
 								),
@@ -396,7 +457,10 @@ export function VariablesPanel({
 				<Heading title="Variables" count={variables.length} />
 				{variables.map(
 					(variable) =>
-						shows(variable.name) && (
+						shows(variable.name) &&
+						slot(
+							"variable",
+							variable.id,
 							<VariableRow
 								key={variable.id}
 								script={script}
@@ -406,7 +470,7 @@ export function VariablesPanel({
 								onFind={() => findUses(usesOf(script, variable.id))}
 								expanded={open === variable.id}
 								onToggle={() => setOpen((id) => (id === variable.id ? null : variable.id))}
-							/>
+							/>,
 						),
 				)}
 				{variables.length === 0 && (
@@ -468,6 +532,82 @@ export function VariablesPanel({
 					</>
 				)}
 			</div>
+		</div>
+	);
+}
+
+/** What a reordering drag carries, beside what the canvas reads. */
+const REORDER_DRAG = "application/x-roswaal-reorder";
+
+/**
+ * A row that can be moved to change where it is declared. The drag also
+ * carries what the canvas reads, so the same row still drops onto the canvas
+ * as a Get. Over another row of its kind, the marker says where it would go,
+ * or why it cannot, and the rows that reason is about light up.
+ */
+function ReorderSlot({
+	kind,
+	id,
+	moving,
+	over,
+	needed,
+	onStart,
+	onEnd,
+	onOver,
+	onDrop,
+	children,
+}: {
+	kind: ReorderKind;
+	id: string;
+	moving: { kind: ReorderKind; id: string } | null;
+	over: { where: Where; check: MoveCheck } | null;
+	needed: boolean;
+	onStart: () => void;
+	onEnd: () => void;
+	onOver: (where: Where) => void;
+	onDrop: () => void;
+	children: ReactNode;
+}) {
+	const mine = moving !== null && moving.kind === kind && moving.id !== id;
+	return (
+		<div
+			className={cx(
+				"reorder-slot",
+				needed && "needed",
+				over && `drop-${over.where}`,
+				over && !over.check.ok && "refused",
+			)}
+			onDragStart={(e) => {
+				// After the row's own handler, which offers a copy to the canvas.
+				e.dataTransfer.setData(REORDER_DRAG, JSON.stringify({ kind, id }));
+				e.dataTransfer.effectAllowed = "copyMove";
+				onStart();
+			}}
+			onDragEnd={onEnd}
+			onDragOver={(e) => {
+				if (!mine) return;
+				e.preventDefault();
+				e.stopPropagation();
+				const box = e.currentTarget.getBoundingClientRect();
+				onOver(e.clientY < box.top + box.height / 2 ? "before" : "after");
+				e.dataTransfer.dropEffect = over && !over.check.ok ? "none" : "move";
+			}}
+			onDrop={(e) => {
+				if (!mine) return;
+				e.preventDefault();
+				e.stopPropagation();
+				onDrop();
+			}}
+		>
+			<span className="reorder-grip" aria-hidden="true">
+				⋮⋮
+			</span>
+			{children}
+			{over && !over.check.ok && over.check.reason && (
+				<div className="reorder-reason" role="status">
+					Can't go here: {over.check.reason}
+				</div>
+			)}
 		</div>
 	);
 }
@@ -943,6 +1083,12 @@ function LocalRow({
 				onClick={(e) => (e.ctrlKey || e.metaKey ? onGoTo() : store.reveal(node.id))}
 				onDoubleClick={onGoTo}
 			>
+				<span
+					className="flow-mark"
+					title="Declared where the flow reaches it, so it moves with its node: move the node to change where."
+				>
+					<Icon name="graph" size={11} />
+				</span>
 				<span className="swatch" style={{ background: pinColor(type, "data") }} />
 				<span className="name">{ref.name}</span>
 				{/* The list is where you look to see what a graph holds, so a promise

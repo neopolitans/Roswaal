@@ -206,6 +206,7 @@ export function declareModules(e: Emitter): void {
 			expression: place
 				? renderInstancePath(resolveRoot(e, place.root), place.steps)
 				: quoteString(specifier),
+			...(place && e.services.has(place.root) ? { through: place.root } : {}),
 			// A member takes the name it asks for, verbatim.
 			//
 			// `uniqueForFile` would not give it one: the emitter reserves the
@@ -317,11 +318,17 @@ export function claimModuleName(
 }
 
 /**
- * Writes the hoisted locals into the preamble, in the order they were first
- * asked for. That order is deterministic because the walk is.
+ * Writes the hoisted locals into the preamble, in three bands with a blank
+ * line between them:
  *
- * Services come before requires, because a required module's path usually
- * starts at a service and Luau reads a file top to bottom.
+ * 1. requires that need nothing above them -- by string, or through `script`;
+ * 2. the services, in the order they were declared or first asked for;
+ * 3. requires through a service, grouped under it in the services' order.
+ *
+ * The path decides the band, not where the module lives: a require has to
+ * come after the service local it reads, and one that reads none does not
+ * have to wait for them. A file whose requires all go through services is
+ * written as it always was.
  */
 export function flushPreamble(e: Emitter): void {
 	if (e.services.size === 0 && e.requires.size === 0) return;
@@ -335,26 +342,40 @@ export function flushPreamble(e: Emitter): void {
 		for (const line of commentLines(note.text, note.style))
 			e.preamble.push({ text: line, indent: 0 });
 	}
-	for (const [service, ident] of e.services) {
-		e.preamble.push({
-			text: `local ${ident} = game:GetService(${quoteString(service)})`,
-			indent: 0,
-		});
-	}
-	if (e.services.size > 0 && e.requires.size > 0) {
-		e.preamble.push({ text: "", indent: 0 });
-	}
-	for (const { ident, expression, members } of e.requires.values()) {
-		e.preamble.push({ text: `local ${ident} = require(${expression})`, indent: 0 });
-		// What the module was asked to hand out, bound beneath it. Lune's own
-		// idiom, and what lets `Vector3.new(...)` compile unchanged there.
-		for (const bound of members ?? []) {
-			e.preamble.push({
-				text: `local ${bound.ident} = ${ident}.${bound.member}`,
-				indent: 0,
-			});
+	const all = [...e.requires.values()];
+	const free = all.filter((r) => r.through === undefined || !e.services.has(r.through));
+	const through = [...e.services.keys()].flatMap((service) =>
+		all.filter((r) => r.through === service),
+	);
+	const requireLines = (list: typeof all) => {
+		for (const { ident, expression, members } of list) {
+			e.preamble.push({ text: `local ${ident} = require(${expression})`, indent: 0 });
+			// What the module was asked to hand out, bound beneath it. Lune's own
+			// idiom, and what lets `Vector3.new(...)` compile unchanged there.
+			for (const bound of members ?? []) {
+				e.preamble.push({
+					text: `local ${bound.ident} = ${ident}.${bound.member}`,
+					indent: 0,
+				});
+			}
 		}
-	}
+	};
+	const bands: (() => void)[] = [];
+	if (free.length > 0) bands.push(() => requireLines(free));
+	if (e.services.size > 0)
+		bands.push(() => {
+			for (const [service, ident] of e.services) {
+				e.preamble.push({
+					text: `local ${ident} = game:GetService(${quoteString(service)})`,
+					indent: 0,
+				});
+			}
+		});
+	if (through.length > 0) bands.push(() => requireLines(through));
+	bands.forEach((band, i) => {
+		if (i > 0) e.preamble.push({ text: "", indent: 0 });
+		band();
+	});
 	e.preamble.push({ text: "", indent: 0 });
 }
 

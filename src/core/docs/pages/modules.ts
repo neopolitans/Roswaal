@@ -197,19 +197,22 @@ export function modulesPage(): DocPage {
 			{
 				t: "p",
 				text:
-					"At the top, below the `GetService` calls — where a hand-written Roblox file puts " +
-					"them, and in the order you declared them. Declared services come first, then any a " +
+					"At the top, in three bands with a blank line between: requires that need nothing " +
+					"above them, then the services, then requires through a service, under it in the " +
+					"services' order. The path decides the band: `@game/ReplicatedStorage/Combat` reads " +
+					"no service, so it does not wait for one. Declared services come first, then any a " +
 					"node asked for.",
 			},
 			{
 				t: "code",
 				lang: "luau",
 				text: code`
+					local Combat = require("@game/ReplicatedStorage/Combat")
+
 					local Players = game:GetService("Players")
 					local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 					local Greeter = require(ReplicatedStorage.Shared.Greeter)
-					local Combat = require("@game/ReplicatedStorage/Combat")
 					`,
 			},
 			{
@@ -218,6 +221,14 @@ export function modulesPage(): DocPage {
 				text:
 					"Deleting a module leaves the pills that read it in place, reporting an error — as " +
 					"deleting a variable does.",
+			},
+			{
+				t: "p",
+				text:
+					"Drag a module in the Variables panel to change where it is required. It stays in " +
+					"its band, and under its service: a drop outside it is refused with the reason, and " +
+					"changing its path is what moves it. A require runs its module, so a move asks " +
+					"first and shows the Luau that changes.",
 			},
 		],
 	};

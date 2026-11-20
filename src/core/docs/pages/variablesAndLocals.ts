@@ -56,6 +56,10 @@ export function variablesAndLocalsPage(): DocPage {
 						"open its graph; clicking a local or a type goes to the graph its node is in.",
 					"Each row says how often it is used. Under the pointer, or after a long press, " +
 						"**Find uses** selects what uses it. Past a screen of rows the panel offers a filter.",
+					"Drag a service, a module or a variable to change where it is declared, and the Luau " +
+						"follows. A plain value moves at once; one that runs something asks first, with the " +
+						"Luau that changes; a variable above one its value uses is refused, and the rows " +
+						"involved light up. A local moves with its node, so it carries the flow mark instead.",
 					"**×** on a local or a function deletes the node that declares it, and a function's " +
 						"graph with it. The nodes that read it stay, and report an error until repointed.",
 				],

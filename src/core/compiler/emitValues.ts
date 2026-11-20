@@ -376,9 +376,11 @@ function requireModulePath(e: Emitter, src: ResolvedNode): string {
 
 	const hint = e.literalText(src, "as") || lastSegment(path) || "module";
 	const ident = e.names.uniqueForFile(hint, "module");
+	const expression = renderPath(resolveRoot(e, root), path);
 	e.requires.set(key, {
 		ident,
-		expression: renderPath(resolveRoot(e, root), path),
+		expression,
+		...(e.services.has(root) ? { through: root } : {}),
 	});
 	return ident;
 }

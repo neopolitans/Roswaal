@@ -6018,6 +6018,71 @@ button.start-tile:disabled {
 	background: color-mix(in srgb, var(--accent) 35%, var(--border));
 }
 
+/* A row that moves to change where it is declared: its grip, the line
+   where it would land, and why not when it cannot. */
+.reorder-slot {
+	position: relative;
+}
+
+.reorder-grip {
+	position: absolute;
+	left: -2px;
+	top: 4px;
+	font-size: 10px;
+	letter-spacing: -2px;
+	color: var(--fg-faint);
+	opacity: 0;
+	pointer-events: none;
+}
+
+.reorder-slot:hover > .reorder-grip {
+	opacity: 1;
+}
+
+.reorder-slot.drop-before::before,
+.reorder-slot.drop-after::after {
+	content: "";
+	position: absolute;
+	left: 4px;
+	right: 4px;
+	height: 2px;
+	border-radius: 1px;
+	background: var(--accent);
+	pointer-events: none;
+}
+
+.reorder-slot.drop-before::before {
+	top: -1px;
+}
+
+.reorder-slot.drop-after::after {
+	bottom: -1px;
+}
+
+.reorder-slot.refused::before,
+.reorder-slot.refused::after {
+	background: var(--warning);
+}
+
+.reorder-reason {
+	margin: 2px 6px 4px 22px;
+	font-size: var(--text-xs);
+	color: var(--warning);
+}
+
+/* A row a refused move is about. */
+.reorder-slot.needed > .variable > .variable-head {
+	outline: 1px dashed var(--warning);
+	outline-offset: -1px;
+}
+
+/* A local moves with its node: the flow mark where a grip would be. */
+.variable-head .flow-mark {
+	display: inline-flex;
+	flex: none;
+	color: var(--fg-faint);
+}
+
 /* How many rows a heading holds, beside its name. */
 .variables-count {
 	font-weight: 400;

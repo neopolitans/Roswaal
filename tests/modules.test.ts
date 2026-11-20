@@ -150,13 +150,12 @@ describe("members pulled off a module", () => {
 
 describe("where the requires go", () => {
 	/**
-	 * Below the services, because a required module's path often starts at one
-	 * and Luau reads a file top to bottom — which is also where a hand-written
-	 * Roblox file puts them.
+	 * Three bands, as V15 on the polish-pass page has them: requires that need
+	 * nothing above them, then the services, then requires through a service.
+	 * The path decides the band, not where the module lives: @game/... reads
+	 * no service local, so it does not wait for the services.
 	 */
-	it("goes under the GetService calls", () => {
-		// A service is only hoisted if something uses it, so this prints one
-		// rather than declaring one and hoping.
+	it("writes free requires, then services, then requires through a service", () => {
 		const b = new Builder();
 		const start = b.node("script.begin");
 		const service = b.node("roblox.getService");
@@ -168,15 +167,39 @@ describe("where the requires go", () => {
 		const out = body({
 			...b.build(),
 			target: "roblox",
-			modules: [{ id: "m", name: "combat", specifier: "@game/ReplicatedStorage/Combat" }],
+			services: ["ReplicatedStorage"],
+			modules: [
+				{ id: "a", name: "Greeter", specifier: "ReplicatedStorage.Shared.Greeter" },
+				{ id: "b", name: "combat", specifier: "@game/ReplicatedStorage/Combat" },
+			],
 		});
+		const top = out.split("\n").slice(
+			0,
+			out.split("\n").findIndex((l) => l.startsWith("print")),
+		);
+		const at = (needle: string) => top.findIndex((l) => l.includes(needle));
+		// Band 1, then the services, then the require that reads ReplicatedStorage.
+		expect(at("@game/ReplicatedStorage/Combat")).toBeLessThan(at("GetService"));
+		expect(at("Shared.Greeter")).toBeGreaterThan(at('GetService("Players")'));
+		// A blank line between the bands.
+		expect(top[at("@game/ReplicatedStorage/Combat") + 1]).toBe("");
+		expect(top[at("Shared.Greeter") - 1]).toBe("");
+	});
 
-		const locals = out.split("\n").filter((l) => l.startsWith("local "));
-		const hoistedService = locals.findIndex((l) => l.includes("game:GetService"));
-		const hoistedRequire = locals.findIndex((l) => l.includes("require("));
-		expect(hoistedService, "no service hoisted").toBeGreaterThan(-1);
-		expect(hoistedRequire, "no require hoisted").toBeGreaterThan(-1);
-		expect(hoistedRequire).toBeGreaterThan(hoistedService);
+	it("writes a file whose requires all go through services as before", () => {
+		const out = body({
+			...new Builder().build(),
+			target: "roblox",
+			services: ["ReplicatedStorage"],
+			modules: [{ id: "a", name: "Greeter", specifier: "ReplicatedStorage.Shared.Greeter" }],
+		});
+		expect(out).toBe(
+			[
+				'local ReplicatedStorage = game:GetService("ReplicatedStorage")',
+				"",
+				"local Greeter = require(ReplicatedStorage.Shared.Greeter)",
+			].join("\n"),
+		);
 	});
 });
 

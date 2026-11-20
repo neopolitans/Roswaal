@@ -155,6 +155,12 @@ export class Emitter {
 			expression: string;
 			/** Names pulled off it into locals of their own, for a declared module. */
 			members?: { member: string; ident: string }[];
+			/**
+			 * The service it is required through, whose local it reads: written
+			 * in the band after the services, under that service. None for a
+			 * require that needs nothing above it -- a string, or `script`.
+			 */
+			through?: string;
 		}
 	>();
 	/** Declared module id -> the local it was bound to, for Get Module. */
