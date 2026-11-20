@@ -16376,6 +16376,16 @@ p.licence-meta,
 	.docs-map-body {
 		grid-template-columns: minmax(0, 1fr);
 	}
+
+	/* Under the panel, the legend is as tall as it needs, in columns, so it
+	   is a short block rather than a long list. */
+	.docs-map-body > .docs-map-legend {
+		contain: none;
+		overflow: visible;
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+		gap: 4px 12px;
+	}
 }
 
 .docs-map-frame {
@@ -16551,16 +16561,27 @@ p.licence-meta,
 	list-style: none;
 	display: flex;
 	flex-direction: column;
-	gap: 10px;
+	gap: 2px;
 	align-content: start;
 }
 
+/* Beside the panel, the panel sets the height and the legend scrolls in it.
+   Its thirteen entries ran to twice the panel's height, leaving the reader
+   to scroll past empty page beside the second half. `contain: size` takes the
+   legend out of the row's sizing; stretched, it fills the row the panel made. */
+.docs-map-body > .docs-map-legend {
+	contain: size;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	scrollbar-width: thin;
+}
+
 .docs-map-legend li {
-	padding: 4px 10px 5px;
+	padding: 5px 10px 6px;
 	border-radius: var(--radius-sm);
 	border-left: 2px solid transparent;
-	font-size: var(--text-md);
-	line-height: 1.5;
+	font-size: var(--text-sm);
+	line-height: 1.45;
 	transition: background-color 90ms ease, opacity 90ms ease;
 }
 
@@ -22002,6 +22023,35 @@ textarea.tb:where(:disabled) {
 	padding: 0;
 	gap: 0;
 	overflow: hidden;
+}
+
+/* Never taller than the window: the body scrolls, and the head and the
+   buttons stay in view. A long confirmation (Tidy declarations' list and
+   diff) on a short window put its title and its buttons off the screen,
+   with nothing to scroll. */
+.dialog.dialog-panel {
+	max-height: calc(100dvh - 2 * var(--dialog-edge, 40px));
+}
+
+.dialog.dialog-panel > .dialog-body {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	/* Each block keeps its height and the body scrolls, rather than the
+	   diff, a scroller itself, shrinking to two lines to make room. */
+	grid-auto-rows: max-content;
+	align-content: start;
+}
+
+.dialog.dialog-panel > :not(.dialog-body) {
+	flex: none;
+}
+
+@media (max-height: 640px), (max-width: 560px) {
+	.dialog-backdrop {
+		--dialog-edge: 12px;
+		padding: 12px;
+	}
 }
 
 .dialog.dialog-panel.dialog-wide {

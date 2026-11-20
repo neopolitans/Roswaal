@@ -65,6 +65,32 @@ export const REVIEWS: Record<
 	string,
 	{ status: Exclude<ReviewStatus, "pending">; date: string; verify?: string; reviewers?: string[] }
 > = {
+	// The Place Editor section, read by the author for 1.0.0-canary.57: the
+	// overview, Moving and picking, What it draws and Editing in 3D (with its
+	// Gizmos row reworded) checked against the editor; the three panels' pages
+	// read, the panels themselves still changing.
+	"place-in-3d": { status: "verified", date: "2026-11-20", reviewers: ["neopolitans"] },
+	"place-editor-moving": { status: "verified", date: "2026-11-20", reviewers: ["neopolitans"] },
+	"place-editor-drawing": { status: "verified", date: "2026-11-20", reviewers: ["neopolitans"] },
+	"place-editor-editing": { status: "verified", date: "2026-11-20", reviewers: ["neopolitans"] },
+	"place-editor-rendering": {
+		status: "reviewed",
+		date: "2026-11-20",
+		verify: "The panel is still in progress: its page changes with it.",
+		reviewers: ["neopolitans"],
+	},
+	"place-editor-performance": {
+		status: "reviewed",
+		date: "2026-11-20",
+		verify: "The panel is still in progress: its page changes with it.",
+		reviewers: ["neopolitans"],
+	},
+	"place-editor-mesh-debug": {
+		status: "reviewed",
+		date: "2026-11-20",
+		verify: "The panel is still in progress: its page changes with it.",
+		reviewers: ["neopolitans"],
+	},
 	// Read by the author for 1.0.0-canary.56. What each Lune library does
 	// was not checked against Lune itself: that needs someone who writes Lune.
 	"lune-library": {

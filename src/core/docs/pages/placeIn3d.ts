@@ -173,7 +173,7 @@ export function placeEditorEditingPage(): DocPage {
 					["Take a drag back", "`Ctrl` + `Z`"],
 					["Put the handles on the pivot", "**Pivot** in the bar: Edit Pivot"],
 					[
-						"Turn the handles to the world's axes, or back",
+						"Switch Gizmos between Global and Local axes",
 						"`Ctrl` + `L`, `Cmd` + `L` on a Mac, or **Object** in the bar",
 					],
 					["Save the place", "`Ctrl` + `S`, `Cmd` + `S` on a Mac, or **Save** in the bar"],

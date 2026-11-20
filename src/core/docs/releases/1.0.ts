@@ -9,6 +9,27 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.57",
+		date: "2026-11-20",
+		headline: "Long dialogs fit short windows, and the node map figures end with their notes.",
+		changed: [
+			"**The Place Editor pages are read.** The Place Editor, Moving and picking, What it draws and Editing in 3D are Verified; the Rendering, Performance and Mesh Debug pages are Reviewed, pending changes while those panels are in progress.",
+			"**Editing in 3D** says Switch Gizmos between Global and Local axes.",
+		],
+		fixed: [
+			"**A long dialog on a short window**, such as Tidy declarations, scrolls its body and keeps its title and buttons in view.",
+			"**The node map figures' notes** are no taller than the figure beside them: they scroll within it, and an entry lit from the figure comes into view.",
+		],
+		verified: [
+			"place-in-3d",
+			"place-editor-moving",
+			"place-editor-drawing",
+			"place-editor-editing",
+		],
+		reviewed: ["place-editor-rendering", "place-editor-performance", "place-editor-mesh-debug"],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.56",
 		date: "2026-11-20",
 		headline:

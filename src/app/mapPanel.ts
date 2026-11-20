@@ -285,6 +285,19 @@ export function attachMapPanel(figure: HTMLElement): () => void {
 			one.classList.toggle("shown", part !== null && one.dataset.part === part);
 		}
 		figure.classList.toggle("pointing", part !== null);
+		// The legend scrolls beside a figure shorter than it: an entry lit from
+		// the figure comes into view within the legend, never by moving the
+		// page, and only when it is out of sight, so the list holds still
+		// while it is the thing being hovered.
+		const legend = figure.querySelector<HTMLElement>(".docs-map-legend");
+		const entry =
+			part === null ? null : legend?.querySelector<HTMLElement>(`[data-part="${part}"]`);
+		if (legend && entry && legend.scrollHeight > legend.clientHeight + 1) {
+			const box = legend.getBoundingClientRect();
+			const at = entry.getBoundingClientRect();
+			if (at.top < box.top) legend.scrollTop -= box.top - at.top + 4;
+			else if (at.bottom > box.bottom) legend.scrollTop += at.bottom - box.bottom + 4;
+		}
 	};
 
 	// What the pointer is asking about, which is not the same as what lights.
