@@ -153,4 +153,15 @@ describe("what Code Blocks read", () => {
 		});
 		expect(codeMentions(s, "Players")).toEqual(["a", "c"]);
 	});
+
+	it("reads an Expression node as well as a Code Block", () => {
+		const s = script({
+			nodes: [
+				node("e", "value.expression", {
+					literals: { code: { t: "raw", v: "Players.PlayerAdded" } },
+				}),
+			],
+		});
+		expect(codeMentions(s, "Players")).toEqual(["e"]);
+	});
 });

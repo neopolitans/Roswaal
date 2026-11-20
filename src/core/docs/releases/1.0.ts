@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.0-canary.52",
+		date: "2026-11-20",
+		headline: "The Variables panel marks values with their pin shapes.",
+		changed: [
+			"**Pin shapes in the Variables panel.** Variables, locals and results show their type's pin shape and colour, as on a node: a table is a diamond, an Instance a rounded square, a function a dot in a ring, a signal a hexagon. Types and functions show T and ƒ. By kind and In script order now look alike.",
+		],
+		fixed: [
+			"**A service read in an Expression node** counts as a use, so it no longer shows as unused.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.0-canary.51",
 		date: "2026-11-20",
 		headline: "In script order shows each declaration's kind and what it is.",

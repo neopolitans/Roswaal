@@ -100,7 +100,8 @@ export function moduleTableVariable(script: NodeScript): string | undefined {
 }
 
 /**
- * The Code Blocks whose Luau reads `name`, as a whole word: what an
+ * The nodes holding Luau as written (Code Blocks, Expressions) that read
+ * `name` as a whole word: what an
  * imported older file's code uses a service, a module or a variable by.
  */
 export function codeMentions(script: NodeScript, name: string): string[] {
@@ -108,7 +109,7 @@ export function codeMentions(script: NodeScript, name: string): string[] {
 	const word = new RegExp(`(^|[^A-Za-z0-9_.:])${name}(?![A-Za-z0-9_])`);
 	return script.nodes
 		.filter((node) => {
-			if (node.def !== "code.custom") return false;
+			// Any node holding Luau as written: a Code Block, an Expression.
 			const code = node.literals?.code;
 			return code?.t === "raw" && word.test(code.v);
 		})

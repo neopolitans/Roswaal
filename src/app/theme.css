@@ -6196,6 +6196,41 @@ button.start-tile:disabled {
 	--badge: var(--code-keyword);
 }
 
+/* A value's pin shape, as on a node (see typeFamily.ts), filled: a circle
+   for a plain value, a rounded square for an Instance, a diamond for a
+   table, a dot in a ring for a function, a hexagon for a signal. */
+.pin-shape {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: currentColor;
+}
+
+.pin-shape.fam-object {
+	border-radius: 2px;
+}
+
+.pin-shape.fam-table {
+	width: 7px;
+	height: 7px;
+	border-radius: 1px;
+	transform: rotate(45deg);
+}
+
+.pin-shape.fam-function {
+	width: 9px;
+	height: 9px;
+	background: radial-gradient(closest-side, currentColor 0 1.6px, transparent 2.1px 2.9px, currentColor 3.4px);
+}
+
+/* Larger than the rest: at 8px a hexagon reads as a circle. */
+.pin-shape.fam-signal {
+	width: 12px;
+	height: 10px;
+	border-radius: 0;
+	clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+}
+
 .variable-head .type.flow-global {
 	color: var(--warning);
 }
@@ -6261,10 +6296,6 @@ button.start-tile:disabled {
 
 /* A type has no pin colour, so it takes the colour types have in code. Square,
    because it is not a value. */
-.variable-head .type-swatch {
-	border-radius: var(--radius-xs);
-	background: var(--code-type);
-}
 
 .variable-head .type {
 	flex: 0 1 auto;

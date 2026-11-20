@@ -8,6 +8,7 @@
  */
 
 import {
+	type CSSProperties,
 	type DragEvent,
 	Fragment,
 	type ReactNode,
@@ -48,6 +49,7 @@ import type {
 } from "../core/schema.js";
 import { SPECIFIER_HINTS } from "../core/schema.js";
 import { type DeclarationKind, scriptOrder } from "../core/scriptOrder.js";
+import { typeFamily } from "../core/typeFamily.js";
 import {
 	codeMentions,
 	declarationDetail,
@@ -584,7 +586,11 @@ export function VariablesPanel({
 											onClick={() => g.node && store.reveal(g.node)}
 											onDoubleClick={() => g.node && goTo(g.node)}
 										>
-											<FlowBadge kind={g.how === "function" ? "function" : "local"} />
+											{g.how === "function" ? (
+												<FlowBadge kind="function" />
+											) : (
+												<PinSwatch type="any" />
+											)}
 											<span className="name">{g.name}</span>
 											<span className="type flow-global">global</span>
 										</div>
@@ -629,7 +635,13 @@ export function VariablesPanel({
 							onClick={() => store.reveal(d.node)}
 							onDoubleClick={() => goTo(d.node)}
 						>
-							<FlowBadge kind={d.kind} />
+							{d.kind === "local" ? (
+								<PinSwatch
+									type={valueType(d.detail ?? declarationDetail(script, registry, d.node, d.kind))}
+								/>
+							) : (
+								<FlowBadge kind={d.kind} />
+							)}
 							<span className="name">{d.name}</span>
 							<span className="type">
 								{d.detail ?? declarationDetail(script, registry, d.node, d.kind)}
@@ -1206,7 +1218,7 @@ function TypeRow({
 				onDragStart={onDragStart}
 				onClick={onClick}
 			>
-				<span className="swatch type-swatch" />
+				<FlowBadge kind="type" />
 				<span className="name">{type}</span>
 				<span className="type">{detail}</span>
 			</div>
@@ -1590,7 +1602,7 @@ function LocalRow({
 				>
 					<Icon name="graph" size={11} />
 				</span>
-				<span className="swatch" style={{ background: pinColor(type, "data") }} />
+				<PinSwatch type={type} />
 				<span className="name">{ref.name}</span>
 				{/* The list is where you look to see what a graph holds, so a promise
 				    one of them has made belongs here rather than only in the
@@ -1634,7 +1646,7 @@ function NamedResultRow({
 				onClick={(e) => (e.ctrlKey || e.metaKey ? onGoTo() : store.reveal(node.id))}
 				onDoubleClick={onGoTo}
 			>
-				<span className="swatch" style={{ background: pinColor(type, "data") }} />
+				<PinSwatch type={type} />
 				<span className="name">{name}</span>
 				<span className="badge-result">result</span>
 				<span className="type">{type}</span>
@@ -1680,7 +1692,7 @@ function FunctionRow({
 					if (path) store.openFunction(path, node.id);
 				}}
 			>
-				<span className="swatch" style={{ background: pinColor("function", "data") }} />
+				<FlowBadge kind="function" />
 				<span className="name">{name}</span>
 				<span className="type">{functionSignature(node.config)}</span>
 				<RowEnd name={name} uses={uses} onFind={onFind} onDelete={onDelete} />
@@ -1724,7 +1736,7 @@ function VariableRow({
 	return (
 		<div className={cx("variable", expanded && "expanded")}>
 			<div className="variable-head" draggable onDragStart={onDragStart} onClick={onToggle}>
-				<span className="swatch" style={{ background: pinColor(variable.type, "data") }} />
+				<PinSwatch type={variable.type} />
 				<span className="name">{variable.name}</span>
 				{variable.const === true && <span className="badge const">const</span>}
 				{exported && (
@@ -1942,6 +1954,28 @@ function FlowBadge({ kind }: { kind: keyof typeof KIND_WORDS }) {
 			) : (
 				<Icon name="instance" size={11} />
 			)}
+		</span>
+	);
+}
+
+/** `number 16` read from the file is a number: the value is not the type. */
+function valueType(detail: string): string {
+	return /^(number|boolean) /.test(detail) ? detail.split(" ")[0] : detail;
+}
+
+/**
+ * Something that holds a value, marked as its pin is on a node: the shape
+ * of its type's family (a table's diamond, an Instance's rounded square) in
+ * the type's colour, in the same tinted square as the kind letters.
+ */
+function PinSwatch({ type }: { type: string }) {
+	return (
+		<span
+			className="flow-badge flow-badge-value"
+			style={{ "--badge": pinColor(type, "data") } as CSSProperties}
+			aria-label={type}
+		>
+			<span className={`pin-shape fam-${typeFamily(type)}`} />
 		</span>
 	);
 }
