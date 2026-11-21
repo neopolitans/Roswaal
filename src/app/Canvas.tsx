@@ -88,7 +88,7 @@ import { configText, functionNameOf } from "./nodeConfig.js";
 import { ProblemNotes, problemsByNode } from "./ProblemNotes.jsx";
 import { commentColor, pinColor } from "./palette.js";
 import { placeClassAt } from "./placeOutline.js";
-import { store, useEditor, useView } from "./store.js";
+import { useEditor, useStore, useView } from "./store.js";
 import { showToast } from "./Toast.jsx";
 
 /**
@@ -280,6 +280,8 @@ export function Canvas({
 	wideNodes = false,
 	wheel = "zoom",
 }: CanvasProps) {
+	// The editor's, or the one Node Design gives a node's logic.
+	const store = useStore();
 	const { selection, path } = useEditor();
 	// The graph on screen, as a script of its own.
 	//
@@ -296,7 +298,7 @@ export function Canvas({
 		(id: string) => {
 			if (path) store.openFunction(path, id);
 		},
-		[path],
+		[path, store],
 	);
 	const view = useView();
 	const surface = useRef<HTMLDivElement>(null);
@@ -400,23 +402,26 @@ export function Canvas({
 		(nodeId: string, delta: number) => {
 			store.edit((s) => growNode(s, registry, nodeId, delta).script);
 		},
-		[registry],
+		[registry, store],
 	);
 
 	const onRemoveEntry = useCallback(
 		(nodeId: string, index: number) => {
 			store.edit((s) => removeEntry(s, registry, nodeId, index));
 		},
-		[registry],
+		[registry, store],
 	);
 
 	// -- coordinate helpers ------------------------------------------------
 
-	const toWorld = useCallback((clientX: number, clientY: number): Vec => {
-		const box = surface.current?.getBoundingClientRect();
-		const v = store.getView();
-		return screenToWorld(v, clientX - (box?.left ?? 0), clientY - (box?.top ?? 0));
-	}, []);
+	const toWorld = useCallback(
+		(clientX: number, clientY: number): Vec => {
+			const box = surface.current?.getBoundingClientRect();
+			const v = store.getView();
+			return screenToWorld(v, clientX - (box?.left ?? 0), clientY - (box?.top ?? 0));
+		},
+		[store],
+	);
 
 	// -- zoom and scroll ---------------------------------------------------
 
@@ -520,7 +525,7 @@ export function Canvas({
 			element.removeEventListener("gesturechange", onGestureChange);
 			element.removeEventListener("gestureend", onGestureEnd);
 		};
-	}, []);
+	}, [store]);
 
 	// -- gesture plumbing --------------------------------------------------
 
@@ -537,7 +542,7 @@ export function Canvas({
 		setMarquee(null);
 		setWireDrag(null);
 		setHoldAt(null);
-	}, []);
+	}, [store]);
 
 	useEffect(() => {
 		const onMove = (e: PointerEvent) => {
@@ -964,7 +969,7 @@ export function Canvas({
 				return withFoundClass(next, nodeId, registry);
 			});
 		},
-		[registry],
+		[registry, store],
 	);
 
 	const onLiteralChange = useCallback(
@@ -974,7 +979,7 @@ export function Canvas({
 				return pinId === "root" || pinId === "path" ? withFoundClass(next, nodeId, registry) : next;
 			});
 		},
-		[registry],
+		[registry, store],
 	);
 
 	// -- comments ----------------------------------------------------------

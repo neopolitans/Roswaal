@@ -8,6 +8,25 @@
 import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
+	{
+		version: "1.0.1-canary.1",
+		date: "2026-11-21",
+		headline:
+			"Script analysis finds modules that require each other, and seven fixes found while writing the 1.0 post.",
+		added: [
+			'**Modules that require each other as they load** are listed in Script analysis under Project, as a cycle, hand-written modules included. Roblox stops one of them with "Requested module was required recursively".',
+		],
+		fixed: [
+			"**A table type a script declares**, such as `type RoundState = { round: number }`, goes into a Table pin without a warning, and the canvas makes that wire.",
+			"**An imported variable** set to a number, a string or a boolean is typed as one, not `any`. Its Luau is unchanged.",
+			"**This map and Instance** in the right column put each name and its help above its field when the column is narrow, instead of a word to a line.",
+			'**Searching nodes** puts a node named with the word first: "tween" lists Create Tween and Play Tween before Cast to Tween, and no longer finds nodes whose description has "between".',
+			"**Leaving Node Design** no longer leaves a \"logic\" tab in the editor, and closing a node's logic no longer closes the editor's tabs.",
+			'**A node\'s docs page** says "part of the language itself" for a node that works in Roblox and in Lune.',
+			"**A graph Roswaal will not save under a name Windows reserves** is named in the refusal, rather than its temporary copy.",
+		],
+		affects: ["editor", "designer", "docs"],
+	},
 	// The stable release. The release notes fold its canary builds under it and
 	// read their lines and tags as its own, so it says only what it changed itself.
 	{

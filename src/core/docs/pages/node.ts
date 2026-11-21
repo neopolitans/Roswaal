@@ -17,7 +17,7 @@ import type { Block, DocPage } from "../site.js";
  * way to tell which it is.
  */
 const RUNTIME_TRAIT: Record<Runtime, string> = {
-	luau: "the language itself, so it works in Roblox and in Lune",
+	luau: "part of the language itself, so it works in Roblox and in Lune",
 	roblox: "needs the Roblox engine — its datatypes, its DataModel or its scheduler",
 	lune: "needs Lune, the standalone Luau runtime",
 };

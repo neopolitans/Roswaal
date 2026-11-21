@@ -1022,7 +1022,9 @@ class Importer {
 					this.variables.push({
 						id: variable,
 						name: binding.name,
-						type: type ?? "any",
+						// Unannotated, a literal's type is the one Luau gives it:
+						// `local ROUND_LENGTH = 90` is a number, not `any`.
+						type: type ?? literalTypeOf(stat.values[0]) ?? "any",
 						default: { t: "nil" },
 					});
 					const id = this.node("variable.init", graph, at, {
@@ -2467,4 +2469,24 @@ function commentBoxes(
 			},
 		];
 	});
+}
+
+/** The type Luau gives a literal: `90` and `-1` numbers, `"a"` a string, `true` a boolean. */
+export function literalTypeOf(expr: Expr | undefined): "number" | "string" | "boolean" | undefined {
+	if (!expr) return undefined;
+	switch (expr.kind) {
+		case "number":
+			return "number";
+		case "string":
+		case "interpolated":
+			return "string";
+		case "boolean":
+			return "boolean";
+		case "paren":
+			return literalTypeOf(expr.inner);
+		case "unary":
+			return expr.op === "-" && literalTypeOf(expr.operand) === "number" ? "number" : undefined;
+		default:
+			return undefined;
+	}
 }

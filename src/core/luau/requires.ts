@@ -155,6 +155,26 @@ export function requiresIn(src: string): RequireBinding[] {
 	return out;
 }
 
+/**
+ * Every require the file runs as it loads: anywhere but inside a function,
+ * which runs later. Two modules that require each other this way cannot both
+ * load; a require moved into a function can.
+ */
+export function loadRequires(src: string): RequireTarget[] {
+	const out: RequireTarget[] = [];
+	const parsed = luauFile(src).block;
+	visitBlock(parsed, {
+		func: () => false,
+		type: () => false,
+		expr: (expr) => {
+			if (!isRequireCall(expr)) return;
+			const target = targetOf(expr.args[0], src, 0, parsed);
+			if (target) out.push(target);
+		},
+	});
+	return out;
+}
+
 /** What a module gives back to whoever requires it. */
 export interface ModuleExports {
 	kind: "table" | "function" | "value" | "module";

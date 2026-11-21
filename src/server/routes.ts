@@ -171,7 +171,7 @@ import {
 	writeScript,
 } from "./project.js";
 import { fields, need, optionalQuery, query, type RouteRequest, realmOf, text } from "./request.js";
-import { instancePathOf, modulesRequiredBy, projectInstances } from "./requires.js";
+import { instancePathOf, modulesRequiredBy, projectInstances, requireCycles } from "./requires.js";
 import {
 	afterMove,
 	assertNotLoneInit,
@@ -1961,6 +1961,8 @@ export class ApiSession {
 				orphans: await findOrphanOutputs(this.project()),
 				// And graphs whose Luau goes where no node map syncs it.
 				unsynced: await unsyncedGraphs(this.project()),
+				// And modules that require each other as they load.
+				cycles: await requireCycles(this.project()).catch(() => []),
 			}),
 
 			"POST /orphans/remove": async (req) => {

@@ -50,6 +50,7 @@ import {
 	openEventStream,
 	ProjectChangedError,
 	type ProjectInfo,
+	type RequireCycle,
 	type TreeEntry,
 } from "./api.js";
 import { Canvas } from "./Canvas.jsx";
@@ -336,6 +337,18 @@ export function App() {
 	// stale, so it syncs them, and the same module turns up twice.
 	const [orphans, setOrphans] = useState<string[]>([]);
 	const [unsynced, setUnsynced] = useState<{ graph: string; folder: string }[]>([]);
+	const [cycles, setCycles] = useState<RequireCycle[]>([]);
+	/** The project's own lines in Script analysis: stale and unsynced files, require cycles. */
+	const refreshStale = useCallback(async () => {
+		const stale = await api.orphans().catch(() => ({ orphans: [], unsynced: [], cycles: [] }));
+		setOrphans(stale.orphans);
+		setUnsynced(stale.unsynced ?? []);
+		setCycles(stale.cycles ?? []);
+	}, []);
+	// And after every Check and compile: a compile changes the Luau a cycle is read from.
+	useEffect(() => {
+		if (checked) void refreshStale();
+	}, [checked, refreshStale]);
 	/**
 	 * The Code panel's tabs, for each open graph: the fields of its nodes
 	 * open as code, and the one in front. A graph's tabs come back when it
@@ -1446,12 +1459,10 @@ export function App() {
 		// Asked here rather than only after a compile. Renaming, moving and
 		// deleting all change what is stale, and none of them compiles anything —
 		// so the count went on describing whatever the last compile saw.
-		const stale = await api.orphans().catch(() => ({ orphans: [], unsynced: [] }));
-		setOrphans(stale.orphans);
-		setUnsynced(stale.unsynced ?? []);
+		await refreshStale();
 		refreshTypes();
 		refreshAliases();
-	}, []);
+	}, [refreshStale]);
 
 	// -- documents ---------------------------------------------------------
 
@@ -2810,6 +2821,7 @@ export function App() {
 								mapOutcomes,
 								orphans,
 								unsynced,
+								cycles,
 								packErrors: project.packErrors,
 								edited: editedSince,
 							})}

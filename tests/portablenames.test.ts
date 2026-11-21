@@ -47,6 +47,13 @@ describe("names Roswaal will not make", () => {
 		expect(pathProblem("src/ReplicatedStorage/con.luau", false)).toMatch(/device/);
 	});
 
+	it("judges a save's temporary copy as the file it becomes", () => {
+		expect(pathProblem("scripts/aux.nodescript.k3j9x0a2.tmp", false)).toMatch(/^"aux.nodescript"/);
+		expect(pathProblem("scripts/Main.nodescript.k3j9x0a2.tmp", false)).toBeNull();
+		// Only the save's own suffix: a file of that name made on purpose is judged whole.
+		expect(pathProblem("scripts/notes.tmp", false)).toBeNull();
+	});
+
 	it("keys a path as a case-insensitive disk sees it", () => {
 		expect(pathKey("SRC./Shared /x.luau")).toBe("src/shared/x.luau");
 		expect(pathKey("src/../x")).toBe("src/../x");
@@ -80,6 +87,18 @@ describe("a project on disk", () => {
 			fs.rename(safeJoin(opened.root, "a.luau"), safeJoin(opened.root, "a.luau:hidden")),
 		).rejects.toThrow(/colon/);
 		expect((await readdir(root)).sort()).toEqual([".roswaal", "a.luau", "roswaal.json", "src"]);
+	});
+
+	it("names the graph a save refuses, not its temporary copy (1.0.1)", async () => {
+		const opened = await project();
+		const { writeTextAtomically } = await import("../src/server/files.js");
+		const refused = writeTextAtomically(
+			safeJoin(opened.root, ".roswaal/scripts/aux.nodescript"),
+			"{}",
+		);
+		await expect(refused).rejects.toThrow('"aux.nodescript" is a name Windows keeps for a device');
+		await expect(refused).rejects.not.toThrow(/\.tmp/);
+		expect(await readdir(path.join(root, ".roswaal/scripts"))).toEqual([]);
 	});
 
 	it("refuses SRC/ and src./ as it refuses src/, the generated files' folder", async () => {

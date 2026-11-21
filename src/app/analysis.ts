@@ -10,7 +10,7 @@
 
 import type { Diagnostic } from "../core/compiler/index.js";
 import { unformattedGroups, unformattedMessage } from "../core/unformatted.js";
-import type { CompileOutcome, MapOutcome } from "./api.js";
+import type { CompileOutcome, MapOutcome, RequireCycle } from "./api.js";
 
 export type AnalysisScope = "script" | "project";
 
@@ -23,7 +23,7 @@ export interface Counts {
 export interface FileLine {
 	key: string;
 	severity: "error" | "warning";
-	/** The word it starts with: `stale`, `unsynced`, `pack`, `unformatted`, `skipped`. */
+	/** The word it starts with: `stale`, `unsynced`, `cycle`, `pack`, `unformatted`, `skipped`. */
 	label: string;
 	text: string;
 	/** Stale files can be removed from the line itself. */
@@ -55,6 +55,8 @@ export interface ProjectInput {
 	mapOutcomes: readonly MapOutcome[];
 	orphans: readonly string[];
 	unsynced: readonly { graph: string; folder: string }[];
+	/** Modules that require each other as they load. */
+	cycles?: readonly RequireCycle[];
 	packErrors: readonly string[];
 	edited: ReadonlySet<string>;
 }
@@ -86,6 +88,26 @@ export function graphLabel(path: string): string {
 	return file.replace(/\.nodescript$/, "");
 }
 
+/**
+ * "Rig → Occupancy → Rig require each other as they load, …": each file by
+ * its graph's name, or its own where it is hand-written.
+ */
+export function cycleMessage(cycle: RequireCycle): string {
+	const name = (file: string) => {
+		const graph = cycle.graphs[file];
+		if (graph) return graphLabel(graph);
+		const parts = file.split("/");
+		const leaf = parts.pop() ?? file;
+		const bare = leaf.replace(/(\.server|\.client)?\.luau?$/i, "");
+		return bare.toLowerCase() === "init" && parts.length > 0 ? (parts.pop() ?? bare) : bare;
+	};
+	const ring = cycle.files.map(name).join(" → ");
+	const self = cycle.files.length === 2;
+	return self
+		? `${name(cycle.files[0])} requires itself as it loads, so Roblox stops it: "Requested module was required recursively".`
+		: `${ring} require each other as they load, so Roblox stops one: "Requested module was required recursively". Move a require into the function that uses it.`;
+}
+
 /** The project scope: the files first, then each graph with something to say. */
 export function analyseProject(input: ProjectInput): ProjectAnalysis {
 	const files: FileLine[] = [];
@@ -105,6 +127,14 @@ export function analyseProject(input: ProjectInput): ProjectAnalysis {
 			severity: "warning",
 			label: "unsynced",
 			text: `${graphLabel(graph)} compiles to ${folder}, which no node map syncs.`,
+		});
+	}
+	for (const cycle of input.cycles ?? []) {
+		files.push({
+			key: `cycle:${cycle.files.join(">")}`,
+			severity: "warning",
+			label: "cycle",
+			text: cycleMessage(cycle),
 		});
 	}
 	input.packErrors.forEach((message, i) => {

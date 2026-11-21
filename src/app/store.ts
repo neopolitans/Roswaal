@@ -47,7 +47,7 @@
  * nothing to edit.
  */
 
-import { useSyncExternalStore } from "react";
+import { createContext, useContext, useSyncExternalStore } from "react";
 import { retypeArrays } from "../core/arrayTypes.js";
 import { retypeBoundValues } from "../core/boundValues.js";
 import { retypeClassReads } from "../core/classReads.js";
@@ -195,7 +195,14 @@ function settledCalls(script: NodeScript): NodeScript {
 	return adoptWiredSignatures(syncModuleCallsFor(syncScriptCalls(script)));
 }
 
-class Store {
+export class Store {
+	/**
+	 * Whether this is the project's store, the editor's: only that one says
+	 * where the project's graphs are open. Node Design's logic canvas has a
+	 * store of its own, whose one graph is no file.
+	 */
+	constructor(private readonly project = true) {}
+
 	private docs = new Map<string, Doc>();
 	private tabList: Tab[] = [];
 	private activeKey: string | null = null;
@@ -212,9 +219,8 @@ class Store {
 	 * The node definitions this page edits against, for the rules that need to
 	 * resolve a node's pins -- see `apply`.
 	 *
-	 * One, not one per document, because the editor and Node Design are separate
-	 * routes and never share a page: `/designer` renders `DesignerPage` and
-	 * nothing else. Each sets its own on the way in.
+	 * One, not one per document. Node Design's logic canvas edits in a store of
+	 * its own, with its own registry, so the editor's is never swapped under it.
 	 */
 	private registry: Registry | null = null;
 
@@ -296,7 +302,8 @@ class Store {
 		});
 
 		// Where each open graph is, for a require that starts at `script`.
-		setGraphPaths(new Map([...this.docs].map(([path, doc]) => [doc.script.id, path])));
+		if (this.project)
+			setGraphPaths(new Map([...this.docs].map(([path, doc]) => [doc.script.id, path])));
 
 		let outlineChanged = this.outline.size !== this.docs.size;
 		const outline = new Map<string, FunctionInfo[]>();
@@ -1056,10 +1063,29 @@ function prune(selection: ReadonlySet<string>, script: NodeScript): Set<string> 
 	return new Set([...selection].filter((id) => live.has(id)));
 }
 
+/** The editor's store: the project's open graphs and tabs. */
 export const store = new Store();
 
+/**
+ * The store the canvas under it edits: the editor's, unless a page gives its
+ * canvas one of its own. Node Design does, for a node's logic, which is no
+ * file and no tab of the editor's -- the two pages stay mounted side by side.
+ */
+export const StoreContext = createContext<Store>(store);
+
+/** The store this part of the page edits. */
+export function useStore(): Store {
+	return useContext(StoreContext);
+}
+
 export function useEditor(): EditorState {
+	const store = useStore();
 	return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+}
+
+/** One store's state, for the component that owns it and so sits above its context. */
+export function useEditorOf(own: Store): EditorState {
+	return useSyncExternalStore(own.subscribe, own.getSnapshot, own.getSnapshot);
 }
 
 /** Every open tab, in order. */
@@ -1084,6 +1110,7 @@ export function useOutline(): ReadonlyMap<string, FunctionInfo[]> {
  * up to re-render on every frame of a pan.
  */
 export function useView(): View {
+	const store = useStore();
 	return useSyncExternalStore(store.subscribeView, store.getView, store.getView);
 }
 

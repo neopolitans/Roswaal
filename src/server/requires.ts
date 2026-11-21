@@ -14,6 +14,7 @@ import { type DocComment, mergeDocs } from "../core/luau/docComment.js";
 import type { TableMember } from "../core/luau/infer.js";
 import { FROM_PROJECT, IN_PROJECT, type InstanceOutline } from "../core/luau/instances.js";
 import {
+	loadRequires,
 	type ModuleExports,
 	moduleExports,
 	type RequireTarget,
@@ -21,6 +22,7 @@ import {
 } from "../core/luau/requires.js";
 import { chainFor, parseLuaurc, resolveSpecifier } from "../core/luaurc.js";
 import { isFilesystemMap, type MapNode, type NodeMap } from "../core/nodemap.js";
+import { requireCycles as ringsIn } from "../core/requireCycles.js";
 import { parseProject } from "../core/rojoImport.js";
 import {
 	instanceNameOf,
@@ -30,7 +32,15 @@ import {
 	scriptClassOf,
 } from "../core/rojoPaths.js";
 import { fs, path } from "./host.js";
-import { collectMaps, type OpenProject, readLuaurcFiles, readMap, safeJoin } from "./project.js";
+import {
+	collectMaps,
+	collectScripts,
+	graphOutputPath,
+	type OpenProject,
+	readLuaurcFiles,
+	readMap,
+	safeJoin,
+} from "./project.js";
 
 /** A module a local holds, as hover and completion are handed it. */
 export interface ResolvedModule {
@@ -283,6 +293,66 @@ export async function fileAtPath(project: OpenProject, segments: string[]): Prom
 /** The instance path a file is at, when a node map says. */
 export async function instancePathOf(project: OpenProject, file: string): Promise<string[] | null> {
 	return new Resolver(project).pathOf(file);
+}
+
+/** A ring of modules that require each other as they load, each with the graph it is from. */
+export interface RequireCycle {
+	/** Project-relative files, in require order, ending where it starts. */
+	files: string[];
+	/** The graph each file is compiled from, where one is: by file. */
+	graphs: Record<string, string>;
+}
+
+/** How many modules one check follows, so a vast project stays quick. */
+const CYCLE_FILES = 2000;
+
+/**
+ * Rings of load-time requires, followed out from every graph's Luau through
+ * whatever it reaches -- hand-written modules included, Wally's packages left
+ * out -- and kept when a graph's file is in the ring.
+ */
+export async function requireCycles(project: OpenProject): Promise<RequireCycle[]> {
+	const resolver = new Resolver(project);
+	const graphs: Record<string, string> = {};
+	for (const graph of await collectScripts(project)) {
+		const output = await graphOutputPath(project, graph);
+		if (output !== null) graphs[normalisePath(output)] = graph;
+	}
+	const edges = new Map<string, string[]>();
+	const queue = Object.keys(graphs);
+	const seen = new Set(queue);
+	while (queue.length > 0 && edges.size < CYCLE_FILES) {
+		const file = queue.shift()!;
+		const text = await fs.readFile(safeJoin(project.root, file), "utf8").catch(() => null);
+		if (text === null) continue;
+		const out: string[] = [];
+		let targets: RequireTarget[];
+		try {
+			targets = loadRequires(text);
+		} catch {
+			continue;
+		}
+		for (const target of targets) {
+			const found = await resolver.resolve(file, target).catch(() => null);
+			if (!found) continue;
+			const to = normalisePath(found);
+			if (to.split("/").some((part) => part === "_Index" || part === "Packages")) continue;
+			out.push(to);
+			if (!seen.has(to)) {
+				seen.add(to);
+				queue.push(to);
+			}
+		}
+		edges.set(file, out);
+	}
+	return ringsIn(edges)
+		.filter((ring) => ring.some((file) => graphs[file] !== undefined))
+		.map((files) => ({
+			files,
+			graphs: Object.fromEntries(
+				files.filter((f) => graphs[f] !== undefined).map((f) => [f, graphs[f]]),
+			),
+		}));
 }
 
 /** Folders never walked for instances: Wally's package store, and what is not the game's. */

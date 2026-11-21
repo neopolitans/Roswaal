@@ -230,6 +230,21 @@ export function modulesPage(): DocPage {
 					"changing its path is what moves it. A require runs its module, so a move asks " +
 					"first and shows the Luau that changes.",
 			},
+			{ t: "h", level: 2, text: "Modules that require each other" },
+			{
+				t: "p",
+				text:
+					"Two modules that require each other as they load cannot both load: Roblox stops " +
+					'one with "Requested module was required recursively". Script analysis lists each ' +
+					"ring under **Project** as a **cycle**, hand-written modules included.",
+			},
+			{
+				t: "note",
+				kind: "good",
+				text:
+					"Move one of the requires into the function that uses it. It then runs when the " +
+					"function is called, after both modules have loaded.",
+			},
 		],
 	};
 }

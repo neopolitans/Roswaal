@@ -205,7 +205,7 @@ describe("compiling through the API", () => {
 
 	it("reports no orphans in a project that has just been compiled", async () => {
 		await post("/compile", { write: true });
-		expect(await get("/orphans")).toEqual({ orphans: [], unsynced: [] });
+		expect(await get("/orphans")).toEqual({ orphans: [], unsynced: [], cycles: [] });
 	});
 });
 

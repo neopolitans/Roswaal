@@ -53,6 +53,7 @@ import {
 	splitKey,
 	splitsOf,
 } from "../core/structs.js";
+import { declaredTableTypes } from "../core/typeFields.js";
 import {
 	compactWidth,
 	isReroute,
@@ -585,10 +586,10 @@ export interface ConnectionCheck {
  * the rule is not symmetric. A `Model` fits an `Instance` pin, and a pair fits
  * only a dictionary, but not the other way round.
  */
-export function acceptsWire(from: PinDef, to: PinDef): boolean {
+export function acceptsWire(from: PinDef, to: PinDef, tables?: ReadonlySet<string>): boolean {
 	if (from.kind !== to.kind) return false;
 	if (from.kind === "exec") return true;
-	return pinsCompatible(from, to);
+	return pinsCompatible(from, to, tables);
 }
 
 export function canConnect(
@@ -611,7 +612,7 @@ export function canConnect(
 	const inPin = pinsOf(toDef, toNode).inputs.find((p) => p.id === to.pin);
 	if (!outPin || !inPin) return { ok: false, reason: "Missing pin." };
 
-	if (!acceptsWire(outPin, inPin)) {
+	if (!acceptsWire(outPin, inPin, declaredTableTypes(script))) {
 		return outPin.kind !== inPin.kind
 			? { ok: false, reason: "Execution and data wires cannot be joined." }
 			: { ok: false, reason: `${outPin.type} does not fit a ${inPin.type} pin.` };

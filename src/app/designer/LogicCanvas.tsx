@@ -6,12 +6,13 @@
  * everything somebody already knows about the canvas should carry over: the
  * right-click menu, dropping a wire into space, knots, comments, undo.
  *
- * ## One document in the store, for as long as this is open
+ * ## A store of its own
  *
- * `Canvas` edits through the editor store, so the logic graph is opened there as
- * a document of its own and read back as it changes. The designer page has no
- * other documents, so nothing else is disturbed; the document closes when this
- * unmounts.
+ * `Canvas` edits through a store, and this gives it one of its own through
+ * `StoreContext`, with the logic graph as its one document. The editor stays
+ * mounted beside Node Design, so the editor's store would have taken the
+ * logic as a tab of its own -- a "logic" tab, left open on the way back -- and
+ * closing it would have closed every tab the editor had.
  *
  * Changes go both ways. An edit on the canvas reaches the draft through
  * `onChange`. A pin added to the node reaches the canvas as an edit that brings
@@ -60,7 +61,7 @@ import { autoLayout } from "../layout.js";
 import { type MenuAnchor, NodeMenu } from "../NodeMenu.jsx";
 import { useShowing } from "../pageHost.jsx";
 import { type Preferences, wheelAction } from "../preferences.js";
-import { store, useEditor } from "../store.js";
+import { Store, StoreContext, useEditorOf } from "../store.js";
 import { liveSelection, TouchBar } from "../TouchBar.jsx";
 import { useCompact } from "../Workspace.jsx";
 
@@ -121,7 +122,8 @@ export function LogicCanvas({
 	tools,
 	prefs,
 }: LogicCanvasProps) {
-	const editor = useEditor();
+	const [store] = useState(() => new Store(false));
+	const editor = useEditorOf(store);
 	const [menu, setMenu] = useState<MenuAnchor | null>(null);
 	const { wideNodes } = prefs;
 	const container = useRef<HTMLDivElement>(null);
@@ -136,7 +138,7 @@ export function LogicCanvas({
 		);
 		const only = selected.size > 1 ? selected : undefined;
 		store.edit((s) => autoLayout(s, registry, { only, wideNodes }));
-	}, [registry, wideNodes]);
+	}, [registry, wideNodes, store]);
 
 	// Opens the node menu in the middle of what the canvas is showing.
 	const menuAtCentre = useCallback(() => {
@@ -149,7 +151,7 @@ export function LogicCanvas({
 			screen: { x: box.left + cx, y: box.top + cy },
 			world: { x: (cx - view.x) / view.zoom, y: (cy - view.y) / view.zoom },
 		});
-	}, []);
+	}, [store]);
 	// The last script this and the draft agreed on, so an echo is not an edit.
 	const agreed = useRef<NodeScript | null>(null);
 	const shapeKey = JSON.stringify(shape);
@@ -170,7 +172,7 @@ export function LogicCanvas({
 		return () => store.closeAll();
 		// Opened once, with the graph as it is; changes after that are edits.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+	}, [store]);
 
 	// The node's pins changed, so the two ends follow them.
 	useEffect(() => {
@@ -178,7 +180,7 @@ export function LogicCanvas({
 		openedShape.current = shapeKey;
 		store.edit((s) => logicScript(s, shape, registry));
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [shapeKey]);
+	}, [shapeKey, store]);
 
 	// An edit on the canvas reaches the draft.
 	useEffect(() => {
@@ -228,7 +230,7 @@ export function LogicCanvas({
 			});
 			setMenu(null);
 		},
-		[menu, registry],
+		[menu, registry, store],
 	);
 
 	// Copy and paste, which the logic canvas did not have.
@@ -250,16 +252,19 @@ export function LogicCanvas({
 	// is open, which is the whole page -- `/designer` is its own route.
 	useEffect(() => {
 		store.setRegistry(registry);
-	}, [registry]);
+	}, [registry, store]);
 
-	const paste = useCallback((clip: Clipping) => {
-		const at = pointerAt.current ?? undefined;
-		store.edit((s) => {
-			const { script, ids } = pasteClipping(s, clip, { at });
-			queueMicrotask(() => store.select(ids));
-			return script;
-		});
-	}, []);
+	const paste = useCallback(
+		(clip: Clipping) => {
+			const at = pointerAt.current ?? undefined;
+			store.edit((s) => {
+				const { script, ids } = pasteClipping(s, clip, { at });
+				queueMicrotask(() => store.select(ids));
+				return script;
+			});
+		},
+		[store],
+	);
 
 	// Keys for the canvas, while it has focus. The designer page has no editor
 	// shell to handle them, and typing in the node's fields must not reach here.
@@ -333,80 +338,82 @@ export function LogicCanvas({
 		};
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
-	}, [registry, realign, paste, showing]);
+	}, [registry, realign, paste, showing, store]);
 
 	return (
-		<div className="logic-canvas" ref={container}>
-			{editor.script && editor.path === PATH && (
-				<Canvas
-					script={editor.script}
-					graph={null}
-					registry={registry}
-					diagnostics={[]}
-					onPointerAt={(world) => {
-						pointerAt.current = world;
-					}}
-					onRequestMenu={(screen, world, from) => setMenu({ screen, world, from })}
-					onRequestPinMenu={NOOP}
-					onEditCode={NOOP}
-					onDropFile={NOOP}
-					wheel={wheelAction(prefs.wheel)}
-					wireStyle={prefs.wireStyle}
-					wideNodes={wideNodes}
-				/>
-			)}
-			{/* The same bar the editor's graph has on a touch screen, sending the
+		<StoreContext.Provider value={store}>
+			<div className="logic-canvas" ref={container}>
+				{editor.script && editor.path === PATH && (
+					<Canvas
+						script={editor.script}
+						graph={null}
+						registry={registry}
+						diagnostics={[]}
+						onPointerAt={(world) => {
+							pointerAt.current = world;
+						}}
+						onRequestMenu={(screen, world, from) => setMenu({ screen, world, from })}
+						onRequestPinMenu={NOOP}
+						onEditCode={NOOP}
+						onDropFile={NOOP}
+						wheel={wheelAction(prefs.wheel)}
+						wireStyle={prefs.wireStyle}
+						wideNodes={wideNodes}
+					/>
+				)}
+				{/* The same bar the editor's graph has on a touch screen, sending the
 			    same keys to this canvas's own handler. */}
-			{touch && editor.script && editor.path === PATH && (
-				<div className="drawer-toggles">
-					<div className="touch-bar">
-						<TouchBar
-							selected={liveSelection(editor.script, editor.selection)}
-							canPaste={hasClip}
-							locked={false}
-							labels={prefs.actionLabels}
-							style={prefs.actionRow}
-						/>
+				{touch && editor.script && editor.path === PATH && (
+					<div className="drawer-toggles">
+						<div className="touch-bar">
+							<TouchBar
+								selected={liveSelection(editor.script, editor.selection)}
+								canPaste={hasClip}
+								locked={false}
+								labels={prefs.actionLabels}
+								style={prefs.actionRow}
+							/>
+						</div>
 					</div>
-				</div>
-			)}
-			{/* The graph's own tools, floating over this canvas as they do over a graph. */}
-			<FloatingTools label="Logic">
-				<ToolGroup>
-					<button
-						className="tb icon-only"
-						title="Add node — in the middle of the view. Right-clicking the canvas does the same, where you click."
-						aria-label="Add a node"
-						onClick={menuAtCentre}
-					>
-						<Icon name="search" size={16} />
-					</button>
-					<button
-						className="tb icon-only"
-						title="Realign — lay the logic out along its flow (Ctrl+Shift+L). With several nodes selected, only those move. A aligns the selection."
-						aria-label="Realign the logic"
-						onClick={realign}
-					>
-						<Icon name="layout" size={16} />
-					</button>
-					{tools}
-				</ToolGroup>
-			</FloatingTools>
-			{menu && (
-				<NodeMenu
-					anchor={menu}
-					registry={menuRegistry}
-					target={target}
-					presets={[]}
-					onPick={spawn}
-					onAddComment={() => {
-						const { world } = menu;
-						store.edit((s) => addComment(s, { x: world.x, y: world.y, w: 320, h: 200 }).script);
-						setMenu(null);
-					}}
-					onClose={() => setMenu(null)}
-				/>
-			)}
-		</div>
+				)}
+				{/* The graph's own tools, floating over this canvas as they do over a graph. */}
+				<FloatingTools label="Logic">
+					<ToolGroup>
+						<button
+							className="tb icon-only"
+							title="Add node — in the middle of the view. Right-clicking the canvas does the same, where you click."
+							aria-label="Add a node"
+							onClick={menuAtCentre}
+						>
+							<Icon name="search" size={16} />
+						</button>
+						<button
+							className="tb icon-only"
+							title="Realign — lay the logic out along its flow (Ctrl+Shift+L). With several nodes selected, only those move. A aligns the selection."
+							aria-label="Realign the logic"
+							onClick={realign}
+						>
+							<Icon name="layout" size={16} />
+						</button>
+						{tools}
+					</ToolGroup>
+				</FloatingTools>
+				{menu && (
+					<NodeMenu
+						anchor={menu}
+						registry={menuRegistry}
+						target={target}
+						presets={[]}
+						onPick={spawn}
+						onAddComment={() => {
+							const { world } = menu;
+							store.edit((s) => addComment(s, { x: world.x, y: world.y, w: 320, h: 200 }).script);
+							setMenu(null);
+						}}
+						onClose={() => setMenu(null)}
+					/>
+				)}
+			</div>
+		</StoreContext.Provider>
 	);
 }

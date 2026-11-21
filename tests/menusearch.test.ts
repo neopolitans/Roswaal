@@ -290,3 +290,36 @@ describe("a service's events in the menu", () => {
 		expect(anywhere.map((item) => item.title)).toContain("On RunService.Heartbeat");
 	});
 });
+
+describe("ranking a type's name (1.0.1)", () => {
+	it("puts the nodes that use a type before the cast to it, and leaves out words it is only part of", async () => {
+		const { castItems, namedItems, luneItems } = await import("../src/app/menuSearch.js");
+		const items = [...libraryItems(registry, "roblox", []), ...castItems(registry, "roblox")];
+		const found = searchMenu(
+			"tween",
+			{
+				items,
+				services: serviceItems(registry, "roblox", undefined),
+				lune: luneItems(registry, "roblox"),
+				names: namedItems(registry, "roblox"),
+				draggedService: [],
+				draggedMembers: [],
+			},
+			undefined,
+		).map((item) => item.title);
+		const at = (title: string) => found.indexOf(title);
+		expect(at("Create Tween")).toBeGreaterThanOrEqual(0);
+		expect(at("Create Tween")).toBeLessThan(at("Cast to Tween"));
+		expect(at("Play Tween")).toBeLessThan(at("Cast to Tween"));
+		expect(at("TweenInfo")).toBeLessThan(at("Cast to Tween"));
+		// "between" in its summary is not "tween".
+		expect(found).not.toContain("Vector3 Angle");
+	});
+
+	it("still finds a cast by its own name", async () => {
+		const { castItems } = await import("../src/app/menuSearch.js");
+		const items = [...libraryItems(registry, "roblox", []), ...castItems(registry, "roblox")];
+		const found = searchMenu("cast to tween", sources(items), undefined).map((i) => i.title);
+		expect(found[0]).toBe("Cast to Tween");
+	});
+});

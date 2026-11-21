@@ -10,7 +10,7 @@ import type { NodeScript } from "../core/schema.js";
 import { cx } from "./cx.js";
 import { Icon, type IconName } from "./icons.jsx";
 import type { ActionLabels, ActionRowStyle } from "./preferences.js";
-import { store } from "./store.js";
+import { useStore } from "./store.js";
 
 /**
  * How many selected things still exist. A delete leaves the removed ids in the
@@ -40,6 +40,7 @@ export function TouchBar({
 	/** Buttons each on their own, or one bar; see the Action row preference. */
 	style?: ActionRowStyle;
 }) {
+	const store = useStore();
 	const press = (key: string, withMod: boolean) =>
 		document.body.dispatchEvent(
 			new KeyboardEvent("keydown", { key, ctrlKey: withMod, bubbles: true }),

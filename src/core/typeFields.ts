@@ -84,6 +84,28 @@ export function fieldsOfDeclaration(
 }
 
 /**
+ * The types this script declares that are tables: written as fields, or as a
+ * table type -- a dictionary or a list included. `type RoundState = { … }`
+ * goes wherever a table is wanted, as `{ … }` written out does.
+ */
+export function declaredTableTypes(script: Pick<NodeScript, "nodes">): Set<string> {
+	const out = new Set<string>();
+	for (const node of script.nodes) {
+		if (node.def !== "type.declareTop" && node.def !== "type.declareHere") continue;
+		const config = (node.config ?? {}) as { name?: string; shape?: string; definition?: string };
+		const name = (config.name ?? "").trim();
+		if (!NAME.test(name)) continue;
+		if (typeShapeOf(node.def, config) === "fields") {
+			out.add(name);
+			continue;
+		}
+		const { value: type, errors } = parseType(config.definition ?? "");
+		if (type && errors.length === 0 && type.kind === "tableType") out.add(name);
+	}
+	return out;
+}
+
+/**
  * Every type this script declares, by name, with the fields each one has.
  *
  * A type whose fields are not fixed is still listed, with none of them: the

@@ -98,3 +98,18 @@ describe("the store while a compile is running", () => {
 		expect(store.getView()).toEqual({ x: 5, y: 6, zoom: 2 });
 	});
 });
+
+describe("a store of its own (1.0.1)", () => {
+	it("keeps Node Design's logic out of the editor's tabs", async () => {
+		const { Store } = await import("../src/app/store.js");
+		store.closeAll();
+		store.open("Main.nodescript", new Builder("Main").build());
+		const logic = new Store(false);
+		logic.open("designer:logic", new Builder("logic").build());
+		expect(store.getTabs().map((t) => t.path)).toEqual(["Main.nodescript"]);
+		// Leaving Node Design closes its store, and the editor keeps its tabs.
+		logic.closeAll();
+		expect(store.getTabs().map((t) => t.path)).toEqual(["Main.nodescript"]);
+		expect(store.getSnapshot().path).toBe("Main.nodescript");
+	});
+});

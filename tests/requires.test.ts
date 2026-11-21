@@ -306,4 +306,57 @@ describe("following requires in a project", () => {
 		expect(self).toEqual(["ServerScriptService", "Server", "Grow"]);
 		expect(modules.map((m) => [m.name, m.file])).toEqual([["Helpers", "src/server/Helpers.luau"]]);
 	});
+
+	it("lists graphs that require each other as they load, through hand-written modules too", async () => {
+		await project();
+		const put = async (rel: string, text: string) => {
+			await mkdir(path.dirname(path.join(root, rel)), { recursive: true });
+			await writeFile(path.join(root, rel), text);
+		};
+		const moduleScript = (name: string, id: string) =>
+			serialiseScript({ ...emptyScript(name, id), scriptClass: "ModuleScript" });
+		await put(".roswaal/scripts/shared/Rig.nodescript", moduleScript("Rig", "rig"));
+		await put(".roswaal/scripts/shared/Occupancy.nodescript", moduleScript("Occupancy", "occ"));
+		// As compiled: Rig needs Occupancy as it loads; Occupancy needs Rig only later.
+		await put(
+			"src/shared/Rig.luau",
+			"local Occupancy = require(script.Parent.Occupancy)\nreturn {}\n",
+		);
+		await put(
+			"src/shared/Occupancy.luau",
+			"local function rig()\n\treturn require(script.Parent.Rig)\nend\nreturn { rig = rig }\n",
+		);
+		const session = new ApiSession({});
+		await session.openAt(root);
+		const cyclesNow = async () =>
+			((await session.handle("GET", "/orphans", {})) as { cycles: { files: string[] }[] }).cycles;
+		expect(await cyclesNow()).toEqual([]);
+
+		// Occupancy now reaches Rig as it loads, through the hand-written Fruit.
+		await put(
+			"src/shared/Occupancy.luau",
+			"local Fruit = require(script.Parent.Fruit)\nreturn {}\n",
+		);
+		await put(
+			"src/shared/Fruit.luau",
+			'local Rig = require(game:GetService("ReplicatedStorage").Shared.Rig)\nreturn {}\n',
+		);
+		const cycles = (await session.handle("GET", "/orphans", {})) as {
+			cycles: { files: string[]; graphs: Record<string, string> }[];
+		};
+		expect(cycles.cycles).toEqual([
+			{
+				files: [
+					"src/shared/Fruit.luau",
+					"src/shared/Rig.luau",
+					"src/shared/Occupancy.luau",
+					"src/shared/Fruit.luau",
+				],
+				graphs: {
+					"src/shared/Rig.luau": ".roswaal/scripts/shared/Rig.nodescript",
+					"src/shared/Occupancy.luau": ".roswaal/scripts/shared/Occupancy.nodescript",
+				},
+			},
+		]);
+	});
 });

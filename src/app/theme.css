@@ -7184,6 +7184,7 @@ button.pathchip:hover {
 /* The panels around it: fields as Settings rows. */
 .map-panel {
 	padding: 8px 8px 10px;
+	container: map-panel / inline-size;
 }
 
 .map-panel .settings-box > .setting {
@@ -7197,6 +7198,15 @@ button.pathchip:hover {
 .map-panel .settings-box > .setting.map-list {
 	grid-template-columns: minmax(0, 1fr);
 	gap: 6px;
+}
+
+/* A column narrower than a name beside its field -- the right column at its
+   290px default -- puts the name and its help above the field, at full width. */
+@container map-panel (max-width: 440px) {
+	.map-panel .settings-box > .setting {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 6px;
+	}
 }
 
 .map-panel .setting-label b {

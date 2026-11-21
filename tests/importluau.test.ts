@@ -824,3 +824,28 @@ describe("Modern's rewrites, each a choice", () => {
 		expect(modern("local wait = print\nwait(1)\n", { task: true })).not.toContain("task.wait");
 	});
 });
+
+describe("variables typed by their literal (1.0.1)", () => {
+	it("gives an unannotated file-level local its literal's type, and leaves the Luau as written", () => {
+		const src = [
+			"local ROUND_LENGTH = 90",
+			"local OFFSET = -1",
+			'local GREETING = "hi"',
+			"local ENABLED = true",
+			"local state = { round = 0 }",
+			"local count: any = 0",
+			"print(ROUND_LENGTH, OFFSET, GREETING, ENABLED, state, count)",
+			"",
+		].join("\n");
+		const script = imported(src);
+		expect(script.variables.map((v) => [v.name, v.type])).toEqual([
+			["ROUND_LENGTH", "number"],
+			["OFFSET", "number"],
+			["GREETING", "string"],
+			["ENABLED", "boolean"],
+			["state", "any"],
+			["count", "any"],
+		]);
+		expect(compiled(script).code).toContain("local ROUND_LENGTH = 90\n");
+	});
+});

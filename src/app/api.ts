@@ -212,6 +212,13 @@ export interface MapOutcome {
 	held?: { name: string; from: string; to: string }[];
 }
 
+/** Modules that require each other as they load: files in require order, ending where they start. */
+export interface RequireCycle {
+	files: string[];
+	/** The graph each file is compiled from, where one is. */
+	graphs: Record<string, string>;
+}
+
 export interface CompileOutcome {
 	scriptPath: string;
 	outputPath: string;
@@ -690,7 +697,11 @@ export const api = {
 	},
 	/** Generated files whose graph has moved or gone. */
 	orphans: () =>
-		request<{ orphans: string[]; unsynced?: { graph: string; folder: string }[] }>("/api/orphans"),
+		request<{
+			orphans: string[];
+			unsynced?: { graph: string; folder: string }[];
+			cycles?: RequireCycle[];
+		}>("/api/orphans"),
 	removeOrphans: (paths: string[]) => post<{ removed: number }>("/api/orphans/remove", { paths }),
 
 	/** The project's node packs, the directory a new one belongs in, and its target. */

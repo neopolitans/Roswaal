@@ -40,7 +40,7 @@ import {
 	type Target,
 } from "../schema.js";
 import { SCRIPT_CALLS, scriptCallOf } from "../scriptCalls.js";
-import { declaredTypeFields } from "../typeFields.js";
+import { declaredTableTypes, declaredTypeFields } from "../typeFields.js";
 import type { Diagnostic } from "./emit.js";
 import { GraphIndex } from "./graph.js";
 import { isFieldName, notAName } from "./luau.js";
@@ -98,7 +98,11 @@ const UNIVERSAL = new Set(["any", "wildcard"]);
  * when it checks the wires already there. Two copies could disagree, and a
  * wire the editor accepted would then be warned about at compile.
  */
-export function typesCompatible(from: string | undefined, to: string | undefined): boolean {
+export function typesCompatible(
+	from: string | undefined,
+	to: string | undefined,
+	tables?: ReadonlySet<string>,
+): boolean {
 	const a = from ?? "any";
 	const b = to ?? "any";
 	if (a === b) return true;
@@ -121,11 +125,13 @@ export function typesCompatible(from: string | undefined, to: string | undefined
 	// table is wanted. Not the other way: a plain table says nothing of what
 	// it holds, so it does not go where `{ Model }` is promised.
 	if (b === "table" && a.trim().startsWith("{")) return true;
+	// And so is a type the script declares as one, by its name.
+	if (b === "table" && tables?.has(a.trim())) return true;
 	// A list goes where a list of what it holds would: `{ Model }` into
 	// `{ Instance }`, by the rule above for its values.
 	const listA = LIST.exec(a)?.[1];
 	const listB = LIST.exec(b)?.[1];
-	if (listA && listB) return typesCompatible(listA, listB);
+	if (listA && listB) return typesCompatible(listA, listB, tables);
 	return false;
 }
 
@@ -143,10 +149,11 @@ const LIST = /^\{\s*([A-Za-z_][\w.]*\??)\s*\}$/;
 export function pinsCompatible(
 	from: Pick<PinDef, "type">,
 	to: Pick<PinDef, "type" | "pairs">,
+	tables?: ReadonlySet<string>,
 ): boolean {
 	if (from.type === PAIR) return to.type === PAIR || to.pairs === true;
 	if (to.type === PAIR) return false;
-	return typesCompatible(from.type, to.type);
+	return typesCompatible(from.type, to.type, tables);
 }
 
 export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
@@ -351,6 +358,7 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 
 	// -- links -------------------------------------------------------------
 	const inputsUsed = new Map<string, number>();
+	const tableTypes = declaredTableTypes(script);
 	const execOutUsed = new Map<string, number>();
 
 	for (const link of script.links) {
@@ -394,7 +402,7 @@ export function validate(script: NodeScript, registry: Registry): Diagnostic[] {
 		if (fromPin.kind === "exec") {
 			const outKey = `${link.from.node}/${link.from.pin}`;
 			execOutUsed.set(outKey, (execOutUsed.get(outKey) ?? 0) + 1);
-		} else if (!pinsCompatible(fromPin, toPin) && fromPin.type !== PAIR) {
+		} else if (!pinsCompatible(fromPin, toPin, tableTypes) && fromPin.type !== PAIR) {
 			// A misplaced pair is the emitter's to report, as an error on the
 			// pair, where the reason can be said properly.
 			out.push({

@@ -33,9 +33,20 @@ export function nameProblem(name: string, windows: boolean): string | null {
 	return null;
 }
 
-/** The first problem with any step of `rel`, a path inside the project. */
+/**
+ * The suffix a save writes its temporary copy under before renaming it into
+ * place (`files.ts` writeFileAtomically): `Main.nodescript.k3j9x0a2.tmp`.
+ */
+const SAVE_TEMPORARY = /\.[0-9a-z]{1,8}\.tmp$/;
+
+/**
+ * The first problem with any step of `rel`, a path inside the project.
+ *
+ * A save's temporary copy is judged as the file it becomes, so a refusal
+ * names `aux.nodescript`, the graph, rather than the copy nobody asked for.
+ */
 export function pathProblem(rel: string, windows: boolean): string | null {
-	for (const step of rel.split(/[\\/]/)) {
+	for (const step of rel.replace(SAVE_TEMPORARY, "").split(/[\\/]/)) {
 		const problem = nameProblem(step, windows);
 		if (problem) return problem;
 	}

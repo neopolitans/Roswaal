@@ -703,23 +703,48 @@ export function score(item: MenuItem, query: string): number {
 	const full = item.title.toLowerCase();
 	// "Get weapon" is found by "weapon" as well as a "weapon.Name" is: the verb
 	// is the menu's, the name is what somebody types.
-	const title = full.replace(/^(get|set|call|cast to) /, "");
+	const title = full.replace(/^(get|set|call) /, "");
 	if (full === query || title === query) return 500;
 	// The library node only: a preset's title is a name somebody chose.
 	const alias = item.title === item.def.title ? aliasScore(item.def.id, query) : 0;
 	if (alias === 450) return alias;
 	// The symbol a pill wears is a name for it: typing `~=` finds Not Equal.
 	if (item.def.operator?.toLowerCase() === query) return 400;
-	if (title.startsWith(query) || full.startsWith(query)) return 100;
+	if (full.startsWith(query)) return wholeWordAt(full, query, true) ? 120 : 100;
+	// A cast is found by its type, under the nodes that do something with
+	// one: "tween" is Create Tween before Cast to Tween.
+	const cast = /^cast to (.*)$/.exec(full)?.[1];
+	if (cast !== undefined) {
+		if (cast === query) return 85;
+		return cast.startsWith(query) || full.includes(query) ? 40 : 0;
+	}
+	if (title.startsWith(query)) return wholeWordAt(title, query, true) ? 120 : 100;
+	// The query as a word of the title, as Create Tween has "tween".
+	if (wholeWordAt(full, query, false)) return 110;
 	if (alias > 0) return alias;
+	if (wordStartAt(full, query)) return 70;
 	if (full.includes(query)) return 60;
 	// The label as well as the key: the heading says "Roblox" and typing what
 	// you can see should find what is under it.
 	if (categoryLabel(item.category).toLowerCase().includes(query)) return 30;
 	if (item.category.toLowerCase().includes(query)) return 30;
 	if (item.def.id.toLowerCase().includes(query)) return 20;
-	if (item.summary?.toLowerCase().includes(query)) return 10;
+	// A summary only from the start of a word: "tween" is not in "between".
+	if (item.summary && wordStartAt(item.summary.toLowerCase(), query)) return 10;
 	return 0;
+}
+
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Whether `query` is a whole word of `text`: at its start only, when `start` is set. */
+function wholeWordAt(text: string, query: string, start: boolean): boolean {
+	const word = `${escapeRegExp(query)}(?![a-z0-9_])`;
+	return new RegExp(start ? `^${word}` : `(?<![a-z0-9_])${word}`).test(text);
+}
+
+/** Whether a word of `text` starts with `query`. */
+function wordStartAt(text: string, query: string): boolean {
+	return new RegExp(`(?<![a-z0-9_])${escapeRegExp(query)}`).test(text);
 }
 
 /**
