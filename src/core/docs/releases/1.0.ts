@@ -9,6 +9,15 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.1-canary.3",
+		date: "2026-11-21",
+		headline: "Using another place leaves the tab you are on in front.",
+		fixed: [
+			"**Use** on a place keeps the graph or file you are on in front, and the Project panel on Files. A tab open on the old place shows the new one.",
+		],
+		affects: ["editor"],
+	},
+	{
 		version: "1.0.1-canary.2",
 		date: "2026-11-21",
 		headline: "Node maps have Serve and Serving on their rows, and any second place can be used.",

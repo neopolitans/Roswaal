@@ -1576,14 +1576,20 @@ export function App() {
 				confirmLabel: "Use It",
 			});
 			if (yes !== true || !(await settle())) return;
+			// Where you are stays where you are: a graph in front stays in front.
+			// The old place's tab, if one is open, shows the new place instead.
+			const tabs = store.getTabs();
+			const placeTab = place ? tabs.find((t) => t.kind === "place" && t.path === place) : undefined;
+			const front = tabs.find((t) => t.active)?.key;
 			try {
 				const { file } = await api.usePlace(entry.path);
 				if (place) store.closePath(place);
 				await saveConfig({ place: file });
 				await refreshTree();
-				setProjectView("datamodel");
-				setPlaceSeen(true);
-				store.openSide({ kind: "place", doc: { path: file } });
+				if (placeTab) {
+					store.openSide({ kind: "place", doc: { path: file } });
+					if (!placeTab.active && front) store.activate(front);
+				}
 			} catch (err) {
 				notify("The place was not changed", errorMessage(err));
 			}
