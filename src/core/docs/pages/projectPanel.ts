@@ -39,7 +39,7 @@ export function projectPanelPage(): DocPage {
 					],
 					[
 						"**Node maps**",
-						"Where your files land in Studio. A map's row shows the project file it writes, green when written as the map has it, and **serve** on the one `rojo serve` reads. Unfold a map for what it syncs; a row opens the map there. **clash** marks two maps writing one file, and neither writes it. **New map** makes one at the top",
+						"Where your files land in Studio. A map's row shows the project file it writes, green when written as the map has it, and **Serving** on the one `rojo serve` reads; **Serve** on another swaps it in. Unfold a map for what it syncs; a row opens the map there. **clash** marks two maps writing one file, and neither writes it. **New map** makes one at the top",
 					],
 					[
 						"**Packages**",
@@ -47,7 +47,7 @@ export function projectPanelPage(): DocPage {
 					],
 					[
 						"**Place**",
-						"The place in use, marked in use, and the others waiting in `.roswaal/places`. **Open** shows the place in use in the Place Editor; **Use** swaps a waiting one in, and is refused while Studio has either open. **Add** keeps a copy of the place, a place file or a baseplate there. A Roblox project with no place has **Add Place** here",
+						"The place in use, marked in use, and the others waiting in `.roswaal/places`. **Open** shows the place in use in the Place Editor; **Use** swaps another one in, and is refused while Studio has either open. **Add** keeps a copy of the place, a place file or a baseplate there. A Roblox project with no place has **Add Place** here",
 					],
 					[
 						"**Output**",

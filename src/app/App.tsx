@@ -1566,41 +1566,26 @@ export function App() {
 				store.openSide({ kind: "place", doc: { path: entry.path } });
 				return;
 			}
-			if (entry.path.startsWith(".roswaal/places/")) {
-				const yes = await ask({
-					kind: "confirm",
-					title: `Use ${entry.name}?`,
-					message: place
-						? `${place} moves to .roswaal/places, and ${entry.name} takes its place. DataModel, Properties, the Place Editor and Export read it from then on.`
-						: `${entry.name} becomes the project's place.`,
-					confirmLabel: "Use It",
-				});
-				if (yes !== true || !(await settle())) return;
-				try {
-					const { file } = await api.usePlace(entry.path);
-					if (place) store.closePath(place);
-					await saveConfig({ place: file });
-					await refreshTree();
-					setProjectView("datamodel");
-					setPlaceSeen(true);
-					store.openSide({ kind: "place", doc: { path: file } });
-				} catch (err) {
-					notify("The place was not changed", errorMessage(err));
-				}
-				return;
-			}
+			// Any other place swaps in: the one in use waits in .roswaal/places.
 			const yes = await ask({
 				kind: "confirm",
-				title: `Use ${entry.name} as the project's place?`,
-				message:
-					"DataModel, Properties and Export read it from then on. It is set as `place` in roswaal.json.",
+				title: `Use ${entry.name}?`,
+				message: place
+					? `${place} moves to .roswaal/places, and ${entry.name} takes its place. DataModel, Properties, the Place Editor and Export read it from then on.`
+					: `${entry.name} becomes the project's place.`,
 				confirmLabel: "Use It",
 			});
-			if (yes === true && (await settle())) {
-				await saveConfig({ place: entry.path });
+			if (yes !== true || !(await settle())) return;
+			try {
+				const { file } = await api.usePlace(entry.path);
+				if (place) store.closePath(place);
+				await saveConfig({ place: file });
+				await refreshTree();
 				setProjectView("datamodel");
 				setPlaceSeen(true);
-				store.openSide({ kind: "place", doc: { path: entry.path } });
+				store.openSide({ kind: "place", doc: { path: file } });
+			} catch (err) {
+				notify("The place was not changed", errorMessage(err));
 			}
 			return;
 		}

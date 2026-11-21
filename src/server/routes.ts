@@ -140,7 +140,6 @@ import {
 	nestScript,
 	type OpenProject,
 	openProject,
-	PLACES_DIR,
 	packUsage,
 	placeEntries,
 	placeReport,
@@ -805,9 +804,11 @@ export class ApiSession {
 			 */
 			"POST /place/use": async (req) => {
 				const project = this.project();
+				// A place waiting in .roswaal/places, or one anywhere else in the
+				// project -- a second file beside the one in use.
 				const target = toPosix(need(fields<{ path: string }>(req).path, "path"));
-				if (!target.startsWith(`${PLACES_DIR}/`) || !/\.rbxlx?$/i.test(target))
-					throw new HttpError(400, "Only a place waiting in .roswaal/places can be put in use.");
+				if (!/\.rbxlx?$/i.test(target))
+					throw new HttpError(400, "Only a place file can be put in use.");
 				if (!(await exists(safeJoin(project.root, target))))
 					throw new HttpError(404, `${target} is not there.`);
 				const inUse = await findPlaceFile(project.root, project.config);
@@ -820,14 +821,18 @@ export class ApiSession {
 				const name = path.posix.basename(target);
 				const dir = inUse ? path.posix.dirname(inUse) : ".";
 				const dest = dir === "." ? name : `${dir}/${name}`;
+				if (inUse === target) return { file: target };
 				if (inUse) {
 					const waiting = await freePlaceName(project.root, path.posix.basename(inUse));
 					await fs.mkdir(path.dirname(safeJoin(project.root, waiting)), { recursive: true });
 					await fs.rename(safeJoin(project.root, inUse), safeJoin(project.root, waiting));
 				}
-				if (await exists(safeJoin(project.root, dest)))
-					throw new HttpError(409, `${dest} is there already.`);
-				await fs.rename(safeJoin(project.root, target), safeJoin(project.root, dest));
+				// One beside the place in use stays where it is.
+				if (dest !== target) {
+					if (await exists(safeJoin(project.root, dest)))
+						throw new HttpError(409, `${dest} is there already.`);
+					await fs.rename(safeJoin(project.root, target), safeJoin(project.root, dest));
+				}
 				await writeConfig(project.root, { ...project.config, place: dest });
 				this.place = null;
 				await this.reload();

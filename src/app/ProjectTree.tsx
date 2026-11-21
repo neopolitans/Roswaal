@@ -1003,7 +1003,13 @@ export const ProjectTree = memo(function ProjectTree({
 						{(unsaved.has(entry.path) || (entry.script && unsaved.has(entry.script))) && (
 							<span className="tree-dirty" title="Edits not saved yet" />
 						)}
-						{entry.mapFacts && <MapRowFacts facts={entry.mapFacts} />}
+						{entry.mapFacts && (
+							<MapRowFacts
+								facts={entry.mapFacts}
+								name={entry.name}
+								onServe={onServeMap ? () => onServeMap(entry.path) : undefined}
+							/>
+						)}
 						{isDir && !entry.script && (entry.children?.length ?? 0) === 0 && (
 							<span className="badge">empty</span>
 						)}
@@ -1013,7 +1019,7 @@ export const ProjectTree = memo(function ProjectTree({
 								type="button"
 								className="tb tree-open"
 								title={
-									entry.inUse || !entry.path.startsWith(".roswaal/places/")
+									entry.inUse
 										? `Open ${entry.name}`
 										: `Use ${entry.name}: it takes the place of the one in use`
 								}
@@ -1023,7 +1029,7 @@ export const ProjectTree = memo(function ProjectTree({
 								}}
 								onDoubleClick={(e) => e.stopPropagation()}
 							>
-								{entry.inUse || !entry.path.startsWith(".roswaal/places/") ? "Open" : "Use"}
+								{entry.inUse ? "Open" : "Use"}
 							</button>
 						)}
 						{output.folded.has(entry.path) && (
@@ -1367,7 +1373,19 @@ function namedClass(entry: TreeEntry): string | undefined {
  * dot for whether that file is written as the map has it; serve on the one
  * `rojo serve` reads; and a clash with another map writing the same file.
  */
-function MapRowFacts({ facts }: { facts: NonNullable<TreeEntry["mapFacts"]> }) {
+/**
+ * A map row's output file, and Serve or Serving as a place row has Use and
+ * in use: the served map writes default.project.json, which rojo serve reads.
+ */
+function MapRowFacts({
+	facts,
+	name,
+	onServe,
+}: {
+	facts: NonNullable<TreeEntry["mapFacts"]>;
+	name: string;
+	onServe?: () => void;
+}) {
 	if (!facts.output) return null;
 	const file = facts.output.split("/").pop() ?? facts.output;
 	const dot =
@@ -1385,12 +1403,34 @@ function MapRowFacts({ facts }: { facts: NonNullable<TreeEntry["mapFacts"]> }) {
 		<>
 			<span className="tree-map-output" title={dot.title}>
 				<span className={cx("tree-dot", dot.tone)} aria-hidden="true" />
-				{file}
+				<span className="tree-map-file">{file}</span>
 			</span>
-			{facts.serves && (
-				<span className="badge" title="rojo serve reads default.project.json: this map's.">
-					serve
-				</span>
+			{facts.serves ? (
+				<button
+					type="button"
+					className="tb tree-open on"
+					aria-disabled="true"
+					title={`rojo serve reads default.project.json, which ${name} writes.`}
+					onClick={(e) => e.stopPropagation()}
+					onDoubleClick={(e) => e.stopPropagation()}
+				>
+					Serving
+				</button>
+			) : (
+				onServe && (
+					<button
+						type="button"
+						className="tb tree-open"
+						title={`Serve ${name}: it writes default.project.json, and the map serving now writes its own file under .roswaal.`}
+						onClick={(e) => {
+							e.stopPropagation();
+							onServe();
+						}}
+						onDoubleClick={(e) => e.stopPropagation()}
+					>
+						Serve
+					</button>
+				)
 			)}
 			{facts.clash !== undefined && (
 				<span

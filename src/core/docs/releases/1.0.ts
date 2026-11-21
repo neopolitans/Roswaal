@@ -9,6 +9,18 @@ import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
 	{
+		version: "1.0.1-canary.2",
+		date: "2026-11-21",
+		headline: "Node maps have Serve and Serving on their rows, and any second place can be used.",
+		changed: [
+			"**Node maps** show Serving on the map rojo serve reads, and Serve on the others, as places show in use and Use. A map's name keeps its room beside the file it writes.",
+		],
+		fixed: [
+			"**A second place** beside the one in use, not only one waiting in .roswaal/places, has Use on its row, and using it moves the other to .roswaal/places. Its row read Open and only renamed the place in roswaal.json, leaving the Project panel unchanged.",
+		],
+		affects: ["editor", "docs"],
+	},
+	{
 		version: "1.0.1-canary.1",
 		date: "2026-11-21",
 		headline:

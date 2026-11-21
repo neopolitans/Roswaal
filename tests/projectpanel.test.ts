@@ -58,7 +58,7 @@ const TREE: TreeEntry[] = [
 			generatedFrom: ".roswaal/scripts/ReplicatedStorage/Tank/Remotes.nodescript",
 		}),
 	]),
-	file("place.rbxl", "place"),
+	{ ...file("place.rbxl", "place"), inUse: true },
 ];
 
 const noop = () => {};
@@ -109,6 +109,34 @@ describe("the Project panel", () => {
 		expect(html.slice(html.indexOf(">Node maps<"))).toContain('<span class="label">Tank</span>');
 		expect(html).toContain('<span class="label">place.rbxl</span>');
 		expect(html).toContain(">Open</button>");
+	});
+
+	it("has Serving on the served map, Serve on another, and Use on a place not in use (1.0.1)", () => {
+		const map = (name: string, serves: boolean): TreeEntry =>
+			file(`.roswaal/scripts/${name}.nodemap`, "nodemap", {
+				mapFacts: {
+					output: serves ? "default.project.json" : `.roswaal/projects/${name}.project.json`,
+					state: "same",
+					...(serves ? { serves: true } : {}),
+					syncs: [],
+				},
+			});
+		const tree: TreeEntry[] = [
+			dir(".roswaal", [
+				dir(".roswaal/scripts", [map("Tank", true), map("Spare", false)]),
+				dir(".roswaal/places", [file(".roswaal/places/Old.rbxl", "place")]),
+			]),
+			{ ...file("place.rbxl", "place"), inUse: true },
+			file("Other.rbxl", "place"),
+		];
+		const served: string[] = [];
+		const html = render({ tree, onServeMap: (p) => served.push(p) });
+		const maps = html.slice(html.indexOf(">Node maps<"), html.indexOf(">Place<"));
+		expect(maps.match(/>Serving<\/button>/g)).toHaveLength(1);
+		expect(maps.match(/>Serve<\/button>/g)).toHaveLength(1);
+		const places = html.slice(html.indexOf(">Place<"));
+		expect(places.match(/>Use<\/button>/g)).toHaveLength(2);
+		expect(places.match(/>Open<\/button>/g)).toHaveLength(1);
 	});
 
 	it("marks a folder a map syncs, and a folder with nothing in it", () => {

@@ -1965,10 +1965,16 @@ button.tb.primary:hover:not(:disabled) {
 	padding: 0 6px;
 }
 
-/* A Wally realm kept synced by itself: its button reads autosync, lit. */
+/* A Wally realm kept synced by itself: its button reads autosync, lit.
+   The served map's reads Serving, and is a state rather than an action. */
 .tree-row .tb.tree-open.on {
 	color: var(--accent);
 	border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+.tree-row .tb.tree-open.on[aria-disabled="true"] {
+	cursor: default;
+	background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
 /* Add a package's Zip row: Choose…, then the zip picked. */
@@ -2029,8 +2035,28 @@ button.tb.primary:hover:not(:disabled) {
 	color: var(--fg-faint);
 }
 
-.tree-row .tree-map-output ~ .badge {
+/* The file gives way before the map's name does: the name keeps up to half
+   the row or so, and the file takes what is left. */
+.tree-row .tree-map-output {
+	flex: 0 1 auto;
+}
+
+.tree-row:has(> .tree-map-output) > .label {
+	flex: none;
+	max-width: 55%;
+}
+
+.tree-row .tree-map-file {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.tree-row .tree-map-output ~ .badge,
+.tree-row .tree-map-output ~ .tree-open {
 	margin-left: 4px;
+	flex: none;
 }
 
 .tree-dot {

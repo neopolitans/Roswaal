@@ -74,6 +74,21 @@ describe("places waiting in .roswaal/places", () => {
 		expect(config.place).toBe("place copy.rbxl");
 	});
 
+	it("swaps in a second place beside the one in use, which waits in .roswaal/places (1.0.1)", async () => {
+		const { root, post, there } = await open();
+		await fs.copyFile(path.join(root, "place.rbxl"), path.join(root, "Other.rbxl"));
+		const used = (await post("/place/use", { path: "Other.rbxl" })) as { file: string };
+		expect(used.file).toBe("Other.rbxl");
+		expect(await there("Other.rbxl")).toBe(true);
+		expect(await there(".roswaal/places/place.rbxl")).toBe(true);
+		expect(await there("place.rbxl")).toBe(false);
+		const config = parseConfig(
+			JSON.parse(await fs.readFile(path.join(root, "roswaal.json"), "utf8")),
+		);
+		expect(config.place).toBe("Other.rbxl");
+		await expect(post("/place/use", { path: "notes.txt" })).rejects.toThrow(/place file/);
+	});
+
 	it("is refused while Studio has the place in use open", async () => {
 		const { root, post, there } = await open();
 		await post("/place/copy");
