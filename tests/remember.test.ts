@@ -18,9 +18,9 @@
  * hand-rolled stub of that API would mostly test the stub.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { foldersFrom } from "../src/web/remember.js";
+import { foldersFrom, PERMISSION_WAIT_MS, permissionFor } from "../src/web/remember.js";
 
 /** A stand-in for a directory handle: the two members this module reads. */
 function handleFor(name: string): FileSystemDirectoryHandle {
@@ -93,5 +93,32 @@ describe("what the store's contents mean", () => {
 
 	it("has nothing to say about an empty store", () => {
 		expect(foldersFrom([], [])).toEqual([]);
+	});
+});
+
+describe("a remembered folder's permission", () => {
+	const handle = (query: () => Promise<PermissionState>) =>
+		({ queryPermission: query }) as unknown as FileSystemDirectoryHandle;
+
+	it("is the browser's answer where it gives one", async () => {
+		expect(await permissionFor(handle(async () => "granted"))).toBe("granted");
+		expect(
+			await permissionFor(
+				handle(async () => {
+					throw new Error("gone");
+				}),
+			),
+		).toBe("denied");
+	});
+
+	it("is taken as needing a click where the browser never answers, so start-up does not wait on it", async () => {
+		vi.useFakeTimers();
+		try {
+			const answer = permissionFor(handle(() => new Promise<PermissionState>(() => {})));
+			await vi.advanceTimersByTimeAsync(PERMISSION_WAIT_MS);
+			expect(await answer).toBe("prompt");
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 });

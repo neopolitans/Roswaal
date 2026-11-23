@@ -8,6 +8,18 @@
 import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
+	// A patch: the three 1.0.1 canary builds, and two fixes for the web
+	// editor brought back from 1.1.0's canary (canary.30 and canary.31).
+	{
+		version: "1.0.1",
+		date: "2026-11-23",
+		headline: "The web editor starts in Edge 158 again, and a page that fails to start says so.",
+		fixed: [
+			"**The web editor no longer waits on a remembered folder the browser does not answer for.** Edge 158 stopped answering for a folder kept from an earlier session, and try.html and the designer stayed blank. After two seconds the editor starts, and the folder is offered by name to open with a click.",
+			"**The editor, the designer and the docs show what went wrong when they fail to start**: an error, a file that did not load, or a start that has not finished 10 seconds after the page loaded. The screen gives the details to copy, a reload and, for a stuck start, a way to forget the folders remembered from earlier visits.",
+		],
+		affects: ["editor", "designer", "docs"],
+	},
 	{
 		version: "1.0.1-canary.3",
 		date: "2026-11-21",

@@ -195,11 +195,25 @@ export async function forgetFolder(id?: string): Promise<void> {
  */
 export async function permissionFor(handle: FileSystemDirectoryHandle): Promise<PermissionState> {
 	try {
-		return await handle.queryPermission({ mode: "readwrite" });
+		return await Promise.race([
+			handle.queryPermission({ mode: "readwrite" }),
+			new Promise<PermissionState>((resolve) =>
+				setTimeout(() => resolve("prompt"), PERMISSION_WAIT_MS),
+			),
+		]);
 	} catch {
 		return "denied";
 	}
 }
+
+/**
+ * How long a remembered folder's permission is waited for before the editor
+ * starts without it, the folder offered by name instead. Edge 158 restored a
+ * folder kept from an earlier session and then answered nothing about it,
+ * not even isSameEntry: start-up waited on it, and try.html and the designer
+ * stayed blank (23 Nov 2026). An answer takes milliseconds.
+ */
+export const PERMISSION_WAIT_MS = 2000;
 
 /**
  * Asks for permission. **Must be called from a click**, or the browser refuses

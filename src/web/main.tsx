@@ -256,12 +256,10 @@ async function start(): Promise<void> {
 			name: one.name,
 			granted: permission === "granted",
 			open: async () => {
-				if (
-					(await permissionFor(one.handle)) !== "granted" &&
-					(await askPermissionFor(one.handle)) !== "granted"
-				) {
-					return null;
-				}
+				// Asked straight away, within the click: a query first could take
+				// the click's moment, and requestPermission answers "granted"
+				// without a prompt where the permission is still held.
+				if ((await askPermissionFor(one.handle)) !== "granted") return null;
 				return openFolder(one.handle);
 			},
 			forget: async () => {

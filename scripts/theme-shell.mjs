@@ -39,6 +39,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { buildBootGuard } from "./lib/bootGuardScript.mjs";
 import { buildThemePaint } from "./lib/themePaint.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -52,6 +53,8 @@ export function themeShellPlugin() {
 	// Built once per process: the same bytes serve three HTML entries, and in
 	// dev every reload would otherwise pay for an esbuild run.
 	const script = () => (built ??= buildThemePaint());
+	let guard;
+	const guardScript = () => (guard ??= buildBootGuard());
 
 	return {
 		name: "roswaal-theme-shell",
@@ -66,8 +69,13 @@ export function themeShellPlugin() {
 		configureServer(server) {
 			server.middlewares.use((req, res, next) => {
 				const path = (req.url ?? "").split("?")[0];
-				if (!path.endsWith("/theme.js")) return next();
-				void script().then((body) => {
+				const which = path.endsWith("/theme.js")
+					? script
+					: path.endsWith("/boot-guard.js")
+						? guardScript
+						: null;
+				if (!which) return next();
+				void which().then((body) => {
 					res.setHeader("Content-Type", "text/javascript; charset=utf-8");
 					// Dev only, and the file is rebuilt per process rather than
 					// per request -- a cached copy here would outlive an edit.
@@ -79,19 +87,26 @@ export function themeShellPlugin() {
 
 		async generateBundle() {
 			this.emitFile({ type: "asset", fileName: "theme.js", source: await script() });
+			this.emitFile({ type: "asset", fileName: "boot-guard.js", source: await guardScript() });
 		},
 
 		transformIndexHtml: {
 			order: "pre",
 			handler(html) {
-				const src = `${base}theme.js?v=${encodeURIComponent(version)}`;
+				const v = `?v=${encodeURIComponent(version)}`;
+				const src = `${base}theme.js${v}`;
+				const guardSrc = `${base}boot-guard.js${v}`;
 				// No `defer` and no `type="module"`: either one puts this back
 				// behind the first paint, which is the entire bug.
 				// Matched with its indentation, so the tag lands level with the
 				// rest of the head rather than one tab in from it.
+				// The guard just before it: after the head's metas (the site's CSP
+				// covers only what follows it), and still listening before the app's
+				// module scripts, which run once the page is parsed.
 				return html.replace(
 					/([ \t]*)<\/head>/,
-					(_all, indent) => `${indent}\t<script src="${src}"></script>\n${indent}</head>`,
+					(_all, indent) =>
+						`${indent}\t<script src="${guardSrc}"></script>\n${indent}\t<script src="${src}"></script>\n${indent}</head>`,
 				);
 			},
 		},
