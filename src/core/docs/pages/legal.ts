@@ -25,7 +25,7 @@ const EFFECTIVE = "7 November 2026";
  */
 export const LEGAL_EDITED = {
 	terms: "13 November 2026",
-	privacy: "18 November 2026",
+	privacy: "24 November 2026",
 } as const;
 
 function datesOf(edited: string) {
@@ -59,7 +59,7 @@ const ROBLOX = {
  */
 const SERVICES = [
 	"**GitHub** hosts the website through GitHub Pages, Roswaal's source and its releases, which Rokit installs from; the daemon fetches a repository from GitHub when you ask. [GitHub Terms of Service](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) · [GitHub General Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement).",
-	"**Cloudflare** registers the roswaal.app domain and answers its DNS; it does not carry the website's traffic. [Cloudflare Website and Online Services Terms of Use](https://www.cloudflare.com/website-terms/) · [Cloudflare Privacy Policy](https://www.cloudflare.com/privacypolicy/).",
+	"**Cloudflare** registers the roswaal.app domain, answers its DNS, and passes the website's traffic on to GitHub Pages, adding its security headers; like GitHub, it receives the IP address and request of each visit it passes on. [Cloudflare Website and Online Services Terms of Use](https://www.cloudflare.com/website-terms/) · [Cloudflare Privacy Policy](https://www.cloudflare.com/privacypolicy/).",
 	"**The Wally registry**, at api.wally.run, is where the daemon installs a package from when you ask. It publishes no terms or privacy policy of its own; its software is [UpliftGames/wally](https://github.com/UpliftGames/wally), under the Mozilla Public License 2.0, and each package carries its own licence, which governs what you may do with it.",
 	`**Roblox** is where Sign in with Roblox and asset downloads go, through its [Open Cloud API](${ROBLOX.openCloud}). [Roblox Terms of Use](${ROBLOX.terms}) · [Creator Third Party App Terms](${ROBLOX.appTerms}) · [Creator Third Party App Policy](${ROBLOX.appPolicy}) · [Roblox Privacy and Cookie Policy](${ROBLOX.privacy}).`,
 ];
@@ -131,9 +131,10 @@ export function privacyPage(): DocPage {
 				text:
 					"[roswaal.app](https://roswaal.app), its preview at [canary.roswaal.app](https://canary.roswaal.app) " +
 					"and its backup at [neopolitans.github.io/Roswaal](https://neopolitans.github.io/Roswaal/) " +
-					"are static files served by GitHub Pages, and Cloudflare answers the domain's DNS. GitHub receives the " +
-					"usual details of each request, such as your IP address and browser, under its own " +
-					"privacy statement, listed below. Roswaal itself receives nothing.",
+					"are static files served by GitHub Pages. Cloudflare answers the roswaal.app domain's DNS and passes " +
+					"its traffic on to GitHub Pages, adding security headers. GitHub, and Cloudflare for roswaal.app and " +
+					"canary.roswaal.app, receive the usual details of each request, such as your IP address and browser, " +
+					"under their own privacy statements, listed below. Roswaal itself receives nothing.",
 			},
 			{ t: "h", level: 3, text: "Your files, in each browser" },
 			{

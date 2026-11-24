@@ -36,6 +36,18 @@ export function isStaleMessage(message: string): boolean {
 	);
 }
 
+/**
+ * A page-to-page crossfade the browser gave up on: theme.css opts the site
+ * into view transitions, and where the arriving page is not ready in time
+ * Edge rejects the transition's promise ("Transition was aborted because of
+ * invalid state", 24 Nov 2026). Nothing failed: the page just did not fade.
+ */
+export function isTransitionAbort(reason: unknown): boolean {
+	const name = (reason as { name?: unknown } | null)?.name;
+	const message = String((reason as { message?: unknown } | null)?.message ?? reason ?? "");
+	return (name === "InvalidStateError" || name === "AbortError") && /transition/i.test(message);
+}
+
 /** What to tell the developer, from what went wrong; null where nothing did. */
 export function failureFrom(
 	errors: readonly string[],
@@ -125,7 +137,7 @@ export function installBootGuard(slowMs = SLOW_START_MS): void {
 		true,
 	);
 	addEventListener("unhandledrejection", (event) => {
-		if (started) return;
+		if (started || isTransitionAbort(event.reason)) return;
 		errors.push(describeError(event.reason));
 		setTimeout(() => check(false), AFTER_ERROR_MS);
 	});

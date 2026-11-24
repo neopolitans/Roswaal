@@ -5,7 +5,13 @@
 
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { describeError, failureFrom, isStaleMessage, SLOW_START_MS } from "../src/app/bootGuard.js";
+import {
+	describeError,
+	failureFrom,
+	isStaleMessage,
+	isTransitionAbort,
+	SLOW_START_MS,
+} from "../src/app/bootGuard.js";
 
 const about = { page: "https://roswaal.app/try.html", browser: "Test", version: "1.1.0-canary.31" };
 
@@ -59,5 +65,26 @@ describe("where the guard runs", () => {
 		const shell = readFileSync(new URL("../scripts/theme-shell.mjs", import.meta.url), "utf8");
 		expect(shell).toContain('fileName: "boot-guard.js"');
 		expect(shell).toMatch(/guardSrc\}"><\/script>\\n\$\{indent\}\\t<script src="\$\{src\}"/);
+	});
+});
+
+describe("a page-to-page crossfade the browser gave up on", () => {
+	it("is not a failure: the page only did not fade", () => {
+		const abort = (name: string, message: string) => Object.assign(new Error(message), { name });
+		expect(
+			isTransitionAbort(
+				abort(
+					"InvalidStateError",
+					"Transition was aborted because of invalid state. ViewTransition opt-in disabled",
+				),
+			),
+		).toBe(true);
+		expect(isTransitionAbort(abort("AbortError", "Transition was skipped"))).toBe(true);
+		// Anything else that is rejected still is one.
+		expect(
+			isTransitionAbort(abort("InvalidStateError", "The object is in an invalid state.")),
+		).toBe(false);
+		expect(isTransitionAbort(new TypeError("Failed to fetch"))).toBe(false);
+		expect(isTransitionAbort(undefined)).toBe(false);
 	});
 });

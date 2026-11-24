@@ -8,6 +8,18 @@
 import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
+	// A patch: the Privacy Policy's Cloudflare correction and the start-up
+	// check's fix, both brought back from 1.1.0's canary (canary.49, canary.46).
+	{
+		version: "1.0.2",
+		date: "2026-11-24",
+		headline: "The Privacy Policy is right about Cloudflare, and no false start-up failure.",
+		fixed: [
+			"**The Privacy Policy says Cloudflare passes roswaal.app's traffic on**, adding its security headers, and so receives each visit's IP address and request, as GitHub does. It said Cloudflare only answered the domain's DNS.",
+			'**Opening the editor from the docs no longer flashes "Roswaal stopped while starting".** The browser sometimes gives up on the crossfade between the pages and says so, which the start-up check took for a failure while the editor was still opening.',
+		],
+		affects: ["editor", "designer", "docs"],
+	},
 	// A patch: the three 1.0.1 canary builds, and two fixes for the web
 	// editor brought back from 1.1.0's canary (canary.30 and canary.31).
 	{
