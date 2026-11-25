@@ -22,7 +22,15 @@ export function contributingPage(): DocPage {
 				t: "p",
 				text:
 					"Roswaal lives at [github.com/neopolitans/Roswaal](https://github.com/neopolitans/Roswaal). " +
-					"It is 0BSD, and so is anything contributed to it.",
+					"It is 0BSD, and so is anything contributed to it. " +
+					"New work lands first on [roswaal-canary](https://github.com/neopolitans/roswaal-canary), " +
+					"which builds [canary.roswaal.app](https://canary.roswaal.app).",
+			},
+			{
+				t: "p",
+				text:
+					"Everyone taking part follows the [Code of Conduct](https://github.com/neopolitans/Roswaal/blob/main/CODE_OF_CONDUCT.md). " +
+					"A security problem is reported privately, as [SECURITY.md](https://github.com/neopolitans/Roswaal/blob/main/SECURITY.md) says, never as an issue.",
 			},
 
 			{ t: "h", level: 2, text: "Building it" },

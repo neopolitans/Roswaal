@@ -91,7 +91,7 @@ export const DEFINED = {
 
 const DEFINITIONS = Object.values(DEFINED);
 
-const CONTACT = `Questions about this page go to [roswaal-feedback](${FEEDBACK_REPOSITORY}/issues/new).`;
+const CONTACT = `Questions about this page go to [Roswaal's issues](${FEEDBACK_REPOSITORY}/issues/new).`;
 
 export function privacyPage(): DocPage {
 	return {

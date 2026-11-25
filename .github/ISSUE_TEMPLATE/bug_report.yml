@@ -1,0 +1,48 @@
+name: Something is wrong
+description: A bug, a crash, or something that looks or behaves wrongly.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen again
+      placeholder: |
+        1. Open a place with …
+        2. Turn on …
+        3. …
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Beside the name on the start screen, or `roswaal version` on the command line.
+      placeholder: 1.1.0-canary.69
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - roswaal.app (the website)
+        - canary.roswaal.app
+        - roswaal serve (the daemon)
+        - The command line
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device and browser
+      placeholder: iPad Mini (A15), Safari 26 · Windows 11, Edge 158
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: Screenshots, a benchmark or profile report, the console's messages.

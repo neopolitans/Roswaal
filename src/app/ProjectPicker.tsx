@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { VERSION } from "../cli/version.js";
 import { DEMO_PROJECTS, type DemoProject } from "../core/demoProjects.js";
+import { FEEDBACK_REPOSITORY } from "../core/docs/links.js";
 import { errorMessage } from "../core/errorMessage.js";
 import type { Target } from "../core/schema.js";
 import { api, type NewProjectChoice, type ProjectLook } from "./api.js";
@@ -351,7 +352,7 @@ export function ProjectPicker({
 								{IS_STATIC_HOST && (
 									<a
 										className="tb"
-										href="https://github.com/neopolitans/roswaal-feedback/issues/new"
+										href={`${FEEDBACK_REPOSITORY}/issues/new`}
 										target="_blank"
 										rel="noreferrer"
 									>

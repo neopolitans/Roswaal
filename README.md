@@ -73,13 +73,15 @@ npm run build:docs # the documentation as a static site, into dist-docs/
 
 ## Reporting a problem
 
-Issues are closed here, so that reports land in one place rather than two:
-**<https://github.com/neopolitans/roswaal-feedback/issues>**. Bugs, Lune
-trouble, a documentation page that is wrong — all of it goes there, and every
-documentation page has an edit button that opens a report for that page.
+[Open an issue](https://github.com/neopolitans/Roswaal/issues/new/choose) on
+this repository: bugs, Lune trouble, a documentation page that is wrong. Every
+documentation page has an edit button that opens a report for that page. A
+security problem is reported privately instead; see [SECURITY.md](SECURITY.md).
 
-Pull requests are welcome on this repository. What a change brings with it is in
-[Contributing](https://roswaal.app/docs/contributing.html).
+Pull requests are welcome, here or on
+[roswaal-canary](https://github.com/neopolitans/roswaal-canary), where new work
+lands first. What a change brings with it is in [CONTRIBUTING.md](CONTRIBUTING.md),
+and everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Licence
 

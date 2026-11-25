@@ -39,7 +39,7 @@ import { Icon } from "./icons.jsx";
 /** Written as a code unit so no escape has to survive a build step. */
 const NEWLINE = String.fromCharCode(10);
 
-/** Feedback goes to the public repository, not the private source one. */
+/** Feedback goes to Roswaal's own issues. */
 const REPOSITORY = FEEDBACK_REPOSITORY;
 
 /** How much of a proposal a URL carries. GitHub stops reading before this. */

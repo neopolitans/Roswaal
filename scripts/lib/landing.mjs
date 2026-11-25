@@ -32,7 +32,7 @@ import {
 	PREVIEW_LABEL,
 } from "../../src/app/previewMark.ts";
 import { escapeHtml } from "../../src/core/docs/html.ts";
-import { SOURCE_REPOSITORY, STABLE_SITE } from "../../src/core/docs/links.ts";
+import { FEEDBACK_REPOSITORY, SOURCE_REPOSITORY, STABLE_SITE } from "../../src/core/docs/links.ts";
 import { graphSvg } from "../../src/core/docs/preview.ts";
 import { RELEASES, taglineFor } from "../../src/core/docs/releases.ts";
 import { BUILTIN_NODES as ALL_NODES, createRegistry } from "../../src/core/nodes/index.ts";
@@ -805,7 +805,7 @@ ${
 
   <div class="landing-foot">
     <span class="landing-version">Roswaal ${escapeHtml(version)}${tagline ? ` — ${escapeHtml(tagline)}` : ""}</span>
-    <a href="https://github.com/neopolitans/roswaal-feedback/issues/new">Report something</a>
+    <a href="${FEEDBACK_REPOSITORY}/issues/new">Report something</a>
     <a href="docs/release-notes.html">Release notes</a>
     <a href="${SOURCE_REPOSITORY}" rel="noreferrer noopener">Source on GitHub</a>
     <a href="docs/attributions.html">Attributions and licence</a>

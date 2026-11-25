@@ -147,12 +147,12 @@ describe("the landing page", () => {
 	});
 
 	/**
-	 * Feedback goes to the public repository. The source one is private, and a
-	 * dead link on the first page somebody sees is worse than no link.
+	 * Feedback goes to Roswaal's own issues; the old feedback repository is
+	 * archived, and an archived repository takes no new issues.
 	 */
-	it("sends feedback somewhere that exists", () => {
-		expect(html).toContain("roswaal-feedback");
-		expect(html).not.toContain("github.com/neopolitans/Roswaal/issues");
+	it("sends feedback somewhere that takes it", () => {
+		expect(html).toContain("github.com/neopolitans/Roswaal/issues/new");
+		expect(html).not.toContain("roswaal-feedback");
 	});
 
 	/**

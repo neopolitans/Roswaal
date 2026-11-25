@@ -8,6 +8,20 @@
 import type { Release } from "../releases.js";
 
 export const RELEASES_1_0: Release[] = [
+	// A patch: reports move to Roswaal's own issues, and the repository's
+	// community files, brought back from 1.1.0's canary (canary.70).
+	{
+		version: "1.0.3",
+		date: "2026-11-25",
+		headline: "Reports go to Roswaal's own issues.",
+		changed: [
+			"**Report this, Report something and every docs page's edit button open an issue on Roswaal**, where they opened one on the separate feedback repository, which is archived.",
+		],
+		added: [
+			"**A Code of Conduct and a security policy**, linked from Contributing: security problems are reported privately through GitHub.",
+		],
+		affects: ["editor", "docs"],
+	},
 	// A patch: the Privacy Policy's Cloudflare correction and the start-up
 	// check's fix, both brought back from 1.1.0's canary (canary.49, canary.46).
 	{

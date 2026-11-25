@@ -1,10 +1,9 @@
 /**
  * Where the documentation sends somebody who wants to say something.
  *
- * **Not the source repository**, which is a separate destination rather than a
- * fallback. Reports go to `roswaal-feedback`: the source repository is for
- * reading, and somebody who wants to file something should not have to work
- * out which of two repositories takes it.
+ * Roswaal's own issues, on the public repository: reports and the code they are
+ * about live in one place. (They went to a separate `roswaal-feedback`
+ * repository until 1.0.3, which is archived.)
  *
  * One constant, because two footers carry it: the published site's, rendered in
  * `html.ts`, and the editor's own docs window, in `PageEditor.tsx`. They build
@@ -13,7 +12,7 @@
  * is the destination and not the link.
  *
  */
-export const FEEDBACK_REPOSITORY = "https://github.com/neopolitans/roswaal-feedback";
+export const FEEDBACK_REPOSITORY = "https://github.com/neopolitans/Roswaal";
 
 /**
  * Roswaal's own source, public under 0BSD.
